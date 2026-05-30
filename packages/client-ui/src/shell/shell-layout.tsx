@@ -206,9 +206,7 @@ function ShellChrome({
   );
 
   const fiscalPeriodLabel = currentFiscalPeriod?.name ?? "期間 未選択";
-  const displayName = isDemoMode
-    ? "デモユーザー"
-    : (session?.displayName ?? "");
+  const displayName = session?.displayName ?? "";
   const email = isDemoMode ? "" : (session?.email ?? "");
 
   function navigate(href: string) {

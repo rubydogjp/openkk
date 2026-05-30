@@ -104,7 +104,12 @@ function buildSampleFiscalPeriod2026(
 export function buildSampleSession(config: OpenkkConfig, userId?: string): Session {
   return {
     userId: userId ?? config.mockUserId,
-    displayName: config.mode === "demo" ? "デモユーザー" : "開発ユーザー",
+    displayName:
+      config.mode === "demo"
+        ? "デモユーザー"
+        : config.mode === "dev"
+          ? "開発ユーザー"
+          : "このPCに保存",
     email: config.mode === "demo" ? "demo@example.com" : "dev@example.com",
   };
 }
