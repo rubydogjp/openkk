@@ -1,0 +1,29 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "OpenKK Dev",
+      "type": "node-terminal",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/packages/openkk",
+      "command": "npm run dev",
+      "serverReadyAction": {
+        "pattern": "- Local:\\s+(http://localhost:4303)",
+        "uriFormat": "%s",
+        "action": "openExternally"
+      }
+    },
+    {
+      "name": "OpenKK Demo",
+      "type": "node-terminal",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/packages/openkk",
+      "command": "npm run dev:demo",
+      "serverReadyAction": {
+        "pattern": "- Local:\\s+(http://localhost:4312)",
+        "uriFormat": "%s",
+        "action": "openExternally"
+      }
+    }
+  ]
+}
