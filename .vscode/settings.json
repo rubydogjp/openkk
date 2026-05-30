@@ -1,0 +1,24 @@
+{
+  "workbench.colorCustomizations": {
+    "titleBar.activeBackground": "#FFFFFF",
+    "titleBar.activeForeground": "#333333",
+    "titleBar.inactiveBackground": "#F5F5F5",
+    "titleBar.inactiveForeground": "#33333380",
+    "statusBar.background": "#FFFFFF",
+    "statusBar.foreground": "#333333",
+    "statusBar.debuggingBackground": "#EA4036",
+    "statusBar.debuggingForeground": "#FFFFFF",
+    "statusBar.noFolderBackground": "#888888",
+    "statusBarItem.hoverBackground": "#FFD6D3",
+    "statusBarItem.remoteBackground": "#EA4036",
+    "statusBarItem.remoteForeground": "#FFFFFF",
+    "activityBar.background": "#EA4036",
+    "activityBar.foreground": "#FFFFFF",
+    "activityBar.inactiveForeground": "#FFFFFF80",
+    "activityBar.activeBackground": "#FFFFFF22",
+    "activityBar.activeBorder": "#FFFFFF",
+    "activityBarBadge.background": "#FFFFFF",
+    "activityBarBadge.foreground": "#C5221F"
+  },
+  "window.title": "オープン会計"
+}
