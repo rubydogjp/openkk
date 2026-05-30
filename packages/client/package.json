@@ -1,0 +1,54 @@
+{
+  "name": "@rubydogjp/openkk-client",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./styles.css": "./dist/styles.css",
+    "./debug": {
+      "types": "./dist/debug.d.ts",
+      "import": "./dist/debug.js"
+    }
+  },
+  "scripts": {
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.build.json && cp src/styles.css dist/styles.css"
+  },
+  "dependencies": {
+    "@rubydogjp/openkk-client-ports": "^1.0.0",
+    "@rubydogjp/openkk-client-domain": "^1.0.0",
+    "@rubydogjp/openkk-client-usecases": "^1.0.0",
+    "@rubydogjp/openkk-client-ui": "^1.0.0"
+  },
+  "peerDependencies": {
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  },
+  "description": "オープン会計 client-side meta package — barrel that bundles domain, ports, usecases, and ui",
+  "license": "Apache-2.0",
+  "author": "rbdog <rbdog@rubydog.jp>",
+  "homepage": "https://github.com/rubydogjp/openkk#readme",
+  "bugs": {
+    "url": "https://github.com/rubydogjp/openkk/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rubydogjp/openkk.git",
+    "directory": "packages/client"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

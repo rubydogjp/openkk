@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>オープン会計 closing flow</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f7f8fa;
+        --surface: #ffffff;
+        --text: #17202a;
+        --muted: #64717f;
+        --line: #d8dee6;
+        --brand: #126a72;
+        --brand-bg: #e3f2f3;
+        --ok: #287a4b;
+        --warn: #a35b12;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        line-height: 1.6;
+      }
+
+      main {
+        width: min(920px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 34px 0 56px;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 30px;
+        line-height: 1.25;
+        letter-spacing: 0;
+      }
+
+      h2 {
+        font-size: 18px;
+        line-height: 1.35;
+      }
+
+      h3 {
+        font-size: 15px;
+      }
+
+      code {
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: #eef2f6;
+        color: #26323f;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.92em;
+      }
+
+      .lead {
+        margin-top: 10px;
+        max-width: 720px;
+        color: var(--muted);
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 16px;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        padding: 4px 10px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--surface);
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .section {
+        margin-top: 18px;
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+      }
+
+      .summary {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .summary div {
+        padding: 12px;
+        border-radius: 8px;
+        background: #f1f5f8;
+      }
+
+      .summary strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .summary span {
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .data {
+        display: grid;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .data-row {
+        display: grid;
+        grid-template-columns: 150px 1fr;
+        gap: 14px;
+        padding: 12px 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .data-row:first-child {
+        border-top: none;
+      }
+
+      .data-row h3 {
+        color: var(--brand);
+      }
+
+      .data-row p {
+        color: var(--muted);
+      }
+
+      .flow {
+        margin-top: 14px;
+        border-top: 1px solid var(--line);
+      }
+
+      .step {
+        display: grid;
+        grid-template-columns: 42px 1fr;
+        gap: 12px;
+        padding: 16px 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .num {
+        display: grid;
+        width: 32px;
+        height: 32px;
+        place-items: center;
+        border-radius: 999px;
+        background: var(--brand-bg);
+        color: var(--brand);
+        font-weight: 700;
+      }
+
+      .step p {
+        margin-top: 3px;
+        color: var(--muted);
+      }
+
+      .checks {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 9px;
+      }
+
+      .check {
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: #edf8f1;
+        color: var(--ok);
+        font-size: 13px;
+        font-weight: 650;
+      }
+
+      .check.when {
+        background: #fff4e6;
+        color: var(--warn);
+      }
+
+      .note {
+        margin-top: 14px;
+        padding: 12px 14px;
+        border-left: 4px solid var(--brand);
+        background: #f1f7f8;
+        color: #30434b;
+      }
+
+      .source {
+        margin-top: 14px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      @media (max-width: 760px) {
+        main {
+          width: min(100% - 20px, 920px);
+          padding-top: 22px;
+        }
+
+        h1 {
+          font-size: 24px;
+        }
+
+        .summary,
+        .data-row {
+          grid-template-columns: 1fr;
+        }
+
+        .data-row {
+          gap: 4px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>オープン会計 closing flow</h1>
+        <p class="lead">
+          会計期間の作成から決算完了までを通して確認する流れ。
+        </p>
+        <div class="chips">
+          <span class="chip"><code>e2e/tests/dev-closing-flow.spec.ts</code></span>
+          <span class="chip"><code>NEXT_PUBLIC_OPENKK_MODE=dev</code></span>
+        </div>
+      </header>
+
+      <section class="section">
+        <h2>前提</h2>
+        <div class="summary">
+          <div>
+            <strong>開始</strong>
+            <span>期間 0 / 仕訳 0 / 固定資産 0</span>
+          </div>
+          <div>
+            <strong>対象</strong>
+            <span>2026-01-01 から 2026-12-31</span>
+          </div>
+          <div>
+            <strong>目的</strong>
+            <span>入力、補助、締め、次期引き継ぎを通す</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>使うデータ</h2>
+        <div class="data">
+          <div class="data-row">
+            <h3>会計期間</h3>
+            <p>検証用 2026年分 長い名称 ABCDEFGHIJKLMNOPQRSTUVWXYZ</p>
+          </div>
+          <div class="data-row">
+            <h3>期首BS</h3>
+            <p>現金 100,000 / その他の預金 150,000 / 元入金 250,000</p>
+          </div>
+          <div class="data-row">
+            <h3>仕訳</h3>
+            <p><code>e2e/fixtures/dev-closing-entries.json</code> を取り込む。13 件。</p>
+          </div>
+          <div class="data-row">
+            <h3>代表仕訳</h3>
+            <p>9月の仕入・配送費、12月の減価償却を画面で確認。</p>
+          </div>
+          <div class="data-row">
+            <h3>固定資産</h3>
+            <p>検証用固定資産 長い名称のノートPC兼撮影機材</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>流れ</h2>
+        <div class="flow">
+          <article class="step">
+            <div class="num">1</div>
+            <div>
+              <h3>空の期間一覧から作成</h3>
+              <p>期間がないことを確認し、新しい期間を作る。</p>
+              <div class="checks">
+                <span class="check when">開始直後</span>
+                <span class="check">期間がありません</span>
+                <span class="check">/steps へ遷移</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="step">
+            <div class="num">2</div>
+            <div>
+              <h3>期間開始、期首BS入力</h3>
+              <p>最小限の期首残高を入れて保存する。</p>
+              <div class="checks">
+                <span class="check">現金</span>
+                <span class="check">その他の預金</span>
+                <span class="check">元入金</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="step">
+            <div class="num">3</div>
+            <div>
+              <h3>仕訳を取り込む</h3>
+              <p>一年分の仕訳を JSON で取り込む。</p>
+              <div class="checks">
+                <span class="check when">仕訳ステップ到達後</span>
+                <span class="check">取込 13 件</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="step">
+            <div class="num">4</div>
+            <div>
+              <h3>代表仕訳を見る</h3>
+              <p>9月の複数行相当の仕訳と、12月の減価償却を確認する。</p>
+              <div class="checks">
+                <span class="check">仕入高 168,000</span>
+                <span class="check">荷造運賃 42,000</span>
+                <span class="check">減価償却費 94,500</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="step">
+            <div class="num">5</div>
+            <div>
+              <h3>補助で固定資産を追加</h3>
+              <p>締め前の自然なタイミングで補助機能を使う。</p>
+              <div class="checks">
+                <span class="check">固定資産一覧が空</span>
+                <span class="check">追加後に名称表示</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="step">
+            <div class="num">6</div>
+            <div>
+              <h3>仮締め、本締め</h3>
+              <p>帳票と財務諸表の概要が出ることを確認する。</p>
+              <div class="checks">
+                <span class="check">仮_仕訳帳</span>
+                <span class="check">仮_総勘定元帳</span>
+                <span class="check">財務諸表の概要</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="step">
+            <div class="num">7</div>
+            <div>
+              <h3>受け取り、次期へ</h3>
+              <p>正式帳票、引き継ぎ項目、完了後ナビを確認する。</p>
+              <div class="checks">
+                <span class="check">仕訳帳</span>
+                <span class="check">総勘定元帳</span>
+                <span class="check">財務諸表</span>
+                <span class="check">次期を作成</span>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>更新するとき</h2>
+        <p class="note">
+          ここは確認内容の早見表です。操作手順の詳細はテスト本体を参照します。
+        </p>
+        <p class="source">
+          Source:
+          <code>e2e/tests/dev-closing-flow.spec.ts</code>
+          <code>e2e/fixtures/dev-closing-entries.json</code>
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

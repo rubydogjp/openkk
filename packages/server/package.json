@@ -1,0 +1,44 @@
+{
+  "name": "@rubydogjp/openkk-server",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@rubydogjp/openkk-server-ports": "^1.0.0",
+    "@rubydogjp/openkk-server-api": "^1.0.0",
+    "@rubydogjp/openkk-server-domain": "^1.0.0",
+    "@rubydogjp/openkk-server-usecases": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  },
+  "description": "オープン会計 server-side meta package — bundles server layers and provides createOpenkkServer(db, config)",
+  "license": "Apache-2.0",
+  "author": "rbdog <rbdog@rubydog.jp>",
+  "homepage": "https://github.com/rubydogjp/openkk#readme",
+  "bugs": {
+    "url": "https://github.com/rubydogjp/openkk/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rubydogjp/openkk.git",
+    "directory": "packages/server"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

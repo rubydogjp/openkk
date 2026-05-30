@@ -1,0 +1,13 @@
+node_modules
+temp/
+test-results/
+playwright-report/
+dist
+.turbo
+*.tsbuildinfo
+.DS_Store
+
+# Next.js (packages/openkk app)
+.next/
+out/
+next-env.d.ts

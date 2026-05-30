@@ -1,0 +1,41 @@
+{
+  "name": "@rubydogjp/openkk-embedded-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@rubydogjp/openkk-server": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  },
+  "description": "オープン会計 embedded backend composition root — runs openkk-server in-process (same JS runtime as the client). Inject any OpenkkDbPort (file / memory / etc.).",
+  "license": "Apache-2.0",
+  "author": "rbdog <rbdog@rubydog.jp>",
+  "homepage": "https://github.com/rubydogjp/openkk#readme",
+  "bugs": {
+    "url": "https://github.com/rubydogjp/openkk/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rubydogjp/openkk.git",
+    "directory": "packages/embedded-backend"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

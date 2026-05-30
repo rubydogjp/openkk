@@ -1,0 +1,42 @@
+{
+  "name": "@rubydogjp/openkk-memory-db-adapter",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@sqlite.org/sqlite-wasm": "^3.50.0-build1",
+    "@rubydogjp/openkk-server-ports": "^1.0.0"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "description": "オープン会計 OpenkkDbPort implementation backed by SQLite Wasm in-memory database",
+  "license": "Apache-2.0",
+  "author": "rbdog <rbdog@rubydog.jp>",
+  "homepage": "https://github.com/rubydogjp/openkk#readme",
+  "bugs": {
+    "url": "https://github.com/rubydogjp/openkk/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rubydogjp/openkk.git",
+    "directory": "packages/memory-db-adapter"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

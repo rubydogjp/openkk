@@ -1,0 +1,129 @@
+import type { OpenkkConfig } from "./openkk-config";
+import type { FiscalPeriod, Session } from "./models";
+import { DEFAULT_BOOK_ACCOUNTS } from "../entries/default-master-data";
+
+function bookAccountIdByName(name: string): string {
+  return DEFAULT_BOOK_ACCOUNTS.find((acc) => acc.name === name)?.id ?? name;
+}
+
+function buildSampleCarryoverJournals(fiscalPeriodId: string) {
+  const fiscalYear = fiscalPeriodId.slice(3, 7);
+  const date = `${fiscalYear}-01-01`;
+  const sample = [
+    { description: "期首再振替 売掛金", debit: "売掛金", credit: "売上", amount: 240000, partner: "", biz: "" },
+    { description: "期首再振替 未収入金", debit: "未収入金", credit: "雑収入", amount: 64000, partner: "", biz: "" },
+    { description: "期首再振替 商品", debit: "商品", credit: "仕入高", amount: 150000, partner: "", biz: "" },
+    { description: "期首再振替 貯蔵品", debit: "消耗品費", credit: "貯蔵品", amount: 28000, partner: "", biz: "" },
+    { description: "期首再振替 未払金", debit: "地代家賃", credit: "未払金", amount: 120000, partner: "共同オフィスA", biz: "" },
+    { description: "期首再振替 前受金", debit: "前受金", credit: "売上", amount: 48000, partner: "", biz: "第5種" },
+  ];
+  return sample.map((s, index) => {
+    const id = `oc-${fiscalPeriodId}-${index + 1}`;
+    return {
+      id,
+      date,
+      description: s.description,
+      businessRate: 1,
+      lines: [
+        {
+          id: `${id}-d`,
+          side: "debit" as const,
+          bookAccountId: bookAccountIdByName(s.debit),
+          amount: s.amount,
+          partnerName: s.partner,
+          taxCategoryName: "対象外",
+          businessCategoryName: s.biz,
+        },
+        {
+          id: `${id}-c`,
+          side: "credit" as const,
+          bookAccountId: bookAccountIdByName(s.credit),
+          amount: s.amount,
+          partnerName: s.partner,
+          taxCategoryName: "対象外",
+          businessCategoryName: s.biz,
+        },
+      ],
+    };
+  });
+}
+
+export const sampleOpeningBalanceLines = [
+  { id: "cash", accountId: "a:現金", amount: 320000 },
+  { id: "bank", accountId: "a:その他の預金", amount: 1800000 },
+  { id: "receivable", accountId: "a:売掛金", amount: 240000 },
+  { id: "accrued_revenue", accountId: "a:未収入金", amount: 64000 },
+  { id: "inventory", accountId: "a:棚卸資産", amount: 150000 },
+  { id: "stored_supplies", accountId: "a:貯蔵品", amount: 28000 },
+  { id: "payable", accountId: "l:買掛金", amount: 120000 },
+  { id: "advance_received", accountId: "l:前受金", amount: 48000 },
+  { id: "borrowing", accountId: "l:借入金", amount: 600000 },
+  { id: "capital", accountId: "l:元入金", amount: 1834000 },
+];
+
+export const sampleOpeningDebitTotal = sampleOpeningBalanceLines
+  .filter((line) => line.accountId.startsWith("a:"))
+  .reduce((sum, line) => sum + line.amount, 0);
+
+export const sampleOpeningCreditTotal = sampleOpeningBalanceLines
+  .filter((line) => line.accountId.startsWith("l:"))
+  .reduce((sum, line) => sum + line.amount, 0);
+
+function buildSampleFiscalPeriod2026(
+  userId: string,
+  name: string,
+  progress: "in-progress" | "fresh",
+): FiscalPeriod {
+  const isInProgress = progress === "in-progress";
+  return {
+    id: "fp-2026",
+    name,
+    startDate: "2026-01-01",
+    endDate: "2026-12-31",
+    stage: isInProgress ? "journalizing" : "pre_opening",
+    provisionalClosingCompleted: false,
+    settingsCompleted: isInProgress,
+    openingBalancesCompleted: isInProgress,
+    documentsReceivedCompleted: false,
+    openingDebitTotal: sampleOpeningDebitTotal,
+    openingCreditTotal: sampleOpeningCreditTotal,
+    opening: {
+      id: "opening-fp-2026",
+      userId,
+      fiscalPeriodId: "fp-2026",
+
+      openingBalanceLines: sampleOpeningBalanceLines,
+
+      carryoverJournals: isInProgress
+        ? buildSampleCarryoverJournals("fp-2026")
+        : [],
+    },
+  };
+}
+
+export function buildSampleSession(config: OpenkkConfig, userId?: string): Session {
+  return {
+    userId: userId ?? config.mockUserId,
+    displayName: config.mode === "demo" ? "デモユーザー" : "開発ユーザー",
+    email: config.mode === "demo" ? "demo@example.com" : "dev@example.com",
+  };
+}
+
+export function buildBootstrapFiscalPeriods(config: OpenkkConfig): FiscalPeriod[] {
+
+  return config.mode === "demo"
+    ? [buildSampleFiscalPeriod2026(config.mockUserId, "デモ期間2026年分", "fresh")]
+    : [buildSampleFiscalPeriod2026(config.mockUserId, "2026年分", "in-progress")];
+}
+
+export function buildBootstrapSessionUserId(config: OpenkkConfig): string | null {
+  return config.initialMockUserId;
+}
+
+export function buildBootstrapFiscalPeriodId(config: OpenkkConfig): string | null {
+  return config.initialMockFiscalPeriodId;
+}
+
+export function buildSignedOutFiscalPeriodId(config: OpenkkConfig): string | null {
+  return config.mode === "dev" ? config.initialMockFiscalPeriodId : null;
+}

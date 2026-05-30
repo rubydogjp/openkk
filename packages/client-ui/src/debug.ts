@@ -1,0 +1,10 @@
+export { DebugIndexPage } from "./routes/debug/debug-index-page";
+export { ColorThemePage } from "./routes/debug/color-theme/color-theme-page";
+export { LayoutSizesPage } from "./routes/debug/layout-sizes/layout-sizes-page";
+export { FontThemePage } from "./routes/debug/font-theme/font-theme-page";
+export { GeneralLedgerPaperTemplatePage } from "./routes/debug/general-ledger-paper-template/general-ledger-paper-template-page";
+export { FinancialStatementsPaperTemplatePage } from "./routes/debug/financial-statements-paper-template/financial-statements-paper-template-page";
+export { JournalPaperTemplatePage } from "./routes/debug/journal-paper-template/journal-paper-template-page";
+export { JsonImportPage } from "./routes/debug/json-import/json-import-page";
+export { PlBsDiagramPreviewPage } from "./routes/debug/pl-bs-diagram-preview/pl-bs-diagram-preview-page";
+export { MaintenancePreviewPage } from "./routes/debug/maintenance-preview/maintenance-preview-page";

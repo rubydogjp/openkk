@@ -1,0 +1,48 @@
+{
+  "name": "openkk",
+  "private": true,
+  "workspaces": [
+    "packages/client-domain",
+    "packages/client-ports",
+    "packages/client-usecases",
+    "packages/client-ui",
+    "packages/client",
+    "packages/server-domain",
+    "packages/server-ports",
+    "packages/server-usecases",
+    "packages/server-api",
+    "packages/server",
+    "packages/memory-db-adapter",
+    "packages/file-db-adapter",
+    "packages/embedded-backend",
+    "packages/embedded-backend-adapter",
+    "packages/print-adapter",
+    "packages/openkk"
+  ],
+  "scripts": {
+    "prepare": "npm run build:packages",
+    "check": "npm run build:packages && npm run lint && npm test",
+    "build:packages": "npm run build -w @rubydogjp/openkk-client-domain -w @rubydogjp/openkk-server-domain -w @rubydogjp/openkk-client-ports -w @rubydogjp/openkk-server-ports -w @rubydogjp/openkk-client-usecases -w @rubydogjp/openkk-server-usecases -w @rubydogjp/openkk-client-ui -w @rubydogjp/openkk-server-api -w @rubydogjp/openkk-client -w @rubydogjp/openkk-server -w @rubydogjp/openkk-print-adapter -w @rubydogjp/openkk-file-db-adapter -w @rubydogjp/openkk-memory-db-adapter -w @rubydogjp/openkk-embedded-backend -w @rubydogjp/openkk-embedded-backend-adapter",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "gen-deps": "node scripts/gen-dep-graph.mjs",
+    "test:e2e": "playwright test --config=e2e/playwright.config.ts"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4",
+    "@playwright/test": "^1.58.2"
+  },
+  "version": "1.0.0",
+  "description": "オープン会計 — open-source double-entry bookkeeping library for sole proprietors. Hexagonal architecture with swappable backend and storage adapters.",
+  "license": "Apache-2.0",
+  "author": "rbdog <rbdog@rubydog.jp>",
+  "homepage": "https://github.com/rubydogjp/openkk#readme",
+  "bugs": {
+    "url": "https://github.com/rubydogjp/openkk/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rubydogjp/openkk.git"
+  }
+}

@@ -1,0 +1,183 @@
+import fs from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+
+const rootDir = path.resolve(import.meta.dirname, "..");
+const packagesDir = path.join(rootDir, "packages");
+const rootPackageJson = readJson(path.join(rootDir, "package.json"));
+const workspaceNames = rootPackageJson.workspaces.map((workspace: string) =>
+  workspace.replace(/^packages\//, ""),
+);
+const packageDirs = fs
+  .readdirSync(packagesDir, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name)
+  .sort();
+
+const packageRecords = packageDirs.map((packageDir) => {
+  const dir = path.join(packagesDir, packageDir);
+  const packageJson = readJson(path.join(dir, "package.json"));
+  const tsconfig = readJson(path.join(dir, "tsconfig.json"));
+  return { packageDir, dir, packageJson, tsconfig };
+});
+
+const packageNameToDir = new Map(
+  packageRecords.map((record) => [record.packageJson.name, record.packageDir]),
+);
+
+describe("openkk workspace structure", () => {
+  it("keeps package directories and root workspaces in sync", () => {
+    expect(workspaceNames.sort()).toEqual(packageDirs);
+  });
+
+  it("keeps library packages on the same public entry shape", () => {
+    for (const record of packageRecords.filter(
+      (item) => item.packageDir !== "openkk",
+    )) {
+      expect(record.packageJson.name).toBe(packageName(record.packageDir));
+      expect(record.packageJson.private).toBeUndefined();
+      expect(record.packageJson.main).toBe("./dist/index.js");
+      expect(record.packageJson.types).toBe("./dist/index.d.ts");
+      expect(record.packageJson.exports["."]).toEqual({
+        types: "./dist/index.d.ts",
+        import: "./dist/index.js",
+      });
+      expect(record.packageJson.files).toEqual(["dist"]);
+      expect(record.packageJson.publishConfig).toEqual({ access: "public" });
+      expect(record.packageJson.scripts.lint).toBe(
+        "tsc -p tsconfig.json --noEmit",
+      );
+      expect(record.packageJson.scripts.build).toBeDefined();
+      expect(fs.existsSync(path.join(record.dir, "src/index.ts"))).toBe(true);
+      expect(fs.existsSync(path.join(record.dir, "tsconfig.build.json"))).toBe(
+        true,
+      );
+    }
+  });
+
+  it("keeps style subpath exports limited to client packages", () => {
+    for (const record of packageRecords) {
+      const styleExport = record.packageJson.exports?.["./styles.css"];
+      if (record.packageDir === "client" || record.packageDir === "client-ui") {
+        expect(styleExport).toBe("./dist/styles.css");
+        expect(fs.existsSync(path.join(record.dir, "src/styles.css"))).toBe(
+          true,
+        );
+      } else if (record.packageDir !== "openkk") {
+        expect(styleExport).toBeUndefined();
+      }
+    }
+  });
+
+  it("keeps tsconfig layout predictable", () => {
+    for (const record of packageRecords) {
+      expect(record.tsconfig.extends).toBe("../../tsconfig.base.json");
+      if (record.packageDir === "openkk") {
+        expect(record.tsconfig.compilerOptions.jsx).toBe("preserve");
+        expect(record.tsconfig.include).toContain("**/*.tsx");
+      } else {
+        expect(record.tsconfig.include).toEqual([
+          "src/**/*.ts",
+          "src/**/*.tsx",
+        ]);
+      }
+    }
+  });
+
+  it("declares every internal package import and avoids self imports", () => {
+    for (const record of packageRecords) {
+      const internalImports = findInternalImports(record.dir);
+      const declared = new Set([
+        ...Object.keys(record.packageJson.dependencies ?? {}),
+        ...Object.keys(record.packageJson.peerDependencies ?? {}),
+      ]);
+      for (const importedPackage of internalImports) {
+        expect(importedPackage).not.toBe(record.packageJson.name);
+        expect(packageNameToDir.has(importedPackage)).toBe(true);
+        expect(declared.has(importedPackage)).toBe(true);
+      }
+    }
+  });
+
+  it("apps consume client-* / server-* only via the meta barrels", () => {
+    const CLIENT_SUBPACKAGES = [
+      "@rubydogjp/openkk-client-domain",
+      "@rubydogjp/openkk-client-ports",
+      "@rubydogjp/openkk-client-usecases",
+      "@rubydogjp/openkk-client-ui",
+    ];
+    const SERVER_SUBPACKAGES = [
+      "@rubydogjp/openkk-server-domain",
+      "@rubydogjp/openkk-server-ports",
+      "@rubydogjp/openkk-server-usecases",
+      "@rubydogjp/openkk-server-api",
+    ];
+    const ADAPTER_EXEMPTIONS = new Set([
+      "embedded-backend-adapter",
+      "print-adapter",
+      "file-db-adapter",
+      "memory-db-adapter",
+    ]);
+    for (const record of packageRecords) {
+      if (ADAPTER_EXEMPTIONS.has(record.packageDir)) continue;
+      if (record.packageDir === "client" || record.packageDir === "server") {
+        continue;
+      }
+      const isClientLayer = record.packageDir.startsWith("client-");
+      const isServerLayer = record.packageDir.startsWith("server-");
+      const forbidden = new Set<string>([
+        ...(isClientLayer ? [] : CLIENT_SUBPACKAGES),
+        ...(isServerLayer ? [] : SERVER_SUBPACKAGES),
+      ]);
+      const internalImports = findInternalImports(record.dir);
+      for (const importedPackage of internalImports) {
+        expect(
+          forbidden.has(importedPackage),
+          `${record.packageJson.name} must not import ${importedPackage} directly — use the @rubydogjp/openkk-client or @rubydogjp/openkk-server meta barrel instead`,
+        ).toBe(false);
+      }
+    }
+  });
+});
+
+function packageName(packageDir: string): string {
+  return packageDir === "openkk"
+    ? "@rubydogjp/openkk"
+    : `@rubydogjp/openkk-${packageDir}`;
+}
+
+function readJson(file: string) {
+  return JSON.parse(fs.readFileSync(file, "utf8"));
+}
+
+function findInternalImports(packageDir: string): Set<string> {
+  const out = new Set<string>();
+  for (const file of listFiles(packageDir)) {
+    if (!/\.(ts|tsx|js|jsx|mjs|cjs|css)$/.test(file)) continue;
+    const text = fs.readFileSync(file, "utf8");
+    for (const match of text.matchAll(
+      /@rubydogjp\/openkk(?:-[a-z0-9-]+)?(?:\/[a-z0-9./_-]+)?/g,
+    )) {
+      const bare = match[0].match(/^(@rubydogjp\/openkk(?:-[a-z0-9-]+)?)/)?.[1];
+      if (bare != null) out.add(bare);
+    }
+  }
+  return out;
+}
+
+function listFiles(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (
+      entry.name === "node_modules" ||
+      entry.name === ".next" ||
+      entry.name === "out" ||
+      entry.name === "dist"
+    )
+      continue;
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...listFiles(full));
+    else out.push(full);
+  }
+  return out;
+}
