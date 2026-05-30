@@ -10,7 +10,16 @@ import {
   useOpenkkConfig,
 } from "@rubydogjp/openkk-client-usecases";
 
-import { fontSize, fontWeight, palette, radii, shadows, sizes, spacing, typography } from "../shared/design-tokens";
+import {
+  fontSize,
+  fontWeight,
+  palette,
+  radii,
+  shadows,
+  sizes,
+  spacing,
+  typography,
+} from "../shared/design-tokens";
 import { normalizePathname } from "../shared/pathname";
 import { FiscalPeriodsContent } from "./fiscal-periods-content";
 import { SignInContent } from "./sign-in-content";
@@ -59,9 +68,7 @@ const CREATE_URL = "/fiscal-periods/new";
 
 type ContentMode = "loading" | "sign-in" | "fiscal-periods" | "normal";
 
-export function OpenkkShellLayout(props: {
-  children: React.ReactNode;
-}) {
+export function OpenkkShellLayout(props: { children: React.ReactNode }) {
   const pathname = normalizePathname(usePathname());
   const router = useRouter();
   const appState = useOpenkkAppState();
@@ -115,7 +122,6 @@ export function OpenkkShellLayout(props: {
       isDemoMode={isDemoMode}
       editionLabel={editionLabel}
     >
-
       {contentMode === "sign-in" ? (
         <SignInContent />
       ) : contentMode === "fiscal-periods" ? (
@@ -223,9 +229,7 @@ function ShellChrome({
       const redirectUrl = `${window.location.origin}/auth/result`;
       const result = await appState.startSignIn(redirectUrl);
       window.location.href = result.authUrl;
-    } catch {
-
-    }
+    } catch {}
   }
 
   return (
@@ -270,7 +274,13 @@ function ShellChrome({
             />
           </svg>
         </button>
-        <span style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold, color: palette.text }}>
+        <span
+          style={{
+            fontSize: fontSize.md,
+            fontWeight: fontWeight.bold,
+            color: palette.text,
+          }}
+        >
           オープン会計
         </span>
       </div>
@@ -291,7 +301,6 @@ function ShellChrome({
           overflow: "hidden",
         }}
       >
-
         <aside
           className={
             drawerOpen
@@ -307,7 +316,6 @@ function ShellChrome({
             width: SIDEBAR_WIDTH,
           }}
         >
-
           <div
             style={{
               padding: "14px 12px 6px",
@@ -316,7 +324,6 @@ function ShellChrome({
               gap: 10,
             }}
           >
-
             <img
               src="/images/openkk-icon.png"
               alt=""
@@ -470,7 +477,9 @@ function ShellChrome({
                           <span
                             style={{
                               fontSize: fontSize.base,
-                              fontWeight: isCurrent ? fontWeight.bold : fontWeight.medium,
+                              fontWeight: isCurrent
+                                ? fontWeight.bold
+                                : fontWeight.medium,
                               color: palette.text,
                               whiteSpace: "nowrap",
                               overflow: "hidden",
@@ -582,8 +591,9 @@ function ShellChrome({
           <div style={{ flex: 1 }} />
 
           <div style={{ padding: 8, position: "relative" }}>
-            {hasSession && isDemoMode && brandConfig.marketingSiteUrl != null ? (
-
+            {hasSession &&
+            isDemoMode &&
+            brandConfig.marketingSiteUrl != null ? (
               <button
                 type="button"
                 onClick={() =>
@@ -607,7 +617,7 @@ function ShellChrome({
                 }}
               >
                 <ExternalLinkIcon size={14} color={palette.surface} />
-                <span>ホームページへ</span>
+                <span>公式サイト</span>
               </button>
             ) : null}
             {hasSession ? (
@@ -645,13 +655,11 @@ function ShellChrome({
                     }}
                   >
                     {isDemoMode ? (
-
                       <img
                         src="/images/demo-mode.svg"
                         alt=""
                         width={20}
                         height={20}
-
                         style={{ filter: "grayscale(1)" }}
                       />
                     ) : (
@@ -726,7 +734,6 @@ function ShellChrome({
                         }}
                       >
                         {isDemoMode ? (
-
                           <img
                             src="/images/demo-mode.svg"
                             alt=""
@@ -769,7 +776,6 @@ function ShellChrome({
                     </div>
 
                     <div style={{ padding: "6px 0" }}>
-
                       {/* 個人設定画面は未実装のため常に無効。 */}
                       <MenuButton
                         icon={
@@ -825,7 +831,6 @@ function ShellChrome({
                 )}
               </>
             ) : (
-
               <button
                 type="button"
                 onClick={handleSignInClick}

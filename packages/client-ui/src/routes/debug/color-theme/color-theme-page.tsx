@@ -833,7 +833,7 @@ function ApplicationSample() {
                 marginTop: 290,
               }}
             >
-              ホームページへ
+              公式サイト
             </button>
           </aside>
           <main style={{ background: appPalette.page, padding: 18 }}>
