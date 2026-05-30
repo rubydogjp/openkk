@@ -21,15 +21,6 @@ test(`export smoke (${MODE}): アセット欠落・JS エラーがない`, async
 });
 
 test(`export smoke (${MODE}): ローカル DB が初期化できる`, async ({ page }) => {
-  // 既知問題: 無印版(prod) は file-db-adapter が SQLite OPFS(SAHPool) を
-  // メインスレッドで初期化するが、createSyncAccessHandle は Web Worker でしか
-  // 提供されず "Missing required OPFS APIs" で失敗する。
-  // 解消には SQLite を Web Worker 上で動かす改修が必要（fixme を外すと検証が有効化）。
-  test.fixme(
-    MODE === "prod",
-    "file-db (SQLite OPFS SAHPool) must run in a Web Worker",
-  );
-
   await page.goto("/", { waitUntil: "networkidle" });
   await page.waitForTimeout(2000);
   await expect(page.locator("body")).not.toContainText("初期化に失敗");

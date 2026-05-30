@@ -18,5 +18,8 @@ export async function createMemoryDbAdapter(
   });
   const db = new sqlite3.oo1.DB(":memory:");
   runMigrations(db);
-  return createSqliteDbAdapter(db as unknown as SqlDb, seed);
+  // インメモリ DB は同期で動くため、async ポート契約には薄くラップするだけ。
+  const sync = db as unknown as { exec(arg: unknown): unknown };
+  const sqlDb: SqlDb = { exec: async (arg) => sync.exec(arg) };
+  return createSqliteDbAdapter(sqlDb, seed);
 }

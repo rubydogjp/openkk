@@ -21,9 +21,10 @@ import type {
   OpenkkDbPort,
 } from "../db-adapter";
 
-/** Minimal interface required by createSqliteDbAdapter. SQLite Wasm Database and OpfsSAHPoolDatabase both satisfy this at runtime; cast with `db as unknown as SqlDb` when passing them. */
+/** Minimal async interface required by createSqliteDbAdapter. Adapters provide it
+ * either by wrapping a same-thread SQLite Wasm DB or by proxying to a Web Worker. */
 export interface SqlDb {
-  exec(arg: string | { sql: string; bind?: unknown[]; returnValue?: string; rowMode?: string }): unknown;
+  exec(arg: string | { sql: string; bind?: unknown[]; returnValue?: string; rowMode?: string }): Promise<unknown>;
 }
 
 export type DbSnapshot = {
@@ -37,12 +38,12 @@ export type DbSnapshot = {
   }>;
 };
 
-export function createSqliteDbAdapter(
+export async function createSqliteDbAdapter(
   db: SqlDb,
   seed?: DbSnapshot,
-): OpenkkDbPort {
+): Promise<OpenkkDbPort> {
   if (seed != null) {
-    seedStores(db, seed);
+    await seedStores(db, seed);
   }
   return {
     fiscalPeriods: createFiscalPeriodsDb(db),
@@ -64,28 +65,28 @@ function nowMs(): number {
   return Date.now();
 }
 
-function seedStores(db: SqlDb, seed: DbSnapshot): void {
+async function seedStores(db: SqlDb, seed: DbSnapshot): Promise<void> {
   const now = nowMs();
   for (const item of seed.fiscalPeriods) {
-    db.exec({
+    await db.exec({
       sql: `INSERT INTO fiscal_periods(id, user_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
       bind: [item.record.id, item.userId, JSON.stringify(item.record), now, now],
     });
   }
   for (const entry of seed.entries) {
-    db.exec({
+    await db.exec({
       sql: `INSERT INTO entries(id, fiscal_period_id, date, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?)`,
       bind: [entry.id, entry.fiscalPeriodId, entry.date, JSON.stringify(entry), now, now],
     });
   }
   for (const asset of seed.fixedAssets) {
-    db.exec({
+    await db.exec({
       sql: `INSERT INTO fixed_assets(id, fiscal_period_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
       bind: [asset.id, asset.fiscalPeriodId, JSON.stringify(asset), now, now],
     });
   }
   for (const closing of seed.closings) {
-    db.exec({
+    await db.exec({
       sql: `INSERT OR REPLACE INTO closings(fiscal_period_id, year, is_provisional) VALUES(?, ?, ?)`,
       bind: [closing.fiscalPeriodId, closing.year, closing.isProvisional ? 1 : 0],
     });
@@ -95,7 +96,7 @@ function seedStores(db: SqlDb, seed: DbSnapshot): void {
 function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
   return {
     async getAllByUser(userId) {
-      const rows = db.exec({
+      const rows = await db.exec({
         sql: `SELECT data FROM fiscal_periods WHERE user_id = ? ORDER BY created_at ASC`,
         bind: [userId],
         returnValue: "resultRows",
@@ -104,7 +105,7 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       return rows.map((row) => JSON.parse(row[0]) as FiscalPeriodApiRecord);
     },
     async getById(id) {
-      const rows = db.exec({
+      const rows = await db.exec({
         sql: `SELECT data FROM fiscal_periods WHERE id = ?`,
         bind: [id],
         returnValue: "resultRows",
@@ -127,14 +128,14 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         opening: null,
       };
       const now = nowMs();
-      db.exec({
+      await db.exec({
         sql: `INSERT INTO fiscal_periods(id, user_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
         bind: [id, userId, JSON.stringify(record), now, now],
       });
       return record;
     },
     async update(id, patch) {
-      const rows = db.exec({
+      const rows = await db.exec({
         sql: `SELECT user_id, data FROM fiscal_periods WHERE id = ?`,
         bind: [id],
         returnValue: "resultRows",
@@ -154,21 +155,21 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         ...(patch.documentsReceivedCompleted !== undefined ? { documentsReceivedCompleted: patch.documentsReceivedCompleted } : {}),
         ...(patch.opening !== undefined ? { opening: patch.opening } : {}),
       };
-      db.exec({
+      await db.exec({
         sql: `UPDATE fiscal_periods SET data = ?, updated_at = ? WHERE id = ?`,
         bind: [JSON.stringify(updated), nowMs(), id],
       });
       return updated;
     },
     async delete(id) {
-      db.exec({ sql: `DELETE FROM fiscal_periods WHERE id = ?`, bind: [id] });
+      await db.exec({ sql: `DELETE FROM fiscal_periods WHERE id = ?`, bind: [id] });
     },
   };
 }
 
 function createEntriesDb(db: SqlDb): EntriesDb {
-  function loadAllByFiscalPeriod(fpId: string): EntryApiRecord[] {
-    const rows = db.exec({
+  async function loadAllByFiscalPeriod(fpId: string): Promise<EntryApiRecord[]> {
+    const rows = await db.exec({
       sql: `SELECT data FROM entries WHERE fiscal_period_id = ? ORDER BY date ASC, created_at ASC`,
       bind: [fpId],
       returnValue: "resultRows",
@@ -182,7 +183,7 @@ function createEntriesDb(db: SqlDb): EntriesDb {
       return loadAllByFiscalPeriod(fiscalPeriodId);
     },
     async getByMonth(fiscalPeriodId, yearMonth) {
-      const rows = db.exec({
+      const rows = await db.exec({
         sql: `SELECT data FROM entries WHERE fiscal_period_id = ? AND date LIKE ? ORDER BY date ASC, created_at ASC`,
         bind: [fiscalPeriodId, `${yearMonth}%`],
         returnValue: "resultRows",
@@ -191,7 +192,7 @@ function createEntriesDb(db: SqlDb): EntriesDb {
       return rows.map((row) => JSON.parse(row[0]) as EntryApiRecord);
     },
     async getById(id) {
-      const rows = db.exec({
+      const rows = await db.exec({
         sql: `SELECT data FROM entries WHERE id = ?`,
         bind: [id],
         returnValue: "resultRows",
@@ -212,14 +213,14 @@ function createEntriesDb(db: SqlDb): EntriesDb {
         lines: input.lines.map((line) => ({ ...line })),
       };
       const now = nowMs();
-      db.exec({
+      await db.exec({
         sql: `INSERT INTO entries(id, fiscal_period_id, date, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?)`,
         bind: [id, fiscalPeriodId, record.date, JSON.stringify(record), now, now],
       });
       return record;
     },
     async update(id, input) {
-      const rows = db.exec({
+      const rows = await db.exec({
         sql: `SELECT data FROM entries WHERE id = ?`,
         bind: [id],
         returnValue: "resultRows",
@@ -236,14 +237,14 @@ function createEntriesDb(db: SqlDb): EntriesDb {
         businessRate: input.businessRate,
         lines: input.lines.map((line) => ({ ...line })),
       };
-      db.exec({
+      await db.exec({
         sql: `UPDATE entries SET date = ?, data = ?, updated_at = ? WHERE id = ?`,
         bind: [updated.date, JSON.stringify(updated), nowMs(), id],
       });
       return updated;
     },
     async delete(id) {
-      db.exec({ sql: `DELETE FROM entries WHERE id = ?`, bind: [id] });
+      await db.exec({ sql: `DELETE FROM entries WHERE id = ?`, bind: [id] });
     },
     async importMany(_userId, fiscalPeriodId, inputs) {
       const created: EntryApiRecord[] = [];
@@ -259,7 +260,7 @@ function createEntriesDb(db: SqlDb): EntriesDb {
           lines: input.lines.map((line) => ({ ...line })),
         };
         const now = nowMs();
-        db.exec({
+        await db.exec({
           sql: `INSERT INTO entries(id, fiscal_period_id, date, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?)`,
           bind: [id, fiscalPeriodId, record.date, JSON.stringify(record), now, now],
         });
@@ -273,7 +274,7 @@ function createEntriesDb(db: SqlDb): EntriesDb {
 function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
   return {
     async getAllByFiscalPeriod(fiscalPeriodId) {
-      const rows = db.exec({
+      const rows = await db.exec({
         sql: `SELECT data FROM fixed_assets WHERE fiscal_period_id = ? ORDER BY created_at ASC`,
         bind: [fiscalPeriodId],
         returnValue: "resultRows",
@@ -282,7 +283,7 @@ function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
       return rows.map((row) => JSON.parse(row[0]) as FixedAssetApiRecord);
     },
     async getById(id) {
-      const rows = db.exec({
+      const rows = await db.exec({
         sql: `SELECT data FROM fixed_assets WHERE id = ?`,
         bind: [id],
         returnValue: "resultRows",
@@ -308,14 +309,14 @@ function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
         bookAccountId: input.bookAccountId,
       };
       const now = nowMs();
-      db.exec({
+      await db.exec({
         sql: `INSERT INTO fixed_assets(id, fiscal_period_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
         bind: [id, fiscalPeriodId, JSON.stringify(record), now, now],
       });
       return record;
     },
     async update(id, patch) {
-      const rows = db.exec({
+      const rows = await db.exec({
         sql: `SELECT data FROM fixed_assets WHERE id = ?`,
         bind: [id],
         returnValue: "resultRows",
@@ -333,14 +334,14 @@ function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
         ...(patch.disposalPrice !== undefined ? { disposalPrice: patch.disposalPrice } : {}),
         ...(patch.bookAccountId !== undefined ? { bookAccountId: patch.bookAccountId } : {}),
       };
-      db.exec({
+      await db.exec({
         sql: `UPDATE fixed_assets SET data = ?, updated_at = ? WHERE id = ?`,
         bind: [JSON.stringify(updated), nowMs(), id],
       });
       return updated;
     },
     async delete(id) {
-      db.exec({ sql: `DELETE FROM fixed_assets WHERE id = ?`, bind: [id] });
+      await db.exec({ sql: `DELETE FROM fixed_assets WHERE id = ?`, bind: [id] });
     },
   };
 }
@@ -348,7 +349,7 @@ function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
 function createClosingsDb(db: SqlDb): ClosingsDb {
   return {
     async get(fiscalPeriodId, year) {
-      const rows = db.exec({
+      const rows = await db.exec({
         sql: `SELECT is_provisional FROM closings WHERE fiscal_period_id = ? AND year = ?`,
         bind: [fiscalPeriodId, year],
         returnValue: "resultRows",
@@ -359,13 +360,13 @@ function createClosingsDb(db: SqlDb): ClosingsDb {
       return { isProvisional: row[0] === 1 } satisfies ClosingApiRecord;
     },
     async upsert(fiscalPeriodId, year, isProvisional) {
-      db.exec({
+      await db.exec({
         sql: `INSERT OR REPLACE INTO closings(fiscal_period_id, year, is_provisional) VALUES(?, ?, ?)`,
         bind: [fiscalPeriodId, year, isProvisional ? 1 : 0],
       });
     },
     async delete(fiscalPeriodId, year) {
-      db.exec({
+      await db.exec({
         sql: `DELETE FROM closings WHERE fiscal_period_id = ? AND year = ?`,
         bind: [fiscalPeriodId, year],
       });
