@@ -40,6 +40,7 @@ export function Providers(props: { children: React.ReactNode }) {
         setBackendApi(api);
       } catch (error) {
         if (cancelled) return;
+        console.error("[openkk] backend init failed:", error);
         setBootError(error);
       }
     })();
