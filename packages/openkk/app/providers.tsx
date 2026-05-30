@@ -1,16 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   BackendApiProvider,
   OpenkkAppStateProvider,
   OpenkkAssistProvider,
   OpenkkEntriesProvider,
   BrandConfigProvider,
+  OpenkkCalloutsProvider,
   OpenkkConfigProvider,
   PrintAdapterProvider,
+  fontWeight,
+  palette,
 } from "@rubydogjp/openkk-client";
-import type { BrandConfig } from "@rubydogjp/openkk-client";
+import type { BrandConfig, OpenkkCalloutSlots } from "@rubydogjp/openkk-client";
 import type { OpenkkBackendPort } from "@rubydogjp/openkk-client";
 import { createOpenkkEmbeddedBackend } from "@rubydogjp/openkk-embedded-backend";
 import { createOpenkkEmbeddedBackendAdapter } from "@rubydogjp/openkk-embedded-backend-adapter";
@@ -68,29 +72,61 @@ export function Providers(props: { children: React.ReactNode }) {
   return (
     <OpenkkConfigProvider config={openkkConfig}>
       <BrandConfigProvider config={openkkBrandConfig}>
-        <BackendApiProvider api={backendApi}>
-          <PrintAdapterProvider adapter={printAdapter}>
-            <OpenkkAppStateProvider>
-              <OpenkkEntriesProvider>
-                <OpenkkAssistProvider>
-                  {props.children}
-                </OpenkkAssistProvider>
-              </OpenkkEntriesProvider>
-            </OpenkkAppStateProvider>
-          </PrintAdapterProvider>
-        </BackendApiProvider>
+        <OpenkkCalloutsProvider slots={openkkCalloutSlots}>
+          <BackendApiProvider api={backendApi}>
+            <PrintAdapterProvider adapter={printAdapter}>
+              <OpenkkAppStateProvider>
+                <OpenkkEntriesProvider>
+                  <OpenkkAssistProvider>
+                    {props.children}
+                  </OpenkkAssistProvider>
+                </OpenkkEntriesProvider>
+              </OpenkkAppStateProvider>
+            </PrintAdapterProvider>
+          </BackendApiProvider>
+        </OpenkkCalloutsProvider>
       </BrandConfigProvider>
     </OpenkkConfigProvider>
   );
 }
 
 const openkkBrandConfig: BrandConfig = {
+  marketingSiteUrl: "https://rubydog.jp/openkk",
+  productSiteUrl: "https://rubydog.jp/openkk",
   editionLabel:
     openkkConfig.mode === "demo"
       ? "デモ版"
       : openkkConfig.mode === "dev"
         ? "Dev版"
         : "(無印版)",
+};
+
+const openkkCalloutSlots: OpenkkCalloutSlots = {
+  stepNextFiscalPeriodDemoFooter: (
+    <>
+      <div>デモ版を使っていただきありがとうございました!</div>
+      <div>
+        正式リリースは
+        <Link
+          href="https://x.com/rubydogjp"
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            color: palette.brand,
+            fontWeight: fontWeight.bold,
+            textDecoration: "underline",
+            textUnderlineOffset: "2px",
+          }}
+        >
+          X公式アカウント
+        </Link>
+        でアナウンス予定です
+      </div>
+      <div>
+        レビュー・要望・バグ報告も同じアカウントまでお願いしますm(_ _)m
+      </div>
+    </>
+  ),
 };
 
 async function createFileBackendApi(): Promise<OpenkkBackendPort> {

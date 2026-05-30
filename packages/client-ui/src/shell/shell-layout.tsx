@@ -770,25 +770,18 @@ function ShellChrome({
 
                     <div style={{ padding: "6px 0" }}>
 
+                      {/* 個人設定画面は未実装のため常に無効。 */}
                       <MenuButton
                         icon={
                           <PersonOutlineIcon
                             size={18}
-                            color={
-                              isDemoMode
-                                ? PALETTE.menuIconDisabled
-                                : PALETTE.menuIconActive
-                            }
+                            color={PALETTE.menuIconDisabled}
                           />
                         }
                         label="プロフィール"
-                        labelColor={
-                          isDemoMode
-                            ? PALETTE.menuTextDisabled
-                            : PALETTE.menuTextActive
-                        }
-                        disabled={isDemoMode}
-                        onClick={() => navigate("/profile")}
+                        labelColor={PALETTE.menuTextDisabled}
+                        disabled
+                        onClick={() => undefined}
                       />
                     </div>
 
@@ -814,29 +807,18 @@ function ShellChrome({
                           }}
                         />
                       )}
+                      {/* 全モードとも固定ユーザーのためサインアウトは常に無効。 */}
                       <MenuButton
                         icon={
                           <LogoutIcon
                             size={18}
-                            color={
-                              isDemoMode
-                                ? PALETTE.menuIconDisabled
-                                : PALETTE.menuDanger
-                            }
+                            color={PALETTE.menuIconDisabled}
                           />
                         }
                         label="サインアウト"
-                        labelColor={
-                          isDemoMode
-                            ? PALETTE.menuTextDisabled
-                            : PALETTE.menuDanger
-                        }
-                        disabled={isDemoMode}
-                        onClick={() => {
-                          setMenuOpen(false);
-                          appState.signOut();
-
-                        }}
+                        labelColor={PALETTE.menuTextDisabled}
+                        disabled
+                        onClick={() => undefined}
                       />
                     </div>
                   </div>

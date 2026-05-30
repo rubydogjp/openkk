@@ -1,8 +1,20 @@
 import type { Metadata } from "next";
+import localFont from "next/font/local";
 
 import "@rubydogjp/openkk-client/styles.css";
 import "./globals.css";
 import { Providers } from "./providers";
+
+const notoSansJp = localFont({
+  src: "./fonts/NotoSansJP-VariableFont_wght.ttf",
+  variable: "--font-sans",
+  display: "swap",
+});
+const notoSansMono = localFont({
+  src: "./fonts/NotoSansMono-VariableFont_wdth,wght.ttf",
+  variable: "--font-mono",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "オープン会計",
@@ -17,7 +29,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ja">
+    <html
+      lang="ja"
+      className={`${notoSansJp.variable} ${notoSansMono.variable}`}
+    >
       <body>
         <Providers>{children}</Providers>
       </body>

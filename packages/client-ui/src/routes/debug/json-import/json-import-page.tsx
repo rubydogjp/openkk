@@ -19,11 +19,10 @@ export function JsonImportPage() {
           JSON 取込み仕様
         </h1>
         <p style={{ marginTop: 10, color: palette.textSoft, lineHeight: 1.7 }}>
-          取込み仕様は `entries/import`
-          に統合しました。検証と実行は下記ページで行えます。
+          取込み仕様は仕訳ページに統合しました。検証と実行は下記ページで行えます。
         </p>
         <Link
-          href="/entries/import"
+          href="/entries"
           style={{ color: palette.action, fontWeight: fontWeight.bold }}
         >
           仕訳の転送へ
