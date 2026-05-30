@@ -51,3 +51,21 @@ test(`export smoke (${MODE}): デモのお礼文言が表示される`, async ({
   await page.waitForTimeout(1500);
   await expect(page.locator("body")).toContainText("ありがとう");
 });
+
+test(`export smoke (${MODE}): 2タブ目は単一タブ案内を表示しクラッシュしない`, async ({
+  page,
+  context,
+}) => {
+  test.skip(MODE !== "prod", "OPFS 単一タブガードは無印版(prod)のみ");
+  // 1 タブ目: 正常に DB 初期化（Web Lock 取得）
+  await page.goto("/", { waitUntil: "networkidle" });
+  await page.waitForTimeout(2500);
+  await expect(page.locator("body")).not.toContainText("初期化に失敗");
+  await expect(page.locator("body")).not.toContainText("複数のタブ");
+  // 2 タブ目: ロックを取れず、SAH 衝突せずに案内を表示
+  const page2 = await context.newPage();
+  await page2.goto("/", { waitUntil: "networkidle" });
+  await page2.waitForTimeout(2500);
+  await expect(page2.locator("body")).toContainText("複数のタブ");
+  await expect(page2.locator("body")).not.toContainText("初期化に失敗");
+});

@@ -54,9 +54,13 @@ export function Providers(props: { children: React.ReactNode }) {
   }, [backendApi]);
 
   if (bootError != null) {
+    const isAnotherTab =
+      bootError instanceof Error && bootError.message === "ANOTHER_TAB";
     return (
       <div style={{ padding: 24, fontSize: 14, color: "#994636" }}>
-        ローカルデータベースの初期化に失敗しました。ブラウザを再読込してください。
+        {isAnotherTab
+          ? "このアプリは複数のタブで同時に開けません。他のタブを閉じてから、このページを再読込してください。"
+          : "ローカルデータベースの初期化に失敗しました。ブラウザを再読込してください。"}
       </div>
     );
   }
