@@ -51,15 +51,14 @@ const spacingInventory: InventoryItem[] = [
     name: "Page Padding",
     current: "24 / 32 / 40px",
     where: "debug, ideas, steps, assist",
-    review:
-      "24px が中心。ideas には 32/40px もあり、比較画面由来の余白が残る。",
+    review: "24px を中心に、用途の広い画面では 32/40px も使う。",
     status: "mixed",
   },
   {
     name: "Card Padding",
     current: "14 / 16 / 18 / 20 / 24 / 32px",
     where: "debug cards, assist cards, empty state",
-    review: "14/18px が中途半端に見える。16/20/24px へ整理できそう。",
+    review: "16/20/24px を標準にし、14/18px は限定的な用途に留める。",
     status: "mixed",
   },
   {
@@ -75,7 +74,7 @@ const spacingInventory: InventoryItem[] = [
     current: "12 / 14 / 16 / 18 / 20px",
     where: "steps, ideas, cards",
     review:
-      "steps の markdown 的な読み物では 16/20px が自然。14/18px は統合候補。",
+      "steps の読み物では 16/20px を基準にし、14/18px は限定的な用途に留める。",
     status: "mixed",
   },
   {
@@ -92,7 +91,7 @@ const componentInventory: InventoryItem[] = [
     name: "Primary / Secondary Button",
     current: "36 / 40 / 42 / 44px high",
     where: "steps actions, drawers, sign-in, ideas",
-    review: "desktop は 36/40px、重要操作は 44px が自然。42px は整理候補。",
+    review: "desktop は 36/40px、重要操作は 44px を基準にする。",
     status: "mixed",
   },
   {
@@ -124,36 +123,35 @@ const componentInventory: InventoryItem[] = [
     current: "table 36px high / inline 28px high",
     where: "entries, debug color-theme sample",
     review:
-      "entries テーブル行の見た目として評価が高い。テーブル内 36px は維持し、inline 表示だけ 28px と分ける。",
+      "テーブル内は 36px、inline 表示は 28px と分ける。",
     status: "stable",
   },
   {
     name: "Tag Chip",
     current: "30px high / pill radius",
     where: "entries tags, drawer tags",
-    review: "entries 行内で勘定科目より弱く見える。30px は維持候補。",
+    review: "entries 行内で勘定科目より軽い表示として 30px を使う。",
     status: "stable",
   },
   {
     name: "Entries Table Row",
     current: "header 40px / row 52px",
     where: "entries table",
-    review:
-      "ユーザー評価が高いため、理想案でも基準寸法として扱う。ここを起点に他部品を合わせる。",
+    review: "基準寸法として扱い、ここを起点に他部品を合わせる。",
     status: "stable",
   },
   {
     name: "Drawer",
     current: "560px wide / header 52px / body padding 20px",
     where: "entry edit, fixed asset edit",
-    review: "会計フォームとして妥当。幅 560px は desktop drawer の標準候補。",
+    review: "会計フォームでは幅 560px を desktop drawer の標準にする。",
     status: "stable",
   },
   {
     name: "Mobile Topbar",
     current: "48px high",
     where: "shell mobile",
-    review: "Material の 48dp と整合。維持候補。",
+    review: "Material の 48dp と整合する。",
     status: "stable",
   },
 ];
@@ -171,7 +169,7 @@ const radiusInventory: InventoryItem[] = [
     current: "10 / 12 / 14 / 16 / 18px",
     where: "cards, debug samples, ideas",
     review:
-      "10/12px は実アプリ標準。14/16/18px は preview 表現が中心で統合候補。",
+      "10/12px を標準にし、14/16/18px は preview 表現に限定する。",
     status: "mixed",
   },
   {
@@ -651,10 +649,9 @@ export function LayoutSizesPage() {
             }}
           >
             既存 UI の寸法棚卸しと、一般的な touch target / spacing scale
-            を踏まえた理想設計案です。 entries
-            テーブル行は既存の見た目が評価されているため、理想案でも基準寸法として維持します。
-            まだ採用 token
-            ではなく、次の段階でこの案を実アプリへ適用するか判断します。
+            を踏まえた設計案です。entries
+            テーブル行は基準寸法として扱います。まだ採用 token
+            ではありません。
           </p>
         </header>
 
@@ -766,42 +763,42 @@ export function LayoutSizesPage() {
 
         <Section
           title="Proposed Spacing Tokens"
-          lead="理想案。既存の 14/18px など近い値を減らし、4px grid を基本にして用途で選びます。"
+          lead="近い値を減らし、4px grid を基本にして用途で選びます。"
         >
           <TokenGrid tokens={proposedSpacingTokens} />
         </Section>
 
         <Section
           title="Proposed Component Sizes"
-          lead="理想案。entries テーブルの密度を基準にし、見た目の高さと hit area を分けます。"
+          lead="entries テーブルの密度を基準にし、見た目の高さと hit area を分けます。"
         >
           <TokenGrid tokens={proposedComponentTokens} />
         </Section>
 
         <Section
           title="Proposed Layout Tokens"
-          lead="画面全体の理想案。読み物・フォーム・データ画面で max-width を分け、entries は広いデータ領域として扱います。"
+          lead="読み物・フォーム・データ画面で max-width を分け、entries は広いデータ領域として扱います。"
         >
           <TokenGrid tokens={proposedLayoutTokens} />
         </Section>
 
         <Section
           title="Proposed Form Tokens"
-          lead="フォーム関連の理想案。既存 FormTextInput / AmountInput の 40px 系を正式な基準にします。"
+          lead="既存 FormTextInput / AmountInput の 40px 系を基準にします。"
         >
           <TokenGrid tokens={proposedFormTokens} />
         </Section>
 
         <Section
           title="Proposed Radius Tokens"
-          lead="理想案。角丸は 5 種類に絞り、card と control の役割差を明確にします。"
+          lead="角丸は 5 種類に絞り、card と control の役割差を明確にします。"
         >
           <TokenGrid tokens={proposedRadiusTokens} />
         </Section>
 
         <Section
           title="Proposed Button System"
-          lead="理想案。ボタンの中身が増えても高さと padding のルールが崩れないようにします。"
+          lead="ボタンの中身が増えても高さと padding のルールが崩れないようにします。"
         >
           <Card>
             <div style={{ display: "grid", gap: spacing.s16 }}>
@@ -1593,7 +1590,7 @@ function InventoryTable({ items }: { items: InventoryItem[] }) {
           background: palette.headerSurface,
         }}
       >
-        {["項目", "現状", "使用箇所", "レビュー", "状態"].map((label) => (
+        {["項目", "現状", "使用箇所", "確認", "状態"].map((label) => (
           <div
             key={label}
             style={{

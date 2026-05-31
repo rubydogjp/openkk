@@ -778,7 +778,6 @@ function ShellChrome({
                     </div>
 
                     <div style={{ padding: "6px 0" }}>
-                      {/* 個人設定画面は未実装のため常に無効。 */}
                       <MenuButton
                         icon={
                           <PersonOutlineIcon
@@ -815,7 +814,6 @@ function ShellChrome({
                           }}
                         />
                       )}
-                      {/* 全モードとも固定ユーザーのためサインアウトは常に無効。 */}
                       <MenuButton
                         icon={
                           <LogoutIcon

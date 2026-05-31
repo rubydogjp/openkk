@@ -1,9 +1,3 @@
-// マスターデータ生成器（openkk 単独で完結）。
-// canonical な単一ソース resources/gen/bookkeeping_master_data.json を読み、
-//   - server-domain / client-domain の generated-master-data.ts
-// を生成する。openkk がマスターであり、利用側（apps 等）は submodule 経由で
-// この生成物を消費する。
-//
 // 実行: npm run gen-master-data
 
 import { readFileSync, writeFileSync } from "node:fs";
@@ -36,7 +30,6 @@ console.log(
     `${data.businessCategories.length} business categories`,
 );
 
-/** id 重複を検出して落とす（生成前のガード）。 */
 function validate(catalog) {
   const seen = new Map();
   const all = [
@@ -56,10 +49,6 @@ function tsStr(value) {
   return `"${String(value).replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
 }
 
-/**
- * accTypeName は accountType の型名。declareAccType が true のときその union 型も
- * このファイルで宣言する（false のときは header で import 済み前提）。
- */
 function buildTS(catalog, accTypeName, header, declareAccType) {
   let b = "";
   b += `// Generated from ${sourceRel}. Do not edit directly.\n`;

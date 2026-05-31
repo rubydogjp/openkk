@@ -78,7 +78,6 @@ export function InstallPage() {
       try {
         await prompt.userChoice;
       } catch {
-        // ignore
       }
       clearDeferredInstallPrompt();
       return;
@@ -89,7 +88,6 @@ export function InstallPage() {
         await nav.install();
         setPhase("installed");
       } catch {
-        // ユーザーキャンセル等は無視
       }
     }
   }

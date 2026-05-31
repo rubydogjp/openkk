@@ -30,24 +30,13 @@ body { background: #fff; font-family: system-ui, sans-serif; padding: 32px; }
 </div>
 
 <script>
-/* ══ DATA ════════════════════════════════════════════════════════════════════
-   ここを編集する。ピクセル座標は書かない。
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-// ── レイアウト定数 ─────────────────────────────────────────────────────────
-// col0w = col1w = 2*pad + 2*nodeW + innerColGap = 48+544+48 = 640（左右対称）
 const L = {
   margin: 48, rowGap: 48, colGap: 56,
   col0w: 640, col1w: 640,
   pad: 24, labelH: 22,
   nodeW: 272, nodeH: 44, nodeGap: 32, innerColGap: 48,
 };
-// row → 次の row までの gap（未指定は L.rowGap）
-// row 0→1 は client/cadapter 側の 2 段階分岐スペース
-// row 2→3 は server/sadapter 側の 2 段階分岐スペース
 const ROW_GAP = { 0: 96, 2: 96 };
-
-// ── グループ + ノード定義 ───────────────────────────────────────────────────
 const GROUPS = [
   { id:"app",      label:"Frontend (App)",   row:0, col:0, cs:2, nodes:[
     { id:"openkk",          label:"openkk",                   gc:0, gr:0, nc:2, center:1 },
@@ -78,90 +67,61 @@ const GROUPS = [
     { id:"mem_db_adp",      label:"memory-db-adapter",        gc:1, gr:0 },
   ]},
 ];
-
-// ── エッジ定義 ─────────────────────────────────────────────────────────────
 const dn    = (f,t) => [`${f}.cx`,`${f}.bottom`,  `${f}.cx`,`${t}.cy`,  `${t}.right`,`${t}.cy`];
 const dnLft = (f,t) => [`${f}.cx`,`${f}.bottom`,  `${f}.cx`,`${t}.cy`,  `${t}.left`, `${t}.cy`];
-// → VC ↓ → left: 右辺から内側2列間コリドーへ出て下降、左辺入り（直下に別ノードがある場合に使う）
 const viaVC = (f,t) => [`${f}.right`,`${f}.cy`,   `VC`,`${f}.cy`,  `VC`,`${t}.cy`,  `${t}.left`,`${t}.cy`];
 const viaH  = (f,H,t) => [`${f}.cx`,`${f}.bottom`,  `${f}.cx`,H,  `${t}.cx`,H,  `${t}.cx`,`${t}.top`];
 const vsub  = (m,s) => [`${s}.cx`,`${m}.bottom`,  `${s}.cx`,`${s}.top`];
 const viaVR = (f,t) => [`${f}.right`,`${f}.cy`,  "VR",`${f}.cy`,  "VR",`${t}.cy`,  `${t}.right`,`${t}.cy`];
-// 2 段階ツリー分岐 ── client 側（openkk 直下から左右へ）
-// 共有する幹セグメントは 2 エッジが重なることで自然に分岐ツリーとして見える。
 const branch1 = t => [`openkk.cx`,`openkk.bottom`, `openkk.cx`,`H1a`, `${t}.cx`,`H1a`, `${t}.cx`,`${t}.top`];
 const branch2 = t => [`openkk.cx`,`openkk.bottom`, `openkk.cx`,`H1a`, `CM`,`H1a`, `CM`,`H1b`, `${t}.cx`,`H1b`, `${t}.cx`,`${t}.top`];
-// 2 段階ツリー分岐 ── server adapter 側（VR 経由で右を下り sadapter 中央へ左折）
-// branchVR: openkk.right から右へ VR へ（viaVR の emb_bk と幹を共有）→ H3a で左折 SM → H3b で2段分岐
 const branchVR = t => [`openkk.right`,`openkk.cy`, `VR`,`openkk.cy`, `VR`,`H3a`, `SM`,`H3a`, `SM`,`H3b`, `${t}.cx`,`H3b`, `${t}.cx`,`${t}.top`];
 
 const EDGES = [
-  // ── App → client / adapters（2 段階ツリー分岐）───────────────────────────
-  ["openkk","client",     ...branch1("client")],     // 1段目 → 左
-  ["openkk","emb_bk_adp", ...branch2("emb_bk_adp")], // 1段目 → 右 → 2段目 → 左
-  ["openkk","print_adp",  ...branch2("print_adp")],   // 1段目 → 右 → 2段目 → 右
-  ["openkk","emb_bk",      ...viaVR("openkk","emb_bk")],  // 右 VR → emb_bk.cy で左折 → right 入り
-  ["openkk","file_db_adp", ...branchVR("file_db_adp")],  // VR 右下 → sadapter 中央 → 2段目左
-  ["openkk","mem_db_adp",  ...branchVR("mem_db_adp")],   // VR 右下 → sadapter 中央 → 2段目右
-
-  // ── Client Adapters → 依存先 ─────────────────────────────────────────────
+  ["openkk","client",     ...branch1("client")],
+  ["openkk","emb_bk_adp", ...branch2("emb_bk_adp")],
+  ["openkk","print_adp",  ...branch2("print_adp")],
+  ["openkk","emb_bk",      ...viaVR("openkk","emb_bk")],
+  ["openkk","file_db_adp", ...branchVR("file_db_adp")],
+  ["openkk","mem_db_adp",  ...branchVR("mem_db_adp")],
   ["emb_bk_adp","client_ports", ...dn("emb_bk_adp","client_ports")],
   ["print_adp",  "client_ports", ...dn("print_adp", "client_ports")],
   ["emb_bk_adp","emb_bk",       ...viaH("emb_bk_adp","H2","emb_bk")],
-
-  // ── Embedded Backend → Server ─────────────────────────────────────────────
   ["emb_bk","server", ...viaH("emb_bk","H3","server")],
-
-  // ── Server Adapters → 依存先 ─────────────────────────────────────────────
   ["file_db_adp","server_ports",  ...dn("file_db_adp","server_ports")],
   ["mem_db_adp", "server_ports",  ...dn("mem_db_adp", "server_ports")],
-
-  // ── Client meta → sub（縦ぶら下がり）────────────────────────────────────
   ["client","client_ui",       ...vsub("client","client_ui")],
   ["client","client_usecases", ...vsub("client","client_usecases")],
   ["client","client_ports",    ...vsub("client","client_ports")],
   ["client","client_domain",   ...vsub("client","client_domain")],
-
-  // ── Server meta → sub（縦ぶら下がり）────────────────────────────────────
   ["server","server_api",      ...vsub("server","server_api")],
   ["server","server_usecases", ...vsub("server","server_usecases")],
   ["server","server_ports",    ...vsub("server","server_ports")],
   ["server","server_domain",   ...vsub("server","server_domain")],
-
-  // ── Client sub 間（auto 直交 L 字）───────────────────────────────────────
   ["client_ui","client_usecases"],
-  ["client_ui","client_domain",   ...viaVC("client_ui","client_domain")],   // → VC ↓ → left 入り
-  ["client_usecases","client_ports",  ...dnLft("client_usecases","client_ports")],   // ↓→ left 入り
-  ["client_usecases","client_domain", ...dnLft("client_usecases","client_domain")],  // ↓→ left 入り
+  ["client_ui","client_domain",   ...viaVC("client_ui","client_domain")],
+  ["client_usecases","client_ports",  ...dnLft("client_usecases","client_ports")],
+  ["client_usecases","client_domain", ...dnLft("client_usecases","client_domain")],
   ["client_ports","client_domain"],
-
-  // ── Server sub 間（auto 直交 L 字）───────────────────────────────────────
   ["server_api","server_usecases"],
-  ["server_api","server_ports",  ...viaVC("server_api","server_ports")],   // → VC ↓ → left 入り
-  ["server_api","server_domain", ...viaVC("server_api","server_domain")],  // → VC ↓ → left 入り
-  ["server_usecases","server_ports",  ...dnLft("server_usecases","server_ports")],   // ↓→ left 入り
-  ["server_usecases","server_domain", ...dnLft("server_usecases","server_domain")],  // ↓→ left 入り
+  ["server_api","server_ports",  ...viaVC("server_api","server_ports")],
+  ["server_api","server_domain", ...viaVC("server_api","server_domain")],
+  ["server_usecases","server_ports",  ...dnLft("server_usecases","server_ports")],
+  ["server_usecases","server_domain", ...dnLft("server_usecases","server_domain")],
   ["server_ports","server_domain"],
 ];
 
-/* ══ RENDER（基本的に触らない）══════════════════════════════════════════════ */
 
 const fullW  = L.col0w + L.colGap + L.col1w;
 const groupH = nr => L.labelH + L.pad + nr*L.nodeH + (nr-1)*L.nodeGap + L.pad;
-
-// NODES 展開、nr 自動導出（max(gr)+1）
 const NODES = GROUPS.flatMap(g => g.nodes.map(n => ({...n, _g:g.id})));
 GROUPS.forEach(g => { g.nr = g.nodes.reduce((m,n) => Math.max(m, n.gr+1), 1); });
-
-// 行 y 座標（行リストはデータから自動生成）
 const rows = [...new Set(GROUPS.map(g => g.row))].sort((a,b) => a-b);
 const maxH = {};
 GROUPS.forEach(g => { maxH[g.row] = Math.max(maxH[g.row]||0, groupH(g.nr)); });
 let _y = L.margin;
 const rowY = {};
 rows.forEach(r => { rowY[r] = _y; _y += maxH[r] + (ROW_GAP[r] ?? L.rowGap); });
-
-// グループ境界マップ
 const gmap = {};
 GROUPS.forEach(g => {
   gmap[g.id] = {
@@ -171,8 +131,6 @@ GROUPS.forEach(g => {
     h: groupH(g.nr),
   };
 });
-
-// ノード中心座標マップ
 const nmap = {};
 NODES.forEach(n => {
   const g = gmap[n._g];
@@ -182,28 +140,22 @@ NODES.forEach(n => {
              g.x+L.pad+L.nodeW/2+n.gc*(L.nodeW+L.innerColGap);
   nmap[n.id] = { cx, cy: g.y+L.labelH+L.pad+L.nodeH/2+n.gr*(L.nodeH+L.nodeGap), hw: nw/2 };
 });
-
-// コリドー座標（グループ位置から自動計算）
 const appBottom = gmap.app.y + gmap.app.h;
 const embBottom = gmap.embedded.y + gmap.embedded.h;
 const C = {
   VL: Math.round(L.margin/2),
   VR: L.margin+fullW+Math.round(L.margin/2),
   VM: L.margin+L.col0w+Math.floor(L.colGap/2),
-  VC: L.margin+L.pad+L.nodeW+Math.floor(L.innerColGap/2), // 内側 2 列間の中央 x（client/server 共通）
-  // App → Client/Adapters 間の 2 段階分岐コリドー
-  CM:  gmap.cadapter.x + Math.round(gmap.cadapter.w / 2),         // cadapter 中央 x
-  H1a: Math.round(appBottom + (gmap.client.y - appBottom) / 3),   // 1 段目分岐 y（gap の 1/3）
-  H1b: Math.round(appBottom + (gmap.client.y - appBottom) * 2/3), // 2 段目分岐 y（gap の 2/3）
+  VC: L.margin+L.pad+L.nodeW+Math.floor(L.innerColGap/2),
+  CM:  gmap.cadapter.x + Math.round(gmap.cadapter.w / 2),
+  H1a: Math.round(appBottom + (gmap.client.y - appBottom) / 3),
+  H1b: Math.round(appBottom + (gmap.client.y - appBottom) * 2/3),
   H2: Math.round((gmap.client.y+gmap.client.h + gmap.embedded.y) / 2),
-  H3: Math.round((embBottom + gmap.server.y) / 2),                // emb_bk → server 用（中点）
-  // VR 迂回 → Server Adapters 間の 2 段階分岐コリドー
-  SM:  gmap.sadapter.x + Math.round(gmap.sadapter.w / 2),         // sadapter 中央 x
-  H3a: Math.round(embBottom + (gmap.server.y - embBottom) / 3),   // 左折 y（gap の 1/3）
-  H3b: Math.round(embBottom + (gmap.server.y - embBottom) * 2/3), // 2 段目分岐 y（gap の 2/3）
+  H3: Math.round((embBottom + gmap.server.y) / 2),
+  SM:  gmap.sadapter.x + Math.round(gmap.sadapter.w / 2),
+  H3a: Math.round(embBottom + (gmap.server.y - embBottom) / 3),
+  H3b: Math.round(embBottom + (gmap.server.y - embBottom) * 2/3),
 };
-
-// キャンバス自然サイズ
 const NATURAL_W = L.margin + fullW + L.margin;
 const NATURAL_H = _y - L.rowGap + L.margin;
 
@@ -214,16 +166,12 @@ canvas.style.height = NATURAL_H + "px";
 const mk = (cls, style) => {
   const d = document.createElement("div"); d.className=cls; d.style.cssText=style||""; return d;
 };
-
-// グループ描画
 GROUPS.forEach(({id, label}) => {
   const b = gmap[id];
   const d = mk("grp", `left:${b.x}px;top:${b.y}px;width:${b.w}px;height:${b.h}px`);
   d.innerHTML = `<div class="gl">${label}</div>`;
   canvas.appendChild(d);
 });
-
-// ノード描画
 NODES.forEach(({id, label}) => {
   const {cx, cy, hw} = nmap[id];
   const d = mk("nd", `left:${cx-hw}px;top:${cy-L.nodeH/2}px;width:${hw*2}px;height:${L.nodeH}px`);
@@ -232,8 +180,6 @@ NODES.forEach(({id, label}) => {
   d.appendChild(span);
   canvas.appendChild(d);
 });
-
-// 参照解決: コリドー名 / nodeId.prop / 数値 → ピクセル値
 function R(r) {
   if (typeof r === "number") return r;
   if (r in C) return C[r];
@@ -241,22 +187,17 @@ function R(r) {
   const {cx, cy, hw} = nmap[id]; const hh = L.nodeH/2;
   return {cx, cy, top:cy-hh, bottom:cy+hh, left:cx-hw, right:cx+hw}[p];
 }
-
-// 線分1本
 function seg(x1, y1, x2, y2, tip) {
   const dx=x2-x1, dy=y2-y1;
   canvas.appendChild(mk(tip ? "el" : "el no-arr",
     `left:${x1}px;top:${y1-0.75}px;width:${Math.hypot(dx,dy)}px;transform:rotate(${Math.atan2(dy,dx)*180/Math.PI}deg)`));
 }
-
-// エッジ描画
 EDGES.forEach(([fid, tid, ...refs]) => {
   let pts;
   if (refs.length >= 4) {
     pts = [];
     for (let i = 0; i < refs.length; i+=2) pts.push([R(refs[i]), R(refs[i+1])]);
   } else {
-    // グループ内 auto 直交 L 字
     const f=nmap[fid], t=nmap[tid], dx=t.cx-f.cx, dy=t.cy-f.cy, hh=L.nodeH/2;
     if      (Math.abs(dx)<1) { const s=Math.sign(dy); pts=[[f.cx,f.cy+s*hh],[t.cx,t.cy-s*hh]]; }
     else if (Math.abs(dy)<1) { const s=Math.sign(dx); pts=[[f.cx+s*f.hw,f.cy],[t.cx-s*t.hw,t.cy]]; }
@@ -264,8 +205,6 @@ EDGES.forEach(([fid, tid, ...refs]) => {
   }
   for (let i=0; i<pts.length-1; i++) seg(pts[i][0],pts[i][1],pts[i+1][0],pts[i+1][1], i===pts.length-2);
 });
-
-// ── レスポンシブ スケール ───────────────────────────────────────────────────
 const wrap = document.getElementById("canvas-wrap");
 function refit() {
   const s = Math.min(1, wrap.clientWidth / NATURAL_W);
