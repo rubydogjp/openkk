@@ -20,5 +20,6 @@
     "activityBarBadge.background": "#FFFFFF",
     "activityBarBadge.foreground": "#C5221F"
   },
-  "window.title": "オープン会計"
+  "window.title": "オープン会計",
+  "cSpell.words": ["openkk", "rubydogjp"]
 }
