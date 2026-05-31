@@ -13,9 +13,9 @@ describe("computeStraightLineDepreciation", () => {
     expect(result.elapsedMonths).toBe(24);
     expect(result.totalMonths).toBe(48);
     expect(result.progress).toBeCloseTo(0.5, 5);
-    expect(result.accumulated).toBe(600_000);
-    expect(result.currentBookValue).toBe(600_000);
-    expect(result.annualDepreciation).toBe(300_000);
+    expect(result.accumulated).toBe(599_999);
+    expect(result.currentBookValue).toBe(600_001);
+    expect(result.annualDepreciation).toBe(299_999);
     expect(result.remainingMonths).toBe(24);
     expect(result.remainingLabel).toBe("あと24ヶ月");
     expect(result.periodLabel).toBe("2024年1月〜");
@@ -29,8 +29,8 @@ describe("computeStraightLineDepreciation", () => {
       asOf: new Date(2030, 0, 1),
     });
     expect(result.progress).toBe(1);
-    expect(result.currentBookValue).toBe(0);
-    expect(result.accumulated).toBe(500_000);
+    expect(result.currentBookValue).toBe(1);
+    expect(result.accumulated).toBe(499_999);
     expect(result.remainingMonths).toBe(0);
     expect(result.remainingLabel).toBe("償却済み");
   });
@@ -64,6 +64,17 @@ describe("computeStraightLineDepreciation", () => {
       asOf: new Date(2026, 6, 1), // 6 months in
     });
     expect(result.totalMonths).toBe(12);
-    expect(result.annualDepreciation).toBe(120_000);
+    expect(result.annualDepreciation).toBe(60_000);
+  });
+
+  it("keeps zero-cost assets at zero book value", () => {
+    const result = computeStraightLineDepreciation({
+      acquisitionDate: "2026-01-01",
+      acquisitionCost: 0,
+      usefulLife: 4,
+      asOf: new Date(2030, 0, 1),
+    });
+    expect(result.currentBookValue).toBe(0);
+    expect(result.accumulated).toBe(0);
   });
 });

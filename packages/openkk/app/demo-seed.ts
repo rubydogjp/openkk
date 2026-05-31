@@ -68,21 +68,42 @@ function entryRecordToApiRecord(
     lines: getEntryLines(record).map((line): EntryApiLine => ({
       side: line.side,
       bookAccountId:
-        line.bookAccountId ??
+        DEFAULT_BOOK_ACCOUNTS.find((account) => account.id === line.bookAccountId)
+          ?.id ??
+        findDefaultAccountByLegacyPcaId(line.bookAccountId)?.id ??
+        DEFAULT_BOOK_ACCOUNTS.find(
+          (account) =>
+            account.name === line.accountName &&
+            account.accountType === line.accountType,
+        )?.id ??
         DEFAULT_BOOK_ACCOUNTS.find((account) => account.name === line.accountName)
           ?.id ??
         line.accountName,
       amount: parseAmount(line.amount),
       partnerName: record.partner,
       taxCategoryName:
-        DEFAULT_TAX_CATEGORIES.find((category) => category.name === record.taxCategory)
-          ?.id ?? record.taxCategory,
+        DEFAULT_TAX_CATEGORIES.find(
+          (category) =>
+            normalizeTaxCategoryText(category.name) ===
+            normalizeTaxCategoryText(record.taxCategory),
+        )?.id ?? record.taxCategory,
       businessCategoryName:
         DEFAULT_BUSINESS_CATEGORIES.find(
-          (category) => category.name === record.businessCategory,
+          (category) =>
+            normalizeBusinessCategoryText(category.name) ===
+            normalizeBusinessCategoryText(record.businessCategory),
         )?.id ?? record.businessCategory,
     })),
   };
+}
+
+function findDefaultAccountByLegacyPcaId(id: string | undefined) {
+  if (id == null) return null;
+  const match = id.match(/^acct_pca_(\d+)$/);
+  if (match == null) return null;
+  const sortOrder = Number(match[1]);
+  if (!Number.isFinite(sortOrder)) return null;
+  return DEFAULT_BOOK_ACCOUNTS.find((account) => account.sortOrder === sortOrder) ?? null;
 }
 
 function fixedAssetItemToApiRecord(
@@ -105,15 +126,18 @@ function fixedAssetItemToApiRecord(
       DEFAULT_BOOK_ACCOUNTS.find((account) => account.name === item.account)?.id ??
       item.accountId ??
       item.account,
-    frozenPreview: {
-      period: item.period,
-      remaining: item.remaining,
-      progress: item.progress,
-      current: item.current,
-      purchase: item.purchase,
-      status: item.status,
-    },
   };
+}
+
+function normalizeTaxCategoryText(value: string): string {
+  return value.trim().replace(/\s+/g, "");
+}
+
+function normalizeBusinessCategoryText(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed === "") return "";
+  const shortType = trimmed.match(/^第([1-6])種/)?.[1];
+  return shortType == null ? trimmed : `第${shortType}種`;
 }
 
 function fixedAssetStatusToApi(

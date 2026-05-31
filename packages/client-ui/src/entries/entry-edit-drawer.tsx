@@ -138,9 +138,11 @@ export function EntryEditDrawer(props: {
         ...current.pairs,
         {
           id: nextRowPairId(),
+          debitAccountId: defDebit?.id,
           debitAccountName: defDebit?.name ?? "",
           debitAccountType: defDebit?.accountType ?? "expense",
           debitAmount: "",
+          creditAccountId: defCredit?.id,
           creditAccountName: defCredit?.name ?? "",
           creditAccountType: defCredit?.accountType ?? "asset",
           creditAmount: "",
@@ -200,9 +202,11 @@ export function EntryEditDrawer(props: {
     setDraft((current) => {
       const newPair: RowPair = {
         id: nextRowPairId(),
+        debitAccountId: debit.id,
         debitAccountName: debit.name,
         debitAccountType: debit.accountType,
         debitAmount: "",
+        creditAccountId: credit.id,
         creditAccountName: credit.name,
         creditAccountType: credit.accountType,
         creditAmount: "",
@@ -473,6 +477,7 @@ export function EntryEditDrawer(props: {
                         accountType={row.debitAccountType}
                         onChange={(option) =>
                           updateRow(index, {
+                            debitAccountId: option.id,
                             debitAccountName: option.name,
                             debitAccountType: option.accountType,
                           })
@@ -489,6 +494,7 @@ export function EntryEditDrawer(props: {
                         accountType={row.creditAccountType}
                         onChange={(option) =>
                           updateRow(index, {
+                            creditAccountId: option.id,
                             creditAccountName: option.name,
                             creditAccountType: option.accountType,
                           })
@@ -1530,9 +1536,11 @@ function MinusIcon() {
 
 type RowPair = {
   id: string;
+  debitAccountId?: string;
   debitAccountName: string;
   debitAccountType: EntryAccountVisualType;
   debitAmount: string;
+  creditAccountId?: string;
   creditAccountName: string;
   creditAccountType: EntryAccountVisualType;
   creditAmount: string;
@@ -1567,9 +1575,11 @@ function recordToRowPairDraft(record: EntryRecord): RowPairDraft {
     const credit = credits[i] ?? null;
     pairs.push({
       id: nextRowPairId(),
+      debitAccountId: debit?.bookAccountId,
       debitAccountName: debit?.accountName ?? "",
       debitAccountType: debit?.accountType ?? "expense",
       debitAmount: debit?.amount ?? "",
+      creditAccountId: credit?.bookAccountId,
       creditAccountName: credit?.accountName ?? "",
       creditAccountType: credit?.accountType ?? "asset",
       creditAmount: credit?.amount ?? "",
@@ -1593,7 +1603,14 @@ function rowPairDraftToEntryDraft(
   const lines: EntryLine[] = [];
   for (const pair of draft.pairs) {
     if (pair.debitAccountName.trim().length > 0 && parseAmount(pair.debitAmount) > 0) {
-      const matched = accounts.find((a) => a.name === pair.debitAccountName);
+      const matched =
+        accounts.find((a) => a.id === pair.debitAccountId) ??
+        accounts.find(
+          (a) =>
+            a.name === pair.debitAccountName &&
+            a.accountType === pair.debitAccountType,
+        ) ??
+        accounts.find((a) => a.name === pair.debitAccountName);
       lines.push({
         side: "debit",
         accountName: pair.debitAccountName,
@@ -1603,7 +1620,14 @@ function rowPairDraftToEntryDraft(
       });
     }
     if (pair.creditAccountName.trim().length > 0 && parseAmount(pair.creditAmount) > 0) {
-      const matched = accounts.find((a) => a.name === pair.creditAccountName);
+      const matched =
+        accounts.find((a) => a.id === pair.creditAccountId) ??
+        accounts.find(
+          (a) =>
+            a.name === pair.creditAccountName &&
+            a.accountType === pair.creditAccountType,
+        ) ??
+        accounts.find((a) => a.name === pair.creditAccountName);
       lines.push({
         side: "credit",
         accountName: pair.creditAccountName,

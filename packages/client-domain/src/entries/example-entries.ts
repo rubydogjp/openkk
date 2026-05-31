@@ -18,7 +18,7 @@ export const exampleEntryPreviewRows: EntryPreviewRow[] = [
     description: "中古でキーボードを売却",
     partner: "株式会社じゃんぱろ",
     businessRate: "",
-    taxCategory: "課税10%",
+    taxCategory: "課税 10%",
     businessCategory: "第4種",
   },
   {
@@ -48,7 +48,7 @@ export const exampleEntryPreviewRows: EntryPreviewRow[] = [
     description: "カフェで打ち合わせ",
     partner: "チュターバックス・コーヒー",
     businessRate: "",
-    taxCategory: "課税10%",
+    taxCategory: "課税 10%",
     businessCategory: "",
   },
   {
@@ -63,8 +63,8 @@ export const exampleEntryPreviewRows: EntryPreviewRow[] = [
     description: "途中解約を承諾した",
     partner: "ストライク決済代行",
     businessRate: "",
-    taxCategory: "課税10%",
-    businessCategory: "第5種",
+    taxCategory: "課税 10%",
+    businessCategory: "第5種（サービス業等）",
   },
   {
     date: "09/25",
@@ -78,7 +78,7 @@ export const exampleEntryPreviewRows: EntryPreviewRow[] = [
     description: "クレカで新幹線チケット購入",
     partner: "JR南日本",
     businessRate: "",
-    taxCategory: "課税10%",
+    taxCategory: "課税 10%",
     businessCategory: "",
   },
   {
@@ -93,7 +93,7 @@ export const exampleEntryPreviewRows: EntryPreviewRow[] = [
     description: "今月分の収益が確定",
     partner: "トヨサ自動車株式会社",
     businessRate: "",
-    taxCategory: "課税10%",
-    businessCategory: "第5種",
+    taxCategory: "課税 10%",
+    businessCategory: "第5種（サービス業等）",
   },
 ];

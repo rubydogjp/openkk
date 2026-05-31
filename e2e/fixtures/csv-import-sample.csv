@@ -1,4 +1,4 @@
 localId,date,weekday,debit,debitType,debitAmount,credit,creditType,creditAmount,description,partner,businessRate,taxCategory,businessCategory
-csv-test-01,2026-05-10,,普通預金,asset,200000,売上,revenue,200000,CSVテスト売上,CSV取引先A,100,課税10%,第5種
-csv-test-02,2026-05-20,,通信費,expense,8000,普通預金,asset,8000,CSVテストツール利用料,CSVサービス,100,課税10%,対象外
-csv-test-03,2026-06-15,,地代家賃,expense,30000,普通預金,asset,30000,CSVテスト家賃,CSVオフィス,50,課税10%,対象外
+csv-test-01,2026-05-10,,普通預金,asset,200000,売上,revenue,200000,CSVテスト売上,CSV取引先A,100,課税 10%,第5種（サービス業等）
+csv-test-02,2026-05-20,,通信費,expense,8000,普通預金,asset,8000,CSVテストツール利用料,CSVサービス,100,課税 10%,対象外
+csv-test-03,2026-06-15,,地代家賃,expense,30000,普通預金,asset,30000,CSVテスト家賃,CSVオフィス,50,課税 10%,対象外

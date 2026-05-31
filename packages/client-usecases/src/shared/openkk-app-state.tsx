@@ -324,10 +324,18 @@ function entryRecordToImportInput(
   const lines = getEntryLines(record);
   const partnerName = record.partner;
   const taxCategoryName =
-    DEFAULT_TAX_CATEGORIES.find((c) => c.name === record.taxCategory)?.id ??
+    DEFAULT_TAX_CATEGORIES.find(
+      (c) =>
+        normalizeTaxCategoryText(c.name) ===
+        normalizeTaxCategoryText(record.taxCategory),
+    )?.id ??
     record.taxCategory;
   const businessCategoryName =
-    DEFAULT_BUSINESS_CATEGORIES.find((c) => c.name === record.businessCategory)?.id ??
+    DEFAULT_BUSINESS_CATEGORIES.find(
+      (c) =>
+        normalizeBusinessCategoryText(c.name) ===
+        normalizeBusinessCategoryText(record.businessCategory),
+    )?.id ??
     record.businessCategory;
   return {
     date: record.date,
@@ -340,7 +348,13 @@ function entryRecordToImportInput(
     lines: lines.map((line) => ({
       side: line.side,
       bookAccountId:
-        line.bookAccountId ??
+        DEFAULT_BOOK_ACCOUNTS.find((acc) => acc.id === line.bookAccountId)?.id ??
+        findDefaultAccountByLegacyPcaId(line.bookAccountId)?.id ??
+        DEFAULT_BOOK_ACCOUNTS.find(
+          (acc) =>
+            acc.name === line.accountName &&
+            acc.accountType === line.accountType,
+        )?.id ??
         DEFAULT_BOOK_ACCOUNTS.find((acc) => acc.name === line.accountName)?.id ??
         line.accountName,
       amount: parseAmount(line.amount),
@@ -351,3 +365,22 @@ function entryRecordToImportInput(
   };
 }
 
+function findDefaultAccountByLegacyPcaId(id: string | undefined) {
+  if (id == null) return null;
+  const match = id.match(/^acct_pca_(\d+)$/);
+  if (match == null) return null;
+  const sortOrder = Number(match[1]);
+  if (!Number.isFinite(sortOrder)) return null;
+  return DEFAULT_BOOK_ACCOUNTS.find((account) => account.sortOrder === sortOrder) ?? null;
+}
+
+function normalizeTaxCategoryText(value: string): string {
+  return value.trim().replace(/\s+/g, "");
+}
+
+function normalizeBusinessCategoryText(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed === "") return "";
+  const shortType = trimmed.match(/^第([1-6])種/)?.[1];
+  return shortType == null ? trimmed : `第${shortType}種`;
+}

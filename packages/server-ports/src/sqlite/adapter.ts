@@ -422,7 +422,12 @@ function createMasterDataDb(): MasterDataDb {
   return {
     async getAllBookAccounts() {
       return DEFAULT_BOOK_ACCOUNTS.map(
-        (a): MasterBookAccount => ({ id: a.id, name: a.name, accountType: a.accountType }),
+        (a): MasterBookAccount => ({
+          id: a.id,
+          name: a.name,
+          sortOrder: a.sortOrder,
+          accountType: a.accountType,
+        }),
       );
     },
     async getAllTaxCategories() {

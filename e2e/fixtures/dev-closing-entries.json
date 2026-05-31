@@ -13,8 +13,8 @@
       "description": "検証長文: 初回制作請求 - 月次一覧で読める長い摘要",
       "partner": "検証株式会社ロングパートナー名",
       "businessRate": "100",
-      "taxCategory": "課税10%",
-      "businessCategory": "第5種"
+      "taxCategory": "課税 10%",
+      "businessCategory": "第5種（サービス業等）"
     },
     {
       "localId": "scenario-2026-02-short",
@@ -28,7 +28,7 @@
       "description": "短",
       "partner": "検証",
       "businessRate": "100",
-      "taxCategory": "課税10%",
+      "taxCategory": "課税 10%",
       "businessCategory": "対象外"
     },
     {
@@ -43,7 +43,7 @@
       "description": "共同オフィス利用料",
       "partner": "検証共同オフィス",
       "businessRate": "50",
-      "taxCategory": "課税10%",
+      "taxCategory": "課税 10%",
       "businessCategory": "対象外"
     },
     {
@@ -58,7 +58,7 @@
       "description": "4Kモニター購入",
       "partner": "検証備品店",
       "businessRate": "100",
-      "taxCategory": "課税10%",
+      "taxCategory": "課税 10%",
       "businessCategory": "対象外"
     },
     {
@@ -73,8 +73,8 @@
       "description": "動画制作素材の仕入",
       "partner": "検証素材市場",
       "businessRate": "100",
-      "taxCategory": "課税10%",
-      "businessCategory": "第5種"
+      "taxCategory": "課税 10%",
+      "businessCategory": "第5種（サービス業等）"
     },
     {
       "localId": "scenario-2026-06-travel",
@@ -88,7 +88,7 @@
       "description": "地方出張の交通費",
       "partner": "検証交通",
       "businessRate": "100",
-      "taxCategory": "課税10%",
+      "taxCategory": "課税 10%",
       "businessCategory": "対象外"
     },
     {
@@ -103,7 +103,7 @@
       "description": "納品物の発送費",
       "partner": "検証配送",
       "businessRate": "100",
-      "taxCategory": "課税10%",
+      "taxCategory": "課税 10%",
       "businessCategory": "対象外"
     },
     {
@@ -133,8 +133,8 @@
       "description": "秋商材の仕入と配送費",
       "partner": "検証長短確認用の仕入先株式会社",
       "businessRate": "100",
-      "taxCategory": "課税10%",
-      "businessCategory": "第5種"
+      "taxCategory": "課税 10%",
+      "businessCategory": "第5種（サービス業等）"
     },
     {
       "localId": "scenario-2026-09-compound-debit-b",
@@ -148,7 +148,7 @@
       "description": "秋商材の仕入と配送費",
       "partner": "検証長短確認用の仕入先株式会社",
       "businessRate": "100",
-      "taxCategory": "課税10%",
+      "taxCategory": "課税 10%",
       "businessCategory": "対象外"
     },
     {
@@ -163,7 +163,7 @@
       "description": "決済手数料",
       "partner": "検証決済サービス",
       "businessRate": "100",
-      "taxCategory": "課税10%",
+      "taxCategory": "課税 10%",
       "businessCategory": "対象外"
     },
     {

@@ -137,7 +137,7 @@
 | データ | 定数 | 内容 |
 |---|---|---|
 | 勘定科目 | `DEFAULT_BOOK_ACCOUNTS` | 資産・負債・純資産・収益・費用の主要科目 28 件 |
-| 税区分 | `DEFAULT_TAX_CATEGORIES` | 課税10% / 軽減8% / 対象外 |
+| 税区分 | `DEFAULT_TAX_CATEGORIES` | 課税 10% / 軽減8% / 対象外 |
 | 事業区分 | `DEFAULT_BUSINESS_CATEGORIES` | 第1〜第6種・対象外 (みなし仕入率区分) |
 
 **実装パッケージ:** `client-domain` (`default-master-data.ts`), `server-domain` (`master-data.ts`)

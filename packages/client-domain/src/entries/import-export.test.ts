@@ -23,8 +23,8 @@ function entry(overrides: Partial<EntryRecord> = {}): EntryRecord {
     description: "売上入金",
     partner: "取引先A",
     businessRate: "",
-    taxCategory: "課税10%",
-    businessCategory: "第5種",
+    taxCategory: "課税 10%",
+    businessCategory: "第5種（サービス業等）",
     localId: "e-1",
     ...overrides,
   };

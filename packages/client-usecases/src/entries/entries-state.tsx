@@ -408,12 +408,23 @@ function mapBookAccountName(
   accounts: MasterBookAccount[],
 ): string {
   if (id == null || id.length === 0) return "";
-  return accounts.find((account) => account.id === id)?.name ?? id;
+  return (
+    accounts.find((account) => account.id === id)?.name ??
+    findByLegacyPcaId(id, accounts)?.name ??
+    id
+  );
 }
 
 function mapTaxName(idOrName: string, categories: MasterTaxCategory[]): string {
   if (idOrName.length === 0) return "対象外";
-  return categories.find((category) => category.id === idOrName)?.name ?? idOrName;
+  const normalized = normalizeTaxCategoryText(idOrName);
+  return (
+    categories.find((category) => category.id === idOrName)?.name ??
+    categories.find(
+      (category) => normalizeTaxCategoryText(category.name) === normalized,
+    )?.name ??
+    idOrName
+  );
 }
 
 function mapBusinessName(
@@ -421,8 +432,13 @@ function mapBusinessName(
   categories: MasterBusinessCategory[],
 ): string {
   if (idOrName.length === 0) return "対象外";
+  const normalized = normalizeBusinessCategoryText(idOrName);
   return (
-    categories.find((category) => category.id === idOrName)?.name ?? idOrName
+    categories.find((category) => category.id === idOrName)?.name ??
+    categories.find(
+      (category) => normalizeBusinessCategoryText(category.name) === normalized,
+    )?.name ??
+    idOrName
   );
 }
 
@@ -433,7 +449,19 @@ function mapAccountType(
 ): EntryRecord["debitType"] {
   if (id == null) return fallback;
   return (accounts.find((account) => account.id === id)?.accountType ??
+    findByLegacyPcaId(id, accounts)?.accountType ??
     fallback) as EntryRecord["debitType"];
+}
+
+function findByLegacyPcaId(
+  id: string,
+  accounts: MasterBookAccount[],
+): MasterBookAccount | null {
+  const match = id.match(/^acct_pca_(\d+)$/);
+  if (match == null) return null;
+  const sortOrder = Number(match[1]);
+  if (!Number.isFinite(sortOrder)) return null;
+  return accounts.find((account) => account.sortOrder === sortOrder) ?? null;
 }
 
 function formatAmount(value: number): string {
@@ -454,9 +482,23 @@ function safeRate(value: string): number {
 }
 
 function resolveBookAccountId(input: {
+  explicitId?: string | null;
   accountName: string;
+  accountType?: EntryAccountVisualType;
   accounts: MasterBookAccount[];
 }): string | null {
+  if (input.explicitId != null && input.explicitId.length > 0) {
+    const byId = input.accounts.find((account) => account.id === input.explicitId);
+    if (byId != null) return byId.id;
+    const byLegacyId = findByLegacyPcaId(input.explicitId, input.accounts);
+    if (byLegacyId != null) return byLegacyId.id;
+  }
+  const byNameAndType = input.accounts.find(
+    (account) =>
+      account.name === input.accountName &&
+      (input.accountType == null || account.accountType === input.accountType),
+  );
+  if (byNameAndType != null) return byNameAndType.id;
   const found = input.accounts.find((account) => account.name === input.accountName);
   return found?.id ?? null;
 }
@@ -466,8 +508,22 @@ function resolveTaxCategoryId(
   name: string,
   categories: MasterTaxCategory[],
 ): string {
-  if (explicitId != null && explicitId.length > 0) return explicitId;
-  return categories.find((category) => category.name === name)?.id ?? name;
+  const normalizedExplicit = normalizeTaxCategoryText(explicitId ?? "");
+  if (normalizedExplicit.length > 0) {
+    const byId = categories.find((category) => category.id === normalizedExplicit);
+    if (byId != null) return byId.id;
+    const byName = categories.find(
+      (category) => normalizeTaxCategoryText(category.name) === normalizedExplicit,
+    );
+    if (byName != null) return byName.id;
+  }
+  const normalizedName = normalizeTaxCategoryText(name);
+  return (
+    categories.find(
+      (category) => normalizeTaxCategoryText(category.name) === normalizedName,
+    )?.id ??
+    (normalizedName === "" ? "tax_exempt" : name)
+  );
 }
 
 function resolveBusinessCategoryId(
@@ -475,8 +531,34 @@ function resolveBusinessCategoryId(
   name: string,
   categories: MasterBusinessCategory[],
 ): string {
-  if (explicitId != null && explicitId.length > 0) return explicitId;
-  return categories.find((category) => category.name === name)?.id ?? name;
+  const normalizedExplicit = normalizeBusinessCategoryText(explicitId ?? "");
+  if (normalizedExplicit.length > 0) {
+    const byId = categories.find((category) => category.id === normalizedExplicit);
+    if (byId != null) return byId.id;
+    const byName = categories.find(
+      (category) =>
+        normalizeBusinessCategoryText(category.name) === normalizedExplicit,
+    );
+    if (byName != null) return byName.id;
+  }
+  const normalizedName = normalizeBusinessCategoryText(name);
+  return (
+    categories.find(
+      (category) => normalizeBusinessCategoryText(category.name) === normalizedName,
+    )?.id ??
+    (normalizedName === "" ? "biz_none" : name)
+  );
+}
+
+function normalizeTaxCategoryText(value: string): string {
+  return value.trim().replace(/\s+/g, "");
+}
+
+function normalizeBusinessCategoryText(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed === "") return "";
+  const shortType = trimmed.match(/^第([1-6])種/)?.[1];
+  return shortType == null ? trimmed : `第${shortType}種`;
 }
 
 function buildEntryApiLinesFromDraft(
@@ -492,7 +574,9 @@ function buildEntryApiLinesFromDraft(
     side: line.side,
     bookAccountId:
       resolveBookAccountId({
+        explicitId: line.bookAccountId,
         accountName: line.accountName,
+        accountType: line.accountType,
         accounts: master.accounts,
       }) ?? "",
     amount: parseAmount(line.amount),
@@ -532,17 +616,19 @@ function toImportPayload(
 
   const debitBookAccountId =
     resolveBookAccountId({
+      explicitId: entry.debitBookAccountId,
       accountName: entry.debit,
+      accountType: entry.debitType,
       accounts: master.accounts,
     }) ??
-    entry.debitBookAccountId ??
     "";
   const creditBookAccountId =
     resolveBookAccountId({
+      explicitId: entry.creditBookAccountId,
       accountName: entry.credit,
+      accountType: entry.creditType,
       accounts: master.accounts,
     }) ??
-    entry.creditBookAccountId ??
     "";
   if (debitBookAccountId === "" || creditBookAccountId === "") {
     throw new AppError({

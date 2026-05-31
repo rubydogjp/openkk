@@ -15,7 +15,7 @@ function buildSampleCarryoverJournals(fiscalPeriodId: string) {
     { description: "期首再振替 商品", debit: "商品", credit: "仕入", amount: 150000, partner: "", biz: "" },
     { description: "期首再振替 貯蔵品", debit: "消耗品費", credit: "貯蔵品", amount: 28000, partner: "", biz: "" },
     { description: "期首再振替 未払金", debit: "地代家賃", credit: "未払金", amount: 120000, partner: "共同オフィスA", biz: "" },
-    { description: "期首再振替 前受金", debit: "前受金", credit: "売上", amount: 48000, partner: "", biz: "第5種" },
+    { description: "期首再振替 前受金", debit: "前受金", credit: "売上", amount: 48000, partner: "", biz: "第5種（サービス業等）" },
   ];
   return sample.map((s, index) => {
     const id = `oc-${fiscalPeriodId}-${index + 1}`;

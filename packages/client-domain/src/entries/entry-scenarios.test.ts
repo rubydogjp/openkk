@@ -159,7 +159,7 @@ function entry(overrides: Partial<EntryRecord>): EntryRecord {
     description: "複合仕訳のテスト",
     partner: "",
     businessRate: "",
-    taxCategory: "課税10%",
+    taxCategory: "課税 10%",
     businessCategory: "",
     ...overrides,
   };

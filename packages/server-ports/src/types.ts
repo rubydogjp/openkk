@@ -112,15 +112,6 @@ export type FiscalPeriodPatchInput = Partial<{
   };
 }>;
 
-export type FixedAssetFrozenPreview = {
-  period?: string;
-  remaining?: string;
-  progress?: number;
-  current?: string | number;
-  purchase?: string | number;
-  status?: string;
-};
-
 export type FixedAssetApiRecord = {
   id: string;
   fiscalPeriodId: string;
@@ -128,13 +119,12 @@ export type FixedAssetApiRecord = {
   acquisitionDate: string;
   acquisitionCost: number;
   usefulLife: number;
-  depreciationMethod: "straight_line" | "declining_balance";
+  depreciationMethod: "straight_line";
   businessRate: number;
   status: "active" | "sold" | "disposed" | "retired";
   disposalDate: string;
   disposalPrice: number;
   bookAccountId: string;
-  frozenPreview?: FixedAssetFrozenPreview;
 };
 
 export type FixedAssetCreateInput = {
@@ -142,7 +132,7 @@ export type FixedAssetCreateInput = {
   acquisitionDate: string;
   acquisitionCost: number;
   usefulLife: number;
-  depreciationMethod: "straight_line" | "declining_balance";
+  depreciationMethod: "straight_line";
   businessRate: number;
   bookAccountId: string;
 };
@@ -152,7 +142,7 @@ export type FixedAssetPatchInput = {
   acquisitionDate?: string;
   acquisitionCost?: number;
   usefulLife?: number;
-  depreciationMethod?: "straight_line" | "declining_balance";
+  depreciationMethod?: "straight_line";
   businessRate?: number;
   status?: "active" | "sold" | "disposed" | "retired";
   disposalDate?: string;
@@ -163,6 +153,7 @@ export type FixedAssetPatchInput = {
 export type MasterBookAccount = {
   id: string;
   name: string;
+  sortOrder?: number;
   accountType:
     | "asset"
     | "liability"
