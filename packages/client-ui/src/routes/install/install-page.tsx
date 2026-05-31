@@ -6,17 +6,17 @@ import { useRouter } from "next/navigation";
 import { useBrandConfig } from "@rubydogjp/openkk-client-usecases";
 
 import {
+  getDeferredInstallPrompt,
+  clearDeferredInstallPrompt,
+  isAppInstalled,
+  subscribeInstallChange,
+} from "../../shared/pwa-install";
+import {
   palette,
   fontSize,
   fontWeight,
   fontFamily,
 } from "../../shared/design-tokens";
-
-// beforeinstallprompt は標準 lib に型が無いので最小限で定義する。
-type InstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-};
 
 // navigator.install は新しい Web Install API (実験的)。あれば利用する。
 type NavigatorWithInstall = Navigator & {
@@ -33,51 +33,56 @@ function isStandalone(): boolean {
   );
 }
 
+function canInstall(): boolean {
+  return (
+    getDeferredInstallPrompt() != null ||
+    typeof (navigator as NavigatorWithInstall).install === "function"
+  );
+}
+
 export function InstallPage() {
   const router = useRouter();
   const brandConfig = useBrandConfig();
   const editionLabel = brandConfig.editionLabel ?? "";
   const [phase, setPhase] = useState<Phase>("checking");
-  const [deferred, setDeferred] = useState<InstallPromptEvent | null>(null);
 
   useEffect(() => {
-    if (isStandalone()) {
-      setPhase("installed");
-      return;
-    }
-
-    const onPrompt = (event: Event) => {
-      event.preventDefault();
-      setDeferred(event as InstallPromptEvent);
-      setPhase("ready");
+    const evaluate = () => {
+      if (isStandalone() || isAppInstalled()) {
+        setPhase("installed");
+        return;
+      }
+      if (canInstall()) {
+        setPhase("ready");
+      }
     };
-    const onInstalled = () => {
-      setDeferred(null);
-      setPhase("installed");
-    };
+    // 既にアプリ全体で捕捉済みの beforeinstallprompt を即反映する。
+    evaluate();
+    const unsubscribe = subscribeInstallChange(evaluate);
 
-    window.addEventListener("beforeinstallprompt", onPrompt as EventListener);
-    window.addEventListener("appinstalled", onInstalled);
-
-    if (typeof (navigator as NavigatorWithInstall).install === "function") {
-      setPhase((p) => (p === "checking" ? "ready" : p));
-    }
-
+    // 一定時間 installable にならなければ非対応とみなす。
     const timer = window.setTimeout(() => {
       setPhase((p) => (p === "checking" ? "unsupported" : p));
     }, 2500);
 
     return () => {
-      window.removeEventListener(
-        "beforeinstallprompt",
-        onPrompt as EventListener,
-      );
-      window.removeEventListener("appinstalled", onInstalled);
+      unsubscribe();
       window.clearTimeout(timer);
     };
   }, []);
 
   async function handleInstall() {
+    const prompt = getDeferredInstallPrompt();
+    if (prompt != null) {
+      await prompt.prompt();
+      try {
+        await prompt.userChoice;
+      } catch {
+        // ignore
+      }
+      clearDeferredInstallPrompt();
+      return;
+    }
     const nav = navigator as NavigatorWithInstall;
     if (typeof nav.install === "function") {
       try {
@@ -86,16 +91,6 @@ export function InstallPage() {
       } catch {
         // ユーザーキャンセル等は無視
       }
-      return;
-    }
-    if (deferred != null) {
-      await deferred.prompt();
-      try {
-        await deferred.userChoice;
-      } catch {
-        // ignore
-      }
-      setDeferred(null);
     }
   }
 
@@ -131,13 +126,7 @@ export function InstallPage() {
 
       {phase === "installed" ? (
         <>
-          <p
-            style={{
-              margin: 0,
-              fontSize: fontSize.md,
-              color: palette.textSoft,
-            }}
-          >
+          <p style={{ margin: 0, fontSize: fontSize.md, color: palette.textSoft }}>
             ホーム画面に追加済みです
           </p>
           <PrimaryButton onClick={() => router.push("/")}>
@@ -146,13 +135,7 @@ export function InstallPage() {
         </>
       ) : phase === "unsupported" ? (
         <>
-          <p
-            style={{
-              margin: 0,
-              fontSize: fontSize.md,
-              color: palette.textSoft,
-            }}
-          >
+          <p style={{ margin: 0, fontSize: fontSize.md, color: palette.textSoft }}>
             この環境では「ホーム画面に追加」できません
           </p>
           <PrimaryButton onClick={() => router.push("/")}>

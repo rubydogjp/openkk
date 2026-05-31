@@ -21,6 +21,8 @@ import {
   typography,
 } from "../shared/design-tokens";
 import { normalizePathname } from "../shared/pathname";
+// アプリ表示中に発火する beforeinstallprompt を早期に捕捉しておく（side-effect）。
+import "../shared/pwa-install";
 import { FiscalPeriodsContent } from "./fiscal-periods-content";
 import { SignInContent } from "./sign-in-content";
 
