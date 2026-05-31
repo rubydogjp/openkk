@@ -12,7 +12,7 @@
 
 const version =
   new URL(self.location.href).searchParams.get("v") ?? "default";
-const CACHE_NAME = `openkk-bookkeeping-${version}`;
+const CACHE_NAME = `openkk-app-${version}`;
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -25,7 +25,7 @@ self.addEventListener("activate", (event) => {
       const names = await caches.keys();
       await Promise.all(
         names
-          .filter((n) => n.startsWith("openkk-bookkeeping-") && n !== CACHE_NAME)
+          .filter((n) => n.startsWith("openkk-") && n !== CACHE_NAME)
           .map((n) => caches.delete(n)),
       );
       await self.clients.claim();
