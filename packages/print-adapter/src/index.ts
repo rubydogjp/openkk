@@ -20,12 +20,18 @@ function openPrint(html: string): void {
 
   let printed = false;
   let removed = false;
-  let safetyTimer: ReturnType<typeof setTimeout> | null = null;
+  const timers = new Set<ReturnType<typeof setTimeout>>();
+
+  function later(fn: () => void, ms: number): void {
+    const timer = setTimeout(fn, ms);
+    timers.add(timer);
+  }
 
   function removeIframe() {
     if (removed) return;
     removed = true;
-    if (safetyTimer != null) clearTimeout(safetyTimer);
+    for (const timer of timers) clearTimeout(timer);
+    timers.clear();
     if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
   }
 
@@ -37,26 +43,28 @@ function openPrint(html: string): void {
       removeIframe();
       return;
     }
-    win.addEventListener(
-      "afterprint",
-      () => {
-
-        setTimeout(removeIframe, 100);
-      },
-      { once: true },
-    );
+    // afterprint may fire on the iframe or the parent window depending on the
+    // engine; whichever comes first removes the iframe shortly after.
+    const onAfterPrint = () => later(removeIframe, 100);
+    win.addEventListener("afterprint", onAfterPrint, { once: true });
+    window.addEventListener("afterprint", onAfterPrint, { once: true });
     try {
       win.focus();
       win.print();
     } catch {
       removeIframe();
+      return;
     }
+    // Fallback for engines that never fire afterprint: remove well after any
+    // realistic print interaction so the hidden iframe cannot leak.
+    later(removeIframe, 60_000);
   }
 
   iframe.addEventListener("load", triggerPrint, { once: true });
   document.body.appendChild(iframe);
 
-  safetyTimer = setTimeout(triggerPrint, 3000);
+  // Fallback in case "load" never fires (e.g. srcdoc blocked).
+  later(triggerPrint, 3000);
 }
 
 export const printAdapter: PrintPort = {

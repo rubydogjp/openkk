@@ -197,38 +197,19 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
         return records.find((record) => record.id === entryId) ?? null;
       },
       async createEntryFromDraft(fiscalPeriodId, draft) {
-        const lines: EntryApiLine[] = draft.lines.map((line) => {
-          const accountId =
-            resolveBookAccountId({
-              accountName: line.accountName,
-              accounts: bookAccounts,
-            }) ?? "";
-          return {
-            side: line.side,
-            bookAccountId: accountId,
-            amount: parseAmount(line.amount),
-            partnerName: draft.partner,
-            taxCategoryName: resolveTaxCategoryId(
-              null,
-              draft.taxCategory,
-              taxCategories,
-            ),
-            businessCategoryName: resolveBusinessCategoryId(
-              null,
-              draft.businessCategory,
-              businessCategories,
-            ),
-          };
-        });
-        if (lines.some((line) => line.bookAccountId === "")) {
-          throw new AppError({
+        const lines = buildEntryApiLinesFromDraft(
+          draft,
+          {
+            accounts: bookAccounts,
+            taxes: taxCategories,
+            businesses: businessCategories,
+          },
+          {
             messageForDeveloper:
               "entries.createEntryFromDraft: bookAccountId resolution failed",
             messageForUser: "勘定科目の解決に失敗したため作成できませんでした",
-            originalMessage: null,
-            statusCode: null,
-          });
-        }
+          },
+        );
         const created = await backendApi.entries.create(fiscalPeriodId, {
           date: draft.date,
           description: draft.description,
@@ -250,38 +231,19 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
         if (currentRecord == null) {
           return false;
         }
-        const lines: EntryApiLine[] = draft.lines.map((line) => {
-          const accountId =
-            resolveBookAccountId({
-              accountName: line.accountName,
-              accounts: bookAccounts,
-            }) ?? "";
-          return {
-            side: line.side,
-            bookAccountId: accountId,
-            amount: parseAmount(line.amount),
-            partnerName: draft.partner,
-            taxCategoryName: resolveTaxCategoryId(
-              null,
-              draft.taxCategory,
-              taxCategories,
-            ),
-            businessCategoryName: resolveBusinessCategoryId(
-              null,
-              draft.businessCategory,
-              businessCategories,
-            ),
-          };
-        });
-        if (lines.some((line) => line.bookAccountId === "")) {
-          throw new AppError({
+        const lines = buildEntryApiLinesFromDraft(
+          draft,
+          {
+            accounts: bookAccounts,
+            taxes: taxCategories,
+            businesses: businessCategories,
+          },
+          {
             messageForDeveloper:
               "entries.saveEntry: bookAccountId resolution failed",
             messageForUser: "勘定科目の解決に失敗したため保存できませんでした",
-            originalMessage: null,
-            statusCode: null,
-          });
-        }
+          },
+        );
         const patched = await backendApi.entries.patch(currentRecord.fiscalPeriodId, entryId, {
           date: draft.date,
           description: draft.description,
@@ -338,20 +300,9 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
             businesses: businessCategories,
           }),
         );
-        setRecords((current) => {
-          const rest = current.filter(
-            (record) => record.fiscalPeriodId !== fiscalPeriodId,
-          );
-          const existing = current.filter(
-            (record) => record.fiscalPeriodId === fiscalPeriodId,
-          );
-          const existingIds = new Set(existing.map((record) => record.id));
-          return [
-            ...rest,
-            ...existing,
-            ...appended.filter((record) => !existingIds.has(record.id)),
-          ];
-        });
+        // importMany skips existing localIds server-side, so every returned
+        // record is newly inserted and can simply be appended.
+        setRecords((current) => [...current, ...appended]);
         return {
           imported: response.importedCount,
           skipped: Math.max(0, importedEntries.length - response.importedCount),
@@ -526,6 +477,42 @@ function resolveBusinessCategoryId(
 ): string {
   if (explicitId != null && explicitId.length > 0) return explicitId;
   return categories.find((category) => category.name === name)?.id ?? name;
+}
+
+function buildEntryApiLinesFromDraft(
+  draft: EntryDraft,
+  master: {
+    accounts: MasterBookAccount[];
+    taxes: MasterTaxCategory[];
+    businesses: MasterBusinessCategory[];
+  },
+  errorContext: { messageForDeveloper: string; messageForUser: string },
+): EntryApiLine[] {
+  const lines: EntryApiLine[] = draft.lines.map((line) => ({
+    side: line.side,
+    bookAccountId:
+      resolveBookAccountId({
+        accountName: line.accountName,
+        accounts: master.accounts,
+      }) ?? "",
+    amount: parseAmount(line.amount),
+    partnerName: draft.partner,
+    taxCategoryName: resolveTaxCategoryId(null, draft.taxCategory, master.taxes),
+    businessCategoryName: resolveBusinessCategoryId(
+      null,
+      draft.businessCategory,
+      master.businesses,
+    ),
+  }));
+  if (lines.some((line) => line.bookAccountId === "")) {
+    throw new AppError({
+      messageForDeveloper: errorContext.messageForDeveloper,
+      messageForUser: errorContext.messageForUser,
+      originalMessage: null,
+      statusCode: null,
+    });
+  }
+  return lines;
 }
 
 function toImportPayload(

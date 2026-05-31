@@ -49,6 +49,10 @@ export interface EntriesDb {
   ): Promise<EntryApiRecord>;
   update(id: string, input: EntryUpsertInput): Promise<EntryApiRecord>;
   delete(id: string): Promise<void>;
+  /**
+   * Idempotent on `localId`: inputs whose `localId` already exists in the
+   * fiscal period are skipped. Resolves to only the rows actually inserted.
+   */
   importMany(
     userId: string,
     fiscalPeriodId: string,

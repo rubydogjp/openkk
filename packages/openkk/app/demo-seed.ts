@@ -59,7 +59,7 @@ function entryRecordToApiRecord(
   fiscalPeriodId: string,
 ): EntryApiRecord {
   return {
-    id: record.id.replace("fp-2026", fiscalPeriodId),
+    id: record.id,
     fiscalPeriodId,
     date: record.date,
     description: record.description,

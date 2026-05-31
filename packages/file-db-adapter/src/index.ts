@@ -36,6 +36,22 @@ function createWorkerSqlDb(worker: Worker): SqlDb & {
     else entry.reject(new Error(error ?? "sqlite worker error"));
   };
 
+  // A worker crash (uncaught error or deserialization failure) never sends a
+  // response, so reject every in-flight request instead of leaving them hung.
+  function rejectAllPending(reason: string): void {
+    const error = new Error(reason);
+    for (const [id, entry] of pending) {
+      pending.delete(id);
+      entry.reject(error);
+    }
+  }
+  worker.onerror = (event) => {
+    rejectAllPending(event.message || "sqlite worker crashed");
+  };
+  worker.onmessageerror = () => {
+    rejectAllPending("sqlite worker message deserialization failed");
+  };
+
   function send(type: string, payload: unknown): Promise<unknown> {
     const id = nextId++;
     return new Promise((resolve, reject) => {

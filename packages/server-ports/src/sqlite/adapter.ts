@@ -65,8 +65,34 @@ function nowMs(): number {
   return Date.now();
 }
 
+/** Wrap a batch of writes in a single transaction so partial failures roll back
+ * and OPFS commits once instead of per-statement. */
+async function runInTransaction(
+  db: SqlDb,
+  fn: () => Promise<void>,
+): Promise<void> {
+  await db.exec("BEGIN");
+  try {
+    await fn();
+    await db.exec("COMMIT");
+  } catch (error) {
+    await db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
 async function seedStores(db: SqlDb, seed: DbSnapshot): Promise<void> {
   const now = nowMs();
+  await runInTransaction(db, async () => {
+    await seedStoresInner(db, seed, now);
+  });
+}
+
+async function seedStoresInner(
+  db: SqlDb,
+  seed: DbSnapshot,
+  now: number,
+): Promise<void> {
   for (const item of seed.fiscalPeriods) {
     await db.exec({
       sql: `INSERT INTO fiscal_periods(id, user_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
@@ -248,24 +274,38 @@ function createEntriesDb(db: SqlDb): EntriesDb {
     },
     async importMany(_userId, fiscalPeriodId, inputs) {
       const created: EntryApiRecord[] = [];
-      for (const input of inputs) {
-        const id = newId("entry");
-        const record: EntryApiRecord = {
-          id,
-          fiscalPeriodId,
-          date: input.date,
-          description: input.description,
-          localId: input.localId ?? "",
-          businessRate: input.businessRate,
-          lines: input.lines.map((line) => ({ ...line })),
-        };
-        const now = nowMs();
-        await db.exec({
-          sql: `INSERT INTO entries(id, fiscal_period_id, date, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?)`,
-          bind: [id, fiscalPeriodId, record.date, JSON.stringify(record), now, now],
-        });
-        created.push(record);
-      }
+      await runInTransaction(db, async () => {
+        // localId is the import source's stable key: an entry whose localId
+        // already exists in this fiscal period is skipped, so re-importing the
+        // same file is idempotent. Entries without a localId are always inserted.
+        const existing = await loadAllByFiscalPeriod(fiscalPeriodId);
+        const seenLocalIds = new Set(
+          existing
+            .map((entry) => entry.localId)
+            .filter((localId) => localId !== ""),
+        );
+        for (const input of inputs) {
+          const localId = input.localId ?? "";
+          if (localId !== "" && seenLocalIds.has(localId)) continue;
+          if (localId !== "") seenLocalIds.add(localId);
+          const id = newId("entry");
+          const record: EntryApiRecord = {
+            id,
+            fiscalPeriodId,
+            date: input.date,
+            description: input.description,
+            localId,
+            businessRate: input.businessRate,
+            lines: input.lines.map((line) => ({ ...line })),
+          };
+          const now = nowMs();
+          await db.exec({
+            sql: `INSERT INTO entries(id, fiscal_period_id, date, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?)`,
+            bind: [id, fiscalPeriodId, record.date, JSON.stringify(record), now, now],
+          });
+          created.push(record);
+        }
+      });
       return created;
     },
   };

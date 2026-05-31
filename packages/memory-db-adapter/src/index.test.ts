@@ -135,6 +135,33 @@ describe("createMemoryDbAdapter / entries", () => {
       "second",
     ]);
   });
+
+  it("importMany is idempotent on localId across calls and within a batch", async () => {
+    const db = await makeDb();
+    const first = await db.entries.importMany("user-1", "fp-1", [
+      { date: "2026-04-01", description: "a", localId: "L1", businessRate: 1, lines: [sampleLine] },
+      { date: "2026-04-02", description: "b", localId: "L2", businessRate: 1, lines: [sampleLine] },
+    ]);
+    expect(first).toHaveLength(2);
+
+    // Re-import L1 (existing) + L3 (new) + duplicate L3 within the batch.
+    const second = await db.entries.importMany("user-1", "fp-1", [
+      { date: "2026-04-01", description: "a-again", localId: "L1", businessRate: 1, lines: [sampleLine] },
+      { date: "2026-04-03", description: "c", localId: "L3", businessRate: 1, lines: [sampleLine] },
+      { date: "2026-04-03", description: "c-dup", localId: "L3", businessRate: 1, lines: [sampleLine] },
+    ]);
+    expect(second.map((entry) => entry.description)).toEqual(["c"]);
+    expect(await db.entries.getAll("fp-1")).toHaveLength(3);
+  });
+
+  it("importMany always inserts entries without a localId", async () => {
+    const db = await makeDb();
+    const created = await db.entries.importMany("user-1", "fp-1", [
+      { date: "2026-04-01", description: "x", businessRate: 1, lines: [sampleLine] },
+      { date: "2026-04-01", description: "y", businessRate: 1, lines: [sampleLine] },
+    ]);
+    expect(created).toHaveLength(2);
+  });
 });
 
 describe("createMemoryDbAdapter / fixedAssets", () => {

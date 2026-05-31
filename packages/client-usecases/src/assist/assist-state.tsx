@@ -169,9 +169,12 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
             statusCode: null,
           });
         }
+        // The edit drawer has no business-rate field — its "進捗 (0-100%)" input
+        // edits depreciation progress, not the business-use rate. Omit
+        // businessRate so the stored value is preserved instead of being
+        // overwritten with progress.
         const patched = await backendApi.fixedAssets.patch(fiscalPeriodId, assetId, {
           name: draft.name,
-          businessRate: Number(draft.progress) || 0,
           status: mapFixedAssetStatusApi(draft.status),
           bookAccountId: accountId,
         });

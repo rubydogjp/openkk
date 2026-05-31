@@ -67,7 +67,9 @@ server side:   api → usecases → ports → domain
 
 ## DB スキーマとマイグレーション
 
-`file-db-adapter/src/schema.ts` でバージョン管理。`runMigrations()` が起動時に自動適用する。新しい migration を追加する場合は `SCHEMA_MIGRATIONS` 配列に追加するだけでよい。
+SQLite スキーマと共通アダプタは `server-ports/src/sqlite/`（`schema.ts` / `migrate.ts` / `adapter.ts`）に集約されている。`file-db-adapter`・`memory-db-adapter` はこの共通アダプタを薄くラップし、起動時に `runMigrations()` を呼ぶ。`runMigrations()` は `openkk_meta` の `schema_version` を見て未適用分のみをトランザクション内で適用し、アプリより新しいバージョンの DB はダウングレードを拒否する。新しい migration を追加する場合は `schema.ts` の `SCHEMA_MIGRATIONS` 配列に追記するだけでよい。
+
+エントリの取込み（`importMany`）は `localId` 単位で冪等で、同一 fiscal period に既存の `localId` はスキップされる。バルク挿入はトランザクションで囲まれ、途中失敗時はロールバックされる。
 
 ## テスト戦略
 

@@ -106,13 +106,14 @@ export function EntryEditDrawer(props: {
     setErrorText(null);
   }, [props.entry]);
 
+  const { onClose } = props;
   useEffect(() => {
     function handle(event: KeyboardEvent) {
-      if (event.key === "Escape") props.onClose();
+      if (event.key === "Escape") onClose();
     }
     document.addEventListener("keydown", handle);
     return () => document.removeEventListener("keydown", handle);
-  }, [props]);
+  }, [onClose]);
 
   const update = (patch: Partial<RowPairDraft>) =>
     setDraft((current) => ({ ...current, ...patch }));
@@ -136,6 +137,7 @@ export function EntryEditDrawer(props: {
       pairs: [
         ...current.pairs,
         {
+          id: nextRowPairId(),
           debitAccountName: defDebit?.name ?? "",
           debitAccountType: defDebit?.accountType ?? "expense",
           debitAmount: "",
@@ -197,6 +199,7 @@ export function EntryEditDrawer(props: {
     }
     setDraft((current) => {
       const newPair: RowPair = {
+        id: nextRowPairId(),
         debitAccountName: debit.name,
         debitAccountType: debit.accountType,
         debitAmount: "",
@@ -444,7 +447,7 @@ export function EntryEditDrawer(props: {
             }}
           >
             {draft.pairs.map((row, index) => (
-              <Fragment key={index}>
+              <Fragment key={row.id}>
                 {index > 0 ? <CardDivider /> : null}
                 <div
                   style={{
@@ -1516,6 +1519,7 @@ function MinusIcon() {
 }
 
 type RowPair = {
+  id: string;
   debitAccountName: string;
   debitAccountType: EntryAccountVisualType;
   debitAmount: string;
@@ -1523,6 +1527,14 @@ type RowPair = {
   creditAccountType: EntryAccountVisualType;
   creditAmount: string;
 };
+
+// Stable per-row key so removing a middle row doesn't shift other rows'
+// internal state (open dropdowns, focus) onto their neighbours.
+let rowPairKeySeq = 0;
+function nextRowPairId(): string {
+  rowPairKeySeq += 1;
+  return `row-${rowPairKeySeq}`;
+}
 
 type RowPairDraft = {
   date: string;
@@ -1544,6 +1556,7 @@ function recordToRowPairDraft(record: EntryRecord): RowPairDraft {
     const debit = debits[i] ?? null;
     const credit = credits[i] ?? null;
     pairs.push({
+      id: nextRowPairId(),
       debitAccountName: debit?.accountName ?? "",
       debitAccountType: debit?.accountType ?? "expense",
       debitAmount: debit?.amount ?? "",

@@ -166,7 +166,7 @@ export function buildDemoSeedEntriesForFiscalPeriod(
 ): EntryRecord[] {
   return buildBootstrapEntries().map((record) => ({
     ...record,
-    id: record.id.replace("fp-2026", fiscalPeriodId),
+    id: `${record.id}-${fiscalPeriodId}`,
     fiscalPeriodId,
   }));
 }

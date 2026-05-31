@@ -210,6 +210,11 @@ export interface EntriesApi {
     input: EntryUpsertInput,
   ): Promise<EntryApiRecord>;
   remove(fiscalPeriodId: string, id: string): Promise<void>;
+  /**
+   * Idempotent on `localId`: inputs whose `localId` already exists in the
+   * fiscal period are skipped. `importedCount` and `entries` cover only the
+   * rows actually inserted, so callers can derive skipped = inputs - imported.
+   */
   importMany(
     fiscalPeriodId: string,
     entries: EntryUpsertInput[],
