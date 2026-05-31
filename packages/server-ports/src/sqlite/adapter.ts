@@ -425,7 +425,6 @@ function createMasterDataDb(): MasterDataDb {
         (a): MasterBookAccount => ({
           id: a.id,
           name: a.name,
-          sortOrder: a.sortOrder,
           accountType: a.accountType,
         }),
       );

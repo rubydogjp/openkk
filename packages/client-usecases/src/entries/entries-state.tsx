@@ -408,21 +408,14 @@ function mapBookAccountName(
   accounts: MasterBookAccount[],
 ): string {
   if (id == null || id.length === 0) return "";
-  return (
-    accounts.find((account) => account.id === id)?.name ??
-    findByLegacyPcaId(id, accounts)?.name ??
-    id
-  );
+  return accounts.find((account) => account.id === id)?.name ?? id;
 }
 
 function mapTaxName(idOrName: string, categories: MasterTaxCategory[]): string {
   if (idOrName.length === 0) return "対象外";
-  const normalized = normalizeTaxCategoryText(idOrName);
   return (
     categories.find((category) => category.id === idOrName)?.name ??
-    categories.find(
-      (category) => normalizeTaxCategoryText(category.name) === normalized,
-    )?.name ??
+    categories.find((category) => category.name === idOrName)?.name ??
     idOrName
   );
 }
@@ -432,12 +425,9 @@ function mapBusinessName(
   categories: MasterBusinessCategory[],
 ): string {
   if (idOrName.length === 0) return "対象外";
-  const normalized = normalizeBusinessCategoryText(idOrName);
   return (
     categories.find((category) => category.id === idOrName)?.name ??
-    categories.find(
-      (category) => normalizeBusinessCategoryText(category.name) === normalized,
-    )?.name ??
+    categories.find((category) => category.name === idOrName)?.name ??
     idOrName
   );
 }
@@ -449,19 +439,7 @@ function mapAccountType(
 ): EntryRecord["debitType"] {
   if (id == null) return fallback;
   return (accounts.find((account) => account.id === id)?.accountType ??
-    findByLegacyPcaId(id, accounts)?.accountType ??
     fallback) as EntryRecord["debitType"];
-}
-
-function findByLegacyPcaId(
-  id: string,
-  accounts: MasterBookAccount[],
-): MasterBookAccount | null {
-  const match = id.match(/^acct_pca_(\d+)$/);
-  if (match == null) return null;
-  const sortOrder = Number(match[1]);
-  if (!Number.isFinite(sortOrder)) return null;
-  return accounts.find((account) => account.sortOrder === sortOrder) ?? null;
 }
 
 function formatAmount(value: number): string {
@@ -490,8 +468,6 @@ function resolveBookAccountId(input: {
   if (input.explicitId != null && input.explicitId.length > 0) {
     const byId = input.accounts.find((account) => account.id === input.explicitId);
     if (byId != null) return byId.id;
-    const byLegacyId = findByLegacyPcaId(input.explicitId, input.accounts);
-    if (byLegacyId != null) return byLegacyId.id;
   }
   const byNameAndType = input.accounts.find(
     (account) =>
@@ -508,21 +484,15 @@ function resolveTaxCategoryId(
   name: string,
   categories: MasterTaxCategory[],
 ): string {
-  const normalizedExplicit = normalizeTaxCategoryText(explicitId ?? "");
-  if (normalizedExplicit.length > 0) {
-    const byId = categories.find((category) => category.id === normalizedExplicit);
+  if (explicitId != null && explicitId.length > 0) {
+    const byId = categories.find((category) => category.id === explicitId);
     if (byId != null) return byId.id;
-    const byName = categories.find(
-      (category) => normalizeTaxCategoryText(category.name) === normalizedExplicit,
-    );
+    const byName = categories.find((category) => category.name === explicitId);
     if (byName != null) return byName.id;
   }
-  const normalizedName = normalizeTaxCategoryText(name);
   return (
-    categories.find(
-      (category) => normalizeTaxCategoryText(category.name) === normalizedName,
-    )?.id ??
-    (normalizedName === "" ? "tax_exempt" : name)
+    categories.find((category) => category.name === name)?.id ??
+    (name.trim() === "" ? "tax_exempt" : name)
   );
 }
 
@@ -531,34 +501,16 @@ function resolveBusinessCategoryId(
   name: string,
   categories: MasterBusinessCategory[],
 ): string {
-  const normalizedExplicit = normalizeBusinessCategoryText(explicitId ?? "");
-  if (normalizedExplicit.length > 0) {
-    const byId = categories.find((category) => category.id === normalizedExplicit);
+  if (explicitId != null && explicitId.length > 0) {
+    const byId = categories.find((category) => category.id === explicitId);
     if (byId != null) return byId.id;
-    const byName = categories.find(
-      (category) =>
-        normalizeBusinessCategoryText(category.name) === normalizedExplicit,
-    );
+    const byName = categories.find((category) => category.name === explicitId);
     if (byName != null) return byName.id;
   }
-  const normalizedName = normalizeBusinessCategoryText(name);
   return (
-    categories.find(
-      (category) => normalizeBusinessCategoryText(category.name) === normalizedName,
-    )?.id ??
-    (normalizedName === "" ? "biz_none" : name)
+    categories.find((category) => category.name === name)?.id ??
+    (name.trim() === "" ? "biz_none" : name)
   );
-}
-
-function normalizeTaxCategoryText(value: string): string {
-  return value.trim().replace(/\s+/g, "");
-}
-
-function normalizeBusinessCategoryText(value: string): string {
-  const trimmed = value.trim();
-  if (trimmed === "") return "";
-  const shortType = trimmed.match(/^第([1-6])種/)?.[1];
-  return shortType == null ? trimmed : `第${shortType}種`;
 }
 
 function buildEntryApiLinesFromDraft(

@@ -10,12 +10,54 @@ function buildSampleCarryoverJournals(fiscalPeriodId: string) {
   const fiscalYear = fiscalPeriodId.slice(3, 7);
   const date = `${fiscalYear}-01-01`;
   const sample = [
-    { description: "期首再振替 売掛金", debit: "売掛金", credit: "売上", amount: 240000, partner: "", biz: "" },
-    { description: "期首再振替 未収入金", debit: "未収入金", credit: "雑収入", amount: 64000, partner: "", biz: "" },
-    { description: "期首再振替 商品", debit: "商品", credit: "仕入", amount: 150000, partner: "", biz: "" },
-    { description: "期首再振替 貯蔵品", debit: "消耗品費", credit: "貯蔵品", amount: 28000, partner: "", biz: "" },
-    { description: "期首再振替 未払金", debit: "地代家賃", credit: "未払金", amount: 120000, partner: "共同オフィスA", biz: "" },
-    { description: "期首再振替 前受金", debit: "前受金", credit: "売上", amount: 48000, partner: "", biz: "第5種（サービス業等）" },
+    {
+      description: "期首再振替 売掛金",
+      debit: "売掛金",
+      credit: "売上",
+      amount: 240000,
+      partner: "",
+      biz: "",
+    },
+    {
+      description: "期首再振替 未収入金",
+      debit: "未収入金",
+      credit: "雑収入",
+      amount: 64000,
+      partner: "",
+      biz: "",
+    },
+    {
+      description: "期首再振替 商品",
+      debit: "商品",
+      credit: "仕入",
+      amount: 150000,
+      partner: "",
+      biz: "",
+    },
+    {
+      description: "期首再振替 貯蔵品",
+      debit: "消耗品費",
+      credit: "貯蔵品",
+      amount: 28000,
+      partner: "",
+      biz: "",
+    },
+    {
+      description: "期首再振替 未払金",
+      debit: "地代家賃",
+      credit: "未払金",
+      amount: 120000,
+      partner: "共同オフィスA",
+      biz: "",
+    },
+    {
+      description: "期首再振替 前受金",
+      debit: "前受金",
+      credit: "売上",
+      amount: 48000,
+      partner: "",
+      biz: "第5種（サービス業等）",
+    },
   ];
   return sample.map((s, index) => {
     const id = `oc-${fiscalPeriodId}-${index + 1}`;
@@ -101,7 +143,10 @@ function buildSampleFiscalPeriod2026(
   };
 }
 
-export function buildSampleSession(config: OpenkkConfig, userId?: string): Session {
+export function buildSampleSession(
+  config: OpenkkConfig,
+  userId?: string,
+): Session {
   return {
     userId: userId ?? config.mockUserId,
     displayName:
@@ -110,25 +155,44 @@ export function buildSampleSession(config: OpenkkConfig, userId?: string): Sessi
         : config.mode === "dev"
           ? "開発ユーザー"
           : "このPCに保存",
-    email: config.mode === "demo" ? "demo@example.com" : "dev@example.com",
+    email: "サインインなし",
   };
 }
 
-export function buildBootstrapFiscalPeriods(config: OpenkkConfig): FiscalPeriod[] {
-
+export function buildBootstrapFiscalPeriods(
+  config: OpenkkConfig,
+): FiscalPeriod[] {
   return config.mode === "demo"
-    ? [buildSampleFiscalPeriod2026(config.mockUserId, "デモ期間2026年分", "fresh")]
-    : [buildSampleFiscalPeriod2026(config.mockUserId, "2026年分", "in-progress")];
+    ? [
+        buildSampleFiscalPeriod2026(
+          config.mockUserId,
+          "デモ期間2026年分",
+          "fresh",
+        ),
+      ]
+    : [
+        buildSampleFiscalPeriod2026(
+          config.mockUserId,
+          "2026年分",
+          "in-progress",
+        ),
+      ];
 }
 
-export function buildBootstrapSessionUserId(config: OpenkkConfig): string | null {
+export function buildBootstrapSessionUserId(
+  config: OpenkkConfig,
+): string | null {
   return config.initialMockUserId;
 }
 
-export function buildBootstrapFiscalPeriodId(config: OpenkkConfig): string | null {
+export function buildBootstrapFiscalPeriodId(
+  config: OpenkkConfig,
+): string | null {
   return config.initialMockFiscalPeriodId;
 }
 
-export function buildSignedOutFiscalPeriodId(config: OpenkkConfig): string | null {
+export function buildSignedOutFiscalPeriodId(
+  config: OpenkkConfig,
+): string | null {
   return config.mode === "dev" ? config.initialMockFiscalPeriodId : null;
 }

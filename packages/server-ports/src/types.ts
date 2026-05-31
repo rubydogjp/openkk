@@ -153,7 +153,6 @@ export type FixedAssetPatchInput = {
 export type MasterBookAccount = {
   id: string;
   name: string;
-  sortOrder?: number;
   accountType:
     | "asset"
     | "liability"
