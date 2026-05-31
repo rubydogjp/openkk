@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 
-import { AppError } from "@rubydogjp/openkk-client-domain";
+import { AppError, OPENING_EQUITY_LABELS } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text";
 import { useOpenkkAppState, useOpenkkConfig } from "@rubydogjp/openkk-client-usecases";
 import { AccountChipCell } from "../../entries/entries-ui";
@@ -75,7 +75,7 @@ const HANDLED_ASSET_NAMES = new Set<string>([
   "事業主貸",
 ]);
 
-const EQUITY_LABELS = new Set<string>(["事業主借", "元入金"]);
+const EQUITY_LABELS = OPENING_EQUITY_LABELS;
 
 const assetKey = (label: string) => `a:${label}`;
 const liabilityKey = (label: string) => `l:${label}`;

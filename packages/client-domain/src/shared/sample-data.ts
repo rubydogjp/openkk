@@ -12,7 +12,7 @@ function buildSampleCarryoverJournals(fiscalPeriodId: string) {
   const sample = [
     { description: "期首再振替 売掛金", debit: "売掛金", credit: "売上", amount: 240000, partner: "", biz: "" },
     { description: "期首再振替 未収入金", debit: "未収入金", credit: "雑収入", amount: 64000, partner: "", biz: "" },
-    { description: "期首再振替 商品", debit: "商品", credit: "仕入高", amount: 150000, partner: "", biz: "" },
+    { description: "期首再振替 商品", debit: "商品", credit: "仕入", amount: 150000, partner: "", biz: "" },
     { description: "期首再振替 貯蔵品", debit: "消耗品費", credit: "貯蔵品", amount: 28000, partner: "", biz: "" },
     { description: "期首再振替 未払金", debit: "地代家賃", credit: "未払金", amount: 120000, partner: "共同オフィスA", biz: "" },
     { description: "期首再振替 前受金", debit: "前受金", credit: "売上", amount: 48000, partner: "", biz: "第5種" },

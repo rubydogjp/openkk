@@ -4,28 +4,32 @@ export type FixedAssetPreviewItem = {
   name: string;
   account: string;
   accountId?: string;
+  // 計算で導出される表示値（保存しない）
   period: string;
   remaining: string;
   progress: number;
   current: string;
   purchase: string;
   status: string;
+  depreciationAmount?: string;
+  // 償却計算の元になる真実の値
   acquisitionDate?: string;
+  acquisitionCost?: number;
   usefulLife?: number;
   businessRate?: number;
-  depreciationAmount?: string;
   disposalDate?: string;
   disposalPrice?: string;
 };
 
+// 編集ドロワーが扱うのは「真実」の入力値のみ。簿価・進捗・残期間は
+// これらから計算で導出され、ユーザーは直接編集しない。
 export type FixedAssetDraft = {
   name: string;
   account: string;
-  period: string;
-  remaining: string;
-  progress: number;
-  current: string;
-  purchase: string;
+  acquisitionDate: string;
+  acquisitionCost: string; // 金額入力（カンマ区切り可）
+  usefulLife: number; // 耐用年数（年）
+  businessRatePercent: number; // 事業割合 0..100
   status: string;
 };
 

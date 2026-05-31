@@ -76,8 +76,9 @@ test.describe("file import", () => {
 
     // export as CSV
     await page.getByRole("button", { name: "ファイル" }).click();
-    // click the CSV export menu item (not file input)
-    await page.getByText("CSV").last().click();
+    // click the CSV export menu item (not the file input, nor imported entry
+    // rows whose descriptions also contain "CSV")
+    await page.getByRole("menuitem", { name: "CSV でダウンロード" }).click();
     await expect(page.getByText(/_journal\.csv を出力しました/)).toBeVisible({
       timeout: 5_000,
     });

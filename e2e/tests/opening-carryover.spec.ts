@@ -15,18 +15,15 @@ test.describe("opening carryover (再振替)", () => {
   test("adds a carryover record and it appears as a virtual entry", async ({
     page,
   }) => {
-    await expect(
-      page.getByRole("heading", { name: "再振替" }),
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "追加" })).toBeVisible();
 
     await page.getByRole("button", { name: "追加" }).click();
     const drawer = page.getByRole("dialog", { name: "仕訳の編集" });
     await expect(drawer).toBeVisible();
 
-    await drawer.getByLabel("日付").fill("2026-01-01");
+    // 追加時に既定の勘定科目・日付が入った再振替が生成される。日付・科目は
+    // ボタン/ピッカー UI のため既定値を使い、摘要と金額だけ編集する。
     await drawer.getByLabel("摘要").fill("再振替テスト: 未払費用");
-    await drawer.getByLabel("借方科目").fill("未払金");
-    await drawer.getByLabel("貸方科目").fill("地代家賃");
     await drawer.locator(".bk-amount-input").first().fill("30000");
     await drawer.locator(".bk-amount-input").last().fill("30000");
     await clickButton(page, "保存");
@@ -65,10 +62,11 @@ test.describe("opening carryover (再振替)", () => {
     const drawer = page.getByRole("dialog", { name: "仕訳の編集" });
     await expect(drawer).toBeVisible();
 
-    await drawer.getByRole("button", { name: "削除" }).click();
+    // exact: true で footer の「削除」のみを対象に（行削除「この行を削除」と区別）
+    await drawer.getByRole("button", { name: "削除", exact: true }).click();
     const confirmDialog = page.getByRole("dialog", { name: "仕訳の削除確認" });
     await expect(confirmDialog).toBeVisible();
-    await confirmDialog.getByRole("button", { name: "削除" }).click();
+    await confirmDialog.getByRole("button", { name: "削除", exact: true }).click();
 
     await expect(page.getByText("削除対象の再振替")).not.toBeVisible({
       timeout: 5_000,
@@ -82,10 +80,15 @@ test.describe("opening carryover (再振替)", () => {
 
     // navigate to the entries page and verify the virtual row is visible in January
     await page.getByRole("link", { name: "仕訳" }).click();
+    // 再振替（仮想行）は期首=2026年1月に表示される。既定表示月(9月)から戻る。
+    for (let i = 0; i < 8; i += 1) {
+      await page.getByRole("button", { name: "前の月" }).click();
+    }
+    await expect(page.getByText("2026年1月")).toBeVisible();
     await expect(page.getByText("仕訳一覧確認用の再振替")).toBeVisible();
 
     // virtual rows show the "再振替" badge
-    await expect(page.getByText("再振替")).toBeVisible();
+    await expect(page.getByText("再振替").first()).toBeVisible();
   });
 });
 
@@ -93,7 +96,7 @@ async function navigateToCarryover(page: Page) {
   await page.getByRole("link", { name: "補助" }).click();
   await expect(page.getByRole("heading", { name: "補助" })).toBeVisible();
   await page
-    .getByRole("button", { name: /再振替 翌期に再振替が必要な仕訳/ })
+    .getByRole("button", { name: /再振替 一時的な調整に使う特別な仕訳データ/ })
     .click();
 }
 
@@ -101,10 +104,8 @@ async function addCarryover(page: Page, description: string, amount: string) {
   await page.getByRole("button", { name: "追加" }).click();
   const drawer = page.getByRole("dialog", { name: "仕訳の編集" });
   await expect(drawer).toBeVisible();
-  await drawer.getByLabel("日付").fill("2026-01-01");
+  // 日付・勘定科目は既定値を使う（ボタン/ピッカー UI のため）。
   await drawer.getByLabel("摘要").fill(description);
-  await drawer.getByLabel("借方科目").fill("売掛金");
-  await drawer.getByLabel("貸方科目").fill("売上");
   await drawer.locator(".bk-amount-input").first().fill(amount);
   await drawer.locator(".bk-amount-input").last().fill(amount);
   await clickButton(page, "保存");

@@ -21,7 +21,11 @@ import { buildGeneralLedgerDocument } from "@rubydogjp/openkk-client-domain";
 import { buildFinancialStatementsDocument } from "@rubydogjp/openkk-client-domain";
 import { computeFsAggregate } from "@rubydogjp/openkk-client-domain";
 import { ClosingExplainerAnimation } from "../closing-animation";
-import { computeBSSummary, computeFinancialSummary } from "@rubydogjp/openkk-client-domain";
+import {
+  computeBSSummary,
+  computeFinancialSummary,
+  summarizeOpeningBalances,
+} from "@rubydogjp/openkk-client-domain";
 import {
   ActionChoiceCard,
   ActionGrid,
@@ -102,14 +106,14 @@ export function ClosingBody({
       return null;
     return computeBSSummary(
       entriesState.listFiscalPeriodEntries(appState.currentFiscalPeriodId),
-      currentFiscalPeriod?.openingDebitTotal ?? 0,
-      currentFiscalPeriod?.openingCreditTotal ?? 0,
+      summarizeOpeningBalances(
+        currentFiscalPeriod?.opening?.openingBalanceLines ?? [],
+      ),
       financialSummary.profit,
     );
   }, [
     appState.currentFiscalPeriodId,
-    currentFiscalPeriod?.openingDebitTotal,
-    currentFiscalPeriod?.openingCreditTotal,
+    currentFiscalPeriod?.opening,
     entriesState,
     financialSummary,
   ]);

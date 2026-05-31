@@ -111,7 +111,7 @@ export function computeFsAggregate({
     const v = costOfSalesByName.get(label) ?? 0;
     return v > 0 ? v : null;
   };
-  const purchases = cost("仕入金額");
+  const purchases = cost("仕入");
 
   const amounts: Record<number, number | null> = {
     1: revenueTotal !== 0 ? revenueTotal : null,
@@ -128,16 +128,16 @@ export function computeFsAggregate({
     12: expense("通信費"),
     13: expense("広告宣伝費"),
     14: expense("接待交際費"),
-    15: expense("損害保険料"),
+    15: expense("保険料"),
     16: expense("修繕費"),
     17: expense("消耗品費"),
     18: expense("減価償却費"),
     19: expense("福利厚生費"),
-    20: expense("給料賃金"),
-    21: expense("外注工賃"),
-    22: expense("利子割引料"),
+    20: expense("給与手当"),
+    21: expense("外注費"),
+    22: expense("支払利息"),
     23: expense("地代家賃"),
-    24: expense("貸倒金"),
+    24: expense("貸倒損失"),
     25: null,
     26: null,
     27: null,

@@ -101,8 +101,9 @@ async function createFixedAssetDuringScenario(page: Page) {
   await drawer
     .getByLabel("名称")
     .fill("検証用固定資産 長い名称のノートPC兼撮影機材");
-  await drawer.getByLabel("現在簿価").fill("315000");
+  await drawer.getByLabel("取得日").fill("2026-04-01");
   await drawer.getByLabel("取得価額").fill("420000");
+  await drawer.getByLabel("耐用年数 (年)").fill("4");
   await clickButton(page, "保存");
   await expect(
     page.getByText("検証用固定資産 長い名称のノートPC兼撮影機材"),
@@ -113,8 +114,8 @@ async function expectAccountingScenarioRows(page: Page) {
   await page.getByRole("link", { name: "仕訳" }).click();
   await expect(page.getByText("2026年9月")).toBeVisible();
   await expect(page.getByText("秋商材の仕入と配送費").first()).toBeVisible();
-  await expect(page.getByText("仕入高")).toBeVisible();
-  await expect(page.getByText("荷造運賃")).toBeVisible();
+  await expect(page.getByText("仕入", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("荷造運賃", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("未払金").first()).toBeVisible();
   await expect(page.getByText("168,000").first()).toBeVisible();
   await expect(page.getByText("42,000").first()).toBeVisible();

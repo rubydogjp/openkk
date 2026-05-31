@@ -64,7 +64,7 @@
     {
       "localId": "scenario-2026-05-purchase",
       "date": "2026-05-09",
-      "debit": "仕入高",
+      "debit": "仕入",
       "debitType": "cost_of_sales",
       "debitAmount": "428000",
       "credit": "普通預金",
@@ -124,7 +124,7 @@
     {
       "localId": "scenario-2026-09-compound-debit-a",
       "date": "2026-09-14",
-      "debit": "仕入高",
+      "debit": "仕入",
       "debitType": "cost_of_sales",
       "debitAmount": "168000",
       "credit": "未払金",

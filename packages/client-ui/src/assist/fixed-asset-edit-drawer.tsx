@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { AmountInput } from "../shared/amount-field";
 import { DemoLockButton } from "../shared/demo-icon";
@@ -11,9 +11,12 @@ import {
   FormSecondaryButton,
   FormTextInput,
 } from "../shared/form-fields";
-import type {
-  FixedAssetDraft,
-  FixedAssetPreviewItem,
+import { useOpenkkConfig } from "@rubydogjp/openkk-client-usecases";
+import {
+  computeStraightLineDepreciation,
+  parseAmount,
+  type FixedAssetDraft,
+  type FixedAssetPreviewItem,
 } from "@rubydogjp/openkk-client-domain";
 
 export function FixedAssetEditDrawer({
@@ -27,18 +30,31 @@ export function FixedAssetEditDrawer({
   onClose: () => void;
   onSave: (draft: FixedAssetDraft) => Promise<boolean>;
 }) {
+  const config = useOpenkkConfig();
   const [draft, setDraft] = useState<FixedAssetDraft>(() => ({
     name: asset.name,
     account: asset.account,
-    period: asset.period,
-    remaining: asset.remaining,
-    progress: asset.progress,
-    current: asset.current,
-    purchase: asset.purchase,
+    acquisitionDate: asset.acquisitionDate ?? "",
+    acquisitionCost: asset.purchase,
+    usefulLife: asset.usefulLife ?? 0,
+    businessRatePercent: Math.round((asset.businessRate ?? 1) * 100),
     status: asset.status,
   }));
   const [saving, setSaving] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
+
+  // 簿価・進捗・残期間・当期償却費は入力値からリアルタイムに計算して表示する
+  // （ユーザーは直接編集しない）。
+  const preview = useMemo(
+    () =>
+      computeStraightLineDepreciation({
+        acquisitionDate: draft.acquisitionDate,
+        acquisitionCost: parseAmount(draft.acquisitionCost),
+        usefulLife: draft.usefulLife,
+        asOf: config.today,
+      }),
+    [draft.acquisitionDate, draft.acquisitionCost, draft.usefulLife, config.today],
+  );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -142,34 +158,28 @@ export function FixedAssetEditDrawer({
               onChange={(v) => setDraft({ ...draft, account: v })}
             />
           </Field>
-          <Field label="期間表示">
-            <FormTextInput
-              value={draft.period}
-              onChange={(v) => setDraft({ ...draft, period: v })}
-            />
-          </Field>
-          <Field label="残り期間表示">
-            <FormTextInput
-              value={draft.remaining}
-              onChange={(v) => setDraft({ ...draft, remaining: v })}
-            />
-          </Field>
-          <Field label="現在簿価">
-            <AmountInput
-              value={draft.current}
-              onChange={(v) => setDraft({ ...draft, current: v })}
+          <Field label="取得日">
+            <DateInput
+              value={draft.acquisitionDate}
+              onChange={(v) => setDraft({ ...draft, acquisitionDate: v })}
             />
           </Field>
           <Field label="取得価額">
             <AmountInput
-              value={draft.purchase}
-              onChange={(v) => setDraft({ ...draft, purchase: v })}
+              value={draft.acquisitionCost}
+              onChange={(v) => setDraft({ ...draft, acquisitionCost: v })}
             />
           </Field>
-          <Field label="進捗 (0-100%)">
-            <ProgressField
-              value={draft.progress}
-              onChange={(v) => setDraft({ ...draft, progress: v })}
+          <Field label="耐用年数 (年)">
+            <UsefulLifeInput
+              value={draft.usefulLife}
+              onChange={(v) => setDraft({ ...draft, usefulLife: v })}
+            />
+          </Field>
+          <Field label="事業割合 (0-100%)">
+            <BusinessRateField
+              value={draft.businessRatePercent}
+              onChange={(v) => setDraft({ ...draft, businessRatePercent: v })}
             />
           </Field>
           <Field label="状態">
@@ -178,6 +188,14 @@ export function FixedAssetEditDrawer({
               onChange={(v) => setDraft({ ...draft, status: v })}
             />
           </Field>
+
+          <DepreciationPreview
+            period={preview.periodLabel}
+            remaining={preview.remainingLabel}
+            progress={preview.progress}
+            currentBookValue={preview.currentBookValue}
+            annualDepreciation={preview.annualDepreciation}
+          />
 
           {errorText != null ? (
             <div style={{ fontSize: fontSize.sm, color: palette.danger, fontWeight: fontWeight.semibold }}>
@@ -237,14 +255,68 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function ProgressField({
+const controlStyle = {
+  height: sizes.field.height,
+  boxSizing: "border-box" as const,
+  border: `1px solid ${palette.borderStrong}`,
+  borderRadius: radii.sm,
+  background: palette.surface,
+  padding: `0 ${sizes.field.paddingX}px`,
+  ...typography.input,
+  color: palette.text,
+  outline: "none",
+  fontFamily: "inherit" as const,
+};
+
+function DateInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <input
+      type="date"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      style={{ ...controlStyle, width: "100%" }}
+    />
+  );
+}
+
+function UsefulLifeInput({
   value,
   onChange,
 }: {
   value: number;
   onChange: (value: number) => void;
 }) {
-  const percent = Math.round(Math.min(1, Math.max(0, value)) * 100);
+  return (
+    <input
+      type="number"
+      min={1}
+      max={100}
+      step={1}
+      inputMode="numeric"
+      value={Number.isFinite(value) && value > 0 ? value : ""}
+      onChange={(event) => {
+        const next = parseInt(event.target.value, 10);
+        onChange(Number.isNaN(next) ? 0 : Math.max(0, next));
+      }}
+      style={{ ...controlStyle, width: "100%" }}
+    />
+  );
+}
+
+function BusinessRateField({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  const percent = Math.round(Math.min(100, Math.max(0, value)));
   return (
     <div style={{ display: "grid", gap: 8 }}>
       <input
@@ -253,9 +325,62 @@ function ProgressField({
         max={100}
         step={1}
         value={percent}
-        onChange={(event) => onChange(Number(event.target.value) / 100)}
+        onChange={(event) => onChange(Number(event.target.value))}
       />
       <div style={{ fontSize: fontSize.sm, color: palette.textMuted }}>{percent}%</div>
+    </div>
+  );
+}
+
+function DepreciationPreview({
+  period,
+  remaining,
+  progress,
+  currentBookValue,
+  annualDepreciation,
+}: {
+  period: string;
+  remaining: string;
+  progress: number;
+  currentBookValue: number;
+  annualDepreciation: number;
+}) {
+  const yen = (value: number) => new Intl.NumberFormat("ja-JP").format(value);
+  return (
+    <div
+      style={{
+        display: "grid",
+        gap: 6,
+        padding: 16,
+        background: palette.surfaceTint,
+        border: `1px solid ${palette.borderStrong}`,
+        borderRadius: radii.sm,
+      }}
+    >
+      <div
+        style={{
+          fontSize: fontSize.sm,
+          fontWeight: fontWeight.semibold,
+          color: palette.textLabel,
+        }}
+      >
+        償却の自動計算（定額法）
+      </div>
+      <PreviewRow label="償却期間" value={period || "—"} />
+      <PreviewRow label="進捗" value={`${Math.round(progress * 100)}%（${remaining}）`} />
+      <PreviewRow label="現在簿価" value={`${yen(currentBookValue)} 円`} />
+      <PreviewRow label="当期償却費" value={`${yen(annualDepreciation)} 円`} />
+    </div>
+  );
+}
+
+function PreviewRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+      <span style={{ fontSize: fontSize.sm, color: palette.textMuted }}>{label}</span>
+      <span style={{ fontSize: fontSize.sm, color: palette.text, fontWeight: fontWeight.semibold }}>
+        {value}
+      </span>
     </div>
   );
 }

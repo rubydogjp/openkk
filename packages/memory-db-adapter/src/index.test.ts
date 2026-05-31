@@ -70,7 +70,7 @@ describe("createMemoryDbAdapter / fiscalPeriods", () => {
 describe("createMemoryDbAdapter / entries", () => {
   const sampleLine = {
     side: "debit" as const,
-    bookAccountId: "acc-cash",
+    bookAccountId: "acct_cash",
     amount: 1000,
     partnerName: "",
     taxCategoryName: "tax-0",
@@ -174,7 +174,7 @@ describe("createMemoryDbAdapter / fixedAssets", () => {
       usefulLife: 3,
       depreciationMethod: "straight_line",
       businessRate: 1,
-      bookAccountId: "acc-tools",
+      bookAccountId: "acct_equipment",
     });
 
     expect(asset.id).toMatch(/^fa_/);

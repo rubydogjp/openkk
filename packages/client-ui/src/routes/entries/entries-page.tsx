@@ -266,6 +266,15 @@ export function EntriesPage() {
         fiscalPeriodId,
         importedEntries,
       );
+      // 取り込んだ取引が見えるよう、最も早い取込月へ移動する
+      // （既定表示月に取込分が無いと「取り込んだのに何も出ない」状態になるため）。
+      const earliestDate = importedEntries
+        .map((entry) => entry.date)
+        .filter((date): date is string => typeof date === "string" && date.length >= 7)
+        .sort((left, right) => left.localeCompare(right))[0];
+      if (result.imported > 0 && earliestDate != null) {
+        navigateWithMonth(parseYearMonth(earliestDate));
+      }
       setStatusMessage({
         kind: "success",
         text: `取り込みました(取込 ${result.imported} 件 / 重複スキップ ${result.skipped} 件)`,

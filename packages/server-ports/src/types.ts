@@ -149,6 +149,10 @@ export type FixedAssetCreateInput = {
 
 export type FixedAssetPatchInput = {
   name?: string;
+  acquisitionDate?: string;
+  acquisitionCost?: number;
+  usefulLife?: number;
+  depreciationMethod?: "straight_line" | "declining_balance";
   businessRate?: number;
   status?: "active" | "sold" | "disposed" | "retired";
   disposalDate?: string;

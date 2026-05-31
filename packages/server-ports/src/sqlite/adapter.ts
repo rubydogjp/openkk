@@ -368,6 +368,10 @@ function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
       const updated: FixedAssetApiRecord = {
         ...existing,
         ...(patch.name !== undefined ? { name: patch.name } : {}),
+        ...(patch.acquisitionDate !== undefined ? { acquisitionDate: patch.acquisitionDate } : {}),
+        ...(patch.acquisitionCost !== undefined ? { acquisitionCost: patch.acquisitionCost } : {}),
+        ...(patch.usefulLife !== undefined ? { usefulLife: patch.usefulLife } : {}),
+        ...(patch.depreciationMethod !== undefined ? { depreciationMethod: patch.depreciationMethod } : {}),
         ...(patch.businessRate !== undefined ? { businessRate: patch.businessRate } : {}),
         ...(patch.status !== undefined ? { status: patch.status } : {}),
         ...(patch.disposalDate !== undefined ? { disposalDate: patch.disposalDate } : {}),

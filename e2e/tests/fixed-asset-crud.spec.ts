@@ -23,8 +23,9 @@ test.describe("fixed asset CRUD", () => {
     await expect(drawer).toBeVisible();
 
     await drawer.getByLabel("名称").fill("テスト用ノートPC");
-    await drawer.getByLabel("現在簿価").fill("240000");
+    await drawer.getByLabel("取得日").fill("2026-04-01");
     await drawer.getByLabel("取得価額").fill("300000");
+    await drawer.getByLabel("耐用年数 (年)").fill("4");
     await clickButton(page, "保存");
 
     await expect(drawer).not.toBeVisible({ timeout: 5_000 });
@@ -35,7 +36,7 @@ test.describe("fixed asset CRUD", () => {
     page,
   }) => {
     // add an asset first
-    await addFixedAsset(page, "編集前の資産名", "120000", "200000");
+    await addFixedAsset(page, "編集前の資産名", "200000");
 
     await page.getByText("編集前の資産名").click();
     const drawer = page.getByRole("dialog", { name: "固定資産の編集" });
@@ -53,15 +54,15 @@ test.describe("fixed asset CRUD", () => {
 async function addFixedAsset(
   page: Parameters<typeof clickButton>[0],
   name: string,
-  current: string,
   acquisition: string,
 ) {
   await page.getByRole("button", { name: "追加" }).click();
   const drawer = page.getByRole("dialog", { name: "固定資産の編集" });
   await expect(drawer).toBeVisible();
   await drawer.getByLabel("名称").fill(name);
-  await drawer.getByLabel("現在簿価").fill(current);
+  await drawer.getByLabel("取得日").fill("2026-04-01");
   await drawer.getByLabel("取得価額").fill(acquisition);
+  await drawer.getByLabel("耐用年数 (年)").fill("4");
   await clickButton(page, "保存");
   await expect(drawer).not.toBeVisible({ timeout: 5_000 });
 }

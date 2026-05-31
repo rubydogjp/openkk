@@ -19,6 +19,7 @@ import {
   buildSignedOutFiscalPeriodId,
   getEntryLines,
   sampleOpeningBalanceLines,
+  summarizeOpeningBalances,
   DEFAULT_BOOK_ACCOUNTS,
   DEFAULT_BUSINESS_CATEGORIES,
   DEFAULT_TAX_CATEGORIES,
@@ -260,10 +261,7 @@ export function useOpenkkAppState() {
 
 function mapRemoteFiscalPeriod(period: FiscalPeriodApiRecord): FiscalPeriod {
   const openingBalanceLines = period.opening?.openingBalanceLines ?? [];
-  const openingTotal = openingBalanceLines.reduce(
-    (sum, line) => sum + Math.abs(line.amount),
-    0,
-  );
+  const openingSummary = summarizeOpeningBalances(openingBalanceLines);
   return {
     id: period.id,
     name: period.name,
@@ -274,8 +272,8 @@ function mapRemoteFiscalPeriod(period: FiscalPeriodApiRecord): FiscalPeriod {
     settingsCompleted: period.settingsCompleted,
     openingBalancesCompleted: period.openingBalancesCompleted,
     documentsReceivedCompleted: period.documentsReceivedCompleted,
-    openingDebitTotal: openingTotal,
-    openingCreditTotal: openingTotal,
+    openingDebitTotal: openingSummary.assets,
+    openingCreditTotal: openingSummary.liabilities + openingSummary.equity,
     opening:
       period.opening == null
         ? undefined

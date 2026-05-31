@@ -39,6 +39,7 @@ export function isoDateToWeekday(isoDate: string): string {
 export function DatePickerButton(props: {
   value: string;
   onChange: (value: string) => void;
+  ariaLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const label = formatDateButtonLabel(props.value);
@@ -48,6 +49,7 @@ export function DatePickerButton(props: {
       <button
         type="button"
         onClick={() => setOpen(true)}
+        aria-label={props.ariaLabel}
         style={{
           height: sizes.field.height,
           padding: `0 ${sizes.field.paddingX}px`,

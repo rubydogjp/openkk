@@ -21,7 +21,7 @@ describe("computeFsAggregate", () => {
           creditAmount: "100,000",
         }),
         entry({
-          debit: "仕入金額",
+          debit: "仕入",
           debitType: "cost_of_sales",
           debitAmount: "30,000",
           credit: "普通預金",
@@ -75,7 +75,7 @@ describe("computeFsAggregate", () => {
           lines: [
             {
               side: "debit",
-              accountName: "仕入金額",
+              accountName: "仕入",
               accountType: "cost_of_sales",
               amount: "168,000",
             },
@@ -92,7 +92,7 @@ describe("computeFsAggregate", () => {
               amount: "210,000",
             },
           ],
-          debit: "仕入金額",
+          debit: "仕入",
           debitType: "cost_of_sales",
           debitAmount: "168,000",
           credit: "未払金",

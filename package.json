@@ -27,6 +27,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "gen-deps": "node scripts/gen-dep-graph.mjs",
+    "gen-master-data": "node scripts/gen-master-data.mjs",
     "test:e2e": "playwright test --config=e2e/playwright.config.ts",
     "test:e2e:export": "npm run test:e2e:export:demo && npm run test:e2e:export:prod",
     "test:e2e:export:demo": "NEXT_PUBLIC_OPENKK_MODE=demo npm run build -w @rubydogjp/openkk && MODE=demo playwright test --config=e2e/playwright.export.config.ts",

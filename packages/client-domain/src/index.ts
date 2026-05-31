@@ -15,6 +15,7 @@ export * from "./entries/quick-guide-data";
 export * from "./entries/virtual-entries";
 
 export * from "./assist/fixed-asset-data";
+export * from "./assist/fixed-asset-depreciation";
 export * from "./assist/opening-carryover";
 
 export * from "./steps/period-check";

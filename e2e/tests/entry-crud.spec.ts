@@ -20,10 +20,9 @@ test.describe("entry CRUD", () => {
     const drawer = page.getByRole("dialog", { name: "仕訳の新規作成" });
     await expect(drawer).toBeVisible();
 
-    await drawer.getByLabel("日付").fill("2026-09-10");
+    // 日付・勘定科目はボタン/ピッカー UI のため既定値を使う（このスモークでは
+    // 取引が一覧に出ることを確認する。科目選択 UI の操作は別テストの責務）。
     await drawer.getByLabel("摘要").fill("手動入力テスト売上");
-    await drawer.getByLabel("借方科目").fill("普通預金");
-    await drawer.getByLabel("貸方科目").fill("売上");
     await drawer.locator(".bk-amount-input").first().fill("50000");
     await drawer.locator(".bk-amount-input").last().fill("50000");
 
@@ -37,10 +36,7 @@ test.describe("entry CRUD", () => {
   }) => {
     // create an entry first
     await createEntryViaDrawer(page, {
-      date: "2026-09-05",
       description: "編集前の摘要",
-      debitAccount: "現金",
-      creditAccount: "売上",
       amount: "10000",
     });
 
@@ -59,10 +55,7 @@ test.describe("entry CRUD", () => {
 
   test("deletes an entry and it disappears from the list", async ({ page }) => {
     await createEntryViaDrawer(page, {
-      date: "2026-09-08",
       description: "削除対象の仕訳",
-      debitAccount: "通信費",
-      creditAccount: "普通預金",
       amount: "3000",
     });
 
@@ -72,10 +65,11 @@ test.describe("entry CRUD", () => {
     const drawer = page.getByRole("dialog", { name: "仕訳の編集" });
     await expect(drawer).toBeVisible();
 
-    await drawer.getByRole("button", { name: "削除" }).click();
+    // exact: true で footer の「削除」のみを対象に（行削除「この行を削除」と区別）
+    await drawer.getByRole("button", { name: "削除", exact: true }).click();
     const confirmDialog = page.getByRole("dialog", { name: "仕訳の削除確認" });
     await expect(confirmDialog).toBeVisible();
-    await confirmDialog.getByRole("button", { name: "削除" }).click();
+    await confirmDialog.getByRole("button", { name: "削除", exact: true }).click();
 
     await expect(page.getByText("削除対象の仕訳")).not.toBeVisible({
       timeout: 5_000,
@@ -86,10 +80,7 @@ test.describe("entry CRUD", () => {
 async function createEntryViaDrawer(
   page: Page,
   opts: {
-    date: string;
     description: string;
-    debitAccount: string;
-    creditAccount: string;
     amount: string;
   },
 ) {
@@ -97,10 +88,8 @@ async function createEntryViaDrawer(
   const drawer = page.getByRole("dialog", { name: "仕訳の新規作成" });
   await expect(drawer).toBeVisible();
 
-  await drawer.getByLabel("日付").fill(opts.date);
+  // 日付・勘定科目は既定値を使う（ボタン/ピッカー UI のため）。
   await drawer.getByLabel("摘要").fill(opts.description);
-  await drawer.getByLabel("借方科目").fill(opts.debitAccount);
-  await drawer.getByLabel("貸方科目").fill(opts.creditAccount);
   await drawer.locator(".bk-amount-input").first().fill(opts.amount);
   await drawer.locator(".bk-amount-input").last().fill(opts.amount);
 

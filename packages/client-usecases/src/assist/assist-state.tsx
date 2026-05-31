@@ -11,8 +11,13 @@ import {
 
 import { useOpenkkAppState } from "../shared/openkk-app-state";
 import { useBackendApi } from "../shared/backend-api-context";
-import { parseAmount, AppError } from "@rubydogjp/openkk-client-domain";
-import type { FixedAssetFrozenPreview } from "@rubydogjp/openkk-client-ports";
+import { useOpenkkConfig } from "../shared/openkk-config-context";
+import {
+  parseAmount,
+  AppError,
+  computeStraightLineDepreciation,
+} from "@rubydogjp/openkk-client-domain";
+import type { FixedAssetApiRecord } from "@rubydogjp/openkk-client-ports";
 
 import type {
   FixedAssetDraft,
@@ -44,6 +49,7 @@ const AssistContext = createContext<AssistState | null>(null);
 export function OpenkkAssistProvider(props: { children: ReactNode }) {
   const backendApi = useBackendApi();
   const appState = useOpenkkAppState();
+  const config = useOpenkkConfig();
 
   const [fixedAssets, setFixedAssets] = useState<FixedAssetPreviewItem[]>([]);
 
@@ -95,7 +101,11 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         if (cancelled) return;
         setFixedAssets(
           remote.map((asset) =>
-            mapFixedAssetToPreview(asset, bookAccountNameById[asset.bookAccountId]),
+            mapFixedAssetToPreview(
+              asset,
+              bookAccountNameById[asset.bookAccountId],
+              config.today,
+            ),
           ),
         );
       } catch {
@@ -105,7 +115,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [appState.currentFiscalPeriodId, bookAccountNameById]);
+  }, [appState.currentFiscalPeriodId, bookAccountNameById, config.today]);
 
   const value = useMemo<AssistState>(() => {
     return {
@@ -148,7 +158,11 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         });
         setFixedAssets((current) => [
           ...current,
-          mapFixedAssetToPreview(created, bookAccountNameById[created.bookAccountId]),
+          mapFixedAssetToPreview(
+            created,
+            bookAccountNameById[created.bookAccountId],
+            config.today,
+          ),
         ]);
         return created.id;
       },
@@ -157,10 +171,9 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         const fiscalPeriodId =
           current?.fiscalPeriodId ?? appState.currentFiscalPeriodId ?? "";
         if (fiscalPeriodId.length === 0) return false;
+        // ユーザーが科目名を変更した場合は draft 側を優先して解決する。
         const accountId =
-          current?.accountId ??
-          bookAccountIdByName[draft.account] ??
-          null;
+          bookAccountIdByName[draft.account] ?? current?.accountId ?? null;
         if (accountId == null || accountId.length === 0) {
           throw new AppError({
             messageForDeveloper: "assist.updateFixedAsset: accountId missing",
@@ -169,12 +182,14 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
             statusCode: null,
           });
         }
-        // The edit drawer has no business-rate field — its "進捗 (0-100%)" input
-        // edits depreciation progress, not the business-use rate. Omit
-        // businessRate so the stored value is preserved instead of being
-        // overwritten with progress.
+        // 簿価・進捗・残期間は計算で導出するため保存しない。保存するのは
+        // 償却計算の元になる「真実」の値（取得価額・取得日・耐用年数・事業割合）のみ。
         const patched = await backendApi.fixedAssets.patch(fiscalPeriodId, assetId, {
           name: draft.name,
+          acquisitionDate: draft.acquisitionDate,
+          acquisitionCost: parseAmount(draft.acquisitionCost),
+          usefulLife: Math.max(1, Math.round(draft.usefulLife) || 1),
+          businessRate: Math.max(0, Math.min(100, draft.businessRatePercent)) / 100,
           status: mapFixedAssetStatusApi(draft.status),
           bookAccountId: accountId,
         });
@@ -184,6 +199,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
               ? mapFixedAssetToPreview(
                   patched,
                   bookAccountNameById[patched.bookAccountId],
+                  config.today,
                 )
               : asset,
           ),
@@ -358,6 +374,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
     bookAccountIdByName,
     bookAccountNameById,
     bookAccountTypeById,
+    config.today,
     fixedAssets,
   ]);
 
@@ -423,96 +440,43 @@ function formatAmount(value: number): string {
 }
 
 function mapFixedAssetToPreview(
-  asset: {
-    id: string;
-    fiscalPeriodId: string;
-    name: string;
-    bookAccountId: string;
-    acquisitionDate: string;
-    acquisitionCost: number;
-    usefulLife: number;
-    businessRate: number;
-    status: string;
-    disposalDate?: string;
-    disposalPrice?: number;
-    frozenPreview?: FixedAssetFrozenPreview;
-  },
-  accountName?: string,
+  asset: FixedAssetApiRecord,
+  accountName: string | undefined,
+  today: Date,
 ): FixedAssetPreviewItem {
-  const frozenPreview = asset.frozenPreview;
-  const dynamicPreview = buildDynamicFixedAssetPreview(asset);
+  // 売却・廃棄・除却済みは処分日（無ければ今日）で償却を打ち切る。
+  const isClosed = asset.status !== "active";
+  const asOf =
+    isClosed && asset.disposalDate ? new Date(asset.disposalDate) : today;
+  const depreciation = computeStraightLineDepreciation({
+    acquisitionDate: asset.acquisitionDate,
+    acquisitionCost: asset.acquisitionCost,
+    usefulLife: asset.usefulLife,
+    asOf,
+  });
   return {
     id: asset.id,
     fiscalPeriodId: asset.fiscalPeriodId,
     name: asset.name,
     account: accountName ?? asset.bookAccountId,
     accountId: asset.bookAccountId,
-    period: frozenPreview?.period ?? dynamicPreview.period,
-    remaining: frozenPreview?.remaining ?? dynamicPreview.remaining,
-    progress:
-      normalizeFixedAssetProgress(frozenPreview?.progress) ?? dynamicPreview.progress,
-    current:
-      formatFixedAssetPreviewAmount(frozenPreview?.current) ??
-      dynamicPreview.current,
-    purchase:
-      formatFixedAssetPreviewAmount(frozenPreview?.purchase) ??
-      dynamicPreview.purchase,
-    status: frozenPreview?.status ?? mapFixedAssetStatusLabel(asset.status),
+    period: depreciation.periodLabel,
+    remaining: depreciation.remainingLabel,
+    progress: depreciation.progress,
+    current: formatYen(depreciation.currentBookValue),
+    purchase: formatYen(asset.acquisitionCost),
+    status: mapFixedAssetStatusLabel(asset.status),
+    depreciationAmount: formatYen(depreciation.annualDepreciation),
     acquisitionDate: asset.acquisitionDate,
+    acquisitionCost: asset.acquisitionCost,
     usefulLife: asset.usefulLife,
     businessRate: asset.businessRate,
-    disposalDate: asset.disposalDate,
-    disposalPrice:
-      asset.disposalPrice == null
-        ? undefined
-        : new Intl.NumberFormat("ja-JP").format(asset.disposalPrice),
+    disposalDate: asset.disposalDate || undefined,
+    disposalPrice: asset.disposalPrice ? formatYen(asset.disposalPrice) : undefined,
   };
 }
 
-function buildDynamicFixedAssetPreview(asset: {
-  acquisitionDate: string;
-  acquisitionCost: number;
-  usefulLife: number;
-}): Pick<
-  FixedAssetPreviewItem,
-  "period" | "remaining" | "progress" | "current" | "purchase"
-> {
-  const today = new Date();
-  const startYear = Number(asset.acquisitionDate.slice(0, 4));
-  const startMonth = Number(asset.acquisitionDate.slice(5, 7));
-  const startDay = Number(asset.acquisitionDate.slice(8, 10));
-  const totalMonths = Math.min(1200, Math.max(1, asset.usefulLife * 12));
-  const rawElapsedMonths =
-    (today.getFullYear() - startYear) * 12 +
-    (today.getMonth() + 1 - startMonth) -
-    (today.getDate() < startDay ? 1 : 0);
-  const elapsedMonths = Math.max(0, rawElapsedMonths);
-  const remainingMonths = Math.max(0, Math.min(totalMonths, totalMonths - elapsedMonths));
-  const progress = Math.min(1, elapsedMonths / totalMonths);
-  const currentBookValue = Math.max(
-    0,
-    Math.round(asset.acquisitionCost * (1 - progress)),
-  );
-  const remainingText = remainingMonths > 0 ? `あと${remainingMonths}ヶ月` : "償却済み";
-  return {
-    period: `${asset.acquisitionDate.slice(0, 4)}年${Number(asset.acquisitionDate.slice(5, 7))}月〜`,
-    remaining: remainingText,
-    progress,
-    current: new Intl.NumberFormat("ja-JP").format(currentBookValue),
-    purchase: new Intl.NumberFormat("ja-JP").format(asset.acquisitionCost),
-  };
-}
-
-function normalizeFixedAssetProgress(value: number | undefined): number | null {
-  if (value == null || !Number.isFinite(value)) return null;
-  const normalized = value > 1 ? value / 100 : value;
-  return Math.min(1, Math.max(0, normalized));
-}
-
-function formatFixedAssetPreviewAmount(value: string | number | undefined): string | null {
-  if (value == null) return null;
-  if (typeof value === "string") return value;
-  if (!Number.isFinite(value)) return null;
+function formatYen(value: number): string {
   return new Intl.NumberFormat("ja-JP").format(value);
 }
 

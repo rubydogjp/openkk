@@ -48,10 +48,42 @@ export function computeFinancialSummary(entries: EntrySummaryRow[]): {
   return { revenue, expenses, profit: revenue - expenses };
 }
 
+export type OpeningBalanceSummary = {
+  assets: number;
+  liabilities: number;
+  equity: number;
+};
+
+/**
+ * 期首残高ラインの credit 側（accountId が "l:" 始まり）のうち、純資産（資本）に
+ * 区分するラベル。それ以外の credit 側は負債。期首残高の accountId は
+ * "a:資産名" / "l:負債・資本名" という規約で、amount は常に正値。
+ */
+export const OPENING_EQUITY_LABELS = new Set<string>(["事業主借", "元入金"]);
+
+/** 期首残高ラインを資産 / 負債 / 資本に集計する。 */
+export function summarizeOpeningBalances(
+  lines: Array<{ accountId: string; amount: number }>,
+): OpeningBalanceSummary {
+  let assets = 0;
+  let liabilities = 0;
+  let equity = 0;
+  for (const line of lines) {
+    const amount = Math.abs(line.amount);
+    if (line.accountId.startsWith("a:")) {
+      assets += amount;
+    } else if (line.accountId.startsWith("l:")) {
+      const label = line.accountId.slice(2);
+      if (OPENING_EQUITY_LABELS.has(label)) equity += amount;
+      else liabilities += amount;
+    }
+  }
+  return { assets, liabilities, equity };
+}
+
 export function computeBSSummary(
   entries: EntrySummaryRow[],
-  openingAssets: number,
-  openingCreditTotal: number,
+  opening: OpeningBalanceSummary,
   profit: number,
 ): { assets: number; liabilities: number; equity: number } {
   let netAssetChange = 0;
@@ -65,12 +97,9 @@ export function computeBSSummary(
     if (entry.creditType === "liability") netLiabilityChange += cAmt;
     if (entry.debitType === "liability") netLiabilityChange -= dAmt;
   }
-  // rough 50/50 split: no per-account breakdown available at this call site
-  const openingLiabilities = Math.round(openingCreditTotal * 0.5);
-  const openingEquity = openingCreditTotal - openingLiabilities;
   return {
-    assets: Math.max(0, openingAssets + netAssetChange),
-    liabilities: Math.max(0, openingLiabilities + netLiabilityChange),
-    equity: Math.max(0, openingEquity + profit),
+    assets: Math.max(0, opening.assets + netAssetChange),
+    liabilities: Math.max(0, opening.liabilities + netLiabilityChange),
+    equity: Math.max(0, opening.equity + profit),
   };
 }

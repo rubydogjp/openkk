@@ -1240,12 +1240,7 @@ export function EntriesTable(props: {
         </div>
       </div>
 
-      {isEmpty ? (
-        <EntriesEmptyState
-          onAddEntry={isReadOnly ? undefined : props.onAddEntry}
-          readOnly={isReadOnly}
-        />
-      ) : null}
+      {isEmpty ? <EntriesEmptyState /> : null}
     </div>
   );
 }
@@ -1272,13 +1267,7 @@ function resolveEntriesHeaderTone(tone: EntriesHeaderTone): {
   }
 }
 
-function EntriesEmptyState({
-  onAddEntry,
-  readOnly = false,
-}: {
-  onAddEntry?: () => void;
-  readOnly?: boolean;
-}) {
+function EntriesEmptyState() {
   return (
     <div
       style={{
@@ -1321,16 +1310,6 @@ function EntriesEmptyState({
         >
           まだ取引がありません
         </div>
-
-        {readOnly ? (
-          <div style={{ marginTop: 16 }}>
-            <ToolbarLockedButton />
-          </div>
-        ) : onAddEntry ? (
-          <div style={{ marginTop: 16 }}>
-            <ToolbarPrimaryButton label="追加" onClick={onAddEntry} />
-          </div>
-        ) : null}
       </div>
     </div>
   );

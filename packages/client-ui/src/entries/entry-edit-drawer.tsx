@@ -432,6 +432,7 @@ export function EntryEditDrawer(props: {
             label="日付"
             control={
               <DatePickerButton
+                ariaLabel="日付"
                 value={draft.date}
                 onChange={(value) => update({ date: value })}
               />
@@ -467,6 +468,7 @@ export function EntryEditDrawer(props: {
                   >
                     <StackedField label="借方科目">
                       <AccountChip
+                        ariaLabel="借方科目"
                         value={row.debitAccountName}
                         accountType={row.debitAccountType}
                         onChange={(option) =>
@@ -482,6 +484,7 @@ export function EntryEditDrawer(props: {
                     </StackedField>
                     <StackedField label="貸方科目">
                       <AccountChip
+                        ariaLabel="貸方科目"
                         value={row.creditAccountName}
                         accountType={row.creditAccountType}
                         onChange={(option) =>
@@ -541,6 +544,7 @@ export function EntryEditDrawer(props: {
             control={
               <div style={{ width: 320, maxWidth: "100%" }}>
                 <PlainInput
+                  ariaLabel="摘要"
                   value={draft.description}
                   onChange={(value) => update({ description: value })}
                 />
@@ -732,6 +736,7 @@ function AccountChip({
   onChange,
   options,
   fullWidth = false,
+  ariaLabel,
 }: {
   value: string;
   accountType: EntryAccountVisualType;
@@ -739,6 +744,7 @@ function AccountChip({
   options: EntryMasterAccountOption[];
 
   fullWidth?: boolean;
+  ariaLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -760,6 +766,7 @@ function AccountChip({
         onClick={() => setOpen((current) => !current)}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-label={ariaLabel}
         style={{
           height: sizes.account.tableHeight,
           width: fullWidth ? "100%" : sizes.account.tableWidth,
@@ -1076,13 +1083,16 @@ function FreeformChip({
 function PlainInput({
   value,
   onChange,
+  ariaLabel,
 }: {
   value: string;
   onChange: (value: string) => void;
+  ariaLabel?: string;
 }) {
   return (
     <input
       className="bk-d-input"
+      aria-label={ariaLabel}
       value={value}
       onChange={(event) => onChange(event.target.value)}
       style={{

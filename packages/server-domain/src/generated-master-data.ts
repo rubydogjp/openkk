@@ -1,5 +1,5 @@
 // Generated from resources/gen/bookkeeping_master_data.json. Do not edit directly.
-// Regenerate: cd backend && go run ./cmd/generate-rubydogkk-master-data
+// Regenerate: npm run gen-master-data
 
 export type MasterBookAccountType =
   | "asset"
@@ -68,7 +68,6 @@ export const DEFAULT_BOOK_ACCOUNTS: DefaultBookAccount[] = [
   { id: "acct_pca_189", name: "営業外電子記録債権", description: "営業外電子記録債権", kana: "ｴｲｷﾞｮ", normalBalanceSide: "debit", accountType: "asset", balanceSheetSection: "current_asset", sortOrder: 189 },
   { id: "acct_pca_191", name: "仮払消費税等", description: "仮払消費税等", kana: "ｶﾘﾊﾞﾗ", normalBalanceSide: "debit", accountType: "asset", balanceSheetSection: "current_asset", sortOrder: 191 },
   { id: "acct_pca_197", name: "未収消費税等", description: "未収消費税等", kana: "ﾐｼｭｳｼ", normalBalanceSide: "debit", accountType: "asset", balanceSheetSection: "current_asset", sortOrder: 197 },
-  { id: "acct_pca_199", name: "貸倒引当金", description: "貸倒引当金", kana: "ｶｼﾀﾞｵ", normalBalanceSide: "credit", accountType: "asset", balanceSheetSection: "current_asset", sortOrder: 199 },
   { id: "acct_building", name: "建物", description: "建物", kana: "ﾀﾃﾓﾉ", normalBalanceSide: "debit", accountType: "asset", balanceSheetSection: "fixed_asset", sortOrder: 211 },
   { id: "acct_building_facilities", name: "建物附属設備", description: "建物附属設備", kana: "ﾀﾃﾓﾉﾌ", normalBalanceSide: "debit", accountType: "asset", balanceSheetSection: "fixed_asset", sortOrder: 212 },
   { id: "acct_pca_213", name: "構築物", description: "構築物", kana: "ｺｳﾁｸﾌ", normalBalanceSide: "debit", accountType: "asset", balanceSheetSection: "fixed_asset", sortOrder: 213 },
@@ -85,7 +84,6 @@ export const DEFAULT_BOOK_ACCOUNTS: DefaultBookAccount[] = [
   { id: "acct_pca_233", name: "その他の無形固定資産", description: "その他の無形固定資産", kana: "ｿﾉﾀﾉﾑ", normalBalanceSide: "debit", accountType: "asset", balanceSheetSection: "fixed_asset", sortOrder: 233 },
   { id: "acct_pca_234", name: "ソフトウエア", description: "ソフトウエア", kana: "ｿﾌﾄｳｴ", normalBalanceSide: "debit", accountType: "asset", balanceSheetSection: "fixed_asset", sortOrder: 234 },
   { id: "acct_pca_237", name: "償却累計額", description: "償却累計額", kana: "ｼｮｳｷｬ", normalBalanceSide: "credit", accountType: "asset", balanceSheetSection: "fixed_asset", sortOrder: 237 },
-  { id: "acct_pca_239", name: "減損損失累計額", description: "減損損失累計額", kana: "ｹﾞﾝｿﾝ", normalBalanceSide: "credit", accountType: "asset", balanceSheetSection: "fixed_asset", sortOrder: 239 },
   { id: "acct_pca_241", name: "投資有価証券", description: "投資有価証券", kana: "ﾄｳｼﾕｳ", normalBalanceSide: "debit", accountType: "asset", balanceSheetSection: "fixed_asset", sortOrder: 241 },
   { id: "acct_pca_242", name: "出資金", description: "出資金", kana: "ｼｭｯｼｷ", normalBalanceSide: "debit", accountType: "asset", balanceSheetSection: "fixed_asset", sortOrder: 242 },
   { id: "acct_pca_243", name: "長期貸付金", description: "長期貸付金", kana: "ﾁｮｳｷｶ", normalBalanceSide: "debit", accountType: "asset", balanceSheetSection: "fixed_asset", sortOrder: 243 },
@@ -191,9 +189,9 @@ export const DEFAULT_BOOK_ACCOUNTS: DefaultBookAccount[] = [
   { id: "acct_travel", name: "旅費交通費", description: "旅費交通費", kana: "ﾘｮﾋｺｳ", normalBalanceSide: "debit", accountType: "expense", balanceSheetSection: "none", sortOrder: 726 },
   { id: "acct_communication", name: "通信費", description: "通信費", kana: "ﾂｳｼﾝﾋ", normalBalanceSide: "debit", accountType: "expense", balanceSheetSection: "none", sortOrder: 727 },
   { id: "acct_pca_728", name: "販売手数料", description: "販売手数料", kana: "ﾊﾝﾊﾞｲ", normalBalanceSide: "debit", accountType: "expense", balanceSheetSection: "none", sortOrder: 728 },
-  { id: "acct_pca_731", name: "運賃", description: "運賃", kana: "ｳﾝﾁﾝ", normalBalanceSide: "debit", accountType: "expense", balanceSheetSection: "none", sortOrder: 731 },
+  { id: "acct_pca_731", name: "荷造運賃", description: "荷造運賃", kana: "ｳﾝﾁﾝ", normalBalanceSide: "debit", accountType: "expense", balanceSheetSection: "none", sortOrder: 731 },
   { id: "acct_advertising", name: "広告宣伝費", description: "広告宣伝費", kana: "ｺｳｺｸｾ", normalBalanceSide: "debit", accountType: "expense", balanceSheetSection: "none", sortOrder: 732 },
-  { id: "acct_pca_733", name: "交際接待費", description: "交際接待費", kana: "ｺｳｻｲｾ", normalBalanceSide: "debit", accountType: "expense", balanceSheetSection: "none", sortOrder: 733 },
+  { id: "acct_pca_733", name: "接待交際費", description: "接待交際費", kana: "ｺｳｻｲｾ", normalBalanceSide: "debit", accountType: "expense", balanceSheetSection: "none", sortOrder: 733 },
   { id: "acct_pca_734", name: "会議費", description: "会議費", kana: "ｶｲｷﾞﾋ", normalBalanceSide: "debit", accountType: "expense", balanceSheetSection: "none", sortOrder: 734 },
   { id: "acct_pca_735", name: "燃料費", description: "燃料費", kana: "ﾈﾝﾘｮｳ", normalBalanceSide: "debit", accountType: "expense", balanceSheetSection: "none", sortOrder: 735 },
   { id: "acct_utilities", name: "水道光熱費", description: "水道光熱費", kana: "ｽｲﾄﾞｳ", normalBalanceSide: "debit", accountType: "expense", balanceSheetSection: "none", sortOrder: 736 },
@@ -209,7 +207,7 @@ export const DEFAULT_BOOK_ACCOUNTS: DefaultBookAccount[] = [
   { id: "acct_rent", name: "地代家賃", description: "地代家賃", kana: "ﾁﾀﾞｲﾔ", normalBalanceSide: "debit", accountType: "expense", balanceSheetSection: "none", sortOrder: 747 },
   { id: "acct_pca_751", name: "賃借料", description: "賃借料", kana: "ﾁﾝｼｬｸ", normalBalanceSide: "debit", accountType: "expense", balanceSheetSection: "none", sortOrder: 751 },
   { id: "acct_pca_752", name: "保険料", description: "保険料", kana: "ﾎｹﾝﾘｮ", normalBalanceSide: "debit", accountType: "expense", balanceSheetSection: "none", sortOrder: 752 },
-  { id: "acct_pca_753", name: "修繕維持費", description: "修繕維持費", kana: "ｼｭｳｾﾞ", normalBalanceSide: "debit", accountType: "expense", balanceSheetSection: "none", sortOrder: 753 },
+  { id: "acct_pca_753", name: "修繕費", description: "修繕費", kana: "ｼｭｳｾﾞ", normalBalanceSide: "debit", accountType: "expense", balanceSheetSection: "none", sortOrder: 753 },
   { id: "acct_pca_754", name: "事務用消耗品費", description: "事務用消耗品費", kana: "ｼﾞﾑﾖｳ", normalBalanceSide: "debit", accountType: "expense", balanceSheetSection: "none", sortOrder: 754 },
   { id: "acct_pca_755", name: "その他の一般管理費", description: "その他の一般管理費", kana: "ｿﾉﾀﾉｲ", normalBalanceSide: "debit", accountType: "expense", balanceSheetSection: "none", sortOrder: 755 },
   { id: "acct_depreciation", name: "減価償却費", description: "減価償却費", kana: "ｹﾞﾝｶｼ", normalBalanceSide: "debit", accountType: "expense", balanceSheetSection: "none", sortOrder: 763 },
@@ -229,12 +227,10 @@ export const DEFAULT_BOOK_ACCOUNTS: DefaultBookAccount[] = [
   { id: "acct_pca_823", name: "有価証券売却損", description: "有価証券売却損", kana: "ﾕｳｶｼｮ", normalBalanceSide: "debit", accountType: "expense", balanceSheetSection: "none", sortOrder: 823 },
   { id: "acct_pca_824", name: "手形売却損", description: "手形売却損", kana: "ﾃｶﾞﾀﾊ", normalBalanceSide: "debit", accountType: "expense", balanceSheetSection: "none", sortOrder: 824 },
   { id: "acct_pca_825", name: "電子記録債権売却損", description: "電子記録債権売却損", kana: "ﾃﾞﾝｼｷ", normalBalanceSide: "debit", accountType: "expense", balanceSheetSection: "none", sortOrder: 825 },
-  { id: "acct_pca_829", name: "貸倒損失", description: "貸倒損失", kana: "ｶｼﾀﾞｵ", normalBalanceSide: "debit", accountType: "expense", balanceSheetSection: "none", sortOrder: 829 },
   { id: "acct_pca_859", name: "売上割引", description: "売上割引", kana: "ｳﾘｱｹﾞ", normalBalanceSide: "debit", accountType: "expense", balanceSheetSection: "none", sortOrder: 859 },
   { id: "acct_pca_899", name: "雑損失", description: "雑損失", kana: "ｻﾞｯｿﾝ", normalBalanceSide: "debit", accountType: "expense", balanceSheetSection: "none", sortOrder: 899 },
   { id: "acct_pca_911", name: "固定資産売却益", description: "固定資産売却益", kana: "ｺﾃｲｼｻ", normalBalanceSide: "credit", accountType: "revenue", balanceSheetSection: "none", sortOrder: 911 },
   { id: "acct_pca_912", name: "その他の特別利益", description: "その他の特別利益", kana: "ｿﾉﾀﾉﾄ", normalBalanceSide: "credit", accountType: "revenue", balanceSheetSection: "none", sortOrder: 912 },
-  { id: "acct_pca_914", name: "貸倒引当金戻入", description: "貸倒引当金戻入", kana: "ｶｼﾀﾞｵ", normalBalanceSide: "credit", accountType: "revenue", balanceSheetSection: "none", sortOrder: 914 },
   { id: "acct_pca_915", name: "前期損益修正益", description: "前期損益修正益", kana: "ｾﾞﾝｷｿ", normalBalanceSide: "credit", accountType: "revenue", balanceSheetSection: "none", sortOrder: 915 },
   { id: "acct_pca_918", name: "投資有価証券売却益", description: "投資有価証券売却益", kana: "ﾄｳｼﾕｳ", normalBalanceSide: "credit", accountType: "revenue", balanceSheetSection: "none", sortOrder: 918 },
   { id: "acct_pca_919", name: "償却債権取立益", description: "償却債権取立益", kana: "ｼｮｳｷｬ", normalBalanceSide: "credit", accountType: "revenue", balanceSheetSection: "none", sortOrder: 919 },
@@ -256,7 +252,7 @@ export const DEFAULT_BOOK_ACCOUNTS: DefaultBookAccount[] = [
   { id: "acct_proprietor_withdrawal", name: "事業主貸", description: "事業主貸", kana: "", normalBalanceSide: "debit", accountType: "asset", balanceSheetSection: "current_asset", sortOrder: 4911 },
   { id: "acct_proprietor_loan", name: "事業主借", description: "事業主借", kana: "", normalBalanceSide: "credit", accountType: "liability", balanceSheetSection: "current_liability", sortOrder: 4921 },
   { id: "acct_capital", name: "元入金", description: "元入金", kana: "", normalBalanceSide: "credit", accountType: "equity", balanceSheetSection: "equity", sortOrder: 4931 },
-  { id: "acct_purchases", name: "仕入金額", description: "仕入金額", kana: "", normalBalanceSide: "debit", accountType: "cost_of_sales", balanceSheetSection: "none", sortOrder: 5411 },
+  { id: "acct_purchases", name: "仕入", description: "仕入", kana: "", normalBalanceSide: "debit", accountType: "cost_of_sales", balanceSheetSection: "none", sortOrder: 5411 },
 ];
 
 export const DEFAULT_TAX_CATEGORIES: DefaultTaxCategory[] = [
