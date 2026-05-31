@@ -164,5 +164,5 @@ demo mode テストは `OPENKK_DEMO_URL` 環境変数が設定されている場
 |---|---|---|---|
 | `dev` | 開発用 | memory | なし (任意に作成) |
 | `demo` | 公開デモ | memory | あり (buildOpenkkDemoSeed) |
-| `prod` | PWA ローカル版 | SQLite OPFS | なし |
+| `prod` | PWA 無印版 (この端末に保存) | SQLite OPFS | なし |
 | `stg` | ステージング | 任意 | 任意 |
