@@ -300,11 +300,14 @@ export function EntriesScreen(props: {
 
 export function VirtualEntryDrawer(props: {
   row: EntryPreviewRow;
+  rows?: EntryPreviewRow[];
   onClose: () => void;
   onOpenAssist: (href: string) => void;
 }) {
   const virtual = props.row.virtual;
   if (virtual == null) return null;
+  const rows =
+    props.rows == null || props.rows.length === 0 ? [props.row] : props.rows;
   return (
     <>
       <div
@@ -415,10 +418,23 @@ export function VirtualEntryDrawer(props: {
             }}
           >
             <VirtualEntrySummaryRow label="摘要" value={props.row.description} />
-            <VirtualEntrySummaryRow label="借方" value={props.row.debit} />
-            <VirtualEntrySummaryRow label="借方金額" value={props.row.debitAmount} />
-            <VirtualEntrySummaryRow label="貸方" value={props.row.credit} />
-            <VirtualEntrySummaryRow label="貸方金額" value={props.row.creditAmount} />
+            {rows.map((row, index) => {
+              const suffix = rows.length > 1 ? ` ${index + 1}` : "";
+              return (
+                <div key={`${row.recordId ?? row.date}-${index}`}>
+                  <VirtualEntrySummaryRow label={`借方${suffix}`} value={row.debit} />
+                  <VirtualEntrySummaryRow
+                    label={`借方金額${suffix}`}
+                    value={row.debitAmount}
+                  />
+                  <VirtualEntrySummaryRow label={`貸方${suffix}`} value={row.credit} />
+                  <VirtualEntrySummaryRow
+                    label={`貸方金額${suffix}`}
+                    value={row.creditAmount}
+                  />
+                </div>
+              );
+            })}
           </div>
           <button
             type="button"

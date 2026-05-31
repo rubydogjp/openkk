@@ -19,7 +19,7 @@ test.describe("fixed asset CRUD", () => {
     await expect(page.getByText("まだ固定資産がありません")).toBeVisible();
 
     await page.getByRole("button", { name: "追加" }).click();
-    const drawer = page.getByRole("dialog", { name: "固定資産の編集" });
+    const drawer = page.getByRole("dialog", { name: "固定資産の追加" });
     await expect(drawer).toBeVisible();
 
     await drawer.getByLabel("名称").fill("テスト用ノートPC");
@@ -30,6 +30,23 @@ test.describe("fixed asset CRUD", () => {
 
     await expect(drawer).not.toBeVisible({ timeout: 5_000 });
     await expect(page.getByText("テスト用ノートPC")).toBeVisible();
+  });
+
+  test("does not leave a fixed asset behind when creation is cancelled", async ({
+    page,
+  }) => {
+    await expect(page.getByText("まだ固定資産がありません")).toBeVisible();
+
+    await page.getByRole("button", { name: "追加" }).click();
+    const drawer = page.getByRole("dialog", { name: "固定資産の追加" });
+    await expect(drawer).toBeVisible();
+
+    await drawer.getByLabel("名称").fill("キャンセルされる固定資産");
+    await drawer.getByRole("button", { name: "キャンセル" }).click();
+
+    await expect(drawer).not.toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText("まだ固定資産がありません")).toBeVisible();
+    await expect(page.getByText("キャンセルされる固定資産")).not.toBeVisible();
   });
 
   test("edits an existing fixed asset and the change is reflected", async ({
@@ -49,6 +66,29 @@ test.describe("fixed asset CRUD", () => {
     await expect(page.getByText("編集後の資産名")).toBeVisible();
     await expect(page.getByText("編集前の資産名")).not.toBeVisible();
   });
+
+  test("deletes an existing fixed asset and it disappears from the list", async ({
+    page,
+  }) => {
+    await addFixedAsset(page, "削除対象の固定資産", "180000");
+
+    await expect(page.getByText("削除対象の固定資産")).toBeVisible();
+
+    await page.getByText("削除対象の固定資産").click();
+    const drawer = page.getByRole("dialog", { name: "固定資産の編集" });
+    await expect(drawer).toBeVisible();
+
+    page.once("dialog", async (dialog) => {
+      expect(dialog.message()).toContain("固定資産を削除しますか");
+      await dialog.accept();
+    });
+    await drawer.getByRole("button", { name: "削除", exact: true }).click();
+
+    await expect(page.getByText("削除対象の固定資産")).not.toBeVisible({
+      timeout: 5_000,
+    });
+    await expect(page.getByText("まだ固定資産がありません")).toBeVisible();
+  });
 });
 
 async function addFixedAsset(
@@ -57,7 +97,7 @@ async function addFixedAsset(
   acquisition: string,
 ) {
   await page.getByRole("button", { name: "追加" }).click();
-  const drawer = page.getByRole("dialog", { name: "固定資産の編集" });
+  const drawer = page.getByRole("dialog", { name: "固定資産の追加" });
   await expect(drawer).toBeVisible();
   await drawer.getByLabel("名称").fill(name);
   await drawer.getByLabel("取得日").fill("2026-04-01");

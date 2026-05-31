@@ -32,8 +32,9 @@ import type {
 type AssistState = {
   listFixedAssets: () => FixedAssetPreviewItem[];
   getFixedAsset: (assetId: string) => FixedAssetPreviewItem | null;
-  addFixedAsset: () => Promise<string | null>;
+  addFixedAsset: (draft: FixedAssetDraft) => Promise<string | null>;
   updateFixedAsset: (assetId: string, draft: FixedAssetDraft) => Promise<boolean>;
+  deleteFixedAsset: (assetId: string) => Promise<boolean>;
   listOpeningCarryovers: (fiscalPeriodId: string) => OpeningCarryoverRecord[];
   getOpeningCarryover: (carryoverId: string) => OpeningCarryoverRecord | null;
   addOpeningCarryover: (fiscalPeriodId: string) => Promise<string | null>;
@@ -125,36 +126,28 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
       getFixedAsset(assetId) {
         return fixedAssets.find((asset) => asset.id === assetId) ?? null;
       },
-      async addFixedAsset() {
+      async addFixedAsset(draft) {
         const fiscalPeriodId = appState.currentFiscalPeriodId;
         if (fiscalPeriodId == null || fiscalPeriodId.length === 0) {
           return null;
         }
-        const currentFiscalPeriod = appState.fiscalPeriods.find(
-          (period) => period.id === fiscalPeriodId,
-        );
-        const acquisitionYear =
-          currentFiscalPeriod?.startDate.slice(0, 4) || "2026";
-        const defaultAccountId =
-          bookAccountIdByName["工具器具備品"] ??
-          Object.values(bookAccountIdByName)[0] ??
-          "";
-        if (defaultAccountId === "") {
+        const accountId = bookAccountIdByName[draft.account] ?? null;
+        if (accountId == null || accountId.length === 0) {
           throw new AppError({
-            messageForDeveloper: "assist.addFixedAsset: no default book account",
-            messageForUser: "勘定科目が取得できないため固定資産を作成できませんでした",
+            messageForDeveloper: "assist.addFixedAsset: accountId missing",
+            messageForUser: "勘定科目が解決できないため保存できませんでした",
             originalMessage: null,
             statusCode: null,
           });
         }
         const created = await backendApi.fixedAssets.create(fiscalPeriodId, {
-          name: "新しい固定資産",
-          acquisitionDate: `${acquisitionYear}-01-01`,
-          acquisitionCost: 50000,
-          usefulLife: 3,
+          name: draft.name,
+          acquisitionDate: draft.acquisitionDate,
+          acquisitionCost: parseAmount(draft.acquisitionCost),
+          usefulLife: Math.max(1, Math.round(draft.usefulLife) || 1),
           depreciationMethod: "straight_line",
-          businessRate: 1,
-          bookAccountId: defaultAccountId,
+          businessRate: Math.max(0, Math.min(100, draft.businessRatePercent)) / 100,
+          bookAccountId: accountId,
         });
         setFixedAssets((current) => [
           ...current,
@@ -348,6 +341,17 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
             carryoverJournals: nextJournals,
           },
         });
+        return true;
+      },
+      async deleteFixedAsset(assetId) {
+        const current = fixedAssets.find((asset) => asset.id === assetId) ?? null;
+        const fiscalPeriodId =
+          current?.fiscalPeriodId ?? appState.currentFiscalPeriodId ?? "";
+        if (fiscalPeriodId.length === 0) return false;
+        await backendApi.fixedAssets.delete(fiscalPeriodId, assetId);
+        setFixedAssets((currentList) =>
+          currentList.filter((asset) => asset.id !== assetId),
+        );
         return true;
       },
       async deleteOpeningCarryover(carryoverId) {

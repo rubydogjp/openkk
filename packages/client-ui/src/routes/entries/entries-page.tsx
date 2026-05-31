@@ -155,10 +155,11 @@ export function EntriesPage() {
   const drawerVirtualEntryId = searchParams.get("virtualEntry");
   const drawerEntry =
     drawerEntryId == null ? null : entriesState.getEntry(drawerEntryId);
-  const drawerVirtualEntry =
+  const drawerVirtualRows =
     drawerVirtualEntryId == null
-      ? null
-      : tableRows.find((row) => row.virtual?.id === drawerVirtualEntryId) ?? null;
+      ? []
+      : tableRows.filter((row) => row.virtual?.id === drawerVirtualEntryId);
+  const drawerVirtualEntry = drawerVirtualRows[0] ?? null;
 
   const navigateWithMonth = useCallback(
     (month: YearMonthValue) => {
@@ -421,6 +422,7 @@ export function EntriesPage() {
       {drawerVirtualEntry != null && lockedMessage == null ? (
         <VirtualEntryDrawer
           row={drawerVirtualEntry}
+          rows={drawerVirtualRows}
           onClose={closeVirtualDrawer}
           onOpenAssist={(href) => router.push(href)}
         />

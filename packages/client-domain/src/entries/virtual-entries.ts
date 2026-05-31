@@ -105,28 +105,55 @@ export function buildVirtualFixedAssetRows(input: {
         asset.disposalDate != null &&
         asset.disposalDate.startsWith(input.yearMonth),
     )
-    .map((asset) => {
+    .flatMap((asset) => {
       const disposalPrice = parseAmount(asset.disposalPrice ?? "0");
-      const amount = formatAmount(disposalPrice);
-      return {
+      const bookValue = parseAmount(asset.current);
+      const gain = Math.max(0, disposalPrice - bookValue);
+      const loss = Math.max(0, bookValue - disposalPrice);
+      const debits: Array<{
+        accountName: string;
+        accountType: EntryAccountVisualType;
+        amount: number;
+      }> = [];
+      const credits: Array<{
+        accountName: string;
+        accountType: EntryAccountVisualType;
+        amount: number;
+      }> = [];
+      if (disposalPrice > 0) {
+        debits.push({
+          accountName: "普通預金",
+          accountType: "asset",
+          amount: disposalPrice,
+        });
+      }
+      if (loss > 0) {
+        debits.push({
+          accountName: "固定資産売却損",
+          accountType: "expense",
+          amount: loss,
+        });
+      }
+      if (bookValue > 0) {
+        credits.push({
+          accountName: asset.account,
+          accountType: "asset",
+          amount: bookValue,
+        });
+      }
+      if (gain > 0) {
+        credits.push({
+          accountName: "固定資産売却益",
+          accountType: "revenue",
+          amount: gain,
+        });
+      }
+      return buildVirtualRowsFromPairs({
         recordId: `virtual-fixed-asset-sale-${asset.id}`,
-        lineIndex: 0,
-        lineCount: 1,
-        isFirstOfRecord: true,
         date: `${asset.disposalDate!.slice(5, 7)}/${asset.disposalDate!.slice(8, 10)}`,
-        weekday: "",
-        debit: "普通預金",
-        debitType: "asset" as EntryAccountVisualType,
-        debitAmount: amount,
-        credit: asset.account,
-        creditType: "asset" as EntryAccountVisualType,
-        creditAmount: amount,
         description: `${asset.name}の売却`,
-        partner: "",
         businessRate:
           asset.businessRate == null ? "" : String(Math.round(asset.businessRate * 100)),
-        taxCategory: "対象外",
-        businessCategory: "",
         virtual: {
           id: `fixed-asset-${asset.id}`,
           kind: "fixed_asset" as const,
@@ -134,11 +161,58 @@ export function buildVirtualFixedAssetRows(input: {
           label: "固定資産",
           assistHref: `/assist/fixed-assets?asset=${asset.id}`,
         },
-      };
+        debits,
+        credits,
+      });
     });
   return [...depreciationRows, ...saleRows];
 }
 
 function formatAmount(value: number): string {
   return new Intl.NumberFormat("ja-JP").format(value);
+}
+
+function buildVirtualRowsFromPairs(input: {
+  recordId: string;
+  date: string;
+  description: string;
+  businessRate: string;
+  virtual: EntryPreviewRow["virtual"];
+  debits: Array<{
+    accountName: string;
+    accountType: EntryAccountVisualType;
+    amount: number;
+  }>;
+  credits: Array<{
+    accountName: string;
+    accountType: EntryAccountVisualType;
+    amount: number;
+  }>;
+}): EntryPreviewRow[] {
+  const rowCount = Math.max(input.debits.length, input.credits.length);
+  if (rowCount === 0) return [];
+  return Array.from({ length: rowCount }, (_, index) => {
+    const debit = input.debits[index] ?? null;
+    const credit = input.credits[index] ?? null;
+    return {
+      recordId: input.recordId,
+      lineIndex: index,
+      lineCount: rowCount,
+      isFirstOfRecord: index === 0,
+      date: input.date,
+      weekday: "",
+      debit: debit?.accountName ?? "",
+      debitType: debit?.accountType ?? "asset",
+      debitAmount: debit == null ? "" : formatAmount(debit.amount),
+      credit: credit?.accountName ?? "",
+      creditType: credit?.accountType ?? "asset",
+      creditAmount: credit == null ? "" : formatAmount(credit.amount),
+      description: input.description,
+      partner: "",
+      businessRate: input.businessRate,
+      taxCategory: "対象外",
+      businessCategory: "",
+      virtual: input.virtual,
+    };
+  });
 }

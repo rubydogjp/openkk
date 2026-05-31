@@ -60,6 +60,13 @@ export function createOpenkkServerApi(
         }
         return usecases.fixedAssets.update(uid, id, patch);
       },
+      delete: async (fpId, id) => {
+        const existing = await usecases.fixedAssets.getById(uid, id);
+        if (existing == null || existing.fiscalPeriodId !== fpId) {
+          throw new Error(`Fixed asset ${id} not found in fiscal period ${fpId}`);
+        }
+        await usecases.fixedAssets.delete(uid, id);
+      },
     },
     masterData: {
       getBookAccounts: () => usecases.masterData.getBookAccounts(),

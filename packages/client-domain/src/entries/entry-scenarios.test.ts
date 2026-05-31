@@ -88,20 +88,85 @@ describe("entry scenario rows", () => {
       yearMonth: "2026-09",
     });
 
-    expect(disposalRows).toContainEqual(
+    expect(disposalRows).toEqual([
       expect.objectContaining({
         date: "09/30",
         debit: "普通預金",
         debitAmount: "130,000",
         credit: "機械装置",
-        creditAmount: "130,000",
+        creditAmount: "112,000",
         description: "撮影用ミラーレス一眼の売却",
+        lineIndex: 0,
+        lineCount: 2,
+        isFirstOfRecord: true,
         virtual: expect.objectContaining({
           kind: "fixed_asset",
           assistHref: "/assist/fixed-assets?asset=fa-5",
         }),
       }),
-    );
+      expect.objectContaining({
+        debit: "",
+        debitAmount: "",
+        credit: "固定資産売却益",
+        creditAmount: "18,000",
+        lineIndex: 1,
+        lineCount: 2,
+        isFirstOfRecord: false,
+      }),
+    ]);
+    expect(computeFinancialSummary(disposalRows)).toEqual({
+      revenue: 18_000,
+      expenses: 0,
+      profit: 18_000,
+    });
+  });
+
+  it("records fixed asset sale loss when disposal price is below book value", () => {
+    const rows = buildVirtualFixedAssetRows({
+      fiscalPeriodId: "fp-2026",
+      assets: [
+        {
+          id: "fa-sale-loss",
+          fiscalPeriodId: "fp-2026",
+          name: "業務用タブレット",
+          account: "工具器具備品",
+          period: "2025年1月〜2026年9月",
+          remaining: "売却済み",
+          progress: 0.4,
+          current: "80,000",
+          purchase: "120,000",
+          status: "売却済",
+          disposalDate: "2026-09-20",
+          disposalPrice: "50,000",
+        },
+      ],
+      periodEndDate: "2026-12-31",
+      yearMonth: "2026-09",
+    });
+
+    expect(rows).toEqual([
+      expect.objectContaining({
+        debit: "普通預金",
+        debitAmount: "50,000",
+        credit: "工具器具備品",
+        creditAmount: "80,000",
+        lineIndex: 0,
+        lineCount: 2,
+      }),
+      expect.objectContaining({
+        debit: "固定資産売却損",
+        debitAmount: "30,000",
+        credit: "",
+        creditAmount: "",
+        lineIndex: 1,
+        lineCount: 2,
+      }),
+    ]);
+    expect(computeFinancialSummary(rows)).toEqual({
+      revenue: 0,
+      expenses: 30_000,
+      profit: -30_000,
+    });
   });
 
   it("turns opening carryover records into next-period reversal rows", () => {

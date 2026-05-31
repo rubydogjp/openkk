@@ -235,6 +235,7 @@ export interface FixedAssetsApi {
     id: string,
     input: FixedAssetPatchInput,
   ): Promise<FixedAssetApiRecord>;
+  delete(fiscalPeriodId: string, id: string): Promise<void>;
 }
 
 export interface MasterDataApi {

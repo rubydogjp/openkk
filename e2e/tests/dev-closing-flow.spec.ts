@@ -96,7 +96,7 @@ async function createFixedAssetDuringScenario(page: Page) {
     .click();
   await expect(page.getByText("まだ固定資産がありません")).toBeVisible();
   await page.getByRole("button", { name: "追加" }).click();
-  const drawer = page.getByRole("dialog", { name: "固定資産の編集" });
+  const drawer = page.getByRole("dialog", { name: "固定資産の追加" });
   await expect(drawer).toBeVisible();
   await drawer
     .getByLabel("名称")

@@ -1,14 +1,17 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 
 import {
   useOpenkkAppState,
   useOpenkkAssist,
   useOpenkkConfig,
 } from "@rubydogjp/openkk-client-usecases";
-import { buildPeriodLockMessage } from "@rubydogjp/openkk-client-domain";
+import {
+  buildPeriodLockMessage,
+  type FixedAssetPreviewItem,
+} from "@rubydogjp/openkk-client-domain";
 import { ClosedPeriodLock } from "../../../shared/closed-period-lock";
 import { DemoLockButton } from "../../../shared/demo-icon";
 import { FixedAssetEditDrawer } from "../../../assist/fixed-asset-edit-drawer";
@@ -21,6 +24,8 @@ export function FixedAssetsPage() {
   const appState = useOpenkkAppState();
   const openkkConfig = useOpenkkConfig();
   const isDemo = openkkConfig.isDemoMode;
+  const [newAssetDraft, setNewAssetDraft] =
+    useState<FixedAssetPreviewItem | null>(null);
 
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (p) => p.id === appState.currentFiscalPeriodId,
@@ -70,11 +75,14 @@ export function FixedAssetsPage() {
         onAdd={
           isDemo || isReadOnlyPeriod
             ? undefined
-            : async () => {
-                const createdId = await assistState.addFixedAsset();
-                if (createdId != null) {
-                  navigateWithAssetParam(createdId);
-                }
+            : () => {
+                navigateWithAssetParam(null);
+                setNewAssetDraft(
+                  buildNewFixedAssetDraft(
+                    currentFiscalPeriod?.startDate ?? null,
+                    openkkConfig.today,
+                  ),
+                );
               }
         }
         onOpenItem={
@@ -94,8 +102,60 @@ export function FixedAssetsPage() {
           onSave={async (draft) => {
             return await assistState.updateFixedAsset(drawerAsset.id, draft);
           }}
+          onDelete={async () => {
+            const ok = await assistState.deleteFixedAsset(drawerAsset.id);
+            if (ok) {
+              navigateWithAssetParam(null);
+            }
+            return ok;
+          }}
+        />
+      ) : null}
+      {newAssetDraft != null && !isReadOnlyPeriod ? (
+        <FixedAssetEditDrawer
+          mode="create"
+          asset={newAssetDraft}
+          isDemo={isDemo}
+          onClose={() => setNewAssetDraft(null)}
+          onSave={async (draft) => {
+            const createdId = await assistState.addFixedAsset(draft);
+            if (createdId != null) {
+              setNewAssetDraft(null);
+              return true;
+            }
+            return false;
+          }}
         />
       ) : null}
     </>
   );
+}
+
+function buildNewFixedAssetDraft(
+  periodStartDate: string | null,
+  today: Date,
+): FixedAssetPreviewItem {
+  const acquisitionDate = periodStartDate ?? formatLocalDate(today);
+  return {
+    id: "__new_fixed_asset__",
+    name: "",
+    account: "工具器具備品",
+    period: "",
+    remaining: "",
+    progress: 0,
+    current: "0",
+    purchase: "",
+    status: "償却中",
+    acquisitionDate,
+    usefulLife: 3,
+    businessRate: 1,
+  };
+}
+
+function formatLocalDate(date: Date): string {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
 }

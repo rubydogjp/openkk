@@ -20,15 +20,19 @@ import {
 } from "@rubydogjp/openkk-client-domain";
 
 export function FixedAssetEditDrawer({
+  mode = "edit",
   asset,
   isDemo,
   onClose,
   onSave,
+  onDelete,
 }: {
+  mode?: "create" | "edit";
   asset: FixedAssetPreviewItem;
   isDemo: boolean;
   onClose: () => void;
   onSave: (draft: FixedAssetDraft) => Promise<boolean>;
+  onDelete?: () => Promise<boolean>;
 }) {
   const config = useOpenkkConfig();
   const [draft, setDraft] = useState<FixedAssetDraft>(() => ({
@@ -41,7 +45,14 @@ export function FixedAssetEditDrawer({
     status: asset.status,
   }));
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
+  const canSave =
+    draft.name.trim().length > 0 &&
+    draft.account.trim().length > 0 &&
+    draft.acquisitionDate.trim().length > 0 &&
+    parseAmount(draft.acquisitionCost) > 0 &&
+    draft.usefulLife > 0;
 
   // 簿価・進捗・残期間・当期償却費は入力値からリアルタイムに計算して表示する
   // （ユーザーは直接編集しない）。
@@ -66,7 +77,12 @@ export function FixedAssetEditDrawer({
 
   const handleSave = async () => {
     if (saving) return;
+    if (!canSave) {
+      setErrorText("名称・勘定科目・取得日・取得価額・耐用年数を入力してください");
+      return;
+    }
     setSaving(true);
+    setErrorText(null);
     try {
       const ok = await onSave(draft);
       if (!ok) setErrorText("保存に失敗しました");
@@ -75,6 +91,21 @@ export function FixedAssetEditDrawer({
       setErrorText(e instanceof Error ? e.message : "保存に失敗しました");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (onDelete == null || deleting || saving) return;
+    if (!window.confirm("固定資産を削除しますか？")) return;
+    setDeleting(true);
+    setErrorText(null);
+    try {
+      const ok = await onDelete();
+      if (!ok) setErrorText("削除に失敗しました");
+    } catch (e) {
+      setErrorText(e instanceof Error ? e.message : "削除に失敗しました");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -94,7 +125,7 @@ export function FixedAssetEditDrawer({
 
       <aside
         role="dialog"
-        aria-label="固定資産の編集"
+        aria-label={mode === "create" ? "固定資産の追加" : "固定資産の編集"}
         style={{
           position: "fixed",
           top: 0,
@@ -132,7 +163,7 @@ export function FixedAssetEditDrawer({
           <div
             style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: palette.text }}
           >
-            固定資産の編集
+            {mode === "create" ? "固定資産の追加" : "固定資産の編集"}
           </div>
         </header>
 
@@ -182,12 +213,14 @@ export function FixedAssetEditDrawer({
               onChange={(v) => setDraft({ ...draft, businessRatePercent: v })}
             />
           </Field>
-          <Field label="状態">
-            <StatusField
-              value={draft.status}
-              onChange={(v) => setDraft({ ...draft, status: v })}
-            />
-          </Field>
+          {mode === "edit" ? (
+            <Field label="状態">
+              <StatusField
+                value={draft.status}
+                onChange={(v) => setDraft({ ...draft, status: v })}
+              />
+            </Field>
+          ) : null}
 
           <DepreciationPreview
             period={preview.periodLabel}
@@ -210,21 +243,48 @@ export function FixedAssetEditDrawer({
             borderTop: `1px solid ${palette.borderStrong}`,
             background: palette.surface,
             display: "flex",
-            justifyContent: "flex-end",
+            justifyContent: "space-between",
+            alignItems: "center",
             gap: 10,
             flexShrink: 0,
           }}
         >
-          <FormSecondaryButton onClick={onClose}>
-            キャンセル
-          </FormSecondaryButton>
-          {isDemo ? (
-            <DemoLockButton label="保存" />
+          {mode === "edit" && onDelete != null ? (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting || saving}
+              style={{
+                height: sizes.button.compactHeight,
+                minWidth: 86,
+                padding: "0 14px",
+                borderRadius: radii.sm,
+                border: `1px solid ${palette.dangerBorder}`,
+                background: palette.dangerBg,
+                color: palette.danger,
+                fontSize: fontSize.base,
+                fontWeight: fontWeight.bold,
+                cursor: deleting || saving ? "default" : "pointer",
+                opacity: deleting || saving ? 0.5 : 1,
+              }}
+            >
+              {deleting ? "削除中…" : "削除"}
+            </button>
           ) : (
-            <FormPrimaryButton onClick={handleSave} disabled={saving}>
-              {saving ? "保存中…" : "保存"}
-            </FormPrimaryButton>
+            <span />
           )}
+          <div style={{ display: "flex", gap: 10 }}>
+            <FormSecondaryButton onClick={onClose}>
+              キャンセル
+            </FormSecondaryButton>
+            {isDemo ? (
+              <DemoLockButton label="保存" />
+            ) : (
+              <FormPrimaryButton onClick={handleSave} disabled={saving || deleting}>
+                {saving ? "保存中…" : "保存"}
+              </FormPrimaryButton>
+            )}
+          </div>
         </footer>
       </aside>
     </>
