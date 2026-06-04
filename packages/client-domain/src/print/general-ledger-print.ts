@@ -1,4 +1,4 @@
-import type { EntryRecord } from "../entries/entry-record";
+import { getEntryLines, type EntryLine, type EntryRecord } from "../entries/entry-record";
 import { buildPrintDocument, escapeHtml as esc } from "./print-shell";
 
 type AccountType = "asset" | "liability" | "equity" | "revenue" | "expense" | "cost_of_sales";
@@ -74,14 +74,16 @@ function buildLedger(
   openingBalance: number,
 ): AccountLedger {
   const relevant = allEntries
-    .filter((e) => e.debit === accountName || e.credit === accountName)
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .flatMap((entry) =>
+      getEntryLines(entry)
+        .filter((line) => line.accountName === accountName)
+        .map((line) => ({ entry, line })),
+    )
+    .sort((a, b) => a.entry.date.localeCompare(b.entry.date));
 
-  const firstEntry = relevant[0];
-  const accountType: AccountType = firstEntry
-    ? firstEntry.debit === accountName
-      ? (firstEntry.debitType as AccountType)
-      : (firstEntry.creditType as AccountType)
+  const firstLine = relevant[0]?.line;
+  const accountType: AccountType = firstLine
+    ? (firstLine.accountType as AccountType)
     : "asset";
 
   const debitNormal = isDebitNormal(accountType);
@@ -89,18 +91,18 @@ function buildLedger(
   const lines: LedgerLine[] = [];
   const monthSubtotals = new Map<string, { debit: number; credit: number }>();
 
-  for (const e of relevant) {
+  for (const { entry: e, line } of relevant) {
     const monthKey = e.date.slice(0, 7);
     if (!monthSubtotals.has(monthKey)) monthSubtotals.set(monthKey, { debit: 0, credit: 0 });
     const sub = monthSubtotals.get(monthKey)!;
+    const amt = parseNum(line.amount);
 
-    if (e.debit === accountName) {
-      const amt = parseNum(e.debitAmount);
+    if (line.side === "debit") {
       balance = debitNormal ? balance + amt : balance - amt;
       sub.debit += amt;
       lines.push({
         date: e.date,
-        counterAccount: e.credit,
+        counterAccount: counterAccountsForLine(e, line),
         memo: e.description,
         partner: e.partner,
         debitAmt: amt,
@@ -108,12 +110,11 @@ function buildLedger(
         balance,
       });
     } else {
-      const amt = parseNum(e.creditAmount);
       balance = debitNormal ? balance - amt : balance + amt;
       sub.credit += amt;
       lines.push({
         date: e.date,
-        counterAccount: e.debit,
+        counterAccount: counterAccountsForLine(e, line),
         memo: e.description,
         partner: e.partner,
         debitAmt: 0,
@@ -138,8 +139,12 @@ export function buildGeneralLedgerBody(
   const encounterOrder: string[] = [];
   const seen = new Set<string>();
   for (const e of [...entries].sort((a, b) => a.date.localeCompare(b.date))) {
-    if (!seen.has(e.debit)) { seen.add(e.debit); encounterOrder.push(e.debit); }
-    if (!seen.has(e.credit)) { seen.add(e.credit); encounterOrder.push(e.credit); }
+    for (const line of getEntryLines(e)) {
+      if (!seen.has(line.accountName)) {
+        seen.add(line.accountName);
+        encounterOrder.push(line.accountName);
+      }
+    }
   }
   const preferredIndex = new Map(PREFERRED_LEDGER_ORDER.map((n, i) => [n, i]));
   const accountOrder = [...encounterOrder].sort((a, b) => {
@@ -152,11 +157,11 @@ export function buildGeneralLedgerBody(
   });
 
   const ledgers = accountOrder.map((name) => {
-    const firstEntry = entries.find((e) => e.debit === name || e.credit === name);
-    const type: AccountType = firstEntry
-      ? firstEntry.debit === name
-        ? (firstEntry.debitType as AccountType)
-        : (firstEntry.creditType as AccountType)
+    const firstLine = entries
+      .flatMap((entry) => getEntryLines(entry))
+      .find((line) => line.accountName === name);
+    const type: AccountType = firstLine
+      ? (firstLine.accountType as AccountType)
       : "asset";
     const prefix = isDebitNormal(type) ? "a:" : "l:";
     const openingLine = openingBalanceLines.find((l) => l.accountId === `${prefix}${name}`);
@@ -277,4 +282,13 @@ export function buildGeneralLedgerDocument(
     orientation: "portrait",
     body: buildGeneralLedgerBody(fpName, entries, openingBalanceLines),
   });
+}
+
+function counterAccountsForLine(entry: EntryRecord, target: EntryLine): string {
+  const oppositeSide = target.side === "debit" ? "credit" : "debit";
+  return getEntryLines(entry)
+    .filter((line) => line.side === oppositeSide)
+    .map((line) => line.accountName)
+    .filter((name) => name.length > 0)
+    .join(" / ");
 }

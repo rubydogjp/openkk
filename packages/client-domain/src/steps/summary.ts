@@ -1,4 +1,5 @@
 import { parseAmount, parseBusinessRate } from "../shared/parse-utils";
+import type { EntryLine } from "../entries/entry-record";
 export { parseAmount, parseBusinessRate } from "../shared/parse-utils";
 
 type EntrySummaryRow = {
@@ -7,12 +8,22 @@ type EntrySummaryRow = {
   debitAmount: string;
   creditType: string;
   creditAmount: string;
+  lines?: EntryLine[];
 };
 
 export function computeRevenueContribution(
   record: EntrySummaryRow,
   rate: number,
 ): number {
+  if (record.lines != null && record.lines.length > 0) {
+    let value = 0;
+    for (const line of record.lines) {
+      const amount = Math.round(parseAmount(line.amount) * rate);
+      if (line.accountType !== "revenue") continue;
+      value += line.side === "credit" ? amount : -amount;
+    }
+    return value;
+  }
   const debit = Math.round(parseAmount(record.debitAmount) * rate);
   const credit = Math.round(parseAmount(record.creditAmount) * rate);
   let v = 0;
@@ -25,6 +36,16 @@ export function computeExpenseContribution(
   record: EntrySummaryRow,
   rate: number,
 ): number {
+  if (record.lines != null && record.lines.length > 0) {
+    let value = 0;
+    for (const line of record.lines) {
+      const amount = Math.round(parseAmount(line.amount) * rate);
+      if (line.accountType !== "expense" && line.accountType !== "cost_of_sales")
+        continue;
+      value += line.side === "debit" ? amount : -amount;
+    }
+    return value;
+  }
   const debit = Math.round(parseAmount(record.debitAmount) * rate);
   const credit = Math.round(parseAmount(record.creditAmount) * rate);
   let v = 0;
@@ -90,6 +111,18 @@ export function computeBSSummary(
   let netLiabilityChange = 0;
   for (const entry of entries) {
     const rate = parseBusinessRate(entry.businessRate);
+    if (entry.lines != null && entry.lines.length > 0) {
+      for (const line of entry.lines) {
+        const amount = Math.round(parseAmount(line.amount) * rate);
+        if (line.accountType === "asset") {
+          netAssetChange += line.side === "debit" ? amount : -amount;
+        }
+        if (line.accountType === "liability") {
+          netLiabilityChange += line.side === "credit" ? amount : -amount;
+        }
+      }
+      continue;
+    }
     const dAmt = Math.round(parseAmount(entry.debitAmount) * rate);
     const cAmt = Math.round(parseAmount(entry.creditAmount) * rate);
     if (entry.debitType === "asset") netAssetChange += dAmt;

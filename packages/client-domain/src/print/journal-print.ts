@@ -1,4 +1,9 @@
-import type { EntryRecord } from "../entries/entry-record";
+import {
+  entryToVisualPairs,
+  getEntryLines,
+  type EntryLine,
+  type EntryRecord,
+} from "../entries/entry-record";
 import { buildPrintDocument, escapeHtml as esc } from "./print-shell";
 
 function parseNum(str: string): number {
@@ -50,22 +55,38 @@ export function buildJournalBody(_fpName: string, entries: EntryRecord[]): strin
     .map(([monthKey, rows], pageIdx) => {
       const month = Number(monthKey.slice(5, 7));
       const monthLabel = `${month}月分`;
-      const debitTotal = rows.reduce((s, r) => s + parseNum(r.debitAmount), 0);
-      const creditTotal = rows.reduce((s, r) => s + parseNum(r.creditAmount), 0);
+      const debitTotal = rows.reduce(
+        (s, r) =>
+          s +
+          getEntryLines(r)
+            .filter((line) => line.side === "debit")
+            .reduce((lineSum, line) => lineSum + parseNum(line.amount), 0),
+        0,
+      );
+      const creditTotal = rows.reduce(
+        (s, r) =>
+          s +
+          getEntryLines(r)
+            .filter((line) => line.side === "credit")
+            .reduce((lineSum, line) => lineSum + parseNum(line.amount), 0),
+        0,
+      );
 
       const rowsHtml = rows
-        .map(
-          (row) => `<tr>
-  <td style="${TD}">${fmtDate(row.date)}</td>
-  <td style="${TD}">${esc(row.debit)}</td>
+        .flatMap((row) =>
+          entryToVisualPairs(row).map(
+            (pair, index) => `<tr>
+  <td style="${TD}">${index === 0 ? fmtDate(row.date) : ""}</td>
+  <td style="${TD}">${esc(lineAccountName(pair.debit))}</td>
   <td style="${TD}"></td>
-  <td style="${TD};text-align:right">${esc(row.debitAmount)}</td>
-  <td style="${TD}">${esc(row.credit)}</td>
+  <td style="${TD};text-align:right">${esc(lineAmount(pair.debit))}</td>
+  <td style="${TD}">${esc(lineAccountName(pair.credit))}</td>
   <td style="${TD}"></td>
-  <td style="${TD};text-align:right">${esc(row.creditAmount)}</td>
-  <td style="${TD}">${esc(row.description)}</td>
-  <td style="${TD}">${esc(row.partner)}</td>
+  <td style="${TD};text-align:right">${esc(lineAmount(pair.credit))}</td>
+  <td style="${TD}">${index === 0 ? esc(row.description) : ""}</td>
+  <td style="${TD}">${index === 0 ? esc(row.partner) : ""}</td>
 </tr>`,
+          ),
         )
         .join("\n");
 
@@ -120,4 +141,12 @@ export function buildJournalDocument(fpName: string, entries: EntryRecord[]): st
     orientation: "portrait",
     body: buildJournalBody(fpName, entries),
   });
+}
+
+function lineAccountName(line: EntryLine | null): string {
+  return line?.accountName ?? "";
+}
+
+function lineAmount(line: EntryLine | null): string {
+  return line?.amount ?? "";
 }

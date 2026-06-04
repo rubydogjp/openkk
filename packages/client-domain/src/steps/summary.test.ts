@@ -52,6 +52,53 @@ describe("financial summary", () => {
     });
   });
 
+  it("aggregates every line in compound entries", () => {
+    const compound = entry({
+      debitType: "cost_of_sales",
+      debitAmount: "168,000",
+      creditType: "liability",
+      creditAmount: "210,000",
+      lines: [
+        {
+          side: "debit",
+          accountName: "仕入",
+          accountType: "cost_of_sales",
+          amount: "168,000",
+        },
+        {
+          side: "debit",
+          accountName: "荷造運賃",
+          accountType: "expense",
+          amount: "42,000",
+        },
+        {
+          side: "credit",
+          accountName: "未払金",
+          accountType: "liability",
+          amount: "210,000",
+        },
+      ],
+    });
+
+    expect(computeFinancialSummary([compound])).toEqual({
+      revenue: 0,
+      expenses: 210_000,
+      profit: -210_000,
+    });
+
+    expect(
+      computeBSSummary(
+        [compound],
+        { assets: 300_000, liabilities: 0, equity: 300_000 },
+        -210_000,
+      ),
+    ).toEqual({
+      assets: 300_000,
+      liabilities: 210_000,
+      equity: 90_000,
+    });
+  });
+
   it("classifies opening balance lines into assets, liabilities, and equity", () => {
     expect(
       summarizeOpeningBalances([

@@ -38,7 +38,13 @@ export function createOpenkkServerApi(
         }
         return usecases.entries.update(uid, id, input);
       },
-      remove: (_fpId, id) => usecases.entries.delete(uid, id),
+      remove: async (fpId, id) => {
+        const existing = await usecases.entries.getById(uid, id);
+        if (existing == null || existing.fiscalPeriodId !== fpId) {
+          throw new Error(`Entry ${id} not found in fiscal period ${fpId}`);
+        }
+        await usecases.entries.delete(uid, id);
+      },
       importMany: async (fpId, inputs) => {
         const entries = await usecases.entries.importMany(uid, fpId, inputs);
         return { importedCount: entries.length, entries };

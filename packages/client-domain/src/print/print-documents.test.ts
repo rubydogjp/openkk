@@ -28,6 +28,48 @@ describe("print documents", () => {
     expect(html).toContain("150,000");
   });
 
+  it("renders every line of compound entries in journal and ledger documents", () => {
+    const compound = entry({
+      debit: "仕入",
+      debitType: "cost_of_sales",
+      debitAmount: "168,000",
+      credit: "未払金",
+      creditType: "liability",
+      creditAmount: "210,000",
+      description: "秋商材の仕入と配送費",
+      lines: [
+        {
+          side: "debit",
+          accountName: "仕入",
+          accountType: "cost_of_sales",
+          amount: "168,000",
+        },
+        {
+          side: "debit",
+          accountName: "荷造運賃",
+          accountType: "expense",
+          amount: "42,000",
+        },
+        {
+          side: "credit",
+          accountName: "未払金",
+          accountType: "liability",
+          amount: "210,000",
+        },
+      ],
+    });
+
+    const journalHtml = buildJournalDocument("2026年分", [compound]);
+    expect(journalHtml).toContain("荷造運賃");
+    expect(journalHtml).toContain("42,000");
+    expect(journalHtml).toContain("210,000");
+
+    const ledgerHtml = buildGeneralLedgerDocument("2026年分", [compound], []);
+    expect(ledgerHtml).toContain("荷造運賃");
+    expect(ledgerHtml).toContain("未払金");
+    expect(ledgerHtml).toContain("42,000");
+  });
+
   it("renders financial statement values computed from supplied entries", () => {
     const aggregate = computeFsAggregate({
       openingBalanceLines: [{ accountId: "a:普通預金", amount: 50_000 }],
