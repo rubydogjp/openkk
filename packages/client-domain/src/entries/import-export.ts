@@ -1,4 +1,4 @@
-import type { EntryRecord } from "./entry-record";
+import type { EntryLine, EntryRecord } from "./entry-record";
 
 type JournalJsonEntry = {
   id?: string;
@@ -16,6 +16,7 @@ type JournalJsonEntry = {
   businessRate: string;
   taxCategory: string;
   businessCategory: string;
+  lines?: EntryLine[];
 };
 
 export function exportEntriesAsJson(entries: EntryRecord[]) {
@@ -37,6 +38,9 @@ export function exportEntriesAsJson(entries: EntryRecord[]) {
         businessRate: entry.businessRate,
         taxCategory: entry.taxCategory,
         businessCategory: entry.businessCategory,
+        ...(entry.lines != null && entry.lines.length > 0
+          ? { lines: entry.lines.map((line) => ({ ...line })) }
+          : {}),
       })),
     },
     null,
@@ -78,6 +82,7 @@ export function importEntriesFromJson(input: {
       businessRate: entry.businessRate,
       taxCategory: entry.taxCategory,
       businessCategory: entry.businessCategory,
+      lines: Array.isArray(entry.lines) ? entry.lines : undefined,
     });
   });
 }
@@ -188,6 +193,7 @@ function normalizeEntry(input: {
   businessRate: string;
   taxCategory: string;
   businessCategory: string;
+  lines?: EntryLine[];
 }): EntryRecord {
   return {
     id: input.id,
@@ -206,7 +212,21 @@ function normalizeEntry(input: {
     businessRate: input.businessRate || "100",
     taxCategory: input.taxCategory || "対象外",
     businessCategory: input.businessCategory || "対象外",
+    lines: normalizeLines(input.lines),
   };
+}
+
+function normalizeLines(lines: EntryLine[] | undefined): EntryLine[] | undefined {
+  if (lines == null || lines.length === 0) return undefined;
+  return lines.map((line) => ({
+    side: line.side === "credit" ? "credit" : "debit",
+    accountName: line.accountName || "未設定",
+    accountType: normalizeType(line.accountType),
+    amount: normalizeAmount(line.amount),
+    ...(line.bookAccountId != null && line.bookAccountId.length > 0
+      ? { bookAccountId: line.bookAccountId }
+      : {}),
+  }));
 }
 
 function normalizeType(value: string): EntryRecord["debitType"] {

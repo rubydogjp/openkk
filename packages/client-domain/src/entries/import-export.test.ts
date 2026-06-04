@@ -56,6 +56,48 @@ describe("JSON export/import round-trip", () => {
     const parsed = JSON.parse(json) as { entries: Array<{ localId: string }> };
     expect(parsed.entries[0]?.localId).toBe("entry-xyz");
   });
+
+  it("preserves compound journal lines through JSON export then import", () => {
+    const original = entry({
+      localId: "compound-1",
+      debit: "仕入",
+      debitType: "cost_of_sales",
+      debitAmount: "168,000",
+      credit: "未払金",
+      creditType: "liability",
+      creditAmount: "210,000",
+      lines: [
+        {
+          side: "debit",
+          accountName: "仕入",
+          accountType: "cost_of_sales",
+          amount: "168,000",
+          bookAccountId: "acct_cost_of_sales_商品仕入高",
+        },
+        {
+          side: "debit",
+          accountName: "荷造運賃",
+          accountType: "expense",
+          amount: "42,000",
+          bookAccountId: "acct_expense_荷造運賃",
+        },
+        {
+          side: "credit",
+          accountName: "未払金",
+          accountType: "liability",
+          amount: "210,000",
+          bookAccountId: "acct_accrued_expense",
+        },
+      ],
+    });
+
+    const imported = importEntriesFromJson({
+      text: exportEntriesAsJson([original]),
+      fiscalPeriodId: "fp-2",
+    });
+
+    expect(imported[0]?.lines).toEqual(original.lines);
+  });
 });
 
 describe("importEntriesFromJson — error handling", () => {

@@ -21,6 +21,7 @@ import type {
 } from "@rubydogjp/openkk-client-ports";
 
 import {
+  getEntryLines,
   parseAmount,
   recordToPreviewRows,
   type EntryRecord,
@@ -284,7 +285,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
       },
       async mergeFiscalPeriodEntries(fiscalPeriodId, importedEntries) {
         const payload = importedEntries.map((entry) =>
-          toImportPayload(entry, {
+          entryRecordToImportPayload(entry, {
             accounts: bookAccounts,
             taxes: taxCategories,
             businesses: businessCategories,
@@ -551,7 +552,7 @@ function buildEntryApiLinesFromDraft(
   return lines;
 }
 
-function toImportPayload(
+export function entryRecordToImportPayload(
   entry: EntryRecord,
   master: {
     accounts: MasterBookAccount[];
@@ -565,24 +566,21 @@ function toImportPayload(
   businessRate: number;
   lines: EntryApiLine[];
 } {
-
-  const debitBookAccountId =
-    resolveBookAccountId({
-      explicitId: entry.debitBookAccountId,
-      accountName: entry.debit,
-      accountType: entry.debitType,
-      accounts: master.accounts,
-    }) ??
-    "";
-  const creditBookAccountId =
-    resolveBookAccountId({
-      explicitId: entry.creditBookAccountId,
-      accountName: entry.credit,
-      accountType: entry.creditType,
-      accounts: master.accounts,
-    }) ??
-    "";
-  if (debitBookAccountId === "" || creditBookAccountId === "") {
+  const lines = getEntryLines(entry).map((line): EntryApiLine => ({
+    side: line.side,
+    bookAccountId:
+      resolveBookAccountId({
+        explicitId: line.bookAccountId,
+        accountName: line.accountName,
+        accountType: line.accountType,
+        accounts: master.accounts,
+      }) ?? "",
+    amount: parseAmount(line.amount),
+    partnerName: entry.partner,
+    taxCategoryName: "",
+    businessCategoryName: "",
+  }));
+  if (lines.some((line) => line.bookAccountId === "")) {
     throw new AppError({
       messageForDeveloper: "entries.import: unresolved bookAccountId",
       messageForUser: "勘定科目の解決に失敗したため取込みできませんでした",
@@ -600,29 +598,17 @@ function toImportPayload(
     entry.businessCategory,
     master.businesses,
   );
+  const linesWithCategories = lines.map((line) => ({
+    ...line,
+    taxCategoryName: taxCategoryId,
+    businessCategoryName: businessCategoryId,
+  }));
   return {
     date: entry.date,
     description: entry.description,
     localId: entry.localId,
     businessRate: safeRate(entry.businessRate),
-    lines: [
-      {
-        side: "debit",
-        bookAccountId: debitBookAccountId,
-        amount: parseAmount(entry.debitAmount),
-        partnerName: entry.partner,
-        taxCategoryName: taxCategoryId,
-        businessCategoryName: businessCategoryId,
-      },
-      {
-        side: "credit",
-        bookAccountId: creditBookAccountId,
-        amount: parseAmount(entry.creditAmount),
-        partnerName: entry.partner,
-        taxCategoryName: taxCategoryId,
-        businessCategoryName: businessCategoryId,
-      },
-    ],
+    lines: linesWithCategories,
   };
 }
 
