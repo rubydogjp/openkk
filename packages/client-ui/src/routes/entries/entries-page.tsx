@@ -120,8 +120,17 @@ export function EntriesPage() {
     fiscalPeriodId === ""
       ? []
       : entriesState.listMonthRows(fiscalPeriodId, yearMonth);
+  const fullPeriodEntries =
+    fiscalPeriodId === ""
+      ? []
+      : entriesState.listFiscalPeriodEntries(fiscalPeriodId);
   const virtualRows = useMemo<EntryPreviewRow[]>(() => {
     if (fiscalPeriodId === "") return [];
+    const materializedLocalIds = new Set(
+      fullPeriodEntries
+        .map((entry) => entry.localId)
+        .filter((localId): localId is string => localId != null && localId !== ""),
+    );
     return [
       ...buildVirtualOpeningCarryoverRows({
         fiscalPeriodId,
@@ -134,8 +143,18 @@ export function EntriesPage() {
         periodEndDate: currentFiscalPeriod?.endDate ?? null,
         yearMonth,
       }),
-    ];
-  }, [assistState, currentFiscalPeriod?.endDate, fiscalPeriodId, yearMonth]);
+    ].filter(
+      (row) =>
+        row.recordId == null ||
+        !materializedLocalIds.has(`virtual:${row.recordId}`),
+    );
+  }, [
+    assistState,
+    currentFiscalPeriod?.endDate,
+    fiscalPeriodId,
+    fullPeriodEntries,
+    yearMonth,
+  ]);
   const tableRows = useMemo(
     () =>
       [...rows, ...virtualRows].sort((left, right) => {
@@ -147,11 +166,6 @@ export function EntriesPage() {
       }),
     [rows, virtualRows],
   );
-  const fullPeriodEntries =
-    fiscalPeriodId === ""
-      ? []
-      : entriesState.listFiscalPeriodEntries(fiscalPeriodId);
-
   const drawerEntryId = searchParams.get("entry");
   const drawerVirtualEntryId = searchParams.get("virtualEntry");
   const drawerEntry =

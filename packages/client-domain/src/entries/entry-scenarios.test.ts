@@ -11,6 +11,7 @@ import {
 import {
   buildVirtualFixedAssetRows,
   buildVirtualOpeningCarryoverRows,
+  materializeVirtualEntryRows,
 } from "./virtual-entries";
 
 describe("entry scenario rows", () => {
@@ -169,6 +170,63 @@ describe("entry scenario rows", () => {
     });
   });
 
+  it("materializes virtual fixed asset rows into idempotent compound entries", () => {
+    const rows = buildVirtualFixedAssetRows({
+      fiscalPeriodId: "fp-2026",
+      assets: [
+        {
+          id: "fa-sale-loss",
+          fiscalPeriodId: "fp-2026",
+          name: "業務用タブレット",
+          account: "工具器具備品",
+          period: "2025年1月〜2026年9月",
+          remaining: "売却済み",
+          progress: 0.4,
+          current: "80,000",
+          purchase: "120,000",
+          status: "売却済",
+          disposalDate: "2026-09-20",
+          disposalPrice: "50,000",
+        },
+      ],
+      periodEndDate: "2026-12-31",
+      yearMonth: "2026-09",
+    });
+
+    expect(materializeVirtualEntryRows({
+      fiscalPeriodId: "fp-2026",
+      yearMonth: "2026-09",
+      rows,
+    })).toEqual([
+      expect.objectContaining({
+        fiscalPeriodId: "fp-2026",
+        date: "2026-09-20",
+        description: "業務用タブレットの売却",
+        localId: "virtual:virtual-fixed-asset-sale-fa-sale-loss",
+        lines: [
+          {
+            side: "debit",
+            accountName: "普通預金",
+            accountType: "asset",
+            amount: "50,000",
+          },
+          {
+            side: "credit",
+            accountName: "工具器具備品",
+            accountType: "asset",
+            amount: "80,000",
+          },
+          {
+            side: "debit",
+            accountName: "固定資産売却損",
+            accountType: "expense",
+            amount: "30,000",
+          },
+        ],
+      }),
+    ]);
+  });
+
   it("turns opening carryover records into next-period reversal rows", () => {
     const rows = buildVirtualOpeningCarryoverRows({
       fiscalPeriodId: "fp-2027",
@@ -204,6 +262,35 @@ describe("entry scenario rows", () => {
           label: "再振替",
           assistHref: "/assist/opening-carryover?carryover=carryover-accrued-cost",
         },
+      }),
+    ]);
+
+    expect(
+      materializeVirtualEntryRows({
+        fiscalPeriodId: "fp-2027",
+        yearMonth: "2027-01",
+        rows,
+      }),
+    ).toEqual([
+      expect.objectContaining({
+        fiscalPeriodId: "fp-2027",
+        date: "2027-01-01",
+        description: "前年末未払仕入の再振替",
+        localId: "virtual:virtual-opening-carryover-carryover-accrued-cost",
+        lines: [
+          {
+            side: "debit",
+            accountName: "未払金",
+            accountType: "liability",
+            amount: "210,000",
+          },
+          {
+            side: "credit",
+            accountName: "仕入金額",
+            accountType: "cost_of_sales",
+            amount: "210,000",
+          },
+        ],
       }),
     ]);
   });

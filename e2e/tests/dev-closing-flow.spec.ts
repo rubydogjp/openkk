@@ -39,14 +39,28 @@ test.describe("openkk closing flow", () => {
     await expect(page.getByText("財務諸表の概要")).toBeVisible({
       timeout: 30_000,
     });
-    await clickButton(page, "次の手順へ");
 
+    await page.getByRole("link", { name: "仕訳" }).click();
+    await expect(page.getByText("2026年9月")).toBeVisible();
+    await page.getByRole("button", { name: "次の月" }).click();
+    await page.getByRole("button", { name: "次の月" }).click();
+    await page.getByRole("button", { name: "次の月" }).click();
+    await expect(page.getByText("2026年12月")).toBeVisible();
+    await expect(
+      page.getByText("MacBook Pro 14インチ相当の減価償却"),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", {
+        name: /MacBook Pro 14インチ相当の減価償却/,
+      }),
+    ).not.toBeVisible();
+
+    await page.getByRole("link", { name: "手順" }).click();
     await expectStep(page, "書類を受け取る");
     await expect(page.getByText("仕訳帳.pdf")).toBeVisible();
     await expect(page.getByText("総勘定元帳.pdf")).toBeVisible();
     await expect(page.getByText("財務諸表.pdf")).toBeVisible();
     await clickButton(page, "全て受け取りました");
-    await clickButton(page, "次の手順へ");
 
     await expectStep(page, "次の期間へ");
     await expect(page.getByText("期末のBS → 翌期首のBS")).toBeVisible();

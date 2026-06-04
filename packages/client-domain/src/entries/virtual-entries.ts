@@ -1,6 +1,7 @@
 import type { FixedAssetPreviewItem } from "../assist/fixed-asset-data";
 import type { OpeningCarryoverRecord } from "../assist/opening-carryover";
 import type { EntryAccountVisualType, EntryPreviewRow } from "./entries-types";
+import type { EntryRecord } from "./entry-record";
 import { parseAmount } from "../shared/parse-utils";
 
 export function buildVirtualOpeningCarryoverRows(input: {
@@ -213,6 +214,69 @@ function buildVirtualRowsFromPairs(input: {
       taxCategory: "対象外",
       businessCategory: "",
       virtual: input.virtual,
+    };
+  });
+}
+
+export function materializeVirtualEntryRows(input: {
+  fiscalPeriodId: string;
+  yearMonth: string;
+  rows: EntryPreviewRow[];
+}): EntryRecord[] {
+  const grouped = new Map<string, EntryPreviewRow[]>();
+  for (const row of input.rows) {
+    if (row.virtual == null || row.recordId == null) continue;
+    const current = grouped.get(row.recordId) ?? [];
+    current.push(row);
+    grouped.set(row.recordId, current);
+  }
+
+  return Array.from(grouped.entries()).map(([recordId, rows]) => {
+    const sorted = [...rows].sort(
+      (left, right) => (left.lineIndex ?? 0) - (right.lineIndex ?? 0),
+    );
+    const first = sorted[0]!;
+    const lines = sorted.flatMap((row) => {
+      const out: EntryRecord["lines"] = [];
+      if (row.debit.trim() !== "" && parseAmount(row.debitAmount) > 0) {
+        out.push({
+          side: "debit",
+          accountName: row.debit,
+          accountType: row.debitType,
+          amount: row.debitAmount,
+        });
+      }
+      if (row.credit.trim() !== "" && parseAmount(row.creditAmount) > 0) {
+        out.push({
+          side: "credit",
+          accountName: row.credit,
+          accountType: row.creditType,
+          amount: row.creditAmount,
+        });
+      }
+      return out;
+    });
+    const debitLine = lines.find((line) => line.side === "debit") ?? null;
+    const creditLine = lines.find((line) => line.side === "credit") ?? null;
+    const date = `${input.yearMonth}-${first.date.slice(3, 5)}`;
+    return {
+      id: `materialized-${recordId}`,
+      fiscalPeriodId: input.fiscalPeriodId,
+      date,
+      weekday: "",
+      lines,
+      debit: debitLine?.accountName ?? "",
+      debitType: debitLine?.accountType ?? "asset",
+      debitAmount: debitLine?.amount ?? "",
+      credit: creditLine?.accountName ?? "",
+      creditType: creditLine?.accountType ?? "asset",
+      creditAmount: creditLine?.amount ?? "",
+      description: first.description,
+      partner: first.partner,
+      businessRate: first.businessRate,
+      taxCategory: first.taxCategory,
+      businessCategory: first.businessCategory,
+      localId: `virtual:${recordId}`,
     };
   });
 }

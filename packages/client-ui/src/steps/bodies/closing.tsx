@@ -2,10 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { AppError } from "@rubydogjp/openkk-client-domain";
+import {
+  AppError,
+  buildVirtualFixedAssetRows,
+  buildVirtualOpeningCarryoverRows,
+  materializeVirtualEntryRows,
+} from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text";
 import {
   useOpenkkAppState,
+  useOpenkkAssist,
   useOpenkkClosing,
   useOpenkkEntries,
   useOpenkkConfig,
@@ -50,6 +56,7 @@ export function ClosingBody({
   const config = useOpenkkConfig();
   const appState = useOpenkkAppState();
   const entriesState = useOpenkkEntries();
+  const assistState = useOpenkkAssist();
   const closingApi = useOpenkkClosing();
   const printDocument = usePrintDocument();
   const { confirm, dialog } = useConfirmDialog();
@@ -181,6 +188,12 @@ export function ClosingBody({
     setShowRunningAnimation(true);
     setAnimationKey((k) => k + 1);
     try {
+      await materializeAssistEntriesForFinalClosing({
+        fiscalPeriodId: currentFiscalPeriod.id,
+        periodEndDate: currentFiscalPeriod.endDate,
+        assistState,
+        entriesState,
+      });
       if (config.isMockMode) {
         const updated = await appState.updateFiscalPeriod(
           currentFiscalPeriod.id,
@@ -394,4 +407,55 @@ export function ClosingBody({
       ) : null}
     </>
   );
+}
+
+async function materializeAssistEntriesForFinalClosing(input: {
+  fiscalPeriodId: string;
+  periodEndDate: string;
+  assistState: Pick<
+    ReturnType<typeof useOpenkkAssist>,
+    "listFixedAssets" | "listOpeningCarryovers"
+  >;
+  entriesState: Pick<ReturnType<typeof useOpenkkEntries>, "mergeFiscalPeriodEntries">;
+}) {
+  const carryoverEntries = input.assistState
+    .listOpeningCarryovers(input.fiscalPeriodId)
+    .flatMap((record) =>
+      materializeVirtualEntryRows({
+        fiscalPeriodId: input.fiscalPeriodId,
+        yearMonth: record.date.slice(0, 7),
+        rows: buildVirtualOpeningCarryoverRows({
+          fiscalPeriodId: input.fiscalPeriodId,
+          records: [record],
+          yearMonth: record.date.slice(0, 7),
+        }),
+      }),
+    );
+
+  const assets = input.assistState.listFixedAssets();
+  const fixedAssetMonths = new Set<string>();
+  if (input.periodEndDate.length >= 7) {
+    fixedAssetMonths.add(input.periodEndDate.slice(0, 7));
+  }
+  for (const asset of assets) {
+    if (asset.disposalDate != null && asset.disposalDate.length >= 7) {
+      fixedAssetMonths.add(asset.disposalDate.slice(0, 7));
+    }
+  }
+  const fixedAssetEntries = Array.from(fixedAssetMonths).flatMap((yearMonth) =>
+    materializeVirtualEntryRows({
+      fiscalPeriodId: input.fiscalPeriodId,
+      yearMonth,
+      rows: buildVirtualFixedAssetRows({
+        fiscalPeriodId: input.fiscalPeriodId,
+        assets,
+        periodEndDate: input.periodEndDate,
+        yearMonth,
+      }),
+    }),
+  );
+
+  const entries = [...carryoverEntries, ...fixedAssetEntries];
+  if (entries.length === 0) return;
+  await input.entriesState.mergeFiscalPeriodEntries(input.fiscalPeriodId, entries);
 }
