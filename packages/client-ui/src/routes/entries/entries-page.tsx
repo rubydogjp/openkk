@@ -12,6 +12,7 @@ import {
   importEntriesFromCsv,
   importEntriesFromJson,
   buildPeriodLockMessage,
+  parseIsoLocalDate,
   type EntryRecord,
   type EntryPreviewRow,
 } from "@rubydogjp/openkk-client-domain";
@@ -574,7 +575,8 @@ function isDateWithinRange(
 }
 
 function weekdayJa(dateText: string): string {
-  const date = new Date(dateText);
+  const date = parseIsoLocalDate(dateText);
+  if (date == null) return "";
   const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
   return weekdays[date.getDay()] ?? "";
 }

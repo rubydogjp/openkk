@@ -2,15 +2,14 @@
 
 import { useState } from "react";
 
+import { parseIsoLocalDate } from "@rubydogjp/openkk-client-domain";
+
 import { fontSize, fontWeight, palette, radii, sizes, spacing, typography } from "./design-tokens";
 
 const WEEKDAY_JP = ["日", "月", "火", "水", "木", "金", "土"];
 
 function parseIsoDate(value: string): Date | null {
-  const m = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return null;
-  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-  return isNaN(d.getTime()) ? null : d;
+  return parseIsoLocalDate(value);
 }
 
 function toIsoDate(date: Date): string {

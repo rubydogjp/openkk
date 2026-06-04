@@ -51,7 +51,7 @@ function createMemoryDb(): OpenkkDbPort {
   return {
     fiscalPeriods: {
       async getAllByUser() {
-        return [];
+        return [fiscalPeriod({ id: "fp-1" })];
       },
       async getById() {
         return null;

@@ -32,7 +32,7 @@ describe("openkk server fixed asset API", () => {
     });
 
     await expect(server.fixedAssets.delete("fp-other", created.id)).rejects.toThrow(
-      /not found in fiscal period/,
+      /Fiscal period fp-other not found/,
     );
     expect(await server.fixedAssets.getAll("fp-1")).toHaveLength(1);
 
@@ -46,7 +46,7 @@ function createFixedAssetDb(): OpenkkDbPort {
   return {
     fiscalPeriods: {
       async getAllByUser() {
-        return [];
+        return [fiscalPeriod({ id: "fp-1" })];
       },
       async getById() {
         return null;
