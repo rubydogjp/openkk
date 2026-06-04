@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import type { EntryRecord } from "../entries/entry-record";
-import { computeFsAggregate } from "./fs-data";
+import {
+  buildOpeningBalanceLinesFromClosingBsRows,
+  computeFsAggregate,
+} from "./fs-data";
 
 describe("computeFsAggregate", () => {
   it("builds profit-and-loss and balance-sheet values from real entries", () => {
@@ -114,6 +117,39 @@ describe("computeFsAggregate", () => {
     const totalRow = aggregate.bsRows.at(-1);
     expect(totalRow?.assetClosing).toBe(300_000);
     expect(totalRow?.liabilityClosing).toBe(300_000);
+  });
+
+  it("builds next-period opening balance lines from closing BS rows", () => {
+    const aggregate = computeFsAggregate({
+      openingBalanceLines: [{ accountId: "a:普通預金", amount: 50_000 }],
+      entries: [
+        entry({
+          debit: "普通預金",
+          debitType: "asset",
+          debitAmount: "100,000",
+          credit: "売上",
+          creditType: "revenue",
+          creditAmount: "100,000",
+        }),
+      ],
+    });
+
+    expect(buildOpeningBalanceLinesFromClosingBsRows(aggregate.bsRows)).toEqual(
+      expect.arrayContaining([
+        { accountId: "a:その他の預金", amount: 150_000 },
+        { accountId: "l:元入金", amount: 100_000 },
+      ]),
+    );
+    expect(
+      buildOpeningBalanceLinesFromClosingBsRows(aggregate.bsRows),
+    ).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ accountId: "a:合計" }),
+        expect.objectContaining({
+          accountId: "l:青色申告特別控除前の所得金額",
+        }),
+      ]),
+    );
   });
 });
 

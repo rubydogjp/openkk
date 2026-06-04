@@ -17,6 +17,29 @@ export type FsAggregate = {
 
 export type OpeningBalanceLine = { accountId: string; amount: number };
 
+export function buildOpeningBalanceLinesFromClosingBsRows(
+  bsRows: ReadonlyArray<FsBsRow>,
+): OpeningBalanceLine[] {
+  const amounts = new Map<string, number>();
+  const addLine = (prefix: "a" | "l", label: string, amount: number | null) => {
+    if (label === "" || label === "合計" || amount == null || amount <= 0) return;
+    const accountLabel =
+      label === "青色申告特別控除前の所得金額" ? "元入金" : label;
+    const accountId = `${prefix}:${accountLabel}`;
+    amounts.set(accountId, (amounts.get(accountId) ?? 0) + amount);
+  };
+
+  for (const row of bsRows) {
+    addLine("a", row.assetLabel, row.assetClosing);
+    addLine("l", row.liabilityLabel, row.liabilityClosing);
+  }
+
+  return [...amounts.entries()].map(([accountId, amount]) => ({
+    accountId,
+    amount,
+  }));
+}
+
 function add(map: Map<string, number>, name: string, delta: number) {
   if (!name) return;
   map.set(name, (map.get(name) ?? 0) + delta);

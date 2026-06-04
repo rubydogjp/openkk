@@ -2,12 +2,17 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { AppError } from "@rubydogjp/openkk-client-domain";
+import {
+  AppError,
+  buildOpeningBalanceLinesFromClosingBsRows,
+  computeFsAggregate,
+} from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text";
 import {
   useOpenkkAppState,
   useOpenkkCallout,
   useOpenkkConfig,
+  useOpenkkEntries,
 } from "@rubydogjp/openkk-client-usecases";
 import { fontSize, fontWeight, palette, rings } from "../../shared/design-tokens";
 import { DemoLockButton } from "../../shared/demo-icon";
@@ -25,8 +30,6 @@ import {
 
 const CARRY_ITEMS: Array<{ id: string; label: string }> = [
   { id: "bs", label: "期末のBS → 翌期首のBS" },
-  { id: "transfer", label: "期末の振替 → 翌期首の再振替" },
-  { id: "fixed", label: "固定資産データ" },
 ];
 
 export function NextFiscalPeriodBody({
@@ -37,6 +40,7 @@ export function NextFiscalPeriodBody({
   const config = useOpenkkConfig();
   const demoFooterCallout = useOpenkkCallout("stepNextFiscalPeriodDemoFooter");
   const appState = useOpenkkAppState();
+  const entriesState = useOpenkkEntries();
   const [screenError, setScreenError] = useState<unknown>(null);
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (period) => period.id === appState.currentFiscalPeriodId,
@@ -71,8 +75,6 @@ export function NextFiscalPeriodBody({
   const [nameEdited, setNameEdited] = useState(false);
   const [carries, setCarries] = useState<Record<string, boolean>>({
     bs: true,
-    transfer: true,
-    fixed: true,
   });
 
   useEffect(() => {
@@ -119,6 +121,29 @@ export function NextFiscalPeriodBody({
         endDate,
       });
       if (createdId == null) return;
+      if (carries.bs) {
+        const aggregate = computeFsAggregate({
+          openingBalanceLines:
+            currentFiscalPeriod.opening?.openingBalanceLines ?? [],
+          entries: entriesState.listFiscalPeriodEntries(currentFiscalPeriod.id),
+        });
+        const openingBalanceLines = buildOpeningBalanceLinesFromClosingBsRows(
+          aggregate.bsRows,
+        );
+        await appState.updateFiscalPeriod(createdId, {
+          openingBalancesCompleted: true,
+          opening: {
+            id: `op-${createdId}`,
+            userId: appState.session?.userId ?? "",
+            fiscalPeriodId: createdId,
+            openingBalanceLines: openingBalanceLines.map((line) => ({
+              id: line.accountId,
+              ...line,
+            })),
+            carryoverJournals: [],
+          },
+        });
+      }
       setScreenError(null);
       appState.selectFiscalPeriod(createdId);
     } catch (error) {

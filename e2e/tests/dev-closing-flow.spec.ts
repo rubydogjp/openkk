@@ -50,8 +50,8 @@ test.describe("openkk closing flow", () => {
 
     await expectStep(page, "次の期間へ");
     await expect(page.getByText("期末のBS → 翌期首のBS")).toBeVisible();
-    await expect(page.getByText("期末の振替 → 翌期首の再振替")).toBeVisible();
-    await expect(page.getByText("固定資産データ")).toBeVisible();
+    await expect(page.getByText("期末の振替 → 翌期首の再振替")).toHaveCount(0);
+    await expect(page.getByText("固定資産データ")).toHaveCount(0);
     await expect(page.getByText("次期を作成")).toBeVisible();
 
     await page.locator('button[aria-label="本締め"]').first().click();
@@ -60,6 +60,12 @@ test.describe("openkk closing flow", () => {
     await expectStep(page, "書類を受け取る");
     await page.locator('button[aria-label="次の期間へ"]').first().click();
     await expectStep(page, "次の期間へ");
+
+    await clickButton(page, "次期を作成");
+    await expectStep(page, "期間を開始");
+    await clickButton(page, "開始する");
+    await clickButton(page, "開始する");
+    await expectStep(page, "日々の仕訳");
   });
 });
 
