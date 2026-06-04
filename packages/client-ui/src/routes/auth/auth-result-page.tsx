@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 import { AppError } from "@rubydogjp/openkk-client-domain";
 import { useOpenkkAppState } from "@rubydogjp/openkk-client-usecases";
@@ -10,11 +10,14 @@ import { fontSize, fontWeight, palette, shadows } from "../../shared/design-toke
 
 export function AuthResultPage() {
   const appState = useOpenkkAppState();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [screenError, setScreenError] = useState<unknown>(null);
+  const startedRef = useRef(false);
 
   useEffect(() => {
+    if (startedRef.current) return;
+    startedRef.current = true;
+
     const state = searchParams.get("state") ?? "";
     const code = searchParams.get("code") ?? "";
     if (state.trim() === "" || code.trim() === "") {
@@ -29,14 +32,11 @@ export function AuthResultPage() {
       return;
     }
 
-    let cancelled = false;
     void (async () => {
       try {
         await appState.completeSignIn({ state, code });
-        if (cancelled) return;
-        router.replace("/fiscal-periods");
+        window.location.replace("/fiscal-periods");
       } catch (error) {
-        if (cancelled) return;
         setScreenError(
           AppError.from(error, {
             fallbackUserMessage: "サインインの完了に失敗しました",
@@ -45,11 +45,7 @@ export function AuthResultPage() {
         );
       }
     })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [appState, router, searchParams]);
+  }, [appState, searchParams]);
 
   return (
     <main

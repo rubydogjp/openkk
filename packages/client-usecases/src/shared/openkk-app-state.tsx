@@ -104,6 +104,7 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
 
   useEffect(() => {
     if (sessionUserId == null) {
+      setFiscalPeriods([]);
       return;
     }
     let cancelled = false;
@@ -215,13 +216,16 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
         return updated;
       },
       signInAsMockUser() {
+        setFiscalPeriods([]);
         setSessionUserId(config.mockUserId);
       },
       signInAsUser(userId) {
+        setFiscalPeriods([]);
         setSessionUserId(userId);
       },
       signOut() {
         void backendApi.auth.signOut().catch(() => undefined);
+        setFiscalPeriods([]);
         setSessionUserId(null);
         setCurrentFiscalPeriodId(buildSignedOutFiscalPeriodId(config));
       },
@@ -233,6 +237,7 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
         const token = await backendApi.auth.redeemCompletionCode(
           completed.completionCode,
         );
+        setFiscalPeriods([]);
         setSessionUserId(token.userId);
         return token.userId;
       },

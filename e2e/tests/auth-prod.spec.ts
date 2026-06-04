@@ -18,6 +18,8 @@ test.describe("prod auth flow", () => {
     ) {
       await page.getByRole("button", { name: "アカウントメニュー" }).click();
       await page.getByRole("button", { name: "サインアウト" }).click();
+      await expect(page.getByRole("button", { name: "アカウントメニュー" }))
+        .not.toBeVisible({ timeout: 5_000 });
     }
 
     await expect(page.getByRole("heading", { name: "サインイン" })).toBeVisible({
