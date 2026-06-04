@@ -23,6 +23,7 @@ export * from "./steps/step-derivation";
 export * from "./steps/step-trend";
 export * from "./steps/summary";
 export * from "./steps/year-month";
+export * from "./steps/next-fiscal-period";
 
 export * from "./print/financial-statements-print";
 export * from "./print/fs-data";

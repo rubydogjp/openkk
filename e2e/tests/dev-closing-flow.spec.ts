@@ -50,8 +50,8 @@ test.describe("openkk closing flow", () => {
 
     await expectStep(page, "次の期間へ");
     await expect(page.getByText("期末のBS → 翌期首のBS")).toBeVisible();
-    await expect(page.getByText("期末の振替 → 翌期首の再振替")).toHaveCount(0);
-    await expect(page.getByText("固定資産データ")).toHaveCount(0);
+    await expect(page.getByText("期末の振替 → 翌期首の再振替")).toBeVisible();
+    await expect(page.getByText("固定資産データ")).toBeVisible();
     await expect(page.getByText("次期を作成")).toBeVisible();
 
     await page.locator('button[aria-label="本締め"]').first().click();
@@ -66,6 +66,19 @@ test.describe("openkk closing flow", () => {
     await clickButton(page, "開始する");
     await clickButton(page, "開始する");
     await expectStep(page, "日々の仕訳");
+
+    await page.getByRole("link", { name: "仕訳" }).click();
+    await expect(page.getByText("2027年1月")).toBeVisible();
+    await expect(page.getByText(/再振替: 秋商材の仕入と配送費/).first()).toBeVisible();
+    await expect(page.getByText("再振替").first()).toBeVisible();
+
+    await page.getByRole("link", { name: "補助" }).click();
+    await page
+      .getByRole("button", { name: /固定資産 数年かけて費用になる資産/ })
+      .click();
+    await expect(
+      page.getByText("検証用固定資産 長い名称のノートPC兼撮影機材"),
+    ).toBeVisible();
   });
 });
 

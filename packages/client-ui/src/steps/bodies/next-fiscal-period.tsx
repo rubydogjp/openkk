@@ -5,10 +5,12 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AppError,
   buildOpeningBalanceLinesFromClosingBsRows,
+  buildOpeningCarryoverJournalsFromReversibleEntries,
   computeFsAggregate,
 } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text";
 import {
+  useBackendApi,
   useOpenkkAppState,
   useOpenkkCallout,
   useOpenkkConfig,
@@ -30,6 +32,8 @@ import {
 
 const CARRY_ITEMS: Array<{ id: string; label: string }> = [
   { id: "bs", label: "期末のBS → 翌期首のBS" },
+  { id: "transfer", label: "期末の振替 → 翌期首の再振替" },
+  { id: "fixed", label: "固定資産データ" },
 ];
 
 export function NextFiscalPeriodBody({
@@ -39,6 +43,7 @@ export function NextFiscalPeriodBody({
 }) {
   const config = useOpenkkConfig();
   const demoFooterCallout = useOpenkkCallout("stepNextFiscalPeriodDemoFooter");
+  const backendApi = useBackendApi();
   const appState = useOpenkkAppState();
   const entriesState = useOpenkkEntries();
   const [screenError, setScreenError] = useState<unknown>(null);
@@ -75,6 +80,8 @@ export function NextFiscalPeriodBody({
   const [nameEdited, setNameEdited] = useState(false);
   const [carries, setCarries] = useState<Record<string, boolean>>({
     bs: true,
+    transfer: true,
+    fixed: true,
   });
 
   useEffect(() => {
@@ -119,30 +126,57 @@ export function NextFiscalPeriodBody({
         name,
         startDate,
         endDate,
-      });
+      }, { select: false });
       if (createdId == null) return;
-      if (carries.bs) {
+      if (carries.bs || carries.transfer) {
+        const entries = entriesState.listFiscalPeriodEntries(currentFiscalPeriod.id);
         const aggregate = computeFsAggregate({
           openingBalanceLines:
             currentFiscalPeriod.opening?.openingBalanceLines ?? [],
-          entries: entriesState.listFiscalPeriodEntries(currentFiscalPeriod.id),
+          entries,
         });
         const openingBalanceLines = buildOpeningBalanceLinesFromClosingBsRows(
           aggregate.bsRows,
         );
+        const carryoverJournals = carries.transfer
+          ? buildOpeningCarryoverJournalsFromReversibleEntries({
+              entries,
+              nextFiscalPeriodId: createdId,
+              nextStartDate: startDate,
+            })
+          : [];
         await appState.updateFiscalPeriod(createdId, {
-          openingBalancesCompleted: true,
+          openingBalancesCompleted: carries.bs,
           opening: {
             id: `op-${createdId}`,
             userId: appState.session?.userId ?? "",
             fiscalPeriodId: createdId,
-            openingBalanceLines: openingBalanceLines.map((line) => ({
-              id: line.accountId,
-              ...line,
-            })),
-            carryoverJournals: [],
+            openingBalanceLines: carries.bs
+              ? openingBalanceLines.map((line) => ({
+                  id: line.accountId,
+                  ...line,
+                }))
+              : [],
+            carryoverJournals,
           },
         });
+      }
+      if (carries.fixed) {
+        const fixedAssets = await backendApi.fixedAssets.getAll(
+          currentFiscalPeriod.id,
+        );
+        for (const asset of fixedAssets) {
+          if (asset.status !== "active") continue;
+          await backendApi.fixedAssets.create(createdId, {
+            name: asset.name,
+            acquisitionDate: asset.acquisitionDate,
+            acquisitionCost: asset.acquisitionCost,
+            usefulLife: Math.max(1, Math.round(asset.usefulLife) || 1),
+            depreciationMethod: asset.depreciationMethod,
+            businessRate: asset.businessRate,
+            bookAccountId: asset.bookAccountId,
+          });
+        }
       }
       setScreenError(null);
       appState.selectFiscalPeriod(createdId);

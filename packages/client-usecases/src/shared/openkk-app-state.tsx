@@ -43,7 +43,7 @@ type OpenkkAppState = {
     name: string;
     startDate: string;
     endDate: string;
-  }) => Promise<string | null>;
+  }, options?: { select?: boolean }) => Promise<string | null>;
   updateFiscalPeriod: (
     fiscalPeriodId: string,
     input: Partial<{
@@ -153,7 +153,7 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
       fiscalPeriods,
       currentFiscalPeriodId,
       isReady,
-      async createFiscalPeriod(input) {
+      async createFiscalPeriod(input, options) {
         const created = await backendApi.fiscalPeriod.create(input);
 
         const isDemoFirstPeriod =
@@ -176,7 +176,9 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
           );
         }
         setFiscalPeriods((current) => [...current, mapRemoteFiscalPeriod(final)]);
-        setCurrentFiscalPeriodId(final.id);
+        if (options?.select !== false) {
+          setCurrentFiscalPeriodId(final.id);
+        }
         return final.id;
       },
       async updateFiscalPeriod(fiscalPeriodId, input) {
