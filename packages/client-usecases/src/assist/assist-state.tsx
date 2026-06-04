@@ -17,7 +17,10 @@ import {
   AppError,
   computeStraightLineDepreciation,
 } from "@rubydogjp/openkk-client-domain";
-import type { FixedAssetApiRecord } from "@rubydogjp/openkk-client-ports";
+import type {
+  FixedAssetApiRecord,
+  FixedAssetPatchInput,
+} from "@rubydogjp/openkk-client-ports";
 
 import type {
   FixedAssetDraft,
@@ -177,15 +180,11 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         }
         // 簿価・進捗・残期間は計算で導出するため保存しない。保存するのは
         // 償却計算の元になる「真実」の値（取得価額・取得日・耐用年数・事業割合）のみ。
-        const patched = await backendApi.fixedAssets.patch(fiscalPeriodId, assetId, {
-          name: draft.name,
-          acquisitionDate: draft.acquisitionDate,
-          acquisitionCost: parseAmount(draft.acquisitionCost),
-          usefulLife: Math.max(1, Math.round(draft.usefulLife) || 1),
-          businessRate: Math.max(0, Math.min(100, draft.businessRatePercent)) / 100,
-          status: mapFixedAssetStatusApi(draft.status),
-          bookAccountId: accountId,
-        });
+        const patched = await backendApi.fixedAssets.patch(
+          fiscalPeriodId,
+          assetId,
+          fixedAssetDraftToPatch(draft, accountId),
+        );
         setFixedAssets((currentList) =>
           currentList.map((asset) =>
             asset.id === assetId
@@ -500,6 +499,30 @@ function mapFixedAssetStatusApi(
   if (statusLabel === "廃棄済") return "disposed";
   if (statusLabel === "完了") return "retired";
   return "active";
+}
+
+export function fixedAssetDraftToPatch(
+  draft: FixedAssetDraft,
+  bookAccountId: string,
+): FixedAssetPatchInput {
+  return {
+    name: draft.name,
+    acquisitionDate: draft.acquisitionDate,
+    acquisitionCost: parseAmount(draft.acquisitionCost),
+    usefulLife: Math.max(1, Math.round(draft.usefulLife) || 1),
+    businessRate: Math.max(0, Math.min(100, draft.businessRatePercent)) / 100,
+    status: mapFixedAssetStatusApi(draft.status),
+    disposalDate: isFixedAssetClosedStatus(draft.status)
+      ? draft.disposalDate ?? ""
+      : "",
+    disposalPrice:
+      draft.status === "売却済" ? parseAmount(draft.disposalPrice ?? "0") : 0,
+    bookAccountId,
+  };
+}
+
+function isFixedAssetClosedStatus(statusLabel: string): boolean {
+  return statusLabel === "売却済" || statusLabel === "廃棄済" || statusLabel === "完了";
 }
 
 export function useOpenkkAssist() {

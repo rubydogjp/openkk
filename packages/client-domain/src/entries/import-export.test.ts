@@ -57,6 +57,15 @@ describe("JSON export/import round-trip", () => {
     expect(parsed.entries[0]?.localId).toBe("entry-xyz");
   });
 
+  it("accepts JSON with a leading UTF-8 BOM", () => {
+    const imported = importEntriesFromJson({
+      text: `\uFEFF${exportEntriesAsJson([entry({ localId: "bom-json" })])}`,
+      fiscalPeriodId: "fp-2",
+    });
+
+    expect(imported[0]?.localId).toBe("bom-json");
+  });
+
   it("preserves compound journal lines through JSON export then import", () => {
     const original = entry({
       localId: "compound-1",
@@ -172,6 +181,13 @@ describe("CSV export/import round-trip", () => {
     const imported = importEntriesFromCsv({ text: csv, fiscalPeriodId: "fp-1" });
     expect(imported).toHaveLength(1);
     expect(imported[0]?.localId).toBe("crlf1");
+  });
+
+  it("accepts CSV with a leading UTF-8 BOM", () => {
+    const csv = `\uFEFF${exportEntriesAsCsv([entry({ localId: "bom-csv" })])}`;
+    const imported = importEntriesFromCsv({ text: csv, fiscalPeriodId: "fp-1" });
+    expect(imported).toHaveLength(1);
+    expect(imported[0]?.localId).toBe("bom-csv");
   });
 
   it("returns empty array for header-only CSV", () => {

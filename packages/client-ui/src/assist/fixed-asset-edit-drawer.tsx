@@ -43,16 +43,22 @@ export function FixedAssetEditDrawer({
     usefulLife: asset.usefulLife ?? 0,
     businessRatePercent: Math.round((asset.businessRate ?? 1) * 100),
     status: asset.status,
+    disposalDate: asset.disposalDate ?? "",
+    disposalPrice: asset.disposalPrice ?? "",
   }));
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
+  const needsDisposalDate = draft.status === "売却済" || draft.status === "廃棄済";
+  const needsDisposalPrice = draft.status === "売却済";
   const canSave =
     draft.name.trim().length > 0 &&
     draft.account.trim().length > 0 &&
     draft.acquisitionDate.trim().length > 0 &&
     parseAmount(draft.acquisitionCost) > 0 &&
-    draft.usefulLife > 0;
+    draft.usefulLife > 0 &&
+    (!needsDisposalDate || (draft.disposalDate ?? "").trim().length > 0) &&
+    (!needsDisposalPrice || parseAmount(draft.disposalPrice ?? "") > 0);
 
   // 簿価・進捗・残期間・当期償却費は入力値からリアルタイムに計算して表示する
   // （ユーザーは直接編集しない）。
@@ -62,9 +68,19 @@ export function FixedAssetEditDrawer({
         acquisitionDate: draft.acquisitionDate,
         acquisitionCost: parseAmount(draft.acquisitionCost),
         usefulLife: draft.usefulLife,
-        asOf: config.today,
+        asOf:
+          needsDisposalDate && draft.disposalDate
+            ? parseLocalDate(draft.disposalDate) ?? config.today
+            : config.today,
       }),
-    [draft.acquisitionDate, draft.acquisitionCost, draft.usefulLife, config.today],
+    [
+      draft.acquisitionDate,
+      draft.acquisitionCost,
+      draft.disposalDate,
+      draft.usefulLife,
+      config.today,
+      needsDisposalDate,
+    ],
   );
 
   useEffect(() => {
@@ -78,7 +94,13 @@ export function FixedAssetEditDrawer({
   const handleSave = async () => {
     if (saving) return;
     if (!canSave) {
-      setErrorText("名称・勘定科目・取得日・取得価額・耐用年数を入力してください");
+      setErrorText(
+        needsDisposalPrice
+          ? "名称・勘定科目・取得日・取得価額・耐用年数・処分日・売却額を入力してください"
+          : needsDisposalDate
+            ? "名称・勘定科目・取得日・取得価額・耐用年数・処分日を入力してください"
+            : "名称・勘定科目・取得日・取得価額・耐用年数を入力してください",
+      );
       return;
     }
     setSaving(true);
@@ -221,6 +243,22 @@ export function FixedAssetEditDrawer({
               />
             </Field>
           ) : null}
+          {mode === "edit" && needsDisposalDate ? (
+            <Field label="処分日">
+              <DateInput
+                value={draft.disposalDate ?? ""}
+                onChange={(v) => setDraft({ ...draft, disposalDate: v })}
+              />
+            </Field>
+          ) : null}
+          {mode === "edit" && needsDisposalPrice ? (
+            <Field label="売却額">
+              <AmountInput
+                value={draft.disposalPrice ?? ""}
+                onChange={(v) => setDraft({ ...draft, disposalPrice: v })}
+              />
+            </Field>
+          ) : null}
 
           <DepreciationPreview
             period={preview.periodLabel}
@@ -289,6 +327,12 @@ export function FixedAssetEditDrawer({
       </aside>
     </>
   );
+}
+
+function parseLocalDate(value: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (match == null) return null;
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {

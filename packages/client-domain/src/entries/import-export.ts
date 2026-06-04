@@ -52,7 +52,7 @@ export function importEntriesFromJson(input: {
   text: string;
   fiscalPeriodId: string;
 }): EntryRecord[] {
-  const parsed = JSON.parse(input.text) as { entries?: unknown };
+  const parsed = JSON.parse(stripBom(input.text)) as { entries?: unknown };
   if (!Array.isArray(parsed.entries)) {
     throw new Error("entries array not found");
   }
@@ -135,7 +135,7 @@ export function importEntriesFromCsv(input: {
   text: string;
   fiscalPeriodId: string;
 }): EntryRecord[] {
-  const rows = parseCsv(input.text);
+  const rows = parseCsv(stripBom(input.text));
   if (rows.length < 2) {
     return [];
   }
@@ -327,4 +327,8 @@ function validateRequiredLocalId(
     return localId;
   }
   throw new Error(`row ${rowNo}: localId is required`);
+}
+
+function stripBom(text: string): string {
+  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
 }

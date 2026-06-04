@@ -31,6 +31,8 @@ export type FixedAssetDraft = {
   usefulLife: number; // 耐用年数（年）
   businessRatePercent: number; // 事業割合 0..100
   status: string;
+  disposalDate?: string;
+  disposalPrice?: string;
 };
 
 export const exampleFixedAssetItems: FixedAssetPreviewItem[] = [
