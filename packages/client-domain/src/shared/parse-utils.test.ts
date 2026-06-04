@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { parseBusinessRate, parseIsoLocalDate } from "./parse-utils";
+import { parseAmount, parseBusinessRate, parseIsoLocalDate } from "./parse-utils";
+
+describe("parseAmount", () => {
+  it("treats non-finite numeric amounts as zero", () => {
+    expect(parseAmount(Infinity)).toBe(0);
+    expect(parseAmount(-Infinity)).toBe(0);
+  });
+});
 
 describe("parseBusinessRate", () => {
   it("treats non-finite rates as the default full business rate", () => {

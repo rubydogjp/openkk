@@ -1,10 +1,11 @@
 import { getEntryLines, type EntryLine, type EntryRecord } from "../entries/entry-record";
+import { parseAmount } from "../shared/parse-utils";
 import { buildPrintDocument, escapeHtml as esc } from "./print-shell";
 
 type AccountType = "asset" | "liability" | "equity" | "revenue" | "expense" | "cost_of_sales";
 
 function parseNum(str: string): number {
-  return Number(str.replace(/,/g, "")) || 0;
+  return parseAmount(str);
 }
 
 function fmt(n: number): string {
@@ -16,8 +17,14 @@ function fmtBalance(n: number): string {
 }
 
 function fmtDate(iso: string): string {
-
   return iso.replace(/-/g, "/");
+}
+
+function fmtMonthLabel(monthKey: string): string {
+  const month = Number(monthKey.slice(5, 7));
+  return Number.isInteger(month) && month >= 1 && month <= 12
+    ? `${month}月分`
+    : "日付未設定";
 }
 
 function isDebitNormal(type: AccountType): boolean {
@@ -189,7 +196,7 @@ export function buildGeneralLedgerBody(
           ledger.lines[i + 1].date.slice(0, 7) !== monthKey;
 
         rowsHtml += `<tr>
-  <td rowspan="2" style="${TD};vertical-align:middle;text-align:center">${fmtDate(line.date)}</td>
+  <td rowspan="2" style="${TD};vertical-align:middle;text-align:center">${esc(fmtDate(line.date))}</td>
   <td style="${TD}">${esc(line.counterAccount)}</td>
   <td style="${TD}">${esc(line.memo)}</td>
   <td colspan="3" style="${TD}">${esc(line.partner)}</td>
@@ -206,10 +213,9 @@ export function buildGeneralLedgerBody(
         if (isLastInMonth && !processedMonths.has(monthKey)) {
           processedMonths.add(monthKey);
           const sub = ledger.monthSubtotals.get(monthKey);
-          const month = Number(monthKey.slice(5, 7));
           if (sub) {
             rowsHtml += `<tr>
-  <td colspan="3" style="${BAND}">${month}月分 合計</td>
+  <td colspan="3" style="${BAND}">${fmtMonthLabel(monthKey)} 合計</td>
   <td style="${BAND};text-align:right">${fmt(sub.debit)}</td>
   <td style="${BAND};text-align:right">${fmt(sub.credit)}</td>
   <td style="${BAND}"></td>

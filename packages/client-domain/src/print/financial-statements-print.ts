@@ -3,6 +3,7 @@ import { buildPrintDocument, escapeHtml as esc } from "./print-shell";
 
 function fmt(n: number | null): string {
   if (n === null) return "";
+  if (!Number.isFinite(n)) return "";
   return new Intl.NumberFormat("ja-JP").format(n);
 }
 
@@ -133,8 +134,8 @@ function buildGroupHtml(group: PLGroup, amounts: Record<number, number | null>):
       return `<div style="${rowStyle}">
   <div style="${noCell}"><span style="font-size:9px;color:${BLUE}">${row.index}</span></div>
   <div style="${labelInner}">
-    <span style="font-size:8px;color:${BLUE};line-height:1.1">${row.label}</span>
-    ${row.note ? `<span style="font-size:6px;color:${BLUE};line-height:1.1">${row.note}</span>` : ""}
+    <span style="font-size:8px;color:${BLUE};line-height:1.1">${esc(row.label)}</span>
+    ${row.note ? `<span style="font-size:6px;color:${BLUE};line-height:1.1">${esc(row.note)}</span>` : ""}
   </div>
   <div style="${amountCell}justify-content:flex-end;padding:2px 8px;"><span style="font-size:10px;color:${TEXT_DARK}">${fmt(amounts[row.index])}</span></div>
 </div>`;
@@ -144,7 +145,7 @@ function buildGroupHtml(group: PLGroup, amounts: Record<number, number | null>):
   return `<div style="border:1px solid ${BLUE};margin-bottom:${GROUP_GAP}px">
 <div style="${headerStyle}">
   <div style="${noCell}"><span style="font-size:10px;color:${BLUE}">No.</span></div>
-  <div style="${labelCell}"><span style="font-size:10px;color:${BLUE}">${group.title} 科目</span></div>
+  <div style="${labelCell}"><span style="font-size:10px;color:${BLUE}">${esc(group.title)} 科目</span></div>
   <div style="${amountCell}"><span style="font-size:10px;color:${BLUE}">金額 (円)</span></div>
 </div>
 ${rowsHtml}

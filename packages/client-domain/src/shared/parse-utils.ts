@@ -1,5 +1,5 @@
 export function parseAmount(value: string | number): number {
-  if (typeof value === "number") return Math.round(value);
+  if (typeof value === "number") return Number.isFinite(value) ? Math.round(value) : 0;
   const parsed = Number(value.replaceAll(",", ""));
   return Number.isFinite(parsed) ? Math.round(parsed) : 0;
 }

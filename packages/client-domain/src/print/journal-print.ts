@@ -4,10 +4,11 @@ import {
   type EntryLine,
   type EntryRecord,
 } from "../entries/entry-record";
+import { parseAmount } from "../shared/parse-utils";
 import { buildPrintDocument, escapeHtml as esc } from "./print-shell";
 
 function parseNum(str: string): number {
-  return Number(str.replace(/,/g, "")) || 0;
+  return parseAmount(str);
 }
 
 function fmt(n: number): string {
@@ -15,8 +16,14 @@ function fmt(n: number): string {
 }
 
 function fmtDate(iso: string): string {
-
   return iso.replace(/-/g, "/");
+}
+
+function fmtMonthLabel(monthKey: string): string {
+  const month = Number(monthKey.slice(5, 7));
+  return Number.isInteger(month) && month >= 1 && month <= 12
+    ? `${month}月分`
+    : "日付未設定";
 }
 
 const PAGE_W = 794;
@@ -53,8 +60,7 @@ export function buildJournalBody(_fpName: string, entries: EntryRecord[]): strin
 
   return monthGroups
     .map(([monthKey, rows], pageIdx) => {
-      const month = Number(monthKey.slice(5, 7));
-      const monthLabel = `${month}月分`;
+      const monthLabel = fmtMonthLabel(monthKey);
       const debitTotal = rows.reduce(
         (s, r) =>
           s +
@@ -76,7 +82,7 @@ export function buildJournalBody(_fpName: string, entries: EntryRecord[]): strin
         .flatMap((row) =>
           entryToVisualPairs(row).map(
             (pair, index) => `<tr>
-  <td style="${TD}">${index === 0 ? fmtDate(row.date) : ""}</td>
+  <td style="${TD}">${index === 0 ? esc(fmtDate(row.date)) : ""}</td>
   <td style="${TD}">${esc(lineAccountName(pair.debit))}</td>
   <td style="${TD}"></td>
   <td style="${TD};text-align:right">${esc(lineAmount(pair.debit))}</td>
@@ -148,5 +154,6 @@ function lineAccountName(line: EntryLine | null): string {
 }
 
 function lineAmount(line: EntryLine | null): string {
-  return line?.amount ?? "";
+  if (line == null || line.amount.trim() === "") return "";
+  return new Intl.NumberFormat("ja-JP").format(parseAmount(line.amount));
 }

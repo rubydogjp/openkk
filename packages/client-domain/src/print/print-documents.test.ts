@@ -9,10 +9,11 @@ import { buildJournalDocument } from "./journal-print";
 describe("print documents", () => {
   it("renders journal data from supplied entries and escapes HTML", () => {
     const html = buildJournalDocument("2026年分", [
-      entry({ description: "売上 <確認>", partner: "A&B" }),
+      entry({ date: "2026-01-15<script>", description: "売上 <確認>", partner: "A&B" }),
     ]);
 
     expect(html).toContain("<title>仕訳帳</title>");
+    expect(html).toContain("2026/01/15&lt;script&gt;");
     expect(html).toContain("売上 &lt;確認&gt;");
     expect(html).toContain("A&amp;B");
     expect(html).toContain("100,000");
@@ -68,6 +69,36 @@ describe("print documents", () => {
     expect(ledgerHtml).toContain("荷造運賃");
     expect(ledgerHtml).toContain("未払金");
     expect(ledgerHtml).toContain("42,000");
+  });
+
+  it("normalises non-finite printed amounts to blanks", () => {
+    const journalHtml = buildJournalDocument("2026年分", [
+      entry({ debitAmount: "Infinity", creditAmount: "-Infinity" }),
+    ]);
+    const ledgerHtml = buildGeneralLedgerDocument("2026年分", [
+      entry({ debitAmount: "Infinity", creditAmount: "-Infinity" }),
+    ], []);
+    const fsHtml = buildFinancialStatementsDocument({
+      fpName: "2026年分",
+      amounts: { 1: Infinity, 2: -Infinity },
+      bsRows: [],
+    });
+
+    expect(journalHtml).not.toContain("Infinity");
+    expect(ledgerHtml).not.toContain("Infinity");
+    expect(fsHtml).not.toContain("Infinity");
+  });
+
+  it("does not render NaN month labels for malformed entry dates", () => {
+    const malformedDateEntry = entry({ date: "not-a-date" });
+
+    const journalHtml = buildJournalDocument("2026年分", [malformedDateEntry]);
+    const ledgerHtml = buildGeneralLedgerDocument("2026年分", [malformedDateEntry], []);
+
+    expect(journalHtml).not.toContain("NaN月");
+    expect(ledgerHtml).not.toContain("NaN月");
+    expect(journalHtml).toContain("日付未設定 合計");
+    expect(ledgerHtml).toContain("日付未設定 合計");
   });
 
   it("renders financial statement values computed from supplied entries", () => {
