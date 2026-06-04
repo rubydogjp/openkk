@@ -12,6 +12,7 @@ import {
 import type { FiscalPeriodApiRecord } from "@rubydogjp/openkk-client-ports";
 import {
   parseAmount,
+  parseBusinessRate,
   buildBootstrapFiscalPeriodId,
   buildBootstrapSessionUserId,
   buildDemoSeedEntriesForFiscalPeriod,
@@ -334,9 +335,7 @@ function entryRecordToImportInput(
     description: record.description,
     localId: record.localId,
     businessRate:
-      record.businessRate.trim() === ""
-        ? 1
-        : Math.max(0, Number(record.businessRate) || 0) / 100,
+      parseBusinessRate(record.businessRate),
     lines: lines.map((line) => ({
       side: line.side,
       bookAccountId:

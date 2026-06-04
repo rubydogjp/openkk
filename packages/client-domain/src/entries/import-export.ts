@@ -1,4 +1,5 @@
 import type { EntryLine, EntryRecord } from "./entry-record";
+import { parseIsoLocalDate } from "../shared/parse-utils";
 
 type JournalJsonEntry = {
   id?: string;
@@ -250,8 +251,8 @@ function normalizeAmount(value: string) {
 }
 
 function weekdayFromDate(dateText: string) {
-  const dt = new Date(dateText);
-  if (Number.isNaN(dt.getTime())) return "月";
+  const dt = parseIsoLocalDate(dateText);
+  if (dt == null || Number.isNaN(dt.getTime())) return "月";
   const labels = ["日", "月", "火", "水", "木", "金", "土"];
   return labels[dt.getDay()] ?? "月";
 }

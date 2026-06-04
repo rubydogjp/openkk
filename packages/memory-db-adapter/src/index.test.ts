@@ -6,6 +6,15 @@ function makeDb() {
   return createMemoryDbAdapter();
 }
 
+const sampleLine = {
+  side: "debit" as const,
+  bookAccountId: "acct_cash",
+  amount: 1000,
+  partnerName: "",
+  taxCategoryName: "tax-0",
+  businessCategoryName: "",
+};
+
 describe("createMemoryDbAdapter / fiscalPeriods", () => {
   it("create then getById returns the created record", async () => {
     const db = await makeDb();
@@ -65,18 +74,41 @@ describe("createMemoryDbAdapter / fiscalPeriods", () => {
       db.fiscalPeriods.update("nonexistent", { name: "x" }),
     ).rejects.toThrow(/fiscal period not found/);
   });
+
+  it("deletes child entries, fixed assets, and closings with the fiscal period", async () => {
+    const db = await makeDb();
+    const period = await db.fiscalPeriods.create("user-1", {
+      name: "FY2026",
+      startDate: "2026-01-01",
+      endDate: "2026-12-31",
+    });
+    await db.entries.create("user-1", period.id, {
+      date: "2026-04-01",
+      description: "entry",
+      businessRate: 1,
+      lines: [sampleLine],
+    });
+    await db.fixedAssets.create("user-1", period.id, {
+      name: "Camera",
+      acquisitionDate: "2026-04-01",
+      acquisitionCost: 100000,
+      usefulLife: 3,
+      depreciationMethod: "straight_line",
+      businessRate: 1,
+      bookAccountId: "acct_equipment",
+    });
+    await db.closings.upsert(period.id, 2026, true);
+
+    await db.fiscalPeriods.delete(period.id);
+
+    expect(await db.fiscalPeriods.getById(period.id)).toBeNull();
+    expect(await db.entries.getAll(period.id)).toEqual([]);
+    expect(await db.fixedAssets.getAllByFiscalPeriod(period.id)).toEqual([]);
+    expect(await db.closings.get(period.id, 2026)).toBeNull();
+  });
 });
 
 describe("createMemoryDbAdapter / entries", () => {
-  const sampleLine = {
-    side: "debit" as const,
-    bookAccountId: "acct_cash",
-    amount: 1000,
-    partnerName: "",
-    taxCategoryName: "tax-0",
-    businessCategoryName: "",
-  };
-
   it("creates, filters, updates, and deletes entries", async () => {
     const db = await makeDb();
     const original = await db.entries.create("user-1", "fp-1", {

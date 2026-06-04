@@ -23,6 +23,8 @@ import type {
 import {
   getEntryLines,
   parseAmount,
+  parseBusinessRate,
+  parseIsoLocalDate,
   recordToPreviewRows,
   type EntryRecord,
   type EntryLine,
@@ -448,16 +450,14 @@ function formatAmount(value: number): string {
 }
 
 function weekdayJa(dateText: string): string {
-  const date = new Date(dateText);
+  const date = parseIsoLocalDate(dateText);
+  if (date == null) return "";
   const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
   return weekdays[date.getDay()] ?? "";
 }
 
 function safeRate(value: string): number {
-  if (value.trim() === "") return 1;
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return 1;
-  return Math.max(0, parsed) / 100;
+  return parseBusinessRate(value);
 }
 
 function resolveBookAccountId(input: {

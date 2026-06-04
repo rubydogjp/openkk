@@ -96,4 +96,35 @@ describe("entryRecordToImportPayload", () => {
       },
     ]);
   });
+
+  it("clamps imported business-use rates to 0-100 percent", () => {
+    const entry: EntryRecord = {
+      id: "entry-1",
+      fiscalPeriodId: "fp-1",
+      date: "2026-09-05",
+      weekday: "土",
+      debit: "仕入",
+      debitType: "cost_of_sales",
+      debitAmount: "10,000",
+      credit: "未払金",
+      creditType: "liability",
+      creditAmount: "10,000",
+      description: "事業割合のテスト",
+      partner: "",
+      businessRate: "150",
+      taxCategory: "課税 10%",
+      businessCategory: "第5種（サービス業等）",
+      localId: "rate-1",
+      debitBookAccountId: "acct_cost_of_sales_商品仕入高",
+      creditBookAccountId: "acct_accrued_expense",
+    };
+
+    const payload = entryRecordToImportPayload(entry, {
+      accounts,
+      taxes,
+      businesses,
+    });
+
+    expect(payload.businessRate).toBe(1);
+  });
 });

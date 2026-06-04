@@ -188,7 +188,12 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       return updated;
     },
     async delete(id) {
-      await db.exec({ sql: `DELETE FROM fiscal_periods WHERE id = ?`, bind: [id] });
+      await runInTransaction(db, async () => {
+        await db.exec({ sql: `DELETE FROM entries WHERE fiscal_period_id = ?`, bind: [id] });
+        await db.exec({ sql: `DELETE FROM fixed_assets WHERE fiscal_period_id = ?`, bind: [id] });
+        await db.exec({ sql: `DELETE FROM closings WHERE fiscal_period_id = ?`, bind: [id] });
+        await db.exec({ sql: `DELETE FROM fiscal_periods WHERE id = ?`, bind: [id] });
+      });
     },
   };
 }

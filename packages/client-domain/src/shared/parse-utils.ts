@@ -10,3 +10,14 @@ export function parseBusinessRate(value: string): number {
   if (Number.isNaN(n)) return 1;
   return Math.max(0, Math.min(100, n)) / 100;
 }
+
+export function parseIsoLocalDate(value: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (match == null) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  const date = new Date(year, month, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) return null;
+  return date;
+}

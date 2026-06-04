@@ -14,6 +14,8 @@ import { useBackendApi } from "../shared/backend-api-context";
 import { useOpenkkConfig } from "../shared/openkk-config-context";
 import {
   parseAmount,
+  parseBusinessRate,
+  parseIsoLocalDate,
   AppError,
   computeStraightLineDepreciation,
 } from "@rubydogjp/openkk-client-domain";
@@ -310,7 +312,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
             ...journal,
             date: draft.date,
             description: draft.description,
-            businessRate: Math.max(0, Number(draft.businessRate) || 0) / 100,
+            businessRate: parseBusinessRate(draft.businessRate),
             lines: [
               {
                 id: journal.lines.find((line) => line.side === "debit")?.id ?? `${journal.id}-d`,
@@ -450,7 +452,9 @@ function mapFixedAssetToPreview(
   // 売却・廃棄・除却済みは処分日（無ければ今日）で償却を打ち切る。
   const isClosed = asset.status !== "active";
   const asOf =
-    isClosed && asset.disposalDate ? new Date(asset.disposalDate) : today;
+    isClosed && asset.disposalDate
+      ? parseIsoLocalDate(asset.disposalDate) ?? today
+      : today;
   const depreciation = computeStraightLineDepreciation({
     acquisitionDate: asset.acquisitionDate,
     acquisitionCost: asset.acquisitionCost,

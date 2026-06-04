@@ -15,6 +15,7 @@ import { useOpenkkConfig } from "@rubydogjp/openkk-client-usecases";
 import {
   computeStraightLineDepreciation,
   parseAmount,
+  parseIsoLocalDate,
   type FixedAssetDraft,
   type FixedAssetPreviewItem,
 } from "@rubydogjp/openkk-client-domain";
@@ -70,7 +71,7 @@ export function FixedAssetEditDrawer({
         usefulLife: draft.usefulLife,
         asOf:
           needsDisposalDate && draft.disposalDate
-            ? parseLocalDate(draft.disposalDate) ?? config.today
+            ? parseIsoLocalDate(draft.disposalDate) ?? config.today
             : config.today,
       }),
     [
@@ -327,12 +328,6 @@ export function FixedAssetEditDrawer({
       </aside>
     </>
   );
-}
-
-function parseLocalDate(value: string): Date | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (match == null) return null;
-  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
