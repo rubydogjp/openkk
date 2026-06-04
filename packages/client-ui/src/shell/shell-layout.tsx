@@ -818,13 +818,25 @@ function ShellChrome({
                         icon={
                           <LogoutIcon
                             size={18}
-                            color={PALETTE.menuIconDisabled}
+                            color={
+                              isDemoMode
+                                ? PALETTE.menuIconDisabled
+                                : PALETTE.menuIconActive
+                            }
                           />
                         }
                         label="サインアウト"
-                        labelColor={PALETTE.menuTextDisabled}
-                        disabled
-                        onClick={() => undefined}
+                        labelColor={
+                          isDemoMode
+                            ? PALETTE.menuTextDisabled
+                            : PALETTE.menuTextActive
+                        }
+                        disabled={isDemoMode}
+                        onClick={() => {
+                          setMenuOpen(false);
+                          appState.signOut();
+                          router.push("/");
+                        }}
                       />
                     </div>
                   </div>

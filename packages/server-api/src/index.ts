@@ -24,8 +24,10 @@ export function createOpenkkServerApi(
         usecases.auth.startSession(redirectUrl),
       completeSession: ({ state, code }) =>
         usecases.auth.completeSession(state, code),
-      redeemCompletionCode: (code) =>
-        usecases.auth.redeemCompletionCode(code),
+      redeemCompletionCode: async (code) => {
+        await usecases.auth.redeemCompletionCode(code);
+        return { userId: uid };
+      },
       signOut: () => usecases.auth.signOut(),
     },
     closing: {

@@ -12,5 +12,6 @@ export { StepsLayout } from "../routes/steps/steps-layout";
 export { JournalizingAnalyticsPage } from "../routes/steps/journalizing/analytics/analytics-page";
 
 export { InstallPage } from "../routes/install/install-page";
+export { AuthResultPage } from "../routes/auth/auth-result-page";
 
 export { RootRedirectPage } from "../routes/root-redirect-page";

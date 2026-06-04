@@ -20,18 +20,33 @@ export function createServerUsecases(db: OpenkkDbPort) {
   };
 }
 
-const STUB_USER_ID = "stub-user";
+const LOCAL_AUTH_COMPLETION_PREFIX = "local-auth-completion:";
 
 function createAuthUsecase() {
   return {
-    async startSession(_redirectUrl: string) {
-      return { authUrl: "stub://auth/no-op" };
+    async startSession(redirectUrl: string) {
+      const target = new URL(redirectUrl);
+      const state = crypto.randomUUID();
+      const code = crypto.randomUUID();
+      target.searchParams.set("state", state);
+      target.searchParams.set("code", code);
+      return { authUrl: target.toString() };
     },
-    async completeSession(_state: string, _code: string) {
-      return { completionCode: "stub-completion-code" };
+    async completeSession(state: string, code: string) {
+      if (state.trim() === "" || code.trim() === "") {
+        throw new Error("auth state and code are required");
+      }
+      return {
+        completionCode: `${LOCAL_AUTH_COMPLETION_PREFIX}${encodeURIComponent(
+          state,
+        )}:${encodeURIComponent(code)}`,
+      };
     },
-    async redeemCompletionCode(_completionCode: string) {
-      return { userId: STUB_USER_ID };
+    async redeemCompletionCode(completionCode: string) {
+      if (!completionCode.startsWith(LOCAL_AUTH_COMPLETION_PREFIX)) {
+        throw new Error("invalid auth completion code");
+      }
+      return { userId: "local-auth-user" };
     },
     async signOut() {},
   };

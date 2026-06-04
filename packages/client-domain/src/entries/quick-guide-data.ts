@@ -13,7 +13,9 @@ export type QuickGuidePage =
   | "ownerWithdrawal"
   | "cashToBank"
   | "bankToCash"
-  | "unsupported";
+  | "otherIncoming"
+  | "otherSales"
+  | "otherReceivableCollection";
 
 export type QuickGuideTemplate = {
   debitAccountName: string;
@@ -61,8 +63,12 @@ export function guideTitle(page: QuickGuidePage): string {
       return "ユースケース - 現金を預金へ交換";
     case "bankToCash":
       return "ユースケース - 預金を現金へ交換";
-    case "unsupported":
-      return "簡単入力ガイド - 未対応";
+    case "otherIncoming":
+      return "その他の入金";
+    case "otherSales":
+      return "その他の売上";
+    case "otherReceivableCollection":
+      return "その他の回収";
   }
 }
 
@@ -76,8 +82,12 @@ export function guideDescription(page: QuickGuidePage): string | null {
       return "事業口座から資金が出ていくときの取引。";
     case "transfer":
       return "事業資金・プライベート資金の移動に関する取引。";
-    case "unsupported":
-      return "申し訳ございません. 簡単入力ガイドに対応していない取引は、手動で入力してください.\n仕訳の作成には外部のAIチャットサービスが役に立つ可能性があります";
+    case "otherIncoming":
+      return "売上以外の入金や、先に受け取ったお金を選びます。";
+    case "otherSales":
+      return "売掛金以外で売上を計上するケースを選びます。";
+    case "otherReceivableCollection":
+      return "売掛金以外の債権回収や現金回収を選びます。";
     default:
       return null;
   }
@@ -111,7 +121,7 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
           title: "入金待ちだった報酬が口座に振り込まれた",
           nextPage: "receivableCollection",
         },
-        { title: "この中にない", nextPage: "unsupported" },
+        { title: "その他の入金", nextPage: "otherIncoming" },
       ];
 
     case "outgoing":
@@ -132,7 +142,7 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
           title: "カード利用分が口座から引き落とされた",
           nextPage: "liabilityRepayment",
         },
-        { title: "この中にない", nextPage: "unsupported" },
+        { title: "その他の出金", close: true },
       ];
 
     case "transfer":
@@ -175,7 +185,7 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             description: "売上の入金",
           },
         },
-        { title: "この中にない", nextPage: "unsupported" },
+        { title: "その他の売上", nextPage: "otherSales" },
       ];
 
     case "receivableCollection":
@@ -189,7 +199,7 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             description: "売掛金の回収",
           },
         },
-        { title: "この中にない", nextPage: "unsupported" },
+        { title: "その他の回収", nextPage: "otherReceivableCollection" },
       ];
 
     case "ownerDeposit":
@@ -264,8 +274,92 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
         },
       ];
 
-    case "unsupported":
-      return [{ title: "簡単入力ガイドを終了", close: true }];
+    case "otherIncoming":
+      return [
+        {
+          title: "雑収入が口座に入った",
+          subtitle: "普通預金 | 雑収入",
+          template: {
+            debitAccountName: "普通預金",
+            creditAccountName: "雑収入",
+            description: "雑収入の入金",
+          },
+        },
+        {
+          title: "雑収入を現金で受け取った",
+          subtitle: "現金 | 雑収入",
+          template: {
+            debitAccountName: "現金",
+            creditAccountName: "雑収入",
+            description: "雑収入の受取",
+          },
+        },
+        {
+          title: "前受金として受け取った",
+          subtitle: "普通預金 | 前受金",
+          template: {
+            debitAccountName: "普通預金",
+            creditAccountName: "前受金",
+            description: "前受金の入金",
+          },
+        },
+        { title: "科目を自分で選ぶ", close: true },
+      ];
+
+    case "otherSales":
+      return [
+        {
+          title: "未収入金で売上を計上する",
+          subtitle: "未収入金 | 売上",
+          template: {
+            debitAccountName: "未収入金",
+            creditAccountName: "売上",
+            description: "売上の発生",
+          },
+        },
+        {
+          title: "現金で売上を受け取った",
+          subtitle: "現金 | 売上",
+          template: {
+            debitAccountName: "現金",
+            creditAccountName: "売上",
+            description: "売上の受取",
+          },
+        },
+        { title: "科目を自分で選ぶ", close: true },
+      ];
+
+    case "otherReceivableCollection":
+      return [
+        {
+          title: "売掛金を現金で回収した",
+          subtitle: "現金 | 売掛金",
+          template: {
+            debitAccountName: "現金",
+            creditAccountName: "売掛金",
+            description: "売掛金の現金回収",
+          },
+        },
+        {
+          title: "未収入金を口座で回収した",
+          subtitle: "普通預金 | 未収入金",
+          template: {
+            debitAccountName: "普通預金",
+            creditAccountName: "未収入金",
+            description: "未収入金の回収",
+          },
+        },
+        {
+          title: "未収入金を現金で回収した",
+          subtitle: "現金 | 未収入金",
+          template: {
+            debitAccountName: "現金",
+            creditAccountName: "未収入金",
+            description: "未収入金の現金回収",
+          },
+        },
+        { title: "科目を自分で選ぶ", close: true },
+      ];
   }
 }
 
@@ -341,6 +435,69 @@ function expenseOptions(
       },
     },
     {
+      title: "広告・宣伝",
+      subtitle: `広告宣伝費 | ${creditAccount}`,
+      template: {
+        debitAccountName: "広告宣伝費",
+        creditAccountName: creditAccount,
+        description: `${prefix}: 広告・宣伝`,
+      },
+    },
+    {
+      title: "配送・送料",
+      subtitle: `荷造運賃 | ${creditAccount}`,
+      template: {
+        debitAccountName: "荷造運賃",
+        creditAccountName: creditAccount,
+        description: `${prefix}: 配送・送料`,
+      },
+    },
+    {
+      title: "手数料",
+      subtitle: `支払手数料 | ${creditAccount}`,
+      template: {
+        debitAccountName: "支払手数料",
+        creditAccountName: creditAccount,
+        description: `${prefix}: 手数料`,
+      },
+    },
+    {
+      title: "税金・証明書",
+      subtitle: `租税公課 | ${creditAccount}`,
+      template: {
+        debitAccountName: "租税公課",
+        creditAccountName: creditAccount,
+        description: `${prefix}: 税金・証明書`,
+      },
+    },
+    {
+      title: "本・資料",
+      subtitle: `新聞図書費 | ${creditAccount}`,
+      template: {
+        debitAccountName: "新聞図書費",
+        creditAccountName: creditAccount,
+        description: `${prefix}: 本・資料`,
+      },
+    },
+    {
+      title: "修理・保守",
+      subtitle: `修繕費 | ${creditAccount}`,
+      template: {
+        debitAccountName: "修繕費",
+        creditAccountName: creditAccount,
+        description: `${prefix}: 修理・保守`,
+      },
+    },
+    {
+      title: "福利厚生",
+      subtitle: `福利厚生費 | ${creditAccount}`,
+      template: {
+        debitAccountName: "福利厚生費",
+        creditAccountName: creditAccount,
+        description: `${prefix}: 福利厚生`,
+      },
+    },
+    {
       title: "その他・雑費",
       subtitle: `雑費 | ${creditAccount}`,
       template: {
@@ -349,16 +506,18 @@ function expenseOptions(
         description: `${prefix}: その他・雑費`,
       },
     },
-    { title: "この中にない", nextPage: "unsupported" },
+    { title: "科目を自分で選ぶ", close: true },
   ];
 }
 
 export const ACCOUNT_ALIASES: Record<string, string[]> = {
   売上: ["売上", "売上高"],
   売掛金: ["売掛金"],
+  未収入金: ["未収入金"],
   普通預金: ["普通預金"],
   現金: ["現金"],
   未払金: ["未払金"],
+  前受金: ["前受金"],
   事業主借: ["事業主借"],
   事業主貸: ["事業主貸"],
   地代家賃: ["地代家賃"],
@@ -368,7 +527,15 @@ export const ACCOUNT_ALIASES: Record<string, string[]> = {
   接待交際費: ["接待交際費"],
   会議費: ["会議費"],
   消耗品: ["消耗品", "消耗品費"],
+  広告宣伝費: ["広告宣伝費"],
+  荷造運賃: ["荷造運賃"],
+  支払手数料: ["支払手数料"],
+  租税公課: ["租税公課"],
+  新聞図書費: ["新聞図書費"],
+  修繕費: ["修繕費"],
+  福利厚生費: ["福利厚生費"],
   雑費: ["雑費"],
+  雑収入: ["雑収入"],
 };
 
 export function normalizeAccountName(name: string): string {

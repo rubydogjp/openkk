@@ -18,7 +18,7 @@ export const openkkConfig: OpenkkConfig = {
   isDemoMode: openkkMode === "demo",
   isMockMode: useMockClock,
   mockUserId: userId,
-  initialMockUserId: userId,
+  initialMockUserId: useMockClock ? userId : null,
 
   initialMockFiscalPeriodId: openkkMode === "demo" ? "fp-2026" : null,
   sessionStorageKey: `openkk.${openkkMode}.session.user_id`,
