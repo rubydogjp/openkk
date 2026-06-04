@@ -11,22 +11,31 @@ type InstallPromptEvent = Event & {
 let deferredPrompt: InstallPromptEvent | null = null;
 let installed = false;
 const listeners = new Set<() => void>();
+const INSTALL_LISTENERS_KEY = "__openkkInstallPromptListenersRegistered";
+
+type WindowWithInstallListenerFlag = Window & {
+  [INSTALL_LISTENERS_KEY]?: boolean;
+};
 
 function notify(): void {
   for (const listener of listeners) listener();
 }
 
 if (typeof window !== "undefined") {
-  window.addEventListener("beforeinstallprompt", (event) => {
-    event.preventDefault();
-    deferredPrompt = event as InstallPromptEvent;
-    notify();
-  });
-  window.addEventListener("appinstalled", () => {
-    deferredPrompt = null;
-    installed = true;
-    notify();
-  });
+  const installWindow = window as WindowWithInstallListenerFlag;
+  if (!installWindow[INSTALL_LISTENERS_KEY]) {
+    installWindow[INSTALL_LISTENERS_KEY] = true;
+    window.addEventListener("beforeinstallprompt", (event) => {
+      event.preventDefault();
+      deferredPrompt = event as InstallPromptEvent;
+      notify();
+    });
+    window.addEventListener("appinstalled", () => {
+      deferredPrompt = null;
+      installed = true;
+      notify();
+    });
+  }
 }
 
 export function getDeferredInstallPrompt(): InstallPromptEvent | null {

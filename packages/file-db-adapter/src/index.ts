@@ -56,7 +56,12 @@ function createWorkerSqlDb(worker: Worker): SqlDb & {
     const id = nextId++;
     return new Promise((resolve, reject) => {
       pending.set(id, { resolve, reject });
-      worker.postMessage({ id, type, payload });
+      try {
+        worker.postMessage({ id, type, payload });
+      } catch (error) {
+        pending.delete(id);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      }
     });
   }
 
@@ -79,12 +84,18 @@ export function createFileDbAdapter(
       const worker = new Worker(new URL("./sqlite.worker.js", import.meta.url), {
         type: "module",
       });
-      const db = createWorkerSqlDb(worker);
-      await db.init({
-        vfsName: options.vfsName,
-        dbFileName: options.dbFileName ?? "openkk.sqlite3",
-      });
-      return createSqliteDbAdapter(db, seed);
+      try {
+        const db = createWorkerSqlDb(worker);
+        await db.init({
+          vfsName: options.vfsName,
+          dbFileName: options.dbFileName ?? "openkk.sqlite3",
+        });
+        return await createSqliteDbAdapter(db, seed);
+      } catch (error) {
+        cachedAdapter = null;
+        worker.terminate();
+        throw error;
+      }
     })();
   }
   return cachedAdapter;
