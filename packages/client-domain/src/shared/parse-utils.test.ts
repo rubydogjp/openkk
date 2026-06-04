@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { parseIsoLocalDate } from "./parse-utils";
+import { parseBusinessRate, parseIsoLocalDate } from "./parse-utils";
+
+describe("parseBusinessRate", () => {
+  it("treats non-finite rates as the default full business rate", () => {
+    expect(parseBusinessRate("Infinity")).toBe(1);
+    expect(parseBusinessRate("-Infinity")).toBe(1);
+  });
+});
 
 describe("parseIsoLocalDate", () => {
   it("parses YYYY-MM-DD as a local calendar date", () => {

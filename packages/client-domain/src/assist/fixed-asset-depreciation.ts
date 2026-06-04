@@ -2,6 +2,8 @@
 // 固定資産の「真実」は取得価額・取得日・耐用年数で、簿価・進捗・当期償却費などの
 // 表示値はすべてここから導出する（保存された preview 値には依存しない）。
 
+import { parseIsoLocalDate } from "../shared/parse-utils";
+
 export type StraightLineDepreciationInput = {
   acquisitionDate: string; // "YYYY-MM-DD"
   acquisitionCost: number;
@@ -35,23 +37,21 @@ function monthsBetween(
 export function computeStraightLineDepreciation(
   input: StraightLineDepreciationInput,
 ): DepreciationSnapshot {
-  const start = {
-    year: Number(input.acquisitionDate.slice(0, 4)),
-    month: Number(input.acquisitionDate.slice(5, 7)),
-    day: Number(input.acquisitionDate.slice(8, 10)),
-  };
+  const startDate = parseIsoLocalDate(input.acquisitionDate);
+  const start =
+    startDate == null
+      ? null
+      : {
+          year: startDate.getFullYear(),
+          month: startDate.getMonth() + 1,
+          day: startDate.getDate(),
+        };
   const cost = Math.max(0, Math.round(input.acquisitionCost));
   // 耐用年数は最低 1 年。月数上限 1200（=100 年）で異常値を防ぐ。
   const usefulLifeYears = Math.max(1, Math.floor(input.usefulLife) || 1);
   const totalMonths = Math.min(1200, usefulLifeYears * 12);
 
-  const hasValidStart =
-    start.year > 0 &&
-    start.month >= 1 &&
-    start.month <= 12 &&
-    start.day >= 1 &&
-    start.day <= 31;
-  const rawElapsed = hasValidStart ? monthsBetween(start, input.asOf) : 0;
+  const rawElapsed = start == null ? 0 : monthsBetween(start, input.asOf);
   const elapsedMonths = Number.isFinite(rawElapsed)
     ? Math.max(0, Math.min(totalMonths, rawElapsed))
     : 0;
@@ -77,7 +77,7 @@ export function computeStraightLineDepreciation(
     elapsedMonths,
     totalMonths,
     remainingMonths,
-    periodLabel: hasValidStart ? `${start.year}年${start.month}月〜` : "",
+    periodLabel: start == null ? "" : `${start.year}年${start.month}月〜`,
     remainingLabel: remainingMonths > 0 ? `あと${remainingMonths}ヶ月` : "償却済み",
   };
 }

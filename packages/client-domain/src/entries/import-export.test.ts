@@ -150,6 +150,17 @@ describe("importEntriesFromJson — error handling", () => {
     expect(e?.businessCategory).toBe("対象外");
     expect(e?.weekday).toBeTruthy();
   });
+
+  it("normalises non-finite imported amounts to zero", () => {
+    const json = JSON.stringify({
+      entries: [{ localId: "e1", date: "2026-03-05", debit: "現金", debitType: "asset", debitAmount: "Infinity", credit: "売上", creditType: "revenue", creditAmount: "-Infinity", description: "", partner: "", businessRate: "", taxCategory: "", businessCategory: "" }],
+    });
+
+    const [e] = importEntriesFromJson({ text: json, fiscalPeriodId: "fp-1" });
+
+    expect(e?.debitAmount).toBe("0");
+    expect(e?.creditAmount).toBe("0");
+  });
 });
 
 describe("CSV export/import round-trip", () => {

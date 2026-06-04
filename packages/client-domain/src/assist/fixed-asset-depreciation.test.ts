@@ -56,6 +56,19 @@ describe("computeStraightLineDepreciation", () => {
     expect(invalid.periodLabel).toBe("");
   });
 
+  it("treats invalid calendar acquisition dates as zero progress", () => {
+    const result = computeStraightLineDepreciation({
+      acquisitionDate: "2026-02-29",
+      acquisitionCost: 100_000,
+      usefulLife: 5,
+      asOf: new Date(2026, 2, 1),
+    });
+
+    expect(result.progress).toBe(0);
+    expect(result.currentBookValue).toBe(100_000);
+    expect(result.periodLabel).toBe("");
+  });
+
   it("clamps useful life to at least one year", () => {
     const result = computeStraightLineDepreciation({
       acquisitionDate: "2026-01-01",

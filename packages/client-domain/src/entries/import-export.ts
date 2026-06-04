@@ -246,7 +246,7 @@ function normalizeType(value: string): EntryRecord["debitType"] {
 
 function normalizeAmount(value: string) {
   const n = Number(String(value).replaceAll(",", "").trim());
-  if (Number.isNaN(n)) return "0";
+  if (!Number.isFinite(n)) return "0";
   return n.toLocaleString("ja-JP");
 }
 

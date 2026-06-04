@@ -52,13 +52,16 @@ export function FixedAssetEditDrawer({
   const [errorText, setErrorText] = useState<string | null>(null);
   const needsDisposalDate = draft.status === "売却済" || draft.status === "廃棄済";
   const needsDisposalPrice = draft.status === "売却済";
+  const hasValidAcquisitionDate = parseIsoLocalDate(draft.acquisitionDate) != null;
+  const hasValidDisposalDate =
+    !needsDisposalDate || parseIsoLocalDate(draft.disposalDate ?? "") != null;
   const canSave =
     draft.name.trim().length > 0 &&
     draft.account.trim().length > 0 &&
-    draft.acquisitionDate.trim().length > 0 &&
+    hasValidAcquisitionDate &&
     parseAmount(draft.acquisitionCost) > 0 &&
     draft.usefulLife > 0 &&
-    (!needsDisposalDate || (draft.disposalDate ?? "").trim().length > 0) &&
+    hasValidDisposalDate &&
     (!needsDisposalPrice || parseAmount(draft.disposalPrice ?? "") > 0);
 
   // 簿価・進捗・残期間・当期償却費は入力値からリアルタイムに計算して表示する
