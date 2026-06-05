@@ -88,4 +88,27 @@ describe("createFileDbAdapter", () => {
     expect(FakeWorker.instances).toHaveLength(2);
     expect(FakeWorker.instances[0]?.terminated).toBe(true);
   });
+
+  it("reuses the singleton only for matching file DB options", async () => {
+    vi.stubGlobal("Worker", FakeWorker);
+    const { createFileDbAdapter } = await import("./index");
+
+    const first = await createFileDbAdapter({
+      vfsName: "opfs-test",
+      dbFileName: "one.sqlite3",
+    });
+    const second = await createFileDbAdapter({
+      vfsName: "opfs-test",
+      dbFileName: "one.sqlite3",
+    });
+
+    expect(second).toBe(first);
+    expect(() =>
+      createFileDbAdapter({
+        vfsName: "opfs-test",
+        dbFileName: "two.sqlite3",
+      }),
+    ).toThrow(/already initialized with different options/);
+    expect(FakeWorker.instances).toHaveLength(1);
+  });
 });

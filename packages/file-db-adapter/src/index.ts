@@ -74,12 +74,19 @@ function createWorkerSqlDb(worker: Worker): SqlDb & {
 // OPFS の SAHPool は同一ファイルを複数ハンドルで開けない。1 ドキュメント内では
 // worker / DB を 1 つだけに固定し、再マウント等での二重初期化を防ぐ。
 let cachedAdapter: Promise<OpenkkDbPort> | null = null;
+let cachedAdapterKey: string | null = null;
 
 export function createFileDbAdapter(
   options: FileDbAdapterOptions,
   seed?: DbSnapshot,
 ): Promise<OpenkkDbPort> {
+  const dbFileName = options.dbFileName ?? "openkk.sqlite3";
+  const adapterKey = `${options.vfsName}\n${dbFileName}`;
+  if (cachedAdapter != null && cachedAdapterKey !== adapterKey) {
+    throw new Error("file DB adapter is already initialized with different options");
+  }
   if (cachedAdapter == null) {
+    cachedAdapterKey = adapterKey;
     cachedAdapter = (async () => {
       const worker = new Worker(new URL("./sqlite.worker.js", import.meta.url), {
         type: "module",
@@ -88,11 +95,12 @@ export function createFileDbAdapter(
         const db = createWorkerSqlDb(worker);
         await db.init({
           vfsName: options.vfsName,
-          dbFileName: options.dbFileName ?? "openkk.sqlite3",
+          dbFileName,
         });
         return await createSqliteDbAdapter(db, seed);
       } catch (error) {
         cachedAdapter = null;
+        cachedAdapterKey = null;
         worker.terminate();
         throw error;
       }
