@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { AppError } from "../shared/app-error";
 import {
   exportEntriesAsJson,
   exportEntriesAsCsv,
@@ -110,10 +111,26 @@ describe("JSON export/import round-trip", () => {
 });
 
 describe("importEntriesFromJson — error handling", () => {
+  it("throws AppError when JSON cannot be parsed", () => {
+    const error = captureError(() =>
+      importEntriesFromJson({ text: "{", fiscalPeriodId: "fp-1" }),
+    );
+
+    expect(error).toBeInstanceOf(AppError);
+    expect((error as AppError).messageForDeveloper).toContain("JSON parse");
+    expect((error as AppError).messageForUser).toContain("JSONファイル");
+  });
+
   it("throws when entries array is missing", () => {
-    expect(() =>
+    const error = captureError(() =>
       importEntriesFromJson({ text: JSON.stringify({ schema: "openkk-journal-v1" }), fiscalPeriodId: "fp-1" }),
-    ).toThrow("entries array not found");
+    );
+
+    expect(error).toBeInstanceOf(AppError);
+    expect((error as AppError).messageForDeveloper).toContain(
+      "entries array not found",
+    );
+    expect((error as AppError).messageForUser).toContain("取込ファイル");
   });
 
   it("throws when entries is not an array", () => {
@@ -171,6 +188,15 @@ describe("importEntriesFromJson — error handling", () => {
     expect(e?.creditAmount).toBe("0");
   });
 });
+
+function captureError(fn: () => unknown): unknown {
+  try {
+    fn();
+  } catch (error) {
+    return error;
+  }
+  throw new Error("expected function to throw");
+}
 
 describe("CSV export/import round-trip", () => {
   it("preserves all fields through export then import", () => {

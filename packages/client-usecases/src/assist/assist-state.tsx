@@ -544,9 +544,13 @@ function isFixedAssetClosedStatus(statusLabel: string): boolean {
 export function useOpenkkAssist() {
   const value = useContext(AssistContext);
   if (value == null) {
-    throw new Error(
-      "useOpenkkAssist must be used within OpenkkAssistProvider",
-    );
+    throw new AppError({
+      messageForDeveloper:
+        "useOpenkkAssist must be used within OpenkkAssistProvider",
+      messageForUser: "補助データを読み込めませんでした",
+      originalMessage: null,
+      statusCode: null,
+    });
   }
   return value;
 }

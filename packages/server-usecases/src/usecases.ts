@@ -1,3 +1,4 @@
+import { serverValidationError } from "@rubydogjp/openkk-server-domain";
 import type {
   EntryUpsertInput,
   FiscalPeriodArchiveImportInput,
@@ -36,7 +37,7 @@ function createAuthUsecase() {
     },
     async completeSession(state: string, code: string) {
       if (state.trim() === "" || code.trim() === "") {
-        throw new Error("auth state and code are required");
+        throw serverValidationError("auth state and code are required");
       }
       return {
         completionCode: `${LOCAL_AUTH_COMPLETION_PREFIX}${encodeURIComponent(
@@ -46,7 +47,7 @@ function createAuthUsecase() {
     },
     async redeemCompletionCode(completionCode: string) {
       if (!completionCode.startsWith(LOCAL_AUTH_COMPLETION_PREFIX)) {
-        throw new Error("invalid auth completion code");
+        throw serverValidationError("invalid auth completion code");
       }
       return { userId: "local-auth-user" };
     },

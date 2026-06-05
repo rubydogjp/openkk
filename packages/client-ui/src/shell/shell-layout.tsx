@@ -26,6 +26,15 @@ import "../shared/pwa-install";
 import { ArchivedFiscalPeriodScreen } from "../routes/steps/archived-fiscal-period-screen";
 import { FiscalPeriodsContent } from "./fiscal-periods-content";
 import { SignInContent } from "./sign-in-content";
+import {
+  ARCHIVED_WORKSPACE_PATH,
+  FISCAL_PERIOD_CREATE_PATH,
+  FISCAL_PERIOD_PICKER_PATH,
+  resolveShellContentMode,
+  shouldRedirectArchivedWorkspace,
+  shouldRedirectMissingFiscalPeriod,
+  type ShellContentMode,
+} from "./shell-content-mode";
 
 const PALETTE = {
   sidebarBg: palette.chromeSurface,
@@ -66,16 +75,6 @@ const navItems: NavEntry[] = [
   { href: "/assist", label: "補助", Icon: AssistIcon },
 ];
 
-const PICKER_URL = "/fiscal-periods";
-const CREATE_URL = "/fiscal-periods/new";
-
-type ContentMode =
-  | "loading"
-  | "sign-in"
-  | "fiscal-periods"
-  | "archived"
-  | "normal";
-
 export function OpenkkShellLayout(props: { children: React.ReactNode }) {
   const pathname = normalizePathname(usePathname());
   const router = useRouter();
@@ -85,43 +84,48 @@ export function OpenkkShellLayout(props: { children: React.ReactNode }) {
   const session = appState.session;
   const isDemoMode = openkkConfig.isDemoMode;
   const editionLabel = brandConfig.editionLabel ?? "";
-  const hasPeriod =
-    appState.currentFiscalPeriodId != null &&
-    appState.currentFiscalPeriodId !== "";
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (p) => p.id === appState.currentFiscalPeriodId,
-  );
-  const isArchivedWorkspace =
-    currentFiscalPeriod?.archived === true &&
-    pathname !== PICKER_URL &&
-    pathname !== CREATE_URL;
-
-  const contentMode: ContentMode = !appState.isReady
-    ? "loading"
-    : session == null
-      ? "sign-in"
-      : pathname === PICKER_URL
-        ? "fiscal-periods"
-        : !hasPeriod && pathname !== CREATE_URL
-          ? "fiscal-periods"
-          : isArchivedWorkspace
-            ? "archived"
-            : "normal";
+  ) ?? null;
+  const contentMode = resolveShellContentMode({
+    isReady: appState.isReady,
+    hasSession: session != null,
+    pathname,
+    currentFiscalPeriodId: appState.currentFiscalPeriodId,
+    currentFiscalPeriod,
+  });
 
   useEffect(() => {
-    if (!appState.isReady) return;
-    if (session == null) return;
-    if (hasPeriod) return;
-    if (pathname === PICKER_URL || pathname === CREATE_URL) return;
-    router.replace(PICKER_URL);
-  }, [appState.isReady, session, hasPeriod, pathname, router]);
+    if (
+      shouldRedirectMissingFiscalPeriod({
+        isReady: appState.isReady,
+        hasSession: session != null,
+        pathname,
+        currentFiscalPeriodId: appState.currentFiscalPeriodId,
+      })
+    ) {
+      router.replace(FISCAL_PERIOD_PICKER_PATH);
+    }
+  }, [
+    appState.currentFiscalPeriodId,
+    appState.isReady,
+    pathname,
+    router,
+    session,
+  ]);
 
   useEffect(() => {
-    if (!appState.isReady) return;
-    if (session == null) return;
-    if (!isArchivedWorkspace) return;
-    if (pathname !== "/steps") router.replace("/steps");
-  }, [appState.isReady, isArchivedWorkspace, pathname, router, session]);
+    if (
+      shouldRedirectArchivedWorkspace({
+        isReady: appState.isReady,
+        hasSession: session != null,
+        pathname,
+        currentFiscalPeriod,
+      })
+    ) {
+      router.replace(ARCHIVED_WORKSPACE_PATH);
+    }
+  }, [appState.isReady, currentFiscalPeriod, pathname, router, session]);
 
   if (contentMode === "loading") {
     return (
@@ -169,7 +173,7 @@ function ShellChrome({
 }: {
   pathname: string;
   router: ReturnType<typeof useRouter>;
-  contentMode: Exclude<ContentMode, "loading">;
+  contentMode: Exclude<ShellContentMode, "loading">;
   isDemoMode: boolean;
   editionLabel: string;
   children: ReactNode;

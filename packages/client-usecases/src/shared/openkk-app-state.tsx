@@ -13,6 +13,7 @@ import type {
   FiscalPeriodApiRecord,
 } from "@rubydogjp/openkk-client-ports";
 import {
+  AppError,
   parseAmount,
   parseBusinessRate,
   buildBootstrapFiscalPeriodId,
@@ -270,9 +271,13 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
 export function useOpenkkAppState() {
   const value = useContext(OpenkkAppStateContext);
   if (value == null) {
-    throw new Error(
-      "useOpenkkAppState must be used within OpenkkAppStateProvider",
-    );
+    throw new AppError({
+      messageForDeveloper:
+        "useOpenkkAppState must be used within OpenkkAppStateProvider",
+      messageForUser: "アプリの状態を読み込めませんでした",
+      originalMessage: null,
+      statusCode: null,
+    });
   }
   return value;
 }

@@ -1,3 +1,5 @@
+import { AppError } from "../shared/app-error";
+
 export const FISCAL_PERIOD_ARCHIVE_FORMAT = "openkk.fiscal-period-archive";
 export const FISCAL_PERIOD_ARCHIVE_VERSION = 1;
 
@@ -179,10 +181,14 @@ function readStoreZip(bytes: Uint8Array): Map<string, Uint8Array> {
     const signature = view.getUint32(0, true);
     if (signature === 0x02014b50 || signature === 0x06054b50) break;
     if (signature !== 0x04034b50) {
-      throw new Error("archive zip has an invalid local file header");
+      throw unsupportedArchiveFileError(
+        "archive zip has an invalid local file header",
+      );
     }
     if (offset + 30 > bytes.length) {
-      throw new Error("archive zip local file header is truncated");
+      throw corruptedArchiveFileError(
+        "archive zip local file header is truncated",
+      );
     }
     const flags = view.getUint16(6, true);
     const method = view.getUint16(8, true);
@@ -192,24 +198,32 @@ function readStoreZip(bytes: Uint8Array): Map<string, Uint8Array> {
     const nameLength = view.getUint16(26, true);
     const extraLength = view.getUint16(28, true);
     if ((flags & 0x0008) !== 0) {
-      throw new Error("archive zip with data descriptors is not supported");
+      throw unsupportedArchiveFileError(
+        "archive zip with data descriptors is not supported",
+      );
     }
     if (method !== ZIP_STORE_METHOD) {
-      throw new Error("archive zip must use stored entries");
+      throw unsupportedArchiveFileError("archive zip must use stored entries");
     }
     if (compressedSize !== uncompressedSize) {
-      throw new Error("archive zip stored entry size mismatch");
+      throw unsupportedArchiveFileError(
+        "archive zip stored entry size mismatch",
+      );
     }
     const nameStart = offset + 30;
     const dataStart = nameStart + nameLength + extraLength;
     const dataEnd = dataStart + compressedSize;
     if (dataEnd > bytes.length) {
-      throw new Error("archive zip entry extends past the end of the file");
+      throw corruptedArchiveFileError(
+        "archive zip entry extends past the end of the file",
+      );
     }
     const name = textDecoder.decode(bytes.slice(nameStart, nameStart + nameLength));
     const data = bytes.slice(dataStart, dataEnd);
     if (crc32(data) !== expectedCrc) {
-      throw new Error(`archive zip entry checksum mismatch: ${name}`);
+      throw corruptedArchiveFileError(
+        `archive zip entry checksum mismatch: ${name}`,
+      );
     }
     files.set(name, data);
     offset = dataEnd;
@@ -219,37 +233,85 @@ function readStoreZip(bytes: Uint8Array): Map<string, Uint8Array> {
 
 function readJsonFile<T>(files: Map<string, Uint8Array>, name: string): T {
   const bytes = files.get(name);
-  if (bytes == null) throw new Error(`archive file missing: ${name}`);
-  return JSON.parse(textDecoder.decode(bytes)) as T;
+  if (bytes == null) {
+    throw invalidArchiveContentError(`archive file missing: ${name}`);
+  }
+  try {
+    return JSON.parse(textDecoder.decode(bytes)) as T;
+  } catch (error) {
+    throw new AppError({
+      messageForDeveloper: `archive json parse failed: ${name}`,
+      messageForUser:
+        "圧縮済みファイル内のデータ形式を確認できませんでした。別のファイルを選択してください。",
+      originalMessage: error instanceof Error ? error.message : String(error),
+      statusCode: null,
+    });
+  }
 }
 
 function assertFiscalPeriodArchivePayload(
   payload: FiscalPeriodArchivePayload,
 ): void {
   if (payload.manifest?.format !== FISCAL_PERIOD_ARCHIVE_FORMAT) {
-    throw new Error("archive manifest format is invalid");
+    throw invalidArchiveContentError("archive manifest format is invalid");
   }
   if (payload.manifest.version !== FISCAL_PERIOD_ARCHIVE_VERSION) {
-    throw new Error("archive manifest version is not supported");
+    throw invalidArchiveContentError(
+      "archive manifest version is not supported",
+    );
   }
   if (typeof payload.manifest.fiscalPeriodId !== "string") {
-    throw new Error("archive manifest fiscalPeriodId is invalid");
+    throw invalidArchiveContentError(
+      "archive manifest fiscalPeriodId is invalid",
+    );
   }
   if (
     typeof payload.fiscalPeriod?.id === "string" &&
     payload.fiscalPeriod.id !== payload.manifest.fiscalPeriodId
   ) {
-    throw new Error("archive fiscalPeriod id does not match manifest");
+    throw invalidArchiveContentError(
+      "archive fiscalPeriod id does not match manifest",
+    );
   }
   if (!Array.isArray(payload.entries)) {
-    throw new Error("archive entries must be an array");
+    throw invalidArchiveContentError("archive entries must be an array");
   }
   if (!Array.isArray(payload.fixedAssets)) {
-    throw new Error("archive fixedAssets must be an array");
+    throw invalidArchiveContentError("archive fixedAssets must be an array");
   }
   if (!Array.isArray(payload.closings)) {
-    throw new Error("archive closings must be an array");
+    throw invalidArchiveContentError("archive closings must be an array");
   }
+}
+
+function corruptedArchiveFileError(messageForDeveloper: string): AppError {
+  return new AppError({
+    messageForDeveloper,
+    messageForUser:
+      "圧縮済みファイルが破損している可能性があります。別のファイルを選択してください。",
+    originalMessage: null,
+    statusCode: null,
+  });
+}
+
+function unsupportedArchiveFileError(messageForDeveloper: string): AppError {
+  return new AppError({
+    messageForDeveloper,
+    messageForUser:
+      "対応していない形式のファイルです。オープン会計で作成した圧縮済みファイルを選択してください。",
+    originalMessage: null,
+    statusCode: null,
+  });
+}
+
+function invalidArchiveContentError(messageForDeveloper: string): AppError {
+  return new AppError({
+    messageForDeveloper,
+    messageForUser:
+      "圧縮済みファイルの内容を確認できませんでした。作成元の会計期間データからもう一度圧縮保存してください。",
+    originalMessage: null,
+    statusCode: null,
+  });
 }
 
 function concatBytes(parts: Uint8Array[]): Uint8Array {

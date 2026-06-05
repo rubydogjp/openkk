@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, type ReactNode } from "react";
-import type { OpenkkConfig } from "@rubydogjp/openkk-client-domain";
+import { AppError, type OpenkkConfig } from "@rubydogjp/openkk-client-domain";
 
 const OpenkkConfigContext = createContext<OpenkkConfig | null>(null);
 
@@ -19,9 +19,13 @@ export function OpenkkConfigProvider(props: {
 export function useOpenkkConfig(): OpenkkConfig {
   const value = useContext(OpenkkConfigContext);
   if (value == null) {
-    throw new Error(
-      "useOpenkkConfig must be used within OpenkkConfigProvider",
-    );
+    throw new AppError({
+      messageForDeveloper:
+        "useOpenkkConfig must be used within OpenkkConfigProvider",
+      messageForUser: "アプリの設定を読み込めませんでした",
+      originalMessage: null,
+      statusCode: null,
+    });
   }
   return value;
 }

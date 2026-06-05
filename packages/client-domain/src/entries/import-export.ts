@@ -1,4 +1,5 @@
 import type { EntryLine, EntryRecord } from "./entry-record";
+import { AppError } from "../shared/app-error";
 import { parseIsoLocalDate } from "../shared/parse-utils";
 
 type JournalJsonEntry = {
@@ -53,9 +54,9 @@ export function importEntriesFromJson(input: {
   text: string;
   fiscalPeriodId: string;
 }): EntryRecord[] {
-  const parsed = JSON.parse(stripBom(input.text)) as { entries?: unknown };
+  const parsed = parseEntriesJson(input.text);
   if (!Array.isArray(parsed.entries)) {
-    throw new Error("entries array not found");
+    throw importFileFormatError("entries array not found");
   }
   const seenLocalIds = new Set<string>();
   return parsed.entries.map((raw, index) => {
@@ -146,7 +147,9 @@ export function importEntriesFromCsv(input: {
     csvHeaders.map((name) => [name, header.indexOf(name)]),
   ) as Record<(typeof csvHeaders)[number], number>;
   if (indexMap.date < 0 || indexMap.debit < 0 || indexMap.credit < 0) {
-    throw new Error("CSV header missing required columns: date, debit, credit");
+    throw importFileFormatError(
+      "CSV header missing required columns: date, debit, credit",
+    );
   }
 
   const seenLocalIds = new Set<string>();
@@ -200,7 +203,10 @@ function normalizeEntry(input: {
   lines?: EntryLine[];
 }): EntryRecord {
   if (parseIsoLocalDate(input.date) == null) {
-    throw new Error(`row ${input.rowNo}: invalid date (${input.date})`);
+    throw importFileRowError(
+      `row ${input.rowNo}: invalid date (${input.date})`,
+      input.rowNo,
+    );
   }
   return {
     id: input.id,
@@ -328,14 +334,53 @@ function validateRequiredLocalId(
   const localId = rawLocalId.trim();
   if (localId.length > 0) {
     if (seen.has(localId)) {
-      throw new Error(`row ${rowNo}: duplicate localId (${localId})`);
+      throw importFileRowError(
+        `row ${rowNo}: duplicate localId (${localId})`,
+        rowNo,
+      );
     }
     seen.add(localId);
     return localId;
   }
-  throw new Error(`row ${rowNo}: localId is required`);
+  throw importFileRowError(`row ${rowNo}: localId is required`, rowNo);
 }
 
 function stripBom(text: string): string {
   return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+}
+
+function parseEntriesJson(text: string): { entries?: unknown } {
+  try {
+    return JSON.parse(stripBom(text)) as { entries?: unknown };
+  } catch (error) {
+    throw new AppError({
+      messageForDeveloper: "entries import JSON parse failed",
+      messageForUser:
+        "JSONファイルの内容を確認できませんでした。ファイルの形式を確認してください。",
+      originalMessage: error instanceof Error ? error.message : String(error),
+      statusCode: null,
+    });
+  }
+}
+
+function importFileFormatError(messageForDeveloper: string): AppError {
+  return new AppError({
+    messageForDeveloper,
+    messageForUser:
+      "取込ファイルの形式を確認できませんでした。オープン会計で書き出したCSVまたはJSONを選択してください。",
+    originalMessage: null,
+    statusCode: null,
+  });
+}
+
+function importFileRowError(
+  messageForDeveloper: string,
+  rowNo: number,
+): AppError {
+  return new AppError({
+    messageForDeveloper,
+    messageForUser: `${rowNo}行目の取引データを確認できませんでした。ファイルの内容を修正してからもう一度取り込んでください。`,
+    originalMessage: null,
+    statusCode: null,
+  });
 }

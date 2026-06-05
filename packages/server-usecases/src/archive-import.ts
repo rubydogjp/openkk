@@ -1,3 +1,4 @@
+import { serverValidationError } from "@rubydogjp/openkk-server-domain";
 import type {
   EntryUpsertInput,
   FiscalPeriodArchiveDbImportInput,
@@ -15,7 +16,9 @@ export function normalizeArchiveImportInput(
   );
   const sourceId = requireString(input.fiscalPeriod.id, "archive fiscalPeriod.id");
   if (sourceId !== manifestFiscalPeriodId) {
-    throw new Error("archive fiscalPeriod id does not match manifest");
+    throw serverValidationError(
+      "archive fiscalPeriod id does not match manifest",
+    );
   }
   const sourceOpening = input.fiscalPeriod.opening;
   return {
@@ -55,7 +58,7 @@ function normalizeFiscalPeriodStage(value: unknown) {
   ) {
     return value;
   }
-  throw new Error("archive fiscalPeriod.stage is invalid");
+  throw serverValidationError("archive fiscalPeriod.stage is invalid");
 }
 
 function normalizeArchivedOpening(value: unknown, userId: string) {
@@ -189,7 +192,7 @@ function normalizeArchivedClosing(value: Record<string, unknown>) {
 
 function normalizeSide(value: unknown): "debit" | "credit" {
   if (value === "debit" || value === "credit") return value;
-  throw new Error("archive line side is invalid");
+  throw serverValidationError("archive line side is invalid");
 }
 
 function normalizeFixedAssetStatus(
@@ -203,32 +206,34 @@ function normalizeFixedAssetStatus(
   ) {
     return value;
   }
-  throw new Error("archive fixedAsset.status is invalid");
+  throw serverValidationError("archive fixedAsset.status is invalid");
 }
 
 function objectValue(value: unknown): Record<string, unknown> {
   if (typeof value !== "object" || value == null || Array.isArray(value)) {
-    throw new Error("archive value must be an object");
+    throw serverValidationError("archive value must be an object");
   }
   return value as Record<string, unknown>;
 }
 
 function arrayValue(value: unknown): unknown[] {
   if (value == null) return [];
-  if (!Array.isArray(value)) throw new Error("archive value must be an array");
+  if (!Array.isArray(value)) {
+    throw serverValidationError("archive value must be an array");
+  }
   return value;
 }
 
 function requireString(value: unknown, label: string): string {
   if (typeof value !== "string" || value.length === 0) {
-    throw new Error(`${label} is required`);
+    throw serverValidationError(`${label} is required`);
   }
   return value;
 }
 
 function requireNumber(value: unknown, label: string): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new Error(`${label} must be a finite number`);
+    throw serverValidationError(`${label} must be a finite number`);
   }
   return value;
 }

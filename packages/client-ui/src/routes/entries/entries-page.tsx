@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import {
+  AppError,
   buildVirtualFixedAssetRows,
   buildVirtualOpeningCarryoverRows,
   exportEntriesAsCsv,
@@ -306,8 +307,14 @@ export function EntriesPage() {
         kind: "success",
         text: `取り込みました(取込 ${result.imported} 件 / 重複スキップ ${result.skipped} 件)`,
       });
-    } catch {
-      setStatusMessage({ kind: "error", text: "取り込みに失敗しました" });
+    } catch (error) {
+      setStatusMessage({
+        kind: "error",
+        text: AppError.from(error, {
+          fallbackUserMessage: "取り込みに失敗しました",
+          fallbackDeveloperMessage: "entries: import file failed",
+        }).messageForUser,
+      });
     }
   };
 
@@ -403,7 +410,12 @@ export function EntriesPage() {
                 closeDrawer();
               }
             } else {
-              throw new Error("saveEntry returned false");
+              throw new AppError({
+                messageForDeveloper: "saveEntry returned false",
+                messageForUser: "仕訳の保存に失敗しました",
+                originalMessage: null,
+                statusCode: null,
+              });
             }
           }}
           onDelete={async () => {
@@ -411,7 +423,12 @@ export function EntriesPage() {
             if (ok) {
               closeDrawer();
             } else {
-              throw new Error("deleteEntry returned false");
+              throw new AppError({
+                messageForDeveloper: "deleteEntry returned false",
+                messageForUser: "仕訳の削除に失敗しました",
+                originalMessage: null,
+                statusCode: null,
+              });
             }
           }}
         />
@@ -435,7 +452,12 @@ export function EntriesPage() {
                 closeNewEntryDrawer();
               }
             } else {
-              throw new Error("createEntryFromDraft returned null");
+              throw new AppError({
+                messageForDeveloper: "createEntryFromDraft returned null",
+                messageForUser: "仕訳の作成に失敗しました",
+                originalMessage: null,
+                statusCode: null,
+              });
             }
           }}
         />

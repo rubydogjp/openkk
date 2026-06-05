@@ -1,3 +1,8 @@
+import {
+  serverConflictError,
+  serverNotFoundError,
+  serverValidationError,
+} from "@rubydogjp/openkk-server-domain";
 import type { OpenkkServerPort } from "@rubydogjp/openkk-server-ports";
 import type { ServerUsecases } from "@rubydogjp/openkk-server-usecases";
 import type {
@@ -24,7 +29,9 @@ export function createOpenkkServerApi(
     const period = (await usecases.fiscalPeriod.getAll(uid)).find(
       (candidate) => candidate.id === fiscalPeriodId,
     );
-    if (period == null) throw new Error(`Fiscal period ${fiscalPeriodId} not found`);
+    if (period == null) {
+      throw serverNotFoundError(`Fiscal period ${fiscalPeriodId} not found`);
+    }
     return period;
   };
   return {
@@ -72,7 +79,9 @@ export function createOpenkkServerApi(
         assertEntryInput(input);
         const existing = await usecases.entries.getById(uid, id);
         if (existing == null || existing.fiscalPeriodId !== fpId) {
-          throw new Error(`Entry ${id} not found in fiscal period ${fpId}`);
+          throw serverNotFoundError(
+            `Entry ${id} not found in fiscal period ${fpId}`,
+          );
         }
         return usecases.entries.update(uid, id, input);
       },
@@ -81,7 +90,9 @@ export function createOpenkkServerApi(
         assertMutableFiscalPeriod(period, "delete entry");
         const existing = await usecases.entries.getById(uid, id);
         if (existing == null || existing.fiscalPeriodId !== fpId) {
-          throw new Error(`Entry ${id} not found in fiscal period ${fpId}`);
+          throw serverNotFoundError(
+            `Entry ${id} not found in fiscal period ${fpId}`,
+          );
         }
         await usecases.entries.delete(uid, id);
       },
@@ -105,7 +116,9 @@ export function createOpenkkServerApi(
       patch: async (id, patch) => {
         const current = await getOwnedFiscalPeriod(id);
         if (current.archived) {
-          throw new Error(`Archived fiscal period ${id} cannot be updated`);
+          throw archivedFiscalPeriodError(
+            `Archived fiscal period ${id} cannot be updated`,
+          );
         }
         assertFiscalPeriodPatchInput(current, patch);
         return usecases.fiscalPeriod.update(uid, id, patch);
@@ -132,7 +145,9 @@ export function createOpenkkServerApi(
         assertFixedAssetPatchInput(patch);
         const existing = await usecases.fixedAssets.getById(uid, id);
         if (existing == null || existing.fiscalPeriodId !== fpId) {
-          throw new Error(`Fixed asset ${id} not found in fiscal period ${fpId}`);
+          throw serverNotFoundError(
+            `Fixed asset ${id} not found in fiscal period ${fpId}`,
+          );
         }
         return usecases.fixedAssets.update(uid, id, patch);
       },
@@ -141,7 +156,9 @@ export function createOpenkkServerApi(
         assertMutableFiscalPeriod(period, "delete fixed asset");
         const existing = await usecases.fixedAssets.getById(uid, id);
         if (existing == null || existing.fiscalPeriodId !== fpId) {
-          throw new Error(`Fixed asset ${id} not found in fiscal period ${fpId}`);
+          throw serverNotFoundError(
+            `Fixed asset ${id} not found in fiscal period ${fpId}`,
+          );
         }
         await usecases.fixedAssets.delete(uid, id);
       },
@@ -160,8 +177,17 @@ function assertMutableFiscalPeriod(
   operation: string,
 ) {
   if (period.archived) {
-    throw new Error(`Archived fiscal period ${period.id} cannot ${operation}`);
+    throw archivedFiscalPeriodError(
+      `Archived fiscal period ${period.id} cannot ${operation}`,
+    );
   }
+}
+
+function archivedFiscalPeriodError(messageForDeveloper: string) {
+  return serverConflictError(
+    messageForDeveloper,
+    "圧縮保存済みの会計期間は変更できません",
+  );
 }
 
 function assertFiscalPeriodCreateInput(input: FiscalPeriodCreateInput) {
@@ -217,32 +243,38 @@ function assertDateRange(startDate: string, endDate: string, label: string) {
   const start = parseIsoDate(startDate);
   const end = parseIsoDate(endDate);
   if (start == null || end == null) {
-    throw new Error(`${label} dates are invalid`);
+    throw serverValidationError(`${label} dates are invalid`);
   }
   if (start.getTime() > end.getTime()) {
-    throw new Error(`${label} start date must be on or before end date`);
+    throw serverValidationError(
+      `${label} start date must be on or before end date`,
+    );
   }
 }
 
 function assertIsoDate(value: string, label: string) {
-  if (parseIsoDate(value) == null) throw new Error(`${label} is invalid`);
+  if (parseIsoDate(value) == null) {
+    throw serverValidationError(`${label} is invalid`);
+  }
 }
 
 function assertNonNegativeFiniteNumber(value: number, label: string) {
   if (!Number.isFinite(value) || value < 0) {
-    throw new Error(`${label} must be a non-negative finite number`);
+    throw serverValidationError(
+      `${label} must be a non-negative finite number`,
+    );
   }
 }
 
 function assertPositiveInteger(value: number, label: string) {
   if (!Number.isInteger(value) || value < 1) {
-    throw new Error(`${label} must be a positive integer`);
+    throw serverValidationError(`${label} must be a positive integer`);
   }
 }
 
 function assertUnitRate(value: number, label: string) {
   if (!Number.isFinite(value) || value < 0 || value > 1) {
-    throw new Error(`${label} must be between 0 and 1`);
+    throw serverValidationError(`${label} must be between 0 and 1`);
   }
 }
 

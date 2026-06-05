@@ -626,9 +626,13 @@ export function entryRecordToImportPayload(
 export function useOpenkkEntries() {
   const value = useContext(EntriesContext);
   if (value == null) {
-    throw new Error(
-      "useOpenkkEntries must be used within OpenkkEntriesProvider",
-    );
+    throw new AppError({
+      messageForDeveloper:
+        "useOpenkkEntries must be used within OpenkkEntriesProvider",
+      messageForUser: "仕訳データを読み込めませんでした",
+      originalMessage: null,
+      statusCode: null,
+    });
   }
   return value;
 }

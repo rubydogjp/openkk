@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { AppError } from "@rubydogjp/openkk-server-domain";
 import type { FiscalPeriodArchiveImportInput } from "@rubydogjp/openkk-server-ports";
 import { normalizeArchiveImportInput } from "./archive-import";
 
@@ -62,11 +63,25 @@ describe("normalizeArchiveImportInput", () => {
     const input = validArchiveInput();
     input.fiscalPeriod.id = "another-period";
 
-    expect(() => normalizeArchiveImportInput(input, "user-1")).toThrow(
+    const error = captureError(() => normalizeArchiveImportInput(input, "user-1"));
+
+    expect(error).toBeInstanceOf(AppError);
+    expect((error as AppError).messageForDeveloper).toContain(
       "archive fiscalPeriod id does not match manifest",
     );
+    expect((error as AppError).messageForUser).toContain("入力内容");
+    expect((error as AppError).statusCode).toBe(400);
   });
 });
+
+function captureError(fn: () => unknown): unknown {
+  try {
+    fn();
+  } catch (error) {
+    return error;
+  }
+  throw new Error("expected function to throw");
+}
 
 function validArchiveInput(): FiscalPeriodArchiveImportInput {
   return {

@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import {
+  AppError,
   recordToPreviewRows,
   type EntryRecord,
   buildPeriodLockMessage,
@@ -174,7 +175,12 @@ export function OpeningCarryoverPage() {
             if (ok) {
               navigateWithCarryoverParam(null);
             } else {
-              throw new Error("updateOpeningCarryover returned false");
+              throw new AppError({
+                messageForDeveloper: "updateOpeningCarryover returned false",
+                messageForUser: "再振替仕訳の保存に失敗しました",
+                originalMessage: null,
+                statusCode: null,
+              });
             }
           }}
           onDelete={async () => {
@@ -182,7 +188,12 @@ export function OpeningCarryoverPage() {
             if (ok) {
               navigateWithCarryoverParam(null);
             } else {
-              throw new Error("deleteOpeningCarryover returned false");
+              throw new AppError({
+                messageForDeveloper: "deleteOpeningCarryover returned false",
+                messageForUser: "再振替仕訳の削除に失敗しました",
+                originalMessage: null,
+                statusCode: null,
+              });
             }
           }}
         />

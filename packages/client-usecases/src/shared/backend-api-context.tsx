@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, type ReactNode } from "react";
+import { AppError } from "@rubydogjp/openkk-client-domain";
 import type { OpenkkBackendPort } from "@rubydogjp/openkk-client-ports";
 
 const BackendApiContext = createContext<OpenkkBackendPort | null>(null);
@@ -19,9 +20,13 @@ export function BackendApiProvider(props: {
 export function useBackendApi(): OpenkkBackendPort {
   const value = useContext(BackendApiContext);
   if (value == null) {
-    throw new Error(
-      "useBackendApi: BackendApiProvider が祖先にありません。app boot 時に inject してください。",
-    );
+    throw new AppError({
+      messageForDeveloper:
+        "useBackendApi: BackendApiProvider が祖先にありません。app boot 時に inject してください。",
+      messageForUser: "アプリの初期化に失敗しました",
+      originalMessage: null,
+      statusCode: null,
+    });
   }
   return value;
 }

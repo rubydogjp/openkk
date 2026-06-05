@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { AppError } from "@rubydogjp/openkk-server-domain";
 import { createOpenkkServer } from "./index";
 import type {
   ClosingApiRecord,
@@ -76,9 +77,16 @@ describe("openkk server fiscal period API", () => {
     ]);
     const server = createOpenkkServer(db, { userId: "user-1" });
 
-    await expect(
+    const error = await captureAsyncError(() =>
       server.fiscalPeriod.patch("fp-archived", { name: "updated" }),
-    ).rejects.toThrow(/Archived fiscal period fp-archived cannot be updated/);
+    );
+
+    expect(error).toBeInstanceOf(AppError);
+    expect((error as AppError).messageForDeveloper).toContain(
+      "Archived fiscal period fp-archived cannot be updated",
+    );
+    expect((error as AppError).messageForUser).toContain("圧縮保存済み");
+    expect((error as AppError).statusCode).toBe(409);
 
     expect((await db.fiscalPeriods.getById("fp-archived"))?.name).toBe(
       "2026年分",
@@ -115,6 +123,15 @@ describe("openkk server fiscal period API", () => {
     expect(await db.fiscalPeriods.getAllByUser("user-1")).toEqual([imported]);
   });
 });
+
+async function captureAsyncError(fn: () => Promise<unknown>): Promise<unknown> {
+  try {
+    await fn();
+  } catch (error) {
+    return error;
+  }
+  throw new Error("expected function to reject");
+}
 
 function createFiscalPeriodDb(seed: StoredFiscalPeriodApiRecord[]): OpenkkDbPort {
   const fiscalPeriods = new Map(seed.map((period) => [period.id, period]));
