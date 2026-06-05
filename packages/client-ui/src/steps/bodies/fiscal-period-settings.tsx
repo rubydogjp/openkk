@@ -2,13 +2,17 @@
 
 import { useMemo, useState } from "react";
 
-import { AppError } from "@rubydogjp/openkk-client-domain";
+import {
+  AppError,
+  validateFiscalPeriodDates,
+} from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text";
 import { useOpenkkAppState } from "@rubydogjp/openkk-client-usecases";
 import { palette } from "../../shared/design-tokens";
 import { useConfirmDialog } from "../../shared/confirm-dialog";
 import {
   FormDatePair,
+  FormErrorText,
   FormReadOnlyValue,
   FormStyles,
   FormTextInput,
@@ -40,14 +44,20 @@ export function FiscalPeriodSettingsBody({
   const [screenError, setScreenError] = useState<unknown>(null);
 
   const canSave = useMemo(() => {
+    const dateValidation = validateFiscalPeriodDates(startDate, endDate);
     return (
       currentFiscalPeriod != null &&
       !currentFiscalPeriod.settingsCompleted &&
       name.trim() !== "" &&
       startDate.trim() !== "" &&
-      endDate.trim() !== ""
+      endDate.trim() !== "" &&
+      dateValidation.ok
     );
   }, [currentFiscalPeriod, endDate, name, startDate]);
+  const dateValidation = useMemo(
+    () => validateFiscalPeriodDates(startDate, endDate),
+    [endDate, startDate],
+  );
 
   if (currentFiscalPeriod == null) {
     return (
@@ -67,6 +77,7 @@ export function FiscalPeriodSettingsBody({
       : null;
 
   const handleStart = async () => {
+    if (!dateValidation.ok) return;
     const confirmed = await confirm({
       tone: "success",
       title: "期間を開始",
@@ -128,13 +139,18 @@ export function FiscalPeriodSettingsBody({
           label="期間"
           divider
           control={
-            <FormDatePair
-              start={startDate}
-              end={endDate}
-              onChangeStart={setStartDate}
-              onChangeEnd={setEndDate}
-              readOnly={isReadOnly}
-            />
+            <>
+              <FormDatePair
+                start={startDate}
+                end={endDate}
+                onChangeStart={setStartDate}
+                onChangeEnd={setEndDate}
+                readOnly={isReadOnly}
+              />
+              {!dateValidation.ok && !isReadOnly ? (
+                <FormErrorText>{dateValidation.message}</FormErrorText>
+              ) : null}
+            </>
           }
           hint={
             lockMessage == null

@@ -18,6 +18,48 @@ import type {
 } from "@rubydogjp/openkk-server-ports";
 
 describe("openkk server fixed asset API", () => {
+  it("rejects invalid acquisition dates before persisting", async () => {
+    const db = createFixedAssetDb();
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(
+      server.fixedAssets.create("fp-1", {
+        name: "不正日付の資産",
+        acquisitionDate: "2026-02-29",
+        acquisitionCost: 180000,
+        usefulLife: 4,
+        depreciationMethod: "straight_line",
+        businessRate: 1,
+        bookAccountId: "acct_asset_工具器具備品",
+      }),
+    ).rejects.toThrow(/Fixed asset acquisition date is invalid/);
+
+    expect(await server.fixedAssets.getAll("fp-1")).toEqual([]);
+  });
+
+  it("rejects invalid disposal dates before persisting", async () => {
+    const db = createFixedAssetDb();
+    const server = createOpenkkServer(db, { userId: "user-1" });
+    const created = await server.fixedAssets.create("fp-1", {
+      name: "売却対象の資産",
+      acquisitionDate: "2026-04-01",
+      acquisitionCost: 180000,
+      usefulLife: 4,
+      depreciationMethod: "straight_line",
+      businessRate: 1,
+      bookAccountId: "acct_asset_工具器具備品",
+    });
+
+    await expect(
+      server.fixedAssets.patch("fp-1", created.id, {
+        status: "sold",
+        disposalDate: "2026-13-01",
+      }),
+    ).rejects.toThrow(/Fixed asset disposal date is invalid/);
+
+    expect((await server.fixedAssets.getAll("fp-1"))[0]?.status).toBe("active");
+  });
+
   it("deletes a fixed asset only when it belongs to the requested fiscal period", async () => {
     const db = createFixedAssetDb();
     const server = createOpenkkServer(db, { userId: "user-1" });

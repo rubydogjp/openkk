@@ -20,6 +20,21 @@ import type {
 type StoredFiscalPeriodApiRecord = FiscalPeriodApiRecord & { userId: string };
 
 describe("openkk server fiscal period API", () => {
+  it("rejects invalid fiscal period dates before persisting", async () => {
+    const db = createFiscalPeriodDb([]);
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(
+      server.fiscalPeriod.create({
+        name: "不正な期間",
+        startDate: "2026-12-31",
+        endDate: "2026-01-01",
+      }),
+    ).rejects.toThrow(/Fiscal period start date must be on or before end date/);
+
+    expect(await db.fiscalPeriods.getAllByUser("user-1")).toEqual([]);
+  });
+
   it("patches only fiscal periods owned by the current user", async () => {
     const db = createFiscalPeriodDb([
       fiscalPeriod({ id: "fp-user-1", userId: "user-1", name: "user-1 period" }),
@@ -37,6 +52,21 @@ describe("openkk server fiscal period API", () => {
       name: "updated by owner",
     });
     expect(updated.name).toBe("updated by owner");
+  });
+
+  it("rejects fiscal period patches that would invert the period range", async () => {
+    const db = createFiscalPeriodDb([
+      fiscalPeriod({ id: "fp-user-1", userId: "user-1" }),
+    ]);
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(
+      server.fiscalPeriod.patch("fp-user-1", { startDate: "2027-01-01" }),
+    ).rejects.toThrow(/Fiscal period start date must be on or before end date/);
+
+    expect((await db.fiscalPeriods.getById("fp-user-1"))?.startDate).toBe(
+      "2026-01-01",
+    );
   });
 });
 

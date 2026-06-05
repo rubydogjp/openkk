@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { isCurrentMonthWithinFiscalPeriod } from "./period-check";
+import {
+  isCurrentMonthWithinFiscalPeriod,
+  validateFiscalPeriodDates,
+} from "./period-check";
 
 describe("isCurrentMonthWithinFiscalPeriod", () => {
   it("returns true when today is the first month of the period", () => {
@@ -37,5 +40,34 @@ describe("isCurrentMonthWithinFiscalPeriod", () => {
     expect(isCurrentMonthWithinFiscalPeriod("2026-03-01", "2026-09-30", new Date(2026, 1, 28))).toBe(false);
     // one month after end
     expect(isCurrentMonthWithinFiscalPeriod("2026-03-01", "2026-09-30", new Date(2026, 9, 1))).toBe(false);
+  });
+});
+
+describe("validateFiscalPeriodDates", () => {
+  it("accepts a valid inclusive date range", () => {
+    expect(validateFiscalPeriodDates("2026-01-01", "2026-12-31")).toEqual({
+      ok: true,
+    });
+    expect(validateFiscalPeriodDates("2026-01-01", "2026-01-01")).toEqual({
+      ok: true,
+    });
+  });
+
+  it("rejects invalid calendar dates", () => {
+    expect(validateFiscalPeriodDates("2026-02-29", "2026-12-31")).toEqual({
+      ok: false,
+      message: "期間の日付を正しく入力してください。",
+    });
+    expect(validateFiscalPeriodDates("2026-01-01", "2026-13-31")).toEqual({
+      ok: false,
+      message: "期間の日付を正しく入力してください。",
+    });
+  });
+
+  it("rejects a range whose start date is after its end date", () => {
+    expect(validateFiscalPeriodDates("2026-12-31", "2026-01-01")).toEqual({
+      ok: false,
+      message: "期間の開始日は終了日以前にしてください。",
+    });
   });
 });

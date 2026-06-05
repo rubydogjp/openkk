@@ -69,6 +69,7 @@ export function importEntriesFromJson(input: {
     return normalizeEntry({
       fiscalPeriodId: input.fiscalPeriodId,
       id: `entry-${input.fiscalPeriodId}-json-${index + 1}`,
+      rowNo,
       localId,
       date: entry.date,
       weekday: entry.weekday,
@@ -159,6 +160,7 @@ export function importEntriesFromCsv(input: {
     return normalizeEntry({
       fiscalPeriodId: input.fiscalPeriodId,
       id: `entry-${input.fiscalPeriodId}-csv-${index + 1}`,
+      rowNo,
       localId,
       date: readCsvCell(cells, indexMap.date),
       weekday: readCsvCell(cells, indexMap.weekday),
@@ -180,6 +182,7 @@ export function importEntriesFromCsv(input: {
 function normalizeEntry(input: {
   fiscalPeriodId: string;
   id: string;
+  rowNo: number;
   localId?: string;
   date: string;
   weekday?: string;
@@ -196,6 +199,9 @@ function normalizeEntry(input: {
   businessCategory: string;
   lines?: EntryLine[];
 }): EntryRecord {
+  if (parseIsoLocalDate(input.date) == null) {
+    throw new Error(`row ${input.rowNo}: invalid date (${input.date})`);
+  }
   return {
     id: input.id,
     localId: input.localId,

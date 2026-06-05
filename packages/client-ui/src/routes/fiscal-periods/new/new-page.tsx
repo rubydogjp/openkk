@@ -3,7 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-import { AppError } from "@rubydogjp/openkk-client-domain";
+import {
+  AppError,
+  validateFiscalPeriodDates,
+} from "@rubydogjp/openkk-client-domain";
 import {
   useOpenkkAppState,
   useOpenkkConfig,
@@ -13,6 +16,7 @@ import { DemoLockButton } from "../../../shared/demo-icon";
 import { fontSize, fontWeight, palette, sizes, spacing, typography } from "../../../shared/design-tokens";
 import {
   FormDatePair,
+  FormErrorText,
   FormPrimaryButton,
   FormSecondaryButton,
   FormStyles,
@@ -44,10 +48,16 @@ export function CreateFiscalPeriodPage() {
       name.trim() !== "" && startDate.trim() !== "" && endDate.trim() !== ""
     );
   }, [endDate, name, startDate]);
+  const dateValidation = useMemo(
+    () => validateFiscalPeriodDates(startDate, endDate),
+    [endDate, startDate],
+  );
   const isDemo = openkkConfig.isDemoMode;
   const isReadOnlyDemo = isDemo && appState.fiscalPeriods.length > 0;
   const canSubmit =
-    canCreate && (!isDemo || appState.fiscalPeriods.length === 0);
+    canCreate &&
+    dateValidation.ok &&
+    (!isDemo || appState.fiscalPeriods.length === 0);
 
   const handleCreate = async () => {
     if (!canSubmit) return;
@@ -119,13 +129,18 @@ export function CreateFiscalPeriodPage() {
             label="期間"
             divider
             control={
-              <FormDatePair
-                start={startDate}
-                end={endDate}
-                onChangeStart={setStartDate}
-                onChangeEnd={setEndDate}
-                readOnly={isReadOnlyDemo}
-              />
+              <>
+                <FormDatePair
+                  start={startDate}
+                  end={endDate}
+                  onChangeStart={setStartDate}
+                  onChangeEnd={setEndDate}
+                  readOnly={isReadOnlyDemo}
+                />
+                {!dateValidation.ok && !isReadOnlyDemo ? (
+                  <FormErrorText>{dateValidation.message}</FormErrorText>
+                ) : null}
+              </>
             }
             hint={
               isReadOnlyDemo

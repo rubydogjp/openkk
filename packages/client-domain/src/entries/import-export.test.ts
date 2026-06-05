@@ -141,6 +141,15 @@ describe("importEntriesFromJson — error handling", () => {
     ).toThrow(/row 1: localId is required/);
   });
 
+  it("throws when an entry date is invalid", () => {
+    const json = JSON.stringify({
+      entries: [{ localId: "bad-date", date: "2026-02-29", debit: "現金", debitType: "asset", debitAmount: "0", credit: "売上", creditType: "revenue", creditAmount: "0", description: "", partner: "", businessRate: "", taxCategory: "対象外", businessCategory: "" }],
+    });
+    expect(() =>
+      importEntriesFromJson({ text: json, fiscalPeriodId: "fp-1" }),
+    ).toThrow(/row 1: invalid date \(2026-02-29\)/);
+  });
+
   it("normalises missing optional fields to safe defaults", () => {
     const json = JSON.stringify({
       entries: [{ localId: "e1", date: "2026-03-05", debit: "現金", debitType: "asset", debitAmount: "5000", credit: "売上", creditType: "revenue", creditAmount: "5000", description: "", partner: "", businessRate: "", taxCategory: "", businessCategory: "" }],
@@ -229,5 +238,13 @@ describe("importEntriesFromCsv — error handling", () => {
     expect(() =>
       importEntriesFromCsv({ text: `${headers}\n${row}`, fiscalPeriodId: "fp-1" }),
     ).toThrow(/row 2: localId is required/);
+  });
+
+  it("throws when a CSV entry date is invalid", () => {
+    const headers = "localId,date,weekday,debit,debitType,debitAmount,credit,creditType,creditAmount,description,partner,businessRate,taxCategory,businessCategory";
+    const row = "bad-date,2026-13-01,月,現金,asset,1000,売上,revenue,1000,test,,,,";
+    expect(() =>
+      importEntriesFromCsv({ text: `${headers}\n${row}`, fiscalPeriodId: "fp-1" }),
+    ).toThrow(/row 2: invalid date \(2026-13-01\)/);
   });
 });

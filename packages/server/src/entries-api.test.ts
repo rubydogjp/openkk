@@ -18,6 +18,58 @@ import type {
 } from "@rubydogjp/openkk-server-ports";
 
 describe("openkk server entries API", () => {
+  it("rejects invalid entry dates before persisting", async () => {
+    const db = createEntryDb();
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(
+      server.entries.create("fp-1", {
+        date: "2026-02-29",
+        description: "不正日付の仕訳",
+        localId: "bad-date",
+        businessRate: 1,
+        lines: [
+          {
+            side: "debit",
+            bookAccountId: "acct_cash",
+            amount: 1000,
+            partnerName: "",
+            taxCategoryName: "tax_exempt",
+            businessCategoryName: "biz_none",
+          },
+        ],
+      }),
+    ).rejects.toThrow(/Entry date is invalid/);
+
+    expect(await server.entries.getAll("fp-1")).toEqual([]);
+  });
+
+  it("rejects invalid dates in bulk import before persisting", async () => {
+    const db = createEntryDb();
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(
+      server.entries.importMany("fp-1", [
+        {
+          date: "2026-04-01",
+          description: "valid",
+          localId: "valid",
+          businessRate: 1,
+          lines: [],
+        },
+        {
+          date: "2026-13-01",
+          description: "invalid",
+          localId: "invalid",
+          businessRate: 1,
+          lines: [],
+        },
+      ]),
+    ).rejects.toThrow(/Entry date is invalid/);
+
+    expect(await server.entries.getAll("fp-1")).toEqual([]);
+  });
+
   it("deletes an entry only when it belongs to the requested fiscal period", async () => {
     const db = createEntryDb();
     const server = createOpenkkServer(db, { userId: "user-1" });
