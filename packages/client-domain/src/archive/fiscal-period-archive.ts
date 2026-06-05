@@ -225,6 +225,11 @@ function readStoreZip(bytes: Uint8Array): Map<string, Uint8Array> {
         `archive zip entry checksum mismatch: ${name}`,
       );
     }
+    if (files.has(name)) {
+      throw invalidArchiveContentError(
+        `archive zip contains duplicate file: ${name}`,
+      );
+    }
     files.set(name, data);
     offset = dataEnd;
   }

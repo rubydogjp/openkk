@@ -30,6 +30,14 @@ export class AppError extends Error implements AppErrorLike {
     if (error instanceof AppError) {
       return error;
     }
+    if (isAppErrorLike(error)) {
+      return new AppError({
+        messageForDeveloper: error.messageForDeveloper,
+        messageForUser: error.messageForUser,
+        originalMessage: error.originalMessage,
+        statusCode: error.statusCode,
+      });
+    }
     return new AppError({
       messageForDeveloper:
         options.fallbackDeveloperMessage ??
@@ -93,6 +101,9 @@ function stringifyOriginalMessage(error: unknown): string | null {
   if (typeof error === "string") {
     return error.length === 0 ? null : error;
   }
+  if (error instanceof Error) {
+    return error.message || error.toString();
+  }
   if (Array.isArray(error) || isPlainObject(error)) {
     try {
       return JSON.stringify(error);
@@ -100,12 +111,20 @@ function stringifyOriginalMessage(error: unknown): string | null {
       return String(error);
     }
   }
-  if (error instanceof Error) {
-    return error.message || error.toString();
-  }
   return String(error);
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function isAppErrorLike(value: unknown): value is AppErrorLike {
+  if (!isPlainObject(value)) return false;
+  return (
+    typeof value.messageForDeveloper === "string" &&
+    typeof value.messageForUser === "string" &&
+    (typeof value.originalMessage === "string" ||
+      value.originalMessage === null) &&
+    (typeof value.statusCode === "number" || value.statusCode === null)
+  );
 }

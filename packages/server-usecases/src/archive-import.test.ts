@@ -72,6 +72,76 @@ describe("normalizeArchiveImportInput", () => {
     expect((error as AppError).messageForUser).toContain("入力内容");
     expect((error as AppError).statusCode).toBe(400);
   });
+
+  it("rejects invalid fiscal period date ranges", () => {
+    const input = validArchiveInput();
+    input.fiscalPeriod.startDate = "2027-01-01";
+
+    const error = captureError(() => normalizeArchiveImportInput(input, "user-1"));
+
+    expect(error).toBeInstanceOf(AppError);
+    expect((error as AppError).messageForDeveloper).toContain(
+      "archive fiscalPeriod start date must be on or before end date",
+    );
+  });
+
+  it("rejects invalid archived entry dates", () => {
+    const input = validArchiveInput();
+    input.entries[0]!.date = "2026-02-29";
+
+    const error = captureError(() => normalizeArchiveImportInput(input, "user-1"));
+
+    expect(error).toBeInstanceOf(AppError);
+    expect((error as AppError).messageForDeveloper).toContain(
+      "archive entry.date is invalid",
+    );
+  });
+
+  it("rejects malformed top-level archive collections", () => {
+    const input = validArchiveInput();
+    (input as unknown as { entries: unknown }).entries = undefined;
+
+    const error = captureError(() => normalizeArchiveImportInput(input, "user-1"));
+
+    expect(error).toBeInstanceOf(AppError);
+    expect((error as AppError).messageForDeveloper).toContain(
+      "archive entries must be an array",
+    );
+  });
+
+  it("rejects non-object items in archive collections", () => {
+    const input = validArchiveInput();
+    (input.entries as unknown[])[0] = null;
+
+    const error = captureError(() => normalizeArchiveImportInput(input, "user-1"));
+
+    expect(error).toBeInstanceOf(AppError);
+    expect((error as AppError).messageForDeveloper).toContain(
+      "archive entry must be an object",
+    );
+  });
+
+  it("rejects invalid fixed asset values", () => {
+    const input = validArchiveInput();
+    input.fixedAssets[0]!.usefulLife = 0;
+
+    const error = captureError(() => normalizeArchiveImportInput(input, "user-1"));
+
+    expect(error).toBeInstanceOf(AppError);
+    expect((error as AppError).messageForDeveloper).toContain(
+      "archive fixedAsset.usefulLife must be a positive integer",
+    );
+  });
+
+  it("allows empty fixed asset disposal date as unset", () => {
+    const input = validArchiveInput();
+    input.fixedAssets[0]!.status = "active";
+    input.fixedAssets[0]!.disposalDate = "";
+
+    const normalized = normalizeArchiveImportInput(input, "user-1");
+
+    expect(normalized.fixedAssets[0]?.patchInput).toEqual({});
+  });
 });
 
 function captureError(fn: () => unknown): unknown {

@@ -97,6 +97,29 @@ describe("fiscal period archive", () => {
     expect((error as AppError).messageForUser).toContain("破損");
   });
 
+  it("rejects archives with duplicate zip entries", () => {
+    const payload = buildFiscalPeriodArchivePayload({
+      createdAt: "2026-06-05T00:00:00.000Z",
+      fiscalPeriod: {
+        id: "fp-1",
+        name: "2026年分",
+        startDate: "2026-01-01",
+        endDate: "2026-12-31",
+      },
+      entries: [],
+      fixedAssets: [],
+      closings: [],
+    });
+    const zip = createFiscalPeriodArchiveZip(payload);
+    const duplicated = duplicateFirstLocalZipEntry(zip);
+
+    const error = captureError(() => readFiscalPeriodArchiveZip(duplicated));
+
+    expect(error).toBeInstanceOf(AppError);
+    expect((error as AppError).messageForDeveloper).toContain("duplicate");
+    expect((error as AppError).messageForUser).toContain("内容を確認");
+  });
+
   it("builds a safe zip filename", () => {
     expect(
       buildFiscalPeriodArchiveFilename({
@@ -155,4 +178,26 @@ function findBytePattern(haystack: Uint8Array, needle: Uint8Array): number {
     if (matched) return index;
   }
   return -1;
+}
+
+function duplicateFirstLocalZipEntry(zip: Uint8Array): Uint8Array {
+  const view = new DataView(zip.buffer, zip.byteOffset);
+  const compressedSize = view.getUint32(18, true);
+  const nameLength = view.getUint16(26, true);
+  const extraLength = view.getUint16(28, true);
+  const localEntryEnd = 30 + nameLength + extraLength + compressedSize;
+  const centralDirectoryOffset = findBytePattern(
+    zip,
+    new Uint8Array([0x50, 0x4b, 0x01, 0x02]),
+  );
+  expect(centralDirectoryOffset).toBeGreaterThan(localEntryEnd);
+
+  const output = new Uint8Array(zip.length + localEntryEnd);
+  output.set(zip.slice(0, centralDirectoryOffset), 0);
+  output.set(zip.slice(0, localEntryEnd), centralDirectoryOffset);
+  output.set(
+    zip.slice(centralDirectoryOffset),
+    centralDirectoryOffset + localEntryEnd,
+  );
+  return output;
 }
