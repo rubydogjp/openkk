@@ -46,6 +46,7 @@ export function EntriesPage() {
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (period) => period.id === appState.currentFiscalPeriodId,
   );
+  const fiscalPeriodId = appState.currentFiscalPeriodId ?? "";
   // 表示月の初期値は「今日の月」(config.today)。demo/dev は mock 時計、prod は実日付。
   const today = openkkConfig.today;
   const [displayedMonth, setDisplayedMonth] = useState<YearMonthValue>(() =>
@@ -84,6 +85,12 @@ export function EntriesPage() {
   ]);
 
   useEffect(() => {
+    setNewEntryDraft((current) =>
+      current == null || current.fiscalPeriodId === fiscalPeriodId ? current : null,
+    );
+  }, [fiscalPeriodId]);
+
+  useEffect(() => {
     if (statusMessage == null) return;
     const timer = setTimeout(() => setStatusMessage(null), 4500);
     return () => clearTimeout(timer);
@@ -101,7 +108,6 @@ export function EntriesPage() {
   const canGoNext =
     periodEndMonth == null ||
     compareYearMonth(displayedMonth, periodEndMonth) < 0;
-  const fiscalPeriodId = appState.currentFiscalPeriodId ?? "";
   const yearMonth = formatYearMonth(displayedMonth);
   const lockedMessage = buildPeriodLockMessage(
     currentFiscalPeriod,

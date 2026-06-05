@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   useOpenkkAppState,
@@ -30,6 +30,7 @@ export function FixedAssetsPage() {
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (p) => p.id === appState.currentFiscalPeriodId,
   );
+  const fiscalPeriodId = appState.currentFiscalPeriodId ?? "";
   const lockMessage = buildPeriodLockMessage(currentFiscalPeriod);
   const isReadOnlyPeriod =
     currentFiscalPeriod?.stage === "post_closing" ||
@@ -39,6 +40,12 @@ export function FixedAssetsPage() {
   const drawerAssetId = searchParams.get("asset");
   const drawerAsset =
     drawerAssetId == null ? null : assistState.getFixedAsset(drawerAssetId);
+
+  useEffect(() => {
+    setNewAssetDraft((current) =>
+      current == null || current.fiscalPeriodId === fiscalPeriodId ? current : null,
+    );
+  }, [fiscalPeriodId]);
 
   const navigateWithAssetParam = useCallback(
     (assetId: string | null) => {
@@ -79,6 +86,7 @@ export function FixedAssetsPage() {
                 navigateWithAssetParam(null);
                 setNewAssetDraft(
                   buildNewFixedAssetDraft(
+                    fiscalPeriodId,
                     currentFiscalPeriod?.startDate ?? null,
                     openkkConfig.today,
                   ),
@@ -132,12 +140,14 @@ export function FixedAssetsPage() {
 }
 
 function buildNewFixedAssetDraft(
+  fiscalPeriodId: string,
   periodStartDate: string | null,
   today: Date,
 ): FixedAssetPreviewItem {
   const acquisitionDate = periodStartDate ?? formatLocalDate(today);
   return {
     id: "__new_fixed_asset__",
+    fiscalPeriodId,
     name: "",
     account: "工具器具備品",
     period: "",
