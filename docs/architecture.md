@@ -5,7 +5,8 @@
 ## 全体構造
 
 16 パッケージを「client」「server」「adapters」「composition roots」の 4 グループに分類する。
-詳細な依存グラフは [`dependency-graph.md`](./dependency-graph.md) を参照。
+依存グラフ: [`dependency-graph.md`](./dependency-graph.md)
+API 契約: [`api-contract.md`](./api-contract.md)
 
 ```
 packages/
@@ -46,7 +47,7 @@ packages/
 | `OpenkkBackendPort` | `client-ports` | `embedded-backend-adapter` |
 | `PrintPort` | `client-ports` | `print-adapter` |
 
-HTTP バックエンドを使いたい場合は `embedded-backend-adapter` と同じ位置に独自 adapter を実装して差し替える。
+HTTP バックエンドは `embedded-backend-adapter` と同じ位置で差し替える。
 
 ### 3. 4 層依存方向
 

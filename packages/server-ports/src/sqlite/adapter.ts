@@ -5,8 +5,11 @@ import {
 } from "@rubydogjp/openkk-server-domain";
 import type {
   ClosingApiRecord,
+  EntryDbRecord,
   EntryApiRecord,
+  FiscalPeriodDbRecord,
   FiscalPeriodApiRecord,
+  FixedAssetDbRecord,
   FixedAssetApiRecord,
   MasterBookAccount,
   MasterBusinessCategory,
@@ -28,9 +31,9 @@ export interface SqlDb {
 }
 
 export type DbSnapshot = {
-  fiscalPeriods: Array<{ userId: string; record: FiscalPeriodApiRecord }>;
-  entries: EntryApiRecord[];
-  fixedAssets: FixedAssetApiRecord[];
+  fiscalPeriods: Array<{ userId: string; record: FiscalPeriodDbRecord }>;
+  entries: EntryDbRecord[];
+  fixedAssets: FixedAssetDbRecord[];
   closings: Array<{
     fiscalPeriodId: string;
     year: number;

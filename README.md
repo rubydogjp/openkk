@@ -31,6 +31,8 @@ npx playwright test --config e2e/playwright.config.ts
 
 詳細は [`docs/`](./docs/) を参照してください。
 
+API 契約: [`docs/api-contract.md`](./docs/api-contract.md)
+
 ## ライセンス
 
 [Apache License 2.0](./LICENSE) — Copyright 2026 Rubydog

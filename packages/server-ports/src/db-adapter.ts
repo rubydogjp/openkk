@@ -1,17 +1,17 @@
 import type {
-  ClosingApiRecord,
-  EntryApiRecord,
-  EntryUpsertInput,
-  FiscalPeriodApiRecord,
   FiscalPeriodArchiveDbImportInput,
-  FiscalPeriodCreateInput,
-  FiscalPeriodPatchInput,
-  FixedAssetApiRecord,
-  FixedAssetCreateInput,
-  FixedAssetPatchInput,
-  MasterBookAccount,
-  MasterBusinessCategory,
-  MasterTaxCategory,
+  ClosingDbRecord,
+  EntryDbRecord,
+  EntryDbUpsertInput,
+  FiscalPeriodDbCreateInput,
+  FiscalPeriodDbPatchInput,
+  FiscalPeriodDbRecord,
+  FixedAssetDbCreateInput,
+  FixedAssetDbPatchInput,
+  FixedAssetDbRecord,
+  MasterBookAccountDbRecord,
+  MasterBusinessCategoryDbRecord,
+  MasterTaxCategoryDbRecord,
 } from "./types";
 
 export interface OpenkkDbPort {
@@ -23,36 +23,36 @@ export interface OpenkkDbPort {
 }
 
 export interface FiscalPeriodsDb {
-  getAllByUser(userId: string): Promise<FiscalPeriodApiRecord[]>;
-  getById(id: string): Promise<FiscalPeriodApiRecord | null>;
+  getAllByUser(userId: string): Promise<FiscalPeriodDbRecord[]>;
+  getById(id: string): Promise<FiscalPeriodDbRecord | null>;
   create(
     userId: string,
-    input: FiscalPeriodCreateInput,
-  ): Promise<FiscalPeriodApiRecord>;
+    input: FiscalPeriodDbCreateInput,
+  ): Promise<FiscalPeriodDbRecord>;
   importArchived(
     userId: string,
     input: FiscalPeriodArchiveDbImportInput,
-  ): Promise<FiscalPeriodApiRecord>;
+  ): Promise<FiscalPeriodDbRecord>;
   update(
     id: string,
-    patch: FiscalPeriodPatchInput,
-  ): Promise<FiscalPeriodApiRecord>;
+    patch: FiscalPeriodDbPatchInput,
+  ): Promise<FiscalPeriodDbRecord>;
   delete(id: string): Promise<void>;
 }
 
 export interface EntriesDb {
-  getAll(fiscalPeriodId: string): Promise<EntryApiRecord[]>;
+  getAll(fiscalPeriodId: string): Promise<EntryDbRecord[]>;
   getByMonth(
     fiscalPeriodId: string,
     yearMonth: string,
-  ): Promise<EntryApiRecord[]>;
-  getById(id: string): Promise<EntryApiRecord | null>;
+  ): Promise<EntryDbRecord[]>;
+  getById(id: string): Promise<EntryDbRecord | null>;
   create(
     userId: string,
     fiscalPeriodId: string,
-    input: EntryUpsertInput,
-  ): Promise<EntryApiRecord>;
-  update(id: string, input: EntryUpsertInput): Promise<EntryApiRecord>;
+    input: EntryDbUpsertInput,
+  ): Promise<EntryDbRecord>;
+  update(id: string, input: EntryDbUpsertInput): Promise<EntryDbRecord>;
   delete(id: string): Promise<void>;
   /**
    * Idempotent on `localId`: inputs whose `localId` already exists in the
@@ -61,29 +61,29 @@ export interface EntriesDb {
   importMany(
     userId: string,
     fiscalPeriodId: string,
-    entries: EntryUpsertInput[],
-  ): Promise<EntryApiRecord[]>;
+    entries: EntryDbUpsertInput[],
+  ): Promise<EntryDbRecord[]>;
 }
 
 export interface FixedAssetsDb {
   getAllByFiscalPeriod(
     fiscalPeriodId: string,
-  ): Promise<FixedAssetApiRecord[]>;
-  getById(id: string): Promise<FixedAssetApiRecord | null>;
+  ): Promise<FixedAssetDbRecord[]>;
+  getById(id: string): Promise<FixedAssetDbRecord | null>;
   create(
     userId: string,
     fiscalPeriodId: string,
-    input: FixedAssetCreateInput,
-  ): Promise<FixedAssetApiRecord>;
+    input: FixedAssetDbCreateInput,
+  ): Promise<FixedAssetDbRecord>;
   update(
     id: string,
-    patch: FixedAssetPatchInput,
-  ): Promise<FixedAssetApiRecord>;
+    patch: FixedAssetDbPatchInput,
+  ): Promise<FixedAssetDbRecord>;
   delete(id: string): Promise<void>;
 }
 
 export interface ClosingsDb {
-  get(fiscalPeriodId: string, year: number): Promise<ClosingApiRecord | null>;
+  get(fiscalPeriodId: string, year: number): Promise<ClosingDbRecord | null>;
   upsert(
     fiscalPeriodId: string,
     year: number,
@@ -93,7 +93,7 @@ export interface ClosingsDb {
 }
 
 export interface MasterDataDb {
-  getAllBookAccounts(): Promise<MasterBookAccount[]>;
-  getAllTaxCategories(): Promise<MasterTaxCategory[]>;
-  getAllBusinessCategories(): Promise<MasterBusinessCategory[]>;
+  getAllBookAccounts(): Promise<MasterBookAccountDbRecord[]>;
+  getAllTaxCategories(): Promise<MasterTaxCategoryDbRecord[]>;
+  getAllBusinessCategories(): Promise<MasterBusinessCategoryDbRecord[]>;
 }

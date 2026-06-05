@@ -1,5 +1,15 @@
+export type OpenkkApiErrorDto = {
+  messageForDeveloper: string;
+  messageForUser: string;
+  originalMessage: string | null;
+  statusCode: number | null;
+};
+
+export type StartAuthSessionRequest = { redirectUrl: string };
 export type StartAuthSessionResponse = { authUrl: string };
+export type CompleteAuthSessionRequest = { state: string; code: string };
 export type CompleteAuthSessionResponse = { completionCode: string };
+export type RedeemCompletionCodeRequest = { completionCode: string };
 export type CreateTokenResponse = { userId: string };
 
 export type ClosingApiRecord = {
@@ -180,6 +190,77 @@ export type MasterTaxCategory = {
 export type MasterBusinessCategory = {
   id: string;
   name: string;
+};
+
+export type ClosingGetRequest = { fiscalPeriodId: string; year: number };
+export type ClosingGetResponse = { closing: ClosingApiRecord | null };
+export type ClosingRunRequest = {
+  fiscalPeriodId: string;
+  year: number;
+  isProvisional: boolean;
+};
+export type ClosingCancelRequest = { fiscalPeriodId: string; year: number };
+
+export type EntriesGetAllRequest = { fiscalPeriodId: string };
+export type EntriesGetAllResponse = { entries: EntryApiRecord[] };
+export type EntryCreateRequest = {
+  fiscalPeriodId: string;
+  input: EntryUpsertInput;
+};
+export type EntryCreateResponse = { entry: EntryApiRecord };
+export type EntryPatchRequest = {
+  fiscalPeriodId: string;
+  id: string;
+  input: EntryUpsertInput;
+};
+export type EntryPatchResponse = { entry: EntryApiRecord };
+export type EntryRemoveRequest = { fiscalPeriodId: string; id: string };
+export type EntryImportManyRequest = {
+  fiscalPeriodId: string;
+  entries: EntryUpsertInput[];
+};
+export type EntryImportManyResponse = {
+  importedCount: number;
+  entries: EntryApiRecord[];
+};
+
+export type FiscalPeriodsGetAllResponse = {
+  fiscalPeriods: FiscalPeriodApiRecord[];
+};
+export type FiscalPeriodCreateRequest = { input: FiscalPeriodCreateInput };
+export type FiscalPeriodCreateResponse = { fiscalPeriod: FiscalPeriodApiRecord };
+export type FiscalPeriodImportArchivedRequest = {
+  input: FiscalPeriodArchiveImportInput;
+};
+export type FiscalPeriodImportArchivedResponse = {
+  fiscalPeriod: FiscalPeriodApiRecord;
+};
+export type FiscalPeriodPatchRequest = {
+  id: string;
+  input: FiscalPeriodPatchInput;
+};
+export type FiscalPeriodPatchResponse = { fiscalPeriod: FiscalPeriodApiRecord };
+export type FiscalPeriodRemoveRequest = { id: string };
+
+export type FixedAssetsGetAllRequest = { fiscalPeriodId: string };
+export type FixedAssetsGetAllResponse = { fixedAssets: FixedAssetApiRecord[] };
+export type FixedAssetCreateRequest = {
+  fiscalPeriodId: string;
+  input: FixedAssetCreateInput;
+};
+export type FixedAssetCreateResponse = { fixedAsset: FixedAssetApiRecord };
+export type FixedAssetPatchRequest = {
+  fiscalPeriodId: string;
+  id: string;
+  input: FixedAssetPatchInput;
+};
+export type FixedAssetPatchResponse = { fixedAsset: FixedAssetApiRecord };
+export type FixedAssetDeleteRequest = { fiscalPeriodId: string; id: string };
+
+export type MasterBookAccountsResponse = { bookAccounts: MasterBookAccount[] };
+export type MasterTaxCategoriesResponse = { taxCategories: MasterTaxCategory[] };
+export type MasterBusinessCategoriesResponse = {
+  businessCategories: MasterBusinessCategory[];
 };
 
 export interface AuthApi {

@@ -22,6 +22,9 @@ export class AppError extends Error implements AppErrorLike {
 
   static from(error: unknown, options: Partial<AppErrorLike> = {}): AppError {
     if (error instanceof AppError) return error;
+    if (isAppErrorLike(error)) {
+      return new AppError(error);
+    }
     return new AppError({
       messageForDeveloper:
         options.messageForDeveloper ??
@@ -32,6 +35,26 @@ export class AppError extends Error implements AppErrorLike {
         options.originalMessage ?? stringifyOriginalMessage(error),
       statusCode: options.statusCode ?? null,
     });
+  }
+
+  static fromJson(json: Record<string, unknown>): AppError {
+    return new AppError({
+      messageForDeveloper: String(json.messageForDeveloper),
+      messageForUser: String(json.messageForUser),
+      originalMessage:
+        typeof json.originalMessage === "string" ? json.originalMessage : null,
+      statusCode:
+        typeof json.statusCode === "number" ? json.statusCode : null,
+    });
+  }
+
+  toJson(): AppErrorLike {
+    return {
+      messageForDeveloper: this.messageForDeveloper,
+      messageForUser: this.messageForUser,
+      originalMessage: this.originalMessage,
+      statusCode: this.statusCode,
+    };
   }
 }
 
@@ -77,4 +100,17 @@ function stringifyOriginalMessage(error: unknown): string | null {
   } catch {
     return String(error);
   }
+}
+
+function isAppErrorLike(value: unknown): value is AppErrorLike {
+  if (typeof value !== "object" || value == null) return false;
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.messageForDeveloper === "string" &&
+    typeof candidate.messageForUser === "string" &&
+    (typeof candidate.originalMessage === "string" ||
+      candidate.originalMessage === null) &&
+    (typeof candidate.statusCode === "number" ||
+      candidate.statusCode === null)
+  );
 }
