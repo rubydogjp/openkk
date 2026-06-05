@@ -10,6 +10,7 @@ function period(overrides: Partial<FiscalPeriod> = {}): FiscalPeriod {
     startDate: "2026-01-01",
     endDate: "2026-12-31",
     stage: "journalizing",
+    archived: false,
     provisionalClosingCompleted: false,
     settingsCompleted: true,
     openingBalancesCompleted: true,
@@ -36,6 +37,10 @@ describe("isJournalingActive", () => {
 
   it("returns false when provisionally closed", () => {
     expect(isJournalingActive(period({ stage: "journalizing", provisionalClosingCompleted: true }))).toBe(false);
+  });
+
+  it("returns false when archived", () => {
+    expect(isJournalingActive(period({ archived: true }))).toBe(false);
   });
 
   it("returns true when journalizing and not provisionally closed", () => {
@@ -67,6 +72,11 @@ describe("buildPeriodLockMessage", () => {
   it("returns locked message when provisionally closed", () => {
     const msg = buildPeriodLockMessage(period({ stage: "journalizing", provisionalClosingCompleted: true }));
     expect(msg).not.toBeNull();
+  });
+
+  it("returns locked message when archived", () => {
+    const msg = buildPeriodLockMessage(period({ archived: true }));
+    expect(msg?.description).toContain("圧縮保存済み");
   });
 
   it("returns null (unlocked) when journalizing and not closed", () => {

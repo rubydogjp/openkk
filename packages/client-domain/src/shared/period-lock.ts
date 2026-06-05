@@ -4,6 +4,7 @@ export function isJournalingActive(
   period: FiscalPeriod | null | undefined,
 ): boolean {
   if (period == null) return false;
+  if (period.archived) return false;
   if (period.stage !== "journalizing") return false;
   if (period.provisionalClosingCompleted) return false;
   return true;
@@ -17,6 +18,12 @@ export function buildPeriodLockMessage(
 ): PeriodLockMessage | null {
   if (period == null) {
     return { title: "ロックされています", description: "期間が未選択です" };
+  }
+  if (period.archived) {
+    return {
+      title: "圧縮保存済みです",
+      description: "圧縮保存済みの会計期間は編集できません",
+    };
   }
   if (period.stage === "pre_opening") {
     return {

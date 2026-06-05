@@ -13,7 +13,6 @@ export function deriveSteps(input: {
   hasAnyClosing: boolean;
   hasFinalClosing: boolean;
   hasReceivedDocuments: boolean;
-  hasNextFiscalPeriod: boolean;
 }): StepItem[] {
   const statuses = deriveContiguousStepStatuses([
     input.settingsCompleted,
@@ -21,7 +20,7 @@ export function deriveSteps(input: {
     input.hasAnyClosing,
     input.hasFinalClosing,
     input.hasReceivedDocuments,
-    input.hasNextFiscalPeriod,
+    false,
   ]);
   return [
     { no: 1, title: "期間を開始", subtitle: "名称や期間などの基本データをセットアップ", status: statuses[0]! },

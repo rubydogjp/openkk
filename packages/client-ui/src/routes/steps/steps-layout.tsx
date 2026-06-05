@@ -15,6 +15,7 @@ import {
 } from "@rubydogjp/openkk-client-domain";
 import { normalizePathname } from "../../shared/pathname";
 import { StepsPageScreen } from "../../steps/step-page-screen";
+import { ArchivedFiscalPeriodScreen } from "./archived-fiscal-period-screen";
 
 const STEPPER_PASSTHROUGH_PATHS = new Set<string>([
   "/steps/journalizing/analytics",
@@ -23,7 +24,6 @@ const STEPPER_PASSTHROUGH_PATHS = new Set<string>([
 export function StepsLayout({ children }: { children: React.ReactNode }) {
   const pathname = normalizePathname(usePathname());
   if (STEPPER_PASSTHROUGH_PATHS.has(pathname)) {
-
     return <>{children}</>;
   }
 
@@ -43,10 +43,13 @@ function StepsStepperHost() {
     if (
       openkkConfig.isMockMode ||
       currentFiscalPeriod == null ||
+      currentFiscalPeriod.archived ||
       appState.currentFiscalPeriodId == null
     ) {
+      setHasAnyClosingRemote(false);
       return;
     }
+    setHasAnyClosingRemote(false);
     let cancelled = false;
     void (async () => {
       try {
@@ -63,8 +66,11 @@ function StepsStepperHost() {
     };
   }, [
     appState.currentFiscalPeriodId,
+    closingApi,
     currentFiscalPeriod?.endDate,
+    currentFiscalPeriod?.archived,
     currentFiscalPeriod?.id,
+    openkkConfig.isMockMode,
   ]);
 
   if (currentFiscalPeriod == null) {
@@ -75,11 +81,9 @@ function StepsStepperHost() {
     );
   }
 
-  const currentPeriodEndYear = Number(currentFiscalPeriod.endDate.slice(0, 4));
-  const hasNextFiscalPeriod = appState.fiscalPeriods.some((period) => {
-    if (period.id === currentFiscalPeriod.id) return false;
-    return Number(period.endDate.slice(0, 4)) === currentPeriodEndYear + 1;
-  });
+  if (currentFiscalPeriod.archived) {
+    return <ArchivedFiscalPeriodScreen fiscalPeriod={currentFiscalPeriod} />;
+  }
 
   const steps = deriveSteps({
     settingsCompleted: currentFiscalPeriod.settingsCompleted,
@@ -90,7 +94,6 @@ function StepsStepperHost() {
       : hasAnyClosingRemote || currentFiscalPeriod.stage === "post_closing",
     hasFinalClosing: currentFiscalPeriod.stage === "post_closing",
     hasReceivedDocuments: currentFiscalPeriod.documentsReceivedCompleted,
-    hasNextFiscalPeriod,
   });
 
   return (

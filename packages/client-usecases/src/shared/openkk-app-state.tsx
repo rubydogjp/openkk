@@ -9,7 +9,9 @@ import {
   type ReactNode,
 } from "react";
 
-import type { FiscalPeriodApiRecord } from "@rubydogjp/openkk-client-ports";
+import type {
+  FiscalPeriodApiRecord,
+} from "@rubydogjp/openkk-client-ports";
 import {
   parseAmount,
   parseBusinessRate,
@@ -25,6 +27,7 @@ import {
   DEFAULT_BUSINESS_CATEGORIES,
   DEFAULT_TAX_CATEGORIES,
   type EntryRecord,
+  type FiscalPeriodArchivePayload,
 } from "@rubydogjp/openkk-client-domain";
 import type {
   FiscalPeriod,
@@ -44,6 +47,9 @@ type OpenkkAppState = {
     startDate: string;
     endDate: string;
   }, options?: { select?: boolean }) => Promise<string | null>;
+  importArchivedFiscalPeriod: (
+    payload: FiscalPeriodArchivePayload,
+  ) => Promise<string | null>;
   updateFiscalPeriod: (
     fiscalPeriodId: string,
     input: Partial<{
@@ -51,6 +57,7 @@ type OpenkkAppState = {
       startDate: string;
       endDate: string;
       stage: FiscalPeriodStage;
+      archived: boolean;
       provisionalClosingCompleted: boolean;
       settingsCompleted: boolean;
       openingBalancesCompleted: boolean;
@@ -112,7 +119,14 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
       try {
         const periods = await backendApi.fiscalPeriod.getAll();
         if (cancelled) return;
-        setFiscalPeriods(periods.map(mapRemoteFiscalPeriod));
+        const mapped = periods.map(mapRemoteFiscalPeriod);
+        setFiscalPeriods(mapped);
+        setCurrentFiscalPeriodId((current) => {
+          if (current == null || current === "") return current;
+          return mapped.some((period) => period.id === current)
+            ? current
+            : buildSignedOutFiscalPeriodId(config);
+        });
       } catch {
         if (cancelled) return;
       }
@@ -120,7 +134,7 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [sessionUserId]);
+  }, [backendApi, config, sessionUserId]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -182,6 +196,11 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
         }
         return final.id;
       },
+      async importArchivedFiscalPeriod(payload) {
+        const imported = await backendApi.fiscalPeriod.importArchived(payload);
+        setFiscalPeriods((current) => [...current, mapRemoteFiscalPeriod(imported)]);
+        return imported.id;
+      },
       async updateFiscalPeriod(fiscalPeriodId, input) {
 
         const effectiveStage = resolveFiscalPeriodPatchStage(input);
@@ -190,6 +209,7 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
           startDate: input.startDate,
           endDate: input.endDate,
           stage: effectiveStage,
+          archived: input.archived,
           settingsCompleted: input.settingsCompleted,
           openingBalancesCompleted: input.openingBalancesCompleted,
           documentsReceivedCompleted: input.documentsReceivedCompleted,
@@ -266,6 +286,7 @@ function mapRemoteFiscalPeriod(period: FiscalPeriodApiRecord): FiscalPeriod {
     startDate: period.startDate,
     endDate: period.endDate,
     stage: period.stage,
+    archived: period.archived ?? false,
     provisionalClosingCompleted: period.stage === "post_closing",
     settingsCompleted: period.settingsCompleted,
     openingBalancesCompleted: period.openingBalancesCompleted,

@@ -3,6 +3,7 @@ import type {
   EntryApiRecord,
   EntryUpsertInput,
   FiscalPeriodApiRecord,
+  FiscalPeriodArchiveDbImportInput,
   FiscalPeriodCreateInput,
   FiscalPeriodPatchInput,
   FixedAssetApiRecord,
@@ -27,6 +28,10 @@ export interface FiscalPeriodsDb {
   create(
     userId: string,
     input: FiscalPeriodCreateInput,
+  ): Promise<FiscalPeriodApiRecord>;
+  importArchived(
+    userId: string,
+    input: FiscalPeriodArchiveDbImportInput,
   ): Promise<FiscalPeriodApiRecord>;
   update(
     id: string,

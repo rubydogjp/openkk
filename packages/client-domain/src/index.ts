@@ -18,6 +18,8 @@ export * from "./assist/fixed-asset-data";
 export * from "./assist/fixed-asset-depreciation";
 export * from "./assist/opening-carryover";
 
+export * from "./archive/fiscal-period-archive";
+
 export * from "./steps/period-check";
 export * from "./steps/step-derivation";
 export * from "./steps/step-trend";

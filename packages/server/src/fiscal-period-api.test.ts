@@ -6,6 +6,7 @@ import type {
   EntryApiRecord,
   EntryUpsertInput,
   FiscalPeriodApiRecord,
+  FiscalPeriodArchiveDbImportInput,
   FiscalPeriodCreateInput,
   FiscalPeriodPatchInput,
   FixedAssetApiRecord,
@@ -68,6 +69,51 @@ describe("openkk server fiscal period API", () => {
       "2026-01-01",
     );
   });
+
+  it("rejects patches to archived fiscal periods", async () => {
+    const db = createFiscalPeriodDb([
+      fiscalPeriod({ id: "fp-archived", userId: "user-1", archived: true }),
+    ]);
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(
+      server.fiscalPeriod.patch("fp-archived", { name: "updated" }),
+    ).rejects.toThrow(/Archived fiscal period fp-archived cannot be updated/);
+
+    expect((await db.fiscalPeriods.getById("fp-archived"))?.name).toBe(
+      "2026年分",
+    );
+  });
+
+  it("imports archived fiscal periods as a new owned archived period", async () => {
+    const db = createFiscalPeriodDb([]);
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    const imported = await server.fiscalPeriod.importArchived({
+      manifest: { fiscalPeriodId: "fp-source" },
+      fiscalPeriod: {
+        id: "fp-source",
+        name: "Archived",
+        startDate: "2026-01-01",
+        endDate: "2026-12-31",
+        stage: "post_closing",
+        settingsCompleted: true,
+        openingBalancesCompleted: true,
+        documentsReceivedCompleted: true,
+        opening: null,
+      },
+      entries: [],
+      fixedAssets: [],
+      closings: [],
+    });
+
+    expect(imported).toMatchObject({
+      name: "Archived",
+      archived: true,
+      stage: "post_closing",
+    });
+    expect(await db.fiscalPeriods.getAllByUser("user-1")).toEqual([imported]);
+  });
 });
 
 function createFiscalPeriodDb(seed: StoredFiscalPeriodApiRecord[]): OpenkkDbPort {
@@ -82,6 +128,18 @@ function createFiscalPeriodDb(seed: StoredFiscalPeriodApiRecord[]): OpenkkDbPort
       },
       async create(userId: string, input: FiscalPeriodCreateInput) {
         const record = fiscalPeriod({ id: `fp-${fiscalPeriods.size + 1}`, userId, ...input });
+        fiscalPeriods.set(record.id, record);
+        return record;
+      },
+      async importArchived(
+        userId: string,
+        input: FiscalPeriodArchiveDbImportInput,
+      ) {
+        const record = fiscalPeriod({
+          id: `fp-${fiscalPeriods.size + 1}`,
+          userId,
+          ...input.fiscalPeriod,
+        });
         fiscalPeriods.set(record.id, record);
         return record;
       },
@@ -165,6 +223,7 @@ function fiscalPeriod(
     startDate: "2026-01-01",
     endDate: "2026-12-31",
     stage: "journalizing",
+    archived: false,
     settingsCompleted: true,
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,

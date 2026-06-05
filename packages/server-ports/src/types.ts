@@ -41,6 +41,7 @@ export type FiscalPeriodApiRecord = {
   startDate: string;
   endDate: string;
   stage: "pre_opening" | "journalizing" | "post_closing";
+  archived: boolean;
   settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
@@ -82,6 +83,7 @@ export type FiscalPeriodPatchInput = Partial<{
   startDate: string;
   endDate: string;
   stage: "pre_opening" | "journalizing" | "post_closing";
+  archived: boolean;
   settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
@@ -111,6 +113,34 @@ export type FiscalPeriodPatchInput = Partial<{
     }>;
   };
 }>;
+
+export type FiscalPeriodArchiveImportInput = {
+  manifest: Record<string, unknown>;
+  fiscalPeriod: Record<string, unknown>;
+  entries: Array<Record<string, unknown>>;
+  fixedAssets: Array<Record<string, unknown>>;
+  closings: Array<Record<string, unknown>>;
+};
+
+export type FiscalPeriodArchiveDbImportInput = {
+  fiscalPeriod: {
+    name: string;
+    startDate: string;
+    endDate: string;
+    stage: "pre_opening" | "journalizing" | "post_closing";
+    archived: true;
+    settingsCompleted: boolean;
+    openingBalancesCompleted: boolean;
+    documentsReceivedCompleted: boolean;
+    opening?: FiscalPeriodPatchInput["opening"];
+  };
+  entries: EntryUpsertInput[];
+  fixedAssets: Array<{
+    createInput: FixedAssetCreateInput;
+    patchInput?: FixedAssetPatchInput;
+  }>;
+  closings: Array<{ year: number; isProvisional: boolean }>;
+};
 
 export type FixedAssetApiRecord = {
   id: string;
@@ -213,10 +243,14 @@ export interface EntriesApi {
 export interface FiscalPeriodApi {
   getAll(): Promise<FiscalPeriodApiRecord[]>;
   create(input: FiscalPeriodCreateInput): Promise<FiscalPeriodApiRecord>;
+  importArchived(
+    input: FiscalPeriodArchiveImportInput,
+  ): Promise<FiscalPeriodApiRecord>;
   patch(
     id: string,
     input: FiscalPeriodPatchInput,
   ): Promise<FiscalPeriodApiRecord>;
+  remove(id: string): Promise<void>;
 }
 
 export interface FixedAssetsApi {

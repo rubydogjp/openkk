@@ -41,6 +41,7 @@ function buildSeedFiscalPeriod(config: OpenkkConfig): FiscalPeriodApiRecord {
     startDate: "2026-01-01",
     endDate: "2026-12-31",
     stage: "pre_opening",
+    archived: false,
     settingsCompleted: false,
     openingBalancesCompleted: false,
     documentsReceivedCompleted: false,

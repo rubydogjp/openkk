@@ -15,6 +15,7 @@ export type FiscalPeriod = {
   startDate: string;
   endDate: string;
   stage: FiscalPeriodStage;
+  archived: boolean;
   provisionalClosingCompleted: boolean;
   settingsCompleted: boolean;
   openingBalancesCompleted: boolean;

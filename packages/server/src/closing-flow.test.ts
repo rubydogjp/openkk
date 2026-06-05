@@ -44,20 +44,43 @@ describe("openkk server closing flow", () => {
     await server.closing.cancel("fp-1", 2026);
     expect(await server.closing.get("fp-1", 2026)).toBeNull();
   });
+
+  it("rejects closing changes in archived fiscal periods", async () => {
+    const server = createOpenkkServer(createMemoryDb({ archived: true }), {
+      userId: "user-1",
+    });
+
+    await expect(
+      server.closing.run({
+        fiscalPeriodId: "fp-1",
+        year: 2026,
+        isProvisional: true,
+      }),
+    ).rejects.toThrow(/Archived fiscal period fp-1 cannot run closing/);
+
+    await expect(server.closing.cancel("fp-1", 2026)).rejects.toThrow(
+      /Archived fiscal period fp-1 cannot cancel closing/,
+    );
+  });
 });
 
-function createMemoryDb(): OpenkkDbPort {
+function createMemoryDb(
+  fiscalPeriodOverrides: Partial<FiscalPeriodApiRecord> = {},
+): OpenkkDbPort {
   const closings = new Map<string, ClosingApiRecord>();
   return {
     fiscalPeriods: {
       async getAllByUser() {
-        return [fiscalPeriod({ id: "fp-1" })];
+        return [fiscalPeriod({ id: "fp-1", ...fiscalPeriodOverrides })];
       },
       async getById() {
         return null;
       },
       async create(_userId: string, input: FiscalPeriodCreateInput) {
         return fiscalPeriod({ ...input, id: "fp-1" });
+      },
+      async importArchived() {
+        return fiscalPeriod({ id: "fp-archive", archived: true });
       },
       async update(id: string, patch: FiscalPeriodPatchInput) {
         return fiscalPeriod({ id, ...patch });
@@ -136,6 +159,7 @@ function fiscalPeriod(
     startDate: "2026-01-01",
     endDate: "2026-12-31",
     stage: "journalizing",
+    archived: false,
     settingsCompleted: true,
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,

@@ -123,6 +123,7 @@ function buildSampleFiscalPeriod2026(
     startDate: "2026-01-01",
     endDate: "2026-12-31",
     stage: isInProgress ? "journalizing" : "pre_opening",
+    archived: false,
     provisionalClosingCompleted: false,
     settingsCompleted: isInProgress,
     openingBalancesCompleted: isInProgress,

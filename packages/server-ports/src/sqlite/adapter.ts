@@ -128,7 +128,7 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         returnValue: "resultRows",
         rowMode: "array",
       }) as Array<[string]>;
-      return rows.map((row) => JSON.parse(row[0]) as FiscalPeriodApiRecord);
+      return rows.map((row) => parseFiscalPeriodRecord(row[0]));
     },
     async getById(id) {
       const rows = await db.exec({
@@ -138,7 +138,7 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         rowMode: "array",
       }) as Array<[string]>;
       const row = rows[0];
-      return row == null ? null : (JSON.parse(row[0]) as FiscalPeriodApiRecord);
+      return row == null ? null : parseFiscalPeriodRecord(row[0]);
     },
     async create(userId, input) {
       const id = newId("fp");
@@ -148,6 +148,7 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         startDate: input.startDate,
         endDate: input.endDate,
         stage: "pre_opening",
+        archived: false,
         settingsCompleted: false,
         openingBalancesCompleted: false,
         documentsReceivedCompleted: false,
@@ -160,6 +161,81 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       });
       return record;
     },
+    async importArchived(userId, input) {
+      const fiscalPeriodId = newId("fp");
+      const now = nowMs();
+      const opening =
+        input.fiscalPeriod.opening == null
+          ? null
+          : {
+              ...input.fiscalPeriod.opening,
+              id: `op-${fiscalPeriodId}`,
+              userId,
+              fiscalPeriodId,
+            };
+      const record: FiscalPeriodApiRecord = {
+        id: fiscalPeriodId,
+        name: input.fiscalPeriod.name,
+        startDate: input.fiscalPeriod.startDate,
+        endDate: input.fiscalPeriod.endDate,
+        stage: input.fiscalPeriod.stage,
+        archived: true,
+        settingsCompleted: input.fiscalPeriod.settingsCompleted,
+        openingBalancesCompleted: input.fiscalPeriod.openingBalancesCompleted,
+        documentsReceivedCompleted: input.fiscalPeriod.documentsReceivedCompleted,
+        opening,
+      };
+      await runInTransaction(db, async () => {
+        await db.exec({
+          sql: `INSERT INTO fiscal_periods(id, user_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
+          bind: [record.id, userId, JSON.stringify(record), now, now],
+        });
+        for (const inputEntry of input.entries) {
+          const id = newId("entry");
+          const entry: EntryApiRecord = {
+            id,
+            fiscalPeriodId,
+            date: inputEntry.date,
+            description: inputEntry.description,
+            localId: inputEntry.localId ?? "",
+            businessRate: inputEntry.businessRate,
+            lines: inputEntry.lines.map((line) => ({ ...line })),
+          };
+          await db.exec({
+            sql: `INSERT INTO entries(id, fiscal_period_id, date, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?)`,
+            bind: [id, fiscalPeriodId, entry.date, JSON.stringify(entry), now, now],
+          });
+        }
+        for (const assetInput of input.fixedAssets) {
+          const id = newId("fa");
+          const asset: FixedAssetApiRecord = {
+            id,
+            fiscalPeriodId,
+            name: assetInput.createInput.name,
+            acquisitionDate: assetInput.createInput.acquisitionDate,
+            acquisitionCost: assetInput.createInput.acquisitionCost,
+            usefulLife: assetInput.createInput.usefulLife,
+            depreciationMethod: assetInput.createInput.depreciationMethod,
+            businessRate: assetInput.createInput.businessRate,
+            status: assetInput.patchInput?.status ?? "active",
+            disposalDate: assetInput.patchInput?.disposalDate ?? "",
+            disposalPrice: assetInput.patchInput?.disposalPrice ?? 0,
+            bookAccountId: assetInput.createInput.bookAccountId,
+          };
+          await db.exec({
+            sql: `INSERT INTO fixed_assets(id, fiscal_period_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
+            bind: [id, fiscalPeriodId, JSON.stringify(asset), now, now],
+          });
+        }
+        for (const closing of input.closings) {
+          await db.exec({
+            sql: `INSERT OR REPLACE INTO closings(fiscal_period_id, year, is_provisional) VALUES(?, ?, ?)`,
+            bind: [fiscalPeriodId, closing.year, closing.isProvisional ? 1 : 0],
+          });
+        }
+      });
+      return record;
+    },
     async update(id, patch) {
       const rows = await db.exec({
         sql: `SELECT user_id, data FROM fiscal_periods WHERE id = ?`,
@@ -169,13 +245,14 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       }) as Array<[string, string]>;
       const row = rows[0];
       if (row == null) throw new Error(`fiscal period not found: ${id}`);
-      const existing = JSON.parse(row[1]) as FiscalPeriodApiRecord;
+      const existing = parseFiscalPeriodRecord(row[1]);
       const updated: FiscalPeriodApiRecord = {
         ...existing,
         ...(patch.name !== undefined ? { name: patch.name } : {}),
         ...(patch.startDate !== undefined ? { startDate: patch.startDate } : {}),
         ...(patch.endDate !== undefined ? { endDate: patch.endDate } : {}),
         ...(patch.stage !== undefined ? { stage: patch.stage } : {}),
+        ...(patch.archived !== undefined ? { archived: patch.archived } : {}),
         ...(patch.settingsCompleted !== undefined ? { settingsCompleted: patch.settingsCompleted } : {}),
         ...(patch.openingBalancesCompleted !== undefined ? { openingBalancesCompleted: patch.openingBalancesCompleted } : {}),
         ...(patch.documentsReceivedCompleted !== undefined ? { documentsReceivedCompleted: patch.documentsReceivedCompleted } : {}),
@@ -195,6 +272,16 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         await db.exec({ sql: `DELETE FROM fiscal_periods WHERE id = ?`, bind: [id] });
       });
     },
+  };
+}
+
+function parseFiscalPeriodRecord(json: string): FiscalPeriodApiRecord {
+  const parsed = JSON.parse(json) as FiscalPeriodApiRecord & {
+    archived?: boolean;
+  };
+  return {
+    ...parsed,
+    archived: parsed.archived ?? false,
   };
 }
 

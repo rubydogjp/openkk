@@ -106,6 +106,23 @@ describe("openkk server entries API", () => {
     expect(await server.entries.getAll("fp-1")).toEqual([]);
   });
 
+  it("rejects entry creation in archived fiscal periods", async () => {
+    const db = createEntryDb({ archived: true });
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(
+      server.entries.create("fp-1", {
+        date: "2026-04-01",
+        description: "archived",
+        localId: "archived-entry",
+        businessRate: 1,
+        lines: [],
+      }),
+    ).rejects.toThrow(/Archived fiscal period fp-1 cannot create entry/);
+
+    expect(await server.entries.getAll("fp-1")).toEqual([]);
+  });
+
   it("deletes an entry only when it belongs to the requested fiscal period", async () => {
     const db = createEntryDb();
     const server = createOpenkkServer(db, { userId: "user-1" });
@@ -136,18 +153,23 @@ describe("openkk server entries API", () => {
   });
 });
 
-function createEntryDb(): OpenkkDbPort {
+function createEntryDb(
+  fiscalPeriodOverrides: Partial<FiscalPeriodApiRecord> = {},
+): OpenkkDbPort {
   const entries = new Map<string, EntryApiRecord>();
   return {
     fiscalPeriods: {
       async getAllByUser() {
-        return [fiscalPeriod({ id: "fp-1" })];
+        return [fiscalPeriod({ id: "fp-1", ...fiscalPeriodOverrides })];
       },
       async getById() {
         return null;
       },
       async create(_userId: string, input: FiscalPeriodCreateInput) {
         return fiscalPeriod({ ...input, id: "fp-1" });
+      },
+      async importArchived() {
+        return fiscalPeriod({ id: "fp-archive", archived: true });
       },
       async update(id: string, patch: FiscalPeriodPatchInput) {
         return fiscalPeriod({ id, ...patch });
@@ -240,6 +262,7 @@ function fiscalPeriod(
     startDate: "2026-01-01",
     endDate: "2026-12-31",
     stage: "journalizing",
+    archived: false,
     settingsCompleted: true,
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,

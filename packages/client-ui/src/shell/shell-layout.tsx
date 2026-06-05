@@ -23,6 +23,7 @@ import {
 import { normalizePathname } from "../shared/pathname";
 // アプリ表示中に発火する beforeinstallprompt を早期に捕捉しておく（side-effect）。
 import "../shared/pwa-install";
+import { ArchivedFiscalPeriodScreen } from "../routes/steps/archived-fiscal-period-screen";
 import { FiscalPeriodsContent } from "./fiscal-periods-content";
 import { SignInContent } from "./sign-in-content";
 
@@ -68,7 +69,12 @@ const navItems: NavEntry[] = [
 const PICKER_URL = "/fiscal-periods";
 const CREATE_URL = "/fiscal-periods/new";
 
-type ContentMode = "loading" | "sign-in" | "fiscal-periods" | "normal";
+type ContentMode =
+  | "loading"
+  | "sign-in"
+  | "fiscal-periods"
+  | "archived"
+  | "normal";
 
 export function OpenkkShellLayout(props: { children: React.ReactNode }) {
   const pathname = normalizePathname(usePathname());
@@ -82,6 +88,13 @@ export function OpenkkShellLayout(props: { children: React.ReactNode }) {
   const hasPeriod =
     appState.currentFiscalPeriodId != null &&
     appState.currentFiscalPeriodId !== "";
+  const currentFiscalPeriod = appState.fiscalPeriods.find(
+    (p) => p.id === appState.currentFiscalPeriodId,
+  );
+  const isArchivedWorkspace =
+    currentFiscalPeriod?.archived === true &&
+    pathname !== PICKER_URL &&
+    pathname !== CREATE_URL;
 
   const contentMode: ContentMode = !appState.isReady
     ? "loading"
@@ -91,7 +104,9 @@ export function OpenkkShellLayout(props: { children: React.ReactNode }) {
         ? "fiscal-periods"
         : !hasPeriod && pathname !== CREATE_URL
           ? "fiscal-periods"
-          : "normal";
+          : isArchivedWorkspace
+            ? "archived"
+            : "normal";
 
   useEffect(() => {
     if (!appState.isReady) return;
@@ -100,6 +115,13 @@ export function OpenkkShellLayout(props: { children: React.ReactNode }) {
     if (pathname === PICKER_URL || pathname === CREATE_URL) return;
     router.replace(PICKER_URL);
   }, [appState.isReady, session, hasPeriod, pathname, router]);
+
+  useEffect(() => {
+    if (!appState.isReady) return;
+    if (session == null) return;
+    if (!isArchivedWorkspace) return;
+    if (pathname !== "/steps") router.replace("/steps");
+  }, [appState.isReady, isArchivedWorkspace, pathname, router, session]);
 
   if (contentMode === "loading") {
     return (
@@ -128,6 +150,8 @@ export function OpenkkShellLayout(props: { children: React.ReactNode }) {
         <SignInContent />
       ) : contentMode === "fiscal-periods" ? (
         <FiscalPeriodsContent />
+      ) : contentMode === "archived" && currentFiscalPeriod != null ? (
+        <ArchivedFiscalPeriodScreen fiscalPeriod={currentFiscalPeriod} />
       ) : (
         props.children
       )}

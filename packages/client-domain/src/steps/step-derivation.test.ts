@@ -5,12 +5,12 @@ import { deriveSteps } from "./step-derivation";
 describe("deriveSteps", () => {
   it("keeps exactly one current step before all steps are done", () => {
     const cases = [
-      [false, false, false, false, false, false],
-      [true, false, false, false, false, false],
-      [true, true, false, false, false, false],
-      [true, true, true, false, false, false],
-      [true, true, true, true, false, false],
-      [true, true, true, true, true, false],
+      [false, false, false, false, false],
+      [true, false, false, false, false],
+      [true, true, false, false, false],
+      [true, true, true, false, false],
+      [true, true, true, true, false],
+      [true, true, true, true, true],
     ];
 
     for (const flags of cases) {
@@ -21,7 +21,7 @@ describe("deriveSteps", () => {
   });
 
   it("marks later steps todo after the first incomplete step", () => {
-    const steps = deriveFromFlags([true, false, true, true, true, true]);
+    const steps = deriveFromFlags([true, false, true, true, true]);
     expect(steps.map((step) => step.status)).toEqual([
       "done",
       "doing",
@@ -32,15 +32,15 @@ describe("deriveSteps", () => {
     ]);
   });
 
-  it("marks every step done after the next period exists", () => {
-    const steps = deriveFromFlags([true, true, true, true, true, true]);
+  it("keeps the final step current after received documents are complete", () => {
+    const steps = deriveFromFlags([true, true, true, true, true]);
     expect(steps.map((step) => step.status)).toEqual([
       "done",
       "done",
       "done",
       "done",
       "done",
-      "done",
+      "doing",
     ]);
   });
 });
@@ -52,6 +52,5 @@ function deriveFromFlags(flags: boolean[]) {
     hasAnyClosing: flags[2]!,
     hasFinalClosing: flags[3]!,
     hasReceivedDocuments: flags[4]!,
-    hasNextFiscalPeriod: flags[5]!,
   });
 }

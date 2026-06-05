@@ -1,6 +1,5 @@
 import { DEFAULT_BOOK_ACCOUNTS } from "../entries/default-master-data";
 import { getEntryLines, type EntryLine, type EntryRecord } from "../entries/entry-record";
-import type { FiscalPeriod } from "../shared/models";
 import { parseAmount, parseBusinessRate, parseIsoLocalDate } from "../shared/parse-utils";
 
 export type NextFiscalPeriodSuggestion = {
@@ -20,22 +19,6 @@ export function buildNextFiscalPeriodSuggestion(input: {
     startDate,
     endDate,
   };
-}
-
-export function findSuggestedNextFiscalPeriod(
-  fiscalPeriods: FiscalPeriod[],
-  currentFiscalPeriod: FiscalPeriod,
-  suggestion: NextFiscalPeriodSuggestion,
-): FiscalPeriod | null {
-  return (
-    fiscalPeriods.find((period) => {
-      if (period.id === currentFiscalPeriod.id) return false;
-      return (
-        period.startDate === suggestion.startDate &&
-        period.endDate === suggestion.endDate
-      );
-    }) ?? null
-  );
 }
 
 type OpeningCarryoverJournal = {

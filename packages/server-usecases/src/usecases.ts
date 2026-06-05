@@ -1,11 +1,13 @@
 import type {
   EntryUpsertInput,
+  FiscalPeriodArchiveImportInput,
   FiscalPeriodCreateInput,
   FiscalPeriodPatchInput,
   FixedAssetCreateInput,
   FixedAssetPatchInput,
   OpenkkDbPort,
 } from "@rubydogjp/openkk-server-ports";
+import { normalizeArchiveImportInput } from "./archive-import";
 
 export type ServerUsecases = ReturnType<typeof createServerUsecases>;
 
@@ -116,6 +118,12 @@ function createFiscalPeriodUsecase(db: OpenkkDbPort) {
     },
     async create(userId: string, input: FiscalPeriodCreateInput) {
       return db.fiscalPeriods.create(userId, input);
+    },
+    async importArchived(userId: string, input: FiscalPeriodArchiveImportInput) {
+      return db.fiscalPeriods.importArchived(
+        userId,
+        normalizeArchiveImportInput(input, userId),
+      );
     },
     async update(_userId: string, id: string, patch: FiscalPeriodPatchInput) {
       return db.fiscalPeriods.update(id, patch);

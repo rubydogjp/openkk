@@ -93,6 +93,51 @@ test.describe("openkk closing flow", () => {
     await expect(
       page.getByText("検証用固定資産 長い名称のノートPC兼撮影機材"),
     ).toBeVisible();
+
+    await openFiscalPeriodList(page);
+    await page
+      .getByRole("button", {
+        name: /検証用 2026年分 長い名称 ABCDEFGHIJKLMNOPQRSTUVWXYZ/,
+      })
+      .click();
+    await expectStep(page, "次の期間へ");
+    const downloadPromise = page.waitForEvent("download");
+    await clickButton(page, "圧縮保存");
+    const download = await downloadPromise;
+    const archivePath = await download.path();
+    expect(archivePath).not.toBeNull();
+    await expect(page.getByRole("heading", {
+      name: "検証用 2026年分 長い名称 ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+    })).toBeVisible();
+    await expect(page.getByText("圧縮保存済み").first()).toBeVisible();
+
+    await openFiscalPeriodList(page);
+    await expect(
+      page
+        .getByRole("button", {
+          name: /検証用 2026年分 長い名称 ABCDEFGHIJKLMNOPQRSTUVWXYZ/,
+        })
+        .filter({ hasText: "圧縮保存済み" }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "ファイル" }).click();
+    await page.getByRole("button", { name: "圧縮済みのファイルを選択" }).click();
+    await page.locator('input[type="file"][accept*=".zip"]').setInputFiles(archivePath!);
+    await expect(page.getByText("圧縮保存済み").first()).toBeVisible();
+    await expect(page.getByRole("button", {
+      name: "圧縮済みファイルをダウンロード",
+    })).toBeVisible();
+
+    await page.getByRole("link", { name: "仕訳" }).click();
+    await expect(page).toHaveURL(/\/steps\/?$/);
+    await expectArchivedScreen(page);
+
+    await page.getByRole("link", { name: "補助" }).click();
+    await expect(page).toHaveURL(/\/steps\/?$/);
+    await expectArchivedScreen(page);
+
+    await page.getByRole("link", { name: "手順" }).click();
+    await expect(page).toHaveURL(/\/steps\/?$/);
+    await expectArchivedScreen(page);
   });
 });
 
@@ -106,6 +151,15 @@ async function createDevFiscalPeriodFromZero(page: Page) {
     .fill("検証用 2026年分 長い名称 ABCDEFGHIJKLMNOPQRSTUVWXYZ");
   await clickButton(page, "作成する");
   await expect(page).toHaveURL(/\/steps/);
+}
+
+async function openFiscalPeriodList(page: Page) {
+  await page
+    .getByRole("button", { name: /年分|期間 未選択/ })
+    .first()
+    .click();
+  await page.getByRole("menuitem", { name: "リストを開く" }).click();
+  await expect(page.getByRole("heading", { name: "期間の選択" })).toBeVisible();
 }
 
 async function importYearEntries(page: Page) {
@@ -178,6 +232,16 @@ async function expectStep(page: Page, title: string) {
   await expect(page.getByRole("heading", { name: title })).toBeVisible({
     timeout: 15_000,
   });
+}
+
+async function expectArchivedScreen(page: Page) {
+  await expect(page.getByText("圧縮保存済み").first()).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: "圧縮済みファイルをダウンロード",
+    }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "仕訳" })).not.toBeVisible();
 }
 
 async function clickButton(page: Page, name: string) {

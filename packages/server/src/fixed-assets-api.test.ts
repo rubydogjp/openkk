@@ -131,6 +131,25 @@ describe("openkk server fixed asset API", () => {
     expect((await server.fixedAssets.getAll("fp-1"))[0]?.status).toBe("active");
   });
 
+  it("rejects fixed asset changes in archived fiscal periods", async () => {
+    const db = createFixedAssetDb({ archived: true });
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(
+      server.fixedAssets.create("fp-1", {
+        name: "archived asset",
+        acquisitionDate: "2026-04-01",
+        acquisitionCost: 180000,
+        usefulLife: 4,
+        depreciationMethod: "straight_line",
+        businessRate: 1,
+        bookAccountId: "acct_asset_工具器具備品",
+      }),
+    ).rejects.toThrow(/Archived fiscal period fp-1 cannot create fixed asset/);
+
+    expect(await server.fixedAssets.getAll("fp-1")).toEqual([]);
+  });
+
   it("deletes a fixed asset only when it belongs to the requested fiscal period", async () => {
     const db = createFixedAssetDb();
     const server = createOpenkkServer(db, { userId: "user-1" });
@@ -154,18 +173,23 @@ describe("openkk server fixed asset API", () => {
   });
 });
 
-function createFixedAssetDb(): OpenkkDbPort {
+function createFixedAssetDb(
+  fiscalPeriodOverrides: Partial<FiscalPeriodApiRecord> = {},
+): OpenkkDbPort {
   const fixedAssets = new Map<string, FixedAssetApiRecord>();
   return {
     fiscalPeriods: {
       async getAllByUser() {
-        return [fiscalPeriod({ id: "fp-1" })];
+        return [fiscalPeriod({ id: "fp-1", ...fiscalPeriodOverrides })];
       },
       async getById() {
         return null;
       },
       async create(_userId: string, input: FiscalPeriodCreateInput) {
         return fiscalPeriod({ ...input, id: "fp-1" });
+      },
+      async importArchived() {
+        return fiscalPeriod({ id: "fp-archive", archived: true });
       },
       async update(id: string, patch: FiscalPeriodPatchInput) {
         return fiscalPeriod({ id, ...patch });
@@ -254,6 +278,7 @@ function fiscalPeriod(
     startDate: "2026-01-01",
     endDate: "2026-12-31",
     stage: "journalizing",
+    archived: false,
     settingsCompleted: true,
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,

@@ -106,6 +106,64 @@ describe("createMemoryDbAdapter / fiscalPeriods", () => {
     expect(await db.fixedAssets.getAllByFiscalPeriod(period.id)).toEqual([]);
     expect(await db.closings.get(period.id, 2026)).toBeNull();
   });
+
+  it("imports archived fiscal periods with child records in one operation", async () => {
+    const db = await makeDb();
+    const imported = await db.fiscalPeriods.importArchived("user-1", {
+      fiscalPeriod: {
+        name: "Archived FY2026",
+        startDate: "2026-01-01",
+        endDate: "2026-12-31",
+        stage: "post_closing",
+        archived: true,
+        settingsCompleted: true,
+        openingBalancesCompleted: true,
+        documentsReceivedCompleted: true,
+        opening: undefined,
+      },
+      entries: [
+        {
+          date: "2026-04-01",
+          description: "imported entry",
+          localId: "source-entry-1",
+          businessRate: 1,
+          lines: [sampleLine],
+        },
+      ],
+      fixedAssets: [
+        {
+          createInput: {
+            name: "Imported Camera",
+            acquisitionDate: "2026-04-01",
+            acquisitionCost: 100000,
+            usefulLife: 3,
+            depreciationMethod: "straight_line",
+            businessRate: 1,
+            bookAccountId: "acct_equipment",
+          },
+          patchInput: {
+            status: "sold",
+            disposalDate: "2026-12-01",
+            disposalPrice: 50000,
+          },
+        },
+      ],
+      closings: [{ year: 2026, isProvisional: false }],
+    });
+
+    expect(imported.archived).toBe(true);
+    expect(imported.stage).toBe("post_closing");
+    expect(await db.fiscalPeriods.getAllByUser("user-1")).toEqual([imported]);
+    expect(await db.entries.getAll(imported.id)).toHaveLength(1);
+    expect((await db.fixedAssets.getAllByFiscalPeriod(imported.id))[0]).toMatchObject({
+      name: "Imported Camera",
+      status: "sold",
+      disposalDate: "2026-12-01",
+    });
+    expect(await db.closings.get(imported.id, 2026)).toEqual({
+      isProvisional: false,
+    });
+  });
 });
 
 describe("createMemoryDbAdapter / entries", () => {
@@ -243,6 +301,7 @@ describe("createMemoryDbAdapter / seed and closings", () => {
             startDate: "2026-01-01",
             endDate: "2026-12-31",
             stage: "pre_opening",
+            archived: false,
             settingsCompleted: false,
             openingBalancesCompleted: false,
             documentsReceivedCompleted: false,

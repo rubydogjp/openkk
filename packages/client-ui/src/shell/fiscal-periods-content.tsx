@@ -1,13 +1,28 @@
 "use client";
 
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import {
+  AppError,
+  readFiscalPeriodArchiveZip,
+} from "@rubydogjp/openkk-client-domain";
 import {
   useOpenkkAppState,
   useOpenkkConfig,
 } from "@rubydogjp/openkk-client-usecases";
+import { AppErrorText } from "../shared/app-error-text";
 import { DemoLockButton } from "../shared/demo-icon";
-import { fontSize, fontWeight, palette, radii, shadows, sizes, spacing, typography } from "../shared/design-tokens";
+import {
+  fontSize,
+  fontWeight,
+  palette,
+  radii,
+  shadows,
+  sizes,
+  spacing,
+  typography,
+} from "../shared/design-tokens";
 
 type FiscalPeriod = ReturnType<
   typeof useOpenkkAppState
@@ -17,6 +32,40 @@ export function FiscalPeriodsContent() {
   const router = useRouter();
   const appState = useOpenkkAppState();
   const openkkConfig = useOpenkkConfig();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [fileMenuOpen, setFileMenuOpen] = useState(false);
+  const [isImportingArchive, setIsImportingArchive] = useState(false);
+  const [screenError, setScreenError] = useState<unknown>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
+  const handleArchiveFile = async (file: File) => {
+    if (isImportingArchive) return;
+    setIsImportingArchive(true);
+    try {
+      setStatusMessage(null);
+      setScreenError(null);
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const payload = readFiscalPeriodArchiveZip(bytes);
+      const createdId = await appState.importArchivedFiscalPeriod(payload);
+      if (createdId != null) {
+        appState.selectFiscalPeriod(createdId);
+        router.push("/steps");
+      }
+      setStatusMessage("圧縮済みファイルを展開しました");
+      setScreenError(null);
+    } catch (error) {
+      setScreenError(
+        AppError.from(error, {
+          fallbackUserMessage: "圧縮済みファイルの展開に失敗しました",
+          fallbackDeveloperMessage:
+            "fiscal-periods: import archived fiscal period failed",
+        }),
+      );
+      setStatusMessage(null);
+    } finally {
+      setIsImportingArchive(false);
+    }
+  };
 
   return (
     <section
@@ -38,8 +87,7 @@ export function FiscalPeriodsContent() {
           display: "flex",
           flexDirection: "column",
         }}
-      >
-
+        >
         <header style={{ marginBottom: 14 }}>
           <h1
             style={{
@@ -58,9 +106,84 @@ export function FiscalPeriodsContent() {
           style={{
             display: "flex",
             justifyContent: "flex-end",
+            gap: 8,
             marginBottom: 14,
           }}
         >
+          <div style={{ position: "relative" }}>
+            {openkkConfig.isDemoMode ? (
+              <DemoLockButton label="ファイル" />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setFileMenuOpen((value) => !value)}
+                disabled={isImportingArchive}
+                style={{
+                  height: 34,
+                  padding: "0 14px",
+                  borderRadius: radii.sm,
+                  border: `1px solid ${palette.borderStrong}`,
+                  background: palette.surface,
+                  color: palette.text,
+                  fontSize: fontSize.base,
+                  fontWeight: fontWeight.bold,
+                  cursor: isImportingArchive ? "default" : "pointer",
+                  opacity: isImportingArchive ? 0.62 : 1,
+                }}
+              >
+                {isImportingArchive ? "展開中" : "ファイル"}
+              </button>
+            )}
+            {fileMenuOpen ? (
+              <div
+                style={{
+                  position: "absolute",
+                  top: 40,
+                  right: 0,
+                  zIndex: 5,
+                  minWidth: 220,
+                  padding: 6,
+                  borderRadius: radii.md,
+                  border: `1px solid ${palette.borderStrong}`,
+                  background: palette.surface,
+                  boxShadow: shadows.popup,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFileMenuOpen(false);
+                    fileInputRef.current?.click();
+                  }}
+                  style={{
+                    width: "100%",
+                    border: "none",
+                    background: "transparent",
+                    padding: "9px 10px",
+                    borderRadius: radii.sm,
+                    color: palette.text,
+                    fontSize: fontSize.base,
+                    fontWeight: fontWeight.semibold,
+                    textAlign: "left",
+                    cursor: "pointer",
+                  }}
+                >
+                  圧縮済みのファイルを選択
+                </button>
+              </div>
+            ) : null}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".zip,application/zip"
+              hidden
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0] ?? null;
+                event.currentTarget.value = "";
+                if (file != null) void handleArchiveFile(file);
+              }}
+            />
+          </div>
           {openkkConfig.isDemoMode ? (
             <DemoLockButton label="追加" />
           ) : (
@@ -77,6 +200,23 @@ export function FiscalPeriodsContent() {
             router.push("/steps");
           }}
         />
+        {statusMessage != null ? (
+          <div
+            style={{
+              marginTop: 12,
+              fontSize: fontSize.sm,
+              fontWeight: fontWeight.semibold,
+              color: palette.success,
+            }}
+          >
+            {statusMessage}
+          </div>
+        ) : null}
+        {screenError != null ? (
+          <div style={{ marginTop: 12 }}>
+            <AppErrorText error={screenError} />
+          </div>
+        ) : null}
       </div>
     </section>
   );
@@ -174,7 +314,7 @@ function FiscalPeriodRow({
   onSelect: () => void;
 }) {
   const showOpeningBsChip =
-    !period.openingBalancesCompleted && period.settingsCompleted;
+    !period.archived && !period.openingBalancesCompleted && period.settingsCompleted;
   return (
     <button
       type="button"
@@ -234,14 +374,18 @@ function FiscalPeriodRow({
         }}
       >
         <InlineChip
-          label={stageLabel(period.stage)}
+          label={period.archived ? "圧縮保存済み" : stageLabel(period.stage)}
           background={
-            period.stage === "journalizing"
+            period.archived
+              ? "#DCFCE7"
+              : period.stage === "journalizing"
               ? "#DCFCE7"
               : palette.formGroupBg
           }
           foreground={
-            period.stage === "journalizing"
+            period.archived
+              ? palette.success
+              : period.stage === "journalizing"
               ? palette.success
               : palette.textLabel
           }

@@ -4,11 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   AppError,
+  buildFiscalPeriodArchiveFilename,
+  buildFiscalPeriodArchivePayload,
   buildNextFiscalPeriodSuggestion,
   buildOpeningBalanceLinesFromClosingBsRows,
   buildOpeningCarryoverJournalsFromReversibleEntries,
   computeFsAggregate,
-  findSuggestedNextFiscalPeriod,
+  createFiscalPeriodArchiveZip,
 } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text";
 import {
@@ -20,6 +22,7 @@ import {
 } from "@rubydogjp/openkk-client-usecases";
 import { fontSize, fontWeight, palette, rings } from "../../shared/design-tokens";
 import { DemoLockButton } from "../../shared/demo-icon";
+import { downloadBytes } from "../../shared/download";
 import { FormDatePair, FormStyles, FormTextInput } from "../../shared/form-fields";
 import {
   StepDivider,
@@ -49,6 +52,7 @@ export function NextFiscalPeriodBody({
   const appState = useOpenkkAppState();
   const entriesState = useOpenkkEntries();
   const [screenError, setScreenError] = useState<unknown>(null);
+  const [archiveStatus, setArchiveStatus] = useState<string | null>(null);
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (period) => period.id === appState.currentFiscalPeriodId,
   );
@@ -62,20 +66,12 @@ export function NextFiscalPeriodBody({
     });
   }, [currentFiscalPeriod]);
 
-  const nextFiscalPeriod = useMemo(() => {
-    if (currentFiscalPeriod == null) return null;
-    return findSuggestedNextFiscalPeriod(
-      appState.fiscalPeriods,
-      currentFiscalPeriod,
-      suggested,
-    );
-  }, [appState.fiscalPeriods, currentFiscalPeriod, suggested]);
-
   const [name, setName] = useState(suggested.name);
   const [startDate, setStartDate] = useState(suggested.startDate);
   const [endDate, setEndDate] = useState(suggested.endDate);
   const [nameEdited, setNameEdited] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
   const [carries, setCarries] = useState<Record<string, boolean>>({
     bs: true,
     transfer: true,
@@ -118,6 +114,11 @@ export function NextFiscalPeriodBody({
     startDate.trim() !== "" &&
     endDate.trim() !== "";
   const isDemo = config.isDemoMode;
+  const canArchive =
+    currentFiscalPeriod != null &&
+    !currentFiscalPeriod.archived &&
+    !config.isDemoMode &&
+    !isArchiving;
 
   const handleCreate = async () => {
     if (!canCreateNext) return;
@@ -196,6 +197,56 @@ export function NextFiscalPeriodBody({
 
   const toggleCarry = (id: string) =>
     setCarries((prev) => ({ ...prev, [id]: !prev[id] }));
+
+  const handleArchive = async () => {
+    if (!canArchive) return;
+    setIsArchiving(true);
+    try {
+      const year = Number(currentFiscalPeriod.endDate.slice(0, 4));
+      const [entries, fixedAssets, closing] = await Promise.all([
+        backendApi.entries.getAll(currentFiscalPeriod.id),
+        backendApi.fixedAssets.getAll(currentFiscalPeriod.id),
+        backendApi.closing.get(currentFiscalPeriod.id, year),
+      ]);
+      const payload = buildFiscalPeriodArchivePayload({
+        createdAt: new Date().toISOString(),
+        fiscalPeriod: { ...currentFiscalPeriod, archived: true },
+        entries: entries.map((entry) => ({ ...entry })),
+        fixedAssets: fixedAssets.map((asset) => ({ ...asset })),
+        closings:
+          closing == null
+            ? []
+            : [
+                {
+                  fiscalPeriodId: currentFiscalPeriod.id,
+                  year,
+                  isProvisional: closing.isProvisional,
+                },
+              ],
+      });
+      const zip = createFiscalPeriodArchiveZip(payload);
+      downloadBytes(
+        zip,
+        buildFiscalPeriodArchiveFilename(currentFiscalPeriod),
+        "application/zip",
+      );
+      await appState.updateFiscalPeriod(currentFiscalPeriod.id, {
+        archived: true,
+      });
+      setArchiveStatus("圧縮保存しました");
+      setScreenError(null);
+    } catch (error) {
+      setScreenError(
+        AppError.from(error, {
+          fallbackUserMessage: "圧縮保存に失敗しました",
+          fallbackDeveloperMessage:
+            "steps/next-fiscal-period: archiveFiscalPeriod failed",
+        }),
+      );
+    } finally {
+      setIsArchiving(false);
+    }
+  };
 
   return (
     <>
@@ -291,27 +342,15 @@ export function NextFiscalPeriodBody({
               justifyContent: "flex-end",
             }}
           >
-            {nextFiscalPeriod == null ? (
-              isDemo ? (
-                <DemoLockButton label="次期を作成" />
-              ) : (
-                <StepPrimaryButton
-                  onClick={handleCreate}
-                  disabled={!canCreateNext}
-                  variant="success"
-                >
-                  {isCreating ? "作成中" : "次期を作成"}
-                </StepPrimaryButton>
-              )
-            ) : isDemo ? (
-              <DemoLockButton label="次期を開く" />
+            {isDemo ? (
+              <DemoLockButton label="次期を作成" />
             ) : (
               <StepPrimaryButton
-                onClick={() =>
-                  appState.selectFiscalPeriod(nextFiscalPeriod.id)
-                }
+                onClick={handleCreate}
+                disabled={!canCreateNext}
+                variant="success"
               >
-                次期を開く
+                {isCreating ? "作成中" : "次期を作成"}
               </StepPrimaryButton>
             )}
           </div>
@@ -336,6 +375,54 @@ export function NextFiscalPeriodBody({
           <StepCallout tone="info">{demoFooterCallout}</StepCallout>
         </>
       ) : null}
+
+      <StepDivider marginY={44} />
+
+      <section>
+        <StepSectionLabel>長期保存</StepSectionLabel>
+        <StepMetaCard>
+          <StepMetaRow
+            label="圧縮保存"
+            value="手続きが終わった会計期間のデータを長期保存するには圧縮保存しておくことがおすすめです。"
+          />
+        </StepMetaCard>
+        <div
+          style={{
+            marginTop: 16,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: 12,
+          }}
+        >
+          {archiveStatus != null ? (
+            <span
+              style={{
+                fontSize: fontSize.sm,
+                fontWeight: fontWeight.semibold,
+                color: palette.success,
+              }}
+            >
+              {archiveStatus}
+            </span>
+          ) : null}
+          {isDemo ? (
+            <DemoLockButton label="圧縮保存" />
+          ) : (
+            <StepPrimaryButton
+              onClick={handleArchive}
+              disabled={!canArchive}
+              variant="success"
+            >
+              {currentFiscalPeriod.archived
+                ? "圧縮保存済み"
+                : isArchiving
+                  ? "保存中"
+                  : "圧縮保存"}
+            </StepPrimaryButton>
+          )}
+        </div>
+      </section>
 
       {screenError != null ? (
         <div style={{ marginTop: 16 }}>
