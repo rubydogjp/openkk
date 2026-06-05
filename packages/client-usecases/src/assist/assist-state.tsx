@@ -98,6 +98,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
   useEffect(() => {
     const fiscalPeriodId = appState.currentFiscalPeriodId;
     if (fiscalPeriodId == null || fiscalPeriodId.length === 0) {
+      setFixedAssets([]);
       return;
     }
     let cancelled = false;
@@ -106,11 +107,14 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         const remote = await backendApi.fixedAssets.getAll(fiscalPeriodId);
         if (cancelled) return;
         setFixedAssets(
-          remote.map((asset) =>
-            mapFixedAssetToPreview(
-              asset,
-              bookAccountNameById[asset.bookAccountId],
-              config.today,
+          replaceLoadedFixedAssets(
+            fiscalPeriodId,
+            remote.map((asset) =>
+              mapFixedAssetToPreview(
+                asset,
+                bookAccountNameById[asset.bookAccountId],
+                config.today,
+              ),
             ),
           ),
         );
@@ -388,6 +392,14 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
       {props.children}
     </AssistContext.Provider>
   );
+}
+
+export function replaceLoadedFixedAssets(
+  fiscalPeriodId: string | null,
+  nextAssets: FixedAssetPreviewItem[],
+): FixedAssetPreviewItem[] {
+  if (fiscalPeriodId == null || fiscalPeriodId.length === 0) return [];
+  return nextAssets;
 }
 
 function mapOpeningJournalToRecord(

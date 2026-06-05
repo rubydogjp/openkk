@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { entryRecordToImportPayload } from "./entries-state";
+import {
+  entryRecordToImportPayload,
+  replaceFiscalPeriodEntryRecords,
+} from "./entries-state";
 import type { EntryRecord } from "@rubydogjp/openkk-client-domain";
 import type {
   MasterBookAccount,
@@ -18,6 +21,27 @@ const taxes: MasterTaxCategory[] = [{ id: "tax_10", name: "課税 10%" }];
 const businesses: MasterBusinessCategory[] = [
   { id: "biz_service", name: "第5種（サービス業等）" },
 ];
+
+function entry(overrides: Partial<EntryRecord> = {}): EntryRecord {
+  return {
+    id: "entry-1",
+    fiscalPeriodId: "fp-1",
+    date: "2026-09-05",
+    weekday: "土",
+    debit: "仕入",
+    debitType: "cost_of_sales",
+    debitAmount: "10,000",
+    credit: "未払金",
+    creditType: "liability",
+    creditAmount: "10,000",
+    description: "テスト仕訳",
+    partner: "",
+    businessRate: "100",
+    taxCategory: "課税 10%",
+    businessCategory: "第5種（サービス業等）",
+    ...overrides,
+  };
+}
 
 describe("entryRecordToImportPayload", () => {
   it("preserves compound journal lines when importing entries", () => {
@@ -126,5 +150,30 @@ describe("entryRecordToImportPayload", () => {
     });
 
     expect(payload.businessRate).toBe(1);
+  });
+});
+
+describe("replaceFiscalPeriodEntryRecords", () => {
+  it("replaces only the loaded fiscal period entries", () => {
+    const current = [
+      entry({ id: "old-fp-1", fiscalPeriodId: "fp-1" }),
+      entry({ id: "keep-fp-2", fiscalPeriodId: "fp-2" }),
+    ];
+    const next = [entry({ id: "new-fp-1", fiscalPeriodId: "fp-1" })];
+
+    expect(replaceFiscalPeriodEntryRecords(current, "fp-1", next)).toEqual([
+      current[1],
+      next[0],
+    ]);
+  });
+
+  it("clears cached entries when no fiscal period is selected", () => {
+    const current = [
+      entry({ id: "old-fp-1", fiscalPeriodId: "fp-1" }),
+      entry({ id: "old-fp-2", fiscalPeriodId: "fp-2" }),
+    ];
+
+    expect(replaceFiscalPeriodEntryRecords(current, null, [])).toEqual([]);
+    expect(replaceFiscalPeriodEntryRecords(current, "", [])).toEqual([]);
   });
 });

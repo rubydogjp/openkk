@@ -119,6 +119,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
   useEffect(() => {
     const fiscalPeriodId = appState.currentFiscalPeriodId;
     if (fiscalPeriodId == null || fiscalPeriodId.length === 0) {
+      setRecords([]);
       return;
     }
     let cancelled = false;
@@ -126,13 +127,11 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
       try {
         const remoteEntries = await backendApi.entries.getAll(fiscalPeriodId);
         if (cancelled) return;
-        setRecords((current) => {
-          const rest = current.filter(
-            (record) => record.fiscalPeriodId !== fiscalPeriodId,
-          );
-          return [
-            ...rest,
-            ...remoteEntries.map((entry) =>
+        setRecords((current) =>
+          replaceFiscalPeriodEntryRecords(
+            current,
+            fiscalPeriodId,
+            remoteEntries.map((entry) =>
               mapRemoteEntryToRecord({
                 entry,
                 fiscalPeriodId,
@@ -141,8 +140,8 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
                 businesses: businessCategories,
               }),
             ),
-          ];
-        });
+          ),
+        );
       } catch {
         if (cancelled) return;
       }
@@ -340,6 +339,18 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
       {props.children}
     </EntriesContext.Provider>
   );
+}
+
+export function replaceFiscalPeriodEntryRecords(
+  current: EntryRecord[],
+  fiscalPeriodId: string | null,
+  nextRecords: EntryRecord[],
+): EntryRecord[] {
+  if (fiscalPeriodId == null || fiscalPeriodId.length === 0) return [];
+  return [
+    ...current.filter((record) => record.fiscalPeriodId !== fiscalPeriodId),
+    ...nextRecords,
+  ];
 }
 
 function mapRemoteEntryToRecord(input: {

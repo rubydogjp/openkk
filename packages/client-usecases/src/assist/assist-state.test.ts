@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { fixedAssetDraftToPatch } from "./assist-state";
-import type { FixedAssetDraft } from "@rubydogjp/openkk-client-domain";
+import {
+  fixedAssetDraftToPatch,
+  replaceLoadedFixedAssets,
+} from "./assist-state";
+import type {
+  FixedAssetDraft,
+  FixedAssetPreviewItem,
+} from "@rubydogjp/openkk-client-domain";
 
 describe("fixedAssetDraftToPatch", () => {
   it("keeps disposal date and price when an asset is sold", () => {
@@ -57,6 +63,21 @@ describe("fixedAssetDraftToPatch", () => {
   });
 });
 
+describe("replaceLoadedFixedAssets", () => {
+  it("keeps loaded assets when a fiscal period is selected", () => {
+    const assets = [previewAsset({ id: "asset-1" })];
+
+    expect(replaceLoadedFixedAssets("fp-1", assets)).toBe(assets);
+  });
+
+  it("clears cached assets when no fiscal period is selected", () => {
+    const assets = [previewAsset({ id: "asset-1" })];
+
+    expect(replaceLoadedFixedAssets(null, assets)).toEqual([]);
+    expect(replaceLoadedFixedAssets("", assets)).toEqual([]);
+  });
+});
+
 function draft(overrides: Partial<FixedAssetDraft> = {}): FixedAssetDraft {
   return {
     name: "業務用PC",
@@ -65,6 +86,24 @@ function draft(overrides: Partial<FixedAssetDraft> = {}): FixedAssetDraft {
     acquisitionCost: "300,000",
     usefulLife: 4,
     businessRatePercent: 80,
+    status: "償却中",
+    ...overrides,
+  };
+}
+
+function previewAsset(
+  overrides: Partial<FixedAssetPreviewItem> = {},
+): FixedAssetPreviewItem {
+  return {
+    id: "asset-1",
+    fiscalPeriodId: "fp-1",
+    name: "業務用PC",
+    account: "工具器具備品",
+    period: "2026年4月〜2030年3月",
+    remaining: "残り4年",
+    progress: 0,
+    current: "300,000",
+    purchase: "300,000",
     status: "償却中",
     ...overrides,
   };
