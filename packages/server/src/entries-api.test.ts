@@ -44,6 +44,42 @@ describe("openkk server entries API", () => {
     expect(await server.entries.getAll("fp-1")).toEqual([]);
   });
 
+  it("rejects invalid entry numbers before persisting", async () => {
+    const db = createEntryDb();
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(
+      server.entries.create("fp-1", {
+        date: "2026-04-01",
+        description: "不正金額の仕訳",
+        localId: "bad-amount",
+        businessRate: 1,
+        lines: [
+          {
+            side: "debit",
+            bookAccountId: "acct_cash",
+            amount: Infinity,
+            partnerName: "",
+            taxCategoryName: "tax_exempt",
+            businessCategoryName: "biz_none",
+          },
+        ],
+      }),
+    ).rejects.toThrow(/Entry line amount must be a non-negative finite number/);
+
+    await expect(
+      server.entries.create("fp-1", {
+        date: "2026-04-01",
+        description: "不正事業割合の仕訳",
+        localId: "bad-rate",
+        businessRate: 1.5,
+        lines: [],
+      }),
+    ).rejects.toThrow(/Entry business rate must be between 0 and 1/);
+
+    expect(await server.entries.getAll("fp-1")).toEqual([]);
+  });
+
   it("rejects invalid dates in bulk import before persisting", async () => {
     const db = createEntryDb();
     const server = createOpenkkServer(db, { userId: "user-1" });

@@ -37,6 +37,51 @@ describe("openkk server fixed asset API", () => {
     expect(await server.fixedAssets.getAll("fp-1")).toEqual([]);
   });
 
+  it("rejects invalid fixed asset numbers before persisting", async () => {
+    const db = createFixedAssetDb();
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(
+      server.fixedAssets.create("fp-1", {
+        name: "不正金額の資産",
+        acquisitionDate: "2026-04-01",
+        acquisitionCost: -1,
+        usefulLife: 4,
+        depreciationMethod: "straight_line",
+        businessRate: 1,
+        bookAccountId: "acct_asset_工具器具備品",
+      }),
+    ).rejects.toThrow(
+      /Fixed asset acquisition cost must be a non-negative finite number/,
+    );
+
+    await expect(
+      server.fixedAssets.create("fp-1", {
+        name: "不正耐用年数の資産",
+        acquisitionDate: "2026-04-01",
+        acquisitionCost: 180000,
+        usefulLife: 1.5,
+        depreciationMethod: "straight_line",
+        businessRate: 1,
+        bookAccountId: "acct_asset_工具器具備品",
+      }),
+    ).rejects.toThrow(/Fixed asset useful life must be a positive integer/);
+
+    await expect(
+      server.fixedAssets.create("fp-1", {
+        name: "不正事業割合の資産",
+        acquisitionDate: "2026-04-01",
+        acquisitionCost: 180000,
+        usefulLife: 4,
+        depreciationMethod: "straight_line",
+        businessRate: Infinity,
+        bookAccountId: "acct_asset_工具器具備品",
+      }),
+    ).rejects.toThrow(/Fixed asset business rate must be between 0 and 1/);
+
+    expect(await server.fixedAssets.getAll("fp-1")).toEqual([]);
+  });
+
   it("rejects invalid disposal dates before persisting", async () => {
     const db = createFixedAssetDb();
     const server = createOpenkkServer(db, { userId: "user-1" });
@@ -56,6 +101,32 @@ describe("openkk server fixed asset API", () => {
         disposalDate: "2026-13-01",
       }),
     ).rejects.toThrow(/Fixed asset disposal date is invalid/);
+
+    expect((await server.fixedAssets.getAll("fp-1"))[0]?.status).toBe("active");
+  });
+
+  it("rejects invalid disposal prices before persisting", async () => {
+    const db = createFixedAssetDb();
+    const server = createOpenkkServer(db, { userId: "user-1" });
+    const created = await server.fixedAssets.create("fp-1", {
+      name: "売却対象の資産",
+      acquisitionDate: "2026-04-01",
+      acquisitionCost: 180000,
+      usefulLife: 4,
+      depreciationMethod: "straight_line",
+      businessRate: 1,
+      bookAccountId: "acct_asset_工具器具備品",
+    });
+
+    await expect(
+      server.fixedAssets.patch("fp-1", created.id, {
+        status: "sold",
+        disposalDate: "2026-12-01",
+        disposalPrice: -1,
+      }),
+    ).rejects.toThrow(
+      /Fixed asset disposal price must be a non-negative finite number/,
+    );
 
     expect((await server.fixedAssets.getAll("fp-1"))[0]?.status).toBe("active");
   });

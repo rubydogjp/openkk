@@ -151,10 +151,17 @@ function assertFiscalPeriodPatchInput(
 
 function assertEntryInput(input: EntryUpsertInput) {
   assertIsoDate(input.date, "Entry date");
+  assertUnitRate(input.businessRate, "Entry business rate");
+  for (const line of input.lines) {
+    assertNonNegativeFiniteNumber(line.amount, "Entry line amount");
+  }
 }
 
 function assertFixedAssetCreateInput(input: FixedAssetCreateInput) {
   assertIsoDate(input.acquisitionDate, "Fixed asset acquisition date");
+  assertNonNegativeFiniteNumber(input.acquisitionCost, "Fixed asset acquisition cost");
+  assertPositiveInteger(input.usefulLife, "Fixed asset useful life");
+  assertUnitRate(input.businessRate, "Fixed asset business rate");
 }
 
 function assertFixedAssetPatchInput(input: FixedAssetPatchInput) {
@@ -163,6 +170,18 @@ function assertFixedAssetPatchInput(input: FixedAssetPatchInput) {
   }
   if (input.disposalDate != null && input.disposalDate !== "") {
     assertIsoDate(input.disposalDate, "Fixed asset disposal date");
+  }
+  if (input.acquisitionCost != null) {
+    assertNonNegativeFiniteNumber(input.acquisitionCost, "Fixed asset acquisition cost");
+  }
+  if (input.usefulLife != null) {
+    assertPositiveInteger(input.usefulLife, "Fixed asset useful life");
+  }
+  if (input.businessRate != null) {
+    assertUnitRate(input.businessRate, "Fixed asset business rate");
+  }
+  if (input.disposalPrice != null) {
+    assertNonNegativeFiniteNumber(input.disposalPrice, "Fixed asset disposal price");
   }
 }
 
@@ -179,6 +198,24 @@ function assertDateRange(startDate: string, endDate: string, label: string) {
 
 function assertIsoDate(value: string, label: string) {
   if (parseIsoDate(value) == null) throw new Error(`${label} is invalid`);
+}
+
+function assertNonNegativeFiniteNumber(value: number, label: string) {
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error(`${label} must be a non-negative finite number`);
+  }
+}
+
+function assertPositiveInteger(value: number, label: string) {
+  if (!Number.isInteger(value) || value < 1) {
+    throw new Error(`${label} must be a positive integer`);
+  }
+}
+
+function assertUnitRate(value: number, label: string) {
+  if (!Number.isFinite(value) || value < 0 || value > 1) {
+    throw new Error(`${label} must be between 0 and 1`);
+  }
 }
 
 function parseIsoDate(value: string): Date | null {
