@@ -35,7 +35,7 @@ export type FixedAssetDraft = {
   disposalPrice?: string;
 };
 
-export const exampleFixedAssetItems: FixedAssetPreviewItem[] = [
+export const demoFixedAssetItems: FixedAssetPreviewItem[] = [
   {
     id: "fa-1",
     fiscalPeriodId: "fp-2026",

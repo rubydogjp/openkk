@@ -10,10 +10,10 @@ import {
   DEFAULT_BOOK_ACCOUNTS,
   DEFAULT_BUSINESS_CATEGORIES,
   DEFAULT_TAX_CATEGORIES,
-  exampleFixedAssetItems,
-  buildBootstrapEntries,
+  demoFixedAssetItems,
+  buildDemoEntries,
   getEntryLines,
-  sampleOpeningBalanceLines,
+  demoOpeningBalanceLines,
   type EntryRecord,
   type FixedAssetPreviewItem,
   type OpenkkConfig,
@@ -21,20 +21,20 @@ import {
 import type { MemoryDbSnapshot } from "@rubydogjp/openkk-memory-db-adapter";
 
 export function buildOpenkkDemoSeed(config: OpenkkConfig): MemoryDbSnapshot {
-  const fiscalPeriod = buildSeedFiscalPeriod(config);
+  const fiscalPeriod = buildDemoSeedFiscalPeriod(config);
   return {
     fiscalPeriods: [{ userId: config.mockUserId, record: fiscalPeriod }],
-    entries: buildBootstrapEntries().map((record) =>
+    entries: buildDemoEntries().map((record) =>
       entryRecordToApiRecord(record, fiscalPeriod.id),
     ),
-    fixedAssets: exampleFixedAssetItems.map((item) =>
+    fixedAssets: demoFixedAssetItems.map((item) =>
       fixedAssetItemToApiRecord(item, fiscalPeriod.id),
     ),
     closings: [],
   };
 }
 
-function buildSeedFiscalPeriod(config: OpenkkConfig): FiscalPeriodApiRecord {
+function buildDemoSeedFiscalPeriod(config: OpenkkConfig): FiscalPeriodApiRecord {
   return {
     id: "fp-2026",
     name: "デモ期間2026年分",
@@ -49,7 +49,7 @@ function buildSeedFiscalPeriod(config: OpenkkConfig): FiscalPeriodApiRecord {
       id: "opening-fp-2026",
       userId: config.mockUserId,
       fiscalPeriodId: "fp-2026",
-      openingBalanceLines: sampleOpeningBalanceLines,
+      openingBalanceLines: demoOpeningBalanceLines,
       carryoverJournals: [],
     },
   };

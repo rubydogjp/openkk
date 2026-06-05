@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { AppError } from "./app-error";
+import { AppError, jsonToAppError } from "./app-error";
 
 describe("AppError", () => {
   it("keeps existing client AppError instances", () => {
@@ -46,5 +46,17 @@ describe("AppError", () => {
     expect(appError.messageForUser).toBe("fallback user");
     expect(appError.originalMessage).toBe("raw failure");
     expect(appError.statusCode).toBe(500);
+  });
+
+  it("rejects malformed API error JSON", () => {
+    const appError = jsonToAppError({
+      messageForUser: "missing developer message",
+      originalMessage: null,
+      statusCode: 400,
+    });
+
+    expect(appError.messageForDeveloper).toContain("jsonToAppError.error");
+    expect(appError.messageForUser).toBe("エラー情報の解析に失敗しました");
+    expect(appError.originalMessage).toContain("invalid AppError JSON");
   });
 });

@@ -78,7 +78,7 @@ export function entryToVisualPairs(
   return pairs;
 }
 
-export function buildBootstrapEntries(): EntryRecord[] {
+export function buildDemoEntries(): EntryRecord[] {
   return [
     { id: "entry-2026-01-sales", fiscalPeriodId: "fp-2026", date: "2026-01-20", weekday: "火", debit: "普通預金", debitType: "asset", debitAmount: "520,000", credit: "売上", creditType: "revenue", creditAmount: "520,000", description: "Web制作業務 - A社", partner: "サンプル取引先A", businessRate: "", taxCategory: "課税 10%", businessCategory: "第5種（サービス業等）" },
     { id: "entry-2026-01-purchase", fiscalPeriodId: "fp-2026", date: "2026-01-12", weekday: "月", debit: "仕入", debitType: "cost_of_sales", debitAmount: "182,000", credit: "普通預金", creditType: "asset", creditAmount: "182,000", description: "案件素材の仕入", partner: "", businessRate: "", taxCategory: "課税 10%", businessCategory: "" },
@@ -164,7 +164,7 @@ export function buildBootstrapEntries(): EntryRecord[] {
 export function buildDemoSeedEntriesForFiscalPeriod(
   fiscalPeriodId: string,
 ): EntryRecord[] {
-  return buildBootstrapEntries().map((record) => ({
+  return buildDemoEntries().map((record) => ({
     ...record,
     id: `${record.id}-${fiscalPeriodId}`,
     fiscalPeriodId,

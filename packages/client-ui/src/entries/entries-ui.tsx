@@ -278,7 +278,7 @@ export function EntriesScreen(props: {
               i
             </div>
             <div style={{ fontSize: fontSize.sm, lineHeight: 1.6 }}>
-              この環境ではサンプルデータを表示しています。
+              この環境ではデモデータを表示しています。
             </div>
           </div>
         ) : null}

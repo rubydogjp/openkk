@@ -19,10 +19,10 @@ import {
   buildBootstrapFiscalPeriodId,
   buildBootstrapSessionUserId,
   buildDemoSeedEntriesForFiscalPeriod,
-  buildSampleSession,
+  buildDemoSession,
   buildSignedOutFiscalPeriodId,
   getEntryLines,
-  sampleOpeningBalanceLines,
+  demoOpeningBalanceLines,
   summarizeOpeningBalances,
   DEFAULT_BOOK_ACCOUNTS,
   DEFAULT_BUSINESS_CATEGORIES,
@@ -162,10 +162,10 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
   }, [currentFiscalPeriodId]);
 
   const value = useMemo<OpenkkAppState>(() => {
-    const mockSession = buildSampleSession(config);
+    const localSession = buildDemoSession(config);
     return {
       session:
-        sessionUserId == null ? null : { ...mockSession, userId: sessionUserId },
+        sessionUserId == null ? null : { ...localSession, userId: sessionUserId },
       fiscalPeriods,
       currentFiscalPeriodId,
       isReady,
@@ -181,7 +181,7 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
               id: `op-${created.id}`,
               userId: sessionUserId ?? config.mockUserId,
               fiscalPeriodId: created.id,
-              openingBalanceLines: sampleOpeningBalanceLines,
+              openingBalanceLines: demoOpeningBalanceLines,
               carryoverJournals: [],
             },
           });

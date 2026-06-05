@@ -15,7 +15,7 @@
 
 | Suffix | Meaning |
 |---|---|
-| `*Request` | REST request body |
+| `*Request` | REST request payload |
 | `*Response` | REST response body |
 | `*ApiRecord` | API result record |
 | `*Input` | operation input |
@@ -24,6 +24,11 @@
 | `OpenkkApiErrorDto` | error JSON |
 
 Do not use `RequestDto` or `ResponseDto`.
+
+## HTTP Metadata
+
+Use `OPENKK_HTTP_ENDPOINTS` for method, path, and success status.
+Adapters own transport details. Backends own validation and `OpenkkApiErrorDto`.
 
 ## Error JSON
 

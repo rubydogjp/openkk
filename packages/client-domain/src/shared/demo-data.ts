@@ -6,10 +6,10 @@ function bookAccountIdByName(name: string): string {
   return DEFAULT_BOOK_ACCOUNTS.find((acc) => acc.name === name)?.id ?? name;
 }
 
-function buildSampleCarryoverJournals(fiscalPeriodId: string) {
+function buildDemoCarryoverJournals(fiscalPeriodId: string) {
   const fiscalYear = fiscalPeriodId.slice(3, 7);
   const date = `${fiscalYear}-01-01`;
-  const sample = [
+  const demoRows = [
     {
       description: "期首再振替 売掛金",
       debit: "売掛金",
@@ -59,38 +59,38 @@ function buildSampleCarryoverJournals(fiscalPeriodId: string) {
       biz: "第5種（サービス業等）",
     },
   ];
-  return sample.map((s, index) => {
+  return demoRows.map((row, index) => {
     const id = `oc-${fiscalPeriodId}-${index + 1}`;
     return {
       id,
       date,
-      description: s.description,
+      description: row.description,
       businessRate: 1,
       lines: [
         {
           id: `${id}-d`,
           side: "debit" as const,
-          bookAccountId: bookAccountIdByName(s.debit),
-          amount: s.amount,
-          partnerName: s.partner,
+          bookAccountId: bookAccountIdByName(row.debit),
+          amount: row.amount,
+          partnerName: row.partner,
           taxCategoryName: "対象外",
-          businessCategoryName: s.biz,
+          businessCategoryName: row.biz,
         },
         {
           id: `${id}-c`,
           side: "credit" as const,
-          bookAccountId: bookAccountIdByName(s.credit),
-          amount: s.amount,
-          partnerName: s.partner,
+          bookAccountId: bookAccountIdByName(row.credit),
+          amount: row.amount,
+          partnerName: row.partner,
           taxCategoryName: "対象外",
-          businessCategoryName: s.biz,
+          businessCategoryName: row.biz,
         },
       ],
     };
   });
 }
 
-export const sampleOpeningBalanceLines = [
+export const demoOpeningBalanceLines = [
   { id: "cash", accountId: "a:現金", amount: 320000 },
   { id: "bank", accountId: "a:その他の預金", amount: 1800000 },
   { id: "receivable", accountId: "a:売掛金", amount: 240000 },
@@ -103,15 +103,15 @@ export const sampleOpeningBalanceLines = [
   { id: "capital", accountId: "l:元入金", amount: 1834000 },
 ];
 
-export const sampleOpeningDebitTotal = sampleOpeningBalanceLines
+export const demoOpeningDebitTotal = demoOpeningBalanceLines
   .filter((line) => line.accountId.startsWith("a:"))
   .reduce((sum, line) => sum + line.amount, 0);
 
-export const sampleOpeningCreditTotal = sampleOpeningBalanceLines
+export const demoOpeningCreditTotal = demoOpeningBalanceLines
   .filter((line) => line.accountId.startsWith("l:"))
   .reduce((sum, line) => sum + line.amount, 0);
 
-function buildSampleFiscalPeriod2026(
+function buildDemoFiscalPeriod2026(
   userId: string,
   name: string,
   progress: "in-progress" | "fresh",
@@ -128,23 +128,23 @@ function buildSampleFiscalPeriod2026(
     settingsCompleted: isInProgress,
     openingBalancesCompleted: isInProgress,
     documentsReceivedCompleted: false,
-    openingDebitTotal: sampleOpeningDebitTotal,
-    openingCreditTotal: sampleOpeningCreditTotal,
+    openingDebitTotal: demoOpeningDebitTotal,
+    openingCreditTotal: demoOpeningCreditTotal,
     opening: {
       id: "opening-fp-2026",
       userId,
       fiscalPeriodId: "fp-2026",
 
-      openingBalanceLines: sampleOpeningBalanceLines,
+      openingBalanceLines: demoOpeningBalanceLines,
 
       carryoverJournals: isInProgress
-        ? buildSampleCarryoverJournals("fp-2026")
+        ? buildDemoCarryoverJournals("fp-2026")
         : [],
     },
   };
 }
 
-export function buildSampleSession(
+export function buildDemoSession(
   config: OpenkkConfig,
   userId?: string,
 ): Session {
@@ -165,14 +165,14 @@ export function buildBootstrapFiscalPeriods(
 ): FiscalPeriod[] {
   return config.mode === "demo"
     ? [
-        buildSampleFiscalPeriod2026(
+        buildDemoFiscalPeriod2026(
           config.mockUserId,
           "デモ期間2026年分",
           "fresh",
         ),
       ]
     : [
-        buildSampleFiscalPeriod2026(
+        buildDemoFiscalPeriod2026(
           config.mockUserId,
           "2026年分",
           "in-progress",

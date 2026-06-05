@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { exampleFixedAssetItems } from "../assist/fixed-asset-data";
+import { demoFixedAssetItems } from "../assist/fixed-asset-data";
 import type { OpeningCarryoverRecord } from "../assist/opening-carryover";
 import { computeFinancialSummary } from "../steps/summary";
 import {
@@ -55,7 +55,7 @@ describe("entry scenario rows", () => {
   it("turns fixed assets into depreciation and disposal rows for the target period", () => {
     const depreciationRows = buildVirtualFixedAssetRows({
       fiscalPeriodId: "fp-2026",
-      assets: exampleFixedAssetItems,
+      assets: testFixedAssetItems,
       periodEndDate: "2026-12-31",
       yearMonth: "2026-12",
     });
@@ -84,7 +84,7 @@ describe("entry scenario rows", () => {
 
     const disposalRows = buildVirtualFixedAssetRows({
       fiscalPeriodId: "fp-2026",
-      assets: exampleFixedAssetItems,
+      assets: testFixedAssetItems,
       periodEndDate: "2026-12-31",
       yearMonth: "2026-09",
     });
@@ -295,6 +295,8 @@ describe("entry scenario rows", () => {
     ]);
   });
 });
+
+const testFixedAssetItems = demoFixedAssetItems;
 
 function entry(overrides: Partial<EntryRecord>): EntryRecord {
   return {

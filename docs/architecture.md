@@ -24,7 +24,7 @@ packages/
 │
 ├── file-db-adapter      OpenkkDbPort 実装 — SQLite Wasm + OPFS（ブラウザ永続化）
 ├── memory-db-adapter    OpenkkDbPort 実装 — インメモリ揮発 DB
-├── embedded-backend-adapter  OpenkkBackendPort 実装 — 同プロセスサーバーへの bridge
+├── embedded-backend-adapter  OpenkkBackendPort 実装 — 同プロセス HTTP 風 bridge
 ├── print-adapter        PrintPort 実装 — ブラウザ印刷
 │
 ├── embedded-backend     in-process backend composition root
@@ -35,7 +35,7 @@ packages/
 
 ### 1. Client / Server 完全分離
 
-`client-*` は `server-*` を import しない（逆も同様）。FiscalPeriod など共通する概念は両 side で独立定義する（二重定義）。橋渡しは `embedded-backend-adapter` の 1 ファイル（`server as unknown as client` キャスト 1 行）。
+`client-*` は `server-*` を import しない（逆も同様）。FiscalPeriod など共通する概念は両 side で独立定義する。
 
 ### 2. Ports & Adapters
 
@@ -64,7 +64,7 @@ server side:   api → usecases → ports → domain
 
 ## 認証について
 
-`server-usecases` の auth は embedded 単一ユーザー向けスタブ実装（`startSession` が `stub://auth/no-op` を返す）。HTTP マルチユーザーサーバーを構築する場合は `OpenkkServerPort.auth` を実装した独自 adapter が必要。
+`server-usecases` の auth は embedded 単一ユーザー向け local auth 実装。HTTP マルチユーザーサーバーを構築する場合は `OpenkkServerPort.auth` を実装した独自 adapter が必要。
 
 ## DB スキーマとマイグレーション
 

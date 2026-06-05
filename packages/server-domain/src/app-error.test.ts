@@ -31,4 +31,14 @@ describe("server AppError", () => {
 
     expect(error.toJson()).toEqual(dto);
   });
+
+  it("rejects malformed API error JSON", () => {
+    expect(() =>
+      AppError.fromJson({
+        messageForUser: "missing developer message",
+        originalMessage: null,
+        statusCode: 400,
+      }),
+    ).toThrow(/invalid AppError JSON/);
+  });
 });

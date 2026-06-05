@@ -69,7 +69,7 @@
 | バーチャル行として表示 | 1月の仕訳一覧に「再振替」バッジ付きで自動表示 |
 | 期首残高の入力 | 資産・負債の期首残高 (`openingBalanceLines`) を貸借一致で入力 |
 
-**実装パッケージ:** `client-domain` (`opening-carryover.ts`, `sample-data.ts`), `client-usecases`, `client-ui` (`OpeningCarryoverPage`)
+**実装パッケージ:** `client-domain` (`opening-carryover.ts`, `demo-data.ts`), `client-usecases`, `client-ui` (`OpeningCarryoverPage`)
 
 ---
 

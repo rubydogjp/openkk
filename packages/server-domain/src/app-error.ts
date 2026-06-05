@@ -38,13 +38,14 @@ export class AppError extends Error implements AppErrorLike {
   }
 
   static fromJson(json: Record<string, unknown>): AppError {
+    if (!isAppErrorLike(json)) {
+      throw new Error("AppError.fromJson: invalid AppError JSON");
+    }
     return new AppError({
-      messageForDeveloper: String(json.messageForDeveloper),
-      messageForUser: String(json.messageForUser),
-      originalMessage:
-        typeof json.originalMessage === "string" ? json.originalMessage : null,
-      statusCode:
-        typeof json.statusCode === "number" ? json.statusCode : null,
+      messageForDeveloper: json.messageForDeveloper,
+      messageForUser: json.messageForUser,
+      originalMessage: json.originalMessage,
+      statusCode: json.statusCode,
     });
   }
 

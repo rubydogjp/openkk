@@ -6,7 +6,7 @@ function makeDb() {
   return createMemoryDbAdapter();
 }
 
-const sampleLine = {
+const testEntryLine = {
   side: "debit" as const,
   bookAccountId: "acct_cash",
   amount: 1000,
@@ -86,7 +86,7 @@ describe("createMemoryDbAdapter / fiscalPeriods", () => {
       date: "2026-04-01",
       description: "entry",
       businessRate: 1,
-      lines: [sampleLine],
+      lines: [testEntryLine],
     });
     await db.fixedAssets.create("user-1", period.id, {
       name: "Camera",
@@ -127,7 +127,7 @@ describe("createMemoryDbAdapter / fiscalPeriods", () => {
           description: "imported entry",
           localId: "source-entry-1",
           businessRate: 1,
-          lines: [sampleLine],
+          lines: [testEntryLine],
         },
       ],
       fixedAssets: [
@@ -174,13 +174,13 @@ describe("createMemoryDbAdapter / entries", () => {
       description: "before",
       localId: "local-1",
       businessRate: 1,
-      lines: [sampleLine],
+      lines: [testEntryLine],
     });
     await db.entries.create("user-1", "fp-2", {
       date: "2026-04-16",
       description: "other fp",
       businessRate: 1,
-      lines: [sampleLine],
+      lines: [testEntryLine],
     });
 
     expect(original.id).toMatch(/^entry_/);
@@ -193,7 +193,7 @@ describe("createMemoryDbAdapter / entries", () => {
       date: "2026-05-01",
       description: "after",
       businessRate: 0.5,
-      lines: [{ ...sampleLine, amount: 2000 }],
+      lines: [{ ...testEntryLine, amount: 2000 }],
     });
     expect(updated.id).toBe(original.id);
     expect(updated.description).toBe("after");
@@ -210,13 +210,13 @@ describe("createMemoryDbAdapter / entries", () => {
         date: "2026-04-01",
         description: "first",
         businessRate: 1,
-        lines: [sampleLine],
+        lines: [testEntryLine],
       },
       {
         date: "2026-04-02",
         description: "second",
         businessRate: 1,
-        lines: [sampleLine],
+        lines: [testEntryLine],
       },
     ]);
 
@@ -229,16 +229,16 @@ describe("createMemoryDbAdapter / entries", () => {
   it("importMany is idempotent on localId across calls and within a batch", async () => {
     const db = await makeDb();
     const first = await db.entries.importMany("user-1", "fp-1", [
-      { date: "2026-04-01", description: "a", localId: "L1", businessRate: 1, lines: [sampleLine] },
-      { date: "2026-04-02", description: "b", localId: "L2", businessRate: 1, lines: [sampleLine] },
+      { date: "2026-04-01", description: "a", localId: "L1", businessRate: 1, lines: [testEntryLine] },
+      { date: "2026-04-02", description: "b", localId: "L2", businessRate: 1, lines: [testEntryLine] },
     ]);
     expect(first).toHaveLength(2);
 
     // Re-import L1 (existing) + L3 (new) + duplicate L3 within the batch.
     const second = await db.entries.importMany("user-1", "fp-1", [
-      { date: "2026-04-01", description: "a-again", localId: "L1", businessRate: 1, lines: [sampleLine] },
-      { date: "2026-04-03", description: "c", localId: "L3", businessRate: 1, lines: [sampleLine] },
-      { date: "2026-04-03", description: "c-dup", localId: "L3", businessRate: 1, lines: [sampleLine] },
+      { date: "2026-04-01", description: "a-again", localId: "L1", businessRate: 1, lines: [testEntryLine] },
+      { date: "2026-04-03", description: "c", localId: "L3", businessRate: 1, lines: [testEntryLine] },
+      { date: "2026-04-03", description: "c-dup", localId: "L3", businessRate: 1, lines: [testEntryLine] },
     ]);
     expect(second.map((entry) => entry.description)).toEqual(["c"]);
     expect(await db.entries.getAll("fp-1")).toHaveLength(3);
@@ -247,8 +247,8 @@ describe("createMemoryDbAdapter / entries", () => {
   it("importMany always inserts entries without a localId", async () => {
     const db = await makeDb();
     const created = await db.entries.importMany("user-1", "fp-1", [
-      { date: "2026-04-01", description: "x", businessRate: 1, lines: [sampleLine] },
-      { date: "2026-04-01", description: "y", businessRate: 1, lines: [sampleLine] },
+      { date: "2026-04-01", description: "x", businessRate: 1, lines: [testEntryLine] },
+      { date: "2026-04-01", description: "y", businessRate: 1, lines: [testEntryLine] },
     ]);
     expect(created).toHaveLength(2);
   });

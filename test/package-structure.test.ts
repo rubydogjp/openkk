@@ -138,6 +138,51 @@ describe("openkk workspace structure", () => {
       }
     }
   });
+
+  it("keeps client/server REST boundary type names in sync", () => {
+    const clientTypes = exportedTypeNames(
+      path.join(packagesDir, "client-ports/src/backend-api/types.ts"),
+    );
+    const serverTypes = exportedTypeNames(
+      path.join(packagesDir, "server-ports/src/types.ts"),
+    );
+    const restBoundaryName = /(?:Request|Response|ApiRecord|Input)$/;
+    const clientBoundaryTypes = [...clientTypes]
+      .filter((name) => restBoundaryName.test(name))
+      .sort();
+    const serverBoundaryTypes = [...serverTypes]
+      .filter((name) => restBoundaryName.test(name))
+      .filter((name) => !name.includes("Db"))
+      .sort();
+
+    expect(clientBoundaryTypes).toEqual(serverBoundaryTypes);
+  });
+
+  it("keeps client/server HTTP endpoint metadata in sync", () => {
+    const clientEndpoints = endpointMetadata(
+      path.join(packagesDir, "client-ports/src/backend-api/types.ts"),
+    );
+    const serverEndpoints = endpointMetadata(
+      path.join(packagesDir, "server-ports/src/types.ts"),
+    );
+
+    expect(clientEndpoints).toEqual(serverEndpoints);
+  });
+
+  it("keeps hard-coded data names aligned with their purpose", () => {
+    expect(
+      fs.existsSync(path.join(packagesDir, "client-domain/src/shared/sample-data.ts")),
+    ).toBe(false);
+
+    const demoSeed = fs.readFileSync(
+      path.join(packagesDir, "openkk/app/demo-seed.ts"),
+      "utf8",
+    );
+    expect(demoSeed).not.toMatch(/\b(sample|example)[A-Za-z0-9_]*/);
+
+    const e2eFixtureNames = fs.readdirSync(path.join(rootDir, "e2e/fixtures"));
+    expect(e2eFixtureNames.filter((name) => /sample/i.test(name))).toEqual([]);
+  });
 });
 
 function packageName(packageDir: string): string {
@@ -180,4 +225,30 @@ function listFiles(dir: string): string[] {
     else out.push(full);
   }
   return out;
+}
+
+function exportedTypeNames(file: string): Set<string> {
+  const text = fs.readFileSync(file, "utf8");
+  return new Set(
+    [...text.matchAll(/export type ([A-Za-z0-9_]+)/g)].map((match) => match[1]!),
+  );
+}
+
+function endpointMetadata(file: string): Array<{
+  key: string;
+  method: string;
+  path: string;
+  successStatus: number;
+}> {
+  const text = fs.readFileSync(file, "utf8");
+  return [
+    ...text.matchAll(
+      /([a-zA-Z0-9]+): \{ method: "([A-Z]+)", path: "([^"]+)", successStatus: ([0-9]+) \}/g,
+    ),
+  ].map((match) => ({
+    key: match[1]!,
+    method: match[2]!,
+    path: match[3]!,
+    successStatus: Number(match[4]),
+  }));
 }

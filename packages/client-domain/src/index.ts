@@ -2,7 +2,7 @@ export * from "./shared/app-error";
 export * from "./shared/brand-config";
 export * from "./shared/openkk-config";
 export * from "./shared/models";
-export * from "./shared/sample-data";
+export * from "./shared/demo-data";
 export * from "./shared/period-lock";
 export * from "./shared/parse-utils";
 
