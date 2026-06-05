@@ -195,25 +195,15 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
           documentsReceivedCompleted: input.documentsReceivedCompleted,
           opening: input.opening,
         });
-        let updated = false;
         setFiscalPeriods((current) =>
-          current.map((period) => {
-            if (period.id !== fiscalPeriodId) return period;
-            updated = true;
-            const mapped = mapRemoteFiscalPeriod(patched);
-            if (
-              input.provisionalClosingCompleted != null &&
-              mapped.stage !== "post_closing"
-            ) {
-              return {
-                ...mapped,
-                provisionalClosingCompleted: input.provisionalClosingCompleted,
-              };
-            }
-            return mapped;
-          }),
+          applyFiscalPeriodUpdate(
+            current,
+            fiscalPeriodId,
+            patched,
+            input.provisionalClosingCompleted,
+          ),
         );
-        return updated;
+        return true;
       },
       signInAsMockUser() {
         setFiscalPeriods([]);
@@ -324,6 +314,25 @@ export function resolveFiscalPeriodPatchStage(input: {
   if (input.stage != null) return input.stage;
   if (input.provisionalClosingCompleted === false) return "journalizing";
   return undefined;
+}
+
+export function applyFiscalPeriodUpdate(
+  current: FiscalPeriod[],
+  fiscalPeriodId: string,
+  patched: FiscalPeriodApiRecord,
+  provisionalClosingCompleted?: boolean,
+): FiscalPeriod[] {
+  return current.map((period) => {
+    if (period.id !== fiscalPeriodId) return period;
+    const mapped = mapRemoteFiscalPeriod(patched);
+    if (provisionalClosingCompleted != null && mapped.stage !== "post_closing") {
+      return {
+        ...mapped,
+        provisionalClosingCompleted,
+      };
+    }
+    return mapped;
+  });
 }
 
 function entryRecordToImportInput(

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   entryRecordToImportPayload,
+  removeEntryRecord,
   replaceFiscalPeriodEntryRecords,
 } from "./entries-state";
 import type { EntryRecord } from "@rubydogjp/openkk-client-domain";
@@ -175,5 +176,22 @@ describe("replaceFiscalPeriodEntryRecords", () => {
 
     expect(replaceFiscalPeriodEntryRecords(current, null, [])).toEqual([]);
     expect(replaceFiscalPeriodEntryRecords(current, "", [])).toEqual([]);
+  });
+});
+
+describe("removeEntryRecord", () => {
+  it("removes only the requested entry", () => {
+    const current = [
+      entry({ id: "entry-1", fiscalPeriodId: "fp-1" }),
+      entry({ id: "entry-2", fiscalPeriodId: "fp-1" }),
+    ];
+
+    expect(removeEntryRecord(current, "entry-1")).toEqual([current[1]]);
+  });
+
+  it("leaves records unchanged when the entry is absent", () => {
+    const current = [entry({ id: "entry-1", fiscalPeriodId: "fp-1" })];
+
+    expect(removeEntryRecord(current, "missing")).toEqual(current);
   });
 });

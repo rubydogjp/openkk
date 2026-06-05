@@ -1,6 +1,42 @@
 import { DEFAULT_BOOK_ACCOUNTS } from "../entries/default-master-data";
 import { getEntryLines, type EntryLine, type EntryRecord } from "../entries/entry-record";
-import { parseAmount, parseBusinessRate } from "../shared/parse-utils";
+import type { FiscalPeriod } from "../shared/models";
+import { parseAmount, parseBusinessRate, parseIsoLocalDate } from "../shared/parse-utils";
+
+export type NextFiscalPeriodSuggestion = {
+  name: string;
+  startDate: string;
+  endDate: string;
+};
+
+export function buildNextFiscalPeriodSuggestion(input: {
+  startDate: string;
+  endDate: string;
+}): NextFiscalPeriodSuggestion {
+  const startDate = addYearsToIsoDate(input.startDate, 1) ?? input.startDate;
+  const endDate = addYearsToIsoDate(input.endDate, 1) ?? input.endDate;
+  return {
+    name: `${endDate.slice(0, 4)}年分`,
+    startDate,
+    endDate,
+  };
+}
+
+export function findSuggestedNextFiscalPeriod(
+  fiscalPeriods: FiscalPeriod[],
+  currentFiscalPeriod: FiscalPeriod,
+  suggestion: NextFiscalPeriodSuggestion,
+): FiscalPeriod | null {
+  return (
+    fiscalPeriods.find((period) => {
+      if (period.id === currentFiscalPeriod.id) return false;
+      return (
+        period.startDate === suggestion.startDate &&
+        period.endDate === suggestion.endDate
+      );
+    }) ?? null
+  );
+}
 
 type OpeningCarryoverJournal = {
   id: string;
@@ -159,4 +195,20 @@ function resolveBookAccountId(line: EntryLine): string {
     DEFAULT_BOOK_ACCOUNTS.find((account) => account.name === line.accountName)?.id ??
     line.accountName
   );
+}
+
+function addYearsToIsoDate(value: string, years: number): string | null {
+  const date = parseIsoLocalDate(value);
+  if (date == null) return null;
+  const year = date.getFullYear() + years;
+  const month = date.getMonth();
+  const day = Math.min(
+    date.getDate(),
+    new Date(year, month + 1, 0).getDate(),
+  );
+  return [
+    String(year).padStart(4, "0"),
+    String(month + 1).padStart(2, "0"),
+    String(day).padStart(2, "0"),
+  ].join("-");
 }

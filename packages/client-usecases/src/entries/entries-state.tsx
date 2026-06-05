@@ -274,15 +274,8 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
           return false;
         }
         await backendApi.entries.remove(currentRecord.fiscalPeriodId, entryId);
-        let deleted = false;
-        setRecords((current) =>
-          current.filter((record) => {
-            if (record.id !== entryId) return true;
-            deleted = true;
-            return false;
-          }),
-        );
-        return deleted;
+        setRecords((current) => removeEntryRecord(current, entryId));
+        return true;
       },
       async mergeFiscalPeriodEntries(fiscalPeriodId, importedEntries) {
         const payload = importedEntries.map((entry) =>
@@ -351,6 +344,13 @@ export function replaceFiscalPeriodEntryRecords(
     ...current.filter((record) => record.fiscalPeriodId !== fiscalPeriodId),
     ...nextRecords,
   ];
+}
+
+export function removeEntryRecord(
+  current: EntryRecord[],
+  entryId: string,
+): EntryRecord[] {
+  return current.filter((record) => record.id !== entryId);
 }
 
 function mapRemoteEntryToRecord(input: {

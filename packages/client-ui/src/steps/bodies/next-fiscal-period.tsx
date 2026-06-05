@@ -4,9 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   AppError,
+  buildNextFiscalPeriodSuggestion,
   buildOpeningBalanceLinesFromClosingBsRows,
   buildOpeningCarryoverJournalsFromReversibleEntries,
   computeFsAggregate,
+  findSuggestedNextFiscalPeriod,
 } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text";
 import {
@@ -51,33 +53,29 @@ export function NextFiscalPeriodBody({
     (period) => period.id === appState.currentFiscalPeriodId,
   );
 
-  const nextFiscalPeriod = useMemo(() => {
-    if (currentFiscalPeriod == null) return null;
-    const currentEndYear = Number(currentFiscalPeriod.endDate.slice(0, 4));
-    return (
-      appState.fiscalPeriods.find((period) => {
-        if (period.id === currentFiscalPeriod.id) return false;
-        return Number(period.endDate.slice(0, 4)) === currentEndYear + 1;
-      }) ?? null
-    );
-  }, [appState.fiscalPeriods, currentFiscalPeriod]);
-
   const suggested = useMemo(() => {
     if (currentFiscalPeriod == null)
       return { name: "", startDate: "", endDate: "" };
-    const startYear = Number(currentFiscalPeriod.startDate.slice(0, 4));
-    const endYear = Number(currentFiscalPeriod.endDate.slice(0, 4));
-    return {
-      name: `${endYear + 1}年分`,
-      startDate: `${startYear + 1}-01-01`,
-      endDate: `${endYear + 1}-12-31`,
-    };
+    return buildNextFiscalPeriodSuggestion({
+      startDate: currentFiscalPeriod.startDate,
+      endDate: currentFiscalPeriod.endDate,
+    });
   }, [currentFiscalPeriod]);
+
+  const nextFiscalPeriod = useMemo(() => {
+    if (currentFiscalPeriod == null) return null;
+    return findSuggestedNextFiscalPeriod(
+      appState.fiscalPeriods,
+      currentFiscalPeriod,
+      suggested,
+    );
+  }, [appState.fiscalPeriods, currentFiscalPeriod, suggested]);
 
   const [name, setName] = useState(suggested.name);
   const [startDate, setStartDate] = useState(suggested.startDate);
   const [endDate, setEndDate] = useState(suggested.endDate);
   const [nameEdited, setNameEdited] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   const [carries, setCarries] = useState<Record<string, boolean>>({
     bs: true,
     transfer: true,
@@ -115,12 +113,15 @@ export function NextFiscalPeriodBody({
     canEnterPage &&
     currentFiscalPeriod.documentsReceivedCompleted &&
     !config.isDemoMode &&
+    !isCreating &&
     name.trim() !== "" &&
     startDate.trim() !== "" &&
     endDate.trim() !== "";
   const isDemo = config.isDemoMode;
 
   const handleCreate = async () => {
+    if (!canCreateNext) return;
+    setIsCreating(true);
     try {
       const createdId = await appState.createFiscalPeriod({
         name,
@@ -188,6 +189,8 @@ export function NextFiscalPeriodBody({
             "steps/next-fiscal-period: createFiscalPeriod failed",
         }),
       );
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -297,7 +300,7 @@ export function NextFiscalPeriodBody({
                   disabled={!canCreateNext}
                   variant="success"
                 >
-                  次期を作成
+                  {isCreating ? "作成中" : "次期を作成"}
                 </StepPrimaryButton>
               )
             ) : isDemo ? (

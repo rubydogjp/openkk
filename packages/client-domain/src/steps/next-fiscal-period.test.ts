@@ -1,7 +1,97 @@
 import { describe, expect, it } from "vitest";
 
 import type { EntryRecord } from "../entries/entry-record";
-import { buildOpeningCarryoverJournalsFromReversibleEntries } from "./next-fiscal-period";
+import type { FiscalPeriod } from "../shared/models";
+import {
+  buildNextFiscalPeriodSuggestion,
+  buildOpeningCarryoverJournalsFromReversibleEntries,
+  findSuggestedNextFiscalPeriod,
+} from "./next-fiscal-period";
+
+describe("buildNextFiscalPeriodSuggestion", () => {
+  it("suggests the next calendar year for a calendar-year period", () => {
+    expect(
+      buildNextFiscalPeriodSuggestion({
+        startDate: "2026-01-01",
+        endDate: "2026-12-31",
+      }),
+    ).toEqual({
+      name: "2027年分",
+      startDate: "2027-01-01",
+      endDate: "2027-12-31",
+    });
+  });
+
+  it("preserves non-calendar fiscal period month and day boundaries", () => {
+    expect(
+      buildNextFiscalPeriodSuggestion({
+        startDate: "2025-04-01",
+        endDate: "2026-03-31",
+      }),
+    ).toEqual({
+      name: "2027年分",
+      startDate: "2026-04-01",
+      endDate: "2027-03-31",
+    });
+  });
+
+  it("clamps leap-day boundaries to the target year's month end", () => {
+    expect(
+      buildNextFiscalPeriodSuggestion({
+        startDate: "2024-02-29",
+        endDate: "2025-02-28",
+      }),
+    ).toEqual({
+      name: "2026年分",
+      startDate: "2025-02-28",
+      endDate: "2026-02-28",
+    });
+  });
+});
+
+describe("findSuggestedNextFiscalPeriod", () => {
+  it("finds the fiscal period that exactly matches the suggested boundaries", () => {
+    const current = period({
+      id: "fp-2026",
+      startDate: "2025-04-01",
+      endDate: "2026-03-31",
+    });
+    const matching = period({
+      id: "fp-2027",
+      startDate: "2026-04-01",
+      endDate: "2027-03-31",
+    });
+
+    expect(
+      findSuggestedNextFiscalPeriod([current, matching], current, {
+        name: "2027年分",
+        startDate: "2026-04-01",
+        endDate: "2027-03-31",
+      }),
+    ).toBe(matching);
+  });
+
+  it("does not match an unrelated period only because the end year is next year", () => {
+    const current = period({
+      id: "fp-2026",
+      startDate: "2025-04-01",
+      endDate: "2026-03-31",
+    });
+    const unrelated = period({
+      id: "fp-other",
+      startDate: "2026-01-01",
+      endDate: "2027-12-31",
+    });
+
+    expect(
+      findSuggestedNextFiscalPeriod([current, unrelated], current, {
+        name: "2027年分",
+        startDate: "2026-04-01",
+        endDate: "2027-03-31",
+      }),
+    ).toBeNull();
+  });
+});
 
 describe("buildOpeningCarryoverJournalsFromReversibleEntries", () => {
   it("creates next-period reversals for accrued liability expense entries", () => {
@@ -187,6 +277,23 @@ function entry(overrides: Partial<EntryRecord>): EntryRecord {
     businessRate: "",
     taxCategory: "対象外",
     businessCategory: "対象外",
+    ...overrides,
+  };
+}
+
+function period(overrides: Partial<FiscalPeriod> = {}): FiscalPeriod {
+  return {
+    id: "fp-1",
+    name: "2026年分",
+    startDate: "2026-01-01",
+    endDate: "2026-12-31",
+    stage: "journalizing",
+    provisionalClosingCompleted: false,
+    settingsCompleted: true,
+    openingBalancesCompleted: true,
+    documentsReceivedCompleted: false,
+    openingDebitTotal: 0,
+    openingCreditTotal: 0,
     ...overrides,
   };
 }
