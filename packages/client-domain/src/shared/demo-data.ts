@@ -1,5 +1,5 @@
 import type { OpenkkConfig } from "./openkk-config";
-import type { FiscalPeriod, Session } from "./models";
+import type { FiscalPeriod } from "./models";
 import type { OpenkkUser } from "./user";
 import { DEFAULT_BOOK_ACCOUNTS } from "../entries/default-master-data";
 
@@ -140,10 +140,6 @@ function buildDemoFiscalPeriod2026(
       openingJournals: isInProgress ? buildDemoOpeningJournals("fp-2026") : [],
     },
   };
-}
-
-export function buildEmbeddedSession(config: OpenkkConfig): Session {
-  return { user: config.embeddedUser };
 }
 
 export function buildBootstrapUser(config: OpenkkConfig): OpenkkUser | null {

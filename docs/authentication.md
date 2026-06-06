@@ -46,3 +46,7 @@ type CustomUser = {
    - サインアウト: `auth.signOut()` を呼び、ローカルのユーザーを破棄。
 
 > 所有者検証は `server-api` の `getOwnedFiscalPeriod` に集約されている（[`architecture.md`](./architecture.md) 参照）。`server-usecases` を直接組む場合は呼び出し側で同等の検証を実装すること。
+
+## 復元とトークン有効性（CustomUser）
+
+クライアントは起動時に前回の `CustomUser` を localStorage から復元するが、**バックエンドのセッション/トークン有効性は再検証しない**（最小 seam のため）。トークン失効時はデータ取得 API が失敗し、シェル上部のロードエラーバナー（再読み込み）で表面化する。トークンのリフレッシュや `me()` 相当の再検証が必要な場合はサードパーティの `AuthApi` 実装側で行う。バックエンドは保存ユーザーを信頼せず、常に自前のトークン/Cookie で認可すること。

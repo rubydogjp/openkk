@@ -151,11 +151,11 @@
 
 | テストレイヤー | ファイル数 | テスト数 | 対象 |
 |---|---|---|---|
-| ユニット | 34 | 251 | ドメインロジック・DB・パーサー |
+| ユニット | 35 | 257 | ドメインロジック・DB・パーサー |
 | パッケージ構造 | 1 | 14 | workspace 整合性 |
 | E2E (dev mode) | 5 | 15+ シナリオ | ブラウザ操作フルフロー |
 | E2E (demo mode) | 1 | 5 (opt-in) | シードデータ・デモ表示 |
-| E2E (prod/auth) | 1 | — | prod 認証フロー (`auth-prod.spec.ts`) |
+| E2E (prod embedded) | 1 | — | prod 組み込みユーザー (`auth-prod.spec.ts`) |
 | E2E (export build) | 1 | — | 静的エクスポート smoke (`tests-export/`) |
 
 E2E は `NEXT_PUBLIC_OPENKK_MODE=dev` で起動したサーバー (port 4306) に対して実行する。
@@ -165,9 +165,24 @@ demo mode テストは `OPENKK_DEMO_URL` 環境変数が設定されている場
 
 ## モード一覧
 
-| モード | 説明 | DB | シードデータ |
+| モード | 説明 | DB | シードデータ | 認証 |
+|---|---|---|---|---|
+| `dev` | 開発用 | memory | なし (任意に作成) | embedded |
+| `demo` | 公開デモ | memory | あり (buildOpenkkDemoSeed) | embedded |
+| `prod` | PWA 無印版 (この端末に保存) | SQLite OPFS | なし | embedded |
+| `stg` | ステージング | 任意 | 任意 | 任意 |
+
+---
+
+## 認証・ユーザー (Authentication)
+
+ユーザーはドメインの第一級概念 `OpenkkUser = EmbeddedUser | CustomUser`。`OpenkkConfig.authMode` で切り替える。
+
+| 種別 | 用途 | サインイン | サインアウト |
 |---|---|---|---|
-| `dev` | 開発用 | memory | なし (任意に作成) |
-| `demo` | 公開デモ | memory | あり (buildOpenkkDemoSeed) |
-| `prod` | PWA 無印版 (この端末に保存) | SQLite OPFS | なし |
-| `stg` | ステージング | 任意 | 任意 |
+| `EmbeddedUser` | この端末固定の1名（dev/demo/prod） | 起動時に自動 | 不可（`userCanSignOut`=false） |
+| `CustomUser` | OSS 派生プロダクトの実ユーザー（Google 等） | 認証フロー経由 | 可 |
+
+リファレンスアプリ（dev/demo/prod）は全て `authMode:"embedded"`。CustomUser 認証はサードパーティが `OpenkkServerPort.auth`（`AuthApi`）を実装して `CustomUser` を返すことで有効化する。実装手順は [`authentication.md`](./authentication.md) を参照。
+
+**実装パッケージ:** `client-domain` (`user.ts`, `Session`), `client-usecases` (`openkk-app-state`), `client-ui` (`shell-layout`, `sign-in-content`), `server-ports` (`AuthApi`)
