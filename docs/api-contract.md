@@ -29,6 +29,8 @@ Do not use `RequestDto` or `ResponseDto`.
 
 Use `OPENKK_HTTP_ENDPOINTS` for method, path, and success status.
 Adapters own transport details. Backends own validation and `OpenkkApiErrorDto`.
+Use `resolveOpenkkHttpResponse` to validate status and error bodies.
+Use `openkkHttpTransportError` when no HTTP response was received.
 
 ## Error JSON
 
@@ -42,6 +44,8 @@ type OpenkkApiErrorDto = {
 ```
 
 Typical status codes: `400`, `404`, `409`, or `null`.
+For HTTP errors, the HTTP status overrides `OpenkkApiErrorDto.statusCode`.
+Missing or malformed error bodies become a safe client-side `OpenkkApiErrorDto`.
 
 ## Backend Port
 

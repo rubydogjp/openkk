@@ -1,9 +1,11 @@
 import {
-  OPENKK_HTTP_ENDPOINTS,
+  isOpenkkApiErrorDto,
+  resolveOpenkkHttpResponse,
   type OpenkkApiErrorDto,
   type OpenkkBackendPort,
   type OpenkkHttpEndpointKey,
   type OpenkkHttpEndpointSpecs,
+  type OpenkkHttpResponse,
 } from "@rubydogjp/openkk-client-ports";
 import type { OpenkkServerPort } from "@rubydogjp/openkk-embedded-backend";
 
@@ -13,11 +15,6 @@ type EndpointRequest<Key extends OpenkkHttpEndpointKey> =
 type EndpointResponse<Key extends OpenkkHttpEndpointKey> =
   OpenkkHttpEndpointSpecs[Key]["response"];
 
-type EmbeddedHttpResponse = {
-  status: number;
-  body: unknown;
-};
-
 export function createOpenkkEmbeddedBackendAdapter(
   server: OpenkkServerPort,
 ): OpenkkBackendPort {
@@ -25,21 +22,12 @@ export function createOpenkkEmbeddedBackendAdapter(
     key: Key,
     body: EndpointRequest<Key>,
   ): Promise<EndpointResponse<Key>> => {
-    const endpoint = OPENKK_HTTP_ENDPOINTS[key];
     const response = await dispatchEmbeddedHttp(
       server,
       key,
       jsonRoundTrip(body),
     );
-    if (response.status !== endpoint.successStatus) {
-      throw jsonRoundTrip({
-        messageForDeveloper: `embedded backend returned unexpected status for ${key}: ${response.status}`,
-        messageForUser: "バックエンド処理でエラーが発生しました",
-        originalMessage: null,
-        statusCode: response.status,
-      } satisfies OpenkkApiErrorDto);
-    }
-    return jsonRoundTrip(response.body) as EndpointResponse<Key>;
+    return resolveOpenkkHttpResponse(key, jsonRoundTrip(response));
   };
 
   return {
@@ -155,7 +143,7 @@ async function dispatchEmbeddedHttp(
   server: OpenkkServerPort,
   key: OpenkkHttpEndpointKey,
   body: unknown,
-): Promise<EmbeddedHttpResponse> {
+): Promise<OpenkkHttpResponse> {
   try {
     switch (key) {
       case "authStartSession": {
@@ -362,7 +350,7 @@ async function dispatchEmbeddedHttp(
         };
     }
   } catch (error) {
-    throw jsonRoundTrip(errorToApiErrorDto(error));
+    return serverErrorToEmbeddedHttpResponse(error);
   }
 }
 
@@ -371,43 +359,27 @@ function jsonRoundTrip<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-function errorToApiErrorDto(error: unknown): OpenkkApiErrorDto {
-  if (isApiErrorDto(error)) {
+function serverErrorToEmbeddedHttpResponse(
+  error: unknown,
+): OpenkkHttpResponse {
+  if (isOpenkkApiErrorDto(error)) {
+    const status = isHttpErrorStatus(error.statusCode) ? error.statusCode : 500;
     return {
-      messageForDeveloper: error.messageForDeveloper,
-      messageForUser: error.messageForUser,
-      originalMessage: error.originalMessage,
-      statusCode: error.statusCode,
+      status,
+      body: {
+        messageForDeveloper: error.messageForDeveloper,
+        messageForUser: error.messageForUser,
+        originalMessage: error.originalMessage,
+        statusCode: status,
+      } satisfies OpenkkApiErrorDto,
     };
   }
   return {
-    messageForDeveloper: "embedded backend request failed",
-    messageForUser: "バックエンド処理でエラーが発生しました",
-    originalMessage:
-      error instanceof Error ? error.message : stringifyUnknown(error),
-    statusCode: null,
+    status: 500,
+    body: undefined,
   };
 }
 
-function isApiErrorDto(value: unknown): value is OpenkkApiErrorDto {
-  if (typeof value !== "object" || value == null) return false;
-  const candidate = value as Record<string, unknown>;
-  return (
-    typeof candidate.messageForDeveloper === "string" &&
-    typeof candidate.messageForUser === "string" &&
-    (typeof candidate.originalMessage === "string" ||
-      candidate.originalMessage === null) &&
-    (typeof candidate.statusCode === "number" ||
-      candidate.statusCode === null)
-  );
-}
-
-function stringifyUnknown(value: unknown): string | null {
-  if (value == null) return null;
-  if (typeof value === "string") return value.length === 0 ? null : value;
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
+function isHttpErrorStatus(status: number | null): status is number {
+  return status != null && status >= 400 && status <= 599;
 }

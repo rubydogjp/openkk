@@ -95,6 +95,48 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
       statusCode: 409,
     });
   });
+
+  it("maps unknown server failures to HTTP 500 without exposing details", async () => {
+    const server = embeddedServer({
+      fiscalPeriod: {
+        async getAll() {
+          throw new Error("database password leaked here");
+        },
+      },
+    });
+    const api = createOpenkkEmbeddedBackendAdapter(server);
+
+    await expect(api.fiscalPeriod.getAll()).rejects.toEqual({
+      messageForDeveloper:
+        "fiscalPeriodsGetAll returned HTTP 500 without OpenkkApiErrorDto",
+      messageForUser: "サーバー処理でエラーが発生しました",
+      originalMessage: null,
+      statusCode: 500,
+    });
+  });
+
+  it("preserves deliberate HTTP 500 AppError responses", async () => {
+    const server = embeddedServer({
+      fiscalPeriod: {
+        async getAll() {
+          throw {
+            messageForDeveloper: "storage temporarily unavailable",
+            messageForUser: "会計期間を読み込めませんでした",
+            originalMessage: null,
+            statusCode: 500,
+          };
+        },
+      },
+    });
+    const api = createOpenkkEmbeddedBackendAdapter(server);
+
+    await expect(api.fiscalPeriod.getAll()).rejects.toEqual({
+      messageForDeveloper: "storage temporarily unavailable",
+      messageForUser: "会計期間を読み込めませんでした",
+      originalMessage: null,
+      statusCode: 500,
+    });
+  });
 });
 
 function embeddedServer(
