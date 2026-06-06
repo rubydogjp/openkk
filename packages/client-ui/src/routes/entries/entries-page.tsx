@@ -13,7 +13,8 @@ import {
   importEntriesFromCsv,
   importEntriesFromJson,
   buildPeriodLockMessage,
-  parseIsoLocalDate,
+  formatIsoLocalDate,
+  weekdayJa,
   type EntryRecord,
   type EntryPreviewRow,
 } from "@rubydogjp/openkk-client-domain";
@@ -581,7 +582,7 @@ function resolveNewEntryDefaultDate(input: {
   periodStartDate: string | null;
   periodEndDate: string | null;
 }): string {
-  const todayText = formatLocalDate(input.today);
+  const todayText = formatIsoLocalDate(input.today);
   if (
     input.periodStartDate != null &&
     input.periodEndDate != null &&
@@ -606,14 +607,6 @@ function resolveNewEntryDefaultDate(input: {
   return input.periodStartDate ?? displayedMonthFirstDate;
 }
 
-function formatLocalDate(date: Date): string {
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, "0"),
-    String(date.getDate()).padStart(2, "0"),
-  ].join("-");
-}
-
 function isDateWithinRange(
   dateText: string,
   startDate: string | null,
@@ -622,13 +615,6 @@ function isDateWithinRange(
   if (startDate != null && dateText < startDate) return false;
   if (endDate != null && dateText > endDate) return false;
   return true;
-}
-
-function weekdayJa(dateText: string): string {
-  const date = parseIsoLocalDate(dateText);
-  if (date == null) return "";
-  const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
-  return weekdays[date.getDay()] ?? "";
 }
 
 function parseMonthParam(value: string | null): YearMonthValue | null {

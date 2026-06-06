@@ -12,6 +12,15 @@ import {
 import { AppError } from "@rubydogjp/openkk-client-domain";
 import { useOpenkkAppState } from "../shared/openkk-app-state";
 import { useBackendApi } from "../shared/backend-api-context";
+import {
+  entryRecordToImportPayload,
+  resolveBookAccountId,
+  resolveBusinessCategoryId,
+  resolveTaxCategoryId,
+  safeRate,
+} from "./import-mapping";
+
+export { entryRecordToImportPayload } from "./import-mapping";
 import type {
   EntryApiRecord,
   EntryApiLine,
@@ -21,15 +30,17 @@ import type {
 } from "@rubydogjp/openkk-client-ports";
 
 import {
-  getEntryLines,
   parseAmount,
-  parseBusinessRate,
   parseIsoLocalDate,
   recordToPreviewRows,
+  weekdayJa,
   type EntryRecord,
   type EntryLine,
 } from "@rubydogjp/openkk-client-domain";
-import type { EntryAccountVisualType, EntryPreviewRow } from "@rubydogjp/openkk-client-domain";
+import type {
+  EntryAccountVisualType,
+  EntryPreviewRow,
+} from "@rubydogjp/openkk-client-domain";
 
 export type EntryDraft = {
   date: string;
@@ -61,7 +72,10 @@ type EntriesState = {
     fiscalPeriodId: string,
     yearMonth: string,
   ) => EntryRecord[];
-  listMonthRows: (fiscalPeriodId: string, yearMonth: string) => EntryPreviewRow[];
+  listMonthRows: (
+    fiscalPeriodId: string,
+    yearMonth: string,
+  ) => EntryPreviewRow[];
   getEntry: (entryId: string) => EntryRecord | null;
   createEntryFromDraft: (
     fiscalPeriodId: string,
@@ -157,18 +171,21 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
   ]);
 
   const value = useMemo<EntriesState>(() => {
-    const accountOptions: EntryMasterAccountOption[] = bookAccounts.map((account) => ({
-      id: account.id,
-      name: account.name,
-      accountType: (account.accountType ??
-        "asset") as EntryAccountVisualType,
-    }));
+    const accountOptions: EntryMasterAccountOption[] = bookAccounts.map(
+      (account) => ({
+        id: account.id,
+        name: account.name,
+        accountType: (account.accountType ?? "asset") as EntryAccountVisualType,
+      }),
+    );
     const taxCategoryOptions: EntryMasterCategoryOption[] = taxCategories.map(
       (category) => ({ id: category.id, name: category.name }),
     );
-    const businessCategoryOptions: EntryMasterCategoryOption[] = businessCategories.map(
-      (category) => ({ id: category.id, name: category.name }),
-    );
+    const businessCategoryOptions: EntryMasterCategoryOption[] =
+      businessCategories.map((category) => ({
+        id: category.id,
+        name: category.name,
+      }));
 
     return {
       listFiscalPeriodEntries(fiscalPeriodId) {
@@ -246,13 +263,17 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
             messageForUser: "勘定科目の解決に失敗したため保存できませんでした",
           },
         );
-        const patched = await backendApi.entries.patch(currentRecord.fiscalPeriodId, entryId, {
-          date: draft.date,
-          description: draft.description,
-          localId: currentRecord.localId,
-          businessRate: safeRate(draft.businessRate),
-          lines,
-        });
+        const patched = await backendApi.entries.patch(
+          currentRecord.fiscalPeriodId,
+          entryId,
+          {
+            date: draft.date,
+            description: draft.description,
+            localId: currentRecord.localId,
+            businessRate: safeRate(draft.businessRate),
+            lines,
+          },
+        );
         setRecords((current) =>
           current.map((record) =>
             record.id === entryId
@@ -285,7 +306,10 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
             businesses: businessCategories,
           }),
         );
-        const response = await backendApi.entries.importMany(fiscalPeriodId, payload);
+        const response = await backendApi.entries.importMany(
+          fiscalPeriodId,
+          payload,
+        );
         const appended = response.entries.map((entry) =>
           mapRemoteEntryToRecord({
             entry,
@@ -312,11 +336,12 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
         const biz = new Set<string>();
         for (const record of records) {
           if (record.fiscalPeriodId !== fiscalPeriodId) continue;
-          if (record.partner.trim().length > 0) partner.add(record.partner.trim());
-          if (record.taxCategory.trim().length > 0) tax.add(record.taxCategory.trim());
+          if (record.partner.trim().length > 0)
+            partner.add(record.partner.trim());
+          if (record.taxCategory.trim().length > 0)
+            tax.add(record.taxCategory.trim());
           if (record.businessCategory.trim().length > 0)
             biz.add(record.businessCategory.trim());
-
         }
         return {
           partner: Array.from(partner).sort(),
@@ -460,71 +485,6 @@ function formatAmount(value: number): string {
   return new Intl.NumberFormat("ja-JP").format(Math.abs(value));
 }
 
-function weekdayJa(dateText: string): string {
-  const date = parseIsoLocalDate(dateText);
-  if (date == null) return "";
-  const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
-  return weekdays[date.getDay()] ?? "";
-}
-
-function safeRate(value: string): number {
-  return parseBusinessRate(value);
-}
-
-function resolveBookAccountId(input: {
-  explicitId?: string | null;
-  accountName: string;
-  accountType?: EntryAccountVisualType;
-  accounts: MasterBookAccount[];
-}): string | null {
-  if (input.explicitId != null && input.explicitId.length > 0) {
-    const byId = input.accounts.find((account) => account.id === input.explicitId);
-    if (byId != null) return byId.id;
-  }
-  const byNameAndType = input.accounts.find(
-    (account) =>
-      account.name === input.accountName &&
-      (input.accountType == null || account.accountType === input.accountType),
-  );
-  if (byNameAndType != null) return byNameAndType.id;
-  const found = input.accounts.find((account) => account.name === input.accountName);
-  return found?.id ?? null;
-}
-
-function resolveTaxCategoryId(
-  explicitId: string | null,
-  name: string,
-  categories: MasterTaxCategory[],
-): string {
-  if (explicitId != null && explicitId.length > 0) {
-    const byId = categories.find((category) => category.id === explicitId);
-    if (byId != null) return byId.id;
-    const byName = categories.find((category) => category.name === explicitId);
-    if (byName != null) return byName.id;
-  }
-  return (
-    categories.find((category) => category.name === name)?.id ??
-    (name.trim() === "" ? "tax_exempt" : name)
-  );
-}
-
-function resolveBusinessCategoryId(
-  explicitId: string | null,
-  name: string,
-  categories: MasterBusinessCategory[],
-): string {
-  if (explicitId != null && explicitId.length > 0) {
-    const byId = categories.find((category) => category.id === explicitId);
-    if (byId != null) return byId.id;
-    const byName = categories.find((category) => category.name === explicitId);
-    if (byName != null) return byName.id;
-  }
-  return (
-    categories.find((category) => category.name === name)?.id ??
-    (name.trim() === "" ? "biz_none" : name)
-  );
-}
-
 function buildEntryApiLinesFromDraft(
   draft: EntryDraft,
   master: {
@@ -545,7 +505,11 @@ function buildEntryApiLinesFromDraft(
       }) ?? "",
     amount: parseAmount(line.amount),
     partnerName: draft.partner,
-    taxCategoryName: resolveTaxCategoryId(null, draft.taxCategory, master.taxes),
+    taxCategoryName: resolveTaxCategoryId(
+      null,
+      draft.taxCategory,
+      master.taxes,
+    ),
     businessCategoryName: resolveBusinessCategoryId(
       null,
       draft.businessCategory,
@@ -561,66 +525,6 @@ function buildEntryApiLinesFromDraft(
     });
   }
   return lines;
-}
-
-export function entryRecordToImportPayload(
-  entry: EntryRecord,
-  master: {
-    accounts: MasterBookAccount[];
-    taxes: MasterTaxCategory[];
-    businesses: MasterBusinessCategory[];
-  },
-): {
-  date: string;
-  description: string;
-  localId?: string;
-  businessRate: number;
-  lines: EntryApiLine[];
-} {
-  const lines = getEntryLines(entry).map((line): EntryApiLine => ({
-    side: line.side,
-    bookAccountId:
-      resolveBookAccountId({
-        explicitId: line.bookAccountId,
-        accountName: line.accountName,
-        accountType: line.accountType,
-        accounts: master.accounts,
-      }) ?? "",
-    amount: parseAmount(line.amount),
-    partnerName: entry.partner,
-    taxCategoryName: "",
-    businessCategoryName: "",
-  }));
-  if (lines.some((line) => line.bookAccountId === "")) {
-    throw new AppError({
-      messageForDeveloper: "entries.import: unresolved bookAccountId",
-      messageForUser: "勘定科目の解決に失敗したため取込みできませんでした",
-      originalMessage: null,
-      statusCode: null,
-    });
-  }
-  const taxCategoryId = resolveTaxCategoryId(
-    entry.debitTaxCategoryId ?? entry.creditTaxCategoryId ?? null,
-    entry.taxCategory,
-    master.taxes,
-  );
-  const businessCategoryId = resolveBusinessCategoryId(
-    entry.debitBusinessCategoryId ?? entry.creditBusinessCategoryId ?? null,
-    entry.businessCategory,
-    master.businesses,
-  );
-  const linesWithCategories = lines.map((line) => ({
-    ...line,
-    taxCategoryName: taxCategoryId,
-    businessCategoryName: businessCategoryId,
-  }));
-  return {
-    date: entry.date,
-    description: entry.description,
-    localId: entry.localId,
-    businessRate: safeRate(entry.businessRate),
-    lines: linesWithCategories,
-  };
 }
 
 export function useOpenkkEntries() {

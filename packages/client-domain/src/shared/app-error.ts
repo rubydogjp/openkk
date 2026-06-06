@@ -72,10 +72,18 @@ export class AppError extends Error implements AppErrorLike {
   copyWith(params: Partial<AppErrorLike>): AppError {
     return new AppError({
       messageForDeveloper:
-        params.messageForDeveloper ?? this.messageForDeveloper,
-      messageForUser: params.messageForUser ?? this.messageForUser,
-      originalMessage: params.originalMessage ?? this.originalMessage,
-      statusCode: params.statusCode ?? this.statusCode,
+        "messageForDeveloper" in params
+          ? params.messageForDeveloper!
+          : this.messageForDeveloper,
+      messageForUser:
+        "messageForUser" in params
+          ? params.messageForUser!
+          : this.messageForUser,
+      originalMessage:
+        "originalMessage" in params
+          ? params.originalMessage!
+          : this.originalMessage,
+      statusCode: "statusCode" in params ? params.statusCode! : this.statusCode,
     });
   }
 

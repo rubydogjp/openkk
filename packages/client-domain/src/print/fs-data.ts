@@ -3,6 +3,7 @@ import {
   type EntryRecord,
 } from "../entries/entry-record";
 import { parseAmount } from "../shared/parse-utils";
+import { OPENING_EQUITY_LABELS } from "../steps/summary";
 
 export type FsBsRow = {
   assetLabel: string;
@@ -18,7 +19,6 @@ export type FsExpenseWriteIn = { label: string; amount: number };
 export type FsAggregate = {
   amounts: Record<number, number | null>;
   bsRows: FsBsRow[];
-  /** 決算書の空欄スロット（行27〜30）へ流し込む任意経費（金額降順, 最大4件）。 */
   expenseWriteIns: FsExpenseWriteIn[];
 };
 
@@ -28,13 +28,26 @@ export function buildOpeningBalanceLinesFromClosingBsRows(
   bsRows: ReadonlyArray<FsBsRow>,
 ): OpeningBalanceLine[] {
   const amounts = new Map<string, number>();
-  const addLine = (prefix: "a" | "l", label: string, amount: number | null) => {
-    if (label === "" || label === "合計" || amount == null || amount <= 0)
-      return;
-    const accountLabel =
-      label === "青色申告特別控除前の所得金額" ? "元入金" : label;
-    const accountId = `${prefix}:${accountLabel}`;
+  const fold = (accountId: string, amount: number) => {
     amounts.set(accountId, (amounts.get(accountId) ?? 0) + amount);
+  };
+
+  const addLine = (prefix: "a" | "l", label: string, amount: number | null) => {
+    if (label === "" || label === "合計" || amount == null) return;
+    if (label === "事業主貸") {
+      fold("l:元入金", -amount);
+      return;
+    }
+    if (
+      label === "事業主借" ||
+      label === "元入金" ||
+      label === "青色申告特別控除前の所得金額"
+    ) {
+      fold("l:元入金", amount);
+      return;
+    }
+    if (amount <= 0) return;
+    fold(`${prefix}:${label}`, amount);
   };
 
   for (const row of bsRows) {
@@ -42,10 +55,12 @@ export function buildOpeningBalanceLinesFromClosingBsRows(
     addLine("l", row.liabilityLabel, row.liabilityClosing);
   }
 
-  return [...amounts.entries()].map(([accountId, amount]) => ({
-    accountId,
-    amount,
-  }));
+  return [...amounts.entries()]
+    .filter(([, amount]) => amount > 0)
+    .map(([accountId, amount]) => ({
+      accountId,
+      amount,
+    }));
 }
 
 function add(map: Map<string, number>, name: string, delta: number) {
@@ -110,8 +125,9 @@ export function computeFsAggregate({
       assetOpeningByName.set(line.accountId.slice(2), line.amount);
     } else if (line.accountId.startsWith("l:")) {
       const name = line.accountId.slice(2);
-      const t = accountType.get(name);
-      if (t === "equity") equityOpeningByName.set(name, line.amount);
+
+      if (OPENING_EQUITY_LABELS.has(name))
+        equityOpeningByName.set(name, line.amount);
       else liabilityOpeningByName.set(name, line.amount);
     }
   }
@@ -142,11 +158,12 @@ export function computeFsAggregate({
     const v = expenseByName.get(label) ?? 0;
     return v > 0 ? v : null;
   };
-  const cost = (label: string): number | null => {
-    const v = costOfSalesByName.get(label) ?? 0;
+  const cost = (label: string, ...aliases: string[]): number | null => {
+    let v = costOfSalesByName.get(label) ?? 0;
+    for (const a of aliases) v += costOfSalesByName.get(a) ?? 0;
     return v > 0 ? v : null;
   };
-  const purchases = cost("仕入");
+  const purchases = cost("仕入", "商品仕入高");
 
   const NAMED_EXPENSE_ACCOUNTS = new Set<string>([
     "租税公課",

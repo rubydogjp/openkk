@@ -2,6 +2,7 @@ import {
   computeExpenseContribution,
   computeRevenueContribution,
   parseBusinessRate,
+  type EntrySummaryRow,
 } from "./summary";
 import { buildYearMonthRange, parseYearMonth } from "./year-month";
 
@@ -15,14 +16,8 @@ export type StepTrendPoint = {
 };
 
 export function buildStepTrendPoints(input: {
-  entries: Array<{
-    date: string;
-    businessRate: string;
-    debitType: string;
-    debitAmount: string;
-    creditType: string;
-    creditAmount: string;
-  }>;
+  // 複合仕訳(lines)も集計対象に含むよう、summary と同じ EntrySummaryRow を使う。
+  entries: Array<EntrySummaryRow & { date: string }>;
   startDate: string;
   endDate: string;
   today: Date;

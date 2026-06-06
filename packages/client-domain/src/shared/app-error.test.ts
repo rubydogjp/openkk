@@ -48,6 +48,27 @@ describe("AppError", () => {
     expect(appError.statusCode).toBe(500);
   });
 
+  it("copyWith can clear originalMessage / statusCode to null", () => {
+    const original = new AppError({
+      messageForDeveloper: "developer",
+      messageForUser: "ユーザー向け",
+      originalMessage: "raw",
+      statusCode: 409,
+    });
+
+    const cleared = original.copyWith({
+      originalMessage: null,
+      statusCode: null,
+    });
+    expect(cleared.originalMessage).toBeNull();
+    expect(cleared.statusCode).toBeNull();
+    expect(cleared.messageForDeveloper).toBe("developer");
+    expect(cleared.messageForUser).toBe("ユーザー向け");
+    const same = original.copyWith({});
+    expect(same.originalMessage).toBe("raw");
+    expect(same.statusCode).toBe(409);
+  });
+
   it("rejects malformed API error JSON", () => {
     const appError = jsonToAppError({
       messageForUser: "missing developer message",

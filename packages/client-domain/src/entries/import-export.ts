@@ -1,6 +1,6 @@
 import type { EntryLine, EntryRecord } from "./entry-record";
 import { AppError } from "../shared/app-error";
-import { parseIsoLocalDate } from "../shared/parse-utils";
+import { parseIsoLocalDate, weekdayJa } from "../shared/parse-utils";
 
 type JournalJsonEntry = {
   id?: string;
@@ -21,10 +21,12 @@ type JournalJsonEntry = {
   lines?: EntryLine[];
 };
 
+export const OPENKK_JOURNAL_SCHEMA = "openkk-journal-v1";
+
 export function exportEntriesAsJson(entries: EntryRecord[]) {
   return JSON.stringify(
     {
-      schema: "openkk-journal-v1",
+      schema: OPENKK_JOURNAL_SCHEMA,
       entries: entries.map((entry) => ({
         localId: entry.localId ?? entry.id,
         date: entry.date,
@@ -55,6 +57,15 @@ export function importEntriesFromJson(input: {
   fiscalPeriodId: string;
 }): EntryRecord[] {
   const parsed = parseEntriesJson(input.text);
+  if (
+    parsed.schema != null &&
+    parsed.schema !== "" &&
+    parsed.schema !== OPENKK_JOURNAL_SCHEMA
+  ) {
+    throw importFileFormatError(
+      `unsupported journal schema: ${String(parsed.schema)}`,
+    );
+  }
   if (!Array.isArray(parsed.entries)) {
     throw importFileFormatError("entries array not found");
   }
@@ -168,10 +179,16 @@ export function importEntriesFromCsv(input: {
       date: readCsvCell(cells, indexMap.date),
       weekday: readCsvCell(cells, indexMap.weekday),
       debit: readCsvCell(cells, indexMap.debit),
-      debitType: readCsvCell(cells, indexMap.debitType) as EntryRecord["debitType"],
+      debitType: readCsvCell(
+        cells,
+        indexMap.debitType,
+      ) as EntryRecord["debitType"],
       debitAmount: readCsvCell(cells, indexMap.debitAmount),
       credit: readCsvCell(cells, indexMap.credit),
-      creditType: readCsvCell(cells, indexMap.creditType) as EntryRecord["creditType"],
+      creditType: readCsvCell(
+        cells,
+        indexMap.creditType,
+      ) as EntryRecord["creditType"],
       creditAmount: readCsvCell(cells, indexMap.creditAmount),
       description: readCsvCell(cells, indexMap.description),
       partner: readCsvCell(cells, indexMap.partner),
@@ -213,7 +230,10 @@ function normalizeEntry(input: {
     localId: input.localId,
     fiscalPeriodId: input.fiscalPeriodId,
     date: input.date,
-    weekday: input.weekday && input.weekday.length > 0 ? input.weekday : weekdayFromDate(input.date),
+    weekday:
+      input.weekday && input.weekday.length > 0
+        ? input.weekday
+        : weekdayFromDate(input.date),
     debit: input.debit || "未設定",
     debitType: normalizeType(input.debitType),
     debitAmount: normalizeAmount(input.debitAmount),
@@ -229,7 +249,9 @@ function normalizeEntry(input: {
   };
 }
 
-function normalizeLines(lines: EntryLine[] | undefined): EntryLine[] | undefined {
+function normalizeLines(
+  lines: EntryLine[] | undefined,
+): EntryLine[] | undefined {
   if (lines == null || lines.length === 0) return undefined;
   return lines.map((line) => ({
     side: line.side === "credit" ? "credit" : "debit",
@@ -263,15 +285,12 @@ function normalizeAmount(value: string) {
 }
 
 function weekdayFromDate(dateText: string) {
-  const dt = parseIsoLocalDate(dateText);
-  if (dt == null || Number.isNaN(dt.getTime())) return "月";
-  const labels = ["日", "月", "火", "水", "木", "金", "土"];
-  return labels[dt.getDay()] ?? "月";
+  return weekdayJa(dateText) || "月";
 }
 
 function escapeCsvField(value: string) {
-  if (value.includes(",") || value.includes("\"") || value.includes("\n")) {
-    return `"${value.replaceAll("\"", "\"\"")}"`;
+  if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+    return `"${value.replaceAll('"', '""')}"`;
   }
   return value;
 }
@@ -284,9 +303,9 @@ function parseCsv(text: string) {
   for (let i = 0; i < text.length; i += 1) {
     const ch = text[i];
     if (inQuotes) {
-      if (ch === "\"") {
-        if (text[i + 1] === "\"") {
-          field += "\"";
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          field += '"';
           i += 1;
         } else {
           inQuotes = false;
@@ -296,7 +315,7 @@ function parseCsv(text: string) {
       }
       continue;
     }
-    if (ch === "\"") {
+    if (ch === '"') {
       inQuotes = true;
       continue;
     }
@@ -349,9 +368,15 @@ function stripBom(text: string): string {
   return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
 }
 
-function parseEntriesJson(text: string): { entries?: unknown } {
+function parseEntriesJson(text: string): {
+  schema?: unknown;
+  entries?: unknown;
+} {
   try {
-    return JSON.parse(stripBom(text)) as { entries?: unknown };
+    return JSON.parse(stripBom(text)) as {
+      schema?: unknown;
+      entries?: unknown;
+    };
   } catch (error) {
     throw new AppError({
       messageForDeveloper: "entries import JSON parse failed",

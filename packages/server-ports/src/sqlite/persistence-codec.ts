@@ -75,7 +75,7 @@ function validateOpening(value: Record<string, unknown>): void {
     const line = asObject(item, "opening balance line");
     requiredString(line, "id");
     requiredString(line, "accountId");
-    finiteNumber(line, "amount");
+    nonNegativeNumber(line, "amount");
   });
   optionalArray(value, "openingJournals")?.forEach((item) => {
     const journal = asObject(item, "opening journal");

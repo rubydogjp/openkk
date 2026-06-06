@@ -208,7 +208,93 @@ describe("computeFsAggregate", () => {
       ]),
     );
   });
+
+  it("carries forward a balanced opening even in a loss-making year", () => {
+    const aggregate = computeFsAggregate({
+      openingBalanceLines: [
+        { accountId: "a:現金", amount: 500_000 },
+        { accountId: "l:元入金", amount: 500_000 },
+      ],
+      entries: [
+        entry({
+          debit: "通信費",
+          debitType: "expense",
+          debitAmount: "100,000",
+          credit: "現金",
+          creditType: "asset",
+          creditAmount: "100,000",
+        }),
+      ],
+    });
+
+    const opening = buildOpeningBalanceLinesFromClosingBsRows(aggregate.bsRows);
+    expect(opening).toEqual(
+      expect.arrayContaining([
+        { accountId: "a:現金", amount: 400_000 },
+        { accountId: "l:元入金", amount: 400_000 },
+      ]),
+    );
+    const assets = sumByPrefix(opening, "a:");
+    const liabilitiesAndEquity = sumByPrefix(opening, "l:");
+    expect(assets).toBe(liabilitiesAndEquity);
+  });
+
+  it("folds owner-draw / owner-deposit / profit into 元入金 on carry-forward", () => {
+    const aggregate = computeFsAggregate({
+      openingBalanceLines: [
+        { accountId: "a:現金", amount: 1_000_000 },
+        { accountId: "l:元入金", amount: 1_000_000 },
+      ],
+      entries: [
+        entry({
+          debit: "事業主貸",
+          debitType: "asset",
+          debitAmount: "50,000",
+          credit: "現金",
+          creditType: "asset",
+          creditAmount: "50,000",
+        }),
+        entry({
+          debit: "現金",
+          debitType: "asset",
+          debitAmount: "30,000",
+          credit: "事業主借",
+          creditType: "liability",
+          creditAmount: "30,000",
+        }),
+        entry({
+          debit: "現金",
+          debitType: "asset",
+          debitAmount: "200,000",
+          credit: "売上",
+          creditType: "revenue",
+          creditAmount: "200,000",
+        }),
+      ],
+    });
+
+    const opening = buildOpeningBalanceLinesFromClosingBsRows(aggregate.bsRows);
+    // 元入金(翌期) = 1,000,000 + 利益200,000 + 事業主借30,000 − 事業主貸50,000 = 1,180,000
+    expect(opening).toEqual(
+      expect.arrayContaining([
+        { accountId: "a:現金", amount: 1_180_000 },
+        { accountId: "l:元入金", amount: 1_180_000 },
+      ]),
+    );
+    // 事業主貸/事業主借 は独立残高として繰り越さない。
+    expect(opening.map((line) => line.accountId)).not.toContain("a:事業主貸");
+    expect(opening.map((line) => line.accountId)).not.toContain("l:事業主借");
+  });
 });
+
+function sumByPrefix(
+  lines: Array<{ accountId: string; amount: number }>,
+  prefix: string,
+): number {
+  return lines
+    .filter((line) => line.accountId.startsWith(prefix))
+    .reduce((total, line) => total + line.amount, 0);
+}
 
 function entry(overrides: Partial<EntryRecord>): EntryRecord {
   return {

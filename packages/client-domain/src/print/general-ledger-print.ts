@@ -1,8 +1,18 @@
-import { getEntryLines, type EntryLine, type EntryRecord } from "../entries/entry-record";
+import {
+  getEntryLines,
+  type EntryLine,
+  type EntryRecord,
+} from "../entries/entry-record";
 import { parseAmount } from "../shared/parse-utils";
 import { buildPrintDocument, escapeHtml as esc } from "./print-shell";
 
-type AccountType = "asset" | "liability" | "equity" | "revenue" | "expense" | "cost_of_sales";
+type AccountType =
+  | "asset"
+  | "liability"
+  | "equity"
+  | "revenue"
+  | "expense"
+  | "cost_of_sales";
 
 function parseNum(str: string): number {
   return parseAmount(str);
@@ -71,6 +81,7 @@ type LedgerLine = {
 type AccountLedger = {
   accountName: string;
   openingBalance: number;
+  debitNormal: boolean;
   lines: LedgerLine[];
   monthSubtotals: Map<string, { debit: number; credit: number }>;
 };
@@ -100,7 +111,8 @@ function buildLedger(
 
   for (const { entry: e, line } of relevant) {
     const monthKey = e.date.slice(0, 7);
-    if (!monthSubtotals.has(monthKey)) monthSubtotals.set(monthKey, { debit: 0, credit: 0 });
+    if (!monthSubtotals.has(monthKey))
+      monthSubtotals.set(monthKey, { debit: 0, credit: 0 });
     const sub = monthSubtotals.get(monthKey)!;
     const amt = parseNum(line.amount);
 
@@ -131,12 +143,15 @@ function buildLedger(
     }
   }
 
-  return { accountName, openingBalance, lines, monthSubtotals };
+  return { accountName, openingBalance, debitNormal, lines, monthSubtotals };
 }
 
-const TH = "border:1px solid #1D4ED8;background:#EEF5FF;color:#1D4ED8;font-weight:700;padding:5px 4px;text-align:center;";
-const TD = "border:1px solid #1D4ED8;color:#111827;background:#FFFFFF;padding:4px 4px;vertical-align:top;line-height:1.25;";
-const BAND = "border:1px solid #1D4ED8;color:#111827;background:#EEF5FF;padding:4px 4px;font-weight:700;vertical-align:top;line-height:1.25;";
+const TH =
+  "border:1px solid #1D4ED8;background:#EEF5FF;color:#1D4ED8;font-weight:700;padding:5px 4px;text-align:center;";
+const TD =
+  "border:1px solid #1D4ED8;color:#111827;background:#FFFFFF;padding:4px 4px;vertical-align:top;line-height:1.25;";
+const BAND =
+  "border:1px solid #1D4ED8;color:#111827;background:#EEF5FF;padding:4px 4px;font-weight:700;vertical-align:top;line-height:1.25;";
 
 export function buildGeneralLedgerBody(
   _fpName: string,
@@ -171,7 +186,9 @@ export function buildGeneralLedgerBody(
       ? (firstLine.accountType as AccountType)
       : "asset";
     const prefix = isDebitNormal(type) ? "a:" : "l:";
-    const openingLine = openingBalanceLines.find((l) => l.accountId === `${prefix}${name}`);
+    const openingLine = openingBalanceLines.find(
+      (l) => l.accountId === `${prefix}${name}`,
+    );
     return buildLedger(name, entries, openingLine?.amount ?? 0);
   });
 
@@ -187,6 +204,17 @@ export function buildGeneralLedgerBody(
     .map((ledger, pageIdx) => {
       let rowsHtml = "";
       const processedMonths = new Set<string>();
+
+      if (ledger.openingBalance !== 0) {
+        rowsHtml += `<tr>
+  <td style="${BAND};text-align:center">前期繰越</td>
+  <td colspan="2" style="${BAND}"></td>
+  <td style="${BAND};text-align:right">${ledger.debitNormal ? fmt(ledger.openingBalance) : ""}</td>
+  <td style="${BAND};text-align:right">${ledger.debitNormal ? "" : fmt(ledger.openingBalance)}</td>
+  <td style="${BAND};text-align:right">${fmtBalance(ledger.openingBalance)}</td>
+</tr>
+`;
+      }
 
       for (let i = 0; i < ledger.lines.length; i++) {
         const line = ledger.lines[i];
@@ -225,8 +253,8 @@ export function buildGeneralLedgerBody(
         }
       }
 
-      let grandDebit = 0;
-      let grandCredit = 0;
+      let grandDebit = ledger.debitNormal ? ledger.openingBalance : 0;
+      let grandCredit = ledger.debitNormal ? 0 : ledger.openingBalance;
       for (const sub of ledger.monthSubtotals.values()) {
         grandDebit += sub.debit;
         grandCredit += sub.credit;

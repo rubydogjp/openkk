@@ -85,3 +85,19 @@ export function assertEntryLinesBalanced(
     );
   }
 }
+
+export function assertUniqueAccountIds(
+  accountIds: ReadonlyArray<string>,
+  label: string,
+): void {
+  const seen = new Set<string>();
+  for (const accountId of accountIds) {
+    if (seen.has(accountId)) {
+      throw serverValidationError(
+        `${label} has a duplicate accountId: ${accountId}`,
+        "同じ勘定科目の期首残高が重複しています",
+      );
+    }
+    seen.add(accountId);
+  }
+}

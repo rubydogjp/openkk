@@ -10,6 +10,7 @@ import {
 } from "@rubydogjp/openkk-client-usecases";
 import {
   buildPeriodLockMessage,
+  formatIsoLocalDate,
   type FixedAssetPreviewItem,
 } from "@rubydogjp/openkk-client-domain";
 import { ClosedPeriodLock } from "../../../shared/closed-period-lock";
@@ -43,7 +44,9 @@ export function FixedAssetsPage() {
 
   useEffect(() => {
     setNewAssetDraft((current) =>
-      current == null || current.fiscalPeriodId === fiscalPeriodId ? current : null,
+      current == null || current.fiscalPeriodId === fiscalPeriodId
+        ? current
+        : null,
     );
   }, [fiscalPeriodId]);
 
@@ -99,7 +102,9 @@ export function FixedAssetsPage() {
             : (itemId) => navigateWithAssetParam(itemId)
         }
         addButtonSlot={
-          !isReadOnlyPeriod && isDemo ? <DemoLockButton label="追加" /> : undefined
+          !isReadOnlyPeriod && isDemo ? (
+            <DemoLockButton label="追加" />
+          ) : undefined
         }
       />
       {drawerAsset != null && !isReadOnlyPeriod ? (
@@ -144,7 +149,7 @@ function buildNewFixedAssetDraft(
   periodStartDate: string | null,
   today: Date,
 ): FixedAssetPreviewItem {
-  const acquisitionDate = periodStartDate ?? formatLocalDate(today);
+  const acquisitionDate = periodStartDate ?? formatIsoLocalDate(today);
   return {
     id: "__new_fixed_asset__",
     fiscalPeriodId,
@@ -160,12 +165,4 @@ function buildNewFixedAssetDraft(
     usefulLife: 3,
     businessRate: 1,
   };
-}
-
-function formatLocalDate(date: Date): string {
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, "0"),
-    String(date.getDate()).padStart(2, "0"),
-  ].join("-");
 }

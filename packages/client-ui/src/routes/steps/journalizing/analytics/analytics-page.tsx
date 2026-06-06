@@ -40,7 +40,7 @@ export function JournalizingAnalyticsPage() {
   const appState = useOpenkkAppState();
   const entriesState = useOpenkkEntries();
   const openkkConfig = useOpenkkConfig();
-  const [expandedMonths, setExpandedMonths] = useState<number[]>([]);
+  const [expandedMonths, setExpandedMonths] = useState<string[]>([]);
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (period) => period.id === appState.currentFiscalPeriodId,
   );
@@ -80,7 +80,7 @@ export function JournalizingAnalyticsPage() {
           compareYearMonth(yearMonth, currentMonth) <= 0,
       };
     });
-  }, [currentFiscalPeriod, entriesState]);
+  }, [currentFiscalPeriod, entriesState, openkkConfig.today]);
 
   return (
     <section style={{ padding: "24px 24px 96px" }}>
@@ -161,7 +161,7 @@ export function JournalizingAnalyticsPage() {
         ) : (
           <div style={{ marginTop: 24, display: "grid", gap: 12 }}>
             {monthTiles.map((tile) => {
-              const expanded = expandedMonths.includes(tile.month);
+              const expanded = expandedMonths.includes(tile.key);
               return (
                 <div
                   key={tile.key}
@@ -177,9 +177,9 @@ export function JournalizingAnalyticsPage() {
                     disabled={!tile.enabled}
                     onClick={() => {
                       setExpandedMonths((current) =>
-                        current.includes(tile.month)
-                          ? current.filter((v) => v !== tile.month)
-                          : [...current, tile.month],
+                        current.includes(tile.key)
+                          ? current.filter((v) => v !== tile.key)
+                          : [...current, tile.key],
                       );
                     }}
                     style={{

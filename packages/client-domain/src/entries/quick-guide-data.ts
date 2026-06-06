@@ -427,9 +427,9 @@ function expenseOptions(
     },
     {
       title: "文房具・事務用品・消耗品",
-      subtitle: `消耗品 | ${creditAccount}`,
+      subtitle: `消耗品費 | ${creditAccount}`,
       template: {
-        debitAccountName: "消耗品",
+        debitAccountName: "消耗品費",
         creditAccountName: creditAccount,
         description: `${prefix}: 文房具・事務用品・消耗品`,
       },
@@ -526,7 +526,7 @@ export const ACCOUNT_ALIASES: Record<string, string[]> = {
   旅費交通費: ["旅費交通費"],
   接待交際費: ["接待交際費"],
   会議費: ["会議費"],
-  消耗品: ["消耗品", "消耗品費"],
+  消耗品費: ["消耗品費", "消耗品"],
   広告宣伝費: ["広告宣伝費"],
   荷造運賃: ["荷造運賃"],
   支払手数料: ["支払手数料"],
@@ -540,4 +540,39 @@ export const ACCOUNT_ALIASES: Record<string, string[]> = {
 
 export function normalizeAccountName(name: string): string {
   return name.replace(/\s+/g, "").trim();
+}
+
+/**
+ * 簡単入力ガイドのテンプレート科目名を、マスター科目に解決する。
+ *
+ * 同名科目が複数ある場合（例: 「消耗品費」「通信費」「水道光熱費」等は
+ * 製造原価(cost_of_sales)版と販管費(expense)版が併存する）、ガイドは
+ * 個人事業主の販管費／収益向けのため cost_of_sales 版を避けて解決する。
+ * 完全一致を優先し、無ければ部分一致でフォールバックする。
+ */
+export function resolveBookAccountByName<
+  T extends { name: string; accountType?: string | null },
+>(name: string, accounts: readonly T[]): T | null {
+  const aliases = ACCOUNT_ALIASES[name] ?? [name];
+  const prefer = (matches: T[]): T | undefined =>
+    matches.find((account) => account.accountType !== "cost_of_sales") ??
+    matches[0];
+
+  for (const alias of aliases) {
+    const norm = normalizeAccountName(alias);
+    const chosen = prefer(
+      accounts.filter((account) => normalizeAccountName(account.name) === norm),
+    );
+    if (chosen != null) return chosen;
+  }
+  for (const alias of aliases) {
+    const norm = normalizeAccountName(alias);
+    const chosen = prefer(
+      accounts.filter((account) =>
+        normalizeAccountName(account.name).includes(norm),
+      ),
+    );
+    if (chosen != null) return chosen;
+  }
+  return null;
 }

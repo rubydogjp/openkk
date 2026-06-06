@@ -18,7 +18,7 @@ describe("computeStraightLineDepreciation", () => {
     expect(result.progress).toBeCloseTo(0.5, 5);
     expect(result.accumulated).toBe(599_999);
     expect(result.currentBookValue).toBe(600_001);
-    expect(result.annualDepreciation).toBe(299_999);
+    expect(result.annualDepreciation).toBe(300_000);
     expect(result.remainingMonths).toBe(24);
     expect(result.remainingLabel).toBe("あと24ヶ月");
     expect(result.periodLabel).toBe("2024年1月〜");

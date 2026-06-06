@@ -107,6 +107,63 @@ describe("openkk server fiscal period API", () => {
     );
   });
 
+  it("rejects an opening patch whose opening journal is unbalanced", async () => {
+    const db = createFiscalPeriodDb([
+      fiscalPeriod({ id: "fp-user-1", userId: "user-1" }),
+    ]);
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(
+      server.fiscalPeriod.patch("fp-user-1", {
+        opening: openingPatch({
+          openingJournals: [
+            openingJournal({
+              lines: [
+                openingLine({ side: "debit", amount: 1000 }),
+                openingLine({ side: "credit", amount: 900 }),
+              ],
+            }),
+          ],
+        }),
+      }),
+    ).rejects.toThrow(/Opening journal debit total .* must equal credit total/);
+  });
+
+  it("rejects an opening patch with a negative opening balance amount", async () => {
+    const db = createFiscalPeriodDb([
+      fiscalPeriod({ id: "fp-user-1", userId: "user-1" }),
+    ]);
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(
+      server.fiscalPeriod.patch("fp-user-1", {
+        opening: openingPatch({
+          openingBalanceLines: [
+            { id: "l1", accountId: "a:現金", amount: -100 },
+          ],
+        }),
+      }),
+    ).rejects.toThrow(/Opening balance amount must be a non-negative/);
+  });
+
+  it("rejects an opening patch with duplicate opening balance accountIds", async () => {
+    const db = createFiscalPeriodDb([
+      fiscalPeriod({ id: "fp-user-1", userId: "user-1" }),
+    ]);
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(
+      server.fiscalPeriod.patch("fp-user-1", {
+        opening: openingPatch({
+          openingBalanceLines: [
+            { id: "l1", accountId: "a:現金", amount: 100 },
+            { id: "l2", accountId: "a:現金", amount: 200 },
+          ],
+        }),
+      }),
+    ).rejects.toThrow(/duplicate accountId/);
+  });
+
   it("restores an archive as a new active period in its captured phase", async () => {
     const db = createFiscalPeriodDb([]);
     const server = createOpenkkServer(db, { userId: "user-1" });
@@ -295,6 +352,47 @@ function fiscalPeriod(
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,
     opening: null,
+    ...overrides,
+  };
+}
+
+type OpeningPatch = NonNullable<FiscalPeriodPatchInput["opening"]>;
+
+function openingPatch(overrides: Partial<OpeningPatch>): OpeningPatch {
+  return {
+    id: "op-fp-user-1",
+    userId: "user-1",
+    fiscalPeriodId: "fp-user-1",
+    openingBalanceLines: [],
+    openingJournals: [],
+    ...overrides,
+  };
+}
+
+function openingJournal(
+  overrides: Partial<OpeningPatch["openingJournals"][number]>,
+): OpeningPatch["openingJournals"][number] {
+  return {
+    id: "oj-1",
+    date: "2026-01-01",
+    description: "期首再振替",
+    businessRate: 1,
+    lines: [],
+    ...overrides,
+  };
+}
+
+function openingLine(
+  overrides: Partial<OpeningPatch["openingJournals"][number]["lines"][number]>,
+): OpeningPatch["openingJournals"][number]["lines"][number] {
+  return {
+    id: "ojl-1",
+    side: "debit",
+    bookAccountId: "acct_cash",
+    amount: 0,
+    partnerName: "",
+    taxCategoryName: "",
+    businessCategoryName: "",
     ...overrides,
   };
 }

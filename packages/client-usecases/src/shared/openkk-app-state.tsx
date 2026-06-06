@@ -12,14 +12,11 @@ import {
 import type { FiscalPeriodApiRecord } from "@rubydogjp/openkk-client-ports";
 import {
   AppError,
-  parseAmount,
-  parseBusinessRate,
   buildBootstrapFiscalPeriodId,
   buildBootstrapSessionUserId,
   buildDemoSeedEntriesForFiscalPeriod,
   buildDemoSession,
   buildSignedOutFiscalPeriodId,
-  getEntryLines,
   demoOpeningBalanceLines,
   summarizeOpeningBalances,
   DEFAULT_BOOK_ACCOUNTS,
@@ -31,6 +28,7 @@ import {
 import type { FiscalPeriod, Session } from "@rubydogjp/openkk-client-domain";
 import { useBackendApi } from "./backend-api-context";
 import { useOpenkkConfig } from "./openkk-config-context";
+import { entryRecordToImportPayload } from "../entries/import-mapping";
 
 type OpenkkAppState = {
   session: Session | null;
@@ -57,8 +55,6 @@ type OpenkkAppState = {
       settingsCompleted: boolean;
       openingBalancesCompleted: boolean;
       documentsReceivedCompleted: boolean;
-      openingDebitTotal: number;
-      openingCreditTotal: number;
       opening: FiscalPeriod["opening"];
     }>,
   ) => Promise<boolean>;
@@ -357,37 +353,12 @@ export function applyFiscalPeriodUpdate(
   });
 }
 
+const DEMO_IMPORT_MASTER = {
+  accounts: DEFAULT_BOOK_ACCOUNTS,
+  taxes: DEFAULT_TAX_CATEGORIES,
+  businesses: DEFAULT_BUSINESS_CATEGORIES,
+};
+
 function entryRecordToImportInput(record: EntryRecord) {
-  const lines = getEntryLines(record);
-  const partnerName = record.partner;
-  const taxCategoryName =
-    DEFAULT_TAX_CATEGORIES.find((c) => c.name === record.taxCategory)?.id ??
-    record.taxCategory;
-  const businessCategoryName =
-    DEFAULT_BUSINESS_CATEGORIES.find((c) => c.name === record.businessCategory)
-      ?.id ?? record.businessCategory;
-  return {
-    date: record.date,
-    description: record.description,
-    localId: record.localId,
-    businessRate: parseBusinessRate(record.businessRate),
-    lines: lines.map((line) => ({
-      side: line.side,
-      bookAccountId:
-        DEFAULT_BOOK_ACCOUNTS.find((acc) => acc.id === line.bookAccountId)
-          ?.id ??
-        DEFAULT_BOOK_ACCOUNTS.find(
-          (acc) =>
-            acc.name === line.accountName &&
-            acc.accountType === line.accountType,
-        )?.id ??
-        DEFAULT_BOOK_ACCOUNTS.find((acc) => acc.name === line.accountName)
-          ?.id ??
-        line.accountName,
-      amount: parseAmount(line.amount),
-      partnerName,
-      taxCategoryName,
-      businessCategoryName,
-    })),
-  };
+  return entryRecordToImportPayload(record, DEMO_IMPORT_MASTER);
 }

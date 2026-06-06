@@ -4,6 +4,7 @@ import {
   assertIsoDate,
   assertNonNegativeFiniteNumber,
   assertPositiveInteger,
+  assertUniqueAccountIds,
   assertUnitRate,
   serverConflictError,
   serverNotFoundError,
@@ -234,6 +235,28 @@ function assertFiscalPeriodPatchInput(
   const startDate = patch.startDate ?? current.startDate;
   const endDate = patch.endDate ?? current.endDate;
   assertDateRange(startDate, endDate, "Fiscal period");
+
+  const opening = patch.opening;
+  if (opening != null) {
+    for (const line of opening.openingBalanceLines) {
+      assertNonNegativeFiniteNumber(line.amount, "Opening balance amount");
+    }
+    assertUniqueAccountIds(
+      opening.openingBalanceLines.map((line) => line.accountId),
+      "Opening balance lines",
+    );
+    for (const journal of opening.openingJournals) {
+      assertIsoDate(journal.date, "Opening journal date");
+      assertUnitRate(journal.businessRate, "Opening journal business rate");
+      for (const line of journal.lines) {
+        assertNonNegativeFiniteNumber(
+          line.amount,
+          "Opening journal line amount",
+        );
+      }
+      assertEntryLinesBalanced(journal.lines, "Opening journal");
+    }
+  }
 }
 
 function assertEntryInput(input: EntryUpsertInput) {

@@ -1,6 +1,7 @@
 import {
   assertDateRange,
   assertEntryLinesBalanced,
+  assertUniqueAccountIds,
   parseIsoDate,
   serverValidationError,
 } from "@rubydogjp/openkk-server-domain";
@@ -93,24 +94,32 @@ function normalizeFiscalPeriodPhase(value: unknown) {
 
 function normalizeArchivedOpening(value: unknown, userId: string) {
   const opening = objectValue(value, "archive opening");
+  const openingBalanceLines = arrayValue(
+    opening.openingBalanceLines,
+    "archive openingBalanceLines",
+  ).map((line) => {
+    const item = objectValue(line, "archive openingBalanceLine");
+    return {
+      id: requireString(item.id, "archive openingBalanceLine.id"),
+      accountId: requireString(
+        item.accountId,
+        "archive openingBalanceLine.accountId",
+      ),
+      amount: requireNonNegativeNumber(
+        item.amount,
+        "archive openingBalanceLine.amount",
+      ),
+    };
+  });
+  assertUniqueAccountIds(
+    openingBalanceLines.map((line) => line.accountId),
+    "archive openingBalanceLines",
+  );
   return {
     id: "archive-opening",
     userId,
     fiscalPeriodId: "archive-fiscal-period",
-    openingBalanceLines: arrayValue(
-      opening.openingBalanceLines,
-      "archive openingBalanceLines",
-    ).map((line) => {
-      const item = objectValue(line, "archive openingBalanceLine");
-      return {
-        id: requireString(item.id, "archive openingBalanceLine.id"),
-        accountId: requireString(
-          item.accountId,
-          "archive openingBalanceLine.accountId",
-        ),
-        amount: requireNumber(item.amount, "archive openingBalanceLine.amount"),
-      };
-    }),
+    openingBalanceLines,
     openingJournals: arrayValue(
       opening.openingJournals,
       "archive openingJournals",

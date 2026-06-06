@@ -6,7 +6,7 @@ import {
 import type { EntryAccountVisualType } from "../entries/entries-types";
 export { parseAmount, parseBusinessRate } from "../shared/parse-utils";
 
-type EntrySummaryRow = {
+export type EntrySummaryRow = {
   businessRate: string;
   debitType: string;
   debitAmount: string;

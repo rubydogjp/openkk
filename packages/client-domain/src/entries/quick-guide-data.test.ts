@@ -2,10 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { DEFAULT_BOOK_ACCOUNTS } from "./default-master-data";
 import {
-  ACCOUNT_ALIASES,
   guideOptions,
   guideTitle,
-  normalizeAccountName,
+  resolveBookAccountByName,
   type QuickGuidePage,
 } from "./quick-guide-data";
 
@@ -15,8 +14,9 @@ describe("quick guide data", () => {
 
     for (const page of pages) {
       expect(guideTitle(page)).not.toContain("未対応");
-      expect(guideOptions(page).some((option) => option.title.includes("未対応")))
-        .toBe(false);
+      expect(
+        guideOptions(page).some((option) => option.title.includes("未対応")),
+      ).toBe(false);
     }
   });
 
@@ -25,9 +25,30 @@ describe("quick guide data", () => {
       for (const option of guideOptions(page)) {
         if (option.template == null) continue;
 
-        expect(resolveAccountName(option.template.debitAccountName)).toBeTruthy();
-        expect(resolveAccountName(option.template.creditAccountName)).toBeTruthy();
+        expect(
+          resolveAccountName(option.template.debitAccountName),
+        ).toBeTruthy();
+        expect(
+          resolveAccountName(option.template.creditAccountName),
+        ).toBeTruthy();
       }
+    }
+  });
+
+  it("resolves duplicated expense names to the 販管費 account, not 製造原価", () => {
+    const expenseNames = [
+      "消耗品費",
+      "通信費",
+      "水道光熱費",
+      "旅費交通費",
+      "租税公課",
+      "福利厚生費",
+      "雑費",
+    ];
+    for (const name of expenseNames) {
+      const resolved = resolveBookAccountByName(name, DEFAULT_BOOK_ACCOUNTS);
+      expect(resolved?.name).toBe(name);
+      expect(resolved?.accountType).toBe("expense");
     }
   });
 });
@@ -47,13 +68,5 @@ function collectReachablePages(): QuickGuidePage[] {
 }
 
 function resolveAccountName(name: string) {
-  const aliases = ACCOUNT_ALIASES[name] ?? [name];
-  for (const alias of aliases) {
-    const normalized = normalizeAccountName(alias);
-    const exact = DEFAULT_BOOK_ACCOUNTS.find(
-      (account) => normalizeAccountName(account.name) === normalized,
-    );
-    if (exact != null) return exact;
-  }
-  return null;
+  return resolveBookAccountByName(name, DEFAULT_BOOK_ACCOUNTS);
 }

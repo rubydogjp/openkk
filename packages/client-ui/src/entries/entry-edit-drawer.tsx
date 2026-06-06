@@ -13,18 +13,23 @@ import {
 import { StepFormRow } from "../steps/step-ui";
 import { AmountInput } from "../shared/amount-field";
 import { DatePickerButton } from "../shared/date-picker";
-import { fontSize, fontWeight, palette, radii, rings, shadows, sizes, typography } from "../shared/design-tokens";
 import {
-  ACCOUNT_ALIASES,
-  normalizeAccountName,
+  fontSize,
+  fontWeight,
+  palette,
+  radii,
+  rings,
+  shadows,
+  sizes,
+  typography,
+} from "../shared/design-tokens";
+import {
+  resolveBookAccountByName,
   type QuickGuideOption,
   type QuickGuidePage,
   type QuickGuideTemplate,
 } from "@rubydogjp/openkk-client-domain";
-import {
-  QuickGuidePanel,
-  QuickGuideTriggerButton,
-} from "./quick-guide-panel";
+import { QuickGuidePanel, QuickGuideTriggerButton } from "./quick-guide-panel";
 import type {
   EntryDraft,
   EntryMasterAccountOption,
@@ -58,12 +63,36 @@ const ACC_PALETTE: Record<
   EntryAccountVisualType,
   { bg: string; fg: string; border: string }
 > = {
-  asset: { bg: palette.accountAssetBg, fg: palette.accountAsset, border: palette.accountAssetBorder },
-  liability: { bg: palette.accountLiabilityBg, fg: palette.accountLiability, border: palette.accountLiabilityBorder },
-  equity: { bg: palette.accountEquityBg, fg: palette.accountEquity, border: palette.accountEquityBorder },
-  revenue: { bg: palette.accountRevenueBg, fg: palette.accountRevenue, border: palette.accountRevenueBorder },
-  cost_of_sales: { bg: palette.accountExpenseBg, fg: palette.accountExpense, border: palette.accountExpenseBorder },
-  expense: { bg: palette.accountExpenseBg, fg: palette.accountExpense, border: palette.accountExpenseBorder },
+  asset: {
+    bg: palette.accountAssetBg,
+    fg: palette.accountAsset,
+    border: palette.accountAssetBorder,
+  },
+  liability: {
+    bg: palette.accountLiabilityBg,
+    fg: palette.accountLiability,
+    border: palette.accountLiabilityBorder,
+  },
+  equity: {
+    bg: palette.accountEquityBg,
+    fg: palette.accountEquity,
+    border: palette.accountEquityBorder,
+  },
+  revenue: {
+    bg: palette.accountRevenueBg,
+    fg: palette.accountRevenue,
+    border: palette.accountRevenueBorder,
+  },
+  cost_of_sales: {
+    bg: palette.accountExpenseBg,
+    fg: palette.accountExpense,
+    border: palette.accountExpenseBorder,
+  },
+  expense: {
+    bg: palette.accountExpenseBg,
+    fg: palette.accountExpense,
+    border: palette.accountExpenseBorder,
+  },
 };
 
 const ACC_TYPE_LABEL: Record<EntryAccountVisualType, string> = {
@@ -75,7 +104,19 @@ const ACC_TYPE_LABEL: Record<EntryAccountVisualType, string> = {
   expense: "費用",
 };
 
-const BIZ_RATE_PRESETS = ["100", "90", "80", "70", "60", "50", "40", "30", "20", "10", "0"];
+const BIZ_RATE_PRESETS = [
+  "100",
+  "90",
+  "80",
+  "70",
+  "60",
+  "50",
+  "40",
+  "30",
+  "20",
+  "10",
+  "0",
+];
 
 export function EntryEditDrawer(props: {
   entry: EntryRecord;
@@ -84,11 +125,13 @@ export function EntryEditDrawer(props: {
   businessCategoryOptions: EntryMasterCategoryOption[];
   suggestions: EntrySuggestions;
   mode?: "create" | "edit";
+  allowCompound?: boolean;
   onSave: (draft: EntryDraft) => Promise<void> | void;
   onDelete?: () => Promise<void> | void;
   onClose: () => void;
 }) {
   const mode = props.mode ?? "edit";
+  const allowCompound = props.allowCompound ?? true;
   const [draft, setDraft] = useState<RowPairDraft>(() =>
     recordToRowPairDraft(props.entry),
   );
@@ -121,7 +164,9 @@ export function EntryEditDrawer(props: {
   const updateRow = (index: number, patch: Partial<RowPair>) => {
     setDraft((current) => ({
       ...current,
-      pairs: current.pairs.map((row, i) => (i === index ? { ...row, ...patch } : row)),
+      pairs: current.pairs.map((row, i) =>
+        i === index ? { ...row, ...patch } : row,
+      ),
     }));
   };
 
@@ -165,28 +210,8 @@ export function EntryEditDrawer(props: {
   const popGuide = () =>
     setGuideStack((prev) => (prev.length <= 1 ? [] : prev.slice(0, -1)));
 
-  const findAccountByName = (
-    name: string,
-  ): EntryMasterAccountOption | null => {
-    const aliases = ACCOUNT_ALIASES[name] ?? [name];
-
-    for (const alias of aliases) {
-      const norm = normalizeAccountName(alias);
-      const exact = props.accountOptions.find(
-        (opt) => normalizeAccountName(opt.name) === norm,
-      );
-      if (exact != null) return exact;
-    }
-
-    for (const alias of aliases) {
-      const norm = normalizeAccountName(alias);
-      const partial = props.accountOptions.find((opt) =>
-        normalizeAccountName(opt.name).includes(norm),
-      );
-      if (partial != null) return partial;
-    }
-    return null;
-  };
+  const findAccountByName = (name: string): EntryMasterAccountOption | null =>
+    resolveBookAccountByName(name, props.accountOptions);
 
   const applyGuideTemplate = (template: QuickGuideTemplate) => {
     const debit = findAccountByName(template.debitAccountName);
@@ -220,9 +245,7 @@ export function EntryEditDrawer(props: {
         : current.description;
       const newBusinessRate =
         template.businessRatePercent != null
-          ? String(
-              Math.max(0, Math.min(100, template.businessRatePercent)),
-            )
+          ? String(Math.max(0, Math.min(100, template.businessRatePercent)))
           : current.businessRate;
       return {
         ...current,
@@ -261,23 +284,29 @@ export function EntryEditDrawer(props: {
   const hasDescription = draft.description.trim().length > 0;
   const allRowsValid = draft.pairs.every((row) => {
     const hasDebit =
-      row.debitAccountName.trim().length > 0 || parseAmount(row.debitAmount) > 0;
+      row.debitAccountName.trim().length > 0 ||
+      parseAmount(row.debitAmount) > 0;
     const hasCredit =
-      row.creditAccountName.trim().length > 0 || parseAmount(row.creditAmount) > 0;
+      row.creditAccountName.trim().length > 0 ||
+      parseAmount(row.creditAmount) > 0;
     if (!hasDebit && !hasCredit) return false;
     const debitValid =
       !hasDebit ||
-      (row.debitAccountName.trim().length > 0 && parseAmount(row.debitAmount) > 0);
+      (row.debitAccountName.trim().length > 0 &&
+        parseAmount(row.debitAmount) > 0);
     const creditValid =
       !hasCredit ||
-      (row.creditAccountName.trim().length > 0 && parseAmount(row.creditAmount) > 0);
+      (row.creditAccountName.trim().length > 0 &&
+        parseAmount(row.creditAmount) > 0);
     return debitValid && creditValid;
   });
 
   const validationMessages: string[] = [];
   if (!hasDescription) validationMessages.push("摘要を入力してください。");
   if (!allRowsValid)
-    validationMessages.push("入力した行の勘定科目と金額をすべて入力してください。");
+    validationMessages.push(
+      "入力した行の勘定科目と金額をすべて入力してください。",
+    );
   if (!isBalanced)
     validationMessages.push(
       `借方金額と貸方金額の合計を一致させてください。差額: ¥${Math.abs(
@@ -322,7 +351,6 @@ export function EntryEditDrawer(props: {
 
   return (
     <>
-
       <div
         onClick={props.onClose}
         aria-hidden="true"
@@ -336,7 +364,6 @@ export function EntryEditDrawer(props: {
       <aside
         role="dialog"
         aria-label={mode === "create" ? "仕訳の新規作成" : "仕訳の編集"}
-
         className="bk-entry-drawer"
         style={{
           position: "fixed",
@@ -353,7 +380,6 @@ export function EntryEditDrawer(props: {
           flexDirection: "column",
           animation: "bk-drawer-slide-in 220ms cubic-bezier(0.2, 0, 0, 1)",
         }}
-
         onClick={(e) => e.stopPropagation()}
       >
         <style>{`
@@ -380,7 +406,13 @@ export function EntryEditDrawer(props: {
             flexShrink: 0,
           }}
         >
-          <div style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: C.text }}>
+          <div
+            style={{
+              fontSize: fontSize.lg,
+              fontWeight: fontWeight.bold,
+              color: C.text,
+            }}
+          >
             {mode === "create" ? "仕訳の新規作成" : "仕訳の編集"}
           </div>
           <button
@@ -427,203 +459,216 @@ export function EntryEditDrawer(props: {
             />
           ) : (
             <>
-
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
                 <QuickGuideTriggerButton onClick={openGuide} />
               </div>
 
-          <StepFormRow
-            label="日付"
-            control={
-              <DatePickerButton
-                ariaLabel="日付"
-                value={draft.date}
-                onChange={(value) => update({ date: value })}
+              <StepFormRow
+                label="日付"
+                control={
+                  <DatePickerButton
+                    ariaLabel="日付"
+                    value={draft.date}
+                    onChange={(value) => update({ date: value })}
+                  />
+                }
               />
-            }
-          />
 
-          <div
-            style={{
-              background: C.bg,
-              border: `1px solid ${palette.borderEmphasis}`,
-              borderRadius: 12,
-              flexShrink: 0,
-            }}
-          >
-            {draft.pairs.map((row, index) => (
-              <Fragment key={row.id}>
-                {index > 0 ? <CardDivider /> : null}
-                <div
-                  style={{
-                    padding: 18,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 12,
-                  }}
-                >
+              <div
+                style={{
+                  background: C.bg,
+                  border: `1px solid ${palette.borderEmphasis}`,
+                  borderRadius: 12,
+                  flexShrink: 0,
+                }}
+              >
+                {draft.pairs.map((row, index) => (
+                  <Fragment key={row.id}>
+                    {index > 0 ? <CardDivider /> : null}
+                    <div
+                      style={{
+                        padding: 18,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 12,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr 1fr",
+                          columnGap: 16,
+                          rowGap: 12,
+                        }}
+                      >
+                        <StackedField label="借方科目">
+                          <AccountChip
+                            ariaLabel="借方科目"
+                            value={row.debitAccountName}
+                            accountType={row.debitAccountType}
+                            onChange={(option) =>
+                              updateRow(index, {
+                                debitAccountId: option.id,
+                                debitAccountName: option.name,
+                                debitAccountType: option.accountType,
+                              })
+                            }
+                            options={props.accountOptions}
+                            fullWidth
+                          />
+                        </StackedField>
+                        <StackedField label="貸方科目">
+                          <AccountChip
+                            ariaLabel="貸方科目"
+                            value={row.creditAccountName}
+                            accountType={row.creditAccountType}
+                            onChange={(option) =>
+                              updateRow(index, {
+                                creditAccountId: option.id,
+                                creditAccountName: option.name,
+                                creditAccountType: option.accountType,
+                              })
+                            }
+                            options={props.accountOptions}
+                            fullWidth
+                          />
+                        </StackedField>
+                        <StackedField label="借方金額">
+                          <AmountInput
+                            value={row.debitAmount}
+                            onChange={(value) =>
+                              updateRow(index, { debitAmount: value })
+                            }
+                          />
+                        </StackedField>
+                        <StackedField label="貸方金額">
+                          <AmountInput
+                            value={row.creditAmount}
+                            onChange={(value) =>
+                              updateRow(index, { creditAmount: value })
+                            }
+                          />
+                        </StackedField>
+                      </div>
+
+                      <div
+                        style={{
+                          marginTop: 4,
+                          display: "flex",
+                          justifyContent: "flex-end",
+                        }}
+                      >
+                        <ActionRowButton
+                          variant="delete"
+                          ariaLabel="この行を削除"
+                          enabled={draft.pairs.length > 1}
+                          onClick={() => removeRow(index)}
+                        />
+                      </div>
+                    </div>
+                  </Fragment>
+                ))}
+                <CardDivider />
+
+                {allowCompound ? (
                   <div
                     style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      columnGap: 16,
-                      rowGap: 12,
+                      padding: 18,
+                      display: "flex",
+                      justifyContent: "flex-end",
                     }}
                   >
-                    <StackedField label="借方科目">
-                      <AccountChip
-                        ariaLabel="借方科目"
-                        value={row.debitAccountName}
-                        accountType={row.debitAccountType}
-                        onChange={(option) =>
-                          updateRow(index, {
-                            debitAccountId: option.id,
-                            debitAccountName: option.name,
-                            debitAccountType: option.accountType,
-                          })
-                        }
-                        options={props.accountOptions}
-
-                        fullWidth
-                      />
-                    </StackedField>
-                    <StackedField label="貸方科目">
-                      <AccountChip
-                        ariaLabel="貸方科目"
-                        value={row.creditAccountName}
-                        accountType={row.creditAccountType}
-                        onChange={(option) =>
-                          updateRow(index, {
-                            creditAccountId: option.id,
-                            creditAccountName: option.name,
-                            creditAccountType: option.accountType,
-                          })
-                        }
-                        options={props.accountOptions}
-                        fullWidth
-                      />
-                    </StackedField>
-                    <StackedField label="借方金額">
-                      <AmountInput
-                        value={row.debitAmount}
-                        onChange={(value) =>
-                          updateRow(index, { debitAmount: value })
-                        }
-                      />
-                    </StackedField>
-                    <StackedField label="貸方金額">
-                      <AmountInput
-                        value={row.creditAmount}
-                        onChange={(value) =>
-                          updateRow(index, { creditAmount: value })
-                        }
-                      />
-                    </StackedField>
-                  </div>
-
-                  <div style={{ marginTop: 4, display: "flex", justifyContent: "flex-end" }}>
                     <ActionRowButton
-                      variant="delete"
-                      ariaLabel="この行を削除"
-                      enabled={draft.pairs.length > 1}
-                      onClick={() => removeRow(index)}
+                      variant="add"
+                      ariaLabel="複合仕訳を追加"
+                      label="複合仕訳を追加"
+                      enabled
+                      onClick={addRow}
                     />
                   </div>
-                </div>
-              </Fragment>
-            ))}
-            <CardDivider />
+                ) : null}
+              </div>
 
-            <div style={{ padding: 18, display: "flex", justifyContent: "flex-end" }}>
-              <ActionRowButton
-                variant="add"
-                ariaLabel="複合仕訳を追加"
-                label="複合仕訳を追加"
-                enabled
-                onClick={addRow}
+              <StepFormRow
+                label="摘要"
+                control={
+                  <div style={{ width: 320, maxWidth: "100%" }}>
+                    <PlainInput
+                      ariaLabel="摘要"
+                      value={draft.description}
+                      onChange={(value) => update({ description: value })}
+                    />
+                  </div>
+                }
               />
-            </div>
-          </div>
-
-          <StepFormRow
-            label="摘要"
-            control={
-              <div style={{ width: 320, maxWidth: "100%" }}>
-                <PlainInput
-                  ariaLabel="摘要"
-                  value={draft.description}
-                  onChange={(value) => update({ description: value })}
-                />
-              </div>
-            }
-          />
-          <StepFormRow
-            label="取引先"
-            control={
-              <div style={{ width: 200, maxWidth: "100%" }}>
-                <FreeformChip
-                  value={draft.partner}
-                  onChange={(value) => update({ partner: value })}
-                  options={mergeOptions([], props.suggestions.partner)}
-                  placeholder="取引先を入力"
-                />
-              </div>
-            }
-          />
-          <StepFormRow
-            label="事業割合 (%)"
-            control={
-              <div style={{ width: 120 }}>
-                <FreeformChip
-                  value={draft.businessRate}
-                  onChange={(next) => {
-                    const n = parseInt(next, 10);
-                    if (Number.isNaN(n)) update({ businessRate: next.trim() });
-                    else
-                      update({
-                        businessRate: String(Math.max(0, Math.min(100, n))),
-                      });
-                  }}
-                  options={BIZ_RATE_PRESETS}
-                  placeholder="100"
-                  align="right"
-                  numeric
-                />
-              </div>
-            }
-          />
-          <StepFormRow
-            label="課税区分"
-            control={
-              <div style={{ width: 120 }}>
-                <FreeformChip
-                  value={draft.taxCategory}
-                  onChange={(value) => update({ taxCategory: value })}
-                  options={mergeOptions(
-                    props.taxCategoryOptions.map((o) => o.name),
-                    props.suggestions.taxCategory,
-                  )}
-                  placeholder="未選択"
-                />
-              </div>
-            }
-          />
-          <StepFormRow
-            label="事業区分"
-            control={
-              <div style={{ width: 120 }}>
-                <FreeformChip
-                  value={draft.businessCategory}
-                  onChange={(value) => update({ businessCategory: value })}
-                  options={mergeOptions(
-                    props.businessCategoryOptions.map((o) => o.name),
-                    props.suggestions.businessCategory,
-                  )}
-                  placeholder="未選択"
-                />
-              </div>
-            }
-          />
+              <StepFormRow
+                label="取引先"
+                control={
+                  <div style={{ width: 200, maxWidth: "100%" }}>
+                    <FreeformChip
+                      value={draft.partner}
+                      onChange={(value) => update({ partner: value })}
+                      options={mergeOptions([], props.suggestions.partner)}
+                      placeholder="取引先を入力"
+                    />
+                  </div>
+                }
+              />
+              <StepFormRow
+                label="事業割合 (%)"
+                control={
+                  <div style={{ width: 120 }}>
+                    <FreeformChip
+                      value={draft.businessRate}
+                      onChange={(next) => {
+                        const n = parseInt(next, 10);
+                        if (Number.isNaN(n))
+                          update({ businessRate: next.trim() });
+                        else
+                          update({
+                            businessRate: String(Math.max(0, Math.min(100, n))),
+                          });
+                      }}
+                      options={BIZ_RATE_PRESETS}
+                      placeholder="100"
+                      align="right"
+                      numeric
+                    />
+                  </div>
+                }
+              />
+              <StepFormRow
+                label="課税区分"
+                control={
+                  <div style={{ width: 120 }}>
+                    <FreeformChip
+                      value={draft.taxCategory}
+                      onChange={(value) => update({ taxCategory: value })}
+                      options={mergeOptions(
+                        props.taxCategoryOptions.map((o) => o.name),
+                        props.suggestions.taxCategory,
+                      )}
+                      placeholder="未選択"
+                    />
+                  </div>
+                }
+              />
+              <StepFormRow
+                label="事業区分"
+                control={
+                  <div style={{ width: 120 }}>
+                    <FreeformChip
+                      value={draft.businessCategory}
+                      onChange={(value) => update({ businessCategory: value })}
+                      options={mergeOptions(
+                        props.businessCategoryOptions.map((o) => o.name),
+                        props.suggestions.businessCategory,
+                      )}
+                      placeholder="未選択"
+                    />
+                  </div>
+                }
+              />
             </>
           )}
         </div>
@@ -668,7 +713,11 @@ export function EntryEditDrawer(props: {
               <BalanceIndicator debitAmt={debitTotal} creditAmt={creditTotal} />
             )}
             <div style={{ display: "flex", gap: 10 }}>
-              <button type="button" onClick={props.onClose} style={secondaryButtonStyle}>
+              <button
+                type="button"
+                onClick={props.onClose}
+                style={secondaryButtonStyle}
+              >
                 キャンセル
               </button>
               <button
@@ -756,7 +805,10 @@ function AccountChip({
   const [query, setQuery] = useState("");
   const ref = useOutsideClose(open, () => setOpen(false));
 
-  const grouped = useMemo(() => groupAccounts(options, query), [options, query]);
+  const grouped = useMemo(
+    () => groupAccounts(options, query),
+    [options, query],
+  );
   const palette = ACC_PALETTE[accountType];
   const bg = value === "" ? C.bg : palette.bg;
   const fg = value === "" ? C.muted : palette.fg;
@@ -791,7 +843,9 @@ function AccountChip({
           gap: 8,
         }}
       >
-        {value === "" ? null : <AccountTypeIcon type={accountType} color={palette.fg} size={16} />}
+        {value === "" ? null : (
+          <AccountTypeIcon type={accountType} color={palette.fg} size={16} />
+        )}
         <span
           style={{
             minWidth: 0,
@@ -853,7 +907,14 @@ function AccountChip({
                           flexShrink: 0,
                         }}
                       />
-                      <span style={{ fontWeight: account.name === value ? fontWeight.bold : fontWeight.medium }}>
+                      <span
+                        style={{
+                          fontWeight:
+                            account.name === value
+                              ? fontWeight.bold
+                              : fontWeight.medium,
+                        }}
+                      >
                         {account.name}
                       </span>
                     </button>
@@ -868,7 +929,11 @@ function AccountChip({
   );
 }
 
-function AccountTypeIcon(props: { type: EntryAccountVisualType; color: string; size: number }) {
+function AccountTypeIcon(props: {
+  type: EntryAccountVisualType;
+  color: string;
+  size: number;
+}) {
   return (
     <span
       aria-hidden="true"
@@ -910,7 +975,10 @@ function accountIconPath(type: EntryAccountVisualType): string {
 function groupAccounts(
   options: EntryMasterAccountOption[],
   query: string,
-): Array<{ type: EntryAccountVisualType; accounts: EntryMasterAccountOption[] }> {
+): Array<{
+  type: EntryAccountVisualType;
+  accounts: EntryMasterAccountOption[];
+}> {
   const order: EntryAccountVisualType[] = [
     "asset",
     "liability",
@@ -999,7 +1067,7 @@ function FreeformChip({
             textAlign: align,
           }}
         >
-          {value === "" ? placeholder ?? "選択" : value}
+          {value === "" ? (placeholder ?? "選択") : value}
         </span>
       </button>
       {open ? (
@@ -1072,7 +1140,8 @@ function FreeformChip({
                   onClick={() => commit(option)}
                   style={{
                     ...menuItemStyle,
-                    fontWeight: option === value ? fontWeight.bold : fontWeight.medium,
+                    fontWeight:
+                      option === value ? fontWeight.bold : fontWeight.medium,
                   }}
                 >
                   {option}
@@ -1126,7 +1195,13 @@ function BalanceIndicator({
 }) {
   if (debitAmt === 0 && creditAmt === 0) {
     return (
-      <div style={{ fontSize: fontSize.sm, color: C.muted, fontWeight: fontWeight.semibold }}>
+      <div
+        style={{
+          fontSize: fontSize.sm,
+          color: C.muted,
+          fontWeight: fontWeight.semibold,
+        }}
+      >
         金額を入力してください
       </div>
     );
@@ -1493,7 +1568,13 @@ function ActionRowButton({
 function CheckIcon() {
   return (
     <svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-      <polyline points="5 12 10 17 19 7" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+      <polyline
+        points="5 12 10 17 19 7"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -1501,8 +1582,24 @@ function CheckIcon() {
 function CloseIcon() {
   return (
     <svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-      <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-      <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+      <line
+        x1="6"
+        y1="6"
+        x2="18"
+        y2="18"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+      />
+      <line
+        x1="18"
+        y1="6"
+        x2="6"
+        y2="18"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -1510,8 +1607,21 @@ function CloseIcon() {
 function WarnIcon() {
   return (
     <svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-      <path d="M12 3l10 18H2L12 3z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-      <line x1="12" y1="10" x2="12" y2="14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path
+        d="M12 3l10 18H2L12 3z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+      <line
+        x1="12"
+        y1="10"
+        x2="12"
+        y2="14"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
       <circle cx="12" cy="17" r="1" fill="currentColor" />
     </svg>
   );
@@ -1520,8 +1630,24 @@ function WarnIcon() {
 function PlusIcon() {
   return (
     <svg width={12} height={12} viewBox="0 0 24 24" fill="none">
-      <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-      <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+      <line
+        x1="12"
+        y1="5"
+        x2="12"
+        y2="19"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+      />
+      <line
+        x1="5"
+        y1="12"
+        x2="19"
+        y2="12"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -1529,7 +1655,15 @@ function PlusIcon() {
 function MinusIcon() {
   return (
     <svg width={12} height={12} viewBox="0 0 24 24" fill="none">
-      <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+      <line
+        x1="5"
+        y1="12"
+        x2="19"
+        y2="12"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -1602,7 +1736,10 @@ function rowPairDraftToEntryDraft(
 ): EntryDraft {
   const lines: EntryLine[] = [];
   for (const pair of draft.pairs) {
-    if (pair.debitAccountName.trim().length > 0 && parseAmount(pair.debitAmount) > 0) {
+    if (
+      pair.debitAccountName.trim().length > 0 &&
+      parseAmount(pair.debitAmount) > 0
+    ) {
       const matched =
         accounts.find((a) => a.id === pair.debitAccountId) ??
         accounts.find(
@@ -1619,7 +1756,10 @@ function rowPairDraftToEntryDraft(
         bookAccountId: matched?.id,
       });
     }
-    if (pair.creditAccountName.trim().length > 0 && parseAmount(pair.creditAmount) > 0) {
+    if (
+      pair.creditAccountName.trim().length > 0 &&
+      parseAmount(pair.creditAmount) > 0
+    ) {
       const matched =
         accounts.find((a) => a.id === pair.creditAccountId) ??
         accounts.find(
@@ -1648,7 +1788,10 @@ function rowPairDraftToEntryDraft(
   };
 }
 
-function mergeOptions(primary: Iterable<string>, secondary: Iterable<string>): string[] {
+function mergeOptions(
+  primary: Iterable<string>,
+  secondary: Iterable<string>,
+): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
   for (const raw of [...primary, ...secondary]) {

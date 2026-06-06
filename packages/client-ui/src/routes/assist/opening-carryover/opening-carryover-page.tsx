@@ -64,7 +64,7 @@ export function OpeningCarryoverPage() {
   const drawerCarryover =
     drawerCarryoverId == null
       ? null
-      : records.find((record) => record.id === drawerCarryoverId) ?? null;
+      : (records.find((record) => record.id === drawerCarryoverId) ?? null);
   const drawerEntry =
     drawerCarryover == null ? null : carryoverToEntryRecord(drawerCarryover);
 
@@ -93,7 +93,6 @@ export function OpeningCarryoverPage() {
   };
 
   return (
-
     <section
       style={{
         padding: 24,
@@ -166,6 +165,7 @@ export function OpeningCarryoverPage() {
           taxCategoryOptions={entriesState.taxCategoryOptions}
           businessCategoryOptions={entriesState.businessCategoryOptions}
           suggestions={entriesState.listSuggestions(fiscalPeriodId)}
+          allowCompound={false}
           onClose={() => navigateWithCarryoverParam(null)}
           onSave={async (draft) => {
             const ok = await assistState.updateOpeningCarryover(
@@ -184,7 +184,9 @@ export function OpeningCarryoverPage() {
             }
           }}
           onDelete={async () => {
-            const ok = await assistState.deleteOpeningCarryover(drawerCarryover.id);
+            const ok = await assistState.deleteOpeningCarryover(
+              drawerCarryover.id,
+            );
             if (ok) {
               navigateWithCarryoverParam(null);
             } else {
@@ -303,9 +305,7 @@ function LockGlyph() {
   );
 }
 
-function carryoverToEntryRecord(
-  record: OpeningCarryoverRecord,
-): EntryRecord {
+function carryoverToEntryRecord(record: OpeningCarryoverRecord): EntryRecord {
   return {
     id: record.id,
     fiscalPeriodId: record.fiscalPeriodId,

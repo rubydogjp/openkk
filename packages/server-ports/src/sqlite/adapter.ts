@@ -37,8 +37,6 @@ import {
   replaceOpening,
 } from "./opening-store";
 
-/** Minimal async interface required by createSqliteDbAdapter. Adapters provide it
- * either by wrapping a same-thread SQLite Wasm DB or by proxying to a Web Worker. */
 export interface SqlDb {
   exec(
     arg:
@@ -89,8 +87,6 @@ function nowMs(): number {
   return Date.now();
 }
 
-/** Wrap a batch of writes in a single transaction so partial failures roll back
- * and OPFS commits once instead of per-statement. */
 async function runInTransaction(
   db: SqlDb,
   fn: () => Promise<void>,

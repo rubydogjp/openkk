@@ -170,6 +170,66 @@ describe("normalizeArchiveImportInput", () => {
     );
   });
 
+  it("rejects an unbalanced archived opening journal", () => {
+    const input = validArchiveInput();
+    archiveOpening(input).openingJournals[0]!.lines[1]!.amount = 900;
+
+    const error = captureError(() =>
+      normalizeArchiveImportInput(input, "user-1"),
+    );
+
+    expect(error).toBeInstanceOf(AppError);
+    expect((error as AppError).messageForDeveloper).toContain(
+      "archive openingJournal debit total",
+    );
+  });
+
+  it("rejects an unbalanced archived entry", () => {
+    const input = validArchiveInput();
+    (input.entries[0]!.lines as Array<{ amount: number }>)[1]!.amount = 900;
+
+    const error = captureError(() =>
+      normalizeArchiveImportInput(input, "user-1"),
+    );
+
+    expect(error).toBeInstanceOf(AppError);
+    expect((error as AppError).messageForDeveloper).toContain(
+      "archive entry debit total",
+    );
+  });
+
+  it("rejects a negative archived opening balance amount", () => {
+    const input = validArchiveInput();
+    archiveOpening(input).openingBalanceLines[0]!.amount = -100;
+
+    const error = captureError(() =>
+      normalizeArchiveImportInput(input, "user-1"),
+    );
+
+    expect(error).toBeInstanceOf(AppError);
+    expect((error as AppError).messageForDeveloper).toContain(
+      "archive openingBalanceLine.amount",
+    );
+  });
+
+  it("rejects duplicate archived opening balance accountIds", () => {
+    const input = validArchiveInput();
+    archiveOpening(input).openingBalanceLines.push({
+      id: "cash-2",
+      accountId: "cash",
+      amount: 500,
+    });
+
+    const error = captureError(() =>
+      normalizeArchiveImportInput(input, "user-1"),
+    );
+
+    expect(error).toBeInstanceOf(AppError);
+    expect((error as AppError).messageForDeveloper).toContain(
+      "duplicate accountId",
+    );
+  });
+
   it("allows empty fixed asset disposal date as unset", () => {
     const input = validArchiveInput();
     input.fixedAssets[0]!.status = "active";
@@ -180,6 +240,17 @@ describe("normalizeArchiveImportInput", () => {
     expect(normalized.fixedAssets[0]?.patchInput).toEqual({});
   });
 });
+
+type ArchiveOpeningView = {
+  openingBalanceLines: Array<{ id: string; accountId: string; amount: number }>;
+  openingJournals: Array<{ lines: Array<{ amount: number }> }>;
+};
+
+function archiveOpening(
+  input: FiscalPeriodArchiveImportInput,
+): ArchiveOpeningView {
+  return input.fiscalPeriod.opening as ArchiveOpeningView;
+}
 
 function captureError(fn: () => unknown): unknown {
   try {

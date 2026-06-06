@@ -14,17 +14,13 @@ import {
   useOpenkkAssist,
   useOpenkkClosing,
   useOpenkkEntries,
-  usePrintDocument,
 } from "@rubydogjp/openkk-client-usecases";
 import { formatDateButtonLabel } from "../../shared/date-picker";
 import { palette } from "../../shared/design-tokens";
 import { useConfirmDialog } from "../../shared/confirm-dialog";
 import { PlBsDiagramSection } from "../../shared/pl-bs-diagram";
 import { DocumentFileList } from "../../shared/document-file-tile";
-import { buildJournalDocument } from "@rubydogjp/openkk-client-domain";
-import { buildGeneralLedgerDocument } from "@rubydogjp/openkk-client-domain";
-import { buildFinancialStatementsDocument } from "@rubydogjp/openkk-client-domain";
-import { computeFsAggregate } from "@rubydogjp/openkk-client-domain";
+import { useStepDocumentPrinters } from "../use-step-document-printers";
 import { ClosingExplainerAnimation } from "../closing-animation";
 import {
   computeBSSummary,
@@ -56,7 +52,6 @@ export function ClosingBody({
   const entriesState = useOpenkkEntries();
   const assistState = useOpenkkAssist();
   const closingApi = useOpenkkClosing();
-  const printDocument = usePrintDocument();
   const { confirm, dialog } = useConfirmDialog();
   const [screenError, setScreenError] = useState<unknown>(null);
   const [showRunningAnimation, setShowRunningAnimation] = useState(false);
@@ -64,6 +59,8 @@ export function ClosingBody({
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (period) => period.id === appState.currentFiscalPeriodId,
   );
+  const { printJournal, printGeneralLedger, printFinancialStatements } =
+    useStepDocumentPrinters(currentFiscalPeriod);
 
   useEffect(() => {
     return () => onBusyChange?.(false);
@@ -168,51 +165,6 @@ export function ClosingBody({
       );
     }
   };
-
-  function printJournal() {
-    if (!appState.currentFiscalPeriodId) return;
-    const entries = entriesState.listFiscalPeriodEntries(
-      appState.currentFiscalPeriodId,
-    );
-    printDocument(buildJournalDocument(currentFiscalPeriod!.name, entries));
-  }
-
-  function printGeneralLedger() {
-    if (!appState.currentFiscalPeriodId) return;
-    const entries = entriesState.listFiscalPeriodEntries(
-      appState.currentFiscalPeriodId,
-    );
-    const openingBalanceLines =
-      currentFiscalPeriod!.opening?.openingBalanceLines ?? [];
-    printDocument(
-      buildGeneralLedgerDocument(
-        currentFiscalPeriod!.name,
-        entries,
-        openingBalanceLines,
-      ),
-    );
-  }
-
-  function printFinancialStatements() {
-    if (!appState.currentFiscalPeriodId) return;
-    const entries = entriesState.listFiscalPeriodEntries(
-      appState.currentFiscalPeriodId,
-    );
-    const openingBalanceLines =
-      currentFiscalPeriod!.opening?.openingBalanceLines ?? [];
-    const { amounts, bsRows, expenseWriteIns } = computeFsAggregate({
-      entries,
-      openingBalanceLines,
-    });
-    printDocument(
-      buildFinancialStatementsDocument({
-        fpName: currentFiscalPeriod!.name,
-        amounts,
-        bsRows,
-        expenseWriteIns,
-      }),
-    );
-  }
 
   return (
     <>

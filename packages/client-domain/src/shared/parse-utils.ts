@@ -1,5 +1,6 @@
 export function parseAmount(value: string | number): number {
-  if (typeof value === "number") return Number.isFinite(value) ? Math.round(value) : 0;
+  if (typeof value === "number")
+    return Number.isFinite(value) ? Math.round(value) : 0;
   const parsed = Number(value.replaceAll(",", ""));
   return Number.isFinite(parsed) ? Math.round(parsed) : 0;
 }
@@ -18,6 +19,27 @@ export function parseIsoLocalDate(value: string): Date | null {
   const month = Number(match[2]) - 1;
   const day = Number(match[3]);
   const date = new Date(year, month, day);
-  if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) return null;
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month ||
+    date.getDate() !== day
+  )
+    return null;
   return date;
+}
+
+export function formatIsoLocalDate(date: Date): string {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+export const WEEKDAY_LABELS_JA = ["日", "月", "火", "水", "木", "金", "土"];
+
+export function weekdayJa(dateText: string): string {
+  const date = parseIsoLocalDate(dateText);
+  if (date == null) return "";
+  return WEEKDAY_LABELS_JA[date.getDay()] ?? "";
 }

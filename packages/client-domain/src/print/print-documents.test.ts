@@ -9,7 +9,11 @@ import { buildJournalDocument } from "./journal-print";
 describe("print documents", () => {
   it("renders journal data from supplied entries and escapes HTML", () => {
     const html = buildJournalDocument("2026年分", [
-      entry({ date: "2026-01-15<script>", description: "売上 <確認>", partner: "A&B" }),
+      entry({
+        date: "2026-01-15<script>",
+        description: "売上 <確認>",
+        partner: "A&B",
+      }),
     ]);
 
     expect(html).toContain("<title>仕訳帳</title>");
@@ -20,13 +24,17 @@ describe("print documents", () => {
   });
 
   it("renders general ledger balances from supplied entries and opening balances", () => {
-    const html = buildGeneralLedgerDocument("2026年分", [entry({})], [
-      { accountId: "a:普通預金", amount: 50_000 },
-    ]);
+    const html = buildGeneralLedgerDocument(
+      "2026年分",
+      [entry({})],
+      [{ accountId: "a:普通預金", amount: 50_000 }],
+    );
 
     expect(html).toContain("<title>総勘定元帳</title>");
     expect(html).toContain("普通預金");
     expect(html).toContain("150,000");
+    expect(html).toContain("前期繰越");
+    expect(html).toContain("50,000");
   });
 
   it("renders every line of compound entries in journal and ledger documents", () => {
@@ -75,9 +83,11 @@ describe("print documents", () => {
     const journalHtml = buildJournalDocument("2026年分", [
       entry({ debitAmount: "Infinity", creditAmount: "-Infinity" }),
     ]);
-    const ledgerHtml = buildGeneralLedgerDocument("2026年分", [
-      entry({ debitAmount: "Infinity", creditAmount: "-Infinity" }),
-    ], []);
+    const ledgerHtml = buildGeneralLedgerDocument(
+      "2026年分",
+      [entry({ debitAmount: "Infinity", creditAmount: "-Infinity" })],
+      [],
+    );
     const fsHtml = buildFinancialStatementsDocument({
       fpName: "2026年分",
       amounts: { 1: Infinity, 2: -Infinity },
@@ -93,7 +103,11 @@ describe("print documents", () => {
     const malformedDateEntry = entry({ date: "not-a-date" });
 
     const journalHtml = buildJournalDocument("2026年分", [malformedDateEntry]);
-    const ledgerHtml = buildGeneralLedgerDocument("2026年分", [malformedDateEntry], []);
+    const ledgerHtml = buildGeneralLedgerDocument(
+      "2026年分",
+      [malformedDateEntry],
+      [],
+    );
 
     expect(journalHtml).not.toContain("NaN月");
     expect(ledgerHtml).not.toContain("NaN月");

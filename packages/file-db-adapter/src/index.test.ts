@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
+import { runMigrations } from "@rubydogjp/openkk-server-ports";
 
 type WorkerMessage = {
   id: number;
@@ -42,6 +44,164 @@ class FakeWorker {
     this.terminated = true;
   }
 }
+
+class RealDbWorker {
+  static instances: RealDbWorker[] = [];
+  onmessage: ((event: MessageEvent) => void) | null = null;
+  onmessageerror: (() => void) | null = null;
+  onerror: ((event: ErrorEvent) => void) | null = null;
+  terminated = false;
+  private dbPromise: Promise<{ exec(arg: unknown): unknown }> | null = null;
+
+  constructor() {
+    RealDbWorker.instances.push(this);
+  }
+
+  private getDb() {
+    if (this.dbPromise == null) {
+      this.dbPromise = (async () => {
+        const sqlite3 = await sqlite3InitModule({
+          print: () => undefined,
+          printErr: () => undefined,
+        });
+        const db = new sqlite3.oo1.DB(":memory:");
+        runMigrations(db);
+        return db as unknown as { exec(arg: unknown): unknown };
+      })();
+    }
+    return this.dbPromise;
+  }
+
+  postMessage(message: WorkerMessage): void {
+    void (async () => {
+      try {
+        const db = await this.getDb();
+        if (message.type === "init") {
+          this.onmessage?.({
+            data: { id: message.id, ok: true },
+          } as MessageEvent);
+          return;
+        }
+        const arg = message.payload as { returnValue?: string };
+        const wantsRows =
+          typeof arg === "object" && arg?.returnValue === "resultRows";
+        const result = db.exec(message.payload);
+        this.onmessage?.({
+          data: {
+            id: message.id,
+            ok: true,
+            result: wantsRows ? result : undefined,
+          },
+        } as MessageEvent);
+      } catch (error) {
+        this.onmessage?.({
+          data: {
+            id: message.id,
+            ok: false,
+            error: error instanceof Error ? error.message : String(error),
+          },
+        } as MessageEvent);
+      }
+    })();
+  }
+
+  terminate(): void {
+    this.terminated = true;
+  }
+}
+
+describe("createFileDbAdapter — behavior parity over the worker proxy", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.resetModules();
+    RealDbWorker.instances = [];
+  });
+
+  async function makeDb() {
+    vi.stubGlobal("Worker", RealDbWorker);
+    const { createFileDbAdapter } = await import("./index");
+    return createFileDbAdapter({ vfsName: "opfs-behavior" });
+  }
+
+  async function seedFiscalPeriod(db: Awaited<ReturnType<typeof makeDb>>) {
+    return db.fiscalPeriods.create("user-1", {
+      name: "2026年分",
+      startDate: "2026-01-01",
+      endDate: "2026-12-31",
+    });
+  }
+
+  function entryInput(localId: string) {
+    return {
+      date: "2026-03-01",
+      description: "売上",
+      localId,
+      businessRate: 1,
+      lines: [
+        {
+          side: "debit" as const,
+          bookAccountId: "acct_cash",
+          amount: 1000,
+          partnerName: "",
+          taxCategoryName: "",
+          businessCategoryName: "",
+        },
+        {
+          side: "credit" as const,
+          bookAccountId: "acct_sales",
+          amount: 1000,
+          partnerName: "",
+          taxCategoryName: "",
+          businessCategoryName: "",
+        },
+      ],
+    };
+  }
+
+  it("persists and reads a fiscal period through the worker proxy", async () => {
+    const db = await makeDb();
+    const created = await seedFiscalPeriod(db);
+    const loaded = await db.fiscalPeriods.getById(created.id);
+    expect(loaded?.name).toBe("2026年分");
+    expect(await db.fiscalPeriods.getAllByUser("user-1")).toHaveLength(1);
+  });
+
+  it("imports entries idempotently on localId", async () => {
+    const db = await makeDb();
+    const fp = await seedFiscalPeriod(db);
+
+    const first = await db.entries.importMany("user-1", fp.id, [
+      entryInput("a"),
+      entryInput("b"),
+    ]);
+    expect(first).toHaveLength(2);
+
+    // 同じ localId は再取込みでスキップされ、新規のみ挿入される。
+    const second = await db.entries.importMany("user-1", fp.id, [
+      entryInput("a"),
+      entryInput("c"),
+    ]);
+    expect(second).toHaveLength(1);
+    expect(await db.entries.getAll(fp.id)).toHaveLength(3);
+  });
+
+  it("cascades entry deletion when the fiscal period is removed", async () => {
+    const db = await makeDb();
+    const fp = await seedFiscalPeriod(db);
+    await db.entries.create("user-1", fp.id, entryInput("x"));
+    expect(await db.entries.getAll(fp.id)).toHaveLength(1);
+
+    await db.fiscalPeriods.delete(fp.id);
+    expect(await db.entries.getAll(fp.id)).toEqual([]);
+  });
+
+  it("rejects a transition on a missing fiscal period", async () => {
+    const db = await makeDb();
+    await expect(
+      db.fiscalPeriods.update("does-not-exist", { name: "x" }),
+    ).rejects.toThrow(/fiscal period not found/i);
+  });
+});
 
 describe("createFileDbAdapter", () => {
   afterEach(() => {

@@ -217,8 +217,6 @@ export function OpeningBsBody({
           currentFiscalPeriod.id,
           {
             openingBalancesCompleted: true,
-            openingDebitTotal: assetTotal,
-            openingCreditTotal: liabilityTotal,
             opening: {
               ...(currentFiscalPeriod.opening ?? {
                 id: `op-${currentFiscalPeriod.id}`,
@@ -236,8 +234,6 @@ export function OpeningBsBody({
           currentFiscalPeriod.id,
           {
             openingBalancesCompleted: true,
-            openingDebitTotal: assetTotal,
-            openingCreditTotal: liabilityTotal,
           },
         );
         if (!updated) return;

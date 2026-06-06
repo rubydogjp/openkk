@@ -158,6 +158,38 @@ describe("openkk workspace structure", () => {
     expect(clientBoundaryTypes).toEqual(serverBoundaryTypes);
   });
 
+  it("keeps client/server REST boundary type and interface BODIES in sync", () => {
+    const clientBodies = typeBodies(
+      path.join(packagesDir, "client-ports/src/backend-api/types.ts"),
+    );
+    const serverBodies = typeBodies(
+      path.join(packagesDir, "server-ports/src/types.ts"),
+    );
+    const restBoundaryName = /(?:Request|Response|ApiRecord|Input)$/;
+    const sharedApiInterfaces = [
+      "AuthApi",
+      "PreClosingApi",
+      "ClosingApi",
+      "EntriesApi",
+      "FiscalPeriodApi",
+      "FixedAssetsApi",
+      "MasterDataApi",
+    ];
+    const namesToCompare = [...clientBodies.keys()].filter(
+      (name) =>
+        (restBoundaryName.test(name) && !name.includes("Db")) ||
+        sharedApiInterfaces.includes(name),
+    );
+    expect(namesToCompare.length).toBeGreaterThan(0);
+    for (const name of namesToCompare) {
+      if (!serverBodies.has(name)) continue;
+      expect(
+        serverBodies.get(name),
+        `${name} の本文が client-ports と server-ports で食い違っています`,
+      ).toBe(clientBodies.get(name));
+    }
+  });
+
   it("keeps client/server HTTP endpoint metadata in sync", () => {
     const clientEndpoints = endpointMetadata(
       path.join(packagesDir, "client-ports/src/backend-api/types.ts"),
@@ -306,6 +338,36 @@ function exportedTypeNames(file: string): Set<string> {
       (match) => match[1]!,
     ),
   );
+}
+
+function typeBodies(file: string): Map<string, string> {
+  const text = fs
+    .readFileSync(file, "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\/\/[^\n]*/g, "");
+  const bodies = new Map<string, string>();
+  const re = /export (?:type|interface) ([A-Za-z0-9_]+)\s*(?:=\s*)?\{/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(text)) != null) {
+    const name = match[1]!;
+    let depth = 1;
+    let i = re.lastIndex;
+    for (; i < text.length && depth > 0; i++) {
+      if (text[i] === "{") depth++;
+      else if (text[i] === "}") depth--;
+    }
+    const normalized = text
+      .slice(re.lastIndex, i - 1)
+      .replace(/\s+/g, "")
+      // 先頭ユニオンパイプの整形差（`:|"a"|"b"` と `:"a"|"b"`）を吸収する。
+      .replace(/([:=(<{,])\|/g, "$1")
+      // 末尾セミコロンの有無（`X;}` と `X}`、行末 `X;`）を吸収する。
+      .replace(/;(\}|$)/g, "$1")
+      // 末尾カンマの有無（`(a:string,)` と `(a:string)` 等）を吸収する。
+      .replace(/,(\)|\}|>|\]|$)/g, "$1");
+    bodies.set(name, normalized);
+  }
+  return bodies;
 }
 
 function endpointMetadata(file: string): Array<{
