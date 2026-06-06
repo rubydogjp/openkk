@@ -83,7 +83,9 @@ test.describe("openkk closing flow", () => {
 
     await page.getByRole("link", { name: "仕訳" }).click();
     await expect(page.getByText("2027年1月")).toBeVisible();
-    await expect(page.getByText(/再振替: 秋商材の仕入と配送費/).first()).toBeVisible();
+    await expect(
+      page.getByText(/再振替: 秋商材の仕入と配送費/).first(),
+    ).toBeVisible();
     await expect(page.getByText("再振替").first()).toBeVisible();
 
     await page.getByRole("link", { name: "補助" }).click();
@@ -106,9 +108,11 @@ test.describe("openkk closing flow", () => {
     const download = await downloadPromise;
     const archivePath = await download.path();
     expect(archivePath).not.toBeNull();
-    await expect(page.getByRole("heading", {
-      name: "検証用 2026年分 長い名称 ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-    })).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        name: "検証用 2026年分 長い名称 ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+      }),
+    ).toBeVisible();
     await expect(page.getByText("圧縮保存済み").first()).toBeVisible();
 
     await openFiscalPeriodList(page);
@@ -120,22 +124,35 @@ test.describe("openkk closing flow", () => {
         .filter({ hasText: "圧縮保存済み" }),
     ).toBeVisible();
     await page.getByRole("button", { name: "ファイル" }).click();
-    await page.getByRole("button", { name: "圧縮済みのファイルを選択" }).click();
-    await page.locator('input[type="file"][accept*=".zip"]').setInputFiles(archivePath!);
-    await expect(page.getByText("圧縮保存済み").first()).toBeVisible();
-    await expect(page.getByRole("button", {
-      name: "圧縮済みファイルをダウンロード",
-    })).toBeVisible();
+    await page
+      .getByRole("button", { name: "圧縮済みのファイルを選択" })
+      .click();
+    await page
+      .locator('input[type="file"][accept*=".zip"]')
+      .setInputFiles(archivePath!);
+
+    // 圧縮ファイルを取り込むと、後から解凍する経路が無いため、その場で展開して
+    // 編集可能な（active）期間として復元する。読み取り専用のアーカイブ画面には入らない。
+    await expectStep(page, "次の期間へ");
+    await expect(page.getByRole("button", { name: "圧縮保存" })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "圧縮済みファイルをダウンロード" }),
+    ).not.toBeVisible();
+    await page.getByRole("link", { name: "仕訳" }).click();
+    await expect(page).toHaveURL(/\/entries\/?/);
+    await expect(page.getByText("2026年9月")).toBeVisible();
+    await expect(page.getByText("秋商材の仕入と配送費").first()).toBeVisible();
+    await openFiscalPeriodList(page);
+    await page
+      .getByRole("button", {
+        name: /検証用 2026年分 長い名称 ABCDEFGHIJKLMNOPQRSTUVWXYZ/,
+      })
+      .filter({ hasText: "圧縮保存済み" })
+      .click();
+    await expect(page).toHaveURL(/\/steps\/?$/);
+    await expectArchivedScreen(page);
 
     await page.getByRole("link", { name: "仕訳" }).click();
-    await expect(page).toHaveURL(/\/steps\/?$/);
-    await expectArchivedScreen(page);
-
-    await page.getByRole("link", { name: "補助" }).click();
-    await expect(page).toHaveURL(/\/steps\/?$/);
-    await expectArchivedScreen(page);
-
-    await page.getByRole("link", { name: "手順" }).click();
     await expect(page).toHaveURL(/\/steps\/?$/);
     await expectArchivedScreen(page);
   });
@@ -171,7 +188,11 @@ async function importYearEntries(page: Page) {
   await expect(page.getByText(/取り込みました\(取込 13 件/)).toBeVisible();
 }
 
-async function fillOpeningAmount(page: Page, inputIndex: number, value: string) {
+async function fillOpeningAmount(
+  page: Page,
+  inputIndex: number,
+  value: string,
+) {
   await page.locator(".bk-amount-input").nth(inputIndex).fill(value);
 }
 
@@ -202,7 +223,9 @@ async function expectAccountingScenarioRows(page: Page) {
   await expect(page.getByText("2026年9月")).toBeVisible();
   await expect(page.getByText("秋商材の仕入と配送費").first()).toBeVisible();
   await expect(page.getByText("仕入", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("荷造運賃", { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByText("荷造運賃", { exact: true }).first(),
+  ).toBeVisible();
   await expect(page.getByText("未払金").first()).toBeVisible();
   await expect(page.getByText("168,000").first()).toBeVisible();
   await expect(page.getByText("42,000").first()).toBeVisible();
