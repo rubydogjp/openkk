@@ -1504,6 +1504,16 @@
       "sortOrder": 712
     },
     {
+      "id": "acct_expense_専従者給与",
+      "name": "専従者給与",
+      "description": "青色事業専従者へ支払う給与（青色申告決算書 行38）",
+      "kana": "ｾﾝｼﾞｭｳ",
+      "normalBalanceSide": "debit",
+      "accountType": "expense",
+      "balanceSheetSection": "",
+      "sortOrder": 714
+    },
+    {
       "id": "acct_expense_賞与",
       "name": "賞与",
       "description": "賞与",

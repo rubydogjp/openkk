@@ -176,6 +176,84 @@ describe("computeFsAggregate", () => {
     ).toBe(aggregate.amounts[32]);
   });
 
+  it("routes 専従者給与 and 貸倒引当金 繰入/戻入 to rows 34/37/38/39/42", () => {
+    const expenseEntry = (name: string, amount: string): EntryRecord =>
+      entry({
+        debit: name,
+        debitType: "expense",
+        debitAmount: amount,
+        credit: "普通預金",
+        creditType: "asset",
+        creditAmount: amount,
+      });
+    const aggregate = computeFsAggregate({
+      openingBalanceLines: [{ accountId: "a:普通預金", amount: 1_000_000 }],
+      entries: [
+        entry({
+          debit: "普通預金",
+          debitType: "asset",
+          debitAmount: "500,000",
+          credit: "売上",
+          creditType: "revenue",
+          creditAmount: "500,000",
+        }),
+        entry({
+          debit: "仕入",
+          debitType: "cost_of_sales",
+          debitAmount: "100,000",
+          credit: "普通預金",
+          creditType: "asset",
+          creditAmount: "100,000",
+        }),
+        expenseEntry("通信費", "10,000"),
+        expenseEntry("専従者給与", "120,000"),
+        // 貸倒引当金繰入 30,000 / 貸倒引当金 (資産・貸方)
+        entry({
+          debit: "貸倒引当金繰入",
+          debitType: "expense",
+          debitAmount: "30,000",
+          credit: "貸倒引当金",
+          creditType: "asset",
+          creditAmount: "30,000",
+        }),
+        // 貸倒引当金戻入 20,000 / 貸倒引当金 (資産・借方)
+        entry({
+          debit: "貸倒引当金",
+          debitType: "asset",
+          debitAmount: "20,000",
+          credit: "貸倒引当金戻入",
+          creditType: "revenue",
+          creditAmount: "20,000",
+        }),
+      ],
+    });
+
+    // 行1(売上金額)は貸倒引当金戻入(20,000)を含まない。
+    expect(aggregate.amounts[1]).toBe(500_000);
+    expect(aggregate.amounts[7]).toBe(400_000);
+    // 行32(経費計)は専従者給与・貸倒引当金繰入を含まず通信費のみ。
+    expect(aggregate.amounts[12]).toBe(10_000);
+    expect(aggregate.amounts[32]).toBe(10_000);
+    expect(aggregate.amounts[33]).toBe(390_000);
+    // 専従者給与・貸倒引当金繰入は任意経費スロットへ漏れない。
+    expect(aggregate.expenseWriteIns).toEqual([]);
+    expect(aggregate.amounts[31]).toBeNull();
+    // 繰戻額等: 行34=貸倒引当金戻入, 行37=計。
+    expect(aggregate.amounts[34]).toBe(20_000);
+    expect(aggregate.amounts[37]).toBe(20_000);
+    // 繰入額等: 行38=専従者給与, 行39=貸倒引当金繰入, 行42=計。
+    expect(aggregate.amounts[38]).toBe(120_000);
+    expect(aggregate.amounts[39]).toBe(30_000);
+    expect(aggregate.amounts[42]).toBe(150_000);
+    // 行43 = 33 + 37 − 42 = 真の所得。
+    expect(aggregate.amounts[43]).toBe(260_000);
+    expect(aggregate.amounts[43]).toBe(
+      (aggregate.amounts[33] ?? 0) +
+        (aggregate.amounts[37] ?? 0) -
+        (aggregate.amounts[42] ?? 0),
+    );
+  });
+
   it("builds next-period opening balance lines from closing BS rows", () => {
     const aggregate = computeFsAggregate({
       openingBalanceLines: [{ accountId: "a:普通預金", amount: 50_000 }],

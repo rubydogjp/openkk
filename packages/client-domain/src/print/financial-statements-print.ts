@@ -105,7 +105,7 @@ const RIGHT_GROUPS: PLGroup[] = [
       { label: "貸倒引当金", index: 34, height: 27 },
       { label: "", index: 35, height: 27 },
       { label: "", index: 36, height: 27 },
-      { label: "", index: 37, height: 27 },
+      { label: "計", index: 37, height: 27 },
     ],
   },
   {

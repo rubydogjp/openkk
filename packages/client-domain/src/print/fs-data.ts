@@ -153,6 +153,17 @@ export function computeFsAggregate({
   const expensesTotal = sumValues(expenseByName);
   const grossProfit = revenueTotal - costOfSalesTotal;
   const profit = grossProfit - expensesTotal;
+  const badDebtReversal = revenueByName.get("貸倒引当金戻入") ?? 0;
+  const badDebtProvision = expenseByName.get("貸倒引当金繰入") ?? 0;
+  const familyEmployeeSalary = expenseByName.get("専従者給与") ?? 0;
+  const salesForDisplay = revenueTotal - badDebtReversal;
+  const grossProfitForDisplay = salesForDisplay - costOfSalesTotal;
+  const operatingExpensesForDisplay =
+    expensesTotal - badDebtProvision - familyEmployeeSalary;
+  const ordinaryIncomeForDisplay =
+    grossProfitForDisplay - operatingExpensesForDisplay;
+  const reversalSubtotal = badDebtReversal;
+  const provisionSubtotal = familyEmployeeSalary + badDebtProvision;
 
   const expense = (label: string): number | null => {
     const v = expenseByName.get(label) ?? 0;
@@ -186,9 +197,19 @@ export function computeFsAggregate({
     "会議費",
     "雑費",
   ]);
+
+  const RESERVE_AND_FAMILY_ACCOUNTS = new Set<string>([
+    "専従者給与",
+    "貸倒引当金繰入",
+  ]);
   const WRITE_IN_SLOT_COUNT = 4;
   const writeInCandidates = [...expenseByName.entries()]
-    .filter(([name, value]) => value > 0 && !NAMED_EXPENSE_ACCOUNTS.has(name))
+    .filter(
+      ([name, value]) =>
+        value > 0 &&
+        !NAMED_EXPENSE_ACCOUNTS.has(name) &&
+        !RESERVE_AND_FAMILY_ACCOUNTS.has(name),
+    )
     .sort((left, right) => right[1] - left[1]);
   const expenseWriteIns = writeInCandidates
     .slice(0, WRITE_IN_SLOT_COUNT)
@@ -202,13 +223,13 @@ export function computeFsAggregate({
     expenseWriteIns[slot] ? expenseWriteIns[slot]!.amount : null;
 
   const amounts: Record<number, number | null> = {
-    1: revenueTotal !== 0 ? revenueTotal : null,
+    1: salesForDisplay !== 0 ? salesForDisplay : null,
     2: null,
     3: purchases,
     4: purchases ?? 0,
     5: null,
     6: costOfSalesTotal,
-    7: grossProfit,
+    7: grossProfitForDisplay,
     8: expense("租税公課"),
     9: expense("荷造運賃"),
     10: expense("水道光熱費"),
@@ -233,17 +254,17 @@ export function computeFsAggregate({
     29: writeInAmount(2),
     30: writeInAmount(3),
     31: miscTotal > 0 ? miscTotal : null,
-    32: expensesTotal,
-    33: profit,
-    34: null,
+    32: operatingExpensesForDisplay,
+    33: ordinaryIncomeForDisplay,
+    34: badDebtReversal > 0 ? badDebtReversal : null,
     35: null,
     36: null,
-    37: null,
-    38: null,
-    39: null,
+    37: reversalSubtotal,
+    38: familyEmployeeSalary > 0 ? familyEmployeeSalary : null,
+    39: badDebtProvision > 0 ? badDebtProvision : null,
     40: null,
     41: null,
-    42: 0,
+    42: provisionSubtotal,
     43: profit,
   };
 
