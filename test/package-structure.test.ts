@@ -197,9 +197,8 @@ describe("openkk workspace structure", () => {
       path.join(rootDir, "docs/database-schema.md"),
       "utf8",
     );
-    const tableNamesDeclaration = schema.match(
-      /SQLITE_TABLE_NAMES = \[([\s\S]*?)\] as const/,
-    )?.[1] ?? "";
+    const tableNamesDeclaration =
+      schema.match(/SQLITE_TABLE_NAMES = \[([\s\S]*?)\] as const/)?.[1] ?? "";
     const tables = [...tableNamesDeclaration.matchAll(/"([a-z0-9_]+)"/g)].map(
       (match) => match[1]!,
     );
@@ -242,7 +241,9 @@ describe("openkk workspace structure", () => {
 
   it("keeps hard-coded data names aligned with their purpose", () => {
     expect(
-      fs.existsSync(path.join(packagesDir, "client-domain/src/shared/sample-data.ts")),
+      fs.existsSync(
+        path.join(packagesDir, "client-domain/src/shared/sample-data.ts"),
+      ),
     ).toBe(false);
 
     const demoSeed = fs.readFileSync(
@@ -301,7 +302,9 @@ function listFiles(dir: string): string[] {
 function exportedTypeNames(file: string): Set<string> {
   const text = fs.readFileSync(file, "utf8");
   return new Set(
-    [...text.matchAll(/export type ([A-Za-z0-9_]+)/g)].map((match) => match[1]!),
+    [...text.matchAll(/export type ([A-Za-z0-9_]+)/g)].map(
+      (match) => match[1]!,
+    ),
   );
 }
 
@@ -314,7 +317,7 @@ function endpointMetadata(file: string): Array<{
   const text = fs.readFileSync(file, "utf8");
   return [
     ...text.matchAll(
-      /([a-zA-Z0-9]+): \{ method: "([A-Z]+)", path: "([^"]+)", successStatus: ([0-9]+) \}/g,
+      /([a-zA-Z0-9]+):\s*\{\s*method:\s*"([A-Z]+)",\s*path:\s*"([^"]+)",\s*successStatus:\s*([0-9]+),?\s*\}/g,
     ),
   ].map((match) => ({
     key: match[1]!,

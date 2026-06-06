@@ -9,9 +9,7 @@ import {
   type ReactNode,
 } from "react";
 
-import type {
-  FiscalPeriodApiRecord,
-} from "@rubydogjp/openkk-client-ports";
+import type { FiscalPeriodApiRecord } from "@rubydogjp/openkk-client-ports";
 import {
   AppError,
   parseAmount,
@@ -39,11 +37,14 @@ type OpenkkAppState = {
   fiscalPeriods: FiscalPeriod[];
   currentFiscalPeriodId: string | null;
   isReady: boolean;
-  createFiscalPeriod: (input: {
-    name: string;
-    startDate: string;
-    endDate: string;
-  }, options?: { select?: boolean }) => Promise<string | null>;
+  createFiscalPeriod: (
+    input: {
+      name: string;
+      startDate: string;
+      endDate: string;
+    },
+    options?: { select?: boolean },
+  ) => Promise<string | null>;
   importArchivedFiscalPeriod: (
     payload: FiscalPeriodArchivePayload,
   ) => Promise<string | null>;
@@ -74,9 +75,7 @@ type OpenkkAppState = {
   clearFiscalPeriod: () => void;
 };
 
-const OpenkkAppStateContext = createContext<OpenkkAppState | null>(
-  null,
-);
+const OpenkkAppStateContext = createContext<OpenkkAppState | null>(null);
 
 export function OpenkkAppStateProvider(props: { children: ReactNode }) {
   const config = useOpenkkConfig();
@@ -89,9 +88,9 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
   const [sessionUserId, setSessionUserId] = useState<string | null>(() =>
     buildBootstrapSessionUserId(config),
   );
-  const [currentFiscalPeriodId, setCurrentFiscalPeriodId] = useState<string | null>(
-    () => buildBootstrapFiscalPeriodId(config),
-  );
+  const [currentFiscalPeriodId, setCurrentFiscalPeriodId] = useState<
+    string | null
+  >(() => buildBootstrapFiscalPeriodId(config));
   useEffect(() => {
     if (typeof window === "undefined") {
       setIsReady(true);
@@ -152,7 +151,10 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
     if (currentFiscalPeriodId == null || currentFiscalPeriodId === "") {
       window.localStorage.removeItem(config.fiscalPeriodStorageKey);
     } else {
-      window.localStorage.setItem(config.fiscalPeriodStorageKey, currentFiscalPeriodId);
+      window.localStorage.setItem(
+        config.fiscalPeriodStorageKey,
+        currentFiscalPeriodId,
+      );
     }
   }, [currentFiscalPeriodId]);
 
@@ -160,7 +162,9 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
     const localSession = buildDemoSession(config);
     return {
       session:
-        sessionUserId == null ? null : { ...localSession, userId: sessionUserId },
+        sessionUserId == null
+          ? null
+          : { ...localSession, userId: sessionUserId },
       fiscalPeriods,
       currentFiscalPeriodId,
       isReady,
@@ -177,7 +181,7 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
               userId: sessionUserId ?? config.mockUserId,
               fiscalPeriodId: created.id,
               openingBalanceLines: demoOpeningBalanceLines,
-              carryoverJournals: [],
+              openingJournals: [],
             },
           });
           const seededEntries = buildDemoSeedEntriesForFiscalPeriod(created.id);
@@ -186,7 +190,10 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
             seededEntries.map((record) => entryRecordToImportInput(record)),
           );
         }
-        setFiscalPeriods((current) => [...current, mapRemoteFiscalPeriod(final)]);
+        setFiscalPeriods((current) => [
+          ...current,
+          mapRemoteFiscalPeriod(final),
+        ]);
         if (options?.select !== false) {
           setCurrentFiscalPeriodId(final.id);
         }
@@ -194,7 +201,10 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
       },
       async importArchivedFiscalPeriod(payload) {
         const imported = await backendApi.fiscalPeriod.importArchived(payload);
-        setFiscalPeriods((current) => [...current, mapRemoteFiscalPeriod(imported)]);
+        setFiscalPeriods((current) => [
+          ...current,
+          mapRemoteFiscalPeriod(imported),
+        ]);
         return imported.id;
       },
       async updateFiscalPeriod(fiscalPeriodId, input) {
@@ -207,12 +217,16 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
           documentsReceivedCompleted: input.documentsReceivedCompleted,
           opening: input.opening,
         });
-        setFiscalPeriods((current) => applyFiscalPeriodUpdate(current, patched));
+        setFiscalPeriods((current) =>
+          applyFiscalPeriodUpdate(current, patched),
+        );
         return true;
       },
       async archiveFiscalPeriod(fiscalPeriodId) {
         const archived = await backendApi.fiscalPeriod.archive(fiscalPeriodId);
-        setFiscalPeriods((current) => applyFiscalPeriodUpdate(current, archived));
+        setFiscalPeriods((current) =>
+          applyFiscalPeriodUpdate(current, archived),
+        );
         return true;
       },
       syncFiscalPeriod(period) {
@@ -236,7 +250,10 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
         return await backendApi.auth.startSession(redirectUrl);
       },
       async completeSignIn({ state, code }) {
-        const completed = await backendApi.auth.completeSession({ state, code });
+        const completed = await backendApi.auth.completeSession({
+          state,
+          code,
+        });
         const token = await backendApi.auth.redeemCompletionCode(
           completed.completionCode,
         );
@@ -251,7 +268,14 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
         setCurrentFiscalPeriodId(buildSignedOutFiscalPeriodId(config));
       },
     };
-  }, [currentFiscalPeriodId, fiscalPeriods, isReady, sessionUserId, config, backendApi]);
+  }, [
+    currentFiscalPeriodId,
+    fiscalPeriods,
+    isReady,
+    sessionUserId,
+    config,
+    backendApi,
+  ]);
 
   return (
     <OpenkkAppStateContext.Provider value={value}>
@@ -303,7 +327,7 @@ function mapRemoteFiscalPeriod(period: FiscalPeriodApiRecord): FiscalPeriod {
                 amount: line.amount,
               }),
             ),
-            carryoverJournals: (period.opening.carryoverJournals ?? []).map(
+            openingJournals: (period.opening.openingJournals ?? []).map(
               (journal) => ({
                 id: journal.id,
                 date: journal.date,
@@ -333,33 +357,32 @@ export function applyFiscalPeriodUpdate(
   });
 }
 
-function entryRecordToImportInput(
-  record: EntryRecord,
-) {
+function entryRecordToImportInput(record: EntryRecord) {
   const lines = getEntryLines(record);
   const partnerName = record.partner;
   const taxCategoryName =
     DEFAULT_TAX_CATEGORIES.find((c) => c.name === record.taxCategory)?.id ??
     record.taxCategory;
   const businessCategoryName =
-    DEFAULT_BUSINESS_CATEGORIES.find((c) => c.name === record.businessCategory)?.id ??
-    record.businessCategory;
+    DEFAULT_BUSINESS_CATEGORIES.find((c) => c.name === record.businessCategory)
+      ?.id ?? record.businessCategory;
   return {
     date: record.date,
     description: record.description,
     localId: record.localId,
-    businessRate:
-      parseBusinessRate(record.businessRate),
+    businessRate: parseBusinessRate(record.businessRate),
     lines: lines.map((line) => ({
       side: line.side,
       bookAccountId:
-        DEFAULT_BOOK_ACCOUNTS.find((acc) => acc.id === line.bookAccountId)?.id ??
+        DEFAULT_BOOK_ACCOUNTS.find((acc) => acc.id === line.bookAccountId)
+          ?.id ??
         DEFAULT_BOOK_ACCOUNTS.find(
           (acc) =>
             acc.name === line.accountName &&
             acc.accountType === line.accountType,
         )?.id ??
-        DEFAULT_BOOK_ACCOUNTS.find((acc) => acc.name === line.accountName)?.id ??
+        DEFAULT_BOOK_ACCOUNTS.find((acc) => acc.name === line.accountName)
+          ?.id ??
         line.accountName,
       amount: parseAmount(line.amount),
       partnerName,

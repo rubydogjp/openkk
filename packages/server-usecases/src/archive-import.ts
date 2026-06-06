@@ -1,4 +1,9 @@
-import { serverValidationError } from "@rubydogjp/openkk-server-domain";
+import {
+  assertDateRange,
+  assertEntryLinesBalanced,
+  parseIsoDate,
+  serverValidationError,
+} from "@rubydogjp/openkk-server-domain";
 import type {
   EntryUpsertInput,
   FiscalPeriodArchiveDbImportInput,
@@ -13,7 +18,10 @@ export function normalizeArchiveImportInput(
   const manifest = objectValue(input.manifest, "archive manifest");
   const fiscalPeriod = objectValue(input.fiscalPeriod, "archive fiscalPeriod");
   const entries = requireArrayValue(input.entries, "archive entries");
-  const fixedAssets = requireArrayValue(input.fixedAssets, "archive fixedAssets");
+  const fixedAssets = requireArrayValue(
+    input.fixedAssets,
+    "archive fixedAssets",
+  );
   const closings = requireArrayValue(input.closings, "archive closings");
   const manifestFiscalPeriodId = requireString(
     manifest.fiscalPeriodId,
@@ -43,13 +51,10 @@ export function normalizeArchiveImportInput(
       name: requireString(fiscalPeriod.name, "archive fiscalPeriod.name"),
       startDate,
       endDate,
-      phase: normalizeFiscalPeriodPhase(
-        fiscalPeriod.phase ?? fiscalPeriod.phase,
-      ),
+      phase: normalizeFiscalPeriodPhase(fiscalPeriod.phase),
       archiveStatus: "active" as const,
       settingsCompleted: fiscalPeriod.settingsCompleted === true,
-      openingBalancesCompleted:
-        fiscalPeriod.openingBalancesCompleted === true,
+      openingBalancesCompleted: fiscalPeriod.openingBalancesCompleted === true,
       documentsReceivedCompleted:
         fiscalPeriod.documentsReceivedCompleted === true,
       opening:
@@ -61,7 +66,9 @@ export function normalizeArchiveImportInput(
       normalizeArchivedEntry(objectValue(entry, "archive entry")),
     ),
     fixedAssets: fixedAssets.map((fixedAsset) =>
-      normalizeArchivedFixedAsset(objectValue(fixedAsset, "archive fixedAsset")),
+      normalizeArchivedFixedAsset(
+        objectValue(fixedAsset, "archive fixedAsset"),
+      ),
     ),
     preClosings: normalizedClosings
       .filter((closing) => closing.kind === "pre_closing")
@@ -104,82 +111,92 @@ function normalizeArchivedOpening(value: unknown, userId: string) {
         amount: requireNumber(item.amount, "archive openingBalanceLine.amount"),
       };
     }),
-    carryoverJournals: arrayValue(
-      opening.carryoverJournals,
-      "archive carryoverJournals",
+    openingJournals: arrayValue(
+      opening.openingJournals,
+      "archive openingJournals",
     ).map((journal) => {
-      const item = objectValue(journal, "archive carryoverJournal");
-      const id = requireString(item.id, "archive carryoverJournal.id");
+      const item = objectValue(journal, "archive openingJournal");
+      const id = requireString(item.id, "archive openingJournal.id");
+      const lines = arrayValue(item.lines, "archive openingJournal.lines").map(
+        (line, index) => {
+          const lineObject = objectValue(line, "archive openingJournal.line");
+          return {
+            id:
+              typeof lineObject.id === "string"
+                ? lineObject.id
+                : `${id}-line-${index + 1}`,
+            side: normalizeSide(lineObject.side),
+            bookAccountId: requireString(
+              lineObject.bookAccountId,
+              "archive openingJournal.line.bookAccountId",
+            ),
+            amount: requireNonNegativeNumber(
+              lineObject.amount,
+              "archive openingJournal.line.amount",
+            ),
+            partnerName: stringOrEmpty(lineObject.partnerName),
+            taxCategoryName: stringOrEmpty(lineObject.taxCategoryName),
+            businessCategoryName: stringOrEmpty(
+              lineObject.businessCategoryName,
+            ),
+          };
+        },
+      );
+      assertEntryLinesBalanced(lines, "archive openingJournal");
       return {
         id,
-        date: requireIsoDate(item.date, "archive carryoverJournal.date"),
+        date: requireIsoDate(item.date, "archive openingJournal.date"),
         description: requireString(
           item.description,
-          "archive carryoverJournal.description",
+          "archive openingJournal.description",
         ),
         businessRate: requireUnitRate(
           item.businessRate,
-          "archive carryoverJournal.businessRate",
+          "archive openingJournal.businessRate",
         ),
-        lines: arrayValue(item.lines, "archive carryoverJournal.lines").map(
-          (line, index) => {
-            const lineObject = objectValue(
-              line,
-              "archive carryoverJournal.line",
-            );
-            return {
-              id:
-                typeof lineObject.id === "string"
-                  ? lineObject.id
-                  : `${id}-line-${index + 1}`,
-              side: normalizeSide(lineObject.side),
-              bookAccountId: requireString(
-                lineObject.bookAccountId,
-                "archive carryoverJournal.line.bookAccountId",
-              ),
-              amount: requireNonNegativeNumber(
-                lineObject.amount,
-                "archive carryoverJournal.line.amount",
-              ),
-              partnerName: stringOrEmpty(lineObject.partnerName),
-              taxCategoryName: stringOrEmpty(lineObject.taxCategoryName),
-              businessCategoryName: stringOrEmpty(
-                lineObject.businessCategoryName,
-              ),
-            };
-          },
-        ),
+        lines,
       };
     }),
   };
 }
 
-function normalizeArchivedEntry(value: Record<string, unknown>): EntryUpsertInput {
-  return {
-    date: requireIsoDate(value.date, "archive entry.date"),
-    description: requireString(value.description, "archive entry.description"),
-    localId:
-      typeof value.localId === "string" && value.localId !== ""
-        ? value.localId
-        : typeof value.id === "string"
-          ? `archive:${value.id}`
-          : undefined,
-    businessRate: requireUnitRate(value.businessRate, "archive entry.businessRate"),
-    lines: arrayValue(value.lines, "archive entry.lines").map((line) => {
-      const item = objectValue(line, "archive entry.line");
-      return {
-        side: normalizeSide(item.side),
-        bookAccountId: requireString(
-          item.bookAccountId,
-          "archive entry.line.bookAccountId",
-        ),
-        amount: requireNonNegativeNumber(item.amount, "archive entry.line.amount"),
-        partnerName: stringOrEmpty(item.partnerName),
-        taxCategoryName: stringOrEmpty(item.taxCategoryName),
-        businessCategoryName: stringOrEmpty(item.businessCategoryName),
-      };
-    }),
-  };
+function normalizeArchivedEntry(
+  value: Record<string, unknown>,
+): EntryUpsertInput {
+  const date = requireIsoDate(value.date, "archive entry.date");
+  const description = requireString(
+    value.description,
+    "archive entry.description",
+  );
+  const localId =
+    typeof value.localId === "string" && value.localId !== ""
+      ? value.localId
+      : typeof value.id === "string"
+        ? `archive:${value.id}`
+        : undefined;
+  const businessRate = requireUnitRate(
+    value.businessRate,
+    "archive entry.businessRate",
+  );
+  const lines = arrayValue(value.lines, "archive entry.lines").map((line) => {
+    const item = objectValue(line, "archive entry.line");
+    return {
+      side: normalizeSide(item.side),
+      bookAccountId: requireString(
+        item.bookAccountId,
+        "archive entry.line.bookAccountId",
+      ),
+      amount: requireNonNegativeNumber(
+        item.amount,
+        "archive entry.line.amount",
+      ),
+      partnerName: stringOrEmpty(item.partnerName),
+      taxCategoryName: stringOrEmpty(item.taxCategoryName),
+      businessCategoryName: stringOrEmpty(item.businessCategoryName),
+    };
+  });
+  assertEntryLinesBalanced(lines, "archive entry");
+  return { date, description, localId, businessRate, lines };
 }
 
 function normalizeArchivedFixedAsset(value: Record<string, unknown>) {
@@ -236,7 +253,7 @@ function normalizeArchivedClosing(value: Record<string, unknown>) {
   return {
     year: requirePositiveInteger(value.year, "archive closing.year"),
     kind:
-      value.kind === "pre_closing" || value.isProvisional === true
+      value.kind === "pre_closing"
         ? ("pre_closing" as const)
         : ("closing" as const),
   };
@@ -300,7 +317,9 @@ function requireNumber(value: unknown, label: string): number {
 function requireNonNegativeNumber(value: unknown, label: string): number {
   const numberValue = requireNumber(value, label);
   if (numberValue < 0) {
-    throw serverValidationError(`${label} must be a non-negative finite number`);
+    throw serverValidationError(
+      `${label} must be a non-negative finite number`,
+    );
   }
   return numberValue;
 }
@@ -327,34 +346,6 @@ function requireIsoDate(value: unknown, label: string): string {
     throw serverValidationError(`${label} is invalid`);
   }
   return text;
-}
-
-function assertDateRange(startDate: string, endDate: string, label: string) {
-  const start = parseIsoDate(startDate);
-  const end = parseIsoDate(endDate);
-  if (start == null || end == null) {
-    throw serverValidationError(`${label} dates are invalid`);
-  }
-  if (start.getTime() > end.getTime()) {
-    throw serverValidationError(`${label} start date must be on or before end date`);
-  }
-}
-
-function parseIsoDate(value: string): Date | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (match == null) return null;
-  const year = Number(match[1]);
-  const month = Number(match[2]) - 1;
-  const day = Number(match[3]);
-  const date = new Date(Date.UTC(year, month, day));
-  if (
-    date.getUTCFullYear() !== year ||
-    date.getUTCMonth() !== month ||
-    date.getUTCDate() !== day
-  ) {
-    return null;
-  }
-  return date;
 }
 
 function stringOrEmpty(value: unknown): string {

@@ -12,7 +12,7 @@ export type OpeningBalanceLineDbRecord = {
   amount: number;
 };
 
-export type CarryoverJournalLineDbRecord = {
+export type OpeningJournalLineDbRecord = {
   id: string;
   side: "debit" | "credit";
   bookAccountId: string;
@@ -22,12 +22,12 @@ export type CarryoverJournalLineDbRecord = {
   businessCategoryName: string;
 };
 
-export type CarryoverJournalDbRecord = {
+export type OpeningJournalDbRecord = {
   id: string;
   date: string;
   description: string;
   businessRate: number;
-  lines: CarryoverJournalLineDbRecord[];
+  lines: OpeningJournalLineDbRecord[];
 };
 
 export type FiscalPeriodOpeningDbRecord = {
@@ -35,7 +35,7 @@ export type FiscalPeriodOpeningDbRecord = {
   userId: string;
   fiscalPeriodId: string;
   openingBalanceLines?: OpeningBalanceLineDbRecord[];
-  carryoverJournals?: CarryoverJournalDbRecord[];
+  openingJournals?: OpeningJournalDbRecord[];
 };
 
 export type FiscalPeriodDbRecord = {

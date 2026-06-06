@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildPeriodLockMessage, isJournalingActive } from "./period-lock";
+import { buildPeriodLockMessage, isJournalizingActive } from "./period-lock";
 import type { FiscalPeriod } from "./models";
 
 function period(overrides: Partial<FiscalPeriod> = {}): FiscalPeriod {
@@ -20,30 +20,30 @@ function period(overrides: Partial<FiscalPeriod> = {}): FiscalPeriod {
   };
 }
 
-describe("isJournalingActive", () => {
+describe("isJournalizingActive", () => {
   it("returns false for null/undefined", () => {
-    expect(isJournalingActive(null)).toBe(false);
-    expect(isJournalingActive(undefined)).toBe(false);
+    expect(isJournalizingActive(null)).toBe(false);
+    expect(isJournalizingActive(undefined)).toBe(false);
   });
 
   it("returns false when stage is pre_opening", () => {
-    expect(isJournalingActive(period({ phase: "pre_opening" }))).toBe(false);
+    expect(isJournalizingActive(period({ phase: "pre_opening" }))).toBe(false);
   });
 
   it("returns false when stage is post_closing", () => {
-    expect(isJournalingActive(period({ phase: "post_closing" }))).toBe(false);
+    expect(isJournalizingActive(period({ phase: "post_closing" }))).toBe(false);
   });
 
   it("returns false when pre-closing", () => {
-    expect(isJournalingActive(period({ phase: "pre_closing" }))).toBe(false);
+    expect(isJournalizingActive(period({ phase: "pre_closing" }))).toBe(false);
   });
 
   it("returns false when archived", () => {
-    expect(isJournalingActive(period({ archiveStatus: "archived" }))).toBe(false);
+    expect(isJournalizingActive(period({ archiveStatus: "archived" }))).toBe(false);
   });
 
   it("returns true when journalizing", () => {
-    expect(isJournalingActive(period({ phase: "journalizing" }))).toBe(true);
+    expect(isJournalizingActive(period({ phase: "journalizing" }))).toBe(true);
   });
 });
 

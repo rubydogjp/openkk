@@ -23,12 +23,18 @@ describe("openkk server closing flow", () => {
     expect(await server.preClosing.get("fp-1", 2026)).toBeNull();
     expect(await server.closing.get("fp-1", 2026)).toBeNull();
 
-    const preClosed = await server.preClosing.run({ fiscalPeriodId: "fp-1", year: 2026 });
+    const preClosed = await server.preClosing.run({
+      fiscalPeriodId: "fp-1",
+      year: 2026,
+    });
     expect(preClosed.phase).toBe("pre_closing");
     expect(await server.preClosing.get("fp-1", 2026)).toEqual({});
     expect(await server.closing.get("fp-1", 2026)).toBeNull();
 
-    const closed = await server.closing.run({ fiscalPeriodId: "fp-1", year: 2026 });
+    const closed = await server.closing.run({
+      fiscalPeriodId: "fp-1",
+      year: 2026,
+    });
     expect(closed.phase).toBe("post_closing");
     expect(await server.preClosing.get("fp-1", 2026)).toEqual({});
     expect(await server.closing.get("fp-1", 2026)).toEqual({});
@@ -43,9 +49,12 @@ describe("openkk server closing flow", () => {
   });
 
   it("rejects closing changes in archived fiscal periods", async () => {
-    const server = createOpenkkServer(createMemoryDb({ archiveStatus: "archived" }), {
-      userId: "user-1",
-    });
+    const server = createOpenkkServer(
+      createMemoryDb({ archiveStatus: "archived" }),
+      {
+        userId: "user-1",
+      },
+    );
 
     await expect(
       server.preClosing.run({
@@ -94,20 +103,25 @@ function createMemoryDb(
       async getAll() {
         return [];
       },
-      async getByMonth() {
-        return [];
-      },
       async getById() {
         return null;
       },
-      async create(_userId: string, fiscalPeriodId: string, input: EntryUpsertInput) {
+      async create(
+        _userId: string,
+        fiscalPeriodId: string,
+        input: EntryUpsertInput,
+      ) {
         return entry({ id: "entry-1", fiscalPeriodId, ...input });
       },
       async update(id: string, input: EntryUpsertInput) {
         return entry({ id, fiscalPeriodId: "fp-1", ...input });
       },
       async delete() {},
-      async importMany(_userId: string, fiscalPeriodId: string, inputs: EntryUpsertInput[]) {
+      async importMany(
+        _userId: string,
+        fiscalPeriodId: string,
+        inputs: EntryUpsertInput[],
+      ) {
         return inputs.map((input, index) =>
           entry({ id: `entry-${index + 1}`, fiscalPeriodId, ...input }),
         );
@@ -120,7 +134,11 @@ function createMemoryDb(
       async getById() {
         return null;
       },
-      async create(_userId: string, fiscalPeriodId: string, input: FixedAssetCreateInput) {
+      async create(
+        _userId: string,
+        fiscalPeriodId: string,
+        input: FixedAssetCreateInput,
+      ) {
         return fixedAsset({ id: "asset-1", fiscalPeriodId, ...input });
       },
       async update(id: string, patch: FixedAssetPatchInput) {
@@ -197,7 +215,9 @@ function entry(overrides: Partial<EntryApiRecord>): EntryApiRecord {
   };
 }
 
-function fixedAsset(overrides: Partial<FixedAssetApiRecord>): FixedAssetApiRecord {
+function fixedAsset(
+  overrides: Partial<FixedAssetApiRecord>,
+): FixedAssetApiRecord {
   return {
     id: "asset-1",
     fiscalPeriodId: "fp-1",

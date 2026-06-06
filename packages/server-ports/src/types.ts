@@ -57,11 +57,7 @@ export type FiscalPeriodApiRecord = {
   name: string;
   startDate: string;
   endDate: string;
-  phase:
-    | "pre_opening"
-    | "journalizing"
-    | "pre_closing"
-    | "post_closing";
+  phase: "pre_opening" | "journalizing" | "pre_closing" | "post_closing";
   archiveStatus: "active" | "archived";
   settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
@@ -75,7 +71,7 @@ export type FiscalPeriodApiRecord = {
       accountId: string;
       amount: number;
     }>;
-    carryoverJournals?: Array<{
+    openingJournals?: Array<{
       id: string;
       date: string;
       description: string;
@@ -115,7 +111,7 @@ export type FiscalPeriodPatchInput = Partial<{
       accountId: string;
       amount: number;
     }>;
-    carryoverJournals: Array<{
+    openingJournals: Array<{
       id: string;
       date: string;
       description: string;
@@ -242,7 +238,9 @@ export type FiscalPeriodsGetAllResponse = {
   fiscalPeriods: FiscalPeriodApiRecord[];
 };
 export type FiscalPeriodCreateRequest = { input: FiscalPeriodCreateInput };
-export type FiscalPeriodCreateResponse = { fiscalPeriod: FiscalPeriodApiRecord };
+export type FiscalPeriodCreateResponse = {
+  fiscalPeriod: FiscalPeriodApiRecord;
+};
 export type FiscalPeriodImportArchivedRequest = {
   input: FiscalPeriodArchiveImportInput;
 };
@@ -255,7 +253,9 @@ export type FiscalPeriodPatchRequest = {
 };
 export type FiscalPeriodPatchResponse = { fiscalPeriod: FiscalPeriodApiRecord };
 export type FiscalPeriodArchiveRequest = { id: string };
-export type FiscalPeriodArchiveResponse = { fiscalPeriod: FiscalPeriodApiRecord };
+export type FiscalPeriodArchiveResponse = {
+  fiscalPeriod: FiscalPeriodApiRecord;
+};
 export type FiscalPeriodRemoveRequest = { id: string };
 export type FiscalPeriodRemoveResponse = OpenkkNoContentResponse;
 
@@ -272,13 +272,15 @@ export type FixedAssetPatchRequest = {
   input: FixedAssetPatchInput;
 };
 export type FixedAssetPatchResponse = { fixedAsset: FixedAssetApiRecord };
-export type FixedAssetDeleteRequest = { fiscalPeriodId: string; id: string };
-export type FixedAssetDeleteResponse = OpenkkNoContentResponse;
+export type FixedAssetRemoveRequest = { fiscalPeriodId: string; id: string };
+export type FixedAssetRemoveResponse = OpenkkNoContentResponse;
 
 export type MasterBookAccountsRequest = OpenkkEmptyRequest;
 export type MasterBookAccountsResponse = { bookAccounts: MasterBookAccount[] };
 export type MasterTaxCategoriesRequest = OpenkkEmptyRequest;
-export type MasterTaxCategoriesResponse = { taxCategories: MasterTaxCategory[] };
+export type MasterTaxCategoriesResponse = {
+  taxCategories: MasterTaxCategory[];
+};
 export type MasterBusinessCategoriesRequest = OpenkkEmptyRequest;
 export type MasterBusinessCategoriesResponse = {
   businessCategories: MasterBusinessCategory[];
@@ -297,65 +299,277 @@ export type OpenkkHttpEndpointSpec<
 };
 
 export type OpenkkHttpEndpointSpecs = {
-  authStartSession: OpenkkHttpEndpointSpec<StartAuthSessionRequest, StartAuthSessionResponse, 200>;
-  authCompleteSession: OpenkkHttpEndpointSpec<CompleteAuthSessionRequest, CompleteAuthSessionResponse, 200>;
-  authRedeemCompletionCode: OpenkkHttpEndpointSpec<RedeemCompletionCodeRequest, RedeemCompletionCodeResponse, 200>;
-  authSignOut: OpenkkHttpEndpointSpec<AuthSignOutRequest, AuthSignOutResponse, 204>;
-  preClosingGet: OpenkkHttpEndpointSpec<PreClosingGetRequest, PreClosingGetResponse, 200>;
-  preClosingRun: OpenkkHttpEndpointSpec<PreClosingRunRequest, PreClosingRunResponse, 200>;
-  preClosingCancel: OpenkkHttpEndpointSpec<PreClosingCancelRequest, PreClosingCancelResponse, 200>;
-  closingGet: OpenkkHttpEndpointSpec<ClosingGetRequest, ClosingGetResponse, 200>;
-  closingRun: OpenkkHttpEndpointSpec<ClosingRunRequest, ClosingRunResponse, 200>;
-  entriesGetAll: OpenkkHttpEndpointSpec<EntriesGetAllRequest, EntriesGetAllResponse, 200>;
-  entryCreate: OpenkkHttpEndpointSpec<EntryCreateRequest, EntryCreateResponse, 201>;
-  entryPatch: OpenkkHttpEndpointSpec<EntryPatchRequest, EntryPatchResponse, 200>;
-  entryRemove: OpenkkHttpEndpointSpec<EntryRemoveRequest, EntryRemoveResponse, 204>;
-  entryImportMany: OpenkkHttpEndpointSpec<EntryImportManyRequest, EntryImportManyResponse, 200>;
-  fiscalPeriodsGetAll: OpenkkHttpEndpointSpec<FiscalPeriodsGetAllRequest, FiscalPeriodsGetAllResponse, 200>;
-  fiscalPeriodCreate: OpenkkHttpEndpointSpec<FiscalPeriodCreateRequest, FiscalPeriodCreateResponse, 201>;
-  fiscalPeriodImportArchived: OpenkkHttpEndpointSpec<FiscalPeriodImportArchivedRequest, FiscalPeriodImportArchivedResponse, 201>;
-  fiscalPeriodPatch: OpenkkHttpEndpointSpec<FiscalPeriodPatchRequest, FiscalPeriodPatchResponse, 200>;
-  fiscalPeriodArchive: OpenkkHttpEndpointSpec<FiscalPeriodArchiveRequest, FiscalPeriodArchiveResponse, 200>;
-  fiscalPeriodRemove: OpenkkHttpEndpointSpec<FiscalPeriodRemoveRequest, FiscalPeriodRemoveResponse, 204>;
-  fixedAssetsGetAll: OpenkkHttpEndpointSpec<FixedAssetsGetAllRequest, FixedAssetsGetAllResponse, 200>;
-  fixedAssetCreate: OpenkkHttpEndpointSpec<FixedAssetCreateRequest, FixedAssetCreateResponse, 201>;
-  fixedAssetPatch: OpenkkHttpEndpointSpec<FixedAssetPatchRequest, FixedAssetPatchResponse, 200>;
-  fixedAssetDelete: OpenkkHttpEndpointSpec<FixedAssetDeleteRequest, FixedAssetDeleteResponse, 204>;
-  masterBookAccounts: OpenkkHttpEndpointSpec<MasterBookAccountsRequest, MasterBookAccountsResponse, 200>;
-  masterTaxCategories: OpenkkHttpEndpointSpec<MasterTaxCategoriesRequest, MasterTaxCategoriesResponse, 200>;
-  masterBusinessCategories: OpenkkHttpEndpointSpec<MasterBusinessCategoriesRequest, MasterBusinessCategoriesResponse, 200>;
+  authStartSession: OpenkkHttpEndpointSpec<
+    StartAuthSessionRequest,
+    StartAuthSessionResponse,
+    200
+  >;
+  authCompleteSession: OpenkkHttpEndpointSpec<
+    CompleteAuthSessionRequest,
+    CompleteAuthSessionResponse,
+    200
+  >;
+  authRedeemCompletionCode: OpenkkHttpEndpointSpec<
+    RedeemCompletionCodeRequest,
+    RedeemCompletionCodeResponse,
+    200
+  >;
+  authSignOut: OpenkkHttpEndpointSpec<
+    AuthSignOutRequest,
+    AuthSignOutResponse,
+    204
+  >;
+  preClosingGet: OpenkkHttpEndpointSpec<
+    PreClosingGetRequest,
+    PreClosingGetResponse,
+    200
+  >;
+  preClosingRun: OpenkkHttpEndpointSpec<
+    PreClosingRunRequest,
+    PreClosingRunResponse,
+    200
+  >;
+  preClosingCancel: OpenkkHttpEndpointSpec<
+    PreClosingCancelRequest,
+    PreClosingCancelResponse,
+    200
+  >;
+  closingGet: OpenkkHttpEndpointSpec<
+    ClosingGetRequest,
+    ClosingGetResponse,
+    200
+  >;
+  closingRun: OpenkkHttpEndpointSpec<
+    ClosingRunRequest,
+    ClosingRunResponse,
+    200
+  >;
+  entriesGetAll: OpenkkHttpEndpointSpec<
+    EntriesGetAllRequest,
+    EntriesGetAllResponse,
+    200
+  >;
+  entryCreate: OpenkkHttpEndpointSpec<
+    EntryCreateRequest,
+    EntryCreateResponse,
+    201
+  >;
+  entryPatch: OpenkkHttpEndpointSpec<
+    EntryPatchRequest,
+    EntryPatchResponse,
+    200
+  >;
+  entryRemove: OpenkkHttpEndpointSpec<
+    EntryRemoveRequest,
+    EntryRemoveResponse,
+    204
+  >;
+  entryImportMany: OpenkkHttpEndpointSpec<
+    EntryImportManyRequest,
+    EntryImportManyResponse,
+    200
+  >;
+  fiscalPeriodsGetAll: OpenkkHttpEndpointSpec<
+    FiscalPeriodsGetAllRequest,
+    FiscalPeriodsGetAllResponse,
+    200
+  >;
+  fiscalPeriodCreate: OpenkkHttpEndpointSpec<
+    FiscalPeriodCreateRequest,
+    FiscalPeriodCreateResponse,
+    201
+  >;
+  fiscalPeriodImportArchived: OpenkkHttpEndpointSpec<
+    FiscalPeriodImportArchivedRequest,
+    FiscalPeriodImportArchivedResponse,
+    201
+  >;
+  fiscalPeriodPatch: OpenkkHttpEndpointSpec<
+    FiscalPeriodPatchRequest,
+    FiscalPeriodPatchResponse,
+    200
+  >;
+  fiscalPeriodArchive: OpenkkHttpEndpointSpec<
+    FiscalPeriodArchiveRequest,
+    FiscalPeriodArchiveResponse,
+    200
+  >;
+  fiscalPeriodRemove: OpenkkHttpEndpointSpec<
+    FiscalPeriodRemoveRequest,
+    FiscalPeriodRemoveResponse,
+    204
+  >;
+  fixedAssetsGetAll: OpenkkHttpEndpointSpec<
+    FixedAssetsGetAllRequest,
+    FixedAssetsGetAllResponse,
+    200
+  >;
+  fixedAssetCreate: OpenkkHttpEndpointSpec<
+    FixedAssetCreateRequest,
+    FixedAssetCreateResponse,
+    201
+  >;
+  fixedAssetPatch: OpenkkHttpEndpointSpec<
+    FixedAssetPatchRequest,
+    FixedAssetPatchResponse,
+    200
+  >;
+  fixedAssetRemove: OpenkkHttpEndpointSpec<
+    FixedAssetRemoveRequest,
+    FixedAssetRemoveResponse,
+    204
+  >;
+  masterBookAccounts: OpenkkHttpEndpointSpec<
+    MasterBookAccountsRequest,
+    MasterBookAccountsResponse,
+    200
+  >;
+  masterTaxCategories: OpenkkHttpEndpointSpec<
+    MasterTaxCategoriesRequest,
+    MasterTaxCategoriesResponse,
+    200
+  >;
+  masterBusinessCategories: OpenkkHttpEndpointSpec<
+    MasterBusinessCategoriesRequest,
+    MasterBusinessCategoriesResponse,
+    200
+  >;
 };
 
 export type OpenkkHttpEndpointKey = keyof OpenkkHttpEndpointSpecs;
 
 export const OPENKK_HTTP_ENDPOINTS = {
-  authStartSession: { method: "POST", path: "/auth/session/start", successStatus: 200 },
-  authCompleteSession: { method: "POST", path: "/auth/session/complete", successStatus: 200 },
-  authRedeemCompletionCode: { method: "POST", path: "/auth/token", successStatus: 200 },
+  authStartSession: {
+    method: "POST",
+    path: "/auth/session/start",
+    successStatus: 200,
+  },
+  authCompleteSession: {
+    method: "POST",
+    path: "/auth/session/complete",
+    successStatus: 200,
+  },
+  authRedeemCompletionCode: {
+    method: "POST",
+    path: "/auth/token",
+    successStatus: 200,
+  },
   authSignOut: { method: "POST", path: "/auth/sign-out", successStatus: 204 },
-  preClosingGet: { method: "GET", path: "/fiscal-periods/{fiscalPeriodId}/pre-closings/{year}", successStatus: 200 },
-  preClosingRun: { method: "PUT", path: "/fiscal-periods/{fiscalPeriodId}/pre-closings/{year}", successStatus: 200 },
-  preClosingCancel: { method: "DELETE", path: "/fiscal-periods/{fiscalPeriodId}/pre-closings/{year}", successStatus: 200 },
-  closingGet: { method: "GET", path: "/fiscal-periods/{fiscalPeriodId}/closings/{year}", successStatus: 200 },
-  closingRun: { method: "PUT", path: "/fiscal-periods/{fiscalPeriodId}/closings/{year}", successStatus: 200 },
-  entriesGetAll: { method: "GET", path: "/fiscal-periods/{fiscalPeriodId}/entries", successStatus: 200 },
-  entryCreate: { method: "POST", path: "/fiscal-periods/{fiscalPeriodId}/entries", successStatus: 201 },
-  entryPatch: { method: "PUT", path: "/fiscal-periods/{fiscalPeriodId}/entries/{id}", successStatus: 200 },
-  entryRemove: { method: "DELETE", path: "/fiscal-periods/{fiscalPeriodId}/entries/{id}", successStatus: 204 },
-  entryImportMany: { method: "POST", path: "/fiscal-periods/{fiscalPeriodId}/entries/import", successStatus: 200 },
-  fiscalPeriodsGetAll: { method: "GET", path: "/fiscal-periods", successStatus: 200 },
-  fiscalPeriodCreate: { method: "POST", path: "/fiscal-periods", successStatus: 201 },
-  fiscalPeriodImportArchived: { method: "POST", path: "/fiscal-periods/import-archived", successStatus: 201 },
-  fiscalPeriodPatch: { method: "PATCH", path: "/fiscal-periods/{id}", successStatus: 200 },
-  fiscalPeriodArchive: { method: "POST", path: "/fiscal-periods/{id}/archive", successStatus: 200 },
-  fiscalPeriodRemove: { method: "DELETE", path: "/fiscal-periods/{id}", successStatus: 204 },
-  fixedAssetsGetAll: { method: "GET", path: "/fiscal-periods/{fiscalPeriodId}/fixed-assets", successStatus: 200 },
-  fixedAssetCreate: { method: "POST", path: "/fiscal-periods/{fiscalPeriodId}/fixed-assets", successStatus: 201 },
-  fixedAssetPatch: { method: "PATCH", path: "/fiscal-periods/{fiscalPeriodId}/fixed-assets/{id}", successStatus: 200 },
-  fixedAssetDelete: { method: "DELETE", path: "/fiscal-periods/{fiscalPeriodId}/fixed-assets/{id}", successStatus: 204 },
-  masterBookAccounts: { method: "GET", path: "/master/book-accounts", successStatus: 200 },
-  masterTaxCategories: { method: "GET", path: "/master/tax-categories", successStatus: 200 },
-  masterBusinessCategories: { method: "GET", path: "/master/business-categories", successStatus: 200 },
+  preClosingGet: {
+    method: "GET",
+    path: "/fiscal-periods/{fiscalPeriodId}/pre-closings/{year}",
+    successStatus: 200,
+  },
+  preClosingRun: {
+    method: "PUT",
+    path: "/fiscal-periods/{fiscalPeriodId}/pre-closings/{year}",
+    successStatus: 200,
+  },
+  preClosingCancel: {
+    method: "DELETE",
+    path: "/fiscal-periods/{fiscalPeriodId}/pre-closings/{year}",
+    successStatus: 200,
+  },
+  closingGet: {
+    method: "GET",
+    path: "/fiscal-periods/{fiscalPeriodId}/closings/{year}",
+    successStatus: 200,
+  },
+  closingRun: {
+    method: "PUT",
+    path: "/fiscal-periods/{fiscalPeriodId}/closings/{year}",
+    successStatus: 200,
+  },
+  entriesGetAll: {
+    method: "GET",
+    path: "/fiscal-periods/{fiscalPeriodId}/entries",
+    successStatus: 200,
+  },
+  entryCreate: {
+    method: "POST",
+    path: "/fiscal-periods/{fiscalPeriodId}/entries",
+    successStatus: 201,
+  },
+  entryPatch: {
+    method: "PUT",
+    path: "/fiscal-periods/{fiscalPeriodId}/entries/{id}",
+    successStatus: 200,
+  },
+  entryRemove: {
+    method: "DELETE",
+    path: "/fiscal-periods/{fiscalPeriodId}/entries/{id}",
+    successStatus: 204,
+  },
+  entryImportMany: {
+    method: "POST",
+    path: "/fiscal-periods/{fiscalPeriodId}/entries/import",
+    successStatus: 200,
+  },
+  fiscalPeriodsGetAll: {
+    method: "GET",
+    path: "/fiscal-periods",
+    successStatus: 200,
+  },
+  fiscalPeriodCreate: {
+    method: "POST",
+    path: "/fiscal-periods",
+    successStatus: 201,
+  },
+  fiscalPeriodImportArchived: {
+    method: "POST",
+    path: "/fiscal-periods/import-archived",
+    successStatus: 201,
+  },
+  fiscalPeriodPatch: {
+    method: "PATCH",
+    path: "/fiscal-periods/{id}",
+    successStatus: 200,
+  },
+  fiscalPeriodArchive: {
+    method: "POST",
+    path: "/fiscal-periods/{id}/archive",
+    successStatus: 200,
+  },
+  fiscalPeriodRemove: {
+    method: "DELETE",
+    path: "/fiscal-periods/{id}",
+    successStatus: 204,
+  },
+  fixedAssetsGetAll: {
+    method: "GET",
+    path: "/fiscal-periods/{fiscalPeriodId}/fixed-assets",
+    successStatus: 200,
+  },
+  fixedAssetCreate: {
+    method: "POST",
+    path: "/fiscal-periods/{fiscalPeriodId}/fixed-assets",
+    successStatus: 201,
+  },
+  fixedAssetPatch: {
+    method: "PATCH",
+    path: "/fiscal-periods/{fiscalPeriodId}/fixed-assets/{id}",
+    successStatus: 200,
+  },
+  fixedAssetRemove: {
+    method: "DELETE",
+    path: "/fiscal-periods/{fiscalPeriodId}/fixed-assets/{id}",
+    successStatus: 204,
+  },
+  masterBookAccounts: {
+    method: "GET",
+    path: "/master/book-accounts",
+    successStatus: 200,
+  },
+  masterTaxCategories: {
+    method: "GET",
+    path: "/master/tax-categories",
+    successStatus: 200,
+  },
+  masterBusinessCategories: {
+    method: "GET",
+    path: "/master/business-categories",
+    successStatus: 200,
+  },
 } as const satisfies {
   [Key in OpenkkHttpEndpointKey]: Pick<
     OpenkkHttpEndpointSpecs[Key],
@@ -369,18 +583,29 @@ export interface AuthApi {
     state: string;
     code: string;
   }): Promise<CompleteAuthSessionResponse>;
-  redeemCompletionCode(completionCode: string): Promise<RedeemCompletionCodeResponse>;
+  redeemCompletionCode(
+    completionCode: string,
+  ): Promise<RedeemCompletionCodeResponse>;
   signOut(): Promise<void>;
 }
 
 export interface ClosingApi {
   get(fiscalPeriodId: string, year: number): Promise<ClosingApiRecord | null>;
-  run(input: { fiscalPeriodId: string; year: number }): Promise<FiscalPeriodApiRecord>;
+  run(input: {
+    fiscalPeriodId: string;
+    year: number;
+  }): Promise<FiscalPeriodApiRecord>;
 }
 
 export interface PreClosingApi {
-  get(fiscalPeriodId: string, year: number): Promise<PreClosingApiRecord | null>;
-  run(input: { fiscalPeriodId: string; year: number }): Promise<FiscalPeriodApiRecord>;
+  get(
+    fiscalPeriodId: string,
+    year: number,
+  ): Promise<PreClosingApiRecord | null>;
+  run(input: {
+    fiscalPeriodId: string;
+    year: number;
+  }): Promise<FiscalPeriodApiRecord>;
   cancel(fiscalPeriodId: string, year: number): Promise<FiscalPeriodApiRecord>;
 }
 
@@ -427,7 +652,7 @@ export interface FixedAssetsApi {
     id: string,
     input: FixedAssetPatchInput,
   ): Promise<FixedAssetApiRecord>;
-  delete(fiscalPeriodId: string, id: string): Promise<void>;
+  remove(fiscalPeriodId: string, id: string): Promise<void>;
 }
 
 export interface MasterDataApi {

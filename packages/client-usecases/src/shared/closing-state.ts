@@ -16,13 +16,19 @@ export function useOpenkkClosing(): OpenkkClosing {
   return useMemo<OpenkkClosing>(
     () => ({
       async runPreClosing(fiscalPeriodId, year) {
-        syncFiscalPeriod(await backendApi.preClosing.run({ fiscalPeriodId, year }));
+        syncFiscalPeriod(
+          await backendApi.preClosing.run({ fiscalPeriodId, year }),
+        );
       },
       async runFinal(fiscalPeriodId, year) {
-        syncFiscalPeriod(await backendApi.closing.run({ fiscalPeriodId, year }));
+        syncFiscalPeriod(
+          await backendApi.closing.run({ fiscalPeriodId, year }),
+        );
       },
       async cancelPreClosing(fiscalPeriodId, year) {
-        syncFiscalPeriod(await backendApi.preClosing.cancel(fiscalPeriodId, year));
+        syncFiscalPeriod(
+          await backendApi.preClosing.cancel(fiscalPeriodId, year),
+        );
       },
     }),
     [backendApi, syncFiscalPeriod],

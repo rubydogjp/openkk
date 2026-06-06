@@ -2,9 +2,15 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 
-import { AppError, OPENING_EQUITY_LABELS } from "@rubydogjp/openkk-client-domain";
+import {
+  AppError,
+  OPENING_EQUITY_LABELS,
+} from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text";
-import { useOpenkkAppState, useOpenkkConfig } from "@rubydogjp/openkk-client-usecases";
+import {
+  useOpenkkAppState,
+  useOpenkkConfig,
+} from "@rubydogjp/openkk-client-usecases";
 import { AccountChipCell } from "../../entries/entries-ui";
 import type { EntryAccountVisualType } from "@rubydogjp/openkk-client-domain";
 import {
@@ -24,7 +30,11 @@ import {
 } from "../../shared/design-tokens";
 import { DemoIcon } from "../../shared/demo-icon";
 import { FormStyles } from "../../shared/form-fields";
-import { StepCallout, StepPrimaryButton, StepSecondaryButton } from "../step-ui";
+import {
+  StepCallout,
+  StepPrimaryButton,
+  StepSecondaryButton,
+} from "../step-ui";
 
 const BS_ROWS: Array<{ assetLabel: string; liabilityLabel: string }> = [
   { assetLabel: "現金", liabilityLabel: "支払手形" },
@@ -214,7 +224,7 @@ export function OpeningBsBody({
                 id: `op-${currentFiscalPeriod.id}`,
                 userId: appState.session?.userId ?? "",
                 fiscalPeriodId: currentFiscalPeriod.id,
-                carryoverJournals: [],
+                openingJournals: [],
               }),
               openingBalanceLines: lines,
             },
@@ -290,7 +300,6 @@ export function OpeningBsBody({
             position: "relative",
           }}
         >
-
           <div
             aria-hidden
             style={{
@@ -504,7 +513,6 @@ function HeaderCell({
   children: ReactNode;
   align?: "left" | "right";
 }) {
-
   if (align === "right") {
     return (
       <div
@@ -553,7 +561,6 @@ function ChipCell({
   type: EntryAccountVisualType;
 }) {
   if (label === "") {
-
     return <div />;
   }
 
@@ -587,7 +594,11 @@ function AmountCell({
     >
       <div style={{ width: AMOUNT_INPUT_W }}>
         {editable ? (
-          <AmountInput value={value} onChange={onChange} ariaLabel={ariaLabel} />
+          <AmountInput
+            value={value}
+            onChange={onChange}
+            ariaLabel={ariaLabel}
+          />
         ) : (
           <AmountReadOnlyField
             value={value !== "" ? Number(value).toLocaleString("ja-JP") : ""}
@@ -614,7 +625,6 @@ function TotalLabelCell({ children }: { children: ReactNode }) {
 }
 
 function TotalAmountCell({ children }: { children: ReactNode }) {
-
   return (
     <div
       style={{ paddingLeft: 12, display: "flex", justifyContent: "flex-start" }}

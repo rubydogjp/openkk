@@ -45,10 +45,6 @@ export interface FiscalPeriodsDb {
 
 export interface EntriesDb {
   getAll(fiscalPeriodId: string): Promise<EntryDbRecord[]>;
-  getByMonth(
-    fiscalPeriodId: string,
-    yearMonth: string,
-  ): Promise<EntryDbRecord[]>;
   getById(id: string): Promise<EntryDbRecord | null>;
   create(
     userId: string,
@@ -69,9 +65,7 @@ export interface EntriesDb {
 }
 
 export interface FixedAssetsDb {
-  getAllByFiscalPeriod(
-    fiscalPeriodId: string,
-  ): Promise<FixedAssetDbRecord[]>;
+  getAllByFiscalPeriod(fiscalPeriodId: string): Promise<FixedAssetDbRecord[]>;
   getById(id: string): Promise<FixedAssetDbRecord | null>;
   create(
     userId: string,

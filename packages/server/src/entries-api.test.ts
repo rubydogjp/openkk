@@ -80,6 +80,40 @@ describe("openkk server entries API", () => {
     expect(await server.entries.getAll("fp-1")).toEqual([]);
   });
 
+  it("rejects unbalanced entries before persisting", async () => {
+    const db = createEntryDb();
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(
+      server.entries.create("fp-1", {
+        date: "2026-04-01",
+        description: "貸借不一致の仕訳",
+        localId: "unbalanced",
+        businessRate: 1,
+        lines: [
+          {
+            side: "debit",
+            bookAccountId: "acct_cash",
+            amount: 1000,
+            partnerName: "",
+            taxCategoryName: "tax_exempt",
+            businessCategoryName: "biz_none",
+          },
+          {
+            side: "credit",
+            bookAccountId: "acct_sales",
+            amount: 900,
+            partnerName: "",
+            taxCategoryName: "tax_exempt",
+            businessCategoryName: "biz_none",
+          },
+        ],
+      }),
+    ).rejects.toThrow(/debit total \(1000\) must equal credit total \(900\)/);
+
+    expect(await server.entries.getAll("fp-1")).toEqual([]);
+  });
+
   it("rejects invalid dates in bulk import before persisting", async () => {
     const db = createEntryDb();
     const server = createOpenkkServer(db, { userId: "user-1" });
@@ -140,6 +174,14 @@ describe("openkk server entries API", () => {
           taxCategoryName: "tax_exempt",
           businessCategoryName: "biz_none",
         },
+        {
+          side: "credit",
+          bookAccountId: "acct_sales",
+          amount: 1000,
+          partnerName: "",
+          taxCategoryName: "tax_exempt",
+          businessCategoryName: "biz_none",
+        },
       ],
     });
 
@@ -185,17 +227,14 @@ function createEntryDb(
           (entry) => entry.fiscalPeriodId === fiscalPeriodId,
         );
       },
-      async getByMonth(fiscalPeriodId, yearMonth) {
-        return [...entries.values()].filter(
-          (entry) =>
-            entry.fiscalPeriodId === fiscalPeriodId &&
-            entry.date.startsWith(yearMonth),
-        );
-      },
       async getById(id) {
         return entries.get(id) ?? null;
       },
-      async create(_userId: string, fiscalPeriodId: string, input: EntryUpsertInput) {
+      async create(
+        _userId: string,
+        fiscalPeriodId: string,
+        input: EntryUpsertInput,
+      ) {
         const record = entry({
           id: `entry-${entries.size + 1}`,
           fiscalPeriodId,
@@ -214,7 +253,11 @@ function createEntryDb(
       async delete(id: string) {
         entries.delete(id);
       },
-      async importMany(_userId: string, fiscalPeriodId: string, inputs: EntryUpsertInput[]) {
+      async importMany(
+        _userId: string,
+        fiscalPeriodId: string,
+        inputs: EntryUpsertInput[],
+      ) {
         return inputs.map((input, index) =>
           entry({ id: `entry-${index + 1}`, fiscalPeriodId, ...input }),
         );
@@ -227,7 +270,11 @@ function createEntryDb(
       async getById() {
         return null;
       },
-      async create(_userId: string, fiscalPeriodId: string, input: FixedAssetCreateInput) {
+      async create(
+        _userId: string,
+        fiscalPeriodId: string,
+        input: FixedAssetCreateInput,
+      ) {
         return fixedAsset({ id: "asset-1", fiscalPeriodId, ...input });
       },
       async update(id: string, patch: FixedAssetPatchInput) {
@@ -236,15 +283,23 @@ function createEntryDb(
       async delete() {},
     },
     preClosings: {
-      async get() { return null; },
-      async run() { return fiscalPeriod({ phase: "pre_closing" }); },
-      async cancel() { return fiscalPeriod({ phase: "journalizing" }); },
+      async get() {
+        return null;
+      },
+      async run() {
+        return fiscalPeriod({ phase: "pre_closing" });
+      },
+      async cancel() {
+        return fiscalPeriod({ phase: "journalizing" });
+      },
     },
     closings: {
       async get(): Promise<ClosingApiRecord | null> {
         return null;
       },
-      async run() { return fiscalPeriod({ phase: "post_closing" }); },
+      async run() {
+        return fiscalPeriod({ phase: "post_closing" });
+      },
     },
     masterData: {
       async getAllBookAccounts(): Promise<MasterBookAccount[]> {
@@ -291,7 +346,9 @@ function entry(overrides: Partial<EntryApiRecord>): EntryApiRecord {
   };
 }
 
-function fixedAsset(overrides: Partial<FixedAssetApiRecord>): FixedAssetApiRecord {
+function fixedAsset(
+  overrides: Partial<FixedAssetApiRecord>,
+): FixedAssetApiRecord {
   return {
     id: "asset-1",
     fiscalPeriodId: "fp-1",

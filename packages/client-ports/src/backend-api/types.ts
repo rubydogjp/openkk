@@ -75,7 +75,7 @@ export type FiscalPeriodApiRecord = {
       accountId: string;
       amount: number;
     }>;
-    carryoverJournals?: Array<{
+    openingJournals?: Array<{
       id: string;
       date: string;
       description: string;
@@ -115,7 +115,7 @@ export type FiscalPeriodPatchInput = Partial<{
       accountId: string;
       amount: number;
     }>;
-    carryoverJournals: Array<{
+    openingJournals: Array<{
       id: string;
       date: string;
       description: string;
@@ -272,8 +272,8 @@ export type FixedAssetPatchRequest = {
   input: FixedAssetPatchInput;
 };
 export type FixedAssetPatchResponse = { fixedAsset: FixedAssetApiRecord };
-export type FixedAssetDeleteRequest = { fiscalPeriodId: string; id: string };
-export type FixedAssetDeleteResponse = OpenkkNoContentResponse;
+export type FixedAssetRemoveRequest = { fiscalPeriodId: string; id: string };
+export type FixedAssetRemoveResponse = OpenkkNoContentResponse;
 
 export type MasterBookAccountsRequest = OpenkkEmptyRequest;
 export type MasterBookAccountsResponse = { bookAccounts: MasterBookAccount[] };
@@ -320,7 +320,7 @@ export type OpenkkHttpEndpointSpecs = {
   fixedAssetsGetAll: OpenkkHttpEndpointSpec<FixedAssetsGetAllRequest, FixedAssetsGetAllResponse, 200>;
   fixedAssetCreate: OpenkkHttpEndpointSpec<FixedAssetCreateRequest, FixedAssetCreateResponse, 201>;
   fixedAssetPatch: OpenkkHttpEndpointSpec<FixedAssetPatchRequest, FixedAssetPatchResponse, 200>;
-  fixedAssetDelete: OpenkkHttpEndpointSpec<FixedAssetDeleteRequest, FixedAssetDeleteResponse, 204>;
+  fixedAssetRemove: OpenkkHttpEndpointSpec<FixedAssetRemoveRequest, FixedAssetRemoveResponse, 204>;
   masterBookAccounts: OpenkkHttpEndpointSpec<MasterBookAccountsRequest, MasterBookAccountsResponse, 200>;
   masterTaxCategories: OpenkkHttpEndpointSpec<MasterTaxCategoriesRequest, MasterTaxCategoriesResponse, 200>;
   masterBusinessCategories: OpenkkHttpEndpointSpec<MasterBusinessCategoriesRequest, MasterBusinessCategoriesResponse, 200>;
@@ -352,7 +352,7 @@ export const OPENKK_HTTP_ENDPOINTS = {
   fixedAssetsGetAll: { method: "GET", path: "/fiscal-periods/{fiscalPeriodId}/fixed-assets", successStatus: 200 },
   fixedAssetCreate: { method: "POST", path: "/fiscal-periods/{fiscalPeriodId}/fixed-assets", successStatus: 201 },
   fixedAssetPatch: { method: "PATCH", path: "/fiscal-periods/{fiscalPeriodId}/fixed-assets/{id}", successStatus: 200 },
-  fixedAssetDelete: { method: "DELETE", path: "/fiscal-periods/{fiscalPeriodId}/fixed-assets/{id}", successStatus: 204 },
+  fixedAssetRemove: { method: "DELETE", path: "/fiscal-periods/{fiscalPeriodId}/fixed-assets/{id}", successStatus: 204 },
   masterBookAccounts: { method: "GET", path: "/master/book-accounts", successStatus: 200 },
   masterTaxCategories: { method: "GET", path: "/master/tax-categories", successStatus: 200 },
   masterBusinessCategories: { method: "GET", path: "/master/business-categories", successStatus: 200 },
@@ -432,7 +432,7 @@ export interface FixedAssetsApi {
     id: string,
     input: FixedAssetPatchInput,
   ): Promise<FixedAssetApiRecord>;
-  delete(fiscalPeriodId: string, id: string): Promise<void>;
+  remove(fiscalPeriodId: string, id: string): Promise<void>;
 }
 
 export interface MasterDataApi {

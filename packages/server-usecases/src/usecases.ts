@@ -61,11 +61,7 @@ function createClosingUsecase(db: OpenkkDbPort) {
     async get(_userId: string, fiscalPeriodId: string, year: number) {
       return db.closings.get(fiscalPeriodId, year);
     },
-    async run(
-      _userId: string,
-      fiscalPeriodId: string,
-      year: number,
-    ) {
+    async run(_userId: string, fiscalPeriodId: string, year: number) {
       return db.closings.run(fiscalPeriodId, year);
     },
   };
@@ -92,13 +88,6 @@ function createEntriesUsecase(db: OpenkkDbPort) {
     },
     async getById(_userId: string, id: string) {
       return db.entries.getById(id);
-    },
-    async getByMonth(
-      _userId: string,
-      fiscalPeriodId: string,
-      yearMonth: string,
-    ) {
-      return db.entries.getByMonth(fiscalPeriodId, yearMonth);
     },
     async create(
       userId: string,
@@ -131,7 +120,10 @@ function createFiscalPeriodUsecase(db: OpenkkDbPort) {
     async create(userId: string, input: FiscalPeriodCreateInput) {
       return db.fiscalPeriods.create(userId, input);
     },
-    async importArchived(userId: string, input: FiscalPeriodArchiveImportInput) {
+    async importArchived(
+      userId: string,
+      input: FiscalPeriodArchiveImportInput,
+    ) {
       return db.fiscalPeriods.importArchived(
         userId,
         normalizeArchiveImportInput(input, userId),

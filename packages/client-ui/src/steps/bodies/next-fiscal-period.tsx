@@ -20,10 +20,19 @@ import {
   useOpenkkConfig,
   useOpenkkEntries,
 } from "@rubydogjp/openkk-client-usecases";
-import { fontSize, fontWeight, palette, rings } from "../../shared/design-tokens";
+import {
+  fontSize,
+  fontWeight,
+  palette,
+  rings,
+} from "../../shared/design-tokens";
 import { DemoLockButton } from "../../shared/demo-icon";
 import { downloadBytes } from "../../shared/download";
-import { FormDatePair, FormStyles, FormTextInput } from "../../shared/form-fields";
+import {
+  FormDatePair,
+  FormStyles,
+  FormTextInput,
+} from "../../shared/form-fields";
 import {
   StepDivider,
   StepFormRow,
@@ -124,14 +133,19 @@ export function NextFiscalPeriodBody({
     if (!canCreateNext) return;
     setIsCreating(true);
     try {
-      const createdId = await appState.createFiscalPeriod({
-        name,
-        startDate,
-        endDate,
-      }, { select: false });
+      const createdId = await appState.createFiscalPeriod(
+        {
+          name,
+          startDate,
+          endDate,
+        },
+        { select: false },
+      );
       if (createdId == null) return;
       if (carries.bs || carries.transfer) {
-        const entries = entriesState.listFiscalPeriodEntries(currentFiscalPeriod.id);
+        const entries = entriesState.listFiscalPeriodEntries(
+          currentFiscalPeriod.id,
+        );
         const aggregate = computeFsAggregate({
           openingBalanceLines:
             currentFiscalPeriod.opening?.openingBalanceLines ?? [],
@@ -140,7 +154,7 @@ export function NextFiscalPeriodBody({
         const openingBalanceLines = buildOpeningBalanceLinesFromClosingBsRows(
           aggregate.bsRows,
         );
-        const carryoverJournals = carries.transfer
+        const openingJournals = carries.transfer
           ? buildOpeningCarryoverJournalsFromReversibleEntries({
               entries,
               nextFiscalPeriodId: createdId,
@@ -159,7 +173,7 @@ export function NextFiscalPeriodBody({
                   ...line,
                 }))
               : [],
-            carryoverJournals,
+            openingJournals,
           },
         });
       }
@@ -217,10 +231,22 @@ export function NextFiscalPeriodBody({
         closings: [
           ...(preClosing == null
             ? []
-            : [{ fiscalPeriodId: currentFiscalPeriod.id, year, kind: "pre_closing" }]),
+            : [
+                {
+                  fiscalPeriodId: currentFiscalPeriod.id,
+                  year,
+                  kind: "pre_closing",
+                },
+              ]),
           ...(closing == null
             ? []
-            : [{ fiscalPeriodId: currentFiscalPeriod.id, year, kind: "closing" }]),
+            : [
+                {
+                  fiscalPeriodId: currentFiscalPeriod.id,
+                  year,
+                  kind: "closing",
+                },
+              ]),
         ],
       });
       const zip = createFiscalPeriodArchiveZip(payload);

@@ -88,12 +88,14 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
     });
     const api = createOpenkkEmbeddedBackendAdapter(server);
 
-    await expect(api.fiscalPeriod.patch("fp-1", { name: "x" })).rejects.toEqual({
-      messageForDeveloper: "archived period",
-      messageForUser: "圧縮保存済みの会計期間は変更できません",
-      originalMessage: null,
-      statusCode: 409,
-    });
+    await expect(api.fiscalPeriod.patch("fp-1", { name: "x" })).rejects.toEqual(
+      {
+        messageForDeveloper: "archived period",
+        messageForUser: "圧縮保存済みの会計期間は変更できません",
+        originalMessage: null,
+        statusCode: 409,
+      },
+    );
   });
 
   it("maps unknown server failures to HTTP 500 without exposing details", async () => {
@@ -190,7 +192,7 @@ function embeddedServer(
       getAll: async () => [],
       create: async () => unused(),
       patch: async () => unused(),
-      delete: async () => undefined,
+      remove: async () => undefined,
       ...overrides.fixedAssets,
     },
     masterData: {

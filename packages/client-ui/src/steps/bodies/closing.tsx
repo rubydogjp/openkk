@@ -107,7 +107,6 @@ export function ClosingBody({
 
   const handleCancelPreClosing = async () => {
     const confirmed = await confirm({
-
       tone: "danger",
       title: "仮締めを取り消す",
       body: ["1つ前の手順に戻り、ロックを解除して再び編集できるようにします。"],
@@ -124,8 +123,7 @@ export function ClosingBody({
       setScreenError(
         AppError.from(error, {
           fallbackUserMessage: "仮締めの取り消しに失敗しました",
-          fallbackDeveloperMessage:
-            "steps/closing: cancel pre-closing failed",
+          fallbackDeveloperMessage: "steps/closing: cancel pre-closing failed",
         }),
       );
     }
@@ -149,6 +147,7 @@ export function ClosingBody({
     try {
       await materializeAssistEntriesForFinalClosing({
         fiscalPeriodId: currentFiscalPeriod.id,
+        periodStartDate: currentFiscalPeriod.startDate,
         periodEndDate: currentFiscalPeriod.endDate,
         assistState,
         entriesState,
@@ -201,7 +200,7 @@ export function ClosingBody({
     );
     const openingBalanceLines =
       currentFiscalPeriod!.opening?.openingBalanceLines ?? [];
-    const { amounts, bsRows } = computeFsAggregate({
+    const { amounts, bsRows, expenseWriteIns } = computeFsAggregate({
       entries,
       openingBalanceLines,
     });
@@ -210,6 +209,7 @@ export function ClosingBody({
         fpName: currentFiscalPeriod!.name,
         amounts,
         bsRows,
+        expenseWriteIns,
       }),
     );
   }
@@ -231,7 +231,6 @@ export function ClosingBody({
         <StepMetaRow label="期間の名称" value={currentFiscalPeriod.name} />
         <StepMetaRow
           label="期間"
-
           value={`${formatDateButtonLabel(currentFiscalPeriod.startDate)} 〜 ${formatDateButtonLabel(currentFiscalPeriod.endDate)}`}
           divider
         />
@@ -327,7 +326,6 @@ export function ClosingBody({
                 }
               />
               <ActionChoiceCard
-
                 icon={<CheckIcon color={palette.success} />}
                 title="本締めを実行する"
                 description="書類に問題がなかった場合、本締めを実行します。仕訳データは確定され、編集ができなくなります。"
@@ -353,12 +351,16 @@ export function ClosingBody({
 
 async function materializeAssistEntriesForFinalClosing(input: {
   fiscalPeriodId: string;
+  periodStartDate: string;
   periodEndDate: string;
   assistState: Pick<
     ReturnType<typeof useOpenkkAssist>,
     "listFixedAssets" | "listOpeningCarryovers"
   >;
-  entriesState: Pick<ReturnType<typeof useOpenkkEntries>, "mergeFiscalPeriodEntries">;
+  entriesState: Pick<
+    ReturnType<typeof useOpenkkEntries>,
+    "mergeFiscalPeriodEntries"
+  >;
 }) {
   const carryoverEntries = input.assistState
     .listOpeningCarryovers(input.fiscalPeriodId)
@@ -391,6 +393,7 @@ async function materializeAssistEntriesForFinalClosing(input: {
       rows: buildVirtualFixedAssetRows({
         fiscalPeriodId: input.fiscalPeriodId,
         assets,
+        periodStartDate: input.periodStartDate,
         periodEndDate: input.periodEndDate,
         yearMonth,
       }),
@@ -399,5 +402,8 @@ async function materializeAssistEntriesForFinalClosing(input: {
 
   const entries = [...carryoverEntries, ...fixedAssetEntries];
   if (entries.length === 0) return;
-  await input.entriesState.mergeFiscalPeriodEntries(input.fiscalPeriodId, entries);
+  await input.entriesState.mergeFiscalPeriodEntries(
+    input.fiscalPeriodId,
+    entries,
+  );
 }

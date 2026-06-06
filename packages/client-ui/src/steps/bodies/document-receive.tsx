@@ -74,7 +74,7 @@ export function DocumentReceiveBody({
     );
     const openingBalanceLines =
       currentFiscalPeriod!.opening?.openingBalanceLines ?? [];
-    const { amounts, bsRows } = computeFsAggregate({
+    const { amounts, bsRows, expenseWriteIns } = computeFsAggregate({
       entries,
       openingBalanceLines,
     });
@@ -83,6 +83,7 @@ export function DocumentReceiveBody({
         fpName: currentFiscalPeriod!.name,
         amounts,
         bsRows,
+        expenseWriteIns,
       }),
     );
   }
@@ -108,7 +109,6 @@ export function DocumentReceiveBody({
 
   return (
     <>
-
       {!canComplete ? (
         <>
           <StepCallout tone="warning">
@@ -165,7 +165,6 @@ export function DocumentReceiveBody({
                 次の手順へ
               </StepPrimaryButton>
             ) : (
-
               <StepPrimaryButton onClick={handleComplete} variant="success">
                 全て受け取りました
               </StepPrimaryButton>

@@ -38,7 +38,10 @@ type AssistState = {
   listFixedAssets: () => FixedAssetPreviewItem[];
   getFixedAsset: (assetId: string) => FixedAssetPreviewItem | null;
   addFixedAsset: (draft: FixedAssetDraft) => Promise<string | null>;
-  updateFixedAsset: (assetId: string, draft: FixedAssetDraft) => Promise<boolean>;
+  updateFixedAsset: (
+    assetId: string,
+    draft: FixedAssetDraft,
+  ) => Promise<boolean>;
   deleteFixedAsset: (assetId: string) => Promise<boolean>;
   listOpeningCarryovers: (fiscalPeriodId: string) => OpeningCarryoverRecord[];
   getOpeningCarryover: (carryoverId: string) => OpeningCarryoverRecord | null;
@@ -59,12 +62,12 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
 
   const [fixedAssets, setFixedAssets] = useState<FixedAssetPreviewItem[]>([]);
 
-  const [bookAccountNameById, setBookAccountNameById] = useState<Record<string, string>>(
-    {},
-  );
-  const [bookAccountIdByName, setBookAccountIdByName] = useState<Record<string, string>>(
-    {},
-  );
+  const [bookAccountNameById, setBookAccountNameById] = useState<
+    Record<string, string>
+  >({});
+  const [bookAccountIdByName, setBookAccountIdByName] = useState<
+    Record<string, string>
+  >({});
   const [bookAccountTypeById, setBookAccountTypeById] = useState<
     Record<string, EntryAccountVisualType>
   >({});
@@ -76,10 +79,14 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         const accounts = await backendApi.masterData.getBookAccounts();
         if (cancelled) return;
         setBookAccountNameById(
-          Object.fromEntries(accounts.map((account) => [account.id, account.name])),
+          Object.fromEntries(
+            accounts.map((account) => [account.id, account.name]),
+          ),
         );
         setBookAccountIdByName(
-          Object.fromEntries(accounts.map((account) => [account.name, account.id])),
+          Object.fromEntries(
+            accounts.map((account) => [account.name, account.id]),
+          ),
         );
         setBookAccountTypeById(
           Object.fromEntries(
@@ -155,7 +162,8 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
           acquisitionCost: parseAmount(draft.acquisitionCost),
           usefulLife: Math.max(1, Math.round(draft.usefulLife) || 1),
           depreciationMethod: "straight_line",
-          businessRate: Math.max(0, Math.min(100, draft.businessRatePercent)) / 100,
+          businessRate:
+            Math.max(0, Math.min(100, draft.businessRatePercent)) / 100,
           bookAccountId: accountId,
         });
         setFixedAssets((current) => [
@@ -169,7 +177,8 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         return created.id;
       },
       async updateFixedAsset(assetId, draft) {
-        const current = fixedAssets.find((asset) => asset.id === assetId) ?? null;
+        const current =
+          fixedAssets.find((asset) => asset.id === assetId) ?? null;
         const fiscalPeriodId =
           current?.fiscalPeriodId ?? appState.currentFiscalPeriodId ?? "";
         if (fiscalPeriodId.length === 0) return false;
@@ -205,8 +214,10 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         return true;
       },
       listOpeningCarryovers(fiscalPeriodId) {
-        const period = appState.fiscalPeriods.find((p) => p.id === fiscalPeriodId);
-        const journals = period?.opening?.carryoverJournals ?? [];
+        const period = appState.fiscalPeriods.find(
+          (p) => p.id === fiscalPeriodId,
+        );
+        const journals = period?.opening?.openingJournals ?? [];
         return journals
           .map((journal) =>
             mapOpeningJournalToRecord(
@@ -225,8 +236,10 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
       getOpeningCarryover(carryoverId) {
         const fiscalPeriodId = appState.currentFiscalPeriodId;
         if (fiscalPeriodId == null || fiscalPeriodId.length === 0) return null;
-        const period = appState.fiscalPeriods.find((p) => p.id === fiscalPeriodId);
-        const journals = period?.opening?.carryoverJournals ?? [];
+        const period = appState.fiscalPeriods.find(
+          (p) => p.id === fiscalPeriodId,
+        );
+        const journals = period?.opening?.openingJournals ?? [];
         const journal = journals.find((item) => item.id === carryoverId);
         if (journal == null) return null;
         return mapOpeningJournalToRecord(
@@ -237,22 +250,30 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         );
       },
       async addOpeningCarryover(fiscalPeriodId) {
-        const period = appState.fiscalPeriods.find((p) => p.id === fiscalPeriodId);
+        const period = appState.fiscalPeriods.find(
+          (p) => p.id === fiscalPeriodId,
+        );
         const opening = period?.opening;
         if (period == null || opening == null) return null;
         const debitAccountId =
-          bookAccountIdByName["売掛金"] ?? Object.values(bookAccountIdByName)[0] ?? "";
+          bookAccountIdByName["売掛金"] ??
+          Object.values(bookAccountIdByName)[0] ??
+          "";
         const creditAccountId =
-          bookAccountIdByName["売上"] ?? Object.values(bookAccountIdByName)[0] ?? "";
+          bookAccountIdByName["売上"] ??
+          Object.values(bookAccountIdByName)[0] ??
+          "";
         if (debitAccountId === "" || creditAccountId === "") {
           throw new AppError({
-            messageForDeveloper: "assist.addOpeningCarryover: account resolution failed",
-            messageForUser: "勘定科目が取得できないため再振替仕訳を作成できませんでした",
+            messageForDeveloper:
+              "assist.addOpeningCarryover: account resolution failed",
+            messageForUser:
+              "勘定科目が取得できないため再振替仕訳を作成できませんでした",
             originalMessage: null,
             statusCode: null,
           });
         }
-        const nextId = `oc-${fiscalPeriodId}-${(opening.carryoverJournals?.length ?? 0) + 1}`;
+        const nextId = `oc-${fiscalPeriodId}-${(opening.openingJournals?.length ?? 0) + 1}`;
         const newJournal = {
           id: nextId,
           date: period.startDate,
@@ -279,11 +300,14 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
             },
           ],
         };
-        const updatedJournals = [...(opening.carryoverJournals ?? []), newJournal];
+        const updatedJournals = [
+          ...(opening.openingJournals ?? []),
+          newJournal,
+        ];
         await appState.updateFiscalPeriod(fiscalPeriodId, {
           opening: {
             ...opening,
-            carryoverJournals: updatedJournals,
+            openingJournals: updatedJournals,
           },
         });
         return nextId;
@@ -291,7 +315,9 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
       async updateOpeningCarryover(carryoverId, draft) {
         const fiscalPeriodId = appState.currentFiscalPeriodId;
         if (fiscalPeriodId == null || fiscalPeriodId.length === 0) return false;
-        const period = appState.fiscalPeriods.find((p) => p.id === fiscalPeriodId);
+        const period = appState.fiscalPeriods.find(
+          (p) => p.id === fiscalPeriodId,
+        );
         const opening = period?.opening;
         if (period == null || opening == null) return false;
         const debitAccountId =
@@ -307,7 +333,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
             statusCode: null,
           });
         }
-        const journals = opening.carryoverJournals ?? [];
+        const journals = opening.openingJournals ?? [];
         let updated = false;
         const nextJournals = journals.map((journal) => {
           if (journal.id !== carryoverId) return journal;
@@ -319,7 +345,9 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
             businessRate: parseBusinessRate(draft.businessRate),
             lines: [
               {
-                id: journal.lines.find((line) => line.side === "debit")?.id ?? `${journal.id}-d`,
+                id:
+                  journal.lines.find((line) => line.side === "debit")?.id ??
+                  `${journal.id}-d`,
                 side: "debit" as const,
                 bookAccountId: debitAccountId,
                 amount: parseAmount(draft.debitAmount),
@@ -328,7 +356,9 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
                 businessCategoryName: draft.businessCategory,
               },
               {
-                id: journal.lines.find((line) => line.side === "credit")?.id ?? `${journal.id}-c`,
+                id:
+                  journal.lines.find((line) => line.side === "credit")?.id ??
+                  `${journal.id}-c`,
                 side: "credit" as const,
                 bookAccountId: creditAccountId,
                 amount: parseAmount(draft.creditAmount),
@@ -343,17 +373,18 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         await appState.updateFiscalPeriod(fiscalPeriodId, {
           opening: {
             ...opening,
-            carryoverJournals: nextJournals,
+            openingJournals: nextJournals,
           },
         });
         return true;
       },
       async deleteFixedAsset(assetId) {
-        const current = fixedAssets.find((asset) => asset.id === assetId) ?? null;
+        const current =
+          fixedAssets.find((asset) => asset.id === assetId) ?? null;
         const fiscalPeriodId =
           current?.fiscalPeriodId ?? appState.currentFiscalPeriodId ?? "";
         if (fiscalPeriodId.length === 0) return false;
-        await backendApi.fixedAssets.delete(fiscalPeriodId, assetId);
+        await backendApi.fixedAssets.remove(fiscalPeriodId, assetId);
         setFixedAssets((currentList) =>
           currentList.filter((asset) => asset.id !== assetId),
         );
@@ -362,16 +393,20 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
       async deleteOpeningCarryover(carryoverId) {
         const fiscalPeriodId = appState.currentFiscalPeriodId;
         if (fiscalPeriodId == null || fiscalPeriodId.length === 0) return false;
-        const period = appState.fiscalPeriods.find((p) => p.id === fiscalPeriodId);
+        const period = appState.fiscalPeriods.find(
+          (p) => p.id === fiscalPeriodId,
+        );
         const opening = period?.opening;
         if (period == null || opening == null) return false;
-        const journals = opening.carryoverJournals ?? [];
-        const nextJournals = journals.filter((journal) => journal.id !== carryoverId);
+        const journals = opening.openingJournals ?? [];
+        const nextJournals = journals.filter(
+          (journal) => journal.id !== carryoverId,
+        );
         if (nextJournals.length === journals.length) return false;
         await appState.updateFiscalPeriod(fiscalPeriodId, {
           opening: {
             ...opening,
-            carryoverJournals: nextJournals,
+            openingJournals: nextJournals,
           },
         });
         return true;
@@ -428,10 +463,14 @@ function mapOpeningJournalToRecord(
     fiscalPeriodId,
     date: journal.date,
     description: journal.description,
-    debit: accountNameById[debit?.bookAccountId ?? ""] ?? debit?.bookAccountId ?? "",
+    debit:
+      accountNameById[debit?.bookAccountId ?? ""] ?? debit?.bookAccountId ?? "",
     debitType: accountTypeById[debit?.bookAccountId ?? ""] ?? "asset",
     debitAmount: formatAmount(debit?.amount ?? 0),
-    credit: accountNameById[credit?.bookAccountId ?? ""] ?? credit?.bookAccountId ?? "",
+    credit:
+      accountNameById[credit?.bookAccountId ?? ""] ??
+      credit?.bookAccountId ??
+      "",
     creditType: accountTypeById[credit?.bookAccountId ?? ""] ?? "revenue",
     creditAmount: formatAmount(credit?.amount ?? 0),
     partner: debit?.partnerName ?? credit?.partnerName ?? "",
@@ -465,7 +504,7 @@ function mapFixedAssetToPreview(
   const isClosed = asset.status !== "active";
   const asOf =
     isClosed && asset.disposalDate
-      ? parseIsoLocalDate(asset.disposalDate) ?? today
+      ? (parseIsoLocalDate(asset.disposalDate) ?? today)
       : today;
   const depreciation = computeStraightLineDepreciation({
     acquisitionDate: asset.acquisitionDate,
@@ -491,7 +530,9 @@ function mapFixedAssetToPreview(
     usefulLife: asset.usefulLife,
     businessRate: asset.businessRate,
     disposalDate: asset.disposalDate || undefined,
-    disposalPrice: asset.disposalPrice ? formatYen(asset.disposalPrice) : undefined,
+    disposalPrice: asset.disposalPrice
+      ? formatYen(asset.disposalPrice)
+      : undefined,
   };
 }
 
@@ -529,7 +570,7 @@ export function fixedAssetDraftToPatch(
     businessRate: Math.max(0, Math.min(100, draft.businessRatePercent)) / 100,
     status: mapFixedAssetStatusApi(draft.status),
     disposalDate: isFixedAssetClosedStatus(draft.status)
-      ? draft.disposalDate ?? ""
+      ? (draft.disposalDate ?? "")
       : "",
     disposalPrice:
       draft.status === "売却済" ? parseAmount(draft.disposalPrice ?? "0") : 0,
@@ -538,7 +579,11 @@ export function fixedAssetDraftToPatch(
 }
 
 function isFixedAssetClosedStatus(statusLabel: string): boolean {
-  return statusLabel === "売却済" || statusLabel === "廃棄済" || statusLabel === "完了";
+  return (
+    statusLabel === "売却済" ||
+    statusLabel === "廃棄済" ||
+    statusLabel === "完了"
+  );
 }
 
 export function useOpenkkAssist() {

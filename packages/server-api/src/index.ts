@@ -1,7 +1,12 @@
 import {
+  assertDateRange,
+  assertEntryLinesBalanced,
+  assertIsoDate,
+  assertNonNegativeFiniteNumber,
+  assertPositiveInteger,
+  assertUnitRate,
   serverConflictError,
   serverNotFoundError,
-  serverValidationError,
 } from "@rubydogjp/openkk-server-domain";
 import type { OpenkkServerPort } from "@rubydogjp/openkk-server-ports";
 import type { ServerUsecases } from "@rubydogjp/openkk-server-usecases";
@@ -36,8 +41,7 @@ export function createOpenkkServerApi(
   };
   return {
     auth: {
-      startSession: (redirectUrl) =>
-        usecases.auth.startSession(redirectUrl),
+      startSession: (redirectUrl) => usecases.auth.startSession(redirectUrl),
       completeSession: ({ state, code }) =>
         usecases.auth.completeSession(state, code),
       redeemCompletionCode: async (code) => {
@@ -167,7 +171,7 @@ export function createOpenkkServerApi(
         }
         return usecases.fixedAssets.update(uid, id, patch);
       },
-      delete: async (fpId, id) => {
+      remove: async (fpId, id) => {
         const period = await getOwnedFiscalPeriod(fpId);
         assertMutableFiscalPeriod(period, "delete fixed asset");
         const existing = await usecases.fixedAssets.getById(uid, id);
@@ -182,8 +186,7 @@ export function createOpenkkServerApi(
     masterData: {
       getBookAccounts: () => usecases.masterData.getBookAccounts(),
       getTaxCategories: () => usecases.masterData.getTaxCategories(),
-      getBusinessCategories: () =>
-        usecases.masterData.getBusinessCategories(),
+      getBusinessCategories: () => usecases.masterData.getBusinessCategories(),
     },
   };
 }
@@ -239,11 +242,15 @@ function assertEntryInput(input: EntryUpsertInput) {
   for (const line of input.lines) {
     assertNonNegativeFiniteNumber(line.amount, "Entry line amount");
   }
+  assertEntryLinesBalanced(input.lines, "Entry");
 }
 
 function assertFixedAssetCreateInput(input: FixedAssetCreateInput) {
   assertIsoDate(input.acquisitionDate, "Fixed asset acquisition date");
-  assertNonNegativeFiniteNumber(input.acquisitionCost, "Fixed asset acquisition cost");
+  assertNonNegativeFiniteNumber(
+    input.acquisitionCost,
+    "Fixed asset acquisition cost",
+  );
   assertPositiveInteger(input.usefulLife, "Fixed asset useful life");
   assertUnitRate(input.businessRate, "Fixed asset business rate");
 }
@@ -256,7 +263,10 @@ function assertFixedAssetPatchInput(input: FixedAssetPatchInput) {
     assertIsoDate(input.disposalDate, "Fixed asset disposal date");
   }
   if (input.acquisitionCost != null) {
-    assertNonNegativeFiniteNumber(input.acquisitionCost, "Fixed asset acquisition cost");
+    assertNonNegativeFiniteNumber(
+      input.acquisitionCost,
+      "Fixed asset acquisition cost",
+    );
   }
   if (input.usefulLife != null) {
     assertPositiveInteger(input.usefulLife, "Fixed asset useful life");
@@ -265,62 +275,9 @@ function assertFixedAssetPatchInput(input: FixedAssetPatchInput) {
     assertUnitRate(input.businessRate, "Fixed asset business rate");
   }
   if (input.disposalPrice != null) {
-    assertNonNegativeFiniteNumber(input.disposalPrice, "Fixed asset disposal price");
-  }
-}
-
-function assertDateRange(startDate: string, endDate: string, label: string) {
-  const start = parseIsoDate(startDate);
-  const end = parseIsoDate(endDate);
-  if (start == null || end == null) {
-    throw serverValidationError(`${label} dates are invalid`);
-  }
-  if (start.getTime() > end.getTime()) {
-    throw serverValidationError(
-      `${label} start date must be on or before end date`,
+    assertNonNegativeFiniteNumber(
+      input.disposalPrice,
+      "Fixed asset disposal price",
     );
   }
-}
-
-function assertIsoDate(value: string, label: string) {
-  if (parseIsoDate(value) == null) {
-    throw serverValidationError(`${label} is invalid`);
-  }
-}
-
-function assertNonNegativeFiniteNumber(value: number, label: string) {
-  if (!Number.isFinite(value) || value < 0) {
-    throw serverValidationError(
-      `${label} must be a non-negative finite number`,
-    );
-  }
-}
-
-function assertPositiveInteger(value: number, label: string) {
-  if (!Number.isInteger(value) || value < 1) {
-    throw serverValidationError(`${label} must be a positive integer`);
-  }
-}
-
-function assertUnitRate(value: number, label: string) {
-  if (!Number.isFinite(value) || value < 0 || value > 1) {
-    throw serverValidationError(`${label} must be between 0 and 1`);
-  }
-}
-
-function parseIsoDate(value: string): Date | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (match == null) return null;
-  const year = Number(match[1]);
-  const month = Number(match[2]) - 1;
-  const day = Number(match[3]);
-  const date = new Date(year, month, day);
-  if (
-    date.getFullYear() !== year ||
-    date.getMonth() !== month ||
-    date.getDate() !== day
-  ) {
-    return null;
-  }
-  return date;
 }

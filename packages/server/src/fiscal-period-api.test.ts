@@ -39,8 +39,16 @@ describe("openkk server fiscal period API", () => {
 
   it("patches only fiscal periods owned by the current user", async () => {
     const db = createFiscalPeriodDb([
-      fiscalPeriod({ id: "fp-user-1", userId: "user-1", name: "user-1 period" }),
-      fiscalPeriod({ id: "fp-user-2", userId: "user-2", name: "user-2 period" }),
+      fiscalPeriod({
+        id: "fp-user-1",
+        userId: "user-1",
+        name: "user-1 period",
+      }),
+      fiscalPeriod({
+        id: "fp-user-2",
+        userId: "user-2",
+        name: "user-2 period",
+      }),
     ]);
     const server = createOpenkkServer(db, { userId: "user-1" });
 
@@ -48,7 +56,9 @@ describe("openkk server fiscal period API", () => {
       server.fiscalPeriod.patch("fp-user-2", { name: "updated by user-1" }),
     ).rejects.toThrow(/Fiscal period fp-user-2 not found/);
 
-    expect((await db.fiscalPeriods.getById("fp-user-2"))?.name).toBe("user-2 period");
+    expect((await db.fiscalPeriods.getById("fp-user-2"))?.name).toBe(
+      "user-2 period",
+    );
 
     const updated = await server.fiscalPeriod.patch("fp-user-1", {
       name: "updated by owner",
@@ -73,7 +83,11 @@ describe("openkk server fiscal period API", () => {
 
   it("rejects patches to archived fiscal periods", async () => {
     const db = createFiscalPeriodDb([
-      fiscalPeriod({ id: "fp-archived", userId: "user-1", archiveStatus: "archived" }),
+      fiscalPeriod({
+        id: "fp-archived",
+        userId: "user-1",
+        archiveStatus: "archived",
+      }),
     ]);
     const server = createOpenkkServer(db, { userId: "user-1" });
 
@@ -133,18 +147,26 @@ async function captureAsyncError(fn: () => Promise<unknown>): Promise<unknown> {
   throw new Error("expected function to reject");
 }
 
-function createFiscalPeriodDb(seed: StoredFiscalPeriodApiRecord[]): OpenkkDbPort {
+function createFiscalPeriodDb(
+  seed: StoredFiscalPeriodApiRecord[],
+): OpenkkDbPort {
   const fiscalPeriods = new Map(seed.map((period) => [period.id, period]));
   return {
     fiscalPeriods: {
       async getAllByUser(userId) {
-        return [...fiscalPeriods.values()].filter((period) => period.userId === userId);
+        return [...fiscalPeriods.values()].filter(
+          (period) => period.userId === userId,
+        );
       },
       async getById(id) {
         return fiscalPeriods.get(id) ?? null;
       },
       async create(userId: string, input: FiscalPeriodCreateInput) {
-        const record = fiscalPeriod({ id: `fp-${fiscalPeriods.size + 1}`, userId, ...input });
+        const record = fiscalPeriod({
+          id: `fp-${fiscalPeriods.size + 1}`,
+          userId,
+          ...input,
+        });
         fiscalPeriods.set(record.id, record);
         return record;
       },
@@ -182,20 +204,25 @@ function createFiscalPeriodDb(seed: StoredFiscalPeriodApiRecord[]): OpenkkDbPort
       async getAll() {
         return [];
       },
-      async getByMonth() {
-        return [];
-      },
       async getById() {
         return null;
       },
-      async create(_userId: string, fiscalPeriodId: string, input: EntryUpsertInput) {
+      async create(
+        _userId: string,
+        fiscalPeriodId: string,
+        input: EntryUpsertInput,
+      ) {
         return entry({ fiscalPeriodId, ...input });
       },
       async update(id: string, input: EntryUpsertInput) {
         return entry({ id, ...input });
       },
       async delete() {},
-      async importMany(_userId: string, fiscalPeriodId: string, inputs: EntryUpsertInput[]) {
+      async importMany(
+        _userId: string,
+        fiscalPeriodId: string,
+        inputs: EntryUpsertInput[],
+      ) {
         return inputs.map((input, index) =>
           entry({ id: `entry-${index + 1}`, fiscalPeriodId, ...input }),
         );
@@ -208,7 +235,11 @@ function createFiscalPeriodDb(seed: StoredFiscalPeriodApiRecord[]): OpenkkDbPort
       async getById() {
         return null;
       },
-      async create(_userId: string, fiscalPeriodId: string, input: FixedAssetCreateInput) {
+      async create(
+        _userId: string,
+        fiscalPeriodId: string,
+        input: FixedAssetCreateInput,
+      ) {
         return fixedAsset({ fiscalPeriodId, ...input });
       },
       async update(id: string, patch: FixedAssetPatchInput) {
@@ -217,15 +248,23 @@ function createFiscalPeriodDb(seed: StoredFiscalPeriodApiRecord[]): OpenkkDbPort
       async delete() {},
     },
     preClosings: {
-      async get() { return null; },
-      async run() { throw new Error("not implemented"); },
-      async cancel() { throw new Error("not implemented"); },
+      async get() {
+        return null;
+      },
+      async run() {
+        throw new Error("not implemented");
+      },
+      async cancel() {
+        throw new Error("not implemented");
+      },
     },
     closings: {
       async get(): Promise<ClosingApiRecord | null> {
         return null;
       },
-      async run() { throw new Error("not implemented"); },
+      async run() {
+        throw new Error("not implemented");
+      },
     },
     masterData: {
       async getAllBookAccounts(): Promise<MasterBookAccount[]> {
@@ -273,7 +312,9 @@ function entry(overrides: Partial<EntryApiRecord>): EntryApiRecord {
   };
 }
 
-function fixedAsset(overrides: Partial<FixedAssetApiRecord>): FixedAssetApiRecord {
+function fixedAsset(
+  overrides: Partial<FixedAssetApiRecord>,
+): FixedAssetApiRecord {
   return {
     id: "asset-1",
     fiscalPeriodId: "fp-1",

@@ -34,7 +34,9 @@ export function buildOpenkkDemoSeed(config: OpenkkConfig): MemoryDbSnapshot {
   };
 }
 
-function buildDemoSeedFiscalPeriod(config: OpenkkConfig): FiscalPeriodApiRecord {
+function buildDemoSeedFiscalPeriod(
+  config: OpenkkConfig,
+): FiscalPeriodApiRecord {
   return {
     id: "fp-2026",
     name: "デモ期間2026年分",
@@ -50,7 +52,7 @@ function buildDemoSeedFiscalPeriod(config: OpenkkConfig): FiscalPeriodApiRecord 
       userId: config.mockUserId,
       fiscalPeriodId: "fp-2026",
       openingBalanceLines: demoOpeningBalanceLines,
-      carryoverJournals: [],
+      openingJournals: [],
     },
   };
 }
@@ -66,29 +68,34 @@ function entryRecordToApiRecord(
     description: record.description,
     localId: record.localId ?? "",
     businessRate: parseBusinessRate(record.businessRate),
-    lines: getEntryLines(record).map((line): EntryApiLine => ({
-      side: line.side,
-      bookAccountId:
-        DEFAULT_BOOK_ACCOUNTS.find((account) => account.id === line.bookAccountId)
-          ?.id ??
-        DEFAULT_BOOK_ACCOUNTS.find(
-          (account) =>
-            account.name === line.accountName &&
-            account.accountType === line.accountType,
-        )?.id ??
-        DEFAULT_BOOK_ACCOUNTS.find((account) => account.name === line.accountName)
-          ?.id ??
-        line.accountName,
-      amount: parseAmount(line.amount),
-      partnerName: record.partner,
-      taxCategoryName:
-        DEFAULT_TAX_CATEGORIES.find((category) => category.name === record.taxCategory)
-          ?.id ?? record.taxCategory,
-      businessCategoryName:
-        DEFAULT_BUSINESS_CATEGORIES.find(
-          (category) => category.name === record.businessCategory,
-        )?.id ?? record.businessCategory,
-    })),
+    lines: getEntryLines(record).map(
+      (line): EntryApiLine => ({
+        side: line.side,
+        bookAccountId:
+          DEFAULT_BOOK_ACCOUNTS.find(
+            (account) => account.id === line.bookAccountId,
+          )?.id ??
+          DEFAULT_BOOK_ACCOUNTS.find(
+            (account) =>
+              account.name === line.accountName &&
+              account.accountType === line.accountType,
+          )?.id ??
+          DEFAULT_BOOK_ACCOUNTS.find(
+            (account) => account.name === line.accountName,
+          )?.id ??
+          line.accountName,
+        amount: parseAmount(line.amount),
+        partnerName: record.partner,
+        taxCategoryName:
+          DEFAULT_TAX_CATEGORIES.find(
+            (category) => category.name === record.taxCategory,
+          )?.id ?? record.taxCategory,
+        businessCategoryName:
+          DEFAULT_BUSINESS_CATEGORIES.find(
+            (category) => category.name === record.businessCategory,
+          )?.id ?? record.businessCategory,
+      }),
+    ),
   };
 }
 
@@ -109,15 +116,14 @@ function fixedAssetItemToApiRecord(
     disposalDate: item.disposalDate ?? "",
     disposalPrice: parseAmount(item.disposalPrice ?? "0"),
     bookAccountId:
-      DEFAULT_BOOK_ACCOUNTS.find((account) => account.name === item.account)?.id ??
+      DEFAULT_BOOK_ACCOUNTS.find((account) => account.name === item.account)
+        ?.id ??
       item.accountId ??
       item.account,
   };
 }
 
-function fixedAssetStatusToApi(
-  status: string,
-): FixedAssetApiRecord["status"] {
+function fixedAssetStatusToApi(status: string): FixedAssetApiRecord["status"] {
   if (status === "売却済") return "sold";
   if (status === "廃棄済") return "disposed";
   if (status === "完了") return "retired";

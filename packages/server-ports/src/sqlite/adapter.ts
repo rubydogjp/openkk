@@ -2,6 +2,8 @@ import {
   DEFAULT_BOOK_ACCOUNTS,
   DEFAULT_BUSINESS_CATEGORIES,
   DEFAULT_TAX_CATEGORIES,
+  serverConflictError,
+  serverNotFoundError,
 } from "@rubydogjp/openkk-server-domain";
 import type {
   ClosingDbRecord,
@@ -38,7 +40,16 @@ import {
 /** Minimal async interface required by createSqliteDbAdapter. Adapters provide it
  * either by wrapping a same-thread SQLite Wasm DB or by proxying to a Web Worker. */
 export interface SqlDb {
-  exec(arg: string | { sql: string; bind?: unknown[]; returnValue?: string; rowMode?: string }): Promise<unknown>;
+  exec(
+    arg:
+      | string
+      | {
+          sql: string;
+          bind?: unknown[];
+          returnValue?: string;
+          rowMode?: string;
+        },
+  ): Promise<unknown>;
 }
 
 export type DbSnapshot = {
@@ -109,7 +120,13 @@ async function seedStoresInner(
   for (const item of seed.fiscalPeriods) {
     await db.exec({
       sql: `INSERT INTO fiscal_periods(id, user_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
-      bind: [item.record.id, item.userId, serializeFiscalPeriodDbRecord(item.record), now, now],
+      bind: [
+        item.record.id,
+        item.userId,
+        serializeFiscalPeriodDbRecord(item.record),
+        now,
+        now,
+      ],
     });
     await replaceOpening(
       db,
@@ -120,14 +137,29 @@ async function seedStoresInner(
   for (const entry of seed.entries) {
     await db.exec({
       sql: `INSERT INTO entries(id, fiscal_period_id, date, local_id, description, business_rate, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
-      bind: [entry.id, entry.fiscalPeriodId, entry.date, entry.localId, entry.description, entry.businessRate, now, now],
+      bind: [
+        entry.id,
+        entry.fiscalPeriodId,
+        entry.date,
+        entry.localId,
+        entry.description,
+        entry.businessRate,
+        now,
+        now,
+      ],
     });
     await insertEntryLines(db, entry);
   }
   for (const asset of seed.fixedAssets) {
     await db.exec({
       sql: `INSERT INTO fixed_assets(id, fiscal_period_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
-      bind: [asset.id, asset.fiscalPeriodId, serializeFixedAssetDbRecord(asset), now, now],
+      bind: [
+        asset.id,
+        asset.fiscalPeriodId,
+        serializeFixedAssetDbRecord(asset),
+        now,
+        now,
+      ],
     });
   }
   for (const preClosing of seed.preClosings ?? []) {
@@ -147,12 +179,12 @@ async function seedStoresInner(
 function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
   return {
     async getAllByUser(userId) {
-      const rows = await db.exec({
+      const rows = (await db.exec({
         sql: `SELECT data FROM fiscal_periods WHERE user_id = ? ORDER BY created_at ASC, id ASC`,
         bind: [userId],
         returnValue: "resultRows",
         rowMode: "array",
-      }) as Array<[string]>;
+      })) as Array<[string]>;
       const openings = await loadOpeningsByUser(db, userId);
       return rows.map((row) => {
         const record = parseFiscalPeriodDbRecord(row[0]);
@@ -163,12 +195,12 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       });
     },
     async getById(id) {
-      const rows = await db.exec({
+      const rows = (await db.exec({
         sql: `SELECT user_id, data FROM fiscal_periods WHERE id = ?`,
         bind: [id],
         returnValue: "resultRows",
         rowMode: "array",
-      }) as Array<[string, string]>;
+      })) as Array<[string, string]>;
       const row = rows[0];
       if (row == null) return null;
       const record = parseFiscalPeriodDbRecord(row[1]);
@@ -222,13 +254,20 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         archiveStatus: "active",
         settingsCompleted: input.fiscalPeriod.settingsCompleted,
         openingBalancesCompleted: input.fiscalPeriod.openingBalancesCompleted,
-        documentsReceivedCompleted: input.fiscalPeriod.documentsReceivedCompleted,
+        documentsReceivedCompleted:
+          input.fiscalPeriod.documentsReceivedCompleted,
         opening,
       };
       await runInTransaction(db, async () => {
         await db.exec({
           sql: `INSERT INTO fiscal_periods(id, user_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
-          bind: [record.id, userId, serializeFiscalPeriodDbRecord(record), now, now],
+          bind: [
+            record.id,
+            userId,
+            serializeFiscalPeriodDbRecord(record),
+            now,
+            now,
+          ],
         });
         await replaceOpening(db, opening, now);
         for (const inputEntry of input.entries) {
@@ -244,7 +283,16 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
           };
           await db.exec({
             sql: `INSERT INTO entries(id, fiscal_period_id, date, local_id, description, business_rate, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
-            bind: [id, fiscalPeriodId, entry.date, entry.localId, entry.description, entry.businessRate, now, now],
+            bind: [
+              id,
+              fiscalPeriodId,
+              entry.date,
+              entry.localId,
+              entry.description,
+              entry.businessRate,
+              now,
+              now,
+            ],
           });
           await insertEntryLines(db, entry);
         }
@@ -266,7 +314,13 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
           };
           await db.exec({
             sql: `INSERT INTO fixed_assets(id, fiscal_period_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
-            bind: [id, fiscalPeriodId, serializeFixedAssetDbRecord(asset), now, now],
+            bind: [
+              id,
+              fiscalPeriodId,
+              serializeFixedAssetDbRecord(asset),
+              now,
+              now,
+            ],
           });
         }
         for (const preClosing of input.preClosings ?? []) {
@@ -285,14 +339,15 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       return record;
     },
     async update(id, patch) {
-      const rows = await db.exec({
+      const rows = (await db.exec({
         sql: `SELECT user_id, data FROM fiscal_periods WHERE id = ?`,
         bind: [id],
         returnValue: "resultRows",
         rowMode: "array",
-      }) as Array<[string, string]>;
+      })) as Array<[string, string]>;
       const row = rows[0];
-      if (row == null) throw new Error(`fiscal period not found: ${id}`);
+      if (row == null)
+        throw serverNotFoundError(`fiscal period not found: ${id}`);
       const stored = parseFiscalPeriodDbRecord(row[1]);
       const existing: FiscalPeriodDbRecord = {
         ...stored,
@@ -309,11 +364,19 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       const updated: FiscalPeriodDbRecord = {
         ...existing,
         ...(patch.name !== undefined ? { name: patch.name } : {}),
-        ...(patch.startDate !== undefined ? { startDate: patch.startDate } : {}),
+        ...(patch.startDate !== undefined
+          ? { startDate: patch.startDate }
+          : {}),
         ...(patch.endDate !== undefined ? { endDate: patch.endDate } : {}),
-        ...(patch.settingsCompleted !== undefined ? { settingsCompleted: patch.settingsCompleted } : {}),
-        ...(patch.openingBalancesCompleted !== undefined ? { openingBalancesCompleted: patch.openingBalancesCompleted } : {}),
-        ...(patch.documentsReceivedCompleted !== undefined ? { documentsReceivedCompleted: patch.documentsReceivedCompleted } : {}),
+        ...(patch.settingsCompleted !== undefined
+          ? { settingsCompleted: patch.settingsCompleted }
+          : {}),
+        ...(patch.openingBalancesCompleted !== undefined
+          ? { openingBalancesCompleted: patch.openingBalancesCompleted }
+          : {}),
+        ...(patch.documentsReceivedCompleted !== undefined
+          ? { documentsReceivedCompleted: patch.documentsReceivedCompleted }
+          : {}),
         ...(patch.settingsCompleted === true && existing.phase === "pre_opening"
           ? { phase: "journalizing" as const }
           : {}),
@@ -326,24 +389,21 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
           bind: [serializeFiscalPeriodDbRecord(updated), now, id],
         });
         if (patch.opening !== undefined) {
-          await replaceOpening(
-            db,
-            normalizedOpening!,
-            now,
-          );
+          await replaceOpening(db, normalizedOpening!, now);
         }
       });
       return updated;
     },
     async archive(id) {
-      const rows = await db.exec({
+      const rows = (await db.exec({
         sql: `SELECT data FROM fiscal_periods WHERE id = ?`,
         bind: [id],
         returnValue: "resultRows",
         rowMode: "array",
-      }) as Array<[string]>;
+      })) as Array<[string]>;
       const row = rows[0];
-      if (row == null) throw new Error(`fiscal period not found: ${id}`);
+      if (row == null)
+        throw serverNotFoundError(`fiscal period not found: ${id}`);
       const current = parseFiscalPeriodDbRecord(row[0]);
       const updated: FiscalPeriodDbRecord = {
         ...current,
@@ -359,7 +419,10 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       };
     },
     async delete(id) {
-      await db.exec({ sql: `DELETE FROM fiscal_periods WHERE id = ?`, bind: [id] });
+      await db.exec({
+        sql: `DELETE FROM fiscal_periods WHERE id = ?`,
+        bind: [id],
+      });
     },
   };
 }
@@ -387,16 +450,12 @@ function createEntriesDb(db: SqlDb): EntriesDb {
     async getAll(fiscalPeriodId) {
       return loadAllByFiscalPeriod(fiscalPeriodId);
     },
-    async getByMonth(fiscalPeriodId, yearMonth) {
-      const nextMonth = nextYearMonth(yearMonth);
-      return loadEntries(
-        db,
-        `WHERE e.fiscal_period_id = ? AND e.date >= ? AND e.date < ? ORDER BY e.date ASC, e.created_at ASC, e.id ASC, l.position ASC`,
-        [fiscalPeriodId, `${yearMonth}-01`, `${nextMonth}-01`],
-      );
-    },
     async getById(id) {
-      return (await loadEntries(db, `WHERE e.id = ? ORDER BY l.position ASC`, [id]))[0] ?? null;
+      return (
+        (
+          await loadEntries(db, `WHERE e.id = ? ORDER BY l.position ASC`, [id])
+        )[0] ?? null
+      );
     },
     async create(_userId, fiscalPeriodId, input) {
       const id = newId("entry");
@@ -413,15 +472,27 @@ function createEntriesDb(db: SqlDb): EntriesDb {
       await runInTransaction(db, async () => {
         await db.exec({
           sql: `INSERT INTO entries(id, fiscal_period_id, date, local_id, description, business_rate, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
-          bind: [id, fiscalPeriodId, record.date, record.localId, record.description, record.businessRate, now, now],
+          bind: [
+            id,
+            fiscalPeriodId,
+            record.date,
+            record.localId,
+            record.description,
+            record.businessRate,
+            now,
+            now,
+          ],
         });
         await insertEntryLines(db, record);
       });
       return record;
     },
     async update(id, input) {
-      const existing = (await loadEntries(db, `WHERE e.id = ? ORDER BY l.position ASC`, [id]))[0] ?? null;
-      if (existing == null) throw new Error(`entry not found: ${id}`);
+      const existing =
+        (
+          await loadEntries(db, `WHERE e.id = ? ORDER BY l.position ASC`, [id])
+        )[0] ?? null;
+      if (existing == null) throw serverNotFoundError(`entry not found: ${id}`);
       const updated: EntryDbRecord = {
         ...existing,
         date: input.date,
@@ -433,9 +504,19 @@ function createEntriesDb(db: SqlDb): EntriesDb {
       await runInTransaction(db, async () => {
         await db.exec({
           sql: `UPDATE entries SET date = ?, local_id = ?, description = ?, business_rate = ?, updated_at = ? WHERE id = ?`,
-          bind: [updated.date, updated.localId, updated.description, updated.businessRate, nowMs(), id],
+          bind: [
+            updated.date,
+            updated.localId,
+            updated.description,
+            updated.businessRate,
+            nowMs(),
+            id,
+          ],
         });
-        await db.exec({ sql: `DELETE FROM entry_lines WHERE entry_id = ?`, bind: [id] });
+        await db.exec({
+          sql: `DELETE FROM entry_lines WHERE entry_id = ?`,
+          bind: [id],
+        });
         await insertEntryLines(db, updated);
       });
       return updated;
@@ -492,7 +573,7 @@ async function loadEntries(
   whereAndOrder: string,
   bind: unknown[],
 ): Promise<EntryDbRecord[]> {
-  const rows = await db.exec({
+  const rows = (await db.exec({
     sql: `SELECT
       e.id, e.fiscal_period_id, e.date, e.description, e.local_id, e.business_rate,
       l.side, l.book_account_id, l.amount, l.partner_name,
@@ -503,7 +584,7 @@ async function loadEntries(
     bind,
     returnValue: "resultRows",
     rowMode: "array",
-  }) as EntryRow[];
+  })) as EntryRow[];
   const records = new Map<string, EntryDbRecord>();
   for (const row of rows) {
     let record = records.get(row[0]);
@@ -533,7 +614,10 @@ async function loadEntries(
   return [...records.values()];
 }
 
-async function insertEntryLines(db: SqlDb, entry: EntryDbRecord): Promise<void> {
+async function insertEntryLines(
+  db: SqlDb,
+  entry: EntryDbRecord,
+): Promise<void> {
   for (const [position, line] of entry.lines.entries()) {
     await db.exec({
       sql: `INSERT INTO entry_lines(
@@ -562,7 +646,11 @@ async function insertImportedEntries(
   now: number,
 ): Promise<Set<string>> {
   const insertedIds = new Set<string>();
-  for (let offset = 0; offset < entries.length; offset += ENTRY_IMPORT_CHUNK_SIZE) {
+  for (
+    let offset = 0;
+    offset < entries.length;
+    offset += ENTRY_IMPORT_CHUNK_SIZE
+  ) {
     const chunk = entries.slice(offset, offset + ENTRY_IMPORT_CHUNK_SIZE);
     const placeholders = chunk.map(() => "(?, ?, ?, ?, ?, ?, ?, ?)").join(", ");
     const bind = chunk.flatMap((entry) => [
@@ -575,7 +663,7 @@ async function insertImportedEntries(
       now,
       now,
     ]);
-    const rows = await db.exec({
+    const rows = (await db.exec({
       sql: `INSERT INTO entries(id, fiscal_period_id, date, local_id, description, business_rate, created_at, updated_at)
         VALUES ${placeholders}
         ON CONFLICT(fiscal_period_id, local_id) WHERE local_id <> '' DO NOTHING
@@ -583,40 +671,30 @@ async function insertImportedEntries(
       bind,
       returnValue: "resultRows",
       rowMode: "array",
-    }) as Array<[string]>;
+    })) as Array<[string]>;
     rows.forEach(([id]) => insertedIds.add(id));
   }
   return insertedIds;
 }
 
-function nextYearMonth(yearMonth: string): string {
-  const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(yearMonth);
-  if (match == null) throw new Error(`invalid yearMonth: ${yearMonth}`);
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const nextYear = month === 12 ? year + 1 : year;
-  const nextMonth = month === 12 ? 1 : month + 1;
-  return `${String(nextYear).padStart(4, "0")}-${String(nextMonth).padStart(2, "0")}`;
-}
-
 function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
   return {
     async getAllByFiscalPeriod(fiscalPeriodId) {
-      const rows = await db.exec({
+      const rows = (await db.exec({
         sql: `SELECT data FROM fixed_assets WHERE fiscal_period_id = ? ORDER BY created_at ASC, id ASC`,
         bind: [fiscalPeriodId],
         returnValue: "resultRows",
         rowMode: "array",
-      }) as Array<[string]>;
+      })) as Array<[string]>;
       return rows.map((row) => parseFixedAssetDbRecord(row[0]));
     },
     async getById(id) {
-      const rows = await db.exec({
+      const rows = (await db.exec({
         sql: `SELECT data FROM fixed_assets WHERE id = ?`,
         bind: [id],
         returnValue: "resultRows",
         rowMode: "array",
-      }) as Array<[string]>;
+      })) as Array<[string]>;
       const row = rows[0];
       return row == null ? null : parseFixedAssetDbRecord(row[0]);
     },
@@ -639,32 +717,55 @@ function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
       const now = nowMs();
       await db.exec({
         sql: `INSERT INTO fixed_assets(id, fiscal_period_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
-        bind: [id, fiscalPeriodId, serializeFixedAssetDbRecord(record), now, now],
+        bind: [
+          id,
+          fiscalPeriodId,
+          serializeFixedAssetDbRecord(record),
+          now,
+          now,
+        ],
       });
       return record;
     },
     async update(id, patch) {
-      const rows = await db.exec({
+      const rows = (await db.exec({
         sql: `SELECT data FROM fixed_assets WHERE id = ?`,
         bind: [id],
         returnValue: "resultRows",
         rowMode: "array",
-      }) as Array<[string]>;
+      })) as Array<[string]>;
       const row = rows[0];
-      if (row == null) throw new Error(`fixed asset not found: ${id}`);
+      if (row == null)
+        throw serverNotFoundError(`fixed asset not found: ${id}`);
       const existing = parseFixedAssetDbRecord(row[0]);
       const updated: FixedAssetDbRecord = {
         ...existing,
         ...(patch.name !== undefined ? { name: patch.name } : {}),
-        ...(patch.acquisitionDate !== undefined ? { acquisitionDate: patch.acquisitionDate } : {}),
-        ...(patch.acquisitionCost !== undefined ? { acquisitionCost: patch.acquisitionCost } : {}),
-        ...(patch.usefulLife !== undefined ? { usefulLife: patch.usefulLife } : {}),
-        ...(patch.depreciationMethod !== undefined ? { depreciationMethod: patch.depreciationMethod } : {}),
-        ...(patch.businessRate !== undefined ? { businessRate: patch.businessRate } : {}),
+        ...(patch.acquisitionDate !== undefined
+          ? { acquisitionDate: patch.acquisitionDate }
+          : {}),
+        ...(patch.acquisitionCost !== undefined
+          ? { acquisitionCost: patch.acquisitionCost }
+          : {}),
+        ...(patch.usefulLife !== undefined
+          ? { usefulLife: patch.usefulLife }
+          : {}),
+        ...(patch.depreciationMethod !== undefined
+          ? { depreciationMethod: patch.depreciationMethod }
+          : {}),
+        ...(patch.businessRate !== undefined
+          ? { businessRate: patch.businessRate }
+          : {}),
         ...(patch.status !== undefined ? { status: patch.status } : {}),
-        ...(patch.disposalDate !== undefined ? { disposalDate: patch.disposalDate } : {}),
-        ...(patch.disposalPrice !== undefined ? { disposalPrice: patch.disposalPrice } : {}),
-        ...(patch.bookAccountId !== undefined ? { bookAccountId: patch.bookAccountId } : {}),
+        ...(patch.disposalDate !== undefined
+          ? { disposalDate: patch.disposalDate }
+          : {}),
+        ...(patch.disposalPrice !== undefined
+          ? { disposalPrice: patch.disposalPrice }
+          : {}),
+        ...(patch.bookAccountId !== undefined
+          ? { bookAccountId: patch.bookAccountId }
+          : {}),
       };
       await db.exec({
         sql: `UPDATE fixed_assets SET data = ?, updated_at = ? WHERE id = ?`,
@@ -673,7 +774,10 @@ function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
       return updated;
     },
     async delete(id) {
-      await db.exec({ sql: `DELETE FROM fixed_assets WHERE id = ?`, bind: [id] });
+      await db.exec({
+        sql: `DELETE FROM fixed_assets WHERE id = ?`,
+        bind: [id],
+      });
     },
   };
 }
@@ -681,29 +785,41 @@ function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
 function createPreClosingsDb(db: SqlDb): PreClosingsDb {
   return {
     async get(fiscalPeriodId, year) {
-      const rows = await db.exec({
+      const rows = (await db.exec({
         sql: `SELECT 1 FROM pre_closings WHERE fiscal_period_id = ? AND year = ?`,
         bind: [fiscalPeriodId, year],
         returnValue: "resultRows",
         rowMode: "array",
-      }) as Array<[number]>;
+      })) as Array<[number]>;
       return rows[0] == null ? null : ({} satisfies PreClosingDbRecord);
     },
     async run(fiscalPeriodId, year) {
-      return transitionFiscalPeriod(db, fiscalPeriodId, "journalizing", "pre_closing", async () => {
-        await db.exec({
-          sql: `INSERT OR REPLACE INTO pre_closings(fiscal_period_id, year) VALUES(?, ?)`,
-          bind: [fiscalPeriodId, year],
-        });
-      });
+      return transitionFiscalPeriod(
+        db,
+        fiscalPeriodId,
+        "journalizing",
+        "pre_closing",
+        async () => {
+          await db.exec({
+            sql: `INSERT OR REPLACE INTO pre_closings(fiscal_period_id, year) VALUES(?, ?)`,
+            bind: [fiscalPeriodId, year],
+          });
+        },
+      );
     },
     async cancel(fiscalPeriodId, year) {
-      return transitionFiscalPeriod(db, fiscalPeriodId, "pre_closing", "journalizing", async () => {
-        await db.exec({
-          sql: `DELETE FROM pre_closings WHERE fiscal_period_id = ? AND year = ?`,
-          bind: [fiscalPeriodId, year],
-        });
-      });
+      return transitionFiscalPeriod(
+        db,
+        fiscalPeriodId,
+        "pre_closing",
+        "journalizing",
+        async () => {
+          await db.exec({
+            sql: `DELETE FROM pre_closings WHERE fiscal_period_id = ? AND year = ?`,
+            bind: [fiscalPeriodId, year],
+          });
+        },
+      );
     },
   };
 }
@@ -711,21 +827,27 @@ function createPreClosingsDb(db: SqlDb): PreClosingsDb {
 function createClosingsDb(db: SqlDb): ClosingsDb {
   return {
     async get(fiscalPeriodId, year) {
-      const rows = await db.exec({
+      const rows = (await db.exec({
         sql: `SELECT 1 FROM closings WHERE fiscal_period_id = ? AND year = ?`,
         bind: [fiscalPeriodId, year],
         returnValue: "resultRows",
         rowMode: "array",
-      }) as Array<[number]>;
+      })) as Array<[number]>;
       return rows[0] == null ? null : ({} satisfies ClosingDbRecord);
     },
     async run(fiscalPeriodId, year) {
-      return transitionFiscalPeriod(db, fiscalPeriodId, "pre_closing", "post_closing", async () => {
-        await db.exec({
-          sql: `INSERT OR REPLACE INTO closings(fiscal_period_id, year) VALUES(?, ?)`,
-          bind: [fiscalPeriodId, year],
-        });
-      });
+      return transitionFiscalPeriod(
+        db,
+        fiscalPeriodId,
+        "pre_closing",
+        "post_closing",
+        async () => {
+          await db.exec({
+            sql: `INSERT OR REPLACE INTO closings(fiscal_period_id, year) VALUES(?, ?)`,
+            bind: [fiscalPeriodId, year],
+          });
+        },
+      );
     },
   };
 }
@@ -739,21 +861,26 @@ async function transitionFiscalPeriod(
 ): Promise<FiscalPeriodDbRecord> {
   let updated: FiscalPeriodDbRecord | null = null;
   await runInTransaction(db, async () => {
-    const rows = await db.exec({
+    const rows = (await db.exec({
       sql: `SELECT data FROM fiscal_periods WHERE id = ?`,
       bind: [fiscalPeriodId],
       returnValue: "resultRows",
       rowMode: "array",
-    }) as Array<[string]>;
+    })) as Array<[string]>;
     const row = rows[0];
-    if (row == null) throw new Error(`fiscal period not found: ${fiscalPeriodId}`);
+    if (row == null)
+      throw serverNotFoundError(`fiscal period not found: ${fiscalPeriodId}`);
     const current = parseFiscalPeriodDbRecord(row[0]);
     if (current.archiveStatus === "archived") {
-      throw new Error(`archived fiscal period cannot transition: ${fiscalPeriodId}`);
+      throw serverConflictError(
+        `archived fiscal period cannot transition: ${fiscalPeriodId}`,
+        "圧縮保存済みの会計期間は変更できません",
+      );
     }
     if (current.phase !== expectedPhase) {
-      throw new Error(
+      throw serverConflictError(
         `invalid fiscal period transition: ${current.phase} -> ${nextPhase}`,
+        "会計期間の状態が変わったため、この操作を実行できません",
       );
     }
     await writeTransitionData();

@@ -1,3 +1,4 @@
+import { parseIsoDate } from "@rubydogjp/openkk-server-domain";
 import type {
   EntryDbLine,
   FiscalPeriodDbRecord,
@@ -76,14 +77,14 @@ function validateOpening(value: Record<string, unknown>): void {
     requiredString(line, "accountId");
     finiteNumber(line, "amount");
   });
-  optionalArray(value, "carryoverJournals")?.forEach((item) => {
-    const journal = asObject(item, "carryover journal");
+  optionalArray(value, "openingJournals")?.forEach((item) => {
+    const journal = asObject(item, "opening journal");
     requiredString(journal, "id");
     isoDate(journal, "date");
     requiredString(journal, "description");
     unitRate(journal, "businessRate");
     arrayValue(journal, "lines").forEach((line) => {
-      const record = asObject(line, "carryover journal line");
+      const record = asObject(line, "opening journal line");
       requiredString(record, "id");
       validateEntryLine(record);
     });
@@ -140,11 +141,13 @@ function objectValue(
 }
 
 function requiredString(value: Record<string, unknown>, key: string): void {
-  if (typeof value[key] !== "string") throw new Error(`${key} must be a string`);
+  if (typeof value[key] !== "string")
+    throw new Error(`${key} must be a string`);
 }
 
 function requiredBoolean(value: Record<string, unknown>, key: string): void {
-  if (typeof value[key] !== "boolean") throw new Error(`${key} must be a boolean`);
+  if (typeof value[key] !== "boolean")
+    throw new Error(`${key} must be a boolean`);
 }
 
 function finiteNumber(value: Record<string, unknown>, key: string): void {
@@ -155,7 +158,8 @@ function finiteNumber(value: Record<string, unknown>, key: string): void {
 
 function nonNegativeNumber(value: Record<string, unknown>, key: string): void {
   finiteNumber(value, key);
-  if ((value[key] as number) < 0) throw new Error(`${key} must not be negative`);
+  if ((value[key] as number) < 0)
+    throw new Error(`${key} must not be negative`);
 }
 
 function positiveInteger(value: Record<string, unknown>, key: string): void {
@@ -172,19 +176,8 @@ function unitRate(value: Record<string, unknown>, key: string): void {
 
 function isoDate(value: Record<string, unknown>, key: string): void {
   requiredString(value, key);
-  const text = value[key] as string;
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
-  if (match == null) throw new Error(`${key} must be an ISO date`);
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  if (
-    date.getUTCFullYear() !== year ||
-    date.getUTCMonth() !== month - 1 ||
-    date.getUTCDate() !== day
-  ) {
-    throw new Error(`${key} must be a valid date`);
+  if (parseIsoDate(value[key] as string) == null) {
+    throw new Error(`${key} must be an ISO date`);
   }
 }
 
@@ -193,7 +186,10 @@ function enumValue<const Value extends string>(
   key: string,
   allowed: readonly Value[],
 ): void {
-  if (typeof value[key] !== "string" || !allowed.includes(value[key] as Value)) {
+  if (
+    typeof value[key] !== "string" ||
+    !allowed.includes(value[key] as Value)
+  ) {
     throw new Error(`${key} has an unsupported value`);
   }
 }

@@ -1,6 +1,6 @@
 import type { FiscalPeriod } from "./models";
 
-export function isJournalingActive(
+export function isJournalizingActive(
   period: FiscalPeriod | null | undefined,
 ): boolean {
   if (period == null) return false;

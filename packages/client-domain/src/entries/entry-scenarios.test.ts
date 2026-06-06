@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { demoFixedAssetItems } from "../assist/fixed-asset-data";
+import type { FixedAssetPreviewItem } from "../assist/fixed-asset-data";
 import type { OpeningCarryoverRecord } from "../assist/opening-carryover";
 import { computeFinancialSummary } from "../steps/summary";
 import {
@@ -52,179 +52,197 @@ describe("entry scenario rows", () => {
     });
   });
 
-  it("turns fixed assets into depreciation and disposal rows for the target period", () => {
-    const depreciationRows = buildVirtualFixedAssetRows({
+  it("books depreciation for active assets with month proration at period end", () => {
+    const rows = buildVirtualFixedAssetRows({
       fiscalPeriodId: "fp-2026",
-      assets: testFixedAssetItems,
+      assets: [
+        fixedAsset({
+          id: "full-year",
+          name: "サーバー",
+          acquisitionDate: "2025-01-01", // 通年保有 → 1 年分
+          purchase: "1,200,000",
+          usefulLife: 5,
+          businessRate: 1,
+        }),
+        fixedAsset({
+          id: "mid-year",
+          name: "モニター",
+          acquisitionDate: "2026-04-10", // 当期取得 → 4〜12月の 9 ヶ月分
+          purchase: "1,200,000",
+          usefulLife: 5,
+          businessRate: 1,
+        }),
+      ],
+      periodStartDate: "2026-01-01",
       periodEndDate: "2026-12-31",
       yearMonth: "2026-12",
     });
-    const macbookDepreciation = depreciationRows.find((row) =>
-      row.description.includes("MacBook Pro 14インチ"),
-    );
 
-    expect(macbookDepreciation).toMatchObject({
+    expect(rows.find((row) => row.description.includes("サーバー"))).toMatchObject({
       date: "12/31",
       debit: "減価償却費",
-      debitAmount: "94,500",
+      debitAmount: "240,000",
       credit: "工具器具備品",
-      creditAmount: "94,500",
-      businessRate: "80",
-      virtual: {
-        kind: "fixed_asset",
-        label: "固定資産",
-        assistHref: "/assist/fixed-assets?asset=fa-1",
-      },
+      creditAmount: "240,000",
+      businessRate: "100",
     });
-    expect(computeFinancialSummary(depreciationRows)).toMatchObject({
+    expect(rows.find((row) => row.description.includes("モニター"))).toMatchObject({
+      debit: "減価償却費",
+      debitAmount: "179,999",
+      creditAmount: "179,999",
+    });
+    expect(computeFinancialSummary(rows)).toMatchObject({
       revenue: 0,
-      expenses: 313_798,
-      profit: -313_798,
+      expenses: 419_999,
+      profit: -419_999,
     });
+  });
 
-    const disposalRows = buildVirtualFixedAssetRows({
+  it("books depreciation up to disposal and a sale entry for a sold asset", () => {
+    const rows = buildVirtualFixedAssetRows({
       fiscalPeriodId: "fp-2026",
-      assets: testFixedAssetItems,
+      assets: [
+        fixedAsset({
+          id: "sold",
+          name: "撮影機材",
+          acquisitionDate: "2024-01-01",
+          purchase: "1,200,000",
+          usefulLife: 5,
+          businessRate: 1,
+          status: "売却済",
+          disposalDate: "2026-06-15",
+          disposalPrice: "700,000",
+        }),
+      ],
+      periodStartDate: "2026-01-01",
       periodEndDate: "2026-12-31",
-      yearMonth: "2026-09",
+      yearMonth: "2026-06",
     });
 
-    expect(disposalRows).toEqual([
+    // (1) 期首〜処分日（1〜6月）の当期償却費。
+    expect(
+      rows.filter((row) => row.recordId === "virtual-fixed-asset-sold"),
+    ).toEqual([
       expect.objectContaining({
-        date: "09/30",
+        date: "06/15",
+        debit: "減価償却費",
+        debitAmount: "120,000",
+        credit: "工具器具備品",
+        creditAmount: "120,000",
+      }),
+    ]);
+    // (2) 処分日簿価 600,001 で資産を除き、売却益 99,999 を計上。
+    expect(
+      rows.filter((row) => row.recordId === "virtual-fixed-asset-sale-sold"),
+    ).toEqual([
+      expect.objectContaining({
         debit: "普通預金",
-        debitAmount: "130,000",
-        credit: "機械装置",
-        creditAmount: "112,000",
-        description: "撮影用ミラーレス一眼の売却",
+        debitAmount: "700,000",
+        credit: "工具器具備品",
+        creditAmount: "600,001",
         lineIndex: 0,
         lineCount: 2,
-        isFirstOfRecord: true,
-        virtual: expect.objectContaining({
-          kind: "fixed_asset",
-          assistHref: "/assist/fixed-assets?asset=fa-5",
-        }),
       }),
       expect.objectContaining({
         debit: "",
-        debitAmount: "",
         credit: "固定資産売却益",
-        creditAmount: "18,000",
+        creditAmount: "99,999",
         lineIndex: 1,
         lineCount: 2,
-        isFirstOfRecord: false,
       }),
     ]);
-    expect(computeFinancialSummary(disposalRows)).toEqual({
-      revenue: 18_000,
-      expenses: 0,
-      profit: 18_000,
-    });
   });
 
-  it("records fixed asset sale loss when disposal price is below book value", () => {
+  it("books depreciation and a retirement loss for a discarded asset", () => {
     const rows = buildVirtualFixedAssetRows({
       fiscalPeriodId: "fp-2026",
       assets: [
-        {
-          id: "fa-sale-loss",
-          fiscalPeriodId: "fp-2026",
-          name: "業務用タブレット",
-          account: "工具器具備品",
-          period: "2025年1月〜2026年9月",
-          remaining: "売却済み",
-          progress: 0.4,
-          current: "80,000",
-          purchase: "120,000",
-          status: "売却済",
-          disposalDate: "2026-09-20",
-          disposalPrice: "50,000",
-        },
+        fixedAsset({
+          id: "scrapped",
+          name: "旧プリンター",
+          acquisitionDate: "2024-01-01",
+          purchase: "1,200,000",
+          usefulLife: 5,
+          businessRate: 1,
+          status: "廃棄済",
+          disposalDate: "2026-06-15",
+        }),
       ],
+      periodStartDate: "2026-01-01",
       periodEndDate: "2026-12-31",
-      yearMonth: "2026-09",
+      yearMonth: "2026-06",
     });
 
-    expect(rows).toEqual([
+    expect(
+      rows.filter((row) => row.recordId === "virtual-fixed-asset-scrapped"),
+    ).toEqual([
       expect.objectContaining({
-        debit: "普通預金",
-        debitAmount: "50,000",
+        debit: "減価償却費",
+        debitAmount: "120,000",
+        creditAmount: "120,000",
+      }),
+    ]);
+    // 残存簿価 600,001 を固定資産除却損として計上。
+    expect(
+      rows.filter(
+        (row) => row.recordId === "virtual-fixed-asset-retire-scrapped",
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        debit: "固定資産除却損",
+        debitAmount: "600,001",
         credit: "工具器具備品",
-        creditAmount: "80,000",
-        lineIndex: 0,
-        lineCount: 2,
-      }),
-      expect.objectContaining({
-        debit: "固定資産売却損",
-        debitAmount: "30,000",
-        credit: "",
-        creditAmount: "",
-        lineIndex: 1,
-        lineCount: 2,
+        creditAmount: "600,001",
       }),
     ]);
-    expect(computeFinancialSummary(rows)).toEqual({
+    expect(computeFinancialSummary(rows)).toMatchObject({
       revenue: 0,
-      expenses: 30_000,
-      profit: -30_000,
+      expenses: 720_001,
+      profit: -720_001,
     });
   });
 
-  it("materializes virtual fixed asset rows into idempotent compound entries", () => {
+  it("materializes the sale entry into an idempotent compound entry", () => {
     const rows = buildVirtualFixedAssetRows({
       fiscalPeriodId: "fp-2026",
       assets: [
-        {
-          id: "fa-sale-loss",
-          fiscalPeriodId: "fp-2026",
-          name: "業務用タブレット",
-          account: "工具器具備品",
-          period: "2025年1月〜2026年9月",
-          remaining: "売却済み",
-          progress: 0.4,
-          current: "80,000",
-          purchase: "120,000",
+        fixedAsset({
+          id: "sold",
+          name: "撮影機材",
+          acquisitionDate: "2024-01-01",
+          purchase: "1,200,000",
+          usefulLife: 5,
+          businessRate: 1,
           status: "売却済",
-          disposalDate: "2026-09-20",
-          disposalPrice: "50,000",
-        },
+          disposalDate: "2026-06-15",
+          disposalPrice: "700,000",
+        }),
       ],
+      periodStartDate: "2026-01-01",
       periodEndDate: "2026-12-31",
-      yearMonth: "2026-09",
+      yearMonth: "2026-06",
     });
 
-    expect(materializeVirtualEntryRows({
+    const entries = materializeVirtualEntryRows({
       fiscalPeriodId: "fp-2026",
-      yearMonth: "2026-09",
+      yearMonth: "2026-06",
       rows,
-    })).toEqual([
-      expect.objectContaining({
-        fiscalPeriodId: "fp-2026",
-        date: "2026-09-20",
-        description: "業務用タブレットの売却",
-        localId: "virtual:virtual-fixed-asset-sale-fa-sale-loss",
-        lines: [
-          {
-            side: "debit",
-            accountName: "普通預金",
-            accountType: "asset",
-            amount: "50,000",
-          },
-          {
-            side: "credit",
-            accountName: "工具器具備品",
-            accountType: "asset",
-            amount: "80,000",
-          },
-          {
-            side: "debit",
-            accountName: "固定資産売却損",
-            accountType: "expense",
-            amount: "30,000",
-          },
-        ],
-      }),
-    ]);
+    });
+
+    expect(
+      entries.find(
+        (entry) => entry.localId === "virtual:virtual-fixed-asset-sale-sold",
+      ),
+    ).toMatchObject({
+      fiscalPeriodId: "fp-2026",
+      date: "2026-06-15",
+      description: "撮影機材の売却",
+      lines: [
+        { side: "debit", accountName: "普通預金", accountType: "asset", amount: "700,000" },
+        { side: "credit", accountName: "工具器具備品", accountType: "asset", amount: "600,001" },
+        { side: "credit", accountName: "固定資産売却益", accountType: "revenue", amount: "99,999" },
+      ],
+    });
   });
 
   it("turns opening carryover records into next-period reversal rows", () => {
@@ -296,7 +314,22 @@ describe("entry scenario rows", () => {
   });
 });
 
-const testFixedAssetItems = demoFixedAssetItems;
+function fixedAsset(
+  overrides: Partial<FixedAssetPreviewItem> & { id: string },
+): FixedAssetPreviewItem {
+  return {
+    name: "資産",
+    account: "工具器具備品",
+    period: "",
+    remaining: "",
+    progress: 0,
+    current: "0",
+    purchase: "0",
+    status: "償却中",
+    fiscalPeriodId: "fp-2026",
+    ...overrides,
+  };
+}
 
 function entry(overrides: Partial<EntryRecord>): EntryRecord {
   return {

@@ -35,6 +35,14 @@ describe("normalizeArchiveImportInput", () => {
             taxCategoryName: "",
             businessCategoryName: "",
           },
+          {
+            side: "credit",
+            bookAccountId: "sales",
+            amount: 1000,
+            partnerName: "",
+            taxCategoryName: "",
+            businessCategoryName: "",
+          },
         ],
       },
     ]);
@@ -58,7 +66,12 @@ describe("normalizeArchiveImportInput", () => {
     expect(normalized.closings).toEqual([{ year: 2026 }]);
   });
 
-  it.each(["pre_opening", "journalizing", "pre_closing", "post_closing"] as const)(
+  it.each([
+    "pre_opening",
+    "journalizing",
+    "pre_closing",
+    "post_closing",
+  ] as const)(
     "restores an archive captured in %s as an active period",
     (phase) => {
       const input = validArchiveInput();
@@ -75,7 +88,9 @@ describe("normalizeArchiveImportInput", () => {
     const input = validArchiveInput();
     input.fiscalPeriod.id = "another-period";
 
-    const error = captureError(() => normalizeArchiveImportInput(input, "user-1"));
+    const error = captureError(() =>
+      normalizeArchiveImportInput(input, "user-1"),
+    );
 
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).messageForDeveloper).toContain(
@@ -89,7 +104,9 @@ describe("normalizeArchiveImportInput", () => {
     const input = validArchiveInput();
     input.fiscalPeriod.startDate = "2027-01-01";
 
-    const error = captureError(() => normalizeArchiveImportInput(input, "user-1"));
+    const error = captureError(() =>
+      normalizeArchiveImportInput(input, "user-1"),
+    );
 
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).messageForDeveloper).toContain(
@@ -101,7 +118,9 @@ describe("normalizeArchiveImportInput", () => {
     const input = validArchiveInput();
     input.entries[0]!.date = "2026-02-29";
 
-    const error = captureError(() => normalizeArchiveImportInput(input, "user-1"));
+    const error = captureError(() =>
+      normalizeArchiveImportInput(input, "user-1"),
+    );
 
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).messageForDeveloper).toContain(
@@ -113,7 +132,9 @@ describe("normalizeArchiveImportInput", () => {
     const input = validArchiveInput();
     (input as unknown as { entries: unknown }).entries = undefined;
 
-    const error = captureError(() => normalizeArchiveImportInput(input, "user-1"));
+    const error = captureError(() =>
+      normalizeArchiveImportInput(input, "user-1"),
+    );
 
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).messageForDeveloper).toContain(
@@ -125,7 +146,9 @@ describe("normalizeArchiveImportInput", () => {
     const input = validArchiveInput();
     (input.entries as unknown[])[0] = null;
 
-    const error = captureError(() => normalizeArchiveImportInput(input, "user-1"));
+    const error = captureError(() =>
+      normalizeArchiveImportInput(input, "user-1"),
+    );
 
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).messageForDeveloper).toContain(
@@ -137,7 +160,9 @@ describe("normalizeArchiveImportInput", () => {
     const input = validArchiveInput();
     input.fixedAssets[0]!.usefulLife = 0;
 
-    const error = captureError(() => normalizeArchiveImportInput(input, "user-1"));
+    const error = captureError(() =>
+      normalizeArchiveImportInput(input, "user-1"),
+    );
 
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).messageForDeveloper).toContain(
@@ -187,13 +212,18 @@ function validArchiveInput(): FiscalPeriodArchiveImportInput {
             amount: 1000,
           },
         ],
-        carryoverJournals: [
+        openingJournals: [
           {
             id: "carry-1",
             date: "2027-01-01",
             description: "再振替",
             businessRate: 1,
             lines: [
+              {
+                side: "debit",
+                bookAccountId: "cash",
+                amount: 1000,
+              },
               {
                 side: "credit",
                 bookAccountId: "sales",
@@ -216,6 +246,11 @@ function validArchiveInput(): FiscalPeriodArchiveImportInput {
             bookAccountId: "cash",
             amount: 1000,
           },
+          {
+            side: "credit",
+            bookAccountId: "sales",
+            amount: 1000,
+          },
         ],
       },
     ],
@@ -232,6 +267,6 @@ function validArchiveInput(): FiscalPeriodArchiveImportInput {
         disposalPrice: 120000,
       },
     ],
-    closings: [{ year: 2026, isProvisional: false }],
+    closings: [{ year: 2026, kind: "closing" }],
   };
 }

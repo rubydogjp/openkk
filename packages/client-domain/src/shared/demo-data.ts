@@ -6,7 +6,7 @@ function bookAccountIdByName(name: string): string {
   return DEFAULT_BOOK_ACCOUNTS.find((acc) => acc.name === name)?.id ?? name;
 }
 
-function buildDemoCarryoverJournals(fiscalPeriodId: string) {
+function buildDemoOpeningJournals(fiscalPeriodId: string) {
   const fiscalYear = fiscalPeriodId.slice(3, 7);
   const date = `${fiscalYear}-01-01`;
   const demoRows = [
@@ -136,9 +136,7 @@ function buildDemoFiscalPeriod2026(
 
       openingBalanceLines: demoOpeningBalanceLines,
 
-      carryoverJournals: isInProgress
-        ? buildDemoCarryoverJournals("fp-2026")
-        : [],
+      openingJournals: isInProgress ? buildDemoOpeningJournals("fp-2026") : [],
     },
   };
 }
@@ -170,13 +168,7 @@ export function buildBootstrapFiscalPeriods(
           "fresh",
         ),
       ]
-    : [
-        buildDemoFiscalPeriod2026(
-          config.mockUserId,
-          "2026年分",
-          "in-progress",
-        ),
-      ];
+    : [buildDemoFiscalPeriod2026(config.mockUserId, "2026年分", "in-progress")];
 }
 
 export function buildBootstrapSessionUserId(

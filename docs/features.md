@@ -12,7 +12,7 @@
 | 期間の選択 | 複数期間を持ちつつ対象期間を切り替え |
 | 期間フェーズ | `pre_opening` → `journalizing` → `pre_closing` → `post_closing` |
 | 圧縮保存 | フェーズを保持したまま `archiveStatus` を `archived` に変更 |
-| ロック判定 | `buildPeriodLockMessage` / `isJournalingActive` でステージ別の編集可否を判定 |
+| ロック判定 | `buildPeriodLockMessage` / `isJournalizingActive` でステージ別の編集可否を判定 |
 
 **実装パッケージ:** `client-domain` (ロジック), `client-usecases` (状態), `server-usecases` (永続化), `file-db-adapter`/`memory-db-adapter` (DB)
 
@@ -54,8 +54,10 @@
 | 固定資産の登録 | 名称・取得日・取得価額・耐用年数・事業按分率を入力 |
 | 固定資産の編集 | 任意のタイミングで各フィールドを更新 |
 | ステータス管理 | `active` / `sold` (売却済) / `disposed` (廃棄済) / `retired` (完了) |
-| バーチャル仕訳生成 | 期末に減価償却費の仮仕訳を自動生成 (仕訳一覧に表示) |
-| 売却バーチャル行 | 売却済資産の売却日に売却仕訳を自動生成 |
+| 減価償却バーチャル仕訳 | 当期償却費（期首〜期末／処分日の**月割**, 取得月算入の暦月ベース, 備忘価額1円で打ち切り）を自動生成 (`computePeriodDepreciation`) |
+| 売却バーチャル行 | 売却済資産の処分日に「期首〜処分日の当期償却費」＋売却仕訳（処分日簿価で資産を除き、差額を固定資産売却損益）を自動生成 |
+| 廃棄バーチャル行 | 廃棄済資産の処分日に「期首〜処分日の当期償却費」＋残存簿価を固定資産除却損として除却 |
+| 家事按分 | 減価償却費・除却損は全額計上し、`businessRate` の個人負担分は集計時に事業主貸へ振替 |
 
 **実装パッケージ:** `client-domain` (`virtual-entries.ts`, `fixed-asset-data.ts`), `client-usecases` (`OpenkkAssistProvider`), `client-ui` (`FixedAssetEditDrawer`), `server-ports` (`FixedAssetsApi`)
 
@@ -75,17 +77,18 @@
 
 ## 6. 締め処理フロー (Closing Flow)
 
-ステップ UI が期間の状態に合わせて次のステップへ誘導する。
+ステップ UI が期間の状態に合わせて次のステップへ誘導する。`deriveSteps` は 6 ステップ構成で、仮締め (pre closing) は独立ステップではなく「日々の仕訳」ステップの完了操作として扱う。
 
 | ステップ | 内容 |
 |---|---|
 | 1. 期間を開始 | 期間設定の確認 (開始日・終了日) |
 | 2. 期首のBSを入力 | 貸借対照表の期首残高を入力 |
-| 3. 日々の仕訳 | 仕訳の入力・インポート・進捗グラフの確認 |
-| 4. 仮締め | `runProvisional` → 仮の帳票3点を生成 |
-| 5. 本締め | `runFinal` → 最終帳票3点を生成・財務諸表サマリー表示 |
-| 6. 書類を受け取る | 生成済み帳票を確認し受取完了 |
-| 7. 次の期間へ | BS 繰越・再振替・固定資産データの引き継ぎを確認 |
+| 3. 日々の仕訳 | 仕訳の入力・インポート・進捗グラフの確認。完了時に `runPreClosing` で仮締めし仮の帳票3点を生成 |
+| 4. 本締め | `runFinal` → 最終帳票3点を生成・財務諸表サマリー表示。`cancelPreClosing` で仮締めへ戻せる |
+| 5. 書類を受け取る | 生成済み帳票を確認し受取完了 |
+| 6. 次の期間へ | BS 繰越・再振替・固定資産データの引き継ぎを確認 |
+
+仮締め (`runPreClosing`) はフェーズを `journalizing → pre_closing` に、本締め (`runFinal`) は `pre_closing → post_closing` に遷移させる。
 
 **実装パッケージ:** `client-domain` (`step-derivation.ts`), `client-usecases` (`useOpenkkClosing`), `client-ui` (各 step body コンポーネント), `server-usecases` (`createClosingUsecase`)
 

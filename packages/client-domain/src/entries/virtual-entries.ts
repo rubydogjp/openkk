@@ -1,8 +1,12 @@
 import type { FixedAssetPreviewItem } from "../assist/fixed-asset-data";
+import {
+  computePeriodDepreciation,
+  computeStraightLineDepreciation,
+} from "../assist/fixed-asset-depreciation";
 import type { OpeningCarryoverRecord } from "../assist/opening-carryover";
 import type { EntryAccountVisualType, EntryPreviewRow } from "./entries-types";
 import type { EntryRecord } from "./entry-record";
-import { parseAmount } from "../shared/parse-utils";
+import { parseAmount, parseIsoLocalDate } from "../shared/parse-utils";
 
 export function buildVirtualOpeningCarryoverRows(input: {
   fiscalPeriodId: string;
@@ -43,135 +47,257 @@ export function buildVirtualOpeningCarryoverRows(input: {
     }));
 }
 
+type FixedAssetTruth = {
+  acquisitionDate: string;
+  acquisitionCost: number;
+  usefulLife: number;
+};
+
+/**
+ * 償却計算に必要な「真実」の値をプレビュー項目から取り出す。取得価額は
+ * `acquisitionCost`（無ければ表示用 `purchase` 文字列）から復元する。
+ * 必須値が欠ける／不正な資産は減価償却の対象外（null）とする。
+ */
+function fixedAssetTruth(asset: FixedAssetPreviewItem): FixedAssetTruth | null {
+  const { acquisitionDate, usefulLife } = asset;
+  if (acquisitionDate == null || usefulLife == null) return null;
+  if (parseIsoLocalDate(acquisitionDate) == null) return null;
+  const acquisitionCost = asset.acquisitionCost ?? parseAmount(asset.purchase);
+  if (!Number.isFinite(acquisitionCost) || acquisitionCost <= 0) return null;
+  return { acquisitionDate, acquisitionCost, usefulLife };
+}
+
+function fixedAssetVirtual(asset: FixedAssetPreviewItem) {
+  return {
+    id: `fixed-asset-${asset.id}`,
+    kind: "fixed_asset" as const,
+    sourceId: asset.id,
+    label: "固定資産",
+    assistHref: `/assist/fixed-assets?asset=${asset.id}`,
+  };
+}
+
+function businessRateLabel(asset: FixedAssetPreviewItem): string {
+  return asset.businessRate == null
+    ? ""
+    : String(Math.round(asset.businessRate * 100));
+}
+
+/**
+ * 固定資産から当期のバーチャル仕訳行を生成する。
+ *
+ * - 償却中: 期末月に当期償却費（期首〜期末の月割）を計上。
+ * - 売却済: 処分月に「期首〜処分日の当期償却費」＋売却仕訳（処分日簿価で資産を除く）。
+ * - 廃棄済: 処分月に「期首〜処分日の当期償却費」＋固定資産除却損で簿価を除却。
+ * - 完了(償却済): 備忘価額のみのため仕訳なし。
+ *
+ * 減価償却費・除却損は全額ベースで計上し、家事按分は businessRate として持たせる。
+ * 個人負担分（事業主貸）への振替は集計層（fs-data / summary）で行う。
+ */
 export function buildVirtualFixedAssetRows(input: {
   fiscalPeriodId: string;
   assets: FixedAssetPreviewItem[];
+  periodStartDate: string | null;
   periodEndDate: string | null;
   yearMonth: string;
 }): EntryPreviewRow[] {
-  const periodEndDate = input.periodEndDate;
-  const depreciationRows =
-    periodEndDate == null || !periodEndDate.startsWith(input.yearMonth)
-      ? []
-      : input.assets
-          .filter(
-            (asset) =>
-              (asset.fiscalPeriodId == null ||
-                asset.fiscalPeriodId === input.fiscalPeriodId) &&
-              asset.status === "償却中",
-          )
-          .map((asset) => {
-            const purchase = parseAmount(asset.purchase);
-            const current = parseAmount(asset.current);
-            const depreciation = asset.depreciationAmount
-              ? parseAmount(asset.depreciationAmount)
-              : Math.max(0, purchase - current);
-            const amount = formatAmount(depreciation);
-            return {
-              recordId: `virtual-fixed-asset-${asset.id}`,
-              lineIndex: 0,
-              lineCount: 1,
-              isFirstOfRecord: true,
-              date: `${periodEndDate.slice(5, 7)}/${periodEndDate.slice(8, 10)}`,
-              weekday: "",
-              debit: "減価償却費",
-              debitType: "expense" as EntryAccountVisualType,
-              debitAmount: amount,
-              credit: asset.account,
-              creditType: "asset" as EntryAccountVisualType,
-              creditAmount: amount,
-              description: `${asset.name}の減価償却`,
-              partner: "",
-              businessRate:
-                asset.businessRate == null
-                  ? ""
-                  : String(Math.round(asset.businessRate * 100)),
-              taxCategory: "対象外",
-              businessCategory: "",
-              virtual: {
-                id: `fixed-asset-${asset.id}`,
-                kind: "fixed_asset" as const,
-                sourceId: asset.id,
-                label: "固定資産",
-                assistHref: `/assist/fixed-assets?asset=${asset.id}`,
-              },
-            };
-          });
-  const saleRows = input.assets
-    .filter(
-      (asset) =>
-        (asset.fiscalPeriodId == null ||
-          asset.fiscalPeriodId === input.fiscalPeriodId) &&
-        asset.status === "売却済" &&
-        asset.disposalDate != null &&
-        asset.disposalDate.startsWith(input.yearMonth),
-    )
-    .flatMap((asset) => {
-      const disposalPrice = parseAmount(asset.disposalPrice ?? "0");
-      const bookValue = parseAmount(asset.current);
-      const gain = Math.max(0, disposalPrice - bookValue);
-      const loss = Math.max(0, bookValue - disposalPrice);
-      const debits: Array<{
-        accountName: string;
-        accountType: EntryAccountVisualType;
-        amount: number;
-      }> = [];
-      const credits: Array<{
-        accountName: string;
-        accountType: EntryAccountVisualType;
-        amount: number;
-      }> = [];
-      if (disposalPrice > 0) {
-        debits.push({
-          accountName: "普通預金",
-          accountType: "asset",
-          amount: disposalPrice,
-        });
+  const periodStartDate =
+    input.periodStartDate == null
+      ? null
+      : parseIsoLocalDate(input.periodStartDate);
+  if (periodStartDate == null) return [];
+  const { periodEndDate } = input;
+
+  const rows: EntryPreviewRow[] = [];
+  for (const asset of input.assets) {
+    if (
+      asset.fiscalPeriodId != null &&
+      asset.fiscalPeriodId !== input.fiscalPeriodId
+    ) {
+      continue;
+    }
+    const truth = fixedAssetTruth(asset);
+    if (truth == null) continue;
+
+    if (asset.status === "償却中") {
+      if (periodEndDate == null || !periodEndDate.startsWith(input.yearMonth)) {
+        continue;
       }
-      if (loss > 0) {
-        debits.push({
-          accountName: "固定資産売却損",
-          accountType: "expense",
-          amount: loss,
-        });
+      const asOf = parseIsoLocalDate(periodEndDate);
+      if (asOf == null) continue;
+      rows.push(
+        ...buildDepreciationRows({
+          asset,
+          truth,
+          periodStartDate,
+          asOf,
+          dateText: periodEndDate,
+        }),
+      );
+      continue;
+    }
+
+    if (asset.status === "売却済" || asset.status === "廃棄済") {
+      const disposalDate = asset.disposalDate;
+      if (disposalDate == null || !disposalDate.startsWith(input.yearMonth)) {
+        continue;
       }
-      if (bookValue > 0) {
-        credits.push({
-          accountName: asset.account,
-          accountType: "asset",
-          amount: bookValue,
-        });
+      const asOf = parseIsoLocalDate(disposalDate);
+      if (asOf == null) continue;
+      // (1) 期首〜処分日の当期償却費を先に計上し、簿価を処分日時点まで落とす。
+      rows.push(
+        ...buildDepreciationRows({
+          asset,
+          truth,
+          periodStartDate,
+          asOf,
+          dateText: disposalDate,
+        }),
+      );
+      // (2) 処分日時点の簿価で資産を売却 / 除却する。
+      const bookValue = computeStraightLineDepreciation({
+        ...truth,
+        asOf,
+      }).currentBookValue;
+      if (asset.status === "売却済") {
+        rows.push(...buildSaleRows({ asset, disposalDate, bookValue }));
+      } else {
+        rows.push(...buildRetirementRows({ asset, disposalDate, bookValue }));
       }
-      if (gain > 0) {
-        credits.push({
-          accountName: "固定資産売却益",
-          accountType: "revenue",
-          amount: gain,
-        });
-      }
-      return buildVirtualRowsFromPairs({
-        recordId: `virtual-fixed-asset-sale-${asset.id}`,
-        date: `${asset.disposalDate!.slice(5, 7)}/${asset.disposalDate!.slice(8, 10)}`,
-        description: `${asset.name}の売却`,
-        businessRate:
-          asset.businessRate == null ? "" : String(Math.round(asset.businessRate * 100)),
-        virtual: {
-          id: `fixed-asset-${asset.id}`,
-          kind: "fixed_asset" as const,
-          sourceId: asset.id,
-          label: "固定資産",
-          assistHref: `/assist/fixed-assets?asset=${asset.id}`,
-        },
-        debits,
-        credits,
-      });
+    }
+    // "完了"(retired) は備忘価額のみで仕訳不要。
+  }
+  return rows;
+}
+
+function buildDepreciationRows(input: {
+  asset: FixedAssetPreviewItem;
+  truth: FixedAssetTruth;
+  periodStartDate: Date;
+  asOf: Date;
+  dateText: string;
+}): EntryPreviewRow[] {
+  const depreciation = computePeriodDepreciation({
+    ...input.truth,
+    periodStartDate: input.periodStartDate,
+    asOf: input.asOf,
+  });
+  if (depreciation <= 0) return [];
+  return buildVirtualRowsFromPairs({
+    recordId: `virtual-fixed-asset-${input.asset.id}`,
+    date: monthDay(input.dateText),
+    description: `${input.asset.name}の減価償却`,
+    businessRate: businessRateLabel(input.asset),
+    virtual: fixedAssetVirtual(input.asset),
+    debits: [
+      {
+        accountName: "減価償却費",
+        accountType: "expense",
+        amount: depreciation,
+      },
+    ],
+    credits: [
+      {
+        accountName: input.asset.account,
+        accountType: "asset",
+        amount: depreciation,
+      },
+    ],
+  });
+}
+
+function buildSaleRows(input: {
+  asset: FixedAssetPreviewItem;
+  disposalDate: string;
+  bookValue: number;
+}): EntryPreviewRow[] {
+  const disposalPrice = parseAmount(input.asset.disposalPrice ?? "0");
+  const gain = Math.max(0, disposalPrice - input.bookValue);
+  const loss = Math.max(0, input.bookValue - disposalPrice);
+  const debits: VirtualPair[] = [];
+  const credits: VirtualPair[] = [];
+  if (disposalPrice > 0) {
+    debits.push({
+      accountName: "普通預金",
+      accountType: "asset",
+      amount: disposalPrice,
     });
-  return [...depreciationRows, ...saleRows];
+  }
+  if (loss > 0) {
+    debits.push({
+      accountName: "固定資産売却損",
+      accountType: "expense",
+      amount: loss,
+    });
+  }
+  if (input.bookValue > 0) {
+    credits.push({
+      accountName: input.asset.account,
+      accountType: "asset",
+      amount: input.bookValue,
+    });
+  }
+  if (gain > 0) {
+    credits.push({
+      accountName: "固定資産売却益",
+      accountType: "revenue",
+      amount: gain,
+    });
+  }
+  return buildVirtualRowsFromPairs({
+    recordId: `virtual-fixed-asset-sale-${input.asset.id}`,
+    date: monthDay(input.disposalDate),
+    description: `${input.asset.name}の売却`,
+    businessRate: businessRateLabel(input.asset),
+    virtual: fixedAssetVirtual(input.asset),
+    debits,
+    credits,
+  });
+}
+
+function buildRetirementRows(input: {
+  asset: FixedAssetPreviewItem;
+  disposalDate: string;
+  bookValue: number;
+}): EntryPreviewRow[] {
+  // 簿価が残っている場合のみ、残存簿価を固定資産除却損として計上する。
+  if (input.bookValue <= 0) return [];
+  return buildVirtualRowsFromPairs({
+    recordId: `virtual-fixed-asset-retire-${input.asset.id}`,
+    date: monthDay(input.disposalDate),
+    description: `${input.asset.name}の除却`,
+    businessRate: businessRateLabel(input.asset),
+    virtual: fixedAssetVirtual(input.asset),
+    debits: [
+      {
+        accountName: "固定資産除却損",
+        accountType: "expense",
+        amount: input.bookValue,
+      },
+    ],
+    credits: [
+      {
+        accountName: input.asset.account,
+        accountType: "asset",
+        amount: input.bookValue,
+      },
+    ],
+  });
+}
+
+function monthDay(isoDate: string): string {
+  return `${isoDate.slice(5, 7)}/${isoDate.slice(8, 10)}`;
 }
 
 function formatAmount(value: number): string {
   return new Intl.NumberFormat("ja-JP").format(value);
 }
+
+type VirtualPair = {
+  accountName: string;
+  accountType: EntryAccountVisualType;
+  amount: number;
+};
 
 function buildVirtualRowsFromPairs(input: {
   recordId: string;
@@ -179,16 +305,8 @@ function buildVirtualRowsFromPairs(input: {
   description: string;
   businessRate: string;
   virtual: EntryPreviewRow["virtual"];
-  debits: Array<{
-    accountName: string;
-    accountType: EntryAccountVisualType;
-    amount: number;
-  }>;
-  credits: Array<{
-    accountName: string;
-    accountType: EntryAccountVisualType;
-    amount: number;
-  }>;
+  debits: VirtualPair[];
+  credits: VirtualPair[];
 }): EntryPreviewRow[] {
   const rowCount = Math.max(input.debits.length, input.credits.length);
   if (rowCount === 0) return [];

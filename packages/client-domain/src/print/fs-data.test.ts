@@ -51,9 +51,16 @@ describe("computeFsAggregate", () => {
     expect(aggregate.amounts[33]).toBe(60_000);
     expect(aggregate.amounts[43]).toBe(60_000);
 
-    const bankRow = aggregate.bsRows.find((row) => row.assetLabel === "その他の預金");
+    const bankRow = aggregate.bsRows.find(
+      (row) => row.assetLabel === "その他の預金",
+    );
     expect(bankRow?.assetOpening).toBe(50_000);
-    expect(bankRow?.assetClosing).toBe(110_000);
+    expect(bankRow?.assetClosing).toBe(100_000);
+
+    const withdrawalRow = aggregate.bsRows.find(
+      (row) => row.assetLabel === "事業主貸",
+    );
+    expect(withdrawalRow?.assetClosing).toBe(10_000);
 
     const totalRow = aggregate.bsRows.at(-1);
     expect(totalRow).toMatchObject({
@@ -111,12 +118,62 @@ describe("computeFsAggregate", () => {
     expect(aggregate.amounts[32]).toBe(42_000);
     expect(aggregate.amounts[33]).toBe(-210_000);
 
-    const payableRow = aggregate.bsRows.find((row) => row.liabilityLabel === "未払金");
+    const payableRow = aggregate.bsRows.find(
+      (row) => row.liabilityLabel === "未払金",
+    );
     expect(payableRow?.liabilityClosing).toBe(210_000);
 
     const totalRow = aggregate.bsRows.at(-1);
     expect(totalRow?.assetClosing).toBe(300_000);
     expect(totalRow?.liabilityClosing).toBe(300_000);
+  });
+
+  it("fills write-in slots with unnamed expenses and folds overflow into 雑費", () => {
+    const expenseEntry = (name: string, amount: string): EntryRecord =>
+      entry({
+        debit: name,
+        debitType: "expense",
+        debitAmount: amount,
+        credit: "普通預金",
+        creditType: "asset",
+        creditAmount: amount,
+      });
+    const aggregate = computeFsAggregate({
+      openingBalanceLines: [],
+      entries: [
+        expenseEntry("会議費", "6,000"), // 名前付き行(26)へ
+        expenseEntry("新聞図書費", "5,000"),
+        expenseEntry("支払手数料", "4,000"),
+        expenseEntry("諸会費", "3,000"),
+        expenseEntry("研究開発費", "2,000"),
+        expenseEntry("寄付金", "1,000"), // スロット超過 → 雑費へ
+        expenseEntry("雑費", "500"),
+      ],
+    });
+
+    // 会議費は専用行(26)に出る（旧実装ではマッピング漏れで null だった）。
+    expect(aggregate.amounts[26]).toBe(6_000);
+    // 任意経費は金額降順で空欄スロット(27〜30)へ。
+    expect(aggregate.expenseWriteIns).toEqual([
+      { label: "新聞図書費", amount: 5_000 },
+      { label: "支払手数料", amount: 4_000 },
+      { label: "諸会費", amount: 3_000 },
+      { label: "研究開発費", amount: 2_000 },
+    ]);
+    expect(aggregate.amounts[27]).toBe(5_000);
+    expect(aggregate.amounts[30]).toBe(2_000);
+    // スロット超過分(寄付金 1,000)は雑費(500)へ合算 → 1,500。
+    expect(aggregate.amounts[31]).toBe(1_500);
+    // 経費合計(32)は各行(26〜31)の和と一致する。
+    expect(aggregate.amounts[32]).toBe(21_500);
+    expect(
+      (aggregate.amounts[26] ?? 0) +
+        (aggregate.amounts[27] ?? 0) +
+        (aggregate.amounts[28] ?? 0) +
+        (aggregate.amounts[29] ?? 0) +
+        (aggregate.amounts[30] ?? 0) +
+        (aggregate.amounts[31] ?? 0),
+    ).toBe(aggregate.amounts[32]);
   });
 
   it("builds next-period opening balance lines from closing BS rows", () => {

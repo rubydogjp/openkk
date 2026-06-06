@@ -33,7 +33,7 @@ export type FiscalPeriod = {
       accountId: string;
       amount: number;
     }>;
-    carryoverJournals: Array<{
+    openingJournals: Array<{
       id: string;
       date: string;
       description: string;

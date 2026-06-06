@@ -67,6 +67,10 @@ server side:   api → usecases → ports → domain
 
 `server-usecases` の auth は embedded 単一ユーザー向け local auth 実装。HTTP マルチユーザーサーバーを構築する場合は `OpenkkServerPort.auth` を実装した独自 adapter が必要。
 
+### 所有者チェックの責務
+
+リソースの所有者検証は `server-api` の `getOwnedFiscalPeriod` に集約する。会計期間に紐づくリソース（entries / fixedAssets / closings 等）はすべて先に対象 fiscal period の所有を検証してから操作するため、エンティティ単位の操作も期間経由で保護される。一方 `server-usecases` の各メソッドは `userId` を受け取るが所有チェックは行わない（薄い委譲）。`server-usecases` を直接呼び出す独自 composition root を組む場合は、呼び出し側で同等の所有者検証を実装すること。
+
 ## DB スキーマとマイグレーション
 
 DB操作契約は `db-adapter.ts`、DB境界型は `persistence-types.ts`、SQLite固有のDDL・migration・adapterは `sqlite/` に分離する。テーブル構造は [`database-schema.md`](./database-schema.md) を参照。

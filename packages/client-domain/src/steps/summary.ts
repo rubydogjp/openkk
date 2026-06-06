@@ -1,5 +1,9 @@
 import { parseAmount, parseBusinessRate } from "../shared/parse-utils";
-import type { EntryLine } from "../entries/entry-record";
+import {
+  applyBusinessRateToLines,
+  type EntryLine,
+} from "../entries/entry-record";
+import type { EntryAccountVisualType } from "../entries/entries-types";
 export { parseAmount, parseBusinessRate } from "../shared/parse-utils";
 
 type EntrySummaryRow = {
@@ -11,47 +15,59 @@ type EntrySummaryRow = {
   lines?: EntryLine[];
 };
 
+/** 集計行を明細配列に正規化する（lines があればそれ、無ければ単一借貸ペア）。 */
+function summaryRowLines(record: EntrySummaryRow): EntryLine[] {
+  if (record.lines != null && record.lines.length > 0) return record.lines;
+  return [
+    {
+      side: "debit",
+      accountName: "",
+      accountType: record.debitType as EntryAccountVisualType,
+      amount: record.debitAmount,
+    },
+    {
+      side: "credit",
+      accountName: "",
+      accountType: record.creditType as EntryAccountVisualType,
+      amount: record.creditAmount,
+    },
+  ];
+}
+
+/** 家事按分（個人分を事業主貸/借へ振替）を反映した実効明細。 */
+function adjustedLines(record: EntrySummaryRow, rate: number): EntryLine[] {
+  return applyBusinessRateToLines(summaryRowLines(record), rate);
+}
+
 export function computeRevenueContribution(
   record: EntrySummaryRow,
   rate: number,
 ): number {
-  if (record.lines != null && record.lines.length > 0) {
-    let value = 0;
-    for (const line of record.lines) {
-      const amount = Math.round(parseAmount(line.amount) * rate);
-      if (line.accountType !== "revenue") continue;
-      value += line.side === "credit" ? amount : -amount;
-    }
-    return value;
+  let value = 0;
+  for (const line of adjustedLines(record, rate)) {
+    if (line.accountType !== "revenue") continue;
+    const amount = parseAmount(line.amount);
+    value += line.side === "credit" ? amount : -amount;
   }
-  const debit = Math.round(parseAmount(record.debitAmount) * rate);
-  const credit = Math.round(parseAmount(record.creditAmount) * rate);
-  let v = 0;
-  if (record.creditType === "revenue") v += credit;
-  if (record.debitType === "revenue") v -= debit;
-  return v;
+  return value;
 }
 
 export function computeExpenseContribution(
   record: EntrySummaryRow,
   rate: number,
 ): number {
-  if (record.lines != null && record.lines.length > 0) {
-    let value = 0;
-    for (const line of record.lines) {
-      const amount = Math.round(parseAmount(line.amount) * rate);
-      if (line.accountType !== "expense" && line.accountType !== "cost_of_sales")
-        continue;
-      value += line.side === "debit" ? amount : -amount;
+  let value = 0;
+  for (const line of adjustedLines(record, rate)) {
+    if (
+      line.accountType !== "expense" &&
+      line.accountType !== "cost_of_sales"
+    ) {
+      continue;
     }
-    return value;
+    const amount = parseAmount(line.amount);
+    value += line.side === "debit" ? amount : -amount;
   }
-  const debit = Math.round(parseAmount(record.debitAmount) * rate);
-  const credit = Math.round(parseAmount(record.creditAmount) * rate);
-  let v = 0;
-  if (record.debitType === "expense" || record.debitType === "cost_of_sales") v += debit;
-  if (record.creditType === "expense" || record.creditType === "cost_of_sales") v -= credit;
-  return v;
+  return value;
 }
 
 export function computeFinancialSummary(entries: EntrySummaryRow[]): {
@@ -75,11 +91,6 @@ export type OpeningBalanceSummary = {
   equity: number;
 };
 
-/**
- * 期首残高ラインの credit 側（accountId が "l:" 始まり）のうち、純資産（資本）に
- * 区分するラベル。それ以外の credit 側は負債。期首残高の accountId は
- * "a:資産名" / "l:負債・資本名" という規約で、amount は常に正値。
- */
 export const OPENING_EQUITY_LABELS = new Set<string>(["事業主借", "元入金"]);
 
 /** 期首残高ラインを資産 / 負債 / 資本に集計する。 */
@@ -110,25 +121,16 @@ export function computeBSSummary(
   let netAssetChange = 0;
   let netLiabilityChange = 0;
   for (const entry of entries) {
-    const rate = parseBusinessRate(entry.businessRate);
-    if (entry.lines != null && entry.lines.length > 0) {
-      for (const line of entry.lines) {
-        const amount = Math.round(parseAmount(line.amount) * rate);
-        if (line.accountType === "asset") {
-          netAssetChange += line.side === "debit" ? amount : -amount;
-        }
-        if (line.accountType === "liability") {
-          netLiabilityChange += line.side === "credit" ? amount : -amount;
-        }
+    const lines = adjustedLines(entry, parseBusinessRate(entry.businessRate));
+    for (const line of lines) {
+      const amount = parseAmount(line.amount);
+      if (line.accountType === "asset") {
+        netAssetChange += line.side === "debit" ? amount : -amount;
       }
-      continue;
+      if (line.accountType === "liability") {
+        netLiabilityChange += line.side === "credit" ? amount : -amount;
+      }
     }
-    const dAmt = Math.round(parseAmount(entry.debitAmount) * rate);
-    const cAmt = Math.round(parseAmount(entry.creditAmount) * rate);
-    if (entry.debitType === "asset") netAssetChange += dAmt;
-    if (entry.creditType === "asset") netAssetChange -= cAmt;
-    if (entry.creditType === "liability") netLiabilityChange += cAmt;
-    if (entry.debitType === "liability") netLiabilityChange -= dAmt;
   }
   return {
     assets: Math.max(0, opening.assets + netAssetChange),

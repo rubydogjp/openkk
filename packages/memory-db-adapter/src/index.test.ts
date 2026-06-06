@@ -33,7 +33,7 @@ describe("createMemoryDbAdapter / fiscalPeriods", () => {
       userId: "user-1",
       fiscalPeriodId: created.id,
       openingBalanceLines: [],
-      carryoverJournals: [],
+      openingJournals: [],
     });
     expect(await db.fiscalPeriods.getById(created.id)).toEqual(created);
   });
@@ -83,7 +83,7 @@ describe("createMemoryDbAdapter / fiscalPeriods", () => {
       openingBalanceLines: [
         { id: "balance-1", accountId: "acct_cash", amount: 1000 },
       ],
-      carryoverJournals: [
+      openingJournals: [
         {
           id: "journal-1",
           date: "2026-01-01",
@@ -121,7 +121,7 @@ describe("createMemoryDbAdapter / fiscalPeriods", () => {
         { id: "balance-1", accountId: "acct_cash", amount: 1000 },
         { id: "balance-2", accountId: "acct_cash", amount: 2000 },
       ],
-      carryoverJournals: [],
+      openingJournals: [],
     };
 
     await expect(
@@ -291,7 +291,6 @@ describe("createMemoryDbAdapter / entries", () => {
     expect((await db.entries.getAll(firstPeriod.id)).map((entry) => entry.id)).toEqual([
       original.id,
     ]);
-    expect(await db.entries.getByMonth(firstPeriod.id, "2026-04")).toHaveLength(1);
 
     const updated = await db.entries.update(original.id, {
       date: "2026-05-01",
@@ -392,14 +391,6 @@ describe("createMemoryDbAdapter / entries", () => {
     expect(created).toHaveLength(501);
     expect(created.map(({ description }) => description)).toEqual(
       inputs.map(({ description }) => description),
-    );
-  });
-
-  it("rejects an invalid year-month", async () => {
-    const db = await makeDb();
-    const period = await createTestFiscalPeriod(db);
-    await expect(db.entries.getByMonth(period.id, "2026-13")).rejects.toThrow(
-      /invalid yearMonth/,
     );
   });
 });

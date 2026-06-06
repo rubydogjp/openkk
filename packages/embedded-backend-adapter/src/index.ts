@@ -34,8 +34,7 @@ export function createOpenkkEmbeddedBackendAdapter(
     auth: {
       startSession: async (redirectUrl) =>
         request("authStartSession", { redirectUrl }),
-      completeSession: async (input) =>
-        request("authCompleteSession", input),
+      completeSession: async (input) => request("authCompleteSession", input),
       redeemCompletionCode: async (completionCode) =>
         request("authRedeemCompletionCode", { completionCode }),
       signOut: async () => {
@@ -44,7 +43,10 @@ export function createOpenkkEmbeddedBackendAdapter(
     },
     preClosing: {
       get: async (fiscalPeriodId, year) => {
-        const response = await request("preClosingGet", { fiscalPeriodId, year });
+        const response = await request("preClosingGet", {
+          fiscalPeriodId,
+          year,
+        });
         return response.preClosing;
       },
       run: async (input) => {
@@ -52,7 +54,10 @@ export function createOpenkkEmbeddedBackendAdapter(
         return response.fiscalPeriod;
       },
       cancel: async (fiscalPeriodId, year) => {
-        const response = await request("preClosingCancel", { fiscalPeriodId, year });
+        const response = await request("preClosingCancel", {
+          fiscalPeriodId,
+          year,
+        });
         return response.fiscalPeriod;
       },
     },
@@ -72,7 +77,10 @@ export function createOpenkkEmbeddedBackendAdapter(
         return response.entries;
       },
       create: async (fiscalPeriodId, input) => {
-        const response = await request("entryCreate", { fiscalPeriodId, input });
+        const response = await request("entryCreate", {
+          fiscalPeriodId,
+          input,
+        });
         return response.entry;
       },
       patch: async (fiscalPeriodId, id, input) => {
@@ -134,8 +142,8 @@ export function createOpenkkEmbeddedBackendAdapter(
         });
         return response.fixedAsset;
       },
-      delete: async (fiscalPeriodId, id) => {
-        await request("fixedAssetDelete", { fiscalPeriodId, id });
+      remove: async (fiscalPeriodId, id) => {
+        await request("fixedAssetRemove", { fiscalPeriodId, id });
       },
     },
     masterData: {
@@ -180,9 +188,7 @@ async function dispatchEmbeddedHttp(
         const request = body as EndpointRequest<"authRedeemCompletionCode">;
         return {
           status: 200,
-          body: await server.auth.redeemCompletionCode(
-            request.completionCode,
-          ),
+          body: await server.auth.redeemCompletionCode(request.completionCode),
         };
       }
       case "authSignOut":
@@ -372,9 +378,9 @@ async function dispatchEmbeddedHttp(
           },
         };
       }
-      case "fixedAssetDelete": {
-        const request = body as EndpointRequest<"fixedAssetDelete">;
-        await server.fixedAssets.delete(request.fiscalPeriodId, request.id);
+      case "fixedAssetRemove": {
+        const request = body as EndpointRequest<"fixedAssetRemove">;
+        await server.fixedAssets.remove(request.fiscalPeriodId, request.id);
         return { status: 204, body: undefined };
       }
       case "masterBookAccounts":
@@ -395,8 +401,7 @@ async function dispatchEmbeddedHttp(
         return {
           status: 200,
           body: {
-            businessCategories:
-              await server.masterData.getBusinessCategories(),
+            businessCategories: await server.masterData.getBusinessCategories(),
           },
         };
     }
@@ -410,9 +415,7 @@ function jsonRoundTrip<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-function serverErrorToEmbeddedHttpResponse(
-  error: unknown,
-): OpenkkHttpResponse {
+function serverErrorToEmbeddedHttpResponse(error: unknown): OpenkkHttpResponse {
   if (isOpenkkApiErrorDto(error)) {
     const status = isHttpErrorStatus(error.statusCode) ? error.statusCode : 500;
     return {

@@ -21,7 +21,7 @@ describe("fiscal period archive", () => {
       },
       entries: [{ id: "entry-1", fiscalPeriodId: "fp-1" }],
       fixedAssets: [{ id: "asset-1", fiscalPeriodId: "fp-1" }],
-      closings: [{ fiscalPeriodId: "fp-1", year: 2026, isProvisional: false }],
+      closings: [{ fiscalPeriodId: "fp-1", year: 2026, kind: "closing" }],
     });
 
     const zip = createFiscalPeriodArchiveZip(payload);
@@ -87,7 +87,10 @@ describe("fiscal period archive", () => {
     });
     const zip = createFiscalPeriodArchiveZip(payload);
     const corrupted = new Uint8Array(zip);
-    const index = findBytePattern(corrupted, new TextEncoder().encode("entry-1"));
+    const index = findBytePattern(
+      corrupted,
+      new TextEncoder().encode("entry-1"),
+    );
     expect(index).toBeGreaterThanOrEqual(0);
     corrupted[index]! ^= 0xff;
 

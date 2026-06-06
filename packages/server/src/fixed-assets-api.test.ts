@@ -163,12 +163,12 @@ describe("openkk server fixed asset API", () => {
       bookAccountId: "acct_asset_工具器具備品",
     });
 
-    await expect(server.fixedAssets.delete("fp-other", created.id)).rejects.toThrow(
-      /Fiscal period fp-other not found/,
-    );
+    await expect(
+      server.fixedAssets.remove("fp-other", created.id),
+    ).rejects.toThrow(/Fiscal period fp-other not found/);
     expect(await server.fixedAssets.getAll("fp-1")).toHaveLength(1);
 
-    await server.fixedAssets.delete("fp-1", created.id);
+    await server.fixedAssets.remove("fp-1", created.id);
     expect(await server.fixedAssets.getAll("fp-1")).toEqual([]);
   });
 });
@@ -203,20 +203,25 @@ function createFixedAssetDb(
       async getAll() {
         return [];
       },
-      async getByMonth() {
-        return [];
-      },
       async getById() {
         return null;
       },
-      async create(_userId: string, fiscalPeriodId: string, input: EntryUpsertInput) {
+      async create(
+        _userId: string,
+        fiscalPeriodId: string,
+        input: EntryUpsertInput,
+      ) {
         return entry({ id: "entry-1", fiscalPeriodId, ...input });
       },
       async update(id: string, input: EntryUpsertInput) {
         return entry({ id, fiscalPeriodId: "fp-1", ...input });
       },
       async delete() {},
-      async importMany(_userId: string, fiscalPeriodId: string, inputs: EntryUpsertInput[]) {
+      async importMany(
+        _userId: string,
+        fiscalPeriodId: string,
+        inputs: EntryUpsertInput[],
+      ) {
         return inputs.map((input, index) =>
           entry({ id: `entry-${index + 1}`, fiscalPeriodId, ...input }),
         );
@@ -231,7 +236,11 @@ function createFixedAssetDb(
       async getById(id) {
         return fixedAssets.get(id) ?? null;
       },
-      async create(_userId: string, fiscalPeriodId: string, input: FixedAssetCreateInput) {
+      async create(
+        _userId: string,
+        fiscalPeriodId: string,
+        input: FixedAssetCreateInput,
+      ) {
         const record = fixedAsset({
           id: `asset-${fixedAssets.size + 1}`,
           fiscalPeriodId,
@@ -252,15 +261,23 @@ function createFixedAssetDb(
       },
     },
     preClosings: {
-      async get() { return null; },
-      async run() { return fiscalPeriod({ phase: "pre_closing" }); },
-      async cancel() { return fiscalPeriod({ phase: "journalizing" }); },
+      async get() {
+        return null;
+      },
+      async run() {
+        return fiscalPeriod({ phase: "pre_closing" });
+      },
+      async cancel() {
+        return fiscalPeriod({ phase: "journalizing" });
+      },
     },
     closings: {
       async get(): Promise<ClosingApiRecord | null> {
         return null;
       },
-      async run() { return fiscalPeriod({ phase: "post_closing" }); },
+      async run() {
+        return fiscalPeriod({ phase: "post_closing" });
+      },
     },
     masterData: {
       async getAllBookAccounts(): Promise<MasterBookAccount[]> {
@@ -307,7 +324,9 @@ function entry(overrides: Partial<EntryApiRecord>): EntryApiRecord {
   };
 }
 
-function fixedAsset(overrides: Partial<FixedAssetApiRecord>): FixedAssetApiRecord {
+function fixedAsset(
+  overrides: Partial<FixedAssetApiRecord>,
+): FixedAssetApiRecord {
   return {
     id: "asset-1",
     fiscalPeriodId: "fp-1",

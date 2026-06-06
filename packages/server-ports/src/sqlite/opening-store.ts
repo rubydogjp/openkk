@@ -1,16 +1,20 @@
 import type {
-  CarryoverJournalDbRecord,
+  OpeningJournalDbRecord,
   FiscalPeriodOpeningDbRecord,
 } from "../persistence-types";
 import { validateOpeningDbRecord } from "./persistence-codec";
 
 type OpeningSqlDb = {
-  exec(arg: string | {
-    sql: string;
-    bind?: unknown[];
-    returnValue?: string;
-    rowMode?: string;
-  }): Promise<unknown>;
+  exec(
+    arg:
+      | string
+      | {
+          sql: string;
+          bind?: unknown[];
+          returnValue?: string;
+          rowMode?: string;
+        },
+  ): Promise<unknown>;
 };
 
 export function defaultOpening(
@@ -22,7 +26,7 @@ export function defaultOpening(
     userId,
     fiscalPeriodId,
     openingBalanceLines: [],
-    carryoverJournals: [],
+    openingJournals: [],
   };
 }
 
@@ -60,14 +64,16 @@ export async function replaceOpening(
       VALUES(?, ?, ?, ?)`,
     bind: [opening.id, opening.fiscalPeriodId, now, now],
   });
-  for (const [position, line] of (opening.openingBalanceLines ?? []).entries()) {
+  for (const [position, line] of (
+    opening.openingBalanceLines ?? []
+  ).entries()) {
     await db.exec({
       sql: `INSERT INTO opening_balance_lines(opening_id, id, account_id, amount, position)
         VALUES(?, ?, ?, ?, ?)`,
       bind: [opening.id, line.id, line.accountId, line.amount, position],
     });
   }
-  for (const [position, journal] of (opening.carryoverJournals ?? []).entries()) {
+  for (const [position, journal] of (opening.openingJournals ?? []).entries()) {
     await db.exec({
       sql: `INSERT INTO opening_journals(
         opening_id, id, date, description, business_rate, position
@@ -109,7 +115,7 @@ async function loadOpenings(
   where: "fp.user_id = ?" | "o.fiscal_period_id = ?",
   value: string,
 ): Promise<Map<string, FiscalPeriodOpeningDbRecord>> {
-  const openingRows = await db.exec({
+  const openingRows = (await db.exec({
     sql: `SELECT o.id, fp.user_id, o.fiscal_period_id
       FROM openings o
       JOIN fiscal_periods fp ON fp.id = o.fiscal_period_id
@@ -118,7 +124,7 @@ async function loadOpenings(
     bind: [value],
     returnValue: "resultRows",
     rowMode: "array",
-  }) as Array<[string, string, string]>;
+  })) as Array<[string, string, string]>;
   const result = new Map<string, FiscalPeriodOpeningDbRecord>();
   const openingIdToPeriodId = new Map<string, string>();
   for (const [id, userId, fiscalPeriodId] of openingRows) {
@@ -127,13 +133,13 @@ async function loadOpenings(
       userId,
       fiscalPeriodId,
       openingBalanceLines: [],
-      carryoverJournals: [],
+      openingJournals: [],
     });
     openingIdToPeriodId.set(id, fiscalPeriodId);
   }
   if (openingRows.length === 0) return result;
 
-  const balanceRows = await db.exec({
+  const balanceRows = (await db.exec({
     sql: `SELECT line.opening_id, line.id, line.account_id, line.amount
       FROM opening_balance_lines line
       JOIN openings o ON o.id = line.opening_id
@@ -143,13 +149,13 @@ async function loadOpenings(
     bind: [value],
     returnValue: "resultRows",
     rowMode: "array",
-  }) as Array<[string, string, string, number]>;
+  })) as Array<[string, string, string, number]>;
   for (const [openingId, id, accountId, amount] of balanceRows) {
     const opening = openingForId(result, openingIdToPeriodId, openingId);
     opening.openingBalanceLines!.push({ id, accountId, amount });
   }
 
-  const journalRows = await db.exec({
+  const journalRows = (await db.exec({
     sql: `SELECT journal.opening_id, journal.id, journal.date,
         journal.description, journal.business_rate
       FROM opening_journals journal
@@ -160,10 +166,10 @@ async function loadOpenings(
     bind: [value],
     returnValue: "resultRows",
     rowMode: "array",
-  }) as Array<[string, string, string, string, number]>;
-  const journals = new Map<string, CarryoverJournalDbRecord>();
+  })) as Array<[string, string, string, string, number]>;
+  const journals = new Map<string, OpeningJournalDbRecord>();
   for (const [openingId, id, date, description, businessRate] of journalRows) {
-    const journal: CarryoverJournalDbRecord = {
+    const journal: OpeningJournalDbRecord = {
       id,
       date,
       description,
@@ -171,11 +177,12 @@ async function loadOpenings(
       lines: [],
     };
     journals.set(journalKey(openingId, id), journal);
-    openingForId(result, openingIdToPeriodId, openingId)
-      .carryoverJournals!.push(journal);
+    openingForId(result, openingIdToPeriodId, openingId).openingJournals!.push(
+      journal,
+    );
   }
 
-  const lineRows = await db.exec({
+  const lineRows = (await db.exec({
     sql: `SELECT line.opening_id, line.opening_journal_id, line.id, line.side,
         line.book_account_id, line.amount, line.partner_name,
         line.tax_category_name, line.business_category_name
@@ -187,22 +194,34 @@ async function loadOpenings(
     bind: [value],
     returnValue: "resultRows",
     rowMode: "array",
-  }) as Array<[
-    string,
-    string,
-    string,
-    "debit" | "credit",
-    string,
-    number,
-    string,
-    string,
-    string,
-  ]>;
+  })) as Array<
+    [
+      string,
+      string,
+      string,
+      "debit" | "credit",
+      string,
+      number,
+      string,
+      string,
+      string,
+    ]
+  >;
   for (const row of lineRows) {
-    const [openingId, openingJournalId, id, side, bookAccountId, amount,
-      partnerName, taxCategoryName, businessCategoryName] = row;
+    const [
+      openingId,
+      openingJournalId,
+      id,
+      side,
+      bookAccountId,
+      amount,
+      partnerName,
+      taxCategoryName,
+      businessCategoryName,
+    ] = row;
     const journal = journals.get(journalKey(openingId, openingJournalId));
-    if (journal == null) throw new Error(`opening journal not found: ${openingJournalId}`);
+    if (journal == null)
+      throw new Error(`opening journal not found: ${openingJournalId}`);
     journal.lines.push({
       id,
       side,

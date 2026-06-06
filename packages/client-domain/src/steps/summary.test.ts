@@ -22,7 +22,11 @@ describe("financial summary", () => {
     const summary = computeFinancialSummary([
       entry({ creditType: "revenue", creditAmount: "100,000" }),
       entry({ debitType: "cost_of_sales", debitAmount: "30,000" }),
-      entry({ businessRate: "50", debitType: "expense", debitAmount: "20,000" }),
+      entry({
+        businessRate: "50",
+        debitType: "expense",
+        debitAmount: "20,000",
+      }),
       entry({ debitType: "revenue", debitAmount: "5,000" }),
       entry({ creditType: "expense", creditAmount: "2,000" }),
     ]);
@@ -34,20 +38,27 @@ describe("financial summary", () => {
     });
   });
 
-  it("aggregates balance sheet movement with business-use rates", () => {
+  it("keeps asset balances at full value and routes the home-use portion to 事業主貸", () => {
     const summary = computeBSSummary(
       [
         entry({ debitType: "asset", debitAmount: "100,000" }),
         entry({ creditType: "asset", creditAmount: "30,000" }),
-        entry({ businessRate: "50", creditType: "liability", creditAmount: "20,000" }),
+
+        entry({
+          businessRate: "50",
+          debitType: "expense",
+          debitAmount: "20,000",
+          creditType: "asset",
+          creditAmount: "20,000",
+        }),
       ],
       { assets: 50_000, liabilities: 20_000, equity: 20_000 },
       57_000,
     );
 
     expect(summary).toEqual({
-      assets: 120_000,
-      liabilities: 30_000,
+      assets: 110_000,
+      liabilities: 20_000,
       equity: 77_000,
     });
   });

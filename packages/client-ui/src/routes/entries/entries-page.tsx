@@ -60,8 +60,7 @@ export function EntriesPage() {
   const [statusMessage, setStatusMessage] = useState<EntryStatusMessage | null>(
     null,
   );
-  const [newEntryDraft, setNewEntryDraft] =
-    useState<EntryRecord | null>(null);
+  const [newEntryDraft, setNewEntryDraft] = useState<EntryRecord | null>(null);
 
   useEffect(() => {
     const monthParam = searchParams.get("month");
@@ -87,7 +86,9 @@ export function EntriesPage() {
 
   useEffect(() => {
     setNewEntryDraft((current) =>
-      current == null || current.fiscalPeriodId === fiscalPeriodId ? current : null,
+      current == null || current.fiscalPeriodId === fiscalPeriodId
+        ? current
+        : null,
     );
   }, [fiscalPeriodId]);
 
@@ -136,7 +137,9 @@ export function EntriesPage() {
     const materializedLocalIds = new Set(
       fullPeriodEntries
         .map((entry) => entry.localId)
-        .filter((localId): localId is string => localId != null && localId !== ""),
+        .filter(
+          (localId): localId is string => localId != null && localId !== "",
+        ),
     );
     return [
       ...buildVirtualOpeningCarryoverRows({
@@ -147,6 +150,7 @@ export function EntriesPage() {
       ...buildVirtualFixedAssetRows({
         fiscalPeriodId,
         assets: assistState.listFixedAssets(),
+        periodStartDate: currentFiscalPeriod?.startDate ?? null,
         periodEndDate: currentFiscalPeriod?.endDate ?? null,
         yearMonth,
       }),
@@ -157,6 +161,7 @@ export function EntriesPage() {
     );
   }, [
     assistState,
+    currentFiscalPeriod?.startDate,
     currentFiscalPeriod?.endDate,
     fiscalPeriodId,
     fullPeriodEntries,
@@ -298,7 +303,10 @@ export function EntriesPage() {
       // （既定表示月に取込分が無いと「取り込んだのに何も出ない」状態になるため）。
       const earliestDate = importedEntries
         .map((entry) => entry.date)
-        .filter((date): date is string => typeof date === "string" && date.length >= 7)
+        .filter(
+          (date): date is string =>
+            typeof date === "string" && date.length >= 7,
+        )
         .sort((left, right) => left.localeCompare(right))[0];
       if (result.imported > 0 && earliestDate != null) {
         navigateWithMonth(parseYearMonth(earliestDate));
