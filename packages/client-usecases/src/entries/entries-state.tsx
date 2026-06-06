@@ -93,6 +93,9 @@ type EntriesState = {
   businessCategoryOptions: EntryMasterCategoryOption[];
 
   listSuggestions: (fiscalPeriodId: string) => EntrySuggestions;
+
+  loadError: unknown;
+  reload: () => void;
 };
 
 const EntriesContext = createContext<EntriesState | null>(null);
@@ -107,6 +110,8 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
   const [businessCategories, setBusinessCategories] = useState<
     MasterBusinessCategory[]
   >([]);
+  const [loadError, setLoadError] = useState<unknown>(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,14 +126,17 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
         setBookAccounts(accounts);
         setTaxCategories(taxes);
         setBusinessCategories(businesses);
-      } catch {
+        setLoadError(null);
+      } catch (error) {
         if (cancelled) return;
+        console.error("[openkk] master data load failed:", error);
+        setLoadError(error);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadNonce]);
 
   useEffect(() => {
     const fiscalPeriodId = appState.currentFiscalPeriodId;
@@ -156,8 +164,11 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
             ),
           ),
         );
-      } catch {
+        setLoadError(null);
+      } catch (error) {
         if (cancelled) return;
+        console.error("[openkk] entries load failed:", error);
+        setLoadError(error);
       }
     })();
     return () => {
@@ -168,6 +179,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
     bookAccounts,
     businessCategories,
     taxCategories,
+    reloadNonce,
   ]);
 
   const value = useMemo<EntriesState>(() => {
@@ -319,8 +331,6 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
             businesses: businessCategories,
           }),
         );
-        // importMany skips existing localIds server-side, so every returned
-        // record is newly inserted and can simply be appended.
         setRecords((current) => [...current, ...appended]);
         return {
           imported: response.importedCount,
@@ -349,8 +359,12 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
           businessCategory: Array.from(biz).sort(),
         };
       },
+      loadError,
+      reload() {
+        setReloadNonce((nonce) => nonce + 1);
+      },
     };
-  }, [bookAccounts, businessCategories, records, taxCategories]);
+  }, [bookAccounts, businessCategories, records, taxCategories, loadError]);
 
   return (
     <EntriesContext.Provider value={value}>

@@ -51,6 +51,9 @@ type AssistState = {
     draft: OpeningCarryoverDraft,
   ) => Promise<boolean>;
   deleteOpeningCarryover: (carryoverId: string) => Promise<boolean>;
+
+  loadError: unknown;
+  reload: () => void;
 };
 
 const AssistContext = createContext<AssistState | null>(null);
@@ -71,6 +74,8 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
   const [bookAccountTypeById, setBookAccountTypeById] = useState<
     Record<string, EntryAccountVisualType>
   >({});
+  const [loadError, setLoadError] = useState<unknown>(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -93,14 +98,17 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
             accounts.map((account) => [account.id, account.accountType]),
           ) as Record<string, EntryAccountVisualType>,
         );
-      } catch {
+        setLoadError(null);
+      } catch (error) {
         if (cancelled) return;
+        console.error("[openkk] assist master data load failed:", error);
+        setLoadError(error);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadNonce]);
 
   useEffect(() => {
     const fiscalPeriodId = appState.currentFiscalPeriodId;
@@ -125,14 +133,22 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
             ),
           ),
         );
-      } catch {
+        setLoadError(null);
+      } catch (error) {
         if (cancelled) return;
+        console.error("[openkk] fixed assets load failed:", error);
+        setLoadError(error);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [appState.currentFiscalPeriodId, bookAccountNameById, config.today]);
+  }, [
+    appState.currentFiscalPeriodId,
+    bookAccountNameById,
+    config.today,
+    reloadNonce,
+  ]);
 
   const value = useMemo<AssistState>(() => {
     return {
@@ -273,7 +289,10 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
             statusCode: null,
           });
         }
-        const nextId = `oc-${fiscalPeriodId}-${(opening.openingJournals?.length ?? 0) + 1}`;
+        const nextId = nextOpeningCarryoverId(
+          fiscalPeriodId,
+          opening.openingJournals ?? [],
+        );
         const newJournal = {
           id: nextId,
           date: period.startDate,
@@ -411,6 +430,10 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         });
         return true;
       },
+      loadError,
+      reload() {
+        setReloadNonce((nonce) => nonce + 1);
+      },
     };
   }, [
     appState.currentFiscalPeriodId,
@@ -420,6 +443,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
     bookAccountTypeById,
     config.today,
     fixedAssets,
+    loadError,
   ]);
 
   return (
@@ -435,6 +459,19 @@ export function replaceLoadedFixedAssets(
 ): FixedAssetPreviewItem[] {
   if (fiscalPeriodId == null || fiscalPeriodId.length === 0) return [];
   return nextAssets;
+}
+
+export function nextOpeningCarryoverId(
+  fiscalPeriodId: string,
+  journals: ReadonlyArray<{ id: string }>,
+): string {
+  const prefix = `oc-${fiscalPeriodId}-`;
+  const maxSuffix = journals.reduce((max, journal) => {
+    if (!journal.id.startsWith(prefix)) return max;
+    const suffix = Number(journal.id.slice(prefix.length));
+    return Number.isInteger(suffix) && suffix > max ? suffix : max;
+  }, 0);
+  return `${prefix}${maxSuffix + 1}`;
 }
 
 function mapOpeningJournalToRecord(

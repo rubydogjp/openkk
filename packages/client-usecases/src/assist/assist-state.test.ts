@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   fixedAssetDraftToPatch,
+  nextOpeningCarryoverId,
   replaceLoadedFixedAssets,
 } from "./assist-state";
 import type {
@@ -75,6 +76,23 @@ describe("replaceLoadedFixedAssets", () => {
 
     expect(replaceLoadedFixedAssets(null, assets)).toEqual([]);
     expect(replaceLoadedFixedAssets("", assets)).toEqual([]);
+  });
+});
+
+describe("nextOpeningCarryoverId", () => {
+  it("starts at 1 for an empty fiscal period", () => {
+    expect(nextOpeningCarryoverId("fp-2026", [])).toBe("oc-fp-2026-1");
+  });
+
+  it("does not reuse a suffix after deletion (no collision)", () => {
+    const journals = [{ id: "oc-fp-2026-1" }, { id: "oc-fp-2026-2" }];
+    const afterDelete = journals.filter((j) => j.id !== "oc-fp-2026-1");
+    expect(nextOpeningCarryoverId("fp-2026", afterDelete)).toBe("oc-fp-2026-3");
+  });
+
+  it("ignores ids from other fiscal periods", () => {
+    const journals = [{ id: "oc-fp-2025-9" }, { id: "oc-fp-2026-1" }];
+    expect(nextOpeningCarryoverId("fp-2026", journals)).toBe("oc-fp-2026-2");
   });
 });
 

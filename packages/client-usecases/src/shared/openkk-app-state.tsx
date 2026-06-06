@@ -35,6 +35,8 @@ type OpenkkAppState = {
   fiscalPeriods: FiscalPeriod[];
   currentFiscalPeriodId: string | null;
   isReady: boolean;
+  fiscalPeriodLoadError: unknown;
+  reloadFiscalPeriods: () => void;
   createFiscalPeriod: (
     input: {
       name: string;
@@ -80,6 +82,9 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
   const [isReady, setIsReady] = useState<boolean>(false);
 
   const [fiscalPeriods, setFiscalPeriods] = useState<FiscalPeriod[]>([]);
+  const [fiscalPeriodLoadError, setFiscalPeriodLoadError] =
+    useState<unknown>(null);
+  const [fiscalPeriodReloadNonce, setFiscalPeriodReloadNonce] = useState(0);
 
   const [sessionUserId, setSessionUserId] = useState<string | null>(() =>
     buildBootstrapSessionUserId(config),
@@ -112,20 +117,23 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
         if (cancelled) return;
         const mapped = periods.map(mapRemoteFiscalPeriod);
         setFiscalPeriods(mapped);
+        setFiscalPeriodLoadError(null);
         setCurrentFiscalPeriodId((current) => {
           if (current == null || current === "") return current;
           return mapped.some((period) => period.id === current)
             ? current
             : buildSignedOutFiscalPeriodId(config);
         });
-      } catch {
+      } catch (error) {
         if (cancelled) return;
+        console.error("[openkk] fiscal period load failed:", error);
+        setFiscalPeriodLoadError(error);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [backendApi, config, sessionUserId]);
+  }, [backendApi, config, sessionUserId, fiscalPeriodReloadNonce]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -164,6 +172,10 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
       fiscalPeriods,
       currentFiscalPeriodId,
       isReady,
+      fiscalPeriodLoadError,
+      reloadFiscalPeriods() {
+        setFiscalPeriodReloadNonce((nonce) => nonce + 1);
+      },
       async createFiscalPeriod(input, options) {
         const created = await backendApi.fiscalPeriod.create(input);
 
@@ -268,6 +280,7 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
     currentFiscalPeriodId,
     fiscalPeriods,
     isReady,
+    fiscalPeriodLoadError,
     sessionUserId,
     config,
     backendApi,

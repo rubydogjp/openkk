@@ -1,11 +1,11 @@
 {
-  "name": "会計ソフト",
-  "short_name": "会計ソフト",
+  "name": "オープン会計",
+  "short_name": "オープン会計",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FFFFFF",
   "theme_color": "#F59E0B",
-  "description": "個人事業主向け簡易会計ソフト",
+  "description": "個人事業主向けオープンソース会計ソフト",
   "orientation": "portrait-primary",
   "prefer_related_applications": false,
   "icons": [

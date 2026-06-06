@@ -25,6 +25,22 @@ import { printAdapter } from "@rubydogjp/openkk-print-adapter";
 import { buildOpenkkDemoSeed } from "./demo-seed";
 import { openkkConfig } from "./openkk-config";
 
+const SERVICE_WORKER_URL = "/sw.js";
+const SERVICE_WORKER_BUILD_ID = process.env.NEXT_PUBLIC_BUILD_ID ?? "default";
+
+function registerServiceWorker(): void {
+  if (!openkkConfig.isProdMode) return;
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
+    return;
+  }
+  const versionedUrl = `${SERVICE_WORKER_URL}?v=${encodeURIComponent(
+    SERVICE_WORKER_BUILD_ID,
+  )}`;
+  void navigator.serviceWorker.register(versionedUrl).catch((error) => {
+    console.error("[openkk] service worker registration failed:", error);
+  });
+}
+
 export function Providers(props: { children: React.ReactNode }) {
   const [backendApi, setBackendApi] = useState<OpenkkBackendPort | null>(
     null,
@@ -52,6 +68,10 @@ export function Providers(props: { children: React.ReactNode }) {
       cancelled = true;
     };
   }, [backendApi]);
+
+  useEffect(() => {
+    registerServiceWorker();
+  }, []);
 
   if (bootError != null) {
     const isAnotherTab =

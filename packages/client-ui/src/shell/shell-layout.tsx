@@ -21,8 +21,8 @@ import {
   typography,
 } from "../shared/design-tokens";
 import { normalizePathname } from "../shared/pathname";
-// アプリ表示中に発火する beforeinstallprompt を早期に捕捉しておく（side-effect）。
 import "../shared/pwa-install";
+import { DataLoadErrorBanner } from "./data-load-error-banner";
 import { ArchivedFiscalPeriodScreen } from "../routes/steps/archived-fiscal-period-screen";
 import { FiscalPeriodsContent } from "./fiscal-periods-content";
 import { SignInContent } from "./sign-in-content";
@@ -84,9 +84,10 @@ export function OpenkkShellLayout(props: { children: React.ReactNode }) {
   const session = appState.session;
   const isDemoMode = openkkConfig.isDemoMode;
   const editionLabel = brandConfig.editionLabel ?? "";
-  const currentFiscalPeriod = appState.fiscalPeriods.find(
-    (p) => p.id === appState.currentFiscalPeriodId,
-  ) ?? null;
+  const currentFiscalPeriod =
+    appState.fiscalPeriods.find(
+      (p) => p.id === appState.currentFiscalPeriodId,
+    ) ?? null;
   const contentMode = resolveShellContentMode({
     isReady: appState.isReady,
     hasSession: session != null,
@@ -911,6 +912,7 @@ function ShellChrome({
             background: palette.surface,
           }}
         >
+          <DataLoadErrorBanner />
           {children}
         </div>
       </main>
