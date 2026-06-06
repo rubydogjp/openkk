@@ -190,8 +190,8 @@ CREATE TABLE opening_journal_lines (
   book_account_id        TEXT NOT NULL,
   amount                 REAL NOT NULL CHECK (amount >= 0),
   partner_name           TEXT NOT NULL,
-  tax_category_name      TEXT NOT NULL,
-  business_category_name TEXT NOT NULL,
+  tax_category_id        TEXT NOT NULL,
+  business_category_id   TEXT NOT NULL,
   position               INTEGER NOT NULL CHECK (position >= 0),
   PRIMARY KEY (opening_id, opening_journal_id, id),
   FOREIGN KEY (opening_id, opening_journal_id)
@@ -235,7 +235,7 @@ WHERE json_type(legacy.data, '$.carryoverJournals') = 'array';
 
 INSERT INTO opening_journal_lines(
   opening_id, opening_journal_id, id, side, book_account_id, amount,
-  partner_name, tax_category_name, business_category_name, position
+  partner_name, tax_category_id, business_category_id, position
 )
 SELECT
   o.id,
@@ -263,8 +263,8 @@ SELECT
   json_extract(line.value, '$.bookAccountId') AS book_account_id,
   json_extract(line.value, '$.amount') AS amount,
   COALESCE(json_extract(line.value, '$.partnerName'), '') AS partner_name,
-  COALESCE(json_extract(line.value, '$.taxCategoryName'), '') AS tax_category_name,
-  COALESCE(json_extract(line.value, '$.businessCategoryName'), '') AS business_category_name,
+  COALESCE(json_extract(line.value, '$.taxCategoryName'), '') AS tax_category_id,
+  COALESCE(json_extract(line.value, '$.businessCategoryName'), '') AS business_category_id,
   CAST(line.key AS INTEGER) AS position
 FROM entries e
 JOIN json_each(e.data, '$.lines') line
@@ -306,18 +306,18 @@ CREATE TABLE entry_lines (
   book_account_id        TEXT NOT NULL,
   amount                 REAL NOT NULL CHECK (amount >= 0),
   partner_name           TEXT NOT NULL,
-  tax_category_name      TEXT NOT NULL,
-  business_category_name TEXT NOT NULL,
+  tax_category_id        TEXT NOT NULL,
+  business_category_id   TEXT NOT NULL,
   position               INTEGER NOT NULL CHECK (position >= 0),
   PRIMARY KEY (entry_id, position)
 );
 INSERT INTO entry_lines(
   entry_id, side, book_account_id, amount, partner_name,
-  tax_category_name, business_category_name, position
+  tax_category_id, business_category_id, position
 )
 SELECT
   entry_id, side, book_account_id, amount, partner_name,
-  tax_category_name, business_category_name, position
+  tax_category_id, business_category_id, position
 FROM openkk_legacy_entry_lines;
 DROP TABLE openkk_legacy_entry_lines;
 
@@ -372,7 +372,10 @@ ALTER TABLE closings_v2 RENAME TO closings;
 `.trim(),
 };
 
-export const SCHEMA_MIGRATIONS: SchemaMigration[] = [MIGRATION_V1, MIGRATION_V2];
+export const SCHEMA_MIGRATIONS: SchemaMigration[] = [
+  MIGRATION_V1,
+  MIGRATION_V2,
+];
 
 export const SCHEMA_VERSION =
   SCHEMA_MIGRATIONS[SCHEMA_MIGRATIONS.length - 1]!.version;

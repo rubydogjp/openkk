@@ -404,6 +404,10 @@ async function dispatchEmbeddedHttp(
             businessCategories: await server.masterData.getBusinessCategories(),
           },
         };
+      default: {
+        const unsupported: never = key;
+        throw new Error(`unsupported endpoint: ${String(unsupported)}`);
+      }
     }
   } catch (error) {
     return serverErrorToEmbeddedHttpResponse(error);

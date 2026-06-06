@@ -391,8 +391,8 @@ function openingLine(
     bookAccountId: "acct_cash",
     amount: 0,
     partnerName: "",
-    taxCategoryName: "",
-    businessCategoryName: "",
+    taxCategoryId: "",
+    businessCategoryId: "",
     ...overrides,
   };
 }

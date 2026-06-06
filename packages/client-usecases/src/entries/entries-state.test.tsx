@@ -13,7 +13,11 @@ import type {
 } from "@rubydogjp/openkk-client-ports";
 
 const accounts: MasterBookAccount[] = [
-  { id: "acct_cost_of_sales_商品仕入高", name: "仕入", accountType: "cost_of_sales" },
+  {
+    id: "acct_cost_of_sales_商品仕入高",
+    name: "仕入",
+    accountType: "cost_of_sales",
+  },
   { id: "acct_expense_荷造運賃", name: "荷造運賃", accountType: "expense" },
   { id: "acct_accrued_expense", name: "未払金", accountType: "liability" },
 ];
@@ -100,24 +104,24 @@ describe("entryRecordToImportPayload", () => {
         bookAccountId: "acct_cost_of_sales_商品仕入高",
         amount: 168000,
         partnerName: "取引先A",
-        taxCategoryName: "tax_10",
-        businessCategoryName: "biz_service",
+        taxCategoryId: "tax_10",
+        businessCategoryId: "biz_service",
       },
       {
         side: "debit",
         bookAccountId: "acct_expense_荷造運賃",
         amount: 42000,
         partnerName: "取引先A",
-        taxCategoryName: "tax_10",
-        businessCategoryName: "biz_service",
+        taxCategoryId: "tax_10",
+        businessCategoryId: "biz_service",
       },
       {
         side: "credit",
         bookAccountId: "acct_accrued_expense",
         amount: 210000,
         partnerName: "取引先A",
-        taxCategoryName: "tax_10",
-        businessCategoryName: "biz_service",
+        taxCategoryId: "tax_10",
+        businessCategoryId: "biz_service",
       },
     ]);
   });

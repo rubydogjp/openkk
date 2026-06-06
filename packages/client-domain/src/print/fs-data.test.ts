@@ -172,6 +172,42 @@ describe("computeFsAggregate", () => {
     ).toBe(aggregate.amounts[32]);
   });
 
+  it("aggregates non-standard asset accounts beyond the slot count into その他 so the BS balances", () => {
+    const assetEntry = (name: string, amount: string): EntryRecord =>
+      entry({
+        debit: name,
+        debitType: "asset",
+        debitAmount: amount,
+        credit: "元入金",
+        creditType: "equity",
+        creditAmount: amount,
+      });
+    const aggregate = computeFsAggregate({
+      openingBalanceLines: [],
+      entries: [
+        assetEntry("ソフトウェア", "70,000"),
+        assetEntry("敷金", "60,000"),
+        assetEntry("保証金", "50,000"),
+        assetEntry("出資金", "40,000"),
+        assetEntry("電話加入権", "30,000"),
+        assetEntry("立替金", "20,000"), // スロット超過 → その他へ
+        assetEntry("仮払金", "10,000"), // スロット超過 → その他へ
+      ],
+    });
+
+    const otherRow = aggregate.bsRows.find(
+      (row) => row.assetLabel === "その他",
+    );
+    expect(otherRow?.assetClosing).toBe(30_000);
+
+    const displayedAssetClosing = aggregate.bsRows
+      .filter((row) => row.assetLabel !== "合計")
+      .reduce((total, row) => total + (row.assetClosing ?? 0), 0);
+    const totalRow = aggregate.bsRows.at(-1);
+    expect(totalRow?.assetClosing).toBe(280_000);
+    expect(displayedAssetClosing).toBe(totalRow?.assetClosing);
+  });
+
   it("routes 専従者給与 and 貸倒引当金 繰入/戻入 to rows 34/37/38/39/42", () => {
     const expenseEntry = (name: string, amount: string): EntryRecord =>
       entry({

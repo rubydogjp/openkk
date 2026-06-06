@@ -97,8 +97,8 @@ function validateEntryLine(value: unknown): asserts value is EntryDbLine {
   requiredString(line, "bookAccountId");
   nonNegativeNumber(line, "amount");
   requiredString(line, "partnerName");
-  requiredString(line, "taxCategoryName");
-  requiredString(line, "businessCategoryName");
+  requiredString(line, "taxCategoryId");
+  requiredString(line, "businessCategoryId");
 }
 
 function decodeRecord<Output>(

@@ -91,7 +91,7 @@ export async function replaceOpening(
       await db.exec({
         sql: `INSERT INTO opening_journal_lines(
           opening_id, opening_journal_id, id, side, book_account_id, amount,
-          partner_name, tax_category_name, business_category_name, position
+          partner_name, tax_category_id, business_category_id, position
         ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         bind: [
           opening.id,
@@ -101,8 +101,8 @@ export async function replaceOpening(
           line.bookAccountId,
           line.amount,
           line.partnerName,
-          line.taxCategoryName,
-          line.businessCategoryName,
+          line.taxCategoryId,
+          line.businessCategoryId,
           linePosition,
         ],
       });
@@ -185,7 +185,7 @@ async function loadOpenings(
   const lineRows = (await db.exec({
     sql: `SELECT line.opening_id, line.opening_journal_id, line.id, line.side,
         line.book_account_id, line.amount, line.partner_name,
-        line.tax_category_name, line.business_category_name
+        line.tax_category_id, line.business_category_id
       FROM opening_journal_lines line
       JOIN openings o ON o.id = line.opening_id
       JOIN fiscal_periods fp ON fp.id = o.fiscal_period_id
@@ -216,8 +216,8 @@ async function loadOpenings(
       bookAccountId,
       amount,
       partnerName,
-      taxCategoryName,
-      businessCategoryName,
+      taxCategoryId,
+      businessCategoryId,
     ] = row;
     const journal = journals.get(journalKey(openingId, openingJournalId));
     if (journal == null)
@@ -228,8 +228,8 @@ async function loadOpenings(
       bookAccountId,
       amount,
       partnerName,
-      taxCategoryName,
-      businessCategoryName,
+      taxCategoryId,
+      businessCategoryId,
     });
   }
   return result;

@@ -74,8 +74,8 @@ function buildDemoOpeningJournals(fiscalPeriodId: string) {
           bookAccountId: bookAccountIdByName(row.debit),
           amount: row.amount,
           partnerName: row.partner,
-          taxCategoryName: "対象外",
-          businessCategoryName: row.biz,
+          taxCategoryId: "対象外",
+          businessCategoryId: row.biz,
         },
         {
           id: `${id}-c`,
@@ -83,8 +83,8 @@ function buildDemoOpeningJournals(fiscalPeriodId: string) {
           bookAccountId: bookAccountIdByName(row.credit),
           amount: row.amount,
           partnerName: row.partner,
-          taxCategoryName: "対象外",
-          businessCategoryName: row.biz,
+          taxCategoryId: "対象外",
+          businessCategoryId: row.biz,
         },
       ],
     };

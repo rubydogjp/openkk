@@ -44,8 +44,8 @@ export type FiscalPeriod = {
         bookAccountId: string;
         amount: number;
         partnerName: string;
-        taxCategoryName: string;
-        businessCategoryName: string;
+        taxCategoryId: string;
+        businessCategoryId: string;
       }>;
     }>;
   };

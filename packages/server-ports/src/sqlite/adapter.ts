@@ -573,7 +573,7 @@ async function loadEntries(
     sql: `SELECT
       e.id, e.fiscal_period_id, e.date, e.description, e.local_id, e.business_rate,
       l.side, l.book_account_id, l.amount, l.partner_name,
-      l.tax_category_name, l.business_category_name
+      l.tax_category_id, l.business_category_id
     FROM entries e
     LEFT JOIN entry_lines l ON l.entry_id = e.id
     ${whereAndOrder}`,
@@ -602,8 +602,8 @@ async function loadEntries(
         bookAccountId: row[7]!,
         amount: row[8]!,
         partnerName: row[9]!,
-        taxCategoryName: row[10]!,
-        businessCategoryName: row[11]!,
+        taxCategoryId: row[10]!,
+        businessCategoryId: row[11]!,
       });
     }
   }
@@ -618,7 +618,7 @@ async function insertEntryLines(
     await db.exec({
       sql: `INSERT INTO entry_lines(
         entry_id, side, book_account_id, amount, partner_name,
-        tax_category_name, business_category_name, position
+        tax_category_id, business_category_id, position
       ) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
       bind: [
         entry.id,
@@ -626,8 +626,8 @@ async function insertEntryLines(
         line.bookAccountId,
         line.amount,
         line.partnerName,
-        line.taxCategoryName,
-        line.businessCategoryName,
+        line.taxCategoryId,
+        line.businessCategoryId,
         position,
       ],
     });

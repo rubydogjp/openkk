@@ -1,6 +1,14 @@
 import { DEFAULT_BOOK_ACCOUNTS } from "../entries/default-master-data";
-import { getEntryLines, type EntryLine, type EntryRecord } from "../entries/entry-record";
-import { parseAmount, parseBusinessRate, parseIsoLocalDate } from "../shared/parse-utils";
+import {
+  getEntryLines,
+  type EntryLine,
+  type EntryRecord,
+} from "../entries/entry-record";
+import {
+  parseAmount,
+  parseBusinessRate,
+  parseIsoLocalDate,
+} from "../shared/parse-utils";
 
 export type NextFiscalPeriodSuggestion = {
   name: string;
@@ -32,8 +40,8 @@ type OpeningCarryoverJournal = {
     bookAccountId: string;
     amount: number;
     partnerName: string;
-    taxCategoryName: string;
-    businessCategoryName: string;
+    taxCategoryId: string;
+    businessCategoryId: string;
   }>;
 };
 
@@ -74,7 +82,10 @@ export function buildOpeningCarryoverJournalsFromReversibleEntries(input: {
     for (const pair of matchReversiblePairs(balanceLines, profitLossLines)) {
       const journalId = `oc-${input.nextFiscalPeriodId}-${entry.id}-${journals.length + 1}`;
       const reversedBalanceLine = reverseLine(pair.balanceLine, pair.amount);
-      const reversedProfitLossLine = reverseLine(pair.profitLossLine, pair.amount);
+      const reversedProfitLossLine = reverseLine(
+        pair.profitLossLine,
+        pair.amount,
+      );
       journals.push({
         id: journalId,
         date: input.nextStartDate,
@@ -109,7 +120,11 @@ function reverseLine(line: EntryLine, amount: number): EntryLine {
 function matchReversiblePairs(
   balanceLines: EntryLine[],
   profitLossLines: EntryLine[],
-): Array<{ balanceLine: EntryLine; profitLossLine: EntryLine; amount: number }> {
+): Array<{
+  balanceLine: EntryLine;
+  profitLossLine: EntryLine;
+  amount: number;
+}> {
   const remainingBalanceLines = balanceLines
     .map((line) => ({ line, remaining: parseAmount(line.amount) }))
     .filter((item) => item.remaining > 0);
@@ -160,8 +175,8 @@ function toOpeningJournalLine(
     bookAccountId: resolveBookAccountId(line),
     amount: parseAmount(line.amount),
     partnerName: entry.partner,
-    taxCategoryName: entry.taxCategory,
-    businessCategoryName: entry.businessCategory,
+    taxCategoryId: entry.taxCategory,
+    businessCategoryId: entry.businessCategory,
   };
 }
 
@@ -175,7 +190,8 @@ function resolveBookAccountId(line: EntryLine): string {
         account.name === line.accountName &&
         account.accountType === line.accountType,
     )?.id ??
-    DEFAULT_BOOK_ACCOUNTS.find((account) => account.name === line.accountName)?.id ??
+    DEFAULT_BOOK_ACCOUNTS.find((account) => account.name === line.accountName)
+      ?.id ??
     line.accountName
   );
 }
@@ -185,10 +201,7 @@ function addYearsToIsoDate(value: string, years: number): string | null {
   if (date == null) return null;
   const year = date.getFullYear() + years;
   const month = date.getMonth();
-  const day = Math.min(
-    date.getDate(),
-    new Date(year, month + 1, 0).getDate(),
-  );
+  const day = Math.min(date.getDate(), new Date(year, month + 1, 0).getDate());
   return [
     String(year).padStart(4, "0"),
     String(month + 1).padStart(2, "0"),

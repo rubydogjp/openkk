@@ -413,14 +413,14 @@ function mapRemoteEntryToRecord(input: {
     input.entry.lines[1]?.partnerName ??
     "";
   const headerTax = mapTaxName(
-    input.entry.lines[0]?.taxCategoryName ??
-      input.entry.lines[1]?.taxCategoryName ??
+    input.entry.lines[0]?.taxCategoryId ??
+      input.entry.lines[1]?.taxCategoryId ??
       "",
     input.taxes,
   );
   const headerBiz = mapBusinessName(
-    input.entry.lines[0]?.businessCategoryName ??
-      input.entry.lines[1]?.businessCategoryName ??
+    input.entry.lines[0]?.businessCategoryId ??
+      input.entry.lines[1]?.businessCategoryId ??
       "",
     input.businesses,
   );
@@ -446,13 +446,13 @@ function mapRemoteEntryToRecord(input: {
     debitBookAccountId: debitLine?.bookAccountId,
     creditBookAccountId: creditLine?.bookAccountId,
     debitTaxCategoryId: input.entry.lines.find((l) => l.side === "debit")
-      ?.taxCategoryName,
+      ?.taxCategoryId,
     creditTaxCategoryId: input.entry.lines.find((l) => l.side === "credit")
-      ?.taxCategoryName,
+      ?.taxCategoryId,
     debitBusinessCategoryId: input.entry.lines.find((l) => l.side === "debit")
-      ?.businessCategoryName,
+      ?.businessCategoryId,
     creditBusinessCategoryId: input.entry.lines.find((l) => l.side === "credit")
-      ?.businessCategoryName,
+      ?.businessCategoryId,
   };
 }
 
@@ -519,12 +519,8 @@ function buildEntryApiLinesFromDraft(
       }) ?? "",
     amount: parseAmount(line.amount),
     partnerName: draft.partner,
-    taxCategoryName: resolveTaxCategoryId(
-      null,
-      draft.taxCategory,
-      master.taxes,
-    ),
-    businessCategoryName: resolveBusinessCategoryId(
+    taxCategoryId: resolveTaxCategoryId(null, draft.taxCategory, master.taxes),
+    businessCategoryId: resolveBusinessCategoryId(
       null,
       draft.businessCategory,
       master.businesses,

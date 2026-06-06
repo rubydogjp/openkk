@@ -305,8 +305,8 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
               bookAccountId: debitAccountId,
               amount: 0,
               partnerName: "",
-              taxCategoryName: "",
-              businessCategoryName: "",
+              taxCategoryId: "",
+              businessCategoryId: "",
             },
             {
               id: `${nextId}-c`,
@@ -314,8 +314,8 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
               bookAccountId: creditAccountId,
               amount: 0,
               partnerName: "",
-              taxCategoryName: "",
-              businessCategoryName: "",
+              taxCategoryId: "",
+              businessCategoryId: "",
             },
           ],
         };
@@ -371,8 +371,8 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
                 bookAccountId: debitAccountId,
                 amount: parseAmount(draft.debitAmount),
                 partnerName: draft.partner,
-                taxCategoryName: draft.taxCategory,
-                businessCategoryName: draft.businessCategory,
+                taxCategoryId: draft.taxCategory,
+                businessCategoryId: draft.businessCategory,
               },
               {
                 id:
@@ -382,8 +382,8 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
                 bookAccountId: creditAccountId,
                 amount: parseAmount(draft.creditAmount),
                 partnerName: draft.partner,
-                taxCategoryName: draft.taxCategory,
-                businessCategoryName: draft.businessCategory,
+                taxCategoryId: draft.taxCategory,
+                businessCategoryId: draft.businessCategory,
               },
             ],
           };
@@ -485,8 +485,8 @@ function mapOpeningJournalToRecord(
       bookAccountId: string;
       amount: number;
       partnerName: string;
-      taxCategoryName: string;
-      businessCategoryName: string;
+      taxCategoryId: string;
+      businessCategoryId: string;
     }>;
   },
   fiscalPeriodId: string,
@@ -511,9 +511,9 @@ function mapOpeningJournalToRecord(
     creditType: accountTypeById[credit?.bookAccountId ?? ""] ?? "revenue",
     creditAmount: formatAmount(credit?.amount ?? 0),
     partner: debit?.partnerName ?? credit?.partnerName ?? "",
-    taxCategory: debit?.taxCategoryName ?? credit?.taxCategoryName ?? "対象外",
+    taxCategory: debit?.taxCategoryId ?? credit?.taxCategoryId ?? "対象外",
     businessCategory:
-      debit?.businessCategoryName ?? credit?.businessCategoryName ?? "対象外",
+      debit?.businessCategoryId ?? credit?.businessCategoryId ?? "対象外",
     businessRate: String(Math.round((journal.businessRate ?? 1) * 100)),
     debitBookAccountId: debit?.bookAccountId,
     creditBookAccountId: credit?.bookAccountId,

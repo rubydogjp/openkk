@@ -8,6 +8,7 @@ import {
   assertUnitRate,
   serverConflictError,
   serverNotFoundError,
+  serverValidationError,
 } from "@rubydogjp/openkk-server-domain";
 import type { OpenkkServerPort } from "@rubydogjp/openkk-server-ports";
 import type { ServerUsecases } from "@rubydogjp/openkk-server-usecases";
@@ -170,6 +171,7 @@ export function createOpenkkServerApi(
             `Fixed asset ${id} not found in fiscal period ${fpId}`,
           );
         }
+        assertFixedAssetDisposalConsistency(existing, patch);
         return usecases.fixedAssets.update(uid, id, patch);
       },
       remove: async (fpId, id) => {
@@ -301,6 +303,30 @@ function assertFixedAssetPatchInput(input: FixedAssetPatchInput) {
     assertNonNegativeFiniteNumber(
       input.disposalPrice,
       "Fixed asset disposal price",
+    );
+  }
+}
+
+const DISPOSAL_STATUSES: ReadonlyArray<FixedAssetPatchInput["status"]> = [
+  "sold",
+  "disposed",
+];
+
+function assertFixedAssetDisposalConsistency(
+  existing: { status: string; disposalDate: string },
+  patch: FixedAssetPatchInput,
+) {
+  const effectiveStatus = patch.status ?? existing.status;
+  const effectiveDisposalDate = patch.disposalDate ?? existing.disposalDate;
+  if (
+    DISPOSAL_STATUSES.includes(
+      effectiveStatus as FixedAssetPatchInput["status"],
+    ) &&
+    effectiveDisposalDate.trim() === ""
+  ) {
+    throw serverValidationError(
+      `Fixed asset with status ${effectiveStatus} requires a disposal date`,
+      "売却・廃棄の固定資産には処分日を入力してください",
     );
   }
 }

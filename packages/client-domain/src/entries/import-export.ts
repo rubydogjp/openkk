@@ -116,6 +116,7 @@ const csvHeaders = [
   "businessRate",
   "taxCategory",
   "businessCategory",
+  "lines",
 ] as const;
 
 export function exportEntriesAsCsv(entries: EntryRecord[]) {
@@ -137,6 +138,9 @@ export function exportEntriesAsCsv(entries: EntryRecord[]) {
         entry.businessRate,
         entry.taxCategory,
         entry.businessCategory,
+        entry.lines != null && entry.lines.length > 0
+          ? JSON.stringify(entry.lines)
+          : "",
       ]
         .map(escapeCsvField)
         .join(","),
@@ -195,8 +199,26 @@ export function importEntriesFromCsv(input: {
       businessRate: readCsvCell(cells, indexMap.businessRate),
       taxCategory: readCsvCell(cells, indexMap.taxCategory),
       businessCategory: readCsvCell(cells, indexMap.businessCategory),
+      lines: parseCsvLinesCell(readCsvCell(cells, indexMap.lines), rowNo),
     });
   });
+}
+
+function parseCsvLinesCell(
+  raw: string,
+  rowNo: number,
+): EntryLine[] | undefined {
+  if (raw.trim() === "") return undefined;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw importFileRowError(`row ${rowNo}: invalid lines JSON`, rowNo);
+  }
+  if (!Array.isArray(parsed)) {
+    throw importFileRowError(`row ${rowNo}: lines must be an array`, rowNo);
+  }
+  return parsed as EntryLine[];
 }
 
 function normalizeEntry(input: {

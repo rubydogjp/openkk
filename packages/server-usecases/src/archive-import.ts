@@ -144,10 +144,8 @@ function normalizeArchivedOpening(value: unknown, userId: string) {
               "archive openingJournal.line.amount",
             ),
             partnerName: stringOrEmpty(lineObject.partnerName),
-            taxCategoryName: stringOrEmpty(lineObject.taxCategoryName),
-            businessCategoryName: stringOrEmpty(
-              lineObject.businessCategoryName,
-            ),
+            taxCategoryId: stringOrEmpty(lineObject.taxCategoryId),
+            businessCategoryId: stringOrEmpty(lineObject.businessCategoryId),
           };
         },
       );
@@ -200,8 +198,8 @@ function normalizeArchivedEntry(
         "archive entry.line.amount",
       ),
       partnerName: stringOrEmpty(item.partnerName),
-      taxCategoryName: stringOrEmpty(item.taxCategoryName),
-      businessCategoryName: stringOrEmpty(item.businessCategoryName),
+      taxCategoryId: stringOrEmpty(item.taxCategoryId),
+      businessCategoryId: stringOrEmpty(item.businessCategoryId),
     };
   });
   assertEntryLinesBalanced(lines, "archive entry");

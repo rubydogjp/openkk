@@ -18,8 +18,8 @@ export type OpeningJournalLineDbRecord = {
   bookAccountId: string;
   amount: number;
   partnerName: string;
-  taxCategoryName: string;
-  businessCategoryName: string;
+  taxCategoryId: string;
+  businessCategoryId: string;
 };
 
 export type OpeningJournalDbRecord = {
@@ -72,8 +72,8 @@ export type EntryDbLine = {
   bookAccountId: string;
   amount: number;
   partnerName: string;
-  taxCategoryName: string;
-  businessCategoryName: string;
+  taxCategoryId: string;
+  businessCategoryId: string;
 };
 
 export type EntryDbRecord = {

@@ -111,8 +111,8 @@ export function entryRecordToImportPayload(
         }) ?? "",
       amount: parseAmount(line.amount),
       partnerName: entry.partner,
-      taxCategoryName: "",
-      businessCategoryName: "",
+      taxCategoryId: "",
+      businessCategoryId: "",
     }),
   );
   if (lines.some((line) => line.bookAccountId === "")) {
@@ -135,8 +135,8 @@ export function entryRecordToImportPayload(
   );
   const linesWithCategories = lines.map((line) => ({
     ...line,
-    taxCategoryName: taxCategoryId,
-    businessCategoryName: businessCategoryId,
+    taxCategoryId: taxCategoryId,
+    businessCategoryId: businessCategoryId,
   }));
   return {
     date: entry.date,

@@ -36,8 +36,8 @@ export type EntryApiLine = {
   bookAccountId: string;
   amount: number;
   partnerName: string;
-  taxCategoryName: string;
-  businessCategoryName: string;
+  taxCategoryId: string;
+  businessCategoryId: string;
 };
 
 export type EntryApiRecord = {
@@ -88,8 +88,8 @@ export type FiscalPeriodApiRecord = {
         bookAccountId: string;
         amount: number;
         partnerName: string;
-        taxCategoryName: string;
-        businessCategoryName: string;
+        taxCategoryId: string;
+        businessCategoryId: string;
       }>;
     }>;
   } | null;
@@ -128,8 +128,8 @@ export type FiscalPeriodPatchInput = Partial<{
         bookAccountId: string;
         amount: number;
         partnerName: string;
-        taxCategoryName: string;
-        businessCategoryName: string;
+        taxCategoryId: string;
+        businessCategoryId: string;
       }>;
     }>;
   };

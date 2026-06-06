@@ -54,8 +54,8 @@ erDiagram
     TEXT book_account_id
     REAL amount
     TEXT partner_name
-    TEXT tax_category_name
-    TEXT business_category_name
+    TEXT tax_category_id
+    TEXT business_category_id
     INTEGER position
   }
   entries {
@@ -74,8 +74,8 @@ erDiagram
     TEXT book_account_id
     REAL amount
     TEXT partner_name
-    TEXT tax_category_name
-    TEXT business_category_name
+    TEXT tax_category_id
+    TEXT business_category_id
     INTEGER position PK
   }
   fixed_assets {

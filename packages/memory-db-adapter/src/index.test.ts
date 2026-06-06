@@ -11,8 +11,8 @@ const testEntryLine = {
   bookAccountId: "acct_cash",
   amount: 1000,
   partnerName: "",
-  taxCategoryName: "tax-0",
-  businessCategoryName: "",
+  taxCategoryId: "tax-0",
+  businessCategoryId: "",
 };
 
 describe("createMemoryDbAdapter / fiscalPeriods", () => {
@@ -51,10 +51,12 @@ describe("createMemoryDbAdapter / fiscalPeriods", () => {
       endDate: "2026-12-31",
     });
 
-    expect((await db.fiscalPeriods.getAllByUser("user-A")).map((r) => r.id))
-      .toEqual([a.id]);
-    expect((await db.fiscalPeriods.getAllByUser("user-B")).map((r) => r.name))
-      .toEqual(["B1"]);
+    expect(
+      (await db.fiscalPeriods.getAllByUser("user-A")).map((r) => r.id),
+    ).toEqual([a.id]);
+    expect(
+      (await db.fiscalPeriods.getAllByUser("user-B")).map((r) => r.name),
+    ).toEqual(["B1"]);
   });
 
   it("update only patches provided fields", async () => {
@@ -96,8 +98,8 @@ describe("createMemoryDbAdapter / fiscalPeriods", () => {
               bookAccountId: "acct_cash",
               amount: 1000,
               partnerName: "Partner",
-              taxCategoryName: "tax-0",
-              businessCategoryName: "Business",
+              taxCategoryId: "tax-0",
+              businessCategoryId: "Business",
             },
           ],
         },
@@ -107,9 +109,12 @@ describe("createMemoryDbAdapter / fiscalPeriods", () => {
     const updated = await db.fiscalPeriods.update(period.id, { opening });
 
     expect(updated.opening).toEqual(opening);
-    expect((await db.fiscalPeriods.getById(period.id))?.opening).toEqual(opening);
-    expect((await db.fiscalPeriods.getAllByUser("user-1"))[0]?.opening)
-      .toEqual(opening);
+    expect((await db.fiscalPeriods.getById(period.id))?.opening).toEqual(
+      opening,
+    );
+    expect((await db.fiscalPeriods.getAllByUser("user-1"))[0]?.opening).toEqual(
+      opening,
+    );
   });
 
   it("rolls back the fiscal period when normalized opening replacement fails", async () => {
@@ -141,27 +146,29 @@ describe("createMemoryDbAdapter / fiscalPeriods", () => {
     ).rejects.toThrow(/fiscal period not found/);
   });
 
-  it.each(["pre_opening", "journalizing", "pre_closing", "post_closing"] as const)(
-    "archives without changing the %s phase",
-    async (phase) => {
-      const sqlPhasePeriod = {
-        ...seedWithPeriods("fp-archive").fiscalPeriods[0]!.record,
-        phase,
-      };
-      const phaseDb = await createMemoryDbAdapter({
-        fiscalPeriods: [{ userId: "user-1", record: sqlPhasePeriod }],
-        entries: [],
-        fixedAssets: [],
-        preClosings: [],
-        closings: [],
-      });
+  it.each([
+    "pre_opening",
+    "journalizing",
+    "pre_closing",
+    "post_closing",
+  ] as const)("archives without changing the %s phase", async (phase) => {
+    const sqlPhasePeriod = {
+      ...seedWithPeriods("fp-archive").fiscalPeriods[0]!.record,
+      phase,
+    };
+    const phaseDb = await createMemoryDbAdapter({
+      fiscalPeriods: [{ userId: "user-1", record: sqlPhasePeriod }],
+      entries: [],
+      fixedAssets: [],
+      preClosings: [],
+      closings: [],
+    });
 
-      const archived = await phaseDb.fiscalPeriods.archive("fp-archive");
+    const archived = await phaseDb.fiscalPeriods.archive("fp-archive");
 
-      expect(archived.phase).toBe(phase);
-      expect(archived.archiveStatus).toBe("archived");
-    },
-  );
+    expect(archived.phase).toBe(phase);
+    expect(archived.archiveStatus).toBe("archived");
+  });
 
   it("deletes child entries, fixed assets, and closings with the fiscal period", async () => {
     const db = await makeDb();
@@ -246,7 +253,9 @@ describe("createMemoryDbAdapter / fiscalPeriods", () => {
     expect(imported.phase).toBe("post_closing");
     expect(await db.fiscalPeriods.getAllByUser("user-1")).toEqual([imported]);
     expect(await db.entries.getAll(imported.id)).toHaveLength(1);
-    expect((await db.fixedAssets.getAllByFiscalPeriod(imported.id))[0]).toMatchObject({
+    expect(
+      (await db.fixedAssets.getAllByFiscalPeriod(imported.id))[0],
+    ).toMatchObject({
       name: "Imported Camera",
       status: "sold",
       disposalDate: "2026-12-01",
@@ -288,9 +297,9 @@ describe("createMemoryDbAdapter / entries", () => {
     });
 
     expect(original.id).toMatch(/^entry_/);
-    expect((await db.entries.getAll(firstPeriod.id)).map((entry) => entry.id)).toEqual([
-      original.id,
-    ]);
+    expect(
+      (await db.entries.getAll(firstPeriod.id)).map((entry) => entry.id),
+    ).toEqual([original.id]);
 
     const updated = await db.entries.update(original.id, {
       date: "2026-05-01",
@@ -334,16 +343,46 @@ describe("createMemoryDbAdapter / entries", () => {
     const db = await makeDb();
     const period = await createTestFiscalPeriod(db);
     const first = await db.entries.importMany("user-1", period.id, [
-      { date: "2026-04-01", description: "a", localId: "L1", businessRate: 1, lines: [testEntryLine] },
-      { date: "2026-04-02", description: "b", localId: "L2", businessRate: 1, lines: [testEntryLine] },
+      {
+        date: "2026-04-01",
+        description: "a",
+        localId: "L1",
+        businessRate: 1,
+        lines: [testEntryLine],
+      },
+      {
+        date: "2026-04-02",
+        description: "b",
+        localId: "L2",
+        businessRate: 1,
+        lines: [testEntryLine],
+      },
     ]);
     expect(first).toHaveLength(2);
 
     // Re-import L1 (existing) + L3 (new) + duplicate L3 within the batch.
     const second = await db.entries.importMany("user-1", period.id, [
-      { date: "2026-04-01", description: "a-again", localId: "L1", businessRate: 1, lines: [testEntryLine] },
-      { date: "2026-04-03", description: "c", localId: "L3", businessRate: 1, lines: [testEntryLine] },
-      { date: "2026-04-03", description: "c-dup", localId: "L3", businessRate: 1, lines: [testEntryLine] },
+      {
+        date: "2026-04-01",
+        description: "a-again",
+        localId: "L1",
+        businessRate: 1,
+        lines: [testEntryLine],
+      },
+      {
+        date: "2026-04-03",
+        description: "c",
+        localId: "L3",
+        businessRate: 1,
+        lines: [testEntryLine],
+      },
+      {
+        date: "2026-04-03",
+        description: "c-dup",
+        localId: "L3",
+        businessRate: 1,
+        lines: [testEntryLine],
+      },
     ]);
     expect(second.map((entry) => entry.description)).toEqual(["c"]);
     expect(await db.entries.getAll(period.id)).toHaveLength(3);
@@ -369,8 +408,18 @@ describe("createMemoryDbAdapter / entries", () => {
     const db = await makeDb();
     const period = await createTestFiscalPeriod(db);
     const created = await db.entries.importMany("user-1", period.id, [
-      { date: "2026-04-01", description: "x", businessRate: 1, lines: [testEntryLine] },
-      { date: "2026-04-01", description: "y", businessRate: 1, lines: [testEntryLine] },
+      {
+        date: "2026-04-01",
+        description: "x",
+        businessRate: 1,
+        lines: [testEntryLine],
+      },
+      {
+        date: "2026-04-01",
+        description: "y",
+        businessRate: 1,
+        lines: [testEntryLine],
+      },
     ]);
     expect(created).toHaveLength(2);
   });
@@ -425,7 +474,9 @@ describe("createMemoryDbAdapter / fixedAssets", () => {
     });
 
     expect(asset.id).toMatch(/^fa_/);
-    expect(await db.fixedAssets.getAllByFiscalPeriod(period.id)).toEqual([asset]);
+    expect(await db.fixedAssets.getAllByFiscalPeriod(period.id)).toEqual([
+      asset,
+    ]);
 
     const updated = await db.fixedAssets.update(asset.id, {
       businessRate: 0.7,
@@ -480,8 +531,9 @@ describe("createMemoryDbAdapter / seed and closings", () => {
     };
     const db = await createMemoryDbAdapter(seed);
 
-    expect((await db.fiscalPeriods.getAllByUser("user-1")).map((fp) => fp.id))
-      .toEqual(["fp-seed"]);
+    expect(
+      (await db.fiscalPeriods.getAllByUser("user-1")).map((fp) => fp.id),
+    ).toEqual(["fp-seed"]);
     expect(await db.preClosings.get("fp-seed", 2026)).toEqual({});
   });
 

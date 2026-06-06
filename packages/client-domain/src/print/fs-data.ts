@@ -333,11 +333,34 @@ export function computeFsAggregate({
   const extras = [...assetClosingByName.entries()].filter(
     ([k, v]) => !handledAssets.has(k) && v !== 0,
   );
-  const extraName = (i: number) => extras[i]?.[0] ?? "";
+  const EXTRA_SLOT_COUNT = 6;
+  const EXTRA_OVERFLOW_LABEL = "その他";
+  const displayExtras: Array<{
+    name: string;
+    opening: number;
+    closing: number;
+  }> =
+    extras.length <= EXTRA_SLOT_COUNT
+      ? extras.map(([name, closing]) => ({ name, opening: oav(name), closing }))
+      : [
+          ...extras
+            .slice(0, EXTRA_SLOT_COUNT - 1)
+            .map(([name, closing]) => ({ name, opening: oav(name), closing })),
+          {
+            name: EXTRA_OVERFLOW_LABEL,
+            opening: extras
+              .slice(EXTRA_SLOT_COUNT - 1)
+              .reduce((sum, [name]) => sum + oav(name), 0),
+            closing: extras
+              .slice(EXTRA_SLOT_COUNT - 1)
+              .reduce((sum, [, value]) => sum + value, 0),
+          },
+        ];
+  const extraName = (i: number) => displayExtras[i]?.name ?? "";
   const extraOpening = (i: number): number | null =>
-    extras[i] ? fmtBs(oav(extras[i][0])) : null;
+    displayExtras[i] ? fmtBs(displayExtras[i]!.opening) : null;
   const extraClosing = (i: number): number | null =>
-    extras[i] ? fmtBs(extras[i][1]) : null;
+    displayExtras[i] ? fmtBs(displayExtras[i]!.closing) : null;
 
   const openingAssetsTotal = sumValues(assetOpeningByName);
   const openingLiabsTotal =

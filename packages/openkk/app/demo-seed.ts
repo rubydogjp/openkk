@@ -86,11 +86,11 @@ function entryRecordToApiRecord(
           line.accountName,
         amount: parseAmount(line.amount),
         partnerName: record.partner,
-        taxCategoryName:
+        taxCategoryId:
           DEFAULT_TAX_CATEGORIES.find(
             (category) => category.name === record.taxCategory,
           )?.id ?? record.taxCategory,
-        businessCategoryName:
+        businessCategoryId:
           DEFAULT_BUSINESS_CATEGORIES.find(
             (category) => category.name === record.businessCategory,
           )?.id ?? record.businessCategory,

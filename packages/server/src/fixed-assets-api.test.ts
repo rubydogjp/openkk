@@ -131,6 +131,48 @@ describe("openkk server fixed asset API", () => {
     expect((await server.fixedAssets.getAll("fp-1"))[0]?.status).toBe("active");
   });
 
+  it("rejects marking a fixed asset sold/disposed without a disposal date", async () => {
+    const db = createFixedAssetDb();
+    const server = createOpenkkServer(db, { userId: "user-1" });
+    const created = await server.fixedAssets.create("fp-1", {
+      name: "処分日なしの資産",
+      acquisitionDate: "2026-04-01",
+      acquisitionCost: 180000,
+      usefulLife: 4,
+      depreciationMethod: "straight_line",
+      businessRate: 1,
+      bookAccountId: "acct_asset_工具器具備品",
+    });
+
+    await expect(
+      server.fixedAssets.patch("fp-1", created.id, { status: "sold" }),
+    ).rejects.toThrow(/requires a disposal date/);
+    await expect(
+      server.fixedAssets.patch("fp-1", created.id, { status: "disposed" }),
+    ).rejects.toThrow(/requires a disposal date/);
+
+    expect((await server.fixedAssets.getAll("fp-1"))[0]?.status).toBe("active");
+  });
+
+  it("allows marking a fixed asset retired without a disposal date", async () => {
+    const db = createFixedAssetDb();
+    const server = createOpenkkServer(db, { userId: "user-1" });
+    const created = await server.fixedAssets.create("fp-1", {
+      name: "償却完了の資産",
+      acquisitionDate: "2026-04-01",
+      acquisitionCost: 180000,
+      usefulLife: 4,
+      depreciationMethod: "straight_line",
+      businessRate: 1,
+      bookAccountId: "acct_asset_工具器具備品",
+    });
+
+    const updated = await server.fixedAssets.patch("fp-1", created.id, {
+      status: "retired",
+    });
+    expect(updated.status).toBe("retired");
+  });
+
   it("rejects fixed asset changes in archived fiscal periods", async () => {
     const db = createFixedAssetDb({ archiveStatus: "archived" });
     const server = createOpenkkServer(db, { userId: "user-1" });
