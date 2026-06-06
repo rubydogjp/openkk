@@ -39,11 +39,11 @@
 | 機能 | 形式 | 説明 |
 |---|---|---|
 | インポート | JSON (`.json`) | `schema: "openkk-journal-v1"` 形式の仕訳 JSON を取り込む |
-| インポート | CSV (`.csv`) | ヘッダ付き CSV を取り込む。重複 `localId` はスキップ |
+| インポート | CSV (`.csv`) | ヘッダ付き CSV を取り込む |
 | エクスポート | JSON / CSV | 期間内全仕訳を任意形式でダウンロード |
-| マージ | — | 既存仕訳と `localId` で突合し、新規のみ追加（重複スキップ） |
+| マージ | — | 既存仕訳と `localId` で突合し、新規のみ追加（既存と重複する `localId` は取込時に `ON CONFLICT DO NOTHING` でスキップ） |
 
-**実装パッケージ:** `client-domain` (`import-export.ts`)
+**実装パッケージ:** `client-domain` (`import-export.ts`), `server-ports` (`adapter.ts` の `importMany`)
 
 ---
 
@@ -140,8 +140,8 @@
 | データ | 定数 | 内容 |
 |---|---|---|
 | 勘定科目 | `DEFAULT_BOOK_ACCOUNTS` | 資産・負債・純資産・収益・費用の主要科目 219 件（専従者給与を含む） |
-| 税区分 | `DEFAULT_TAX_CATEGORIES` | 課税 10% / 軽減8% / 対象外 |
-| 事業区分 | `DEFAULT_BUSINESS_CATEGORIES` | 第1〜第6種・対象外 (みなし仕入率区分) |
+| 税区分 | `DEFAULT_TAX_CATEGORIES` | 課税 10% / 軽減税率 8% / 免税 / 非課税 / 対象外（5件） |
+| 事業区分 | `DEFAULT_BUSINESS_CATEGORIES` | 第1〜第6種・対象外 (みなし仕入率区分、7件) |
 
 **実装パッケージ:** `client-domain` (`default-master-data.ts`), `server-domain` (`master-data.ts`)
 
@@ -151,10 +151,12 @@
 
 | テストレイヤー | ファイル数 | テスト数 | 対象 |
 |---|---|---|---|
-| ユニット | 16 | 95 | ドメインロジック・DB・パーサー |
+| ユニット | 34 | 251 | ドメインロジック・DB・パーサー |
+| パッケージ構造 | 1 | 14 | workspace 整合性 |
 | E2E (dev mode) | 5 | 15+ シナリオ | ブラウザ操作フルフロー |
 | E2E (demo mode) | 1 | 5 (opt-in) | シードデータ・デモ表示 |
-| パッケージ構造 | 1 | 6 | workspace 整合性 |
+| E2E (prod/auth) | 1 | — | prod 認証フロー (`auth-prod.spec.ts`) |
+| E2E (export build) | 1 | — | 静的エクスポート smoke (`tests-export/`) |
 
 E2E は `NEXT_PUBLIC_OPENKK_MODE=dev` で起動したサーバー (port 4306) に対して実行する。
 demo mode テストは `OPENKK_DEMO_URL` 環境変数が設定されている場合のみ実行される。

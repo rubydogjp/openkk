@@ -15,7 +15,6 @@ export type EntrySummaryRow = {
   lines?: EntryLine[];
 };
 
-/** 集計行を明細配列に正規化する（lines があればそれ、無ければ単一借貸ペア）。 */
 function summaryRowLines(record: EntrySummaryRow): EntryLine[] {
   if (record.lines != null && record.lines.length > 0) return record.lines;
   return [

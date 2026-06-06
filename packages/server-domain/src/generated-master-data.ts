@@ -2242,4 +2242,5 @@ export const DEFAULT_BUSINESS_CATEGORIES: DefaultBusinessCategory[] = [
   { id: "biz_4", name: "第4種（その他）" },
   { id: "biz_5", name: "第5種（サービス業等）" },
   { id: "biz_6", name: "第6種（不動産業）" },
+  { id: "biz_none", name: "対象外" },
 ];

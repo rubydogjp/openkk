@@ -165,6 +165,16 @@ export function computeFsAggregate({
   const reversalSubtotal = badDebtReversal;
   const provisionSubtotal = familyEmployeeSalary + badDebtProvision;
 
+  const ALLOWANCE_FOR_DOUBTFUL = "貸倒引当金";
+  const allowanceOpening =
+    liabilityOpeningByName.get(ALLOWANCE_FOR_DOUBTFUL) ?? 0;
+  const allowanceNet = -(assetNetByName.get(ALLOWANCE_FOR_DOUBTFUL) ?? 0);
+  const allowanceClosing = allowanceOpening + allowanceNet;
+  assetOpeningByName.delete(ALLOWANCE_FOR_DOUBTFUL);
+  assetClosingByName.delete(ALLOWANCE_FOR_DOUBTFUL);
+  liabilityOpeningByName.delete(ALLOWANCE_FOR_DOUBTFUL);
+  liabilityClosingByName.delete(ALLOWANCE_FOR_DOUBTFUL);
+
   const expense = (label: string): number | null => {
     const v = expenseByName.get(label) ?? 0;
     return v > 0 ? v : null;
@@ -331,11 +341,16 @@ export function computeFsAggregate({
 
   const openingAssetsTotal = sumValues(assetOpeningByName);
   const openingLiabsTotal =
-    sumValues(liabilityOpeningByName) + sumValues(equityOpeningByName);
+    sumValues(liabilityOpeningByName) +
+    sumValues(equityOpeningByName) +
+    allowanceOpening;
   const assetsTotal = sumValues(assetClosingByName);
 
   const liabsAndEquityTotalDisplay =
-    sumValues(liabilityClosingByName) + sumValues(equityClosingByName) + profit;
+    sumValues(liabilityClosingByName) +
+    sumValues(equityClosingByName) +
+    profit +
+    allowanceClosing;
 
   const r = (
     al: string,
@@ -449,8 +464,8 @@ export function computeFsAggregate({
       fmtBs(oav("車両運搬具")),
       fmtBs(av("車両運搬具")),
       "貸倒引当金",
-      fmtBs(olv("貸倒引当金")),
-      fmtBs(lv("貸倒引当金")),
+      fmtBs(allowanceOpening),
+      fmtBs(allowanceClosing),
     ),
     r(
       "工具器具備品",

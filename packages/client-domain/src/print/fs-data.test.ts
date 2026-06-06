@@ -151,9 +151,7 @@ describe("computeFsAggregate", () => {
       ],
     });
 
-    // 会議費は専用行(26)に出る（旧実装ではマッピング漏れで null だった）。
     expect(aggregate.amounts[26]).toBe(6_000);
-    // 任意経費は金額降順で空欄スロット(27〜30)へ。
     expect(aggregate.expenseWriteIns).toEqual([
       { label: "新聞図書費", amount: 5_000 },
       { label: "支払手数料", amount: 4_000 },
@@ -162,9 +160,7 @@ describe("computeFsAggregate", () => {
     ]);
     expect(aggregate.amounts[27]).toBe(5_000);
     expect(aggregate.amounts[30]).toBe(2_000);
-    // スロット超過分(寄付金 1,000)は雑費(500)へ合算 → 1,500。
     expect(aggregate.amounts[31]).toBe(1_500);
-    // 経費合計(32)は各行(26〜31)の和と一致する。
     expect(aggregate.amounts[32]).toBe(21_500);
     expect(
       (aggregate.amounts[26] ?? 0) +
@@ -207,7 +203,6 @@ describe("computeFsAggregate", () => {
         }),
         expenseEntry("通信費", "10,000"),
         expenseEntry("専従者給与", "120,000"),
-        // 貸倒引当金繰入 30,000 / 貸倒引当金 (資産・貸方)
         entry({
           debit: "貸倒引当金繰入",
           debitType: "expense",
@@ -216,7 +211,6 @@ describe("computeFsAggregate", () => {
           creditType: "asset",
           creditAmount: "30,000",
         }),
-        // 貸倒引当金戻入 20,000 / 貸倒引当金 (資産・借方)
         entry({
           debit: "貸倒引当金",
           debitType: "asset",
@@ -228,29 +222,73 @@ describe("computeFsAggregate", () => {
       ],
     });
 
-    // 行1(売上金額)は貸倒引当金戻入(20,000)を含まない。
     expect(aggregate.amounts[1]).toBe(500_000);
     expect(aggregate.amounts[7]).toBe(400_000);
-    // 行32(経費計)は専従者給与・貸倒引当金繰入を含まず通信費のみ。
     expect(aggregate.amounts[12]).toBe(10_000);
     expect(aggregate.amounts[32]).toBe(10_000);
     expect(aggregate.amounts[33]).toBe(390_000);
-    // 専従者給与・貸倒引当金繰入は任意経費スロットへ漏れない。
     expect(aggregate.expenseWriteIns).toEqual([]);
     expect(aggregate.amounts[31]).toBeNull();
-    // 繰戻額等: 行34=貸倒引当金戻入, 行37=計。
     expect(aggregate.amounts[34]).toBe(20_000);
     expect(aggregate.amounts[37]).toBe(20_000);
-    // 繰入額等: 行38=専従者給与, 行39=貸倒引当金繰入, 行42=計。
     expect(aggregate.amounts[38]).toBe(120_000);
     expect(aggregate.amounts[39]).toBe(30_000);
     expect(aggregate.amounts[42]).toBe(150_000);
-    // 行43 = 33 + 37 − 42 = 真の所得。
     expect(aggregate.amounts[43]).toBe(260_000);
     expect(aggregate.amounts[43]).toBe(
       (aggregate.amounts[33] ?? 0) +
         (aggregate.amounts[37] ?? 0) -
         (aggregate.amounts[42] ?? 0),
+    );
+  });
+
+  it("balances the BS and carries forward 貸倒引当金 as a contra-asset (credit side)", () => {
+    const aggregate = computeFsAggregate({
+      openingBalanceLines: [
+        { accountId: "a:普通預金", amount: 500_000 },
+        { accountId: "l:元入金", amount: 500_000 },
+      ],
+      entries: [
+        entry({
+          debit: "貸倒引当金繰入",
+          debitType: "expense",
+          debitAmount: "30,000",
+          credit: "貸倒引当金",
+          creditType: "asset",
+          creditAmount: "30,000",
+        }),
+      ],
+    });
+
+    const allowanceRow = aggregate.bsRows.find(
+      (row) => row.liabilityLabel === "貸倒引当金",
+    );
+    expect(allowanceRow?.liabilityClosing).toBe(30_000);
+    expect(
+      aggregate.bsRows.some((row) => row.assetLabel === "貸倒引当金"),
+    ).toBe(false);
+    expect(aggregate.amounts[39]).toBe(30_000);
+    expect(aggregate.amounts[43]).toBe(-30_000);
+    const totalRow = aggregate.bsRows.at(-1);
+    expect(totalRow?.assetClosing).toBe(500_000);
+    expect(totalRow?.liabilityClosing).toBe(500_000);
+
+    const opening = buildOpeningBalanceLinesFromClosingBsRows(aggregate.bsRows);
+    expect(opening).toEqual(
+      expect.arrayContaining([{ accountId: "l:貸倒引当金", amount: 30_000 }]),
+    );
+
+    const next = computeFsAggregate({
+      openingBalanceLines: opening,
+      entries: [],
+    });
+    const nextAllowanceRow = next.bsRows.find(
+      (row) => row.liabilityLabel === "貸倒引当金",
+    );
+    expect(nextAllowanceRow?.liabilityOpening).toBe(30_000);
+    expect(nextAllowanceRow?.liabilityClosing).toBe(30_000);
+    expect(next.bsRows.at(-1)?.assetClosing).toBe(
+      next.bsRows.at(-1)?.liabilityClosing,
     );
   });
 
@@ -352,14 +390,12 @@ describe("computeFsAggregate", () => {
     });
 
     const opening = buildOpeningBalanceLinesFromClosingBsRows(aggregate.bsRows);
-    // 元入金(翌期) = 1,000,000 + 利益200,000 + 事業主借30,000 − 事業主貸50,000 = 1,180,000
     expect(opening).toEqual(
       expect.arrayContaining([
         { accountId: "a:現金", amount: 1_180_000 },
         { accountId: "l:元入金", amount: 1_180_000 },
       ]),
     );
-    // 事業主貸/事業主借 は独立残高として繰り越さない。
     expect(opening.map((line) => line.accountId)).not.toContain("a:事業主貸");
     expect(opening.map((line) => line.accountId)).not.toContain("l:事業主借");
   });

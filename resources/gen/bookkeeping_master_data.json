@@ -50,6 +50,10 @@
     {
       "id": "biz_6",
       "name": "第6種（不動産業）"
+    },
+    {
+      "id": "biz_none",
+      "name": "対象外"
     }
   ],
   "bookAccounts": [
