@@ -1,6 +1,6 @@
 {
   "name": "@rubydogjp/openkk",
-  "version": "26.1.2",
+  "version": "26.1.3",
   "private": true,
   "type": "module",
   "description": "オープン会計 runnable Next.js app: open-source double-entry bookkeeping for sole proprietors.",
