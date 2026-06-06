@@ -47,9 +47,10 @@ export function ArchivedFiscalPeriodScreen({
     setIsDownloading(true);
     try {
       const year = Number(fiscalPeriod.endDate.slice(0, 4));
-      const [entries, fixedAssets, closing] = await Promise.all([
+      const [entries, fixedAssets, preClosing, closing] = await Promise.all([
         backendApi.entries.getAll(fiscalPeriod.id),
         backendApi.fixedAssets.getAll(fiscalPeriod.id),
+        backendApi.preClosing.get(fiscalPeriod.id, year),
         backendApi.closing.get(fiscalPeriod.id, year),
       ]);
       const payload = buildFiscalPeriodArchivePayload({
@@ -57,16 +58,14 @@ export function ArchivedFiscalPeriodScreen({
         fiscalPeriod,
         entries: entries.map((entry) => ({ ...entry })),
         fixedAssets: fixedAssets.map((asset) => ({ ...asset })),
-        closings:
-          closing == null
+        closings: [
+          ...(preClosing == null
             ? []
-            : [
-                {
-                  fiscalPeriodId: fiscalPeriod.id,
-                  year,
-                  isProvisional: closing.isProvisional,
-                },
-              ],
+            : [{ fiscalPeriodId: fiscalPeriod.id, year, kind: "pre_closing" }]),
+          ...(closing == null
+            ? []
+            : [{ fiscalPeriodId: fiscalPeriod.id, year, kind: "closing" }]),
+        ],
       });
       downloadBytes(
         createFiscalPeriodArchiveZip(payload),

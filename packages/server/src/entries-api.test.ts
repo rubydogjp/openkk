@@ -107,7 +107,7 @@ describe("openkk server entries API", () => {
   });
 
   it("rejects entry creation in archived fiscal periods", async () => {
-    const db = createEntryDb({ archived: true });
+    const db = createEntryDb({ archiveStatus: "archived" });
     const server = createOpenkkServer(db, { userId: "user-1" });
 
     await expect(
@@ -169,10 +169,13 @@ function createEntryDb(
         return fiscalPeriod({ ...input, id: "fp-1" });
       },
       async importArchived() {
-        return fiscalPeriod({ id: "fp-archive", archived: true });
+        return fiscalPeriod({ id: "fp-archive", archiveStatus: "archived" });
       },
       async update(id: string, patch: FiscalPeriodPatchInput) {
         return fiscalPeriod({ id, ...patch });
+      },
+      async archive(id: string) {
+        return fiscalPeriod({ id, archiveStatus: "archived" });
       },
       async delete() {},
     },
@@ -232,12 +235,16 @@ function createEntryDb(
       },
       async delete() {},
     },
+    preClosings: {
+      async get() { return null; },
+      async run() { return fiscalPeriod({ phase: "pre_closing" }); },
+      async cancel() { return fiscalPeriod({ phase: "journalizing" }); },
+    },
     closings: {
       async get(): Promise<ClosingApiRecord | null> {
         return null;
       },
-      async upsert() {},
-      async delete() {},
+      async run() { return fiscalPeriod({ phase: "post_closing" }); },
     },
     masterData: {
       async getAllBookAccounts(): Promise<MasterBookAccount[]> {
@@ -261,8 +268,8 @@ function fiscalPeriod(
     name: "2026年分",
     startDate: "2026-01-01",
     endDate: "2026-12-31",
-    stage: "journalizing",
-    archived: false,
+    phase: "journalizing",
+    archiveStatus: "active",
     settingsCompleted: true,
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,

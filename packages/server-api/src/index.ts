@@ -46,20 +46,31 @@ export function createOpenkkServerApi(
       },
       signOut: () => usecases.auth.signOut(),
     },
+    preClosing: {
+      get: async (fpId, year) => {
+        await getOwnedFiscalPeriod(fpId);
+        return usecases.preClosing.get(uid, fpId, year);
+      },
+      run: async ({ fiscalPeriodId, year }) => {
+        const period = await getOwnedFiscalPeriod(fiscalPeriodId);
+        assertPeriodPhase(period, "journalizing", "run pre-closing");
+        return usecases.preClosing.run(uid, fiscalPeriodId, year);
+      },
+      cancel: async (fpId, year) => {
+        const period = await getOwnedFiscalPeriod(fpId);
+        assertPeriodPhase(period, "pre_closing", "cancel pre-closing");
+        return usecases.preClosing.cancel(uid, fpId, year);
+      },
+    },
     closing: {
       get: async (fpId, year) => {
         await getOwnedFiscalPeriod(fpId);
         return usecases.closing.get(uid, fpId, year);
       },
-      run: async ({ fiscalPeriodId, year, isProvisional }) => {
+      run: async ({ fiscalPeriodId, year }) => {
         const period = await getOwnedFiscalPeriod(fiscalPeriodId);
-        assertMutableFiscalPeriod(period, "run closing");
-        return usecases.closing.run(uid, fiscalPeriodId, year, isProvisional);
-      },
-      cancel: async (fpId, year) => {
-        const period = await getOwnedFiscalPeriod(fpId);
-        assertMutableFiscalPeriod(period, "cancel closing");
-        return usecases.closing.cancel(uid, fpId, year);
+        assertPeriodPhase(period, "pre_closing", "run closing");
+        return usecases.closing.run(uid, fiscalPeriodId, year);
       },
     },
     entries: {
@@ -115,13 +126,18 @@ export function createOpenkkServerApi(
       },
       patch: async (id, patch) => {
         const current = await getOwnedFiscalPeriod(id);
-        if (current.archived) {
+        if (current.archiveStatus === "archived") {
           throw archivedFiscalPeriodError(
             `Archived fiscal period ${id} cannot be updated`,
           );
         }
         assertFiscalPeriodPatchInput(current, patch);
         return usecases.fiscalPeriod.update(uid, id, patch);
+      },
+      archive: async (id) => {
+        const current = await getOwnedFiscalPeriod(id);
+        assertMutableFiscalPeriod(current, "archive");
+        return usecases.fiscalPeriod.archive(uid, id);
       },
       remove: async (id) => {
         await getOwnedFiscalPeriod(id);
@@ -176,9 +192,23 @@ function assertMutableFiscalPeriod(
   period: FiscalPeriodApiRecord,
   operation: string,
 ) {
-  if (period.archived) {
+  if (period.archiveStatus === "archived") {
     throw archivedFiscalPeriodError(
       `Archived fiscal period ${period.id} cannot ${operation}`,
+    );
+  }
+}
+
+function assertPeriodPhase(
+  period: FiscalPeriodApiRecord,
+  expectedPhase: FiscalPeriodApiRecord["phase"],
+  operation: string,
+) {
+  assertMutableFiscalPeriod(period, operation);
+  if (period.phase !== expectedPhase) {
+    throw serverConflictError(
+      `Fiscal period ${period.id} cannot ${operation} from phase ${period.phase}`,
+      "会計期間の状態が変わったため、この操作を実行できません",
     );
   }
 }

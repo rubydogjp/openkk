@@ -15,6 +15,7 @@ export type ServerUsecases = ReturnType<typeof createServerUsecases>;
 export function createServerUsecases(db: OpenkkDbPort) {
   return {
     auth: createAuthUsecase(),
+    preClosing: createPreClosingUsecase(db),
     closing: createClosingUsecase(db),
     entries: createEntriesUsecase(db),
     fiscalPeriod: createFiscalPeriodUsecase(db),
@@ -64,12 +65,22 @@ function createClosingUsecase(db: OpenkkDbPort) {
       _userId: string,
       fiscalPeriodId: string,
       year: number,
-      isProvisional: boolean,
     ) {
-      await db.closings.upsert(fiscalPeriodId, year, isProvisional);
+      return db.closings.run(fiscalPeriodId, year);
+    },
+  };
+}
+
+function createPreClosingUsecase(db: OpenkkDbPort) {
+  return {
+    async get(_userId: string, fiscalPeriodId: string, year: number) {
+      return db.preClosings.get(fiscalPeriodId, year);
+    },
+    async run(_userId: string, fiscalPeriodId: string, year: number) {
+      return db.preClosings.run(fiscalPeriodId, year);
     },
     async cancel(_userId: string, fiscalPeriodId: string, year: number) {
-      await db.closings.delete(fiscalPeriodId, year);
+      return db.preClosings.cancel(fiscalPeriodId, year);
     },
   };
 }
@@ -128,6 +139,9 @@ function createFiscalPeriodUsecase(db: OpenkkDbPort) {
     },
     async update(_userId: string, id: string, patch: FiscalPeriodPatchInput) {
       return db.fiscalPeriods.update(id, patch);
+    },
+    async archive(_userId: string, id: string) {
+      return db.fiscalPeriods.archive(id);
     },
     async delete(_userId: string, id: string) {
       await db.fiscalPeriods.delete(id);

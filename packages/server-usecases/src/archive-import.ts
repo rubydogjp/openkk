@@ -35,13 +35,18 @@ export function normalizeArchiveImportInput(
     "archive fiscalPeriod.endDate",
   );
   assertDateRange(startDate, endDate, "archive fiscalPeriod");
+  const normalizedClosings = closings.map((closing) =>
+    normalizeArchivedClosing(objectValue(closing, "archive closing")),
+  );
   return {
     fiscalPeriod: {
       name: requireString(fiscalPeriod.name, "archive fiscalPeriod.name"),
       startDate,
       endDate,
-      stage: normalizeFiscalPeriodStage(fiscalPeriod.stage),
-      archived: true as const,
+      phase: normalizeFiscalPeriodPhase(
+        fiscalPeriod.phase ?? fiscalPeriod.phase,
+      ),
+      archiveStatus: "active" as const,
       settingsCompleted: fiscalPeriod.settingsCompleted === true,
       openingBalancesCompleted:
         fiscalPeriod.openingBalancesCompleted === true,
@@ -58,21 +63,25 @@ export function normalizeArchiveImportInput(
     fixedAssets: fixedAssets.map((fixedAsset) =>
       normalizeArchivedFixedAsset(objectValue(fixedAsset, "archive fixedAsset")),
     ),
-    closings: closings.map((closing) =>
-      normalizeArchivedClosing(objectValue(closing, "archive closing")),
-    ),
+    preClosings: normalizedClosings
+      .filter((closing) => closing.kind === "pre_closing")
+      .map(({ year }) => ({ year })),
+    closings: normalizedClosings
+      .filter((closing) => closing.kind === "closing")
+      .map(({ year }) => ({ year })),
   };
 }
 
-function normalizeFiscalPeriodStage(value: unknown) {
+function normalizeFiscalPeriodPhase(value: unknown) {
   if (
     value === "pre_opening" ||
     value === "journalizing" ||
+    value === "pre_closing" ||
     value === "post_closing"
   ) {
     return value;
   }
-  throw serverValidationError("archive fiscalPeriod.stage is invalid");
+  throw serverValidationError("archive fiscalPeriod.phase is invalid");
 }
 
 function normalizeArchivedOpening(value: unknown, userId: string) {
@@ -226,7 +235,10 @@ function normalizeArchivedFixedAsset(value: Record<string, unknown>) {
 function normalizeArchivedClosing(value: Record<string, unknown>) {
   return {
     year: requirePositiveInteger(value.year, "archive closing.year"),
-    isProvisional: value.isProvisional === true,
+    kind:
+      value.kind === "pre_closing" || value.isProvisional === true
+        ? ("pre_closing" as const)
+        : ("closing" as const),
   };
 }
 

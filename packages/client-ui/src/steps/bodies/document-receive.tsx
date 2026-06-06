@@ -40,7 +40,7 @@ export function DocumentReceiveBody({
     );
   }
 
-  const canComplete = currentFiscalPeriod.stage === "post_closing";
+  const canComplete = currentFiscalPeriod.phase === "post_closing";
   const isDone = currentFiscalPeriod.documentsReceivedCompleted;
 
   function printJournal() {

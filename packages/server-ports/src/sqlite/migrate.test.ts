@@ -8,6 +8,10 @@ import {
 } from "./schema";
 
 describe("SQLite schema", () => {
+  it("keeps the unreleased normalized schema at version 2", () => {
+    expect(SCHEMA_VERSION).toBe(2);
+  });
+
   it("keeps migration versions unique, ordered, and contiguous", () => {
     const versions = SCHEMA_MIGRATIONS.map(({ version }) => version);
     expect(versions).toEqual(versions.map((_, index) => index + 1));
@@ -21,7 +25,7 @@ describe("SQLite schema", () => {
   });
 });
 
-type FakeMeta = { schemaVersion?: number; metaTableExists: boolean };
+type FakeMeta = { schemaVersion?: number | string; metaTableExists: boolean };
 
 function createFakeDb(initial: Partial<FakeMeta> = {}): {
   db: MigrationDb;
@@ -129,5 +133,14 @@ describe("runMigrations", () => {
     });
     runMigrations(db);
     expect(state.schemaVersion).toBe(SCHEMA_VERSION);
+  });
+
+  it("rejects a malformed schema version instead of treating it as a fresh DB", () => {
+    const { db, execLog } = createFakeDb({
+      metaTableExists: true,
+      schemaVersion: "1broken",
+    });
+    expect(() => runMigrations(db)).toThrow(/invalid schema_version/);
+    expect(execLog).toEqual([]);
   });
 });

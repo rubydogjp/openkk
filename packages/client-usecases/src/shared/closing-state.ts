@@ -2,42 +2,29 @@
 
 import { useMemo } from "react";
 import { useBackendApi } from "./backend-api-context";
+import { useOpenkkAppState } from "./openkk-app-state";
 
 export type OpenkkClosing = {
-  getProvisional: (
-    fiscalPeriodId: string,
-    year: number,
-  ) => Promise<{ isProvisional: boolean } | null>;
-  runProvisional: (fiscalPeriodId: string, year: number) => Promise<void>;
+  runPreClosing: (fiscalPeriodId: string, year: number) => Promise<void>;
   runFinal: (fiscalPeriodId: string, year: number) => Promise<void>;
-  cancelProvisional: (fiscalPeriodId: string, year: number) => Promise<void>;
+  cancelPreClosing: (fiscalPeriodId: string, year: number) => Promise<void>;
 };
 
 export function useOpenkkClosing(): OpenkkClosing {
   const backendApi = useBackendApi();
+  const { syncFiscalPeriod } = useOpenkkAppState();
   return useMemo<OpenkkClosing>(
     () => ({
-      async getProvisional(fiscalPeriodId, year) {
-        return await backendApi.closing.get(fiscalPeriodId, year);
-      },
-      async runProvisional(fiscalPeriodId, year) {
-        await backendApi.closing.run({
-          fiscalPeriodId,
-          year,
-          isProvisional: true,
-        });
+      async runPreClosing(fiscalPeriodId, year) {
+        syncFiscalPeriod(await backendApi.preClosing.run({ fiscalPeriodId, year }));
       },
       async runFinal(fiscalPeriodId, year) {
-        await backendApi.closing.run({
-          fiscalPeriodId,
-          year,
-          isProvisional: false,
-        });
+        syncFiscalPeriod(await backendApi.closing.run({ fiscalPeriodId, year }));
       },
-      async cancelProvisional(fiscalPeriodId, year) {
-        await backendApi.closing.cancel(fiscalPeriodId, year);
+      async cancelPreClosing(fiscalPeriodId, year) {
+        syncFiscalPeriod(await backendApi.preClosing.cancel(fiscalPeriodId, year));
       },
     }),
-    [backendApi],
+    [backendApi, syncFiscalPeriod],
   );
 }

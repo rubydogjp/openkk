@@ -1,7 +1,10 @@
-export type FiscalPeriodDbStage =
+export type FiscalPeriodDbPhase =
   | "pre_opening"
   | "journalizing"
+  | "pre_closing"
   | "post_closing";
+
+export type FiscalPeriodDbArchiveStatus = "active" | "archived";
 
 export type OpeningBalanceLineDbRecord = {
   id: string;
@@ -40,8 +43,8 @@ export type FiscalPeriodDbRecord = {
   name: string;
   startDate: string;
   endDate: string;
-  stage: FiscalPeriodDbStage;
-  archived: boolean;
+  phase: FiscalPeriodDbPhase;
+  archiveStatus: FiscalPeriodDbArchiveStatus;
   settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
@@ -58,8 +61,6 @@ export type FiscalPeriodDbPatchInput = Partial<{
   name: string;
   startDate: string;
   endDate: string;
-  stage: FiscalPeriodDbStage;
-  archived: boolean;
   settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
@@ -124,9 +125,8 @@ export type FixedAssetDbPatchInput = Partial<
   Omit<FixedAssetDbRecord, "id" | "fiscalPeriodId">
 >;
 
-export type ClosingDbRecord = {
-  isProvisional: boolean;
-};
+export type PreClosingDbRecord = Record<string, never>;
+export type ClosingDbRecord = Record<string, never>;
 
 export type MasterBookAccountDbRecord = {
   id: string;
@@ -155,8 +155,8 @@ export type FiscalPeriodArchiveDbImportInput = {
     name: string;
     startDate: string;
     endDate: string;
-    stage: FiscalPeriodDbStage;
-    archived: true;
+    phase: FiscalPeriodDbPhase;
+    archiveStatus: "active";
     settingsCompleted: boolean;
     openingBalancesCompleted: boolean;
     documentsReceivedCompleted: boolean;
@@ -167,5 +167,6 @@ export type FiscalPeriodArchiveDbImportInput = {
     createInput: FixedAssetDbCreateInput;
     patchInput?: FixedAssetDbPatchInput;
   }>;
-  closings: Array<{ year: number; isProvisional: boolean }>;
+  preClosings: Array<{ year: number }>;
+  closings: Array<{ year: number }>;
 };

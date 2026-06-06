@@ -9,9 +9,8 @@ function period(overrides: Partial<FiscalPeriod> = {}): FiscalPeriod {
     name: "2026年分",
     startDate: "2026-01-01",
     endDate: "2026-12-31",
-    stage: "journalizing",
-    archived: false,
-    provisionalClosingCompleted: false,
+    phase: "journalizing",
+    archiveStatus: "active",
     settingsCompleted: true,
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,
@@ -28,23 +27,23 @@ describe("isJournalingActive", () => {
   });
 
   it("returns false when stage is pre_opening", () => {
-    expect(isJournalingActive(period({ stage: "pre_opening" }))).toBe(false);
+    expect(isJournalingActive(period({ phase: "pre_opening" }))).toBe(false);
   });
 
   it("returns false when stage is post_closing", () => {
-    expect(isJournalingActive(period({ stage: "post_closing" }))).toBe(false);
+    expect(isJournalingActive(period({ phase: "post_closing" }))).toBe(false);
   });
 
-  it("returns false when provisionally closed", () => {
-    expect(isJournalingActive(period({ stage: "journalizing", provisionalClosingCompleted: true }))).toBe(false);
+  it("returns false when pre-closing", () => {
+    expect(isJournalingActive(period({ phase: "pre_closing" }))).toBe(false);
   });
 
   it("returns false when archived", () => {
-    expect(isJournalingActive(period({ archived: true }))).toBe(false);
+    expect(isJournalingActive(period({ archiveStatus: "archived" }))).toBe(false);
   });
 
-  it("returns true when journalizing and not provisionally closed", () => {
-    expect(isJournalingActive(period({ stage: "journalizing", provisionalClosingCompleted: false }))).toBe(true);
+  it("returns true when journalizing", () => {
+    expect(isJournalingActive(period({ phase: "journalizing" }))).toBe(true);
   });
 });
 
@@ -60,32 +59,32 @@ describe("buildPeriodLockMessage", () => {
   });
 
   it("returns locked message when stage is pre_opening", () => {
-    const msg = buildPeriodLockMessage(period({ stage: "pre_opening" }));
+    const msg = buildPeriodLockMessage(period({ phase: "pre_opening" }));
     expect(msg).not.toBeNull();
   });
 
   it("returns locked message when stage is post_closing", () => {
-    const msg = buildPeriodLockMessage(period({ stage: "post_closing" }));
+    const msg = buildPeriodLockMessage(period({ phase: "post_closing" }));
     expect(msg).not.toBeNull();
   });
 
-  it("returns locked message when provisionally closed", () => {
-    const msg = buildPeriodLockMessage(period({ stage: "journalizing", provisionalClosingCompleted: true }));
+  it("returns locked message when pre-closing", () => {
+    const msg = buildPeriodLockMessage(period({ phase: "pre_closing" }));
     expect(msg).not.toBeNull();
   });
 
   it("returns locked message when archived", () => {
-    const msg = buildPeriodLockMessage(period({ archived: true }));
+    const msg = buildPeriodLockMessage(period({ archiveStatus: "archived" }));
     expect(msg?.description).toContain("圧縮保存済み");
   });
 
   it("returns null (unlocked) when journalizing and not closed", () => {
-    const msg = buildPeriodLockMessage(period({ stage: "journalizing", provisionalClosingCompleted: false }));
+    const msg = buildPeriodLockMessage(period({ phase: "journalizing" }));
     expect(msg).toBeNull();
   });
 
   it("incorporates custom subjectVerb in the description", () => {
-    const msg = buildPeriodLockMessage(period({ stage: "pre_opening" }), "入力できます");
+    const msg = buildPeriodLockMessage(period({ phase: "pre_opening" }), "入力できます");
     expect(msg?.description).toContain("入力できます");
   });
 });

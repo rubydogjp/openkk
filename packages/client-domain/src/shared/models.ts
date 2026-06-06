@@ -4,19 +4,21 @@ export type Session = {
   email: string;
 };
 
-export type FiscalPeriodStage =
+export type FiscalPeriodPhase =
   | "pre_opening"
   | "journalizing"
+  | "pre_closing"
   | "post_closing";
+
+export type FiscalPeriodArchiveStatus = "active" | "archived";
 
 export type FiscalPeriod = {
   id: string;
   name: string;
   startDate: string;
   endDate: string;
-  stage: FiscalPeriodStage;
-  archived: boolean;
-  provisionalClosingCompleted: boolean;
+  phase: FiscalPeriodPhase;
+  archiveStatus: FiscalPeriodArchiveStatus;
   settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;

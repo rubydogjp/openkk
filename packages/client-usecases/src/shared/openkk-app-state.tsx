@@ -30,11 +30,7 @@ import {
   type EntryRecord,
   type FiscalPeriodArchivePayload,
 } from "@rubydogjp/openkk-client-domain";
-import type {
-  FiscalPeriod,
-  FiscalPeriodStage,
-  Session,
-} from "@rubydogjp/openkk-client-domain";
+import type { FiscalPeriod, Session } from "@rubydogjp/openkk-client-domain";
 import { useBackendApi } from "./backend-api-context";
 import { useOpenkkConfig } from "./openkk-config-context";
 
@@ -57,9 +53,6 @@ type OpenkkAppState = {
       name: string;
       startDate: string;
       endDate: string;
-      stage: FiscalPeriodStage;
-      archived: boolean;
-      provisionalClosingCompleted: boolean;
       settingsCompleted: boolean;
       openingBalancesCompleted: boolean;
       documentsReceivedCompleted: boolean;
@@ -68,6 +61,8 @@ type OpenkkAppState = {
       opening: FiscalPeriod["opening"];
     }>,
   ) => Promise<boolean>;
+  archiveFiscalPeriod: (fiscalPeriodId: string) => Promise<boolean>;
+  syncFiscalPeriod: (period: FiscalPeriodApiRecord) => void;
   signInAsMockUser: () => void;
   signInAsUser: (userId: string) => void;
   signOut: () => void;
@@ -203,28 +198,25 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
         return imported.id;
       },
       async updateFiscalPeriod(fiscalPeriodId, input) {
-
-        const effectiveStage = resolveFiscalPeriodPatchStage(input);
         const patched = await backendApi.fiscalPeriod.patch(fiscalPeriodId, {
           name: input.name,
           startDate: input.startDate,
           endDate: input.endDate,
-          stage: effectiveStage,
-          archived: input.archived,
           settingsCompleted: input.settingsCompleted,
           openingBalancesCompleted: input.openingBalancesCompleted,
           documentsReceivedCompleted: input.documentsReceivedCompleted,
           opening: input.opening,
         });
-        setFiscalPeriods((current) =>
-          applyFiscalPeriodUpdate(
-            current,
-            fiscalPeriodId,
-            patched,
-            input.provisionalClosingCompleted,
-          ),
-        );
+        setFiscalPeriods((current) => applyFiscalPeriodUpdate(current, patched));
         return true;
+      },
+      async archiveFiscalPeriod(fiscalPeriodId) {
+        const archived = await backendApi.fiscalPeriod.archive(fiscalPeriodId);
+        setFiscalPeriods((current) => applyFiscalPeriodUpdate(current, archived));
+        return true;
+      },
+      syncFiscalPeriod(period) {
+        setFiscalPeriods((current) => applyFiscalPeriodUpdate(current, period));
       },
       signInAsMockUser() {
         setFiscalPeriods([]);
@@ -290,9 +282,8 @@ function mapRemoteFiscalPeriod(period: FiscalPeriodApiRecord): FiscalPeriod {
     name: period.name,
     startDate: period.startDate,
     endDate: period.endDate,
-    stage: period.stage,
-    archived: period.archived ?? false,
-    provisionalClosingCompleted: period.stage === "post_closing",
+    phase: period.phase,
+    archiveStatus: period.archiveStatus,
     settingsCompleted: period.settingsCompleted,
     openingBalancesCompleted: period.openingBalancesCompleted,
     documentsReceivedCompleted: period.documentsReceivedCompleted,
@@ -333,31 +324,12 @@ function mapRemoteFiscalPeriod(period: FiscalPeriodApiRecord): FiscalPeriod {
   };
 }
 
-export function resolveFiscalPeriodPatchStage(input: {
-  stage?: FiscalPeriodStage;
-  provisionalClosingCompleted?: boolean;
-}): FiscalPeriodStage | undefined {
-  if (input.stage != null) return input.stage;
-  if (input.provisionalClosingCompleted === false) return "journalizing";
-  return undefined;
-}
-
 export function applyFiscalPeriodUpdate(
   current: FiscalPeriod[],
-  fiscalPeriodId: string,
   patched: FiscalPeriodApiRecord,
-  provisionalClosingCompleted?: boolean,
 ): FiscalPeriod[] {
   return current.map((period) => {
-    if (period.id !== fiscalPeriodId) return period;
-    const mapped = mapRemoteFiscalPeriod(patched);
-    if (provisionalClosingCompleted != null && mapped.stage !== "post_closing") {
-      return {
-        ...mapped,
-        provisionalClosingCompleted,
-      };
-    }
-    return mapped;
+    return period.id === patched.id ? mapRemoteFiscalPeriod(patched) : period;
   });
 }
 

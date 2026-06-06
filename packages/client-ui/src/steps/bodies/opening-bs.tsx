@@ -174,8 +174,8 @@ export function OpeningBsBody({
   const isNotStarted = !currentFiscalPeriod.settingsCompleted;
 
   const isPeriodLocked =
-    currentFiscalPeriod.stage === "post_closing" ||
-    currentFiscalPeriod.provisionalClosingCompleted === true;
+    currentFiscalPeriod.phase === "post_closing" ||
+    currentFiscalPeriod.phase === "pre_closing";
 
   const isCompleted = currentFiscalPeriod.openingBalancesCompleted;
   const isEditing =

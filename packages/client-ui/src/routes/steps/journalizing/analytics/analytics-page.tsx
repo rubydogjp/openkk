@@ -76,7 +76,7 @@ export function JournalizingAnalyticsPage() {
         profit: revenue - expenses,
         transactionCount: monthRecords.length,
         enabled:
-          currentFiscalPeriod.stage === "post_closing" ||
+          currentFiscalPeriod.phase === "post_closing" ||
           compareYearMonth(yearMonth, currentMonth) <= 0,
       };
     });

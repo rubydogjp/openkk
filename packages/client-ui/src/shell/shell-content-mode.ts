@@ -71,7 +71,7 @@ function isArchivedWorkspace(
   period: FiscalPeriod | null,
 ): boolean {
   return (
-    period?.archived === true &&
+    period?.archiveStatus === "archived" &&
     pathname !== FISCAL_PERIOD_PICKER_PATH &&
     pathname !== FISCAL_PERIOD_CREATE_PATH
   );

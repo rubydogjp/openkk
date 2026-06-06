@@ -103,7 +103,7 @@ export function NextFiscalPeriodBody({
     );
   }
 
-  const canEnterPage = currentFiscalPeriod.stage === "post_closing";
+  const canEnterPage = currentFiscalPeriod.phase === "post_closing";
   const isNotStarted = !canEnterPage;
   const canCreateNext =
     canEnterPage &&
@@ -116,7 +116,7 @@ export function NextFiscalPeriodBody({
   const isDemo = config.isDemoMode;
   const canArchive =
     currentFiscalPeriod != null &&
-    !currentFiscalPeriod.archived &&
+    currentFiscalPeriod.archiveStatus !== "archived" &&
     !config.isDemoMode &&
     !isArchiving;
 
@@ -203,36 +203,33 @@ export function NextFiscalPeriodBody({
     setIsArchiving(true);
     try {
       const year = Number(currentFiscalPeriod.endDate.slice(0, 4));
-      const [entries, fixedAssets, closing] = await Promise.all([
+      const [entries, fixedAssets, preClosing, closing] = await Promise.all([
         backendApi.entries.getAll(currentFiscalPeriod.id),
         backendApi.fixedAssets.getAll(currentFiscalPeriod.id),
+        backendApi.preClosing.get(currentFiscalPeriod.id, year),
         backendApi.closing.get(currentFiscalPeriod.id, year),
       ]);
       const payload = buildFiscalPeriodArchivePayload({
         createdAt: new Date().toISOString(),
-        fiscalPeriod: { ...currentFiscalPeriod, archived: true },
+        fiscalPeriod: { ...currentFiscalPeriod, archiveStatus: "archived" },
         entries: entries.map((entry) => ({ ...entry })),
         fixedAssets: fixedAssets.map((asset) => ({ ...asset })),
-        closings:
-          closing == null
+        closings: [
+          ...(preClosing == null
             ? []
-            : [
-                {
-                  fiscalPeriodId: currentFiscalPeriod.id,
-                  year,
-                  isProvisional: closing.isProvisional,
-                },
-              ],
+            : [{ fiscalPeriodId: currentFiscalPeriod.id, year, kind: "pre_closing" }]),
+          ...(closing == null
+            ? []
+            : [{ fiscalPeriodId: currentFiscalPeriod.id, year, kind: "closing" }]),
+        ],
       });
       const zip = createFiscalPeriodArchiveZip(payload);
+      await appState.archiveFiscalPeriod(currentFiscalPeriod.id);
       downloadBytes(
         zip,
         buildFiscalPeriodArchiveFilename(currentFiscalPeriod),
         "application/zip",
       );
-      await appState.updateFiscalPeriod(currentFiscalPeriod.id, {
-        archived: true,
-      });
       setArchiveStatus("圧縮保存しました");
       setScreenError(null);
     } catch (error) {
@@ -414,7 +411,7 @@ export function NextFiscalPeriodBody({
               disabled={!canArchive}
               variant="success"
             >
-              {currentFiscalPeriod.archived
+              {currentFiscalPeriod.archiveStatus === "archived"
                 ? "圧縮保存済み"
                 : isArchiving
                   ? "保存中"

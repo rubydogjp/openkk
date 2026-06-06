@@ -42,7 +42,7 @@ describe("resolveShellContentMode", () => {
         hasSession: true,
         pathname: FISCAL_PERIOD_PICKER_PATH,
         currentFiscalPeriodId: "fp-1",
-        currentFiscalPeriod: period({ archived: true }),
+        currentFiscalPeriod: period({ archiveStatus: "archived" }),
       }),
     ).toBe("fiscal-periods");
     expect(
@@ -63,7 +63,7 @@ describe("resolveShellContentMode", () => {
         hasSession: true,
         pathname: "/entries",
         currentFiscalPeriodId: "fp-1",
-        currentFiscalPeriod: period({ archived: true }),
+        currentFiscalPeriod: period({ archiveStatus: "archived" }),
       }),
     ).toBe("archived");
   });
@@ -95,7 +95,7 @@ describe("shell redirects", () => {
         isReady: true,
         hasSession: true,
         pathname: "/assist/fixed-assets",
-        currentFiscalPeriod: period({ archived: true }),
+        currentFiscalPeriod: period({ archiveStatus: "archived" }),
       }),
     ).toBe(true);
     expect(
@@ -103,7 +103,7 @@ describe("shell redirects", () => {
         isReady: true,
         hasSession: true,
         pathname: ARCHIVED_WORKSPACE_PATH,
-        currentFiscalPeriod: period({ archived: true }),
+        currentFiscalPeriod: period({ archiveStatus: "archived" }),
       }),
     ).toBe(false);
   });
@@ -115,9 +115,8 @@ function period(overrides: Partial<FiscalPeriod> = {}): FiscalPeriod {
     name: "2026年分",
     startDate: "2026-01-01",
     endDate: "2026-12-31",
-    stage: "journalizing",
-    archived: false,
-    provisionalClosingCompleted: false,
+    phase: "journalizing",
+    archiveStatus: "active",
     settingsCompleted: true,
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,

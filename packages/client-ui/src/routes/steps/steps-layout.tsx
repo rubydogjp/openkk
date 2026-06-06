@@ -1,11 +1,10 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import {
   useOpenkkAppState,
-  useOpenkkClosing,
   useOpenkkEntries,
   useOpenkkConfig,
 } from "@rubydogjp/openkk-client-usecases";
@@ -32,46 +31,9 @@ export function StepsLayout({ children }: { children: React.ReactNode }) {
 
 function StepsStepperHost() {
   const appState = useOpenkkAppState();
-  const openkkConfig = useOpenkkConfig();
-  const closingApi = useOpenkkClosing();
-  const [hasAnyClosingRemote, setHasAnyClosingRemote] = useState(false);
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (period) => period.id === appState.currentFiscalPeriodId,
   );
-
-  useEffect(() => {
-    if (
-      openkkConfig.isMockMode ||
-      currentFiscalPeriod == null ||
-      currentFiscalPeriod.archived ||
-      appState.currentFiscalPeriodId == null
-    ) {
-      setHasAnyClosingRemote(false);
-      return;
-    }
-    setHasAnyClosingRemote(false);
-    let cancelled = false;
-    void (async () => {
-      try {
-        const year = Number(currentFiscalPeriod.endDate.slice(0, 4));
-        const closing = await closingApi.getProvisional(appState.currentFiscalPeriodId!, year);
-        if (cancelled) return;
-        setHasAnyClosingRemote(closing != null);
-      } catch {
-        if (cancelled) return;
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    appState.currentFiscalPeriodId,
-    closingApi,
-    currentFiscalPeriod?.endDate,
-    currentFiscalPeriod?.archived,
-    currentFiscalPeriod?.id,
-    openkkConfig.isMockMode,
-  ]);
 
   if (currentFiscalPeriod == null) {
     return (
@@ -81,18 +43,17 @@ function StepsStepperHost() {
     );
   }
 
-  if (currentFiscalPeriod.archived) {
+  if (currentFiscalPeriod.archiveStatus === "archived") {
     return <ArchivedFiscalPeriodScreen fiscalPeriod={currentFiscalPeriod} />;
   }
 
   const steps = deriveSteps({
     settingsCompleted: currentFiscalPeriod.settingsCompleted,
     openingBalancesCompleted: currentFiscalPeriod.openingBalancesCompleted,
-    hasAnyClosing: openkkConfig.isMockMode
-      ? currentFiscalPeriod.provisionalClosingCompleted ||
-        currentFiscalPeriod.stage === "post_closing"
-      : hasAnyClosingRemote || currentFiscalPeriod.stage === "post_closing",
-    hasFinalClosing: currentFiscalPeriod.stage === "post_closing",
+    hasAnyClosing:
+      currentFiscalPeriod.phase === "pre_closing" ||
+      currentFiscalPeriod.phase === "post_closing",
+    hasFinalClosing: currentFiscalPeriod.phase === "post_closing",
     hasReceivedDocuments: currentFiscalPeriod.documentsReceivedCompleted,
   });
 

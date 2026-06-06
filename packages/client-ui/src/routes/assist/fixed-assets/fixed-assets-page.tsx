@@ -33,8 +33,8 @@ export function FixedAssetsPage() {
   const fiscalPeriodId = appState.currentFiscalPeriodId ?? "";
   const lockMessage = buildPeriodLockMessage(currentFiscalPeriod);
   const isReadOnlyPeriod =
-    currentFiscalPeriod?.stage === "post_closing" ||
-    currentFiscalPeriod?.provisionalClosingCompleted === true;
+    currentFiscalPeriod?.phase === "post_closing" ||
+    currentFiscalPeriod?.phase === "pre_closing";
   const screenLockMessage = isReadOnlyPeriod ? null : lockMessage;
 
   const drawerAssetId = searchParams.get("asset");

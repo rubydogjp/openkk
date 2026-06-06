@@ -55,6 +55,7 @@ The TypeScript server exposes the same shape as `OpenkkServerPort`.
 ```ts
 type OpenkkBackendPort = {
   auth: AuthApi;
+  preClosing: PreClosingApi;
   closing: ClosingApi;
   entries: EntriesApi;
   fiscalPeriod: FiscalPeriodApi;
@@ -74,4 +75,6 @@ Archived fiscal periods are read-only. Mutations against them must fail with `Op
 | amount | non-negative number |
 | `usefulLife`, closing `year` | positive integer |
 
-`FiscalPeriodArchiveImportInput` creates a new archived fiscal period.
+`fiscalPeriod.archive` preserves `phase` and sets `archiveStatus` to `archived`.
+
+`FiscalPeriodArchiveImportInput` creates a new active period in the archived `phase`.

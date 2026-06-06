@@ -42,16 +42,28 @@ export function createOpenkkEmbeddedBackendAdapter(
         await request("authSignOut", {});
       },
     },
+    preClosing: {
+      get: async (fiscalPeriodId, year) => {
+        const response = await request("preClosingGet", { fiscalPeriodId, year });
+        return response.preClosing;
+      },
+      run: async (input) => {
+        const response = await request("preClosingRun", input);
+        return response.fiscalPeriod;
+      },
+      cancel: async (fiscalPeriodId, year) => {
+        const response = await request("preClosingCancel", { fiscalPeriodId, year });
+        return response.fiscalPeriod;
+      },
+    },
     closing: {
       get: async (fiscalPeriodId, year) => {
         const response = await request("closingGet", { fiscalPeriodId, year });
         return response.closing;
       },
       run: async (input) => {
-        await request("closingRun", input);
-      },
-      cancel: async (fiscalPeriodId, year) => {
-        await request("closingCancel", { fiscalPeriodId, year });
+        const response = await request("closingRun", input);
+        return response.fiscalPeriod;
       },
     },
     entries: {
@@ -92,6 +104,10 @@ export function createOpenkkEmbeddedBackendAdapter(
       },
       patch: async (id, input) => {
         const response = await request("fiscalPeriodPatch", { id, input });
+        return response.fiscalPeriod;
+      },
+      archive: async (id) => {
+        const response = await request("fiscalPeriodArchive", { id });
         return response.fiscalPeriod;
       },
       remove: async (id) => {
@@ -172,6 +188,37 @@ async function dispatchEmbeddedHttp(
       case "authSignOut":
         await server.auth.signOut();
         return { status: 204, body: undefined };
+      case "preClosingGet": {
+        const request = body as EndpointRequest<"preClosingGet">;
+        return {
+          status: 200,
+          body: {
+            preClosing: await server.preClosing.get(
+              request.fiscalPeriodId,
+              request.year,
+            ),
+          },
+        };
+      }
+      case "preClosingRun": {
+        const request = body as EndpointRequest<"preClosingRun">;
+        return {
+          status: 200,
+          body: { fiscalPeriod: await server.preClosing.run(request) },
+        };
+      }
+      case "preClosingCancel": {
+        const request = body as EndpointRequest<"preClosingCancel">;
+        return {
+          status: 200,
+          body: {
+            fiscalPeriod: await server.preClosing.cancel(
+              request.fiscalPeriodId,
+              request.year,
+            ),
+          },
+        };
+      }
       case "closingGet": {
         const request = body as EndpointRequest<"closingGet">;
         return {
@@ -186,13 +233,10 @@ async function dispatchEmbeddedHttp(
       }
       case "closingRun": {
         const request = body as EndpointRequest<"closingRun">;
-        await server.closing.run(request);
-        return { status: 204, body: undefined };
-      }
-      case "closingCancel": {
-        const request = body as EndpointRequest<"closingCancel">;
-        await server.closing.cancel(request.fiscalPeriodId, request.year);
-        return { status: 204, body: undefined };
+        return {
+          status: 200,
+          body: { fiscalPeriod: await server.closing.run(request) },
+        };
       }
       case "entriesGetAll": {
         const request = body as EndpointRequest<"entriesGetAll">;
@@ -278,6 +322,13 @@ async function dispatchEmbeddedHttp(
               request.input,
             ),
           },
+        };
+      }
+      case "fiscalPeriodArchive": {
+        const request = body as EndpointRequest<"fiscalPeriodArchive">;
+        return {
+          status: 200,
+          body: { fiscalPeriod: await server.fiscalPeriod.archive(request.id) },
         };
       }
       case "fiscalPeriodRemove": {

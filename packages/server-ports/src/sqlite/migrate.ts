@@ -50,6 +50,17 @@ function readSchemaVersion(db: MigrationDb): number {
   if (raw == null) {
     return 0;
   }
-  const parsed = Number.parseInt(String(raw), 10);
-  return Number.isFinite(parsed) ? parsed : 0;
+  const text = String(raw);
+  if (!/^(0|[1-9]\d*)$/.test(text)) {
+    throw new Error(
+      `[openkk-browser-db] invalid schema_version: ${JSON.stringify(text)}`,
+    );
+  }
+  const parsed = Number(text);
+  if (!Number.isSafeInteger(parsed)) {
+    throw new Error(
+      `[openkk-browser-db] schema_version is outside the safe integer range: ${text}`,
+    );
+  }
+  return parsed;
 }

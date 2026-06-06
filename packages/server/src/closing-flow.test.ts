@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { createOpenkkServer } from "./index";
 import type {
-  ClosingApiRecord,
   EntryApiRecord,
   EntryUpsertInput,
   FiscalPeriodApiRecord,
@@ -18,48 +17,45 @@ import type {
 } from "@rubydogjp/openkk-server-ports";
 
 describe("openkk server closing flow", () => {
-  it("persists provisional, final, and cancelled closing records", async () => {
+  it("keeps pre-closing and final closing records separate", async () => {
     const server = createOpenkkServer(createMemoryDb(), { userId: "user-1" });
 
+    expect(await server.preClosing.get("fp-1", 2026)).toBeNull();
     expect(await server.closing.get("fp-1", 2026)).toBeNull();
 
-    await server.closing.run({
-      fiscalPeriodId: "fp-1",
-      year: 2026,
-      isProvisional: true,
-    });
-    expect(await server.closing.get("fp-1", 2026)).toEqual({
-      isProvisional: true,
-    });
-
-    await server.closing.run({
-      fiscalPeriodId: "fp-1",
-      year: 2026,
-      isProvisional: false,
-    });
-    expect(await server.closing.get("fp-1", 2026)).toEqual({
-      isProvisional: false,
-    });
-
-    await server.closing.cancel("fp-1", 2026);
+    const preClosed = await server.preClosing.run({ fiscalPeriodId: "fp-1", year: 2026 });
+    expect(preClosed.phase).toBe("pre_closing");
+    expect(await server.preClosing.get("fp-1", 2026)).toEqual({});
     expect(await server.closing.get("fp-1", 2026)).toBeNull();
+
+    const closed = await server.closing.run({ fiscalPeriodId: "fp-1", year: 2026 });
+    expect(closed.phase).toBe("post_closing");
+    expect(await server.preClosing.get("fp-1", 2026)).toEqual({});
+    expect(await server.closing.get("fp-1", 2026)).toEqual({});
+  });
+
+  it("cancels only pre-closing and returns to journalizing", async () => {
+    const server = createOpenkkServer(createMemoryDb(), { userId: "user-1" });
+    await server.preClosing.run({ fiscalPeriodId: "fp-1", year: 2026 });
+    const reopened = await server.preClosing.cancel("fp-1", 2026);
+    expect(reopened.phase).toBe("journalizing");
+    expect(await server.preClosing.get("fp-1", 2026)).toBeNull();
   });
 
   it("rejects closing changes in archived fiscal periods", async () => {
-    const server = createOpenkkServer(createMemoryDb({ archived: true }), {
+    const server = createOpenkkServer(createMemoryDb({ archiveStatus: "archived" }), {
       userId: "user-1",
     });
 
     await expect(
-      server.closing.run({
+      server.preClosing.run({
         fiscalPeriodId: "fp-1",
         year: 2026,
-        isProvisional: true,
       }),
-    ).rejects.toThrow(/Archived fiscal period fp-1 cannot run closing/);
+    ).rejects.toThrow(/Archived fiscal period fp-1 cannot run pre-closing/);
 
-    await expect(server.closing.cancel("fp-1", 2026)).rejects.toThrow(
-      /Archived fiscal period fp-1 cannot cancel closing/,
+    await expect(server.preClosing.cancel("fp-1", 2026)).rejects.toThrow(
+      /Archived fiscal period fp-1 cannot cancel pre-closing/,
     );
   });
 });
@@ -67,11 +63,13 @@ describe("openkk server closing flow", () => {
 function createMemoryDb(
   fiscalPeriodOverrides: Partial<FiscalPeriodApiRecord> = {},
 ): OpenkkDbPort {
-  const closings = new Map<string, ClosingApiRecord>();
+  const preClosings = new Set<string>();
+  const closings = new Set<string>();
+  let current = fiscalPeriod({ id: "fp-1", ...fiscalPeriodOverrides });
   return {
     fiscalPeriods: {
       async getAllByUser() {
-        return [fiscalPeriod({ id: "fp-1", ...fiscalPeriodOverrides })];
+        return [current];
       },
       async getById() {
         return null;
@@ -80,10 +78,15 @@ function createMemoryDb(
         return fiscalPeriod({ ...input, id: "fp-1" });
       },
       async importArchived() {
-        return fiscalPeriod({ id: "fp-archive", archived: true });
+        return fiscalPeriod({ id: "fp-archive", archiveStatus: "archived" });
       },
       async update(id: string, patch: FiscalPeriodPatchInput) {
-        return fiscalPeriod({ id, ...patch });
+        current = fiscalPeriod({ ...current, id, ...patch });
+        return current;
+      },
+      async archive() {
+        current = { ...current, archiveStatus: "archived" };
+        return current;
       },
       async delete() {},
     },
@@ -125,15 +128,29 @@ function createMemoryDb(
       },
       async delete() {},
     },
+    preClosings: {
+      async get(fiscalPeriodId, year) {
+        return preClosings.has(`${fiscalPeriodId}:${year}`) ? {} : null;
+      },
+      async run(fiscalPeriodId, year) {
+        preClosings.add(`${fiscalPeriodId}:${year}`);
+        current = { ...current, phase: "pre_closing" };
+        return current;
+      },
+      async cancel(fiscalPeriodId, year) {
+        preClosings.delete(`${fiscalPeriodId}:${year}`);
+        current = { ...current, phase: "journalizing" };
+        return current;
+      },
+    },
     closings: {
       async get(fiscalPeriodId, year) {
-        return closings.get(`${fiscalPeriodId}:${year}`) ?? null;
+        return closings.has(`${fiscalPeriodId}:${year}`) ? {} : null;
       },
-      async upsert(fiscalPeriodId, year, isProvisional) {
-        closings.set(`${fiscalPeriodId}:${year}`, { isProvisional });
-      },
-      async delete(fiscalPeriodId, year) {
-        closings.delete(`${fiscalPeriodId}:${year}`);
+      async run(fiscalPeriodId, year) {
+        closings.add(`${fiscalPeriodId}:${year}`);
+        current = { ...current, phase: "post_closing" };
+        return current;
       },
     },
     masterData: {
@@ -158,8 +175,8 @@ function fiscalPeriod(
     name: "2026年分",
     startDate: "2026-01-01",
     endDate: "2026-12-31",
-    stage: "journalizing",
-    archived: false,
+    phase: "journalizing",
+    archiveStatus: "active",
     settingsCompleted: true,
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,

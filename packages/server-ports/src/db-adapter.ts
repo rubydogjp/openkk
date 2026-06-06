@@ -1,6 +1,7 @@
 import type {
   FiscalPeriodArchiveDbImportInput,
   ClosingDbRecord,
+  PreClosingDbRecord,
   EntryDbRecord,
   EntryDbUpsertInput,
   FiscalPeriodDbCreateInput,
@@ -18,6 +19,7 @@ export interface OpenkkDbPort {
   fiscalPeriods: FiscalPeriodsDb;
   entries: EntriesDb;
   fixedAssets: FixedAssetsDb;
+  preClosings: PreClosingsDb;
   closings: ClosingsDb;
   masterData: MasterDataDb;
 }
@@ -37,6 +39,7 @@ export interface FiscalPeriodsDb {
     id: string,
     patch: FiscalPeriodDbPatchInput,
   ): Promise<FiscalPeriodDbRecord>;
+  archive(id: string): Promise<FiscalPeriodDbRecord>;
   delete(id: string): Promise<void>;
 }
 
@@ -84,12 +87,13 @@ export interface FixedAssetsDb {
 
 export interface ClosingsDb {
   get(fiscalPeriodId: string, year: number): Promise<ClosingDbRecord | null>;
-  upsert(
-    fiscalPeriodId: string,
-    year: number,
-    isProvisional: boolean,
-  ): Promise<void>;
-  delete(fiscalPeriodId: string, year: number): Promise<void>;
+  run(fiscalPeriodId: string, year: number): Promise<FiscalPeriodDbRecord>;
+}
+
+export interface PreClosingsDb {
+  get(fiscalPeriodId: string, year: number): Promise<PreClosingDbRecord | null>;
+  run(fiscalPeriodId: string, year: number): Promise<FiscalPeriodDbRecord>;
+  cancel(fiscalPeriodId: string, year: number): Promise<FiscalPeriodDbRecord>;
 }
 
 export interface MasterDataDb {

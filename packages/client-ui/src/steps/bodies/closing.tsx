@@ -14,7 +14,6 @@ import {
   useOpenkkAssist,
   useOpenkkClosing,
   useOpenkkEntries,
-  useOpenkkConfig,
   usePrintDocument,
 } from "@rubydogjp/openkk-client-usecases";
 import { formatDateButtonLabel } from "../../shared/date-picker";
@@ -53,7 +52,6 @@ export function ClosingBody({
   onSwitchToStep?: (no: number) => void;
   onBusyChange?: (busy: boolean) => void;
 }) {
-  const config = useOpenkkConfig();
   const appState = useOpenkkAppState();
   const entriesState = useOpenkkEntries();
   const assistState = useOpenkkAssist();
@@ -61,8 +59,6 @@ export function ClosingBody({
   const printDocument = usePrintDocument();
   const { confirm, dialog } = useConfirmDialog();
   const [screenError, setScreenError] = useState<unknown>(null);
-  const [isProvisionalClosedRemote, setIsProvisionalClosedRemote] =
-    useState(false);
   const [showRunningAnimation, setShowRunningAnimation] = useState(false);
   const [animationKey, setAnimationKey] = useState(0);
   const currentFiscalPeriod = appState.fiscalPeriods.find(
@@ -72,34 +68,6 @@ export function ClosingBody({
   useEffect(() => {
     return () => onBusyChange?.(false);
   }, [onBusyChange]);
-
-  useEffect(() => {
-    if (
-      config.isMockMode ||
-      currentFiscalPeriod == null ||
-      appState.currentFiscalPeriodId == null
-    ) {
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      try {
-        const year = Number(currentFiscalPeriod.endDate.slice(0, 4));
-        const closing = await closingApi.getProvisional(appState.currentFiscalPeriodId!, year);
-        if (cancelled) return;
-        setIsProvisionalClosedRemote(closing?.isProvisional === true);
-      } catch {
-        if (cancelled) return;
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    appState.currentFiscalPeriodId,
-    currentFiscalPeriod?.endDate,
-    currentFiscalPeriod?.id,
-  ]);
 
   const financialSummary = useMemo(() => {
     if (appState.currentFiscalPeriodId == null) return null;
@@ -131,15 +99,13 @@ export function ClosingBody({
     );
   }
 
-  const isClosed = currentFiscalPeriod.stage === "post_closing";
-  const isProvisionalClosed = config.isMockMode
-    ? currentFiscalPeriod.provisionalClosingCompleted
-    : isProvisionalClosedRemote;
-  const canFinalize = isProvisionalClosed && !isClosed;
-  const canEnterPage = isProvisionalClosed || isClosed;
+  const isClosed = currentFiscalPeriod.phase === "post_closing";
+  const isPreClosed = currentFiscalPeriod.phase === "pre_closing";
+  const canFinalize = isPreClosed && !isClosed;
+  const canEnterPage = isPreClosed || isClosed;
   const isBusy = showRunningAnimation;
 
-  const handleCancelProvisional = async () => {
+  const handleCancelPreClosing = async () => {
     const confirmed = await confirm({
 
       tone: "danger",
@@ -149,16 +115,9 @@ export function ClosingBody({
     });
     if (!confirmed) return;
     try {
-      if (config.isMockMode) {
-        const updated = await appState.updateFiscalPeriod(
-          currentFiscalPeriod.id,
-          { provisionalClosingCompleted: false },
-        );
-        if (!updated) return;
-      } else if (appState.currentFiscalPeriodId != null) {
+      if (appState.currentFiscalPeriodId != null) {
         const year = Number(currentFiscalPeriod.endDate.slice(0, 4));
-        await closingApi.cancelProvisional(appState.currentFiscalPeriodId, year);
-        setIsProvisionalClosedRemote(false);
+        await closingApi.cancelPreClosing(appState.currentFiscalPeriodId, year);
       }
       setScreenError(null);
     } catch (error) {
@@ -166,7 +125,7 @@ export function ClosingBody({
         AppError.from(error, {
           fallbackUserMessage: "仮締めの取り消しに失敗しました",
           fallbackDeveloperMessage:
-            "steps/closing: cancel provisional close failed",
+            "steps/closing: cancel pre-closing failed",
         }),
       );
     }
@@ -194,26 +153,9 @@ export function ClosingBody({
         assistState,
         entriesState,
       });
-      if (config.isMockMode) {
-        const updated = await appState.updateFiscalPeriod(
-          currentFiscalPeriod.id,
-          {
-            stage: "post_closing",
-            provisionalClosingCompleted: true,
-          },
-        );
-        if (!updated) {
-          setShowRunningAnimation(false);
-          onBusyChange?.(false);
-          return;
-        }
-      } else if (appState.currentFiscalPeriodId != null) {
+      if (appState.currentFiscalPeriodId != null) {
         const year = Number(currentFiscalPeriod.endDate.slice(0, 4));
         await closingApi.runFinal(appState.currentFiscalPeriodId, year);
-        await appState.updateFiscalPeriod(currentFiscalPeriod.id, {
-          stage: "post_closing",
-          provisionalClosingCompleted: true,
-        });
       }
       setScreenError(null);
     } catch (error) {
@@ -379,7 +321,7 @@ export function ClosingBody({
                 title="前の手順に戻る"
                 description="書類に問題が見つかった場合、仮締めを取り消します。ロックは解除され、仕訳データを再編集できるようになります。"
                 action={
-                  <StepSecondaryButton onClick={handleCancelProvisional}>
+                  <StepSecondaryButton onClick={handleCancelPreClosing}>
                     取り消す
                   </StepSecondaryButton>
                 }

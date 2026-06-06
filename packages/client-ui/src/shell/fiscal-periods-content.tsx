@@ -314,7 +314,7 @@ function FiscalPeriodRow({
   onSelect: () => void;
 }) {
   const showOpeningBsChip =
-    !period.archived && !period.openingBalancesCompleted && period.settingsCompleted;
+    period.archiveStatus !== "archived" && !period.openingBalancesCompleted && period.settingsCompleted;
   return (
     <button
       type="button"
@@ -374,18 +374,18 @@ function FiscalPeriodRow({
         }}
       >
         <InlineChip
-          label={period.archived ? "圧縮保存済み" : stageLabel(period.stage)}
+          label={period.archiveStatus === "archived" ? "圧縮保存済み" : stageLabel(period.phase)}
           background={
-            period.archived
+            period.archiveStatus === "archived"
               ? "#DCFCE7"
-              : period.stage === "journalizing"
+              : period.phase === "journalizing"
               ? "#DCFCE7"
               : palette.formGroupBg
           }
           foreground={
-            period.archived
+            period.archiveStatus === "archived"
               ? palette.success
-              : period.stage === "journalizing"
+              : period.phase === "journalizing"
               ? palette.success
               : palette.textLabel
           }
@@ -580,8 +580,9 @@ function InlineChip({
   );
 }
 
-function stageLabel(stage: "pre_opening" | "journalizing" | "post_closing") {
-  if (stage === "pre_opening") return "開始前";
-  if (stage === "journalizing") return "記帳中";
+function stageLabel(phase: "pre_opening" | "journalizing" | "pre_closing" | "post_closing") {
+  if (phase === "pre_opening") return "開始前";
+  if (phase === "journalizing") return "記帳中";
+  if (phase === "pre_closing") return "仮締め済み";
   return "決算後";
 }

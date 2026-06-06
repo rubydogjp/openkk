@@ -20,9 +20,8 @@ export type RedeemCompletionCodeResponse = CreateTokenResponse;
 export type AuthSignOutRequest = OpenkkEmptyRequest;
 export type AuthSignOutResponse = OpenkkNoContentResponse;
 
-export type ClosingApiRecord = {
-  isProvisional: boolean;
-};
+export type PreClosingApiRecord = Record<string, never>;
+export type ClosingApiRecord = Record<string, never>;
 
 export type EntryApiSide = "debit" | "credit";
 
@@ -58,8 +57,12 @@ export type FiscalPeriodApiRecord = {
   name: string;
   startDate: string;
   endDate: string;
-  stage: "pre_opening" | "journalizing" | "post_closing";
-  archived: boolean;
+  phase:
+    | "pre_opening"
+    | "journalizing"
+    | "pre_closing"
+    | "post_closing";
+  archiveStatus: "active" | "archived";
   settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
@@ -100,8 +103,6 @@ export type FiscalPeriodPatchInput = Partial<{
   name: string;
   startDate: string;
   endDate: string;
-  stage: "pre_opening" | "journalizing" | "post_closing";
-  archived: boolean;
   settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
@@ -200,16 +201,17 @@ export type MasterBusinessCategory = {
   name: string;
 };
 
+export type PreClosingGetRequest = { fiscalPeriodId: string; year: number };
+export type PreClosingGetResponse = { preClosing: PreClosingApiRecord | null };
+export type PreClosingRunRequest = { fiscalPeriodId: string; year: number };
+export type PreClosingRunResponse = { fiscalPeriod: FiscalPeriodApiRecord };
+export type PreClosingCancelRequest = { fiscalPeriodId: string; year: number };
+export type PreClosingCancelResponse = { fiscalPeriod: FiscalPeriodApiRecord };
+
 export type ClosingGetRequest = { fiscalPeriodId: string; year: number };
 export type ClosingGetResponse = { closing: ClosingApiRecord | null };
-export type ClosingRunRequest = {
-  fiscalPeriodId: string;
-  year: number;
-  isProvisional: boolean;
-};
-export type ClosingRunResponse = OpenkkNoContentResponse;
-export type ClosingCancelRequest = { fiscalPeriodId: string; year: number };
-export type ClosingCancelResponse = OpenkkNoContentResponse;
+export type ClosingRunRequest = { fiscalPeriodId: string; year: number };
+export type ClosingRunResponse = { fiscalPeriod: FiscalPeriodApiRecord };
 
 export type EntriesGetAllRequest = { fiscalPeriodId: string };
 export type EntriesGetAllResponse = { entries: EntryApiRecord[] };
@@ -252,6 +254,8 @@ export type FiscalPeriodPatchRequest = {
   input: FiscalPeriodPatchInput;
 };
 export type FiscalPeriodPatchResponse = { fiscalPeriod: FiscalPeriodApiRecord };
+export type FiscalPeriodArchiveRequest = { id: string };
+export type FiscalPeriodArchiveResponse = { fiscalPeriod: FiscalPeriodApiRecord };
 export type FiscalPeriodRemoveRequest = { id: string };
 export type FiscalPeriodRemoveResponse = OpenkkNoContentResponse;
 
@@ -297,9 +301,11 @@ export type OpenkkHttpEndpointSpecs = {
   authCompleteSession: OpenkkHttpEndpointSpec<CompleteAuthSessionRequest, CompleteAuthSessionResponse, 200>;
   authRedeemCompletionCode: OpenkkHttpEndpointSpec<RedeemCompletionCodeRequest, RedeemCompletionCodeResponse, 200>;
   authSignOut: OpenkkHttpEndpointSpec<AuthSignOutRequest, AuthSignOutResponse, 204>;
+  preClosingGet: OpenkkHttpEndpointSpec<PreClosingGetRequest, PreClosingGetResponse, 200>;
+  preClosingRun: OpenkkHttpEndpointSpec<PreClosingRunRequest, PreClosingRunResponse, 200>;
+  preClosingCancel: OpenkkHttpEndpointSpec<PreClosingCancelRequest, PreClosingCancelResponse, 200>;
   closingGet: OpenkkHttpEndpointSpec<ClosingGetRequest, ClosingGetResponse, 200>;
-  closingRun: OpenkkHttpEndpointSpec<ClosingRunRequest, ClosingRunResponse, 204>;
-  closingCancel: OpenkkHttpEndpointSpec<ClosingCancelRequest, ClosingCancelResponse, 204>;
+  closingRun: OpenkkHttpEndpointSpec<ClosingRunRequest, ClosingRunResponse, 200>;
   entriesGetAll: OpenkkHttpEndpointSpec<EntriesGetAllRequest, EntriesGetAllResponse, 200>;
   entryCreate: OpenkkHttpEndpointSpec<EntryCreateRequest, EntryCreateResponse, 201>;
   entryPatch: OpenkkHttpEndpointSpec<EntryPatchRequest, EntryPatchResponse, 200>;
@@ -309,6 +315,7 @@ export type OpenkkHttpEndpointSpecs = {
   fiscalPeriodCreate: OpenkkHttpEndpointSpec<FiscalPeriodCreateRequest, FiscalPeriodCreateResponse, 201>;
   fiscalPeriodImportArchived: OpenkkHttpEndpointSpec<FiscalPeriodImportArchivedRequest, FiscalPeriodImportArchivedResponse, 201>;
   fiscalPeriodPatch: OpenkkHttpEndpointSpec<FiscalPeriodPatchRequest, FiscalPeriodPatchResponse, 200>;
+  fiscalPeriodArchive: OpenkkHttpEndpointSpec<FiscalPeriodArchiveRequest, FiscalPeriodArchiveResponse, 200>;
   fiscalPeriodRemove: OpenkkHttpEndpointSpec<FiscalPeriodRemoveRequest, FiscalPeriodRemoveResponse, 204>;
   fixedAssetsGetAll: OpenkkHttpEndpointSpec<FixedAssetsGetAllRequest, FixedAssetsGetAllResponse, 200>;
   fixedAssetCreate: OpenkkHttpEndpointSpec<FixedAssetCreateRequest, FixedAssetCreateResponse, 201>;
@@ -326,9 +333,11 @@ export const OPENKK_HTTP_ENDPOINTS = {
   authCompleteSession: { method: "POST", path: "/auth/session/complete", successStatus: 200 },
   authRedeemCompletionCode: { method: "POST", path: "/auth/token", successStatus: 200 },
   authSignOut: { method: "POST", path: "/auth/sign-out", successStatus: 204 },
+  preClosingGet: { method: "GET", path: "/fiscal-periods/{fiscalPeriodId}/pre-closings/{year}", successStatus: 200 },
+  preClosingRun: { method: "PUT", path: "/fiscal-periods/{fiscalPeriodId}/pre-closings/{year}", successStatus: 200 },
+  preClosingCancel: { method: "DELETE", path: "/fiscal-periods/{fiscalPeriodId}/pre-closings/{year}", successStatus: 200 },
   closingGet: { method: "GET", path: "/fiscal-periods/{fiscalPeriodId}/closings/{year}", successStatus: 200 },
-  closingRun: { method: "PUT", path: "/fiscal-periods/{fiscalPeriodId}/closings/{year}", successStatus: 204 },
-  closingCancel: { method: "DELETE", path: "/fiscal-periods/{fiscalPeriodId}/closings/{year}", successStatus: 204 },
+  closingRun: { method: "PUT", path: "/fiscal-periods/{fiscalPeriodId}/closings/{year}", successStatus: 200 },
   entriesGetAll: { method: "GET", path: "/fiscal-periods/{fiscalPeriodId}/entries", successStatus: 200 },
   entryCreate: { method: "POST", path: "/fiscal-periods/{fiscalPeriodId}/entries", successStatus: 201 },
   entryPatch: { method: "PUT", path: "/fiscal-periods/{fiscalPeriodId}/entries/{id}", successStatus: 200 },
@@ -338,6 +347,7 @@ export const OPENKK_HTTP_ENDPOINTS = {
   fiscalPeriodCreate: { method: "POST", path: "/fiscal-periods", successStatus: 201 },
   fiscalPeriodImportArchived: { method: "POST", path: "/fiscal-periods/import-archived", successStatus: 201 },
   fiscalPeriodPatch: { method: "PATCH", path: "/fiscal-periods/{id}", successStatus: 200 },
+  fiscalPeriodArchive: { method: "POST", path: "/fiscal-periods/{id}/archive", successStatus: 200 },
   fiscalPeriodRemove: { method: "DELETE", path: "/fiscal-periods/{id}", successStatus: 204 },
   fixedAssetsGetAll: { method: "GET", path: "/fiscal-periods/{fiscalPeriodId}/fixed-assets", successStatus: 200 },
   fixedAssetCreate: { method: "POST", path: "/fiscal-periods/{fiscalPeriodId}/fixed-assets", successStatus: 201 },
@@ -365,12 +375,13 @@ export interface AuthApi {
 
 export interface ClosingApi {
   get(fiscalPeriodId: string, year: number): Promise<ClosingApiRecord | null>;
-  run(input: {
-    fiscalPeriodId: string;
-    year: number;
-    isProvisional: boolean;
-  }): Promise<void>;
-  cancel(fiscalPeriodId: string, year: number): Promise<void>;
+  run(input: { fiscalPeriodId: string; year: number }): Promise<FiscalPeriodApiRecord>;
+}
+
+export interface PreClosingApi {
+  get(fiscalPeriodId: string, year: number): Promise<PreClosingApiRecord | null>;
+  run(input: { fiscalPeriodId: string; year: number }): Promise<FiscalPeriodApiRecord>;
+  cancel(fiscalPeriodId: string, year: number): Promise<FiscalPeriodApiRecord>;
 }
 
 export interface EntriesApi {
@@ -402,6 +413,7 @@ export interface FiscalPeriodApi {
   importArchived(
     input: FiscalPeriodArchiveImportInput,
   ): Promise<FiscalPeriodApiRecord>;
+  archive(id: string): Promise<FiscalPeriodApiRecord>;
   patch(
     id: string,
     input: FiscalPeriodPatchInput,
@@ -431,6 +443,7 @@ export interface MasterDataApi {
 
 export interface OpenkkBackendPort {
   auth: AuthApi;
+  preClosing: PreClosingApi;
   closing: ClosingApi;
   entries: EntriesApi;
   fiscalPeriod: FiscalPeriodApi;

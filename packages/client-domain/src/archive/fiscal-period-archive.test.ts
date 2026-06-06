@@ -17,7 +17,7 @@ describe("fiscal period archive", () => {
         name: "2026年分",
         startDate: "2026-01-01",
         endDate: "2026-12-31",
-        archived: true,
+        archiveStatus: "archived",
       },
       entries: [{ id: "entry-1", fiscalPeriodId: "fp-1" }],
       fixedAssets: [{ id: "asset-1", fiscalPeriodId: "fp-1" }],

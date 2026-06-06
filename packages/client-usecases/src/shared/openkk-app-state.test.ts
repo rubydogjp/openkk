@@ -1,37 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  applyFiscalPeriodUpdate,
-  resolveFiscalPeriodPatchStage,
-} from "./openkk-app-state";
-import type {
-  FiscalPeriod,
-  FiscalPeriodStage,
-} from "@rubydogjp/openkk-client-domain";
+import { applyFiscalPeriodUpdate } from "./openkk-app-state";
+import type { FiscalPeriod } from "@rubydogjp/openkk-client-domain";
 import type { FiscalPeriodApiRecord } from "@rubydogjp/openkk-client-ports";
-
-describe("resolveFiscalPeriodPatchStage", () => {
-  it("does not turn provisional closing into final closing", () => {
-    expect(
-      resolveFiscalPeriodPatchStage({ provisionalClosingCompleted: true }),
-    ).toBeUndefined();
-  });
-
-  it("moves back to journalizing when provisional closing is cancelled", () => {
-    expect(
-      resolveFiscalPeriodPatchStage({ provisionalClosingCompleted: false }),
-    ).toBe("journalizing");
-  });
-
-  it("keeps explicit stage changes", () => {
-    expect(
-      resolveFiscalPeriodPatchStage({
-        stage: "post_closing",
-        provisionalClosingCompleted: true,
-      }),
-    ).toBe("post_closing");
-  });
-});
 
 describe("applyFiscalPeriodUpdate", () => {
   it("updates only the patched fiscal period", () => {
@@ -42,7 +13,6 @@ describe("applyFiscalPeriodUpdate", () => {
 
     const next = applyFiscalPeriodUpdate(
       current,
-      "fp-1",
       remotePeriod({ id: "fp-1", name: "after" }),
     );
 
@@ -50,16 +20,18 @@ describe("applyFiscalPeriodUpdate", () => {
     expect(next[1]).toBe(current[1]);
   });
 
-  it("keeps provisional closing state for non-final local patches", () => {
+  it("uses the server phase and archive status without a local overlay", () => {
     const [next] = applyFiscalPeriodUpdate(
-      [period({ id: "fp-1", provisionalClosingCompleted: false })],
-      "fp-1",
-      remotePeriod({ id: "fp-1", stage: "journalizing" }),
-      true,
+      [period({ id: "fp-1" })],
+      remotePeriod({
+        id: "fp-1",
+        phase: "pre_closing",
+        archiveStatus: "archived",
+      }),
     );
 
-    expect(next?.stage).toBe("journalizing");
-    expect(next?.provisionalClosingCompleted).toBe(true);
+    expect(next?.phase).toBe("pre_closing");
+    expect(next?.archiveStatus).toBe("archived");
   });
 });
 
@@ -69,9 +41,8 @@ function period(overrides: Partial<FiscalPeriod> = {}): FiscalPeriod {
     name: "2026年分",
     startDate: "2026-01-01",
     endDate: "2026-12-31",
-    stage: "journalizing",
-    archived: false,
-    provisionalClosingCompleted: false,
+    phase: "journalizing",
+    archiveStatus: "active",
     settingsCompleted: true,
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,
@@ -82,15 +53,15 @@ function period(overrides: Partial<FiscalPeriod> = {}): FiscalPeriod {
 }
 
 function remotePeriod(
-  overrides: Partial<FiscalPeriodApiRecord> & { stage?: FiscalPeriodStage } = {},
+  overrides: Partial<FiscalPeriodApiRecord> = {},
 ): FiscalPeriodApiRecord {
   return {
     id: "fp-1",
     name: "2026年分",
     startDate: "2026-01-01",
     endDate: "2026-12-31",
-    stage: "journalizing",
-    archived: false,
+    phase: "journalizing",
+    archiveStatus: "active",
     settingsCompleted: true,
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,

@@ -66,8 +66,8 @@ export function FiscalPeriodSettingsBody({
   }
 
   const isPeriodLocked =
-    currentFiscalPeriod.stage === "post_closing" ||
-    currentFiscalPeriod.provisionalClosingCompleted === true;
+    currentFiscalPeriod.phase === "post_closing" ||
+    currentFiscalPeriod.phase === "pre_closing";
   const isStarted = currentFiscalPeriod.settingsCompleted;
   const isReadOnly = isStarted || isPeriodLocked;
   const lockMessage = isPeriodLocked
@@ -96,7 +96,6 @@ export function FiscalPeriodSettingsBody({
           startDate,
           endDate,
           settingsCompleted: true,
-          stage: "journalizing",
         },
       );
       if (!updated) return;

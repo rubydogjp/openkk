@@ -57,8 +57,8 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
               name: "2026",
               startDate: "2026-01-01",
               endDate: "2026-12-31",
-              stage: "pre_opening",
-              archived: false,
+              phase: "pre_opening",
+              archiveStatus: "active",
               settingsCompleted: false,
               openingBalancesCompleted: false,
               documentsReceivedCompleted: false,
@@ -142,6 +142,7 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
 function embeddedServer(
   overrides: Partial<{
     auth: Partial<OpenkkServerPort["auth"]>;
+    preClosing: Partial<OpenkkServerPort["preClosing"]>;
     closing: Partial<OpenkkServerPort["closing"]>;
     entries: Partial<OpenkkServerPort["entries"]>;
     fiscalPeriod: Partial<OpenkkServerPort["fiscalPeriod"]>;
@@ -157,10 +158,15 @@ function embeddedServer(
       signOut: async () => undefined,
       ...overrides.auth,
     },
+    preClosing: {
+      get: async () => null,
+      run: async () => unused(),
+      cancel: async () => unused(),
+      ...overrides.preClosing,
+    },
     closing: {
       get: async () => null,
-      run: async () => undefined,
-      cancel: async () => undefined,
+      run: async () => unused(),
       ...overrides.closing,
     },
     entries: {
@@ -176,6 +182,7 @@ function embeddedServer(
       create: async () => unused(),
       importArchived: async () => unused(),
       patch: async () => unused(),
+      archive: async () => unused(),
       remove: async () => undefined,
       ...overrides.fiscalPeriod,
     },

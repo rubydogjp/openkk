@@ -13,8 +13,8 @@ describe("normalizeArchiveImportInput", () => {
       name: "2026年分",
       startDate: "2026-01-01",
       endDate: "2026-12-31",
-      stage: "post_closing",
-      archived: true,
+      phase: "post_closing",
+      archiveStatus: "active",
       settingsCompleted: true,
       openingBalancesCompleted: true,
       documentsReceivedCompleted: true,
@@ -54,10 +54,22 @@ describe("normalizeArchiveImportInput", () => {
         disposalPrice: 120000,
       },
     });
-    expect(normalized.closings).toEqual([
-      { year: 2026, isProvisional: false },
-    ]);
+    expect(normalized.preClosings).toEqual([]);
+    expect(normalized.closings).toEqual([{ year: 2026 }]);
   });
+
+  it.each(["pre_opening", "journalizing", "pre_closing", "post_closing"] as const)(
+    "restores an archive captured in %s as an active period",
+    (phase) => {
+      const input = validArchiveInput();
+      input.fiscalPeriod.phase = phase;
+
+      const normalized = normalizeArchiveImportInput(input, "user-1");
+
+      expect(normalized.fiscalPeriod.phase).toBe(phase);
+      expect(normalized.fiscalPeriod.archiveStatus).toBe("active");
+    },
+  );
 
   it("rejects fiscal period id mismatch", () => {
     const input = validArchiveInput();
@@ -163,7 +175,7 @@ function validArchiveInput(): FiscalPeriodArchiveImportInput {
       name: "2026年分",
       startDate: "2026-01-01",
       endDate: "2026-12-31",
-      stage: "post_closing",
+      phase: "post_closing",
       settingsCompleted: true,
       openingBalancesCompleted: true,
       documentsReceivedCompleted: true,

@@ -10,8 +10,8 @@
 |---|---|
 | 期間の作成 | 任意の開始日・終了日で会計期間を作成 |
 | 期間の選択 | 複数期間を持ちつつ対象期間を切り替え |
-| ステージ遷移 | `pre_opening` → `journalizing` → `post_closing` の 3 段階 |
-| 仮締め管理 | 仮締め完了フラグ (`provisionalClosingCompleted`) で仕訳のロック制御 |
+| 期間フェーズ | `pre_opening` → `journalizing` → `pre_closing` → `post_closing` |
+| 圧縮保存 | フェーズを保持したまま `archiveStatus` を `archived` に変更 |
 | ロック判定 | `buildPeriodLockMessage` / `isJournalingActive` でステージ別の編集可否を判定 |
 
 **実装パッケージ:** `client-domain` (ロジック), `client-usecases` (状態), `server-usecases` (永続化), `file-db-adapter`/`memory-db-adapter` (DB)

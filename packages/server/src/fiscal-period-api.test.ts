@@ -73,7 +73,7 @@ describe("openkk server fiscal period API", () => {
 
   it("rejects patches to archived fiscal periods", async () => {
     const db = createFiscalPeriodDb([
-      fiscalPeriod({ id: "fp-archived", userId: "user-1", archived: true }),
+      fiscalPeriod({ id: "fp-archived", userId: "user-1", archiveStatus: "archived" }),
     ]);
     const server = createOpenkkServer(db, { userId: "user-1" });
 
@@ -93,7 +93,7 @@ describe("openkk server fiscal period API", () => {
     );
   });
 
-  it("imports archived fiscal periods as a new owned archived period", async () => {
+  it("restores an archive as a new active period in its captured phase", async () => {
     const db = createFiscalPeriodDb([]);
     const server = createOpenkkServer(db, { userId: "user-1" });
 
@@ -104,7 +104,7 @@ describe("openkk server fiscal period API", () => {
         name: "Archived",
         startDate: "2026-01-01",
         endDate: "2026-12-31",
-        stage: "post_closing",
+        phase: "post_closing",
         settingsCompleted: true,
         openingBalancesCompleted: true,
         documentsReceivedCompleted: true,
@@ -117,8 +117,8 @@ describe("openkk server fiscal period API", () => {
 
     expect(imported).toMatchObject({
       name: "Archived",
-      archived: true,
-      stage: "post_closing",
+      archiveStatus: "active",
+      phase: "post_closing",
     });
     expect(await db.fiscalPeriods.getAllByUser("user-1")).toEqual([imported]);
   });
@@ -167,6 +167,13 @@ function createFiscalPeriodDb(seed: StoredFiscalPeriodApiRecord[]): OpenkkDbPort
         fiscalPeriods.set(id, updated);
         return updated;
       },
+      async archive(id: string) {
+        const current = fiscalPeriods.get(id);
+        if (current == null) throw new Error(`fiscal period not found: ${id}`);
+        const updated = fiscalPeriod({ ...current, archiveStatus: "archived" });
+        fiscalPeriods.set(id, updated);
+        return updated;
+      },
       async delete(id) {
         fiscalPeriods.delete(id);
       },
@@ -209,12 +216,16 @@ function createFiscalPeriodDb(seed: StoredFiscalPeriodApiRecord[]): OpenkkDbPort
       },
       async delete() {},
     },
+    preClosings: {
+      async get() { return null; },
+      async run() { throw new Error("not implemented"); },
+      async cancel() { throw new Error("not implemented"); },
+    },
     closings: {
       async get(): Promise<ClosingApiRecord | null> {
         return null;
       },
-      async upsert() {},
-      async delete() {},
+      async run() { throw new Error("not implemented"); },
     },
     masterData: {
       async getAllBookAccounts(): Promise<MasterBookAccount[]> {
@@ -239,8 +250,8 @@ function fiscalPeriod(
     name: "2026年分",
     startDate: "2026-01-01",
     endDate: "2026-12-31",
-    stage: "journalizing",
-    archived: false,
+    phase: "journalizing",
+    archiveStatus: "active",
     settingsCompleted: true,
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,

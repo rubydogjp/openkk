@@ -115,8 +115,8 @@ export function EntriesPage() {
     "仕訳を記録できます",
   );
   const isReadOnlyPeriod =
-    currentFiscalPeriod?.stage === "post_closing" ||
-    currentFiscalPeriod?.provisionalClosingCompleted === true;
+    currentFiscalPeriod?.phase === "post_closing" ||
+    currentFiscalPeriod?.phase === "pre_closing";
   const screenLockedMessage = isReadOnlyPeriod ? null : lockedMessage;
   const importLockedMessage = buildPeriodLockMessage(
     currentFiscalPeriod,

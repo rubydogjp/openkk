@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { AppError } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text";
@@ -43,36 +43,6 @@ export function JournalizingBody({
   );
   const { confirm, dialog } = useConfirmDialog();
   const [screenError, setScreenError] = useState<unknown>(null);
-  const [isProvisionalClosedRemote, setIsProvisionalClosedRemote] =
-    useState(false);
-
-  useEffect(() => {
-    if (
-      config.isMockMode ||
-      currentFiscalPeriod == null ||
-      appState.currentFiscalPeriodId == null
-    ) {
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      try {
-        const year = Number(currentFiscalPeriod.endDate.slice(0, 4));
-        const closing = await closingApi.getProvisional(appState.currentFiscalPeriodId!, year);
-        if (cancelled) return;
-        setIsProvisionalClosedRemote(closing?.isProvisional === true);
-      } catch {
-        if (cancelled) return;
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    appState.currentFiscalPeriodId,
-    currentFiscalPeriod?.endDate,
-    currentFiscalPeriod?.id,
-  ]);
 
   if (currentFiscalPeriod == null) {
     return (
@@ -106,13 +76,11 @@ export function JournalizingBody({
     );
   }
 
-  const isProvisionalClosed =
-    currentFiscalPeriod.stage === "post_closing" ||
-    (config.isMockMode
-      ? currentFiscalPeriod.provisionalClosingCompleted
-      : isProvisionalClosedRemote);
+  const isPreClosed =
+    currentFiscalPeriod.phase === "pre_closing" ||
+    currentFiscalPeriod.phase === "post_closing";
 
-  const handleRunProvisional = async () => {
+  const handleRunPreClosing = async () => {
     const confirmed = await confirm({
 
       tone: "success",
@@ -144,16 +112,9 @@ export function JournalizingBody({
       if (!forceConfirmed) return;
     }
     try {
-      if (config.isMockMode) {
-        const updated = await appState.updateFiscalPeriod(
-          currentFiscalPeriod.id,
-          { provisionalClosingCompleted: true },
-        );
-        if (!updated) return;
-      } else if (appState.currentFiscalPeriodId != null) {
+      if (appState.currentFiscalPeriodId != null) {
         const year = Number(currentFiscalPeriod.endDate.slice(0, 4));
-        await closingApi.runProvisional(appState.currentFiscalPeriodId, year);
-        setIsProvisionalClosedRemote(true);
+        await closingApi.runPreClosing(appState.currentFiscalPeriodId, year);
       }
       setScreenError(null);
     } catch (error) {
@@ -161,7 +122,7 @@ export function JournalizingBody({
         AppError.from(error, {
           fallbackUserMessage: "仮締めの更新に失敗しました",
           fallbackDeveloperMessage:
-            "steps/journalizing: provisional close failed",
+            "steps/journalizing: pre-closing failed",
         }),
       );
     }
@@ -171,7 +132,7 @@ export function JournalizingBody({
     <>
       {dialog}
 
-      {isProvisionalClosed ? (
+      {isPreClosed ? (
         <section>
           <StepSectionLabel>記録終了</StepSectionLabel>
           {trendPoints != null && trendPoints.length > 0 ? (
@@ -245,7 +206,7 @@ export function JournalizingBody({
               ) : null}
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
                 <StepPrimaryButton
-                  onClick={handleRunProvisional}
+                  onClick={handleRunPreClosing}
                   variant="success"
                 >
                   仮締めを実行

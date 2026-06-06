@@ -197,12 +197,47 @@ describe("openkk workspace structure", () => {
       path.join(rootDir, "docs/database-schema.md"),
       "utf8",
     );
-    const tables = [
-      ...schema.matchAll(/CREATE TABLE ([a-z0-9_]+)/g),
-    ].map((match) => match[1]!);
+    const tableNamesDeclaration = schema.match(
+      /SQLITE_TABLE_NAMES = \[([\s\S]*?)\] as const/,
+    )?.[1] ?? "";
+    const tables = [...tableNamesDeclaration.matchAll(/"([a-z0-9_]+)"/g)].map(
+      (match) => match[1]!,
+    );
 
     expect(tables.length).toBeGreaterThan(0);
     for (const table of tables) expect(schemaDoc).toContain(`${table} {`);
+  });
+
+  it("keeps opening data normalized in SQLite", () => {
+    const schema = fs.readFileSync(
+      path.join(packagesDir, "server-ports/src/sqlite/schema.ts"),
+      "utf8",
+    );
+    const adapter = fs.readFileSync(
+      path.join(packagesDir, "server-ports/src/sqlite/adapter.ts"),
+      "utf8",
+    );
+
+    expect(schema).toMatch(/json_remove\(data, '\$\.opening'/);
+    expect(schema).toContain("json_type(data, '$.opening') IS NULL");
+    expect(adapter).toContain("loadOpeningByFiscalPeriod");
+    expect(adapter).toContain("replaceOpening");
+  });
+
+  it("keeps entry lines normalized in SQLite", () => {
+    const schema = fs.readFileSync(
+      path.join(packagesDir, "server-ports/src/sqlite/schema.ts"),
+      "utf8",
+    );
+    const adapter = fs.readFileSync(
+      path.join(packagesDir, "server-ports/src/sqlite/adapter.ts"),
+      "utf8",
+    );
+
+    expect(schema).toContain("CREATE TABLE entry_lines");
+    expect(schema).not.toContain("json_type(data, '$.lines')");
+    expect(adapter).toContain("LEFT JOIN entry_lines");
+    expect(adapter).toContain("insertEntryLines");
   });
 
   it("keeps hard-coded data names aligned with their purpose", () => {
