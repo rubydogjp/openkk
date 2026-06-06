@@ -1,4 +1,8 @@
+import type { EmbeddedUser } from "./user";
+
 export type OpenkkMode = "prod" | "stg" | "dev" | "demo";
+
+export type OpenkkAuthMode = "embedded" | "custom";
 
 export interface OpenkkConfig {
   today: Date;
@@ -7,6 +11,8 @@ export interface OpenkkConfig {
   isDevMode: boolean;
   isDemoMode: boolean;
   isMockMode: boolean;
+  authMode: OpenkkAuthMode;
+  embeddedUser: EmbeddedUser;
   mockUserId: string;
   initialMockUserId: string | null;
   initialMockFiscalPeriodId: string | null;

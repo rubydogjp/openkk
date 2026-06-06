@@ -1,5 +1,6 @@
 import type { OpenkkConfig } from "./openkk-config";
 import type { FiscalPeriod, Session } from "./models";
+import type { OpenkkUser } from "./user";
 import { DEFAULT_BOOK_ACCOUNTS } from "../entries/default-master-data";
 
 function bookAccountIdByName(name: string): string {
@@ -141,20 +142,12 @@ function buildDemoFiscalPeriod2026(
   };
 }
 
-export function buildDemoSession(
-  config: OpenkkConfig,
-  userId?: string,
-): Session {
-  return {
-    userId: userId ?? config.mockUserId,
-    displayName:
-      config.mode === "demo"
-        ? "デモユーザー"
-        : config.mode === "dev"
-          ? "開発ユーザー"
-          : "このPCに保存",
-    email: "サインインなし",
-  };
+export function buildEmbeddedSession(config: OpenkkConfig): Session {
+  return { user: config.embeddedUser };
+}
+
+export function buildBootstrapUser(config: OpenkkConfig): OpenkkUser | null {
+  return config.authMode === "embedded" ? config.embeddedUser : null;
 }
 
 export function buildBootstrapFiscalPeriods(
@@ -169,12 +162,6 @@ export function buildBootstrapFiscalPeriods(
         ),
       ]
     : [buildDemoFiscalPeriod2026(config.mockUserId, "2026年分", "in-progress")];
-}
-
-export function buildBootstrapSessionUserId(
-  config: OpenkkConfig,
-): string | null {
-  return config.initialMockUserId;
 }
 
 export function buildBootstrapFiscalPeriodId(

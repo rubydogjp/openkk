@@ -9,7 +9,15 @@ import {
   useOpenkkAppState,
   useOpenkkConfig,
 } from "@rubydogjp/openkk-client-usecases";
-import { fontSize, fontWeight, palette, radii, shadows, sizes, typography } from "../shared/design-tokens";
+import {
+  fontSize,
+  fontWeight,
+  palette,
+  radii,
+  shadows,
+  sizes,
+  typography,
+} from "../shared/design-tokens";
 
 export function SignInContent() {
   const appState = useOpenkkAppState();
@@ -19,8 +27,8 @@ export function SignInContent() {
 
   const handleSignIn = async () => {
     setScreenError(null);
-    if (openkkConfig.isMockMode) {
-      appState.signInAsMockUser();
+    if (openkkConfig.authMode === "embedded") {
+      appState.signInAsEmbeddedUser();
       return;
     }
     try {
@@ -92,8 +100,8 @@ export function SignInContent() {
             fontSize: fontSize.base,
           }}
         >
-          {openkkConfig.isMockMode
-            ? "dev / demo では通信なしのローカルセッションで起動します。"
+          {openkkConfig.authMode === "embedded"
+            ? "この端末の組み込みユーザーで起動します（サインアウト不要）。"
             : "この環境のサインインを開始します。"}
         </p>
         <div style={{ height: 20 }} />

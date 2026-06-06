@@ -1,7 +1,7 @@
+import type { OpenkkUser } from "./user";
+
 export type Session = {
-  userId: string;
-  displayName: string;
-  email: string;
+  user: OpenkkUser;
 };
 
 export type FiscalPeriodPhase =

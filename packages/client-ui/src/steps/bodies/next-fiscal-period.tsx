@@ -165,7 +165,7 @@ export function NextFiscalPeriodBody({
           openingBalancesCompleted: carries.bs,
           opening: {
             id: `op-${createdId}`,
-            userId: appState.session?.userId ?? "",
+            userId: appState.session?.user.id ?? "",
             fiscalPeriodId: createdId,
             openingBalanceLines: carries.bs
               ? openingBalanceLines.map((line) => ({

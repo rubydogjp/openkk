@@ -220,7 +220,7 @@ export function OpeningBsBody({
             opening: {
               ...(currentFiscalPeriod.opening ?? {
                 id: `op-${currentFiscalPeriod.id}`,
-                userId: appState.session?.userId ?? "",
+                userId: appState.session?.user.id ?? "",
                 fiscalPeriodId: currentFiscalPeriod.id,
                 openingJournals: [],
               }),

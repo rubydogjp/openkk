@@ -15,7 +15,13 @@ export type StartAuthSessionResponse = { authUrl: string };
 export type CompleteAuthSessionRequest = { state: string; code: string };
 export type CompleteAuthSessionResponse = { completionCode: string };
 export type RedeemCompletionCodeRequest = { completionCode: string };
-export type CreateTokenResponse = { userId: string };
+export type CreateTokenResponse = {
+  userId: string;
+  displayName?: string;
+  email?: string;
+  iconUrl?: string | null;
+  authProvider?: string;
+};
 export type RedeemCompletionCodeResponse = CreateTokenResponse;
 export type AuthSignOutRequest = OpenkkEmptyRequest;
 export type AuthSignOutResponse = OpenkkNoContentResponse;

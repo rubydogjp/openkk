@@ -65,7 +65,12 @@ server side:   api → usecases → ports → domain
 
 ## 認証について
 
-`server-usecases` の auth は embedded 単一ユーザー向け local auth 実装。HTTP マルチユーザーサーバーを構築する場合は `OpenkkServerPort.auth` を実装した独自 adapter が必要。
+ユーザーは `OpenkkUser = EmbeddedUser | CustomUser`（`client-domain` の `user.ts`）でドメインモデル化する。`config.authMode` で挙動を選ぶ：
+
+- `embedded`（dev/demo/prod の既定）: 固定の `EmbeddedUser` 1名で起動時に自動サインイン。サインアウトは非活性（`userCanSignOut` が `false`）。`server-usecases` の auth は embedded 単一ユーザー向け local 実装。
+- `custom`: Google 認証等で実ユーザー（`CustomUser`）を扱う OSS 派生プロダクト向け。サードパーティが `OpenkkServerPort.auth`（`startSession`/`completeSession`/`redeemCompletionCode`/`signOut`）を自前バックエンドで実装し、`redeemCompletionCode` で `CreateTokenResponse`（`userId` ＋任意で `displayName`/`email`/`iconUrl`/`authProvider`）を返す。クライアントはそれを `CustomUser` に写像する。
+
+実装手順は [`authentication.md`](./authentication.md) を参照。
 
 ### 所有者チェックの責務
 

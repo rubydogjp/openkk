@@ -13,9 +13,8 @@ import type { FiscalPeriodApiRecord } from "@rubydogjp/openkk-client-ports";
 import {
   AppError,
   buildBootstrapFiscalPeriodId,
-  buildBootstrapSessionUserId,
+  buildBootstrapUser,
   buildDemoSeedEntriesForFiscalPeriod,
-  buildDemoSession,
   buildSignedOutFiscalPeriodId,
   demoOpeningBalanceLines,
   summarizeOpeningBalances,
@@ -25,7 +24,12 @@ import {
   type EntryRecord,
   type FiscalPeriodArchivePayload,
 } from "@rubydogjp/openkk-client-domain";
-import type { FiscalPeriod, Session } from "@rubydogjp/openkk-client-domain";
+import type {
+  CustomUser,
+  FiscalPeriod,
+  OpenkkUser,
+  Session,
+} from "@rubydogjp/openkk-client-domain";
 import { useBackendApi } from "./backend-api-context";
 import { useOpenkkConfig } from "./openkk-config-context";
 import { entryRecordToImportPayload } from "../entries/import-mapping";
@@ -62,13 +66,15 @@ type OpenkkAppState = {
   ) => Promise<boolean>;
   archiveFiscalPeriod: (fiscalPeriodId: string) => Promise<boolean>;
   syncFiscalPeriod: (period: FiscalPeriodApiRecord) => void;
-  signInAsMockUser: () => void;
-  signInAsUser: (userId: string) => void;
+  signInAsEmbeddedUser: () => void;
   signOut: () => void;
 
   startSignIn: (redirectUrl: string) => Promise<{ authUrl: string }>;
 
-  completeSignIn: (input: { state: string; code: string }) => Promise<string>;
+  completeSignIn: (input: {
+    state: string;
+    code: string;
+  }) => Promise<OpenkkUser>;
   selectFiscalPeriod: (fiscalPeriodId: string) => void;
   clearFiscalPeriod: () => void;
 };
@@ -86,8 +92,8 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
     useState<unknown>(null);
   const [fiscalPeriodReloadNonce, setFiscalPeriodReloadNonce] = useState(0);
 
-  const [sessionUserId, setSessionUserId] = useState<string | null>(() =>
-    buildBootstrapSessionUserId(config),
+  const [user, setUser] = useState<OpenkkUser | null>(() =>
+    buildBootstrapUser(config),
   );
   const [currentFiscalPeriodId, setCurrentFiscalPeriodId] = useState<
     string | null
@@ -98,15 +104,22 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
       return;
     }
 
-    const storedUser = window.localStorage.getItem(config.sessionStorageKey);
-    if (storedUser != null) setSessionUserId(storedUser);
+    // EmbeddedUser は毎起動で自動サインイン（保存は参照しない）。CustomUser は
+    // 前回サインイン時に保存したユーザーを復元する。
+    if (config.authMode === "custom") {
+      const restored = readStoredUser(
+        window.localStorage.getItem(config.sessionStorageKey),
+      );
+      if (restored != null) setUser(restored);
+    }
     const storedFp = window.localStorage.getItem(config.fiscalPeriodStorageKey);
     if (storedFp != null) setCurrentFiscalPeriodId(storedFp);
     setIsReady(true);
   }, []);
 
+  const userId = user?.id ?? null;
   useEffect(() => {
-    if (sessionUserId == null) {
+    if (userId == null) {
       setFiscalPeriods([]);
       return;
     }
@@ -133,19 +146,23 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [backendApi, config, sessionUserId, fiscalPeriodReloadNonce]);
+  }, [backendApi, config, userId, fiscalPeriodReloadNonce]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
 
-    if (sessionUserId == null || sessionUserId === "") {
-      window.localStorage.removeItem(config.sessionStorageKey);
+    // CustomUser のみ復元用に保存する。EmbeddedUser は毎起動で自動サインインするため保存不要。
+    if (user != null && user.kind === "custom") {
+      window.localStorage.setItem(
+        config.sessionStorageKey,
+        JSON.stringify(user),
+      );
     } else {
-      window.localStorage.setItem(config.sessionStorageKey, sessionUserId);
+      window.localStorage.removeItem(config.sessionStorageKey);
     }
-  }, [sessionUserId]);
+  }, [user, config]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -163,12 +180,8 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
   }, [currentFiscalPeriodId]);
 
   const value = useMemo<OpenkkAppState>(() => {
-    const localSession = buildDemoSession(config);
     return {
-      session:
-        sessionUserId == null
-          ? null
-          : { ...localSession, userId: sessionUserId },
+      session: user == null ? null : { user },
       fiscalPeriods,
       currentFiscalPeriodId,
       isReady,
@@ -186,7 +199,7 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
           final = await backendApi.fiscalPeriod.patch(created.id, {
             opening: {
               id: `op-${created.id}`,
-              userId: sessionUserId ?? config.mockUserId,
+              userId: user?.id ?? config.mockUserId,
               fiscalPeriodId: created.id,
               openingBalanceLines: demoOpeningBalanceLines,
               openingJournals: [],
@@ -240,18 +253,15 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
       syncFiscalPeriod(period) {
         setFiscalPeriods((current) => applyFiscalPeriodUpdate(current, period));
       },
-      signInAsMockUser() {
+      signInAsEmbeddedUser() {
         setFiscalPeriods([]);
-        setSessionUserId(config.mockUserId);
-      },
-      signInAsUser(userId) {
-        setFiscalPeriods([]);
-        setSessionUserId(userId);
+        setUser(config.embeddedUser);
       },
       signOut() {
         void backendApi.auth.signOut().catch(() => undefined);
         setFiscalPeriods([]);
-        setSessionUserId(null);
+        // EmbeddedUser はサインアウト不可。再度自動サインイン状態へ戻す。
+        setUser(buildBootstrapUser(config));
         setCurrentFiscalPeriodId(buildSignedOutFiscalPeriodId(config));
       },
       async startSignIn(redirectUrl) {
@@ -265,9 +275,17 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
         const token = await backendApi.auth.redeemCompletionCode(
           completed.completionCode,
         );
+        const signedInUser: CustomUser = {
+          kind: "custom",
+          id: token.userId,
+          displayName: token.displayName ?? token.userId,
+          email: token.email ?? "",
+          iconUrl: token.iconUrl ?? null,
+          authProvider: token.authProvider ?? "custom",
+        };
         setFiscalPeriods([]);
-        setSessionUserId(token.userId);
-        return token.userId;
+        setUser(signedInUser);
+        return signedInUser;
       },
       selectFiscalPeriod(fiscalPeriodId) {
         setCurrentFiscalPeriodId(fiscalPeriodId);
@@ -281,7 +299,7 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
     fiscalPeriods,
     isReady,
     fiscalPeriodLoadError,
-    sessionUserId,
+    user,
     config,
     backendApi,
   ]);
@@ -305,6 +323,24 @@ export function useOpenkkAppState() {
     });
   }
   return value;
+}
+
+function readStoredUser(raw: string | null): OpenkkUser | null {
+  if (raw == null || raw === "") return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<CustomUser>;
+    if (parsed.kind !== "custom" || typeof parsed.id !== "string") return null;
+    return {
+      kind: "custom",
+      id: parsed.id,
+      displayName: parsed.displayName ?? parsed.id,
+      email: parsed.email ?? "",
+      iconUrl: parsed.iconUrl ?? null,
+      authProvider: parsed.authProvider ?? "custom",
+    };
+  } catch {
+    return null;
+  }
 }
 
 function mapRemoteFiscalPeriod(period: FiscalPeriodApiRecord): FiscalPeriod {

@@ -10,6 +10,13 @@ const userId =
 const mockToday = new Date(2026, 8, 5);
 const useMockClock = openkkMode === "demo" || openkkMode === "dev";
 
+const embeddedUserDisplayName =
+  openkkMode === "demo"
+    ? "デモユーザー"
+    : openkkMode === "dev"
+      ? "開発ユーザー"
+      : "このPCのデータ";
+
 export const openkkConfig: OpenkkConfig = {
   today: useMockClock ? new Date(mockToday) : new Date(),
   mode: openkkMode,
@@ -17,6 +24,12 @@ export const openkkConfig: OpenkkConfig = {
   isDevMode: openkkMode === "dev",
   isDemoMode: openkkMode === "demo",
   isMockMode: useMockClock,
+  authMode: "embedded",
+  embeddedUser: {
+    kind: "embedded",
+    id: userId,
+    displayName: embeddedUserDisplayName,
+  },
   mockUserId: userId,
   initialMockUserId: useMockClock ? userId : null,
 

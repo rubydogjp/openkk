@@ -9,6 +9,7 @@ import {
   useBrandConfig,
   useOpenkkConfig,
 } from "@rubydogjp/openkk-client-usecases";
+import { userCanSignOut, userEmail } from "@rubydogjp/openkk-client-domain";
 
 import {
   fontSize,
@@ -243,8 +244,9 @@ function ShellChrome({
   );
 
   const fiscalPeriodLabel = currentFiscalPeriod?.name ?? "期間 未選択";
-  const displayName = session?.displayName ?? "";
-  const email = isDemoMode ? "" : (session?.email ?? "");
+  const displayName = session?.user.displayName ?? "";
+  const email = session != null ? userEmail(session.user) : "";
+  const canSignOut = session != null && userCanSignOut(session.user);
 
   function navigate(href: string) {
     setMenuOpen(false);
@@ -252,8 +254,8 @@ function ShellChrome({
   }
 
   async function handleSignInClick() {
-    if (openkkConfig.isMockMode) {
-      appState.signInAsMockUser();
+    if (openkkConfig.authMode === "embedded") {
+      appState.signInAsEmbeddedUser();
       return;
     }
     try {
@@ -848,19 +850,19 @@ function ShellChrome({
                           <LogoutIcon
                             size={18}
                             color={
-                              isDemoMode
-                                ? PALETTE.menuIconDisabled
-                                : PALETTE.menuIconActive
+                              canSignOut
+                                ? PALETTE.menuIconActive
+                                : PALETTE.menuIconDisabled
                             }
                           />
                         }
                         label="サインアウト"
                         labelColor={
-                          isDemoMode
-                            ? PALETTE.menuTextDisabled
-                            : PALETTE.menuTextActive
+                          canSignOut
+                            ? PALETTE.menuTextActive
+                            : PALETTE.menuTextDisabled
                         }
-                        disabled={isDemoMode}
+                        disabled={!canSignOut}
                         onClick={() => {
                           setMenuOpen(false);
                           appState.signOut();
