@@ -169,6 +169,42 @@ describe("openkk workspace structure", () => {
     expect(clientEndpoints).toEqual(serverEndpoints);
   });
 
+  it("keeps persistence types independent from REST DTOs", () => {
+    const persistenceTypes = fs.readFileSync(
+      path.join(packagesDir, "server-ports/src/persistence-types.ts"),
+      "utf8",
+    );
+    const dbAdapter = fs.readFileSync(
+      path.join(packagesDir, "server-ports/src/db-adapter.ts"),
+      "utf8",
+    );
+    const sqliteAdapter = fs.readFileSync(
+      path.join(packagesDir, "server-ports/src/sqlite/adapter.ts"),
+      "utf8",
+    );
+
+    expect(persistenceTypes).not.toMatch(/Api(?:Record|Request|Response)/);
+    expect(dbAdapter).toContain('from "./persistence-types"');
+    expect(sqliteAdapter).not.toMatch(/ApiRecord/);
+  });
+
+  it("documents every SQLite table", () => {
+    const schema = fs.readFileSync(
+      path.join(packagesDir, "server-ports/src/sqlite/schema.ts"),
+      "utf8",
+    );
+    const schemaDoc = fs.readFileSync(
+      path.join(rootDir, "docs/database-schema.md"),
+      "utf8",
+    );
+    const tables = [
+      ...schema.matchAll(/CREATE TABLE ([a-z0-9_]+)/g),
+    ].map((match) => match[1]!);
+
+    expect(tables.length).toBeGreaterThan(0);
+    for (const table of tables) expect(schemaDoc).toContain(`${table} {`);
+  });
+
   it("keeps hard-coded data names aligned with their purpose", () => {
     expect(
       fs.existsSync(path.join(packagesDir, "client-domain/src/shared/sample-data.ts")),

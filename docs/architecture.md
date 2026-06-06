@@ -7,6 +7,7 @@
 16 パッケージを「client」「server」「adapters」「composition roots」の 4 グループに分類する。
 依存グラフ: [`dependency-graph.md`](./dependency-graph.md)
 API 契約: [`api-contract.md`](./api-contract.md)
+SQLite スキーマ: [`database-schema.md`](./database-schema.md)
 
 ```
 packages/
@@ -17,7 +18,7 @@ packages/
 ├── client               上 4 つの meta barrel
 │
 ├── server-domain        サーバー側ドメインロジック・デフォルトマスターデータ
-├── server-ports         DB interface（OpenkkDbPort）・wire DTO
+├── server-ports         DB port・保存型・wire DTO
 ├── server-usecases      CRUD オーケストレーション
 ├── server-api           OpenkkServerPort を組み立てる factory
 ├── server               上 4 つの meta barrel
@@ -68,7 +69,9 @@ server side:   api → usecases → ports → domain
 
 ## DB スキーマとマイグレーション
 
-SQLite スキーマと共通アダプタは `server-ports/src/sqlite/`（`schema.ts` / `migrate.ts` / `adapter.ts`）に集約されている。`file-db-adapter`・`memory-db-adapter` はこの共通アダプタを薄くラップし、起動時に `runMigrations()` を呼ぶ。`runMigrations()` は `openkk_meta` の `schema_version` を見て未適用分のみをトランザクション内で適用し、アプリより新しいバージョンの DB はダウングレードを拒否する。新しい migration を追加する場合は `schema.ts` の `SCHEMA_MIGRATIONS` 配列に追記するだけでよい。
+DB操作契約は `db-adapter.ts`、DB境界型は `persistence-types.ts`、SQLite固有のDDL・migration・adapterは `sqlite/` に分離する。テーブル構造は [`database-schema.md`](./database-schema.md) を参照。
+
+`file-db-adapter`・`memory-db-adapter` は共通SQLiteアダプタをラップし、起動時に `runMigrations()` を呼ぶ。DB実装を差し替える場合は `OpenkkDbPort` を実装し、保存モデルとDDLはその実装内で管理する。
 
 エントリの取込み（`importMany`）は `localId` 単位で冪等で、同一 fiscal period に既存の `localId` はスキップされる。バルク挿入はトランザクションで囲まれ、途中失敗時はロールバックされる。
 

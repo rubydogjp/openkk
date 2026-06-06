@@ -140,39 +140,6 @@ export type FiscalPeriodArchiveImportInput = {
   closings: Array<Record<string, unknown>>;
 };
 
-export type FiscalPeriodArchiveDbImportInput = {
-  fiscalPeriod: {
-    name: string;
-    startDate: string;
-    endDate: string;
-    stage: "pre_opening" | "journalizing" | "post_closing";
-    archived: true;
-    settingsCompleted: boolean;
-    openingBalancesCompleted: boolean;
-    documentsReceivedCompleted: boolean;
-    opening?: FiscalPeriodPatchInput["opening"];
-  };
-  entries: EntryUpsertInput[];
-  fixedAssets: Array<{
-    createInput: FixedAssetCreateInput;
-    patchInput?: FixedAssetPatchInput;
-  }>;
-  closings: Array<{ year: number; isProvisional: boolean }>;
-};
-
-export type FiscalPeriodDbRecord = FiscalPeriodApiRecord;
-export type FiscalPeriodDbCreateInput = FiscalPeriodCreateInput;
-export type FiscalPeriodDbPatchInput = FiscalPeriodPatchInput;
-export type EntryDbRecord = EntryApiRecord;
-export type EntryDbUpsertInput = EntryUpsertInput;
-export type FixedAssetDbRecord = FixedAssetApiRecord;
-export type FixedAssetDbCreateInput = FixedAssetCreateInput;
-export type FixedAssetDbPatchInput = FixedAssetPatchInput;
-export type ClosingDbRecord = ClosingApiRecord;
-export type MasterBookAccountDbRecord = MasterBookAccount;
-export type MasterTaxCategoryDbRecord = MasterTaxCategory;
-export type MasterBusinessCategoryDbRecord = MasterBusinessCategory;
-
 export type FixedAssetApiRecord = {
   id: string;
   fiscalPeriodId: string;

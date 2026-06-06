@@ -12,7 +12,7 @@ import type {
   MasterBookAccountDbRecord,
   MasterBusinessCategoryDbRecord,
   MasterTaxCategoryDbRecord,
-} from "./types";
+} from "./persistence-types";
 
 export interface OpenkkDbPort {
   fiscalPeriods: FiscalPeriodsDb;

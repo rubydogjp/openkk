@@ -3,6 +3,14 @@ export type SchemaMigration = {
   sql: string;
 };
 
+export const SQLITE_TABLE_NAMES = [
+  "openkk_meta",
+  "fiscal_periods",
+  "entries",
+  "fixed_assets",
+  "closings",
+] as const;
+
 const MIGRATION_V1: SchemaMigration = {
   version: 1,
   sql: `

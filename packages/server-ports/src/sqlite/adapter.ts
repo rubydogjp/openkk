@@ -4,17 +4,14 @@ import {
   DEFAULT_TAX_CATEGORIES,
 } from "@rubydogjp/openkk-server-domain";
 import type {
-  ClosingApiRecord,
+  ClosingDbRecord,
   EntryDbRecord,
-  EntryApiRecord,
   FiscalPeriodDbRecord,
-  FiscalPeriodApiRecord,
   FixedAssetDbRecord,
-  FixedAssetApiRecord,
-  MasterBookAccount,
-  MasterBusinessCategory,
-  MasterTaxCategory,
-} from "../types";
+  MasterBookAccountDbRecord,
+  MasterBusinessCategoryDbRecord,
+  MasterTaxCategoryDbRecord,
+} from "../persistence-types";
 import type {
   ClosingsDb,
   EntriesDb,
@@ -145,7 +142,7 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
     },
     async create(userId, input) {
       const id = newId("fp");
-      const record: FiscalPeriodApiRecord = {
+      const record: FiscalPeriodDbRecord = {
         id,
         name: input.name,
         startDate: input.startDate,
@@ -176,7 +173,7 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
               userId,
               fiscalPeriodId,
             };
-      const record: FiscalPeriodApiRecord = {
+      const record: FiscalPeriodDbRecord = {
         id: fiscalPeriodId,
         name: input.fiscalPeriod.name,
         startDate: input.fiscalPeriod.startDate,
@@ -195,7 +192,7 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         });
         for (const inputEntry of input.entries) {
           const id = newId("entry");
-          const entry: EntryApiRecord = {
+          const entry: EntryDbRecord = {
             id,
             fiscalPeriodId,
             date: inputEntry.date,
@@ -211,7 +208,7 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         }
         for (const assetInput of input.fixedAssets) {
           const id = newId("fa");
-          const asset: FixedAssetApiRecord = {
+          const asset: FixedAssetDbRecord = {
             id,
             fiscalPeriodId,
             name: assetInput.createInput.name,
@@ -249,7 +246,7 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       const row = rows[0];
       if (row == null) throw new Error(`fiscal period not found: ${id}`);
       const existing = parseFiscalPeriodRecord(row[1]);
-      const updated: FiscalPeriodApiRecord = {
+      const updated: FiscalPeriodDbRecord = {
         ...existing,
         ...(patch.name !== undefined ? { name: patch.name } : {}),
         ...(patch.startDate !== undefined ? { startDate: patch.startDate } : {}),
@@ -278,8 +275,8 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
   };
 }
 
-function parseFiscalPeriodRecord(json: string): FiscalPeriodApiRecord {
-  const parsed = JSON.parse(json) as FiscalPeriodApiRecord & {
+function parseFiscalPeriodRecord(json: string): FiscalPeriodDbRecord {
+  const parsed = JSON.parse(json) as FiscalPeriodDbRecord & {
     archived?: boolean;
   };
   return {
@@ -289,14 +286,14 @@ function parseFiscalPeriodRecord(json: string): FiscalPeriodApiRecord {
 }
 
 function createEntriesDb(db: SqlDb): EntriesDb {
-  async function loadAllByFiscalPeriod(fpId: string): Promise<EntryApiRecord[]> {
+  async function loadAllByFiscalPeriod(fpId: string): Promise<EntryDbRecord[]> {
     const rows = await db.exec({
       sql: `SELECT data FROM entries WHERE fiscal_period_id = ? ORDER BY date ASC, created_at ASC`,
       bind: [fpId],
       returnValue: "resultRows",
       rowMode: "array",
     }) as Array<[string]>;
-    return rows.map((row) => JSON.parse(row[0]) as EntryApiRecord);
+    return rows.map((row) => JSON.parse(row[0]) as EntryDbRecord);
   }
 
   return {
@@ -310,7 +307,7 @@ function createEntriesDb(db: SqlDb): EntriesDb {
         returnValue: "resultRows",
         rowMode: "array",
       }) as Array<[string]>;
-      return rows.map((row) => JSON.parse(row[0]) as EntryApiRecord);
+      return rows.map((row) => JSON.parse(row[0]) as EntryDbRecord);
     },
     async getById(id) {
       const rows = await db.exec({
@@ -320,11 +317,11 @@ function createEntriesDb(db: SqlDb): EntriesDb {
         rowMode: "array",
       }) as Array<[string]>;
       const row = rows[0];
-      return row == null ? null : (JSON.parse(row[0]) as EntryApiRecord);
+      return row == null ? null : (JSON.parse(row[0]) as EntryDbRecord);
     },
     async create(_userId, fiscalPeriodId, input) {
       const id = newId("entry");
-      const record: EntryApiRecord = {
+      const record: EntryDbRecord = {
         id,
         fiscalPeriodId,
         date: input.date,
@@ -349,8 +346,8 @@ function createEntriesDb(db: SqlDb): EntriesDb {
       }) as Array<[string]>;
       const row = rows[0];
       if (row == null) throw new Error(`entry not found: ${id}`);
-      const existing = JSON.parse(row[0]) as EntryApiRecord;
-      const updated: EntryApiRecord = {
+      const existing = JSON.parse(row[0]) as EntryDbRecord;
+      const updated: EntryDbRecord = {
         ...existing,
         date: input.date,
         description: input.description,
@@ -368,7 +365,7 @@ function createEntriesDb(db: SqlDb): EntriesDb {
       await db.exec({ sql: `DELETE FROM entries WHERE id = ?`, bind: [id] });
     },
     async importMany(_userId, fiscalPeriodId, inputs) {
-      const created: EntryApiRecord[] = [];
+      const created: EntryDbRecord[] = [];
       await runInTransaction(db, async () => {
         // localId is the import source's stable key: an entry whose localId
         // already exists in this fiscal period is skipped, so re-importing the
@@ -384,7 +381,7 @@ function createEntriesDb(db: SqlDb): EntriesDb {
           if (localId !== "" && seenLocalIds.has(localId)) continue;
           if (localId !== "") seenLocalIds.add(localId);
           const id = newId("entry");
-          const record: EntryApiRecord = {
+          const record: EntryDbRecord = {
             id,
             fiscalPeriodId,
             date: input.date,
@@ -415,7 +412,7 @@ function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
         returnValue: "resultRows",
         rowMode: "array",
       }) as Array<[string]>;
-      return rows.map((row) => JSON.parse(row[0]) as FixedAssetApiRecord);
+      return rows.map((row) => JSON.parse(row[0]) as FixedAssetDbRecord);
     },
     async getById(id) {
       const rows = await db.exec({
@@ -425,11 +422,11 @@ function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
         rowMode: "array",
       }) as Array<[string]>;
       const row = rows[0];
-      return row == null ? null : (JSON.parse(row[0]) as FixedAssetApiRecord);
+      return row == null ? null : (JSON.parse(row[0]) as FixedAssetDbRecord);
     },
     async create(_userId, fiscalPeriodId, input) {
       const id = newId("fa");
-      const record: FixedAssetApiRecord = {
+      const record: FixedAssetDbRecord = {
         id,
         fiscalPeriodId,
         name: input.name,
@@ -459,8 +456,8 @@ function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
       }) as Array<[string]>;
       const row = rows[0];
       if (row == null) throw new Error(`fixed asset not found: ${id}`);
-      const existing = JSON.parse(row[0]) as FixedAssetApiRecord;
-      const updated: FixedAssetApiRecord = {
+      const existing = JSON.parse(row[0]) as FixedAssetDbRecord;
+      const updated: FixedAssetDbRecord = {
         ...existing,
         ...(patch.name !== undefined ? { name: patch.name } : {}),
         ...(patch.acquisitionDate !== undefined ? { acquisitionDate: patch.acquisitionDate } : {}),
@@ -496,7 +493,7 @@ function createClosingsDb(db: SqlDb): ClosingsDb {
       }) as Array<[number]>;
       const row = rows[0];
       if (row == null) return null;
-      return { isProvisional: row[0] === 1 } satisfies ClosingApiRecord;
+      return { isProvisional: row[0] === 1 } satisfies ClosingDbRecord;
     },
     async upsert(fiscalPeriodId, year, isProvisional) {
       await db.exec({
@@ -517,7 +514,7 @@ function createMasterDataDb(): MasterDataDb {
   return {
     async getAllBookAccounts() {
       return DEFAULT_BOOK_ACCOUNTS.map(
-        (a): MasterBookAccount => ({
+        (a): MasterBookAccountDbRecord => ({
           id: a.id,
           name: a.name,
           accountType: a.accountType,
@@ -526,12 +523,12 @@ function createMasterDataDb(): MasterDataDb {
     },
     async getAllTaxCategories() {
       return DEFAULT_TAX_CATEGORIES.map(
-        (c): MasterTaxCategory => ({ id: c.id, name: c.name }),
+        (c): MasterTaxCategoryDbRecord => ({ id: c.id, name: c.name }),
       );
     },
     async getAllBusinessCategories() {
       return DEFAULT_BUSINESS_CATEGORIES.map(
-        (c): MasterBusinessCategory => ({ id: c.id, name: c.name }),
+        (c): MasterBusinessCategoryDbRecord => ({ id: c.id, name: c.name }),
       );
     },
   };
