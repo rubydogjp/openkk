@@ -90,7 +90,21 @@ function createMemoryDb(
         return fiscalPeriod({ id: "fp-archive", archiveStatus: "archived" });
       },
       async update(id: string, patch: FiscalPeriodPatchInput) {
-        current = fiscalPeriod({ ...current, id, ...patch });
+        const { opening, ...rest } = patch;
+        current = fiscalPeriod({
+          ...current,
+          id,
+          ...rest,
+          ...(opening != null
+            ? {
+                opening: {
+                  ...opening,
+                  createdAt: TEST_TIMESTAMP,
+                  updatedAt: TEST_TIMESTAMP,
+                },
+              }
+            : {}),
+        });
         return current;
       },
       async archive() {
@@ -111,10 +125,20 @@ function createMemoryDb(
         fiscalPeriodId: string,
         input: EntryUpsertInput,
       ) {
-        return entry({ id: "entry-1", fiscalPeriodId, ...input });
+        return entry({
+          id: "entry-1",
+          fiscalPeriodId,
+          ...input,
+          lines: entryLinesWithIds(input.lines),
+        });
       },
       async update(id: string, input: EntryUpsertInput) {
-        return entry({ id, fiscalPeriodId: "fp-1", ...input });
+        return entry({
+          id,
+          fiscalPeriodId: "fp-1",
+          ...input,
+          lines: entryLinesWithIds(input.lines),
+        });
       },
       async delete() {},
       async importMany(
@@ -123,7 +147,12 @@ function createMemoryDb(
         inputs: EntryUpsertInput[],
       ) {
         return inputs.map((input, index) =>
-          entry({ id: `entry-${index + 1}`, fiscalPeriodId, ...input }),
+          entry({
+            id: `entry-${index + 1}`,
+            fiscalPeriodId,
+            ...input,
+            lines: entryLinesWithIds(input.lines),
+          }),
         );
       },
     },
@@ -185,11 +214,14 @@ function createMemoryDb(
   };
 }
 
+const TEST_TIMESTAMP = "1970-01-01T00:00:00.000Z";
+
 function fiscalPeriod(
   overrides: Partial<FiscalPeriodApiRecord>,
 ): FiscalPeriodApiRecord {
   return {
     id: "fp-1",
+    userId: "user-1",
     name: "2026年分",
     startDate: "2026-01-01",
     endDate: "2026-12-31",
@@ -198,6 +230,8 @@ function fiscalPeriod(
     settingsCompleted: true,
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,
+    createdAt: TEST_TIMESTAMP,
+    updatedAt: TEST_TIMESTAMP,
     ...overrides,
   };
 }
@@ -205,14 +239,23 @@ function fiscalPeriod(
 function entry(overrides: Partial<EntryApiRecord>): EntryApiRecord {
   return {
     id: "entry-1",
+    userId: "user-1",
     fiscalPeriodId: "fp-1",
     date: "2026-01-01",
     description: "entry",
     localId: "",
     businessRate: 1,
     lines: [],
+    createdAt: TEST_TIMESTAMP,
+    updatedAt: TEST_TIMESTAMP,
     ...overrides,
   };
+}
+
+function entryLinesWithIds(
+  lines: EntryUpsertInput["lines"],
+): EntryApiRecord["lines"] {
+  return lines.map((line, index) => ({ ...line, id: `line-${index + 1}` }));
 }
 
 function fixedAsset(
@@ -220,6 +263,7 @@ function fixedAsset(
 ): FixedAssetApiRecord {
   return {
     id: "asset-1",
+    userId: "user-1",
     fiscalPeriodId: "fp-1",
     name: "asset",
     acquisitionDate: "2026-01-01",
@@ -231,6 +275,8 @@ function fixedAsset(
     disposalDate: "",
     disposalPrice: 0,
     bookAccountId: "",
+    createdAt: TEST_TIMESTAMP,
+    updatedAt: TEST_TIMESTAMP,
     ...overrides,
   };
 }

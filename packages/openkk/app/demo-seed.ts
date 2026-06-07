@@ -20,15 +20,17 @@ import {
 } from "@rubydogjp/openkk-client";
 import type { MemoryDbSnapshot } from "@rubydogjp/openkk-memory-db-adapter";
 
+const DEMO_SEED_TIMESTAMP = new Date(0).toISOString();
+
 export function buildOpenkkDemoSeed(config: OpenkkConfig): MemoryDbSnapshot {
   const fiscalPeriod = buildDemoSeedFiscalPeriod(config);
   return {
     fiscalPeriods: [{ userId: config.mockUserId, record: fiscalPeriod }],
     entries: buildDemoEntries().map((record) =>
-      entryRecordToApiRecord(record, fiscalPeriod.id),
+      entryRecordToApiRecord(record, fiscalPeriod.id, config.mockUserId),
     ),
     fixedAssets: demoFixedAssetItems.map((item) =>
-      fixedAssetItemToApiRecord(item, fiscalPeriod.id),
+      fixedAssetItemToApiRecord(item, fiscalPeriod.id, config.mockUserId),
     ),
     closings: [],
   };
@@ -39,6 +41,7 @@ function buildDemoSeedFiscalPeriod(
 ): FiscalPeriodApiRecord {
   return {
     id: "fp-2026",
+    userId: config.mockUserId,
     name: "デモ期間2026年分",
     startDate: "2026-01-01",
     endDate: "2026-12-31",
@@ -51,25 +54,32 @@ function buildDemoSeedFiscalPeriod(
       id: "opening-fp-2026",
       userId: config.mockUserId,
       fiscalPeriodId: "fp-2026",
+      createdAt: DEMO_SEED_TIMESTAMP,
+      updatedAt: DEMO_SEED_TIMESTAMP,
       openingBalanceLines: demoOpeningBalanceLines,
       openingJournals: [],
     },
+    createdAt: DEMO_SEED_TIMESTAMP,
+    updatedAt: DEMO_SEED_TIMESTAMP,
   };
 }
 
 function entryRecordToApiRecord(
   record: EntryRecord,
   fiscalPeriodId: string,
+  userId: string,
 ): EntryApiRecord {
   return {
     id: record.id,
+    userId,
     fiscalPeriodId,
     date: record.date,
     description: record.description,
     localId: record.localId ?? "",
     businessRate: parseBusinessRate(record.businessRate),
     lines: getEntryLines(record).map(
-      (line): EntryApiLine => ({
+      (line, index): EntryApiLine => ({
+        id: `${record.id}-line-${index}`,
         side: line.side,
         bookAccountId:
           DEFAULT_BOOK_ACCOUNTS.find(
@@ -96,15 +106,19 @@ function entryRecordToApiRecord(
           )?.id ?? record.businessCategory,
       }),
     ),
+    createdAt: DEMO_SEED_TIMESTAMP,
+    updatedAt: DEMO_SEED_TIMESTAMP,
   };
 }
 
 function fixedAssetItemToApiRecord(
   item: FixedAssetPreviewItem,
   fiscalPeriodId: string,
+  userId: string,
 ): FixedAssetApiRecord {
   return {
     id: item.id,
+    userId,
     fiscalPeriodId,
     name: item.name,
     acquisitionDate: item.acquisitionDate ?? "",
@@ -120,6 +134,8 @@ function fixedAssetItemToApiRecord(
         ?.id ??
       item.accountId ??
       item.account,
+    createdAt: DEMO_SEED_TIMESTAMP,
+    updatedAt: DEMO_SEED_TIMESTAMP,
   };
 }
 

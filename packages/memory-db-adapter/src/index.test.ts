@@ -32,6 +32,8 @@ describe("createMemoryDbAdapter / fiscalPeriods", () => {
       id: `op-${created.id}`,
       userId: "user-1",
       fiscalPeriodId: created.id,
+      createdAt: expect.any(String),
+      updatedAt: expect.any(String),
       openingBalanceLines: [],
       openingJournals: [],
     });
@@ -512,6 +514,7 @@ describe("createMemoryDbAdapter / seed and closings", () => {
           userId: "user-1",
           record: {
             id: "fp-seed",
+            userId: "user-1",
             name: "Seed",
             startDate: "2026-01-01",
             endDate: "2026-12-31",
@@ -521,6 +524,8 @@ describe("createMemoryDbAdapter / seed and closings", () => {
             openingBalancesCompleted: false,
             documentsReceivedCompleted: false,
             opening: null,
+            createdAt: "1970-01-01T00:00:00.000Z",
+            updatedAt: "1970-01-01T00:00:00.000Z",
           },
         },
       ],
@@ -558,6 +563,7 @@ function seedWithPeriods(...ids: string[]): MemoryDbSnapshot {
       userId: "user-1",
       record: {
         id,
+        userId: "user-1",
         name: id,
         startDate: "2026-01-01",
         endDate: "2026-12-31",
@@ -567,6 +573,8 @@ function seedWithPeriods(...ids: string[]): MemoryDbSnapshot {
         openingBalancesCompleted: true,
         documentsReceivedCompleted: false,
         opening: null,
+        createdAt: "1970-01-01T00:00:00.000Z",
+        updatedAt: "1970-01-01T00:00:00.000Z",
       },
     })),
     entries: [],

@@ -120,6 +120,7 @@ function buildDemoFiscalPeriod2026(
   const isInProgress = progress === "in-progress";
   return {
     id: "fp-2026",
+    userId,
     name,
     startDate: "2026-01-01",
     endDate: "2026-12-31",
@@ -130,10 +131,14 @@ function buildDemoFiscalPeriod2026(
     documentsReceivedCompleted: false,
     openingDebitTotal: demoOpeningDebitTotal,
     openingCreditTotal: demoOpeningCreditTotal,
+    createdAt: DEMO_FISCAL_PERIOD_TIMESTAMP,
+    updatedAt: DEMO_FISCAL_PERIOD_TIMESTAMP,
     opening: {
       id: "opening-fp-2026",
       userId,
       fiscalPeriodId: "fp-2026",
+      createdAt: DEMO_FISCAL_PERIOD_TIMESTAMP,
+      updatedAt: DEMO_FISCAL_PERIOD_TIMESTAMP,
 
       openingBalanceLines: demoOpeningBalanceLines,
 
@@ -141,6 +146,8 @@ function buildDemoFiscalPeriod2026(
     },
   };
 }
+
+const DEMO_FISCAL_PERIOD_TIMESTAMP = new Date(0).toISOString();
 
 export function buildBootstrapUser(config: OpenkkConfig): OpenkkUser | null {
   return config.authMode === "embedded" ? config.embeddedUser : null;

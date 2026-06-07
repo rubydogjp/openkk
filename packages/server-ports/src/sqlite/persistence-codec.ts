@@ -6,6 +6,10 @@ import type {
   FixedAssetDbRecord,
 } from "../persistence-types";
 
+export function msToIso(ms: number): string {
+  return new Date(ms).toISOString();
+}
+
 export function parseFiscalPeriodDbRecord(json: string): FiscalPeriodDbRecord {
   return decodeRecord(json, "fiscal period", (value) => {
     requiredString(value, "id");
@@ -32,7 +36,13 @@ export function parseFiscalPeriodDbRecord(json: string): FiscalPeriodDbRecord {
 export function serializeFiscalPeriodDbRecord(
   value: FiscalPeriodDbRecord,
 ): string {
-  const { opening: _opening, ...stored } = value;
+  const {
+    opening: _opening,
+    userId: _userId,
+    createdAt: _createdAt,
+    updatedAt: _updatedAt,
+    ...stored
+  } = value;
   return serializeRecord(stored, parseFiscalPeriodDbRecord);
 }
 
@@ -64,7 +74,13 @@ export function parseFixedAssetDbRecord(json: string): FixedAssetDbRecord {
 }
 
 export function serializeFixedAssetDbRecord(value: FixedAssetDbRecord): string {
-  return serializeRecord(value, parseFixedAssetDbRecord);
+  const {
+    userId: _userId,
+    createdAt: _createdAt,
+    updatedAt: _updatedAt,
+    ...stored
+  } = value;
+  return serializeRecord(stored, parseFixedAssetDbRecord);
 }
 
 function validateOpening(value: Record<string, unknown>): void {

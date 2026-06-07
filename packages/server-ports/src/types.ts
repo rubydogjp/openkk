@@ -32,6 +32,7 @@ export type ClosingApiRecord = Record<string, never>;
 export type EntryApiSide = "debit" | "credit";
 
 export type EntryApiLine = {
+  id: string;
   side: EntryApiSide;
   bookAccountId: string;
   amount: number;
@@ -40,14 +41,19 @@ export type EntryApiLine = {
   businessCategoryId: string;
 };
 
+export type EntryApiLineInput = Omit<EntryApiLine, "id">;
+
 export type EntryApiRecord = {
   id: string;
+  userId: string;
   fiscalPeriodId: string;
   date: string;
   description: string;
   localId: string;
   businessRate: number;
   lines: EntryApiLine[];
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type EntryUpsertInput = {
@@ -55,11 +61,12 @@ export type EntryUpsertInput = {
   description: string;
   localId?: string;
   businessRate: number;
-  lines: EntryApiLine[];
+  lines: EntryApiLineInput[];
 };
 
 export type FiscalPeriodApiRecord = {
   id: string;
+  userId: string;
   name: string;
   startDate: string;
   endDate: string;
@@ -72,6 +79,8 @@ export type FiscalPeriodApiRecord = {
     id: string;
     userId: string;
     fiscalPeriodId: string;
+    createdAt: string;
+    updatedAt: string;
     openingBalanceLines?: Array<{
       id: string;
       accountId: string;
@@ -93,6 +102,8 @@ export type FiscalPeriodApiRecord = {
       }>;
     }>;
   } | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type FiscalPeriodCreateInput = {
@@ -145,6 +156,7 @@ export type FiscalPeriodArchiveImportInput = {
 
 export type FixedAssetApiRecord = {
   id: string;
+  userId: string;
   fiscalPeriodId: string;
   name: string;
   acquisitionDate: string;
@@ -156,6 +168,8 @@ export type FixedAssetApiRecord = {
   disposalDate: string;
   disposalPrice: number;
   bookAccountId: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type FixedAssetCreateInput = {
@@ -181,9 +195,23 @@ export type FixedAssetPatchInput = {
   bookAccountId?: string;
 };
 
+export type MasterBookAccountNormalBalanceSide = "debit" | "credit";
+
+export type MasterBookAccountBalanceSheetSection =
+  | "current_asset"
+  | "fixed_asset"
+  | "deferred_asset"
+  | "current_liability"
+  | "long_term_liability"
+  | "equity"
+  | "none";
+
 export type MasterBookAccount = {
   id: string;
   name: string;
+  description: string;
+  kana: string;
+  normalBalanceSide: MasterBookAccountNormalBalanceSide;
   accountType:
     | "asset"
     | "liability"
@@ -191,16 +219,25 @@ export type MasterBookAccount = {
     | "revenue"
     | "cost_of_sales"
     | "expense";
+  balanceSheetSection: MasterBookAccountBalanceSheetSection;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type MasterTaxCategory = {
   id: string;
   name: string;
+  rate: number;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type MasterBusinessCategory = {
   id: string;
   name: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type PreClosingGetRequest = { fiscalPeriodId: string; year: number };

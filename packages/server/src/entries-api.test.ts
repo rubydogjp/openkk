@@ -214,7 +214,20 @@ function createEntryDb(
         return fiscalPeriod({ id: "fp-archive", archiveStatus: "archived" });
       },
       async update(id: string, patch: FiscalPeriodPatchInput) {
-        return fiscalPeriod({ id, ...patch });
+        const { opening, ...rest } = patch;
+        return fiscalPeriod({
+          id,
+          ...rest,
+          ...(opening != null
+            ? {
+                opening: {
+                  ...opening,
+                  createdAt: TEST_TIMESTAMP,
+                  updatedAt: TEST_TIMESTAMP,
+                },
+              }
+            : {}),
+        });
       },
       async archive(id: string) {
         return fiscalPeriod({ id, archiveStatus: "archived" });
@@ -239,6 +252,7 @@ function createEntryDb(
           id: `entry-${entries.size + 1}`,
           fiscalPeriodId,
           ...input,
+          lines: entryLinesWithIds(input.lines),
         });
         entries.set(record.id, record);
         return record;
@@ -246,7 +260,11 @@ function createEntryDb(
       async update(id: string, input: EntryUpsertInput) {
         const current = entries.get(id);
         if (current == null) throw new Error(`entry not found: ${id}`);
-        const updated = entry({ ...current, ...input });
+        const updated = entry({
+          ...current,
+          ...input,
+          lines: entryLinesWithIds(input.lines),
+        });
         entries.set(id, updated);
         return updated;
       },
@@ -259,7 +277,12 @@ function createEntryDb(
         inputs: EntryUpsertInput[],
       ) {
         return inputs.map((input, index) =>
-          entry({ id: `entry-${index + 1}`, fiscalPeriodId, ...input }),
+          entry({
+            id: `entry-${index + 1}`,
+            fiscalPeriodId,
+            ...input,
+            lines: entryLinesWithIds(input.lines),
+          }),
         );
       },
     },
@@ -315,11 +338,20 @@ function createEntryDb(
   };
 }
 
+const TEST_TIMESTAMP = "1970-01-01T00:00:00.000Z";
+
+function entryLinesWithIds(
+  lines: EntryUpsertInput["lines"],
+): EntryApiRecord["lines"] {
+  return lines.map((line, index) => ({ ...line, id: `line-${index + 1}` }));
+}
+
 function fiscalPeriod(
   overrides: Partial<FiscalPeriodApiRecord>,
 ): FiscalPeriodApiRecord {
   return {
     id: "fp-1",
+    userId: "user-1",
     name: "2026年分",
     startDate: "2026-01-01",
     endDate: "2026-12-31",
@@ -329,6 +361,8 @@ function fiscalPeriod(
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,
     opening: null,
+    createdAt: TEST_TIMESTAMP,
+    updatedAt: TEST_TIMESTAMP,
     ...overrides,
   };
 }
@@ -336,12 +370,15 @@ function fiscalPeriod(
 function entry(overrides: Partial<EntryApiRecord>): EntryApiRecord {
   return {
     id: "entry-1",
+    userId: "user-1",
     fiscalPeriodId: "fp-1",
     date: "2026-01-01",
     description: "entry",
     localId: "",
     businessRate: 1,
     lines: [],
+    createdAt: TEST_TIMESTAMP,
+    updatedAt: TEST_TIMESTAMP,
     ...overrides,
   };
 }
@@ -351,6 +388,7 @@ function fixedAsset(
 ): FixedAssetApiRecord {
   return {
     id: "asset-1",
+    userId: "user-1",
     fiscalPeriodId: "fp-1",
     name: "asset",
     acquisitionDate: "2026-01-01",
@@ -362,6 +400,8 @@ function fixedAsset(
     disposalDate: "",
     disposalPrice: 0,
     bookAccountId: "",
+    createdAt: TEST_TIMESTAMP,
+    updatedAt: TEST_TIMESTAMP,
     ...overrides,
   };
 }

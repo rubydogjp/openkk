@@ -13,12 +13,18 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
           capturedInput = input;
           return {
             id: "entry-1",
+            userId: "user-1",
             fiscalPeriodId: "fp-1",
             date: input.date,
             description: input.description,
             localId: input.localId ?? "",
             businessRate: input.businessRate,
-            lines: input.lines,
+            lines: input.lines.map((line, index) => ({
+              ...line,
+              id: `line-${index + 1}`,
+            })),
+            createdAt: "1970-01-01T00:00:00.000Z",
+            updatedAt: "1970-01-01T00:00:00.000Z",
           };
         },
       },
@@ -54,6 +60,7 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
           return [
             {
               id: "fp-1",
+              userId: "user-1",
               name: "2026",
               startDate: "2026-01-01",
               endDate: "2026-12-31",
@@ -63,6 +70,8 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
               openingBalancesCompleted: false,
               documentsReceivedCompleted: false,
               opening: null,
+              createdAt: "1970-01-01T00:00:00.000Z",
+              updatedAt: "1970-01-01T00:00:00.000Z",
             },
           ];
         },

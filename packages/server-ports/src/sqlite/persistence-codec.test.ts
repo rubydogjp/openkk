@@ -35,9 +35,10 @@ describe("SQLite persistence codecs", () => {
     );
   });
 
-  it("does not persist opening inside fiscal period JSON", () => {
+  it("does not persist column-backed fields inside fiscal period JSON", () => {
     const json = serializeFiscalPeriodDbRecord({
       id: "fp-1",
+      userId: "user-1",
       name: "FY2026",
       startDate: "2026-01-01",
       endDate: "2026-12-31",
@@ -46,14 +47,22 @@ describe("SQLite persistence codecs", () => {
       settingsCompleted: false,
       openingBalancesCompleted: false,
       documentsReceivedCompleted: false,
+      createdAt: "1970-01-01T00:00:00.000Z",
+      updatedAt: "1970-01-01T00:00:00.000Z",
       opening: {
         id: "opening-1",
         userId: "user-1",
         fiscalPeriodId: "fp-1",
+        createdAt: "1970-01-01T00:00:00.000Z",
+        updatedAt: "1970-01-01T00:00:00.000Z",
         openingBalanceLines: [],
         openingJournals: [],
       },
     });
-    expect(JSON.parse(json)).not.toHaveProperty("opening");
+    const parsed = JSON.parse(json);
+    expect(parsed).not.toHaveProperty("opening");
+    expect(parsed).not.toHaveProperty("userId");
+    expect(parsed).not.toHaveProperty("createdAt");
+    expect(parsed).not.toHaveProperty("updatedAt");
   });
 });

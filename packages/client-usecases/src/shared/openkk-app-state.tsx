@@ -61,7 +61,10 @@ type OpenkkAppState = {
       settingsCompleted: boolean;
       openingBalancesCompleted: boolean;
       documentsReceivedCompleted: boolean;
-      opening: FiscalPeriod["opening"];
+      opening: Omit<
+        NonNullable<FiscalPeriod["opening"]>,
+        "createdAt" | "updatedAt"
+      >;
     }>,
   ) => Promise<boolean>;
   archiveFiscalPeriod: (fiscalPeriodId: string) => Promise<boolean>;
@@ -348,6 +351,7 @@ function mapRemoteFiscalPeriod(period: FiscalPeriodApiRecord): FiscalPeriod {
   const openingSummary = summarizeOpeningBalances(openingBalanceLines);
   return {
     id: period.id,
+    userId: period.userId,
     name: period.name,
     startDate: period.startDate,
     endDate: period.endDate,
@@ -358,6 +362,8 @@ function mapRemoteFiscalPeriod(period: FiscalPeriodApiRecord): FiscalPeriod {
     documentsReceivedCompleted: period.documentsReceivedCompleted,
     openingDebitTotal: openingSummary.assets,
     openingCreditTotal: openingSummary.liabilities + openingSummary.equity,
+    createdAt: period.createdAt,
+    updatedAt: period.updatedAt,
     opening:
       period.opening == null
         ? undefined
@@ -365,6 +371,8 @@ function mapRemoteFiscalPeriod(period: FiscalPeriodApiRecord): FiscalPeriod {
             id: period.opening.id,
             userId: period.opening.userId,
             fiscalPeriodId: period.opening.fiscalPeriodId,
+            createdAt: period.opening.createdAt,
+            updatedAt: period.opening.updatedAt,
             openingBalanceLines: (period.opening.openingBalanceLines ?? []).map(
               (line) => ({
                 id: line.id,

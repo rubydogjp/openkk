@@ -14,6 +14,7 @@ export type FiscalPeriodArchiveStatus = "active" | "archived";
 
 export type FiscalPeriod = {
   id: string;
+  userId: string;
   name: string;
   startDate: string;
   endDate: string;
@@ -24,10 +25,14 @@ export type FiscalPeriod = {
   documentsReceivedCompleted: boolean;
   openingDebitTotal: number;
   openingCreditTotal: number;
+  createdAt: string;
+  updatedAt: string;
   opening?: {
     id: string;
     userId: string;
     fiscalPeriodId: string;
+    createdAt: string;
+    updatedAt: string;
     openingBalanceLines: Array<{
       id: string;
       accountId: string;

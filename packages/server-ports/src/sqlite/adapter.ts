@@ -25,6 +25,7 @@ import type {
   PreClosingsDb,
 } from "../db-adapter";
 import {
+  msToIso,
   parseFiscalPeriodDbRecord,
   parseFixedAssetDbRecord,
   serializeFiscalPeriodDbRecord,
@@ -87,6 +88,8 @@ function nowMs(): number {
   return Date.now();
 }
 
+const MASTER_RECORD_TIMESTAMP = msToIso(0);
+
 async function runInTransaction(
   db: SqlDb,
   fn: () => Promise<void>,
@@ -126,7 +129,7 @@ async function seedStoresInner(
     });
     await replaceOpening(
       db,
-      item.record.opening ?? defaultOpening(item.userId, item.record.id),
+      item.record.opening ?? defaultOpening(item.userId, item.record.id, now),
       now,
     );
   }
@@ -176,39 +179,48 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
   return {
     async getAllByUser(userId) {
       const rows = (await db.exec({
-        sql: `SELECT data FROM fiscal_periods WHERE user_id = ? ORDER BY created_at ASC, id ASC`,
+        sql: `SELECT data, created_at, updated_at FROM fiscal_periods WHERE user_id = ? ORDER BY created_at ASC, id ASC`,
         bind: [userId],
         returnValue: "resultRows",
         rowMode: "array",
-      })) as Array<[string]>;
+      })) as Array<[string, number, number]>;
       const openings = await loadOpeningsByUser(db, userId);
-      return rows.map((row) => {
-        const record = parseFiscalPeriodDbRecord(row[0]);
+      return rows.map(([data, createdAt, updatedAt]) => {
+        const record = parseFiscalPeriodDbRecord(data);
         return {
           ...record,
+          userId,
+          createdAt: msToIso(createdAt),
+          updatedAt: msToIso(updatedAt),
           opening: requireOpening(openings.get(record.id), record.id),
         };
       });
     },
     async getById(id) {
       const rows = (await db.exec({
-        sql: `SELECT user_id, data FROM fiscal_periods WHERE id = ?`,
+        sql: `SELECT user_id, data, created_at, updated_at FROM fiscal_periods WHERE id = ?`,
         bind: [id],
         returnValue: "resultRows",
         rowMode: "array",
-      })) as Array<[string, string]>;
+      })) as Array<[string, string, number, number]>;
       const row = rows[0];
       if (row == null) return null;
       const record = parseFiscalPeriodDbRecord(row[1]);
       return {
         ...record,
+        userId: row[0],
+        createdAt: msToIso(row[2]),
+        updatedAt: msToIso(row[3]),
         opening: requireOpening(await loadOpeningByFiscalPeriod(db, id), id),
       };
     },
     async create(userId, input) {
       const id = newId("fp");
+      const now = nowMs();
+      const timestamp = msToIso(now);
       const record: FiscalPeriodDbRecord = {
         id,
+        userId,
         name: input.name,
         startDate: input.startDate,
         endDate: input.endDate,
@@ -217,9 +229,10 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         settingsCompleted: false,
         openingBalancesCompleted: false,
         documentsReceivedCompleted: false,
-        opening: defaultOpening(userId, id),
+        opening: defaultOpening(userId, id, now),
+        createdAt: timestamp,
+        updatedAt: timestamp,
       };
-      const now = nowMs();
       await runInTransaction(db, async () => {
         await db.exec({
           sql: `INSERT INTO fiscal_periods(id, user_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
@@ -232,17 +245,21 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
     async importArchived(userId, input) {
       const fiscalPeriodId = newId("fp");
       const now = nowMs();
-      const opening =
+      const timestamp = msToIso(now);
+      const opening: FiscalPeriodDbRecord["opening"] =
         input.fiscalPeriod.opening == null
-          ? defaultOpening(userId, fiscalPeriodId)
+          ? defaultOpening(userId, fiscalPeriodId, now)
           : {
               ...input.fiscalPeriod.opening,
               id: `op-${fiscalPeriodId}`,
               userId,
               fiscalPeriodId,
+              createdAt: timestamp,
+              updatedAt: timestamp,
             };
       const record: FiscalPeriodDbRecord = {
         id: fiscalPeriodId,
+        userId,
         name: input.fiscalPeriod.name,
         startDate: input.fiscalPeriod.startDate,
         endDate: input.fiscalPeriod.endDate,
@@ -253,6 +270,8 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         documentsReceivedCompleted:
           input.fiscalPeriod.documentsReceivedCompleted,
         opening,
+        createdAt: timestamp,
+        updatedAt: timestamp,
       };
       await runInTransaction(db, async () => {
         await db.exec({
@@ -270,12 +289,18 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
           const id = newId("entry");
           const entry: EntryDbRecord = {
             id,
+            userId,
             fiscalPeriodId,
             date: inputEntry.date,
             description: inputEntry.description,
             localId: inputEntry.localId ?? "",
             businessRate: inputEntry.businessRate,
-            lines: inputEntry.lines.map((line) => ({ ...line })),
+            lines: inputEntry.lines.map((line) => ({
+              ...line,
+              id: newId("eline"),
+            })),
+            createdAt: timestamp,
+            updatedAt: timestamp,
           };
           await db.exec({
             sql: `INSERT INTO entries(id, fiscal_period_id, date, local_id, description, business_rate, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -296,6 +321,7 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
           const id = newId("fa");
           const asset: FixedAssetDbRecord = {
             id,
+            userId,
             fiscalPeriodId,
             name: assetInput.createInput.name,
             acquisitionDate: assetInput.createInput.acquisitionDate,
@@ -307,6 +333,8 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
             disposalDate: assetInput.patchInput?.disposalDate ?? "",
             disposalPrice: assetInput.patchInput?.disposalPrice ?? 0,
             bookAccountId: assetInput.createInput.bookAccountId,
+            createdAt: timestamp,
+            updatedAt: timestamp,
           };
           await db.exec({
             sql: `INSERT INTO fixed_assets(id, fiscal_period_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
@@ -336,18 +364,27 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
     },
     async update(id, patch) {
       const rows = (await db.exec({
-        sql: `SELECT user_id, data FROM fiscal_periods WHERE id = ?`,
+        sql: `SELECT user_id, data, created_at FROM fiscal_periods WHERE id = ?`,
         bind: [id],
         returnValue: "resultRows",
         rowMode: "array",
-      })) as Array<[string, string]>;
+      })) as Array<[string, string, number]>;
       const row = rows[0];
       if (row == null)
         throw serverNotFoundError(`fiscal period not found: ${id}`);
+      const now = nowMs();
+      const timestamp = msToIso(now);
       const stored = parseFiscalPeriodDbRecord(row[1]);
+      const existingOpening = requireOpening(
+        await loadOpeningByFiscalPeriod(db, id),
+        id,
+      );
       const existing: FiscalPeriodDbRecord = {
         ...stored,
-        opening: requireOpening(await loadOpeningByFiscalPeriod(db, id), id),
+        userId: row[0],
+        createdAt: msToIso(row[2]),
+        updatedAt: timestamp,
+        opening: existingOpening,
       };
       const normalizedOpening =
         patch.opening === undefined
@@ -356,6 +393,8 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
               ...patch.opening,
               userId: row[0],
               fiscalPeriodId: id,
+              createdAt: existingOpening.createdAt,
+              updatedAt: timestamp,
             };
       const updated: FiscalPeriodDbRecord = {
         ...existing,
@@ -378,7 +417,6 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
           : {}),
         opening: normalizedOpening,
       };
-      const now = nowMs();
       await runInTransaction(db, async () => {
         await db.exec({
           sql: `UPDATE fiscal_periods SET data = ?, updated_at = ? WHERE id = ?`,
@@ -392,22 +430,26 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
     },
     async archive(id) {
       const rows = (await db.exec({
-        sql: `SELECT data FROM fiscal_periods WHERE id = ?`,
+        sql: `SELECT user_id, data, created_at FROM fiscal_periods WHERE id = ?`,
         bind: [id],
         returnValue: "resultRows",
         rowMode: "array",
-      })) as Array<[string]>;
+      })) as Array<[string, string, number]>;
       const row = rows[0];
       if (row == null)
         throw serverNotFoundError(`fiscal period not found: ${id}`);
-      const current = parseFiscalPeriodDbRecord(row[0]);
+      const now = nowMs();
+      const current = parseFiscalPeriodDbRecord(row[1]);
       const updated: FiscalPeriodDbRecord = {
         ...current,
+        userId: row[0],
+        createdAt: msToIso(row[2]),
+        updatedAt: msToIso(now),
         archiveStatus: "archived",
       };
       await db.exec({
         sql: `UPDATE fiscal_periods SET data = ?, updated_at = ? WHERE id = ?`,
-        bind: [serializeFiscalPeriodDbRecord(updated), nowMs(), id],
+        bind: [serializeFiscalPeriodDbRecord(updated), now, id],
       });
       return {
         ...updated,
@@ -453,18 +495,22 @@ function createEntriesDb(db: SqlDb): EntriesDb {
         )[0] ?? null
       );
     },
-    async create(_userId, fiscalPeriodId, input) {
+    async create(userId, fiscalPeriodId, input) {
       const id = newId("entry");
+      const now = nowMs();
+      const timestamp = msToIso(now);
       const record: EntryDbRecord = {
         id,
+        userId,
         fiscalPeriodId,
         date: input.date,
         description: input.description,
         localId: input.localId ?? "",
         businessRate: input.businessRate,
-        lines: input.lines.map((line) => ({ ...line })),
+        lines: input.lines.map((line) => ({ ...line, id: newId("eline") })),
+        createdAt: timestamp,
+        updatedAt: timestamp,
       };
-      const now = nowMs();
       await runInTransaction(db, async () => {
         await db.exec({
           sql: `INSERT INTO entries(id, fiscal_period_id, date, local_id, description, business_rate, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -489,13 +535,15 @@ function createEntriesDb(db: SqlDb): EntriesDb {
           await loadEntries(db, `WHERE e.id = ? ORDER BY l.position ASC`, [id])
         )[0] ?? null;
       if (existing == null) throw serverNotFoundError(`entry not found: ${id}`);
+      const now = nowMs();
       const updated: EntryDbRecord = {
         ...existing,
         date: input.date,
         description: input.description,
         localId: input.localId ?? existing.localId,
         businessRate: input.businessRate,
-        lines: input.lines.map((line) => ({ ...line })),
+        lines: input.lines.map((line) => ({ ...line, id: newId("eline") })),
+        updatedAt: msToIso(now),
       };
       await runInTransaction(db, async () => {
         await db.exec({
@@ -505,7 +553,7 @@ function createEntriesDb(db: SqlDb): EntriesDb {
             updated.localId,
             updated.description,
             updated.businessRate,
-            nowMs(),
+            now,
             id,
           ],
         });
@@ -520,7 +568,9 @@ function createEntriesDb(db: SqlDb): EntriesDb {
     async delete(id) {
       await db.exec({ sql: `DELETE FROM entries WHERE id = ?`, bind: [id] });
     },
-    async importMany(_userId, fiscalPeriodId, inputs) {
+    async importMany(userId, fiscalPeriodId, inputs) {
+      const now = nowMs();
+      const timestamp = msToIso(now);
       const candidates: EntryDbRecord[] = [];
       const seenLocalIds = new Set<string>();
       for (const input of inputs) {
@@ -529,17 +579,20 @@ function createEntriesDb(db: SqlDb): EntriesDb {
         if (localId !== "") seenLocalIds.add(localId);
         candidates.push({
           id: newId("entry"),
+          userId,
           fiscalPeriodId,
           date: input.date,
           description: input.description,
           localId,
           businessRate: input.businessRate,
-          lines: input.lines.map((line) => ({ ...line })),
+          lines: input.lines.map((line) => ({ ...line, id: newId("eline") })),
+          createdAt: timestamp,
+          updatedAt: timestamp,
         });
       }
       let insertedIds = new Set<string>();
       await runInTransaction(db, async () => {
-        insertedIds = await insertImportedEntries(db, candidates, nowMs());
+        insertedIds = await insertImportedEntries(db, candidates, now);
         for (const entry of candidates) {
           if (insertedIds.has(entry.id)) await insertEntryLines(db, entry);
         }
@@ -555,7 +608,11 @@ type EntryRow = [
   string,
   string,
   string,
+  string,
   number,
+  number,
+  number,
+  string | null,
   string | null,
   string | null,
   number | null,
@@ -571,10 +628,12 @@ async function loadEntries(
 ): Promise<EntryDbRecord[]> {
   const rows = (await db.exec({
     sql: `SELECT
-      e.id, e.fiscal_period_id, e.date, e.description, e.local_id, e.business_rate,
-      l.side, l.book_account_id, l.amount, l.partner_name,
+      e.id, fp.user_id, e.fiscal_period_id, e.date, e.description, e.local_id,
+      e.business_rate, e.created_at, e.updated_at,
+      l.id, l.side, l.book_account_id, l.amount, l.partner_name,
       l.tax_category_id, l.business_category_id
     FROM entries e
+    JOIN fiscal_periods fp ON fp.id = e.fiscal_period_id
     LEFT JOIN entry_lines l ON l.entry_id = e.id
     ${whereAndOrder}`,
     bind,
@@ -587,23 +646,27 @@ async function loadEntries(
     if (record == null) {
       record = {
         id: row[0],
-        fiscalPeriodId: row[1],
-        date: row[2],
-        description: row[3],
-        localId: row[4],
-        businessRate: row[5],
+        userId: row[1],
+        fiscalPeriodId: row[2],
+        date: row[3],
+        description: row[4],
+        localId: row[5],
+        businessRate: row[6],
+        createdAt: msToIso(row[7]),
+        updatedAt: msToIso(row[8]),
         lines: [],
       };
       records.set(record.id, record);
     }
-    if (row[6] != null) {
+    if (row[10] != null) {
       record.lines.push({
-        side: row[6] as "debit" | "credit",
-        bookAccountId: row[7]!,
-        amount: row[8]!,
-        partnerName: row[9]!,
-        taxCategoryId: row[10]!,
-        businessCategoryId: row[11]!,
+        id: row[9]!,
+        side: row[10] as "debit" | "credit",
+        bookAccountId: row[11]!,
+        amount: row[12]!,
+        partnerName: row[13]!,
+        taxCategoryId: row[14]!,
+        businessCategoryId: row[15]!,
       });
     }
   }
@@ -617,11 +680,12 @@ async function insertEntryLines(
   for (const [position, line] of entry.lines.entries()) {
     await db.exec({
       sql: `INSERT INTO entry_lines(
-        entry_id, side, book_account_id, amount, partner_name,
+        entry_id, id, side, book_account_id, amount, partner_name,
         tax_category_id, business_category_id, position
-      ) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       bind: [
         entry.id,
+        line.id,
         line.side,
         line.bookAccountId,
         line.amount,
@@ -677,27 +741,48 @@ function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
   return {
     async getAllByFiscalPeriod(fiscalPeriodId) {
       const rows = (await db.exec({
-        sql: `SELECT data FROM fixed_assets WHERE fiscal_period_id = ? ORDER BY created_at ASC, id ASC`,
+        sql: `SELECT fa.data, fp.user_id, fa.created_at, fa.updated_at
+          FROM fixed_assets fa
+          JOIN fiscal_periods fp ON fp.id = fa.fiscal_period_id
+          WHERE fa.fiscal_period_id = ? ORDER BY fa.created_at ASC, fa.id ASC`,
         bind: [fiscalPeriodId],
         returnValue: "resultRows",
         rowMode: "array",
-      })) as Array<[string]>;
-      return rows.map((row) => parseFixedAssetDbRecord(row[0]));
+      })) as Array<[string, string, number, number]>;
+      return rows.map(([data, userId, createdAt, updatedAt]) => ({
+        ...parseFixedAssetDbRecord(data),
+        userId,
+        createdAt: msToIso(createdAt),
+        updatedAt: msToIso(updatedAt),
+      }));
     },
     async getById(id) {
       const rows = (await db.exec({
-        sql: `SELECT data FROM fixed_assets WHERE id = ?`,
+        sql: `SELECT fa.data, fp.user_id, fa.created_at, fa.updated_at
+          FROM fixed_assets fa
+          JOIN fiscal_periods fp ON fp.id = fa.fiscal_period_id
+          WHERE fa.id = ?`,
         bind: [id],
         returnValue: "resultRows",
         rowMode: "array",
-      })) as Array<[string]>;
+      })) as Array<[string, string, number, number]>;
       const row = rows[0];
-      return row == null ? null : parseFixedAssetDbRecord(row[0]);
+      return row == null
+        ? null
+        : {
+            ...parseFixedAssetDbRecord(row[0]),
+            userId: row[1],
+            createdAt: msToIso(row[2]),
+            updatedAt: msToIso(row[3]),
+          };
     },
-    async create(_userId, fiscalPeriodId, input) {
+    async create(userId, fiscalPeriodId, input) {
       const id = newId("fa");
+      const now = nowMs();
+      const timestamp = msToIso(now);
       const record: FixedAssetDbRecord = {
         id,
+        userId,
         fiscalPeriodId,
         name: input.name,
         acquisitionDate: input.acquisitionDate,
@@ -709,8 +794,9 @@ function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
         disposalDate: "",
         disposalPrice: 0,
         bookAccountId: input.bookAccountId,
+        createdAt: timestamp,
+        updatedAt: timestamp,
       };
-      const now = nowMs();
       await db.exec({
         sql: `INSERT INTO fixed_assets(id, fiscal_period_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
         bind: [
@@ -725,15 +811,24 @@ function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
     },
     async update(id, patch) {
       const rows = (await db.exec({
-        sql: `SELECT data FROM fixed_assets WHERE id = ?`,
+        sql: `SELECT fa.data, fp.user_id, fa.created_at
+          FROM fixed_assets fa
+          JOIN fiscal_periods fp ON fp.id = fa.fiscal_period_id
+          WHERE fa.id = ?`,
         bind: [id],
         returnValue: "resultRows",
         rowMode: "array",
-      })) as Array<[string]>;
+      })) as Array<[string, string, number]>;
       const row = rows[0];
       if (row == null)
         throw serverNotFoundError(`fixed asset not found: ${id}`);
-      const existing = parseFixedAssetDbRecord(row[0]);
+      const now = nowMs();
+      const existing: FixedAssetDbRecord = {
+        ...parseFixedAssetDbRecord(row[0]),
+        userId: row[1],
+        createdAt: msToIso(row[2]),
+        updatedAt: msToIso(now),
+      };
       const updated: FixedAssetDbRecord = {
         ...existing,
         ...(patch.name !== undefined ? { name: patch.name } : {}),
@@ -765,7 +860,7 @@ function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
       };
       await db.exec({
         sql: `UPDATE fixed_assets SET data = ?, updated_at = ? WHERE id = ?`,
-        bind: [serializeFixedAssetDbRecord(updated), nowMs(), id],
+        bind: [serializeFixedAssetDbRecord(updated), now, id],
       });
       return updated;
     },
@@ -858,15 +953,15 @@ async function transitionFiscalPeriod(
   let updated: FiscalPeriodDbRecord | null = null;
   await runInTransaction(db, async () => {
     const rows = (await db.exec({
-      sql: `SELECT data FROM fiscal_periods WHERE id = ?`,
+      sql: `SELECT user_id, data, created_at FROM fiscal_periods WHERE id = ?`,
       bind: [fiscalPeriodId],
       returnValue: "resultRows",
       rowMode: "array",
-    })) as Array<[string]>;
+    })) as Array<[string, string, number]>;
     const row = rows[0];
     if (row == null)
       throw serverNotFoundError(`fiscal period not found: ${fiscalPeriodId}`);
-    const current = parseFiscalPeriodDbRecord(row[0]);
+    const current = parseFiscalPeriodDbRecord(row[1]);
     if (current.archiveStatus === "archived") {
       throw serverConflictError(
         `archived fiscal period cannot transition: ${fiscalPeriodId}`,
@@ -880,10 +975,17 @@ async function transitionFiscalPeriod(
       );
     }
     await writeTransitionData();
-    updated = { ...current, phase: nextPhase };
+    const now = nowMs();
+    updated = {
+      ...current,
+      userId: row[0],
+      createdAt: msToIso(row[2]),
+      updatedAt: msToIso(now),
+      phase: nextPhase,
+    };
     await db.exec({
       sql: `UPDATE fiscal_periods SET data = ?, updated_at = ? WHERE id = ?`,
-      bind: [serializeFiscalPeriodDbRecord(updated), nowMs(), fiscalPeriodId],
+      bind: [serializeFiscalPeriodDbRecord(updated), now, fiscalPeriodId],
     });
   });
   const opening = requireOpening(
@@ -900,18 +1002,36 @@ function createMasterDataDb(): MasterDataDb {
         (a): MasterBookAccountDbRecord => ({
           id: a.id,
           name: a.name,
+          description: a.description,
+          kana: a.kana,
+          normalBalanceSide: a.normalBalanceSide,
           accountType: a.accountType,
+          balanceSheetSection: a.balanceSheetSection,
+          sortOrder: a.sortOrder,
+          createdAt: MASTER_RECORD_TIMESTAMP,
+          updatedAt: MASTER_RECORD_TIMESTAMP,
         }),
       );
     },
     async getAllTaxCategories() {
       return DEFAULT_TAX_CATEGORIES.map(
-        (c): MasterTaxCategoryDbRecord => ({ id: c.id, name: c.name }),
+        (c): MasterTaxCategoryDbRecord => ({
+          id: c.id,
+          name: c.name,
+          rate: c.rate,
+          createdAt: MASTER_RECORD_TIMESTAMP,
+          updatedAt: MASTER_RECORD_TIMESTAMP,
+        }),
       );
     },
     async getAllBusinessCategories() {
       return DEFAULT_BUSINESS_CATEGORIES.map(
-        (c): MasterBusinessCategoryDbRecord => ({ id: c.id, name: c.name }),
+        (c): MasterBusinessCategoryDbRecord => ({
+          id: c.id,
+          name: c.name,
+          createdAt: MASTER_RECORD_TIMESTAMP,
+          updatedAt: MASTER_RECORD_TIMESTAMP,
+        }),
       );
     },
   };

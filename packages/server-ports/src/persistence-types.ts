@@ -34,12 +34,15 @@ export type FiscalPeriodOpeningDbRecord = {
   id: string;
   userId: string;
   fiscalPeriodId: string;
+  createdAt: string;
+  updatedAt: string;
   openingBalanceLines?: OpeningBalanceLineDbRecord[];
   openingJournals?: OpeningJournalDbRecord[];
 };
 
 export type FiscalPeriodDbRecord = {
   id: string;
+  userId: string;
   name: string;
   startDate: string;
   endDate: string;
@@ -49,6 +52,8 @@ export type FiscalPeriodDbRecord = {
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
   opening?: FiscalPeriodOpeningDbRecord | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type FiscalPeriodDbCreateInput = {
@@ -64,10 +69,11 @@ export type FiscalPeriodDbPatchInput = Partial<{
   settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
-  opening: Required<FiscalPeriodOpeningDbRecord>;
+  opening: Required<Omit<FiscalPeriodOpeningDbRecord, "createdAt" | "updatedAt">>;
 }>;
 
 export type EntryDbLine = {
+  id: string;
   side: "debit" | "credit";
   bookAccountId: string;
   amount: number;
@@ -76,14 +82,19 @@ export type EntryDbLine = {
   businessCategoryId: string;
 };
 
+export type EntryDbLineInput = Omit<EntryDbLine, "id">;
+
 export type EntryDbRecord = {
   id: string;
+  userId: string;
   fiscalPeriodId: string;
   date: string;
   description: string;
   localId: string;
   businessRate: number;
   lines: EntryDbLine[];
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type EntryDbUpsertInput = {
@@ -91,13 +102,14 @@ export type EntryDbUpsertInput = {
   description: string;
   localId?: string;
   businessRate: number;
-  lines: EntryDbLine[];
+  lines: EntryDbLineInput[];
 };
 
 export type FixedAssetDbStatus = "active" | "sold" | "disposed" | "retired";
 
 export type FixedAssetDbRecord = {
   id: string;
+  userId: string;
   fiscalPeriodId: string;
   name: string;
   acquisitionDate: string;
@@ -109,6 +121,8 @@ export type FixedAssetDbRecord = {
   disposalDate: string;
   disposalPrice: number;
   bookAccountId: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type FixedAssetDbCreateInput = {
@@ -122,15 +136,32 @@ export type FixedAssetDbCreateInput = {
 };
 
 export type FixedAssetDbPatchInput = Partial<
-  Omit<FixedAssetDbRecord, "id" | "fiscalPeriodId">
+  Omit<
+    FixedAssetDbRecord,
+    "id" | "userId" | "fiscalPeriodId" | "createdAt" | "updatedAt"
+  >
 >;
 
 export type PreClosingDbRecord = Record<string, never>;
 export type ClosingDbRecord = Record<string, never>;
 
+export type MasterBookAccountDbNormalBalanceSide = "debit" | "credit";
+
+export type MasterBookAccountDbBalanceSheetSection =
+  | "current_asset"
+  | "fixed_asset"
+  | "deferred_asset"
+  | "current_liability"
+  | "long_term_liability"
+  | "equity"
+  | "none";
+
 export type MasterBookAccountDbRecord = {
   id: string;
   name: string;
+  description: string;
+  kana: string;
+  normalBalanceSide: MasterBookAccountDbNormalBalanceSide;
   accountType:
     | "asset"
     | "liability"
@@ -138,16 +169,25 @@ export type MasterBookAccountDbRecord = {
     | "revenue"
     | "cost_of_sales"
     | "expense";
+  balanceSheetSection: MasterBookAccountDbBalanceSheetSection;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type MasterTaxCategoryDbRecord = {
   id: string;
   name: string;
+  rate: number;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type MasterBusinessCategoryDbRecord = {
   id: string;
   name: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type FiscalPeriodArchiveDbImportInput = {

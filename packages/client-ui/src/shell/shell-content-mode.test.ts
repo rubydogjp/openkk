@@ -112,6 +112,7 @@ describe("shell redirects", () => {
 function period(overrides: Partial<FiscalPeriod> = {}): FiscalPeriod {
   return {
     id: "fp-1",
+    userId: "user-1",
     name: "2026年分",
     startDate: "2026-01-01",
     endDate: "2026-12-31",
@@ -122,6 +123,8 @@ function period(overrides: Partial<FiscalPeriod> = {}): FiscalPeriod {
     documentsReceivedCompleted: false,
     openingDebitTotal: 0,
     openingCreditTotal: 0,
+    createdAt: "1970-01-01T00:00:00.000Z",
+    updatedAt: "1970-01-01T00:00:00.000Z",
     ...overrides,
   };
 }

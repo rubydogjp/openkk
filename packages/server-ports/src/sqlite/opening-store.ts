@@ -2,7 +2,7 @@ import type {
   OpeningJournalDbRecord,
   FiscalPeriodOpeningDbRecord,
 } from "../persistence-types";
-import { validateOpeningDbRecord } from "./persistence-codec";
+import { msToIso, validateOpeningDbRecord } from "./persistence-codec";
 
 type OpeningSqlDb = {
   exec(
@@ -20,11 +20,15 @@ type OpeningSqlDb = {
 export function defaultOpening(
   userId: string,
   fiscalPeriodId: string,
+  nowMs: number,
 ): FiscalPeriodOpeningDbRecord {
+  const timestamp = msToIso(nowMs);
   return {
     id: `op-${fiscalPeriodId}`,
     userId,
     fiscalPeriodId,
+    createdAt: timestamp,
+    updatedAt: timestamp,
     openingBalanceLines: [],
     openingJournals: [],
   };
@@ -116,7 +120,7 @@ async function loadOpenings(
   value: string,
 ): Promise<Map<string, FiscalPeriodOpeningDbRecord>> {
   const openingRows = (await db.exec({
-    sql: `SELECT o.id, fp.user_id, o.fiscal_period_id
+    sql: `SELECT o.id, fp.user_id, o.fiscal_period_id, o.created_at, o.updated_at
       FROM openings o
       JOIN fiscal_periods fp ON fp.id = o.fiscal_period_id
       WHERE ${where}
@@ -124,14 +128,16 @@ async function loadOpenings(
     bind: [value],
     returnValue: "resultRows",
     rowMode: "array",
-  })) as Array<[string, string, string]>;
+  })) as Array<[string, string, string, number, number]>;
   const result = new Map<string, FiscalPeriodOpeningDbRecord>();
   const openingIdToPeriodId = new Map<string, string>();
-  for (const [id, userId, fiscalPeriodId] of openingRows) {
+  for (const [id, userId, fiscalPeriodId, createdAt, updatedAt] of openingRows) {
     result.set(fiscalPeriodId, {
       id,
       userId,
       fiscalPeriodId,
+      createdAt: msToIso(createdAt),
+      updatedAt: msToIso(updatedAt),
       openingBalanceLines: [],
       openingJournals: [],
     });

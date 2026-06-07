@@ -23,7 +23,7 @@ import {
 export { entryRecordToImportPayload } from "./import-mapping";
 import type {
   EntryApiRecord,
-  EntryApiLine,
+  EntryApiLineInput,
   MasterBookAccount,
   MasterBusinessCategory,
   MasterTaxCategory,
@@ -507,8 +507,8 @@ function buildEntryApiLinesFromDraft(
     businesses: MasterBusinessCategory[];
   },
   errorContext: { messageForDeveloper: string; messageForUser: string },
-): EntryApiLine[] {
-  const lines: EntryApiLine[] = draft.lines.map((line) => ({
+): EntryApiLineInput[] {
+  const lines: EntryApiLineInput[] = draft.lines.map((line) => ({
     side: line.side,
     bookAccountId:
       resolveBookAccountId({

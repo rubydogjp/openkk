@@ -7,16 +7,16 @@ import {
   type EntryRecord,
 } from "@rubydogjp/openkk-client-domain";
 import type {
-  EntryApiLine,
+  EntryApiLineInput,
   MasterBookAccount,
   MasterBusinessCategory,
   MasterTaxCategory,
 } from "@rubydogjp/openkk-client-ports";
 
 export type ImportMaster = {
-  accounts: MasterBookAccount[];
-  taxes: MasterTaxCategory[];
-  businesses: MasterBusinessCategory[];
+  accounts: Pick<MasterBookAccount, "id" | "name" | "accountType">[];
+  taxes: Pick<MasterTaxCategory, "id" | "name">[];
+  businesses: Pick<MasterBusinessCategory, "id" | "name">[];
 };
 
 export function safeRate(value: string): number {
@@ -31,7 +31,7 @@ export function resolveBookAccountId(input: {
   explicitId?: string | null;
   accountName: string;
   accountType?: EntryAccountVisualType;
-  accounts: MasterBookAccount[];
+  accounts: Pick<MasterBookAccount, "id" | "name" | "accountType">[];
 }): string | null {
   if (input.explicitId != null && input.explicitId.length > 0) {
     const byId = input.accounts.find(
@@ -54,7 +54,7 @@ export function resolveBookAccountId(input: {
 export function resolveTaxCategoryId(
   explicitId: string | null,
   name: string,
-  categories: MasterTaxCategory[],
+  categories: Pick<MasterTaxCategory, "id" | "name">[],
 ): string {
   if (explicitId != null && explicitId.length > 0) {
     const byId = categories.find((category) => category.id === explicitId);
@@ -71,7 +71,7 @@ export function resolveTaxCategoryId(
 export function resolveBusinessCategoryId(
   explicitId: string | null,
   name: string,
-  categories: MasterBusinessCategory[],
+  categories: Pick<MasterBusinessCategory, "id" | "name">[],
 ): string {
   if (explicitId != null && explicitId.length > 0) {
     const byId = categories.find((category) => category.id === explicitId);
@@ -97,10 +97,10 @@ export function entryRecordToImportPayload(
   description: string;
   localId?: string;
   businessRate: number;
-  lines: EntryApiLine[];
+  lines: EntryApiLineInput[];
 } {
   const lines = getEntryLines(entry).map(
-    (line): EntryApiLine => ({
+    (line): EntryApiLineInput => ({
       side: line.side,
       bookAccountId:
         resolveBookAccountId({

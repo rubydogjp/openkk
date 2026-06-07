@@ -231,10 +231,20 @@ function createFiscalPeriodDb(
         userId: string,
         input: FiscalPeriodArchiveDbImportInput,
       ) {
+        const { opening, ...rest } = input.fiscalPeriod;
         const record = fiscalPeriod({
           id: `fp-${fiscalPeriods.size + 1}`,
           userId,
-          ...input.fiscalPeriod,
+          ...rest,
+          ...(opening != null
+            ? {
+                opening: {
+                  ...opening,
+                  createdAt: TEST_TIMESTAMP,
+                  updatedAt: TEST_TIMESTAMP,
+                },
+              }
+            : {}),
         });
         fiscalPeriods.set(record.id, record);
         return record;
@@ -242,7 +252,20 @@ function createFiscalPeriodDb(
       async update(id: string, patch: FiscalPeriodPatchInput) {
         const current = fiscalPeriods.get(id);
         if (current == null) throw new Error(`fiscal period not found: ${id}`);
-        const updated = fiscalPeriod({ ...current, ...patch });
+        const { opening, ...rest } = patch;
+        const updated = fiscalPeriod({
+          ...current,
+          ...rest,
+          ...(opening != null
+            ? {
+                opening: {
+                  ...opening,
+                  createdAt: TEST_TIMESTAMP,
+                  updatedAt: TEST_TIMESTAMP,
+                },
+              }
+            : {}),
+        });
         fiscalPeriods.set(id, updated);
         return updated;
       },
@@ -269,10 +292,14 @@ function createFiscalPeriodDb(
         fiscalPeriodId: string,
         input: EntryUpsertInput,
       ) {
-        return entry({ fiscalPeriodId, ...input });
+        return entry({
+          fiscalPeriodId,
+          ...input,
+          lines: entryLinesWithIds(input.lines),
+        });
       },
       async update(id: string, input: EntryUpsertInput) {
-        return entry({ id, ...input });
+        return entry({ id, ...input, lines: entryLinesWithIds(input.lines) });
       },
       async delete() {},
       async importMany(
@@ -281,7 +308,12 @@ function createFiscalPeriodDb(
         inputs: EntryUpsertInput[],
       ) {
         return inputs.map((input, index) =>
-          entry({ id: `entry-${index + 1}`, fiscalPeriodId, ...input }),
+          entry({
+            id: `entry-${index + 1}`,
+            fiscalPeriodId,
+            ...input,
+            lines: entryLinesWithIds(input.lines),
+          }),
         );
       },
     },
@@ -337,6 +369,14 @@ function createFiscalPeriodDb(
   };
 }
 
+const TEST_TIMESTAMP = "1970-01-01T00:00:00.000Z";
+
+function entryLinesWithIds(
+  lines: EntryUpsertInput["lines"],
+): EntryApiRecord["lines"] {
+  return lines.map((line, index) => ({ ...line, id: `line-${index + 1}` }));
+}
+
 function fiscalPeriod(
   overrides: Partial<StoredFiscalPeriodApiRecord>,
 ): StoredFiscalPeriodApiRecord {
@@ -352,6 +392,8 @@ function fiscalPeriod(
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,
     opening: null,
+    createdAt: TEST_TIMESTAMP,
+    updatedAt: TEST_TIMESTAMP,
     ...overrides,
   };
 }
@@ -400,12 +442,15 @@ function openingLine(
 function entry(overrides: Partial<EntryApiRecord>): EntryApiRecord {
   return {
     id: "entry-1",
+    userId: "user-1",
     fiscalPeriodId: "fp-1",
     date: "2026-01-01",
     description: "entry",
     localId: "",
     businessRate: 1,
     lines: [],
+    createdAt: TEST_TIMESTAMP,
+    updatedAt: TEST_TIMESTAMP,
     ...overrides,
   };
 }
@@ -415,6 +460,7 @@ function fixedAsset(
 ): FixedAssetApiRecord {
   return {
     id: "asset-1",
+    userId: "user-1",
     fiscalPeriodId: "fp-1",
     name: "asset",
     acquisitionDate: "2026-01-01",
@@ -426,6 +472,8 @@ function fixedAsset(
     disposalDate: "",
     disposalPrice: 0,
     bookAccountId: "",
+    createdAt: TEST_TIMESTAMP,
+    updatedAt: TEST_TIMESTAMP,
     ...overrides,
   };
 }

@@ -12,7 +12,7 @@ import type {
   MasterTaxCategory,
 } from "@rubydogjp/openkk-client-ports";
 
-const accounts: MasterBookAccount[] = [
+const accounts: Pick<MasterBookAccount, "id" | "name" | "accountType">[] = [
   {
     id: "acct_cost_of_sales_商品仕入高",
     name: "仕入",
@@ -22,8 +22,10 @@ const accounts: MasterBookAccount[] = [
   { id: "acct_accrued_expense", name: "未払金", accountType: "liability" },
 ];
 
-const taxes: MasterTaxCategory[] = [{ id: "tax_10", name: "課税 10%" }];
-const businesses: MasterBusinessCategory[] = [
+const taxes: Pick<MasterTaxCategory, "id" | "name">[] = [
+  { id: "tax_10", name: "課税 10%" },
+];
+const businesses: Pick<MasterBusinessCategory, "id" | "name">[] = [
   { id: "biz_service", name: "第5種（サービス業等）" },
 ];
 

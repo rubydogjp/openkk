@@ -8,8 +8,8 @@ import {
 } from "./schema";
 
 describe("SQLite schema", () => {
-  it("keeps the unreleased normalized schema at version 2", () => {
-    expect(SCHEMA_VERSION).toBe(2);
+  it("keeps the unreleased normalized schema at version 3", () => {
+    expect(SCHEMA_VERSION).toBe(3);
   });
 
   it("keeps migration versions unique, ordered, and contiguous", () => {

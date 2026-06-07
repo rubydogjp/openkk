@@ -372,9 +372,40 @@ ALTER TABLE closings_v2 RENAME TO closings;
 `.trim(),
 };
 
+const MIGRATION_V3: SchemaMigration = {
+  version: 3,
+  sql: `
+CREATE TABLE entry_lines_v3 (
+  entry_id               TEXT NOT NULL REFERENCES entries(id) ON DELETE CASCADE,
+  id                     TEXT NOT NULL,
+  side                   TEXT NOT NULL CHECK (side IN ('debit', 'credit')),
+  book_account_id        TEXT NOT NULL,
+  amount                 REAL NOT NULL CHECK (amount >= 0),
+  partner_name           TEXT NOT NULL,
+  tax_category_id        TEXT NOT NULL,
+  business_category_id   TEXT NOT NULL,
+  position               INTEGER NOT NULL CHECK (position >= 0),
+  PRIMARY KEY (entry_id, position)
+);
+INSERT INTO entry_lines_v3(
+  entry_id, id, side, book_account_id, amount, partner_name,
+  tax_category_id, business_category_id, position
+)
+SELECT
+  entry_id,
+  entry_id || '-line-' || position,
+  side, book_account_id, amount, partner_name,
+  tax_category_id, business_category_id, position
+FROM entry_lines;
+DROP TABLE entry_lines;
+ALTER TABLE entry_lines_v3 RENAME TO entry_lines;
+`.trim(),
+};
+
 export const SCHEMA_MIGRATIONS: SchemaMigration[] = [
   MIGRATION_V1,
   MIGRATION_V2,
+  MIGRATION_V3,
 ];
 
 export const SCHEMA_VERSION =
