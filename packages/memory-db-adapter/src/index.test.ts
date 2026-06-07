@@ -108,14 +108,22 @@ describe("createMemoryDbAdapter / fiscalPeriods", () => {
       ],
     };
 
+    await new Promise((resolve) => setTimeout(resolve, 2));
     const updated = await db.fiscalPeriods.update(period.id, { opening });
 
-    expect(updated.opening).toEqual(opening);
+    // updatedAt advances on write; createdAt stays immutable, and the persisted
+    // record must match what update() returned (regression: replaceOpening used
+    // to reset created_at on every patch).
+    expect(updated.opening).toEqual({
+      ...opening,
+      updatedAt: updated.opening!.updatedAt,
+    });
+    expect(updated.opening!.createdAt).toBe(opening.createdAt);
     expect((await db.fiscalPeriods.getById(period.id))?.opening).toEqual(
-      opening,
+      updated.opening,
     );
     expect((await db.fiscalPeriods.getAllByUser("user-1"))[0]?.opening).toEqual(
-      opening,
+      updated.opening,
     );
   });
 

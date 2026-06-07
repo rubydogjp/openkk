@@ -127,11 +127,15 @@ async function seedStoresInner(
         now,
       ],
     });
-    await replaceOpening(
-      db,
-      item.record.opening ?? defaultOpening(item.userId, item.record.id, now),
-      now,
-    );
+    const seededOpening =
+      item.record.opening == null
+        ? defaultOpening(item.userId, item.record.id, now)
+        : {
+            ...item.record.opening,
+            createdAt: msToIso(now),
+            updatedAt: msToIso(now),
+          };
+    await replaceOpening(db, seededOpening, now);
   }
   for (const entry of seed.entries) {
     await db.exec({

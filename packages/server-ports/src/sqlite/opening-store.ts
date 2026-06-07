@@ -2,7 +2,7 @@ import type {
   OpeningJournalDbRecord,
   FiscalPeriodOpeningDbRecord,
 } from "../persistence-types";
-import { msToIso, validateOpeningDbRecord } from "./persistence-codec";
+import { isoToMs, msToIso, validateOpeningDbRecord } from "./persistence-codec";
 
 type OpeningSqlDb = {
   exec(
@@ -66,7 +66,7 @@ export async function replaceOpening(
   await db.exec({
     sql: `INSERT INTO openings(id, fiscal_period_id, created_at, updated_at)
       VALUES(?, ?, ?, ?)`,
-    bind: [opening.id, opening.fiscalPeriodId, now, now],
+    bind: [opening.id, opening.fiscalPeriodId, isoToMs(opening.createdAt), now],
   });
   for (const [position, line] of (
     opening.openingBalanceLines ?? []

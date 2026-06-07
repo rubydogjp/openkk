@@ -10,6 +10,10 @@ export function msToIso(ms: number): string {
   return new Date(ms).toISOString();
 }
 
+export function isoToMs(iso: string): number {
+  return new Date(iso).getTime();
+}
+
 export function parseFiscalPeriodDbRecord(json: string): FiscalPeriodDbRecord {
   return decodeRecord(json, "fiscal period", (value) => {
     requiredString(value, "id");
