@@ -4,7 +4,7 @@
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FFFFFF",
-  "theme_color": "#F59E0B",
+  "theme_color": "#0F172A",
   "description": "個人事業主向けオープンソース会計ソフト",
   "orientation": "portrait-primary",
   "prefer_related_applications": false,

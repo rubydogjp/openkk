@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 
 import "@rubydogjp/openkk-client/styles.css";
@@ -21,6 +21,10 @@ export const metadata: Metadata = {
   description: "個人事業主向けオープンソース複式簿記アプリ",
 
   manifest: "/manifest.json",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0F172A",
 };
 
 export default function RootLayout({
