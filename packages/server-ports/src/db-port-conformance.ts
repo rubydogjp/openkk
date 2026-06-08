@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { DbSnapshot, OpenkkDbPort } from "@rubydogjp/openkk-server-ports";
+import type { OpenkkDbPort } from "./db-adapter";
+import type { DbSnapshot } from "./sqlite/adapter";
 
 export type DbPortConformanceContext = {
   makeAdapter: () => Promise<OpenkkDbPort>;
