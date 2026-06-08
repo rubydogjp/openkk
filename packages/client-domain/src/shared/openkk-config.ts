@@ -13,11 +13,13 @@ export type FiscalPeriodPolicy = {
     body?: string;
     confirmLabel?: string;
   };
+  allowArchiveImport?: boolean;
 };
 
 export const DEFAULT_FISCAL_PERIOD_POLICY: FiscalPeriodPolicy = {
   maxActivePeriods: null,
   archiveRetention: "persistent",
+  allowArchiveImport: true,
 };
 
 export type OpenkkEditingPolicy = {

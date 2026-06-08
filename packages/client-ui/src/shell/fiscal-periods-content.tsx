@@ -8,6 +8,7 @@ import {
   isArchivedStub,
   readFiscalPeriodArchiveZip,
   resolveEditingPolicy,
+  resolveFiscalPeriodPolicy,
 } from "@rubydogjp/openkk-client-domain";
 import {
   useOpenkkAppState,
@@ -35,6 +36,8 @@ export function FiscalPeriodsContent() {
   const appState = useOpenkkAppState();
   const openkkConfig = useOpenkkConfig();
   const editingLocked = resolveEditingPolicy(openkkConfig).locked;
+  const allowArchiveImport =
+    resolveFiscalPeriodPolicy(openkkConfig).allowArchiveImport !== false;
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const [isImportingArchive, setIsImportingArchive] = useState(false);
@@ -113,80 +116,82 @@ export function FiscalPeriodsContent() {
             marginBottom: 14,
           }}
         >
-          <div style={{ position: "relative" }}>
-            {editingLocked ? (
-              <LockButton label="ファイル" />
-            ) : (
-              <button
-                type="button"
-                onClick={() => setFileMenuOpen((value) => !value)}
-                disabled={isImportingArchive}
-                style={{
-                  height: 34,
-                  padding: "0 14px",
-                  borderRadius: radii.sm,
-                  border: `1px solid ${palette.borderStrong}`,
-                  background: palette.surface,
-                  color: palette.text,
-                  fontSize: fontSize.base,
-                  fontWeight: fontWeight.bold,
-                  cursor: isImportingArchive ? "default" : "pointer",
-                  opacity: isImportingArchive ? 0.62 : 1,
-                }}
-              >
-                {isImportingArchive ? "展開中" : "ファイル"}
-              </button>
-            )}
-            {fileMenuOpen ? (
-              <div
-                style={{
-                  position: "absolute",
-                  top: 40,
-                  right: 0,
-                  zIndex: 5,
-                  minWidth: 220,
-                  padding: 6,
-                  borderRadius: radii.md,
-                  border: `1px solid ${palette.borderStrong}`,
-                  background: palette.surface,
-                  boxShadow: shadows.popup,
-                }}
-              >
+          {allowArchiveImport ? (
+            <div style={{ position: "relative" }}>
+              {editingLocked ? (
+                <LockButton label="ファイル" />
+              ) : (
                 <button
                   type="button"
-                  onClick={() => {
-                    setFileMenuOpen(false);
-                    fileInputRef.current?.click();
-                  }}
+                  onClick={() => setFileMenuOpen((value) => !value)}
+                  disabled={isImportingArchive}
                   style={{
-                    width: "100%",
-                    border: "none",
-                    background: "transparent",
-                    padding: "9px 10px",
+                    height: 34,
+                    padding: "0 14px",
                     borderRadius: radii.sm,
+                    border: `1px solid ${palette.borderStrong}`,
+                    background: palette.surface,
                     color: palette.text,
                     fontSize: fontSize.base,
-                    fontWeight: fontWeight.semibold,
-                    textAlign: "left",
-                    cursor: "pointer",
+                    fontWeight: fontWeight.bold,
+                    cursor: isImportingArchive ? "default" : "pointer",
+                    opacity: isImportingArchive ? 0.62 : 1,
                   }}
                 >
-                  圧縮済みのファイルを選択
+                  {isImportingArchive ? "展開中" : "ファイル"}
                 </button>
-              </div>
-            ) : null}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".zip,application/zip"
-              hidden
-              onChange={(event) => {
-                const file = event.currentTarget.files?.[0] ?? null;
-                event.currentTarget.value = "";
-                if (file != null) void handleArchiveFile(file);
-              }}
-            />
-          </div>
+              )}
+              {fileMenuOpen ? (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 40,
+                    right: 0,
+                    zIndex: 5,
+                    minWidth: 220,
+                    padding: 6,
+                    borderRadius: radii.md,
+                    border: `1px solid ${palette.borderStrong}`,
+                    background: palette.surface,
+                    boxShadow: shadows.popup,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFileMenuOpen(false);
+                      fileInputRef.current?.click();
+                    }}
+                    style={{
+                      width: "100%",
+                      border: "none",
+                      background: "transparent",
+                      padding: "9px 10px",
+                      borderRadius: radii.sm,
+                      color: palette.text,
+                      fontSize: fontSize.base,
+                      fontWeight: fontWeight.semibold,
+                      textAlign: "left",
+                      cursor: "pointer",
+                    }}
+                  >
+                    圧縮済みのファイルを選択
+                  </button>
+                </div>
+              ) : null}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".zip,application/zip"
+                hidden
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0] ?? null;
+                  event.currentTarget.value = "";
+                  if (file != null) void handleArchiveFile(file);
+                }}
+              />
+            </div>
+          ) : null}
           {editingLocked ? (
             <LockButton label="追加" />
           ) : (
