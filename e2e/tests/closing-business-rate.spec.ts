@@ -4,7 +4,11 @@ import {
   advanceToJournalizing,
   clickButton,
   createFiscalPeriod,
+  disablePrint,
   expectStep,
+  extractReportAmounts,
+  goToMonth,
+  readPrintedReport,
 } from "../helpers";
 
 const FIXTURE = "e2e/fixtures/business-rate-entries.json";
@@ -18,12 +22,7 @@ test.describe("家事按分 → 締めフローの帳票一貫性", () => {
   test("仮帳票と確定帳票が按分後の同じ数字で一致し、元帳と財務諸表が突合する", async ({
     page,
   }) => {
-    // 帳票は印刷用 iframe(srcdoc) で開く。ヘッドレスでは print を無効化して
-    // iframe を残し、srcdoc から帳票 HTML を読み取って内容を検証する。
-    await page.addInitScript(() => {
-      // eslint-disable-next-line @typescript-eslint/no-empty-function
-      window.print = () => {};
-    });
+    await disablePrint(page);
 
     await createFiscalPeriod(page, "按分検証 2026年分");
     await advanceToJournalizing(page);
@@ -54,9 +53,9 @@ test.describe("家事按分 → 締めフローの帳票一貫性", () => {
     await shot(page, "02-pre-closing-documents");
 
     // 仮帳票の中身を読む。
-    const draftJournal = await readReport(page, "仮_仕訳帳.pdf");
-    const draftLedger = await readReport(page, "仮_総勘定元帳.pdf");
-    const draftStatements = await readReport(page, "仮_財務諸表.pdf");
+    const draftJournal = await readPrintedReport(page, "仮_仕訳帳.pdf");
+    const draftLedger = await readPrintedReport(page, "仮_総勘定元帳.pdf");
+    const draftStatements = await readPrintedReport(page, "仮_財務諸表.pdf");
 
     // 仕訳帳・元帳に家事按分の振替が現れる。
     expect(draftJournal).toContain("家事按分の振替");
@@ -84,18 +83,18 @@ test.describe("家事按分 → 締めフローの帳票一貫性", () => {
     await expect(page.getByText("¥290,000").first()).toBeVisible();
     await shot(page, "03-final-summary");
 
-    // 確定帳票の中身を読む（順序: 仕訳帳 / 総勘定元帳 / 財務諸表）。
+    // 確定帳票の中身を読む。
     await page.getByRole("link", { name: "手順" }).click();
     await expectStep(page, "書類を受け取る");
     await shot(page, "04-final-documents");
-    const finalStatements = await readReport(page, "財務諸表.pdf");
+    const finalStatements = await readPrintedReport(page, "財務諸表.pdf");
 
     // 仮帳票 == 確定帳票（按分後の同じ数字）。
     expect(finalStatements).toContain("事業主貸");
     expect(finalStatements).toContain("290,000");
     expect(finalStatements).toContain("10,000");
-    expect(extractAmounts(finalStatements)).toEqual(
-      extractAmounts(draftStatements),
+    expect(extractReportAmounts(finalStatements)).toEqual(
+      extractReportAmounts(draftStatements),
     );
   });
 });
@@ -107,51 +106,6 @@ async function importEntries(page: Page) {
     .locator('input[type="file"][accept*=".json"]')
     .setInputFiles(FIXTURE);
   await expect(page.getByText(/取り込みました\(取込 2 件/)).toBeVisible();
-}
-
-async function goToMonth(page: Page, label: string) {
-  for (let i = 0; i < 14; i += 1) {
-    if (
-      await page
-        .getByText(label)
-        .first()
-        .isVisible()
-        .catch(() => false)
-    ) {
-      return;
-    }
-    await page.getByRole("button", { name: "次の月" }).click();
-  }
-  await expect(page.getByText(label).first()).toBeVisible();
-}
-
-/**
- * 帳票タイル（ラベルで特定）の操作ボタンを押し、印刷用 iframe(srcdoc) から帳票
- * HTML を読み取って後続に影響しないよう除去する。
- */
-async function readReport(page: Page, tileLabel: string): Promise<string> {
-  await page
-    .getByText(tileLabel, { exact: true })
-    .locator("xpath=../..")
-    .getByRole("button")
-    .click();
-  const iframe = page.locator('iframe[aria-hidden="true"]').last();
-  await expect(iframe).toBeAttached({ timeout: 10_000 });
-  const html = (await iframe.getAttribute("srcdoc")) ?? "";
-  await page.evaluate(() => {
-    for (const frame of document.querySelectorAll(
-      'iframe[aria-hidden="true"]',
-    )) {
-      frame.remove();
-    }
-  });
-  return html;
-}
-
-/** 帳票 HTML から表示金額（カンマ区切り）の並びを抽出する。 */
-function extractAmounts(html: string): string[] {
-  const text = html.replace(/<[^>]*>/g, " ");
-  return (text.match(/\d{1,3}(?:,\d{3})+/g) ?? []).sort();
 }
 
 async function shot(page: Page, name: string) {

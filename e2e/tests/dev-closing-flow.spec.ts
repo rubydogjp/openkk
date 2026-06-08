@@ -28,7 +28,13 @@ test.describe("openkk closing flow", () => {
     await clickButton(page, "仮締めを実行");
     await clickButton(page, "実行する");
     await clickButton(page, "実行する");
-    await clickButton(page, "次の手順へ");
+    // 仮締め後は完了トレンドチャートが ResizeObserver 再レイアウトで「次の手順へ」を
+    // 動かし続け、stability 判定が通らないことがある。記録終了の表示でボタンの存在を
+    // 確認したうえで、移動中でも確実に押せるよう force クリックする。
+    await expect(page.getByText("記録終了")).toBeVisible();
+    await page
+      .getByRole("button", { name: "次の手順へ" })
+      .click({ force: true });
 
     await expectStep(page, "本締め");
     await expect(page.getByText("仮_仕訳帳.pdf")).toBeVisible();

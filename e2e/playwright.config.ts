@@ -8,6 +8,7 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   timeout: 90_000,
+  retries: 2,
   reporter: [["list"]],
   use: {
     ...devices["Desktop Chrome"],

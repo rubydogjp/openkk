@@ -46,3 +46,66 @@ export async function openEntryRow(page: Page, rowPartialText: string) {
     .first()
     .click();
 }
+
+/**
+ * 帳票は印刷用 iframe(srcdoc) で開く。ヘッドレスでは print を無効化して iframe を
+ * 残し、srcdoc から帳票 HTML を読めるようにする。最初のナビゲーション前に呼ぶこと。
+ */
+export async function disablePrint(page: Page) {
+  await page.addInitScript(() => {
+    window.print = () => {};
+  });
+}
+
+/**
+ * 仕訳一覧で目的の月ラベルへ移動する。開始位置に依存しないよう、最古月まで巻き戻して
+ * から前進する（dev は期末月で開くため前進のみだと過去月に戻れない）。
+ */
+export async function goToMonth(page: Page, label: string) {
+  const target = page.getByText(label).first();
+  const prev = page.getByRole("button", { name: "前の月" });
+  const next = page.getByRole("button", { name: "次の月" });
+  for (let i = 0; i < 24; i += 1) {
+    if (await target.isVisible().catch(() => false)) return;
+    if (await prev.isDisabled().catch(() => true)) break;
+    await prev.click();
+  }
+  for (let i = 0; i < 24; i += 1) {
+    if (await target.isVisible().catch(() => false)) return;
+    if (await next.isDisabled().catch(() => true)) break;
+    await next.click();
+  }
+  await expect(target).toBeVisible();
+}
+
+/**
+ * 帳票タイル（ラベルで特定）の操作ボタンを押し、印刷用 iframe(srcdoc) から帳票
+ * HTML を読み取って後続に影響しないよう除去する。`disablePrint` を先に呼ぶこと。
+ */
+export async function readPrintedReport(
+  page: Page,
+  tileLabel: string,
+): Promise<string> {
+  await page
+    .getByText(tileLabel, { exact: true })
+    .locator("xpath=../..")
+    .getByRole("button")
+    .click();
+  const iframe = page.locator('iframe[aria-hidden="true"]').last();
+  await expect(iframe).toBeAttached({ timeout: 10_000 });
+  const html = (await iframe.getAttribute("srcdoc")) ?? "";
+  await page.evaluate(() => {
+    for (const frame of document.querySelectorAll(
+      'iframe[aria-hidden="true"]',
+    )) {
+      frame.remove();
+    }
+  });
+  return html;
+}
+
+/** 帳票 HTML から表示金額（カンマ区切り）の並びを抽出する。 */
+export function extractReportAmounts(html: string): string[] {
+  const text = html.replace(/<[^>]*>/g, " ");
+  return (text.match(/\d{1,3}(?:,\d{3})+/g) ?? []).sort();
+}
