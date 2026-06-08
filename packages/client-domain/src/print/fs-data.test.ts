@@ -32,13 +32,35 @@ describe("computeFsAggregate", () => {
           creditAmount: "30,000",
         }),
         entry({
-          businessRate: "50",
           debit: "消耗品費",
           debitType: "expense",
           debitAmount: "20,000",
           credit: "普通預金",
           creditType: "asset",
           creditAmount: "20,000",
+        }),
+        entry({
+          id: "business-rate-transfer",
+          lines: [
+            {
+              side: "debit",
+              accountName: "事業主貸",
+              accountType: "asset",
+              amount: "10,000",
+            },
+            {
+              side: "credit",
+              accountName: "消耗品費",
+              accountType: "expense",
+              amount: "10,000",
+            },
+          ],
+          debit: "事業主貸",
+          debitType: "asset",
+          debitAmount: "10,000",
+          credit: "消耗品費",
+          creditType: "expense",
+          creditAmount: "10,000",
         }),
       ],
     });
@@ -71,6 +93,19 @@ describe("computeFsAggregate", () => {
       liabilityOpening: 50_000,
       liabilityClosing: 110_000,
     });
+
+    // 締め画面の概要図はこの summary から描く（確定帳票と同じ集計）。
+    expect(aggregate.summary).toEqual({
+      revenue: 100_000,
+      expenses: 40_000,
+      profit: 60_000,
+      assets: 110_000,
+      liabilities: 20_000,
+      equity: 90_000,
+    });
+    expect(aggregate.summary.assets).toBe(
+      aggregate.summary.liabilities + aggregate.summary.equity,
+    );
   });
 
   it("includes every line in a compound journal entry", () => {

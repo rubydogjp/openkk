@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import {
   AppError,
+  buildVirtualBusinessRateTransferRows,
   buildVirtualFixedAssetRows,
   buildVirtualOpeningCarryoverRows,
   exportEntriesAsCsv,
@@ -142,6 +143,9 @@ export function EntriesPage() {
           (localId): localId is string => localId != null && localId !== "",
         ),
     );
+    const realEntries = fullPeriodEntries.filter(
+      (entry) => entry.localId == null || !entry.localId.startsWith("virtual:"),
+    );
     return [
       ...buildVirtualOpeningCarryoverRows({
         fiscalPeriodId,
@@ -153,6 +157,15 @@ export function EntriesPage() {
         assets: assistState.listFixedAssets(),
         periodStartDate: currentFiscalPeriod?.startDate ?? null,
         periodEndDate: currentFiscalPeriod?.endDate ?? null,
+        yearMonth,
+      }),
+      ...buildVirtualBusinessRateTransferRows({
+        fiscalPeriodId,
+        periodStartDate: currentFiscalPeriod?.startDate ?? null,
+        periodEndDate: currentFiscalPeriod?.endDate ?? null,
+        entries: realEntries,
+        assets: assistState.listFixedAssets(),
+        carryovers: assistState.listOpeningCarryovers(fiscalPeriodId),
         yearMonth,
       }),
     ].filter(

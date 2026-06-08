@@ -1,7 +1,4 @@
-import {
-  getBusinessAdjustedEntryLines,
-  type EntryRecord,
-} from "../entries/entry-record";
+import { getEntryLines, type EntryRecord } from "../entries/entry-record";
 import { parseAmount } from "../shared/parse-utils";
 import { OPENING_EQUITY_LABELS } from "../steps/summary";
 
@@ -16,10 +13,20 @@ export type FsBsRow = {
 
 export type FsExpenseWriteIn = { label: string; amount: number };
 
+export type FsSummary = {
+  revenue: number;
+  expenses: number;
+  profit: number;
+  assets: number;
+  liabilities: number;
+  equity: number;
+};
+
 export type FsAggregate = {
   amounts: Record<number, number | null>;
   bsRows: FsBsRow[];
   expenseWriteIns: FsExpenseWriteIn[];
+  summary: FsSummary;
 };
 
 export type OpeningBalanceLine = { accountId: string; amount: number };
@@ -90,8 +97,10 @@ export function computeFsAggregate({
 
   const accountType = new Map<string, string>();
 
+  // 家事按分は materialize 済みの按分振替仕訳（buildBusinessRateTransferEntry）として
+  // entries に含まれる前提のため、ここでは生明細をそのまま集計する。
   for (const e of entries) {
-    for (const line of getBusinessAdjustedEntryLines(e)) {
+    for (const line of getEntryLines(e)) {
       const amount = parseAmount(line.amount);
       accountType.set(line.accountName, line.accountType);
       const sign = line.side === "debit" ? 1 : -1;
@@ -537,5 +546,14 @@ export function computeFsAggregate({
     ),
   ];
 
-  return { amounts, bsRows, expenseWriteIns };
+  const summary: FsSummary = {
+    revenue: revenueTotal,
+    expenses: costOfSalesTotal + expensesTotal,
+    profit,
+    assets: assetsTotal,
+    liabilities: sumValues(liabilityClosingByName) + allowanceClosing,
+    equity: sumValues(equityClosingByName) + profit,
+  };
+
+  return { amounts, bsRows, expenseWriteIns, summary };
 }

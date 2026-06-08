@@ -69,21 +69,6 @@ export function computeExpenseContribution(
   return value;
 }
 
-export function computeFinancialSummary(entries: EntrySummaryRow[]): {
-  revenue: number;
-  expenses: number;
-  profit: number;
-} {
-  let revenue = 0;
-  let expenses = 0;
-  for (const entry of entries) {
-    const rate = parseBusinessRate(entry.businessRate);
-    revenue += computeRevenueContribution(entry, rate);
-    expenses += computeExpenseContribution(entry, rate);
-  }
-  return { revenue, expenses, profit: revenue - expenses };
-}
-
 export type OpeningBalanceSummary = {
   assets: number;
   liabilities: number;
@@ -110,30 +95,4 @@ export function summarizeOpeningBalances(
     }
   }
   return { assets, liabilities, equity };
-}
-
-export function computeBSSummary(
-  entries: EntrySummaryRow[],
-  opening: OpeningBalanceSummary,
-  profit: number,
-): { assets: number; liabilities: number; equity: number } {
-  let netAssetChange = 0;
-  let netLiabilityChange = 0;
-  for (const entry of entries) {
-    const lines = adjustedLines(entry, parseBusinessRate(entry.businessRate));
-    for (const line of lines) {
-      const amount = parseAmount(line.amount);
-      if (line.accountType === "asset") {
-        netAssetChange += line.side === "debit" ? amount : -amount;
-      }
-      if (line.accountType === "liability") {
-        netLiabilityChange += line.side === "credit" ? amount : -amount;
-      }
-    }
-  }
-  return {
-    assets: Math.max(0, opening.assets + netAssetChange),
-    liabilities: Math.max(0, opening.liabilities + netLiabilityChange),
-    equity: Math.max(0, opening.equity + profit),
-  };
 }

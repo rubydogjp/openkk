@@ -4,8 +4,20 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { AmountText } from "../shared/amount-field";
 import { ClosedPeriodLock } from "../shared/closed-period-lock";
-import { fontSize, fontWeight, palette, radii, shadows, sizes, spacing, typography } from "../shared/design-tokens";
-import type { EntryAccountVisualType, EntryPreviewRow } from "@rubydogjp/openkk-client-domain";
+import {
+  fontSize,
+  fontWeight,
+  palette,
+  radii,
+  shadows,
+  sizes,
+  spacing,
+  typography,
+} from "../shared/design-tokens";
+import type {
+  EntryAccountVisualType,
+  EntryPreviewRow,
+} from "@rubydogjp/openkk-client-domain";
 
 const entryColors = {
   blue: palette.brand,
@@ -92,7 +104,6 @@ export function EntriesMonthSwitcher(props: {
   onPrev: () => void;
   onNext: () => void;
 }) {
-
   const switcherBorder = palette.borderHeavy;
   return (
     <div
@@ -212,7 +223,6 @@ export function EntriesScreen(props: {
           flexDirection: "column",
         }}
       >
-
         <div
           style={{
             display: "flex",
@@ -417,17 +427,26 @@ export function VirtualEntryDrawer(props: {
               overflow: "hidden",
             }}
           >
-            <VirtualEntrySummaryRow label="摘要" value={props.row.description} />
+            <VirtualEntrySummaryRow
+              label="摘要"
+              value={props.row.description}
+            />
             {rows.map((row, index) => {
               const suffix = rows.length > 1 ? ` ${index + 1}` : "";
               return (
                 <div key={`${row.recordId ?? row.date}-${index}`}>
-                  <VirtualEntrySummaryRow label={`借方${suffix}`} value={row.debit} />
+                  <VirtualEntrySummaryRow
+                    label={`借方${suffix}`}
+                    value={row.debit}
+                  />
                   <VirtualEntrySummaryRow
                     label={`借方金額${suffix}`}
                     value={row.debitAmount}
                   />
-                  <VirtualEntrySummaryRow label={`貸方${suffix}`} value={row.credit} />
+                  <VirtualEntrySummaryRow
+                    label={`貸方${suffix}`}
+                    value={row.credit}
+                  />
                   <VirtualEntrySummaryRow
                     label={`貸方金額${suffix}`}
                     value={row.creditAmount}
@@ -436,27 +455,29 @@ export function VirtualEntryDrawer(props: {
               );
             })}
           </div>
-          <button
-            type="button"
-            onClick={() => props.onOpenAssist(virtual.assistHref)}
-            style={{
-              height: sizes.button.ctaHeight,
-              borderRadius: radii.sm,
-              border: "none",
-              background: palette.action,
-              color: palette.surface,
-              fontSize: fontSize.base,
-              fontWeight: fontWeight.bold,
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: spacing.s8,
-            }}
-          >
-            <AssistGlyph color={palette.surface} />
-            補助 / {virtual.label}画面へ
-          </button>
+          {virtual.assistHref != null ? (
+            <button
+              type="button"
+              onClick={() => props.onOpenAssist(virtual.assistHref!)}
+              style={{
+                height: sizes.button.ctaHeight,
+                borderRadius: radii.sm,
+                border: "none",
+                background: palette.action,
+                color: palette.surface,
+                fontSize: fontSize.base,
+                fontWeight: fontWeight.bold,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: spacing.s8,
+              }}
+            >
+              <AssistGlyph color={palette.surface} />
+              補助 / {virtual.label}画面へ
+            </button>
+          ) : null}
         </div>
       </aside>
     </>
@@ -470,7 +491,10 @@ function VirtualEntrySummaryRow(props: { label: string; value: string }) {
         display: "grid",
         gridTemplateColumns: "104px 1fr",
         minHeight: 42,
-        borderTop: props.label === "摘要" ? undefined : `1px solid ${palette.borderSubtle}`,
+        borderTop:
+          props.label === "摘要"
+            ? undefined
+            : `1px solid ${palette.borderSubtle}`,
       }}
     >
       <div
@@ -1080,7 +1104,6 @@ export function EntriesTable(props: {
             minHeight: "100%",
           }}
         >
-
           <div
             style={{
               position: "sticky",
@@ -1115,11 +1138,11 @@ export function EntriesTable(props: {
           {!isEmpty ? (
             <>
               {(() => {
-
                 let lastRecordId: string | undefined = undefined;
                 return props.rows.map((row, index) => {
                   const isVirtual = row.virtual != null;
-                  const rowClickable = onOpen != null && (!isReadOnly || isVirtual);
+                  const rowClickable =
+                    onOpen != null && (!isReadOnly || isVirtual);
                   const isRecordHead =
                     row.isFirstOfRecord !== false ||
                     row.recordId !== lastRecordId;
@@ -1133,7 +1156,9 @@ export function EntriesTable(props: {
                     <div
                       key={`${row.recordId ?? row.date}-${index}`}
                       className={`bk-entries-row${rowClickable ? " is-clickable" : ""}${isActive ? " is-active" : ""}${isVirtual ? " is-virtual" : ""}`}
-                      onClick={rowClickable ? () => onOpen(row, index) : undefined}
+                      onClick={
+                        rowClickable ? () => onOpen(row, index) : undefined
+                      }
                       onKeyDown={
                         rowClickable
                           ? (e) => {
@@ -1141,8 +1166,8 @@ export function EntriesTable(props: {
                                 e.preventDefault();
                                 onOpen(row, index);
                               }
-                          }
-                        : undefined
+                            }
+                          : undefined
                       }
                       role={rowClickable ? "button" : undefined}
                       tabIndex={rowClickable ? 0 : undefined}
@@ -1174,7 +1199,10 @@ export function EntriesTable(props: {
                         />
                       )}
                       {row.debit.trim().length > 0 ? (
-                        <AccountChipCell label={row.debit} type={row.debitType} />
+                        <AccountChipCell
+                          label={row.debit}
+                          type={row.debitType}
+                        />
                       ) : (
                         <EmptyLineCell />
                       )}
@@ -1223,7 +1251,6 @@ export function EntriesTable(props: {
                         <TableTagCell
                           text={row.businessRate}
                           align="right"
-
                           emptyText="100"
                         />
                       )}
@@ -1530,7 +1557,14 @@ export function AccountChip(props: {
       }}
     >
       <AccountTypeIcon type={props.type} color={palette.foreground} size={14} />
-      <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+      <span
+        style={{
+          minWidth: 0,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
         {props.label}
       </span>
     </div>
@@ -1561,7 +1595,11 @@ export function AccountChipCell(props: {
           overflow: "hidden",
         }}
       >
-        <AccountTypeIcon type={props.type} color={palette.foreground} size={16} />
+        <AccountTypeIcon
+          type={props.type}
+          color={palette.foreground}
+          size={16}
+        />
         <span
           style={{
             display: "block",
@@ -1579,7 +1617,6 @@ export function AccountChipCell(props: {
 }
 
 function TableAmountCell(props: { children: ReactNode }) {
-
   return (
     <div style={{ padding: "0 12px", textAlign: "right" }}>
       <AmountText>{props.children}</AmountText>
@@ -1611,7 +1648,7 @@ function TagChip(props: {
 }) {
   const value = props.text == null ? "" : String(props.text);
   const isEmpty = value.trim() === "";
-  const displayText = isEmpty ? props.emptyText ?? "−" : value;
+  const displayText = isEmpty ? (props.emptyText ?? "−") : value;
   return (
     <div
       style={{
@@ -1647,19 +1684,43 @@ function TagChip(props: {
 function accountPalette(type: EntryAccountVisualType) {
   switch (type) {
     case "asset":
-      return { background: palette.accountAssetBg, foreground: palette.accountAsset, border: palette.accountAssetBorder, surface: palette.surface };
+      return {
+        background: palette.accountAssetBg,
+        foreground: palette.accountAsset,
+        border: palette.accountAssetBorder,
+        surface: palette.surface,
+      };
     case "liability":
-      return { background: palette.accountLiabilityBg, foreground: palette.accountLiability, border: palette.accountLiabilityBorder, surface: palette.surface };
+      return {
+        background: palette.accountLiabilityBg,
+        foreground: palette.accountLiability,
+        border: palette.accountLiabilityBorder,
+        surface: palette.surface,
+      };
     case "equity":
     case "revenue":
-      return { background: palette.accountEquityBg, foreground: palette.accountEquity, border: palette.accountEquityBorder, surface: palette.surface };
+      return {
+        background: palette.accountEquityBg,
+        foreground: palette.accountEquity,
+        border: palette.accountEquityBorder,
+        surface: palette.surface,
+      };
     case "cost_of_sales":
     case "expense":
-      return { background: palette.accountExpenseBg, foreground: palette.accountExpense, border: palette.accountExpenseBorder, surface: palette.surface };
+      return {
+        background: palette.accountExpenseBg,
+        foreground: palette.accountExpense,
+        border: palette.accountExpenseBorder,
+        surface: palette.surface,
+      };
   }
 }
 
-function AccountTypeIcon(props: { type: EntryAccountVisualType; color: string; size: number }) {
+function AccountTypeIcon(props: {
+  type: EntryAccountVisualType;
+  color: string;
+  size: number;
+}) {
   return (
     <span
       aria-hidden="true"

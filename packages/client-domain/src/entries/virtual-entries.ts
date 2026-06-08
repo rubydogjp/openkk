@@ -5,8 +5,24 @@ import {
 } from "../assist/fixed-asset-depreciation";
 import type { OpeningCarryoverRecord } from "../assist/opening-carryover";
 import type { EntryAccountVisualType, EntryPreviewRow } from "./entries-types";
-import type { EntryRecord } from "./entry-record";
+import {
+  BUSINESS_RATE_TRANSFER_LOCAL_ID,
+  buildBusinessRateTransferEntry,
+  recordToPreviewRows,
+  type EntryRecord,
+} from "./entry-record";
 import { parseAmount, parseIsoLocalDate } from "../shared/parse-utils";
+
+const BUSINESS_RATE_TRANSFER_ROW_ID = "business-rate-transfer";
+
+const MATERIALIZED_VIRTUAL_LOCAL_ID_PREFIX = "virtual:";
+
+function isMaterializedVirtualEntry(entry: EntryRecord): boolean {
+  return (
+    entry.localId != null &&
+    entry.localId.startsWith(MATERIALIZED_VIRTUAL_LOCAL_ID_PREFIX)
+  );
+}
 
 export function buildVirtualOpeningCarryoverRows(input: {
   fiscalPeriodId: string;
@@ -334,6 +350,125 @@ function buildVirtualRowsFromPairs(input: {
       virtual: input.virtual,
     };
   });
+}
+
+export function buildClosingVirtualEntries(input: {
+  fiscalPeriodId: string;
+  periodStartDate: string | null;
+  periodEndDate: string | null;
+  entries: EntryRecord[];
+  assets: FixedAssetPreviewItem[];
+  carryovers: OpeningCarryoverRecord[];
+}): EntryRecord[] {
+  const carryoverEntries = input.carryovers.flatMap((record) =>
+    materializeVirtualEntryRows({
+      fiscalPeriodId: input.fiscalPeriodId,
+      yearMonth: record.date.slice(0, 7),
+      rows: buildVirtualOpeningCarryoverRows({
+        fiscalPeriodId: input.fiscalPeriodId,
+        records: [record],
+        yearMonth: record.date.slice(0, 7),
+      }),
+    }),
+  );
+
+  const fixedAssetMonths = new Set<string>();
+  if (input.periodEndDate != null && input.periodEndDate.length >= 7) {
+    fixedAssetMonths.add(input.periodEndDate.slice(0, 7));
+  }
+  for (const asset of input.assets) {
+    if (asset.disposalDate != null && asset.disposalDate.length >= 7) {
+      fixedAssetMonths.add(asset.disposalDate.slice(0, 7));
+    }
+  }
+  const fixedAssetEntries = [...fixedAssetMonths].flatMap((yearMonth) =>
+    materializeVirtualEntryRows({
+      fiscalPeriodId: input.fiscalPeriodId,
+      yearMonth,
+      rows: buildVirtualFixedAssetRows({
+        fiscalPeriodId: input.fiscalPeriodId,
+        assets: input.assets,
+        periodStartDate: input.periodStartDate,
+        periodEndDate: input.periodEndDate,
+        yearMonth,
+      }),
+    }),
+  );
+
+  const assistEntries = [...carryoverEntries, ...fixedAssetEntries];
+
+  const transfer =
+    input.periodEndDate == null
+      ? null
+      : buildBusinessRateTransferEntry({
+          fiscalPeriodId: input.fiscalPeriodId,
+          entries: [...input.entries, ...assistEntries],
+          date: input.periodEndDate,
+        });
+
+  return transfer == null ? assistEntries : [...assistEntries, transfer];
+}
+
+export function withClosingVirtualEntries(input: {
+  fiscalPeriodId: string;
+  periodStartDate: string | null;
+  periodEndDate: string | null;
+  entries: EntryRecord[];
+  assets: FixedAssetPreviewItem[];
+  carryovers: OpeningCarryoverRecord[];
+}): EntryRecord[] {
+  const materializedLocalIds = new Set(
+    input.entries
+      .map((entry) => entry.localId)
+      .filter(
+        (localId): localId is string => localId != null && localId !== "",
+      ),
+  );
+  const realEntries = input.entries.filter(
+    (entry) => !isMaterializedVirtualEntry(entry),
+  );
+  const virtualEntries = buildClosingVirtualEntries({
+    fiscalPeriodId: input.fiscalPeriodId,
+    periodStartDate: input.periodStartDate,
+    periodEndDate: input.periodEndDate,
+    entries: realEntries,
+    assets: input.assets,
+    carryovers: input.carryovers,
+  }).filter(
+    (entry) =>
+      entry.localId == null || !materializedLocalIds.has(entry.localId),
+  );
+  return [...input.entries, ...virtualEntries];
+}
+
+export function buildVirtualBusinessRateTransferRows(input: {
+  fiscalPeriodId: string;
+  periodStartDate: string | null;
+  periodEndDate: string | null;
+  entries: EntryRecord[];
+  assets: FixedAssetPreviewItem[];
+  carryovers: OpeningCarryoverRecord[];
+  yearMonth: string;
+}): EntryPreviewRow[] {
+  const transfer = buildClosingVirtualEntries({
+    fiscalPeriodId: input.fiscalPeriodId,
+    periodStartDate: input.periodStartDate,
+    periodEndDate: input.periodEndDate,
+    entries: input.entries,
+    assets: input.assets,
+    carryovers: input.carryovers,
+  }).find((entry) => entry.localId === BUSINESS_RATE_TRANSFER_LOCAL_ID);
+  if (transfer == null || !transfer.date.startsWith(input.yearMonth)) return [];
+  return recordToPreviewRows(transfer).map((row) => ({
+    ...row,
+    recordId: BUSINESS_RATE_TRANSFER_ROW_ID,
+    virtual: {
+      id: BUSINESS_RATE_TRANSFER_ROW_ID,
+      kind: "business_rate_transfer",
+      sourceId: transfer.id,
+      label: "家事按分",
+    },
+  }));
 }
 
 export function materializeVirtualEntryRows(input: {

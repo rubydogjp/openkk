@@ -11,6 +11,7 @@ import {
 import {
   computeExpenseContribution,
   computeRevenueContribution,
+  excludeBusinessRateTransfer,
   parseBusinessRate,
   buildYearMonthRange,
   compareYearMonth,
@@ -56,9 +57,8 @@ export function JournalizingAnalyticsPage() {
     };
     return months.map((yearMonth) => {
       const monthKey = yearMonth.key;
-      const monthRecords = entriesState.listMonthEntries(
-        currentFiscalPeriod.id,
-        monthKey,
+      const monthRecords = excludeBusinessRateTransfer(
+        entriesState.listMonthEntries(currentFiscalPeriod.id, monthKey),
       );
       let revenue = 0;
       let expenses = 0;

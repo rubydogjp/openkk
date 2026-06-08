@@ -6,14 +6,17 @@ export type EntryAccountVisualType =
   | "cost_of_sales"
   | "expense";
 
-export type VirtualEntrySourceKind = "opening_carryover" | "fixed_asset";
+export type VirtualEntrySourceKind =
+  | "opening_carryover"
+  | "fixed_asset"
+  | "business_rate_transfer";
 
 export type VirtualEntrySource = {
   id: string;
   kind: VirtualEntrySourceKind;
   sourceId: string;
   label: string;
-  assistHref: string;
+  assistHref?: string;
 };
 
 export type EntryPreviewRow = {

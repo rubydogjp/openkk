@@ -70,7 +70,11 @@ describe("buildOpeningCarryoverJournalsFromReversibleEntries", () => {
       date: "2027-01-01",
       description: "再振替: test",
       lines: [
-        { side: "debit", bookAccountId: "acct_accrued_expense", amount: 168_000 },
+        {
+          side: "debit",
+          bookAccountId: "acct_accrued_expense",
+          amount: 168_000,
+        },
         { side: "credit", bookAccountId: "acct_purchases", amount: 168_000 },
       ],
     });
@@ -109,8 +113,7 @@ describe("buildOpeningCarryoverJournalsFromReversibleEntries", () => {
 
     expect(journals).toHaveLength(2);
     expect(journals.map((journal) => journal.lines[0]?.amount)).toEqual([
-      168_000,
-      42_000,
+      168_000, 42_000,
     ]);
     expect(journals.map((journal) => journal.lines[1]?.side)).toEqual([
       "credit",
@@ -151,12 +154,10 @@ describe("buildOpeningCarryoverJournalsFromReversibleEntries", () => {
 
     expect(journals).toHaveLength(2);
     expect(journals.map((journal) => journal.lines[0]?.amount)).toEqual([
-      60_000,
-      40_000,
+      60_000, 40_000,
     ]);
     expect(journals.map((journal) => journal.lines[1]?.amount)).toEqual([
-      60_000,
-      40_000,
+      60_000, 40_000,
     ]);
   });
 
@@ -181,6 +182,35 @@ describe("buildOpeningCarryoverJournalsFromReversibleEntries", () => {
               amount: "90,000",
             },
           ],
+        }),
+      ],
+    });
+
+    expect(journals).toEqual([]);
+  });
+
+  it("does not reverse ordinary credit sales or credit purchases (売掛金 / 買掛金)", () => {
+    const journals = buildOpeningCarryoverJournalsFromReversibleEntries({
+      nextFiscalPeriodId: "fp-2027",
+      nextStartDate: "2027-01-01",
+      entries: [
+        entry({
+          id: "credit-sale",
+          debit: "売掛金",
+          debitType: "asset",
+          debitAmount: "200,000",
+          credit: "売上",
+          creditType: "revenue",
+          creditAmount: "200,000",
+        }),
+        entry({
+          id: "credit-purchase",
+          debit: "仕入",
+          debitType: "cost_of_sales",
+          debitAmount: "120,000",
+          credit: "買掛金",
+          creditType: "liability",
+          creditAmount: "120,000",
         }),
       ],
     });

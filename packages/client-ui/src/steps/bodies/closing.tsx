@@ -4,9 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   AppError,
-  buildVirtualFixedAssetRows,
-  buildVirtualOpeningCarryoverRows,
-  materializeVirtualEntryRows,
+  buildClosingVirtualEntries,
+  computeFsAggregate,
+  withClosingVirtualEntries,
 } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text";
 import {
@@ -22,11 +22,6 @@ import { PlBsDiagramSection } from "../../shared/pl-bs-diagram";
 import { DocumentFileList } from "../../shared/document-file-tile";
 import { useStepDocumentPrinters } from "../use-step-document-printers";
 import { ClosingExplainerAnimation } from "../closing-animation";
-import {
-  computeBSSummary,
-  computeFinancialSummary,
-  summarizeOpeningBalances,
-} from "@rubydogjp/openkk-client-domain";
 import {
   ActionChoiceCard,
   ActionGrid,
@@ -66,29 +61,22 @@ export function ClosingBody({
     return () => onBusyChange?.(false);
   }, [onBusyChange]);
 
-  const financialSummary = useMemo(() => {
-    if (appState.currentFiscalPeriodId == null) return null;
-    return computeFinancialSummary(
-      entriesState.listFiscalPeriodEntries(appState.currentFiscalPeriodId),
-    );
-  }, [appState.currentFiscalPeriodId, entriesState]);
-
-  const bsSummary = useMemo(() => {
-    if (appState.currentFiscalPeriodId == null || financialSummary == null)
-      return null;
-    return computeBSSummary(
-      entriesState.listFiscalPeriodEntries(appState.currentFiscalPeriodId),
-      summarizeOpeningBalances(
-        currentFiscalPeriod?.opening?.openingBalanceLines ?? [],
-      ),
-      financialSummary.profit,
-    );
-  }, [
-    appState.currentFiscalPeriodId,
-    currentFiscalPeriod?.opening,
-    entriesState,
-    financialSummary,
-  ]);
+  const fsSummary = useMemo(() => {
+    if (currentFiscalPeriod == null) return null;
+    const entries = withClosingVirtualEntries({
+      fiscalPeriodId: currentFiscalPeriod.id,
+      periodStartDate: currentFiscalPeriod.startDate,
+      periodEndDate: currentFiscalPeriod.endDate,
+      entries: entriesState.listFiscalPeriodEntries(currentFiscalPeriod.id),
+      assets: assistState.listFixedAssets(),
+      carryovers: assistState.listOpeningCarryovers(currentFiscalPeriod.id),
+    });
+    return computeFsAggregate({
+      entries,
+      openingBalanceLines:
+        currentFiscalPeriod.opening?.openingBalanceLines ?? [],
+    }).summary;
+  }, [currentFiscalPeriod, entriesState, assistState]);
 
   if (currentFiscalPeriod == null) {
     return (
@@ -236,16 +224,13 @@ export function ClosingBody({
         </>
       ) : null}
 
-      {isClosed && !showRunningAnimation && financialSummary != null ? (
+      {isClosed && !showRunningAnimation && fsSummary != null ? (
         <>
           <StepDivider />
           <section>
             <StepSectionLabel>財務諸表の概要</StepSectionLabel>
 
-            <PlBsDiagramSection
-              pl={financialSummary}
-              bs={bsSummary ?? undefined}
-            />
+            <PlBsDiagramSection pl={fsSummary} bs={fsSummary} />
             <div
               style={{
                 marginTop: 16,
@@ -311,48 +296,17 @@ async function materializeAssistEntriesForFinalClosing(input: {
   >;
   entriesState: Pick<
     ReturnType<typeof useOpenkkEntries>,
-    "mergeFiscalPeriodEntries"
+    "listFiscalPeriodEntries" | "mergeFiscalPeriodEntries"
   >;
 }) {
-  const carryoverEntries = input.assistState
-    .listOpeningCarryovers(input.fiscalPeriodId)
-    .flatMap((record) =>
-      materializeVirtualEntryRows({
-        fiscalPeriodId: input.fiscalPeriodId,
-        yearMonth: record.date.slice(0, 7),
-        rows: buildVirtualOpeningCarryoverRows({
-          fiscalPeriodId: input.fiscalPeriodId,
-          records: [record],
-          yearMonth: record.date.slice(0, 7),
-        }),
-      }),
-    );
-
-  const assets = input.assistState.listFixedAssets();
-  const fixedAssetMonths = new Set<string>();
-  if (input.periodEndDate.length >= 7) {
-    fixedAssetMonths.add(input.periodEndDate.slice(0, 7));
-  }
-  for (const asset of assets) {
-    if (asset.disposalDate != null && asset.disposalDate.length >= 7) {
-      fixedAssetMonths.add(asset.disposalDate.slice(0, 7));
-    }
-  }
-  const fixedAssetEntries = Array.from(fixedAssetMonths).flatMap((yearMonth) =>
-    materializeVirtualEntryRows({
-      fiscalPeriodId: input.fiscalPeriodId,
-      yearMonth,
-      rows: buildVirtualFixedAssetRows({
-        fiscalPeriodId: input.fiscalPeriodId,
-        assets,
-        periodStartDate: input.periodStartDate,
-        periodEndDate: input.periodEndDate,
-        yearMonth,
-      }),
-    }),
-  );
-
-  const entries = [...carryoverEntries, ...fixedAssetEntries];
+  const entries = buildClosingVirtualEntries({
+    fiscalPeriodId: input.fiscalPeriodId,
+    periodStartDate: input.periodStartDate,
+    periodEndDate: input.periodEndDate,
+    entries: input.entriesState.listFiscalPeriodEntries(input.fiscalPeriodId),
+    assets: input.assistState.listFixedAssets(),
+    carryovers: input.assistState.listOpeningCarryovers(input.fiscalPeriodId),
+  });
   if (entries.length === 0) return;
   await input.entriesState.mergeFiscalPeriodEntries(
     input.fiscalPeriodId,

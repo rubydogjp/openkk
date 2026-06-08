@@ -27,7 +27,7 @@
 | 月次ナビゲーション | 月単位でページネーションして表示 |
 | 仕訳の編集 | 行クリックでドロワーを開き各フィールドを変更 |
 | 仕訳の削除 | ドロワー内の削除ボタン → 確認ダイアログで実行 |
-| 事業按分率 | `businessRate` フィールドで家事按分を指定 (0–100%)。集計時に全 P/L 明細（収益・費用・売上原価）へ適用し、個人負担分を費用は事業主貸・収益は事業主借へ振替える (`applyBusinessRateToLines`) |
+| 事業按分率 | `businessRate` フィールドで家事按分を指定 (0–100%)。本締め時に全 P/L 明細（収益・費用・売上原価）の個人負担分を**期末の単一の振替仕訳**にまとめて materialize する (`buildBusinessRateTransferEntry`)：費用・原価は事業主貸、収益は事業主借へ振替。これにより仕訳帳・総勘定元帳・財務諸表が同じ按分後の数字で突合する。期中の分析・月次トレンドは `summary.ts` がインライン按分でリアルタイム表示する (`applyBusinessRateToLines`) |
 | 簡単入力ガイド | テンプレートから借方・貸方科目を自動補完するウィザード |
 
 **実装パッケージ:** `client-domain` (`EntryRecord`, ロジック), `client-usecases` (`OpenkkEntriesProvider`), `client-ui` (`EntryEditDrawer`), `server-usecases`, `server-ports` (`EntriesApi`)
@@ -57,7 +57,7 @@
 | 減価償却バーチャル仕訳 | 当期償却費（期首〜期末／処分日の**月割**, 取得月算入の暦月ベース, 備忘価額1円で打ち切り）を自動生成 (`computePeriodDepreciation`) |
 | 売却バーチャル行 | 売却済資産の処分日に「期首〜処分日の当期償却費」＋売却仕訳（処分日簿価で資産を除き、差額を固定資産売却損益）を自動生成 |
 | 廃棄バーチャル行 | 廃棄済資産の処分日に「期首〜処分日の当期償却費」＋残存簿価を固定資産除却損として除却 |
-| 家事按分 | 減価償却費・除却損は全額計上し、`businessRate` の個人負担分は集計時に事業主貸へ振替 |
+| 家事按分 | 減価償却費・除却損は全額計上し、`businessRate` の個人負担分は本締め時の按分振替仕訳でまとめて事業主貸へ振替 |
 
 **実装パッケージ:** `client-domain` (`virtual-entries.ts`, `fixed-asset-data.ts`), `client-usecases` (`OpenkkAssistProvider`), `client-ui` (`FixedAssetEditDrawer`), `server-ports` (`FixedAssetsApi`)
 
@@ -90,7 +90,9 @@
 
 仮締め (`runPreClosing`) はフェーズを `journalizing → pre_closing` に、本締め (`runFinal`) は `pre_closing → post_closing` に遷移させる。
 
-**実装パッケージ:** `client-domain` (`step-derivation.ts`), `client-usecases` (`useOpenkkClosing`), `client-ui` (各 step body コンポーネント), `server-usecases` (`createClosingUsecase`)
+減価償却・再振替・家事按分のバーチャル仕訳は `buildClosingVirtualEntries` が単一の真実として生成し、本締め時に実仕訳化 (materialize) する。本締め前の仮帳票プレビューも `withClosingVirtualEntries` で同じバーチャル仕訳を含めて生成するため、**仮帳票と確定帳票の数字は一致する**。
+
+**実装パッケージ:** `client-domain` (`step-derivation.ts`, `virtual-entries.ts`), `client-usecases` (`useOpenkkClosing`), `client-ui` (各 step body コンポーネント, `use-step-document-printers.ts`), `server-usecases` (`createClosingUsecase`)
 
 ---
 

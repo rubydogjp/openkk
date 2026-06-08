@@ -1,0 +1,35 @@
+{
+  "schema": "openkk-journal-v1",
+  "entries": [
+    {
+      "localId": "br-2026-06-sales",
+      "date": "2026-06-01",
+      "debit": "普通預金",
+      "debitType": "asset",
+      "debitAmount": "300000",
+      "credit": "売上",
+      "creditType": "revenue",
+      "creditAmount": "300000",
+      "description": "業務委託の入金",
+      "partner": "按分検証クライアント",
+      "businessRate": "100",
+      "taxCategory": "課税 10%",
+      "businessCategory": "第5種（サービス業等）"
+    },
+    {
+      "localId": "br-2026-06-rent",
+      "date": "2026-06-15",
+      "debit": "地代家賃",
+      "debitType": "expense",
+      "debitAmount": "20000",
+      "credit": "普通預金",
+      "creditType": "asset",
+      "creditAmount": "20000",
+      "description": "自宅兼事務所の家賃（家事按分50%）",
+      "partner": "按分検証オーナー",
+      "businessRate": "50",
+      "taxCategory": "課税 10%",
+      "businessCategory": "対象外"
+    }
+  ]
+}

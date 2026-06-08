@@ -46,7 +46,6 @@ type OpeningCarryoverJournal = {
 };
 
 const REVERSIBLE_BALANCE_ACCOUNTS = new Set([
-  "売掛金",
   "未収入金",
   "未収収益",
   "前払金",

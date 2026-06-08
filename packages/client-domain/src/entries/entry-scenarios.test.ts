@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import type { FixedAssetPreviewItem } from "../assist/fixed-asset-data";
 import type { OpeningCarryoverRecord } from "../assist/opening-carryover";
-import { computeFinancialSummary } from "../steps/summary";
+import {
+  computeExpenseContribution,
+  computeRevenueContribution,
+  parseBusinessRate,
+  type EntrySummaryRow,
+} from "../steps/summary";
 import {
   type EntryRecord,
   getEntryLines,
@@ -45,7 +50,7 @@ describe("entry scenario rows", () => {
     const rows = recordToPreviewRows(record);
     expect(rows).toHaveLength(2);
     expect(rows.map((row) => row.debit)).toEqual(["消耗品費", "通信費"]);
-    expect(computeFinancialSummary(rows)).toEqual({
+    expect(plTotals(rows)).toEqual({
       revenue: 0,
       expenses: 15_000,
       profit: -15_000,
@@ -78,7 +83,9 @@ describe("entry scenario rows", () => {
       yearMonth: "2026-12",
     });
 
-    expect(rows.find((row) => row.description.includes("サーバー"))).toMatchObject({
+    expect(
+      rows.find((row) => row.description.includes("サーバー")),
+    ).toMatchObject({
       date: "12/31",
       debit: "減価償却費",
       debitAmount: "240,000",
@@ -86,12 +93,14 @@ describe("entry scenario rows", () => {
       creditAmount: "240,000",
       businessRate: "100",
     });
-    expect(rows.find((row) => row.description.includes("モニター"))).toMatchObject({
+    expect(
+      rows.find((row) => row.description.includes("モニター")),
+    ).toMatchObject({
       debit: "減価償却費",
       debitAmount: "179,999",
       creditAmount: "179,999",
     });
-    expect(computeFinancialSummary(rows)).toMatchObject({
+    expect(plTotals(rows)).toMatchObject({
       revenue: 0,
       expenses: 419_999,
       profit: -419_999,
@@ -195,7 +204,7 @@ describe("entry scenario rows", () => {
         creditAmount: "600,001",
       }),
     ]);
-    expect(computeFinancialSummary(rows)).toMatchObject({
+    expect(plTotals(rows)).toMatchObject({
       revenue: 0,
       expenses: 720_001,
       profit: -720_001,
@@ -238,9 +247,24 @@ describe("entry scenario rows", () => {
       date: "2026-06-15",
       description: "撮影機材の売却",
       lines: [
-        { side: "debit", accountName: "普通預金", accountType: "asset", amount: "700,000" },
-        { side: "credit", accountName: "工具器具備品", accountType: "asset", amount: "600,001" },
-        { side: "credit", accountName: "固定資産売却益", accountType: "revenue", amount: "99,999" },
+        {
+          side: "debit",
+          accountName: "普通預金",
+          accountType: "asset",
+          amount: "700,000",
+        },
+        {
+          side: "credit",
+          accountName: "工具器具備品",
+          accountType: "asset",
+          amount: "600,001",
+        },
+        {
+          side: "credit",
+          accountName: "固定資産売却益",
+          accountType: "revenue",
+          amount: "99,999",
+        },
       ],
     });
   });
@@ -278,7 +302,8 @@ describe("entry scenario rows", () => {
           kind: "opening_carryover",
           sourceId: "carryover-accrued-cost",
           label: "再振替",
-          assistHref: "/assist/opening-carryover?carryover=carryover-accrued-cost",
+          assistHref:
+            "/assist/opening-carryover?carryover=carryover-accrued-cost",
         },
       }),
     ]);
@@ -313,6 +338,22 @@ describe("entry scenario rows", () => {
     ]);
   });
 });
+
+/** 分析・トレンドと同じく、全行を収益/費用に集計した PL を返す。 */
+function plTotals(rows: EntrySummaryRow[]): {
+  revenue: number;
+  expenses: number;
+  profit: number;
+} {
+  let revenue = 0;
+  let expenses = 0;
+  for (const row of rows) {
+    const rate = parseBusinessRate(row.businessRate);
+    revenue += computeRevenueContribution(row, rate);
+    expenses += computeExpenseContribution(row, rate);
+  }
+  return { revenue, expenses, profit: revenue - expenses };
+}
 
 function fixedAsset(
   overrides: Partial<FixedAssetPreviewItem> & { id: string },

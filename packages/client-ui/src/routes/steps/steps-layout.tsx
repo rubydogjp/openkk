@@ -11,6 +11,7 @@ import {
 import {
   deriveSteps,
   buildStepTrendPoints,
+  excludeBusinessRateTransfer,
 } from "@rubydogjp/openkk-client-domain";
 import { normalizePathname } from "../../shared/pathname";
 import { StepsPageScreen } from "../../steps/step-page-screen";
@@ -83,13 +84,21 @@ function StepsPageScreenWithChart({
   const trendPoints = useMemo(
     () =>
       buildStepTrendPoints({
-        entries: entriesState.listFiscalPeriodEntries(currentFiscalPeriodId),
+        entries: excludeBusinessRateTransfer(
+          entriesState.listFiscalPeriodEntries(currentFiscalPeriodId),
+        ),
         startDate: currentStartDate,
         endDate: currentEndDate,
 
         today: openkkConfig.today,
       }),
-    [entriesState, openkkConfig, currentFiscalPeriodId, currentStartDate, currentEndDate],
+    [
+      entriesState,
+      openkkConfig,
+      currentFiscalPeriodId,
+      currentStartDate,
+      currentEndDate,
+    ],
   );
   return <StepsPageScreen items={steps} trendPoints={trendPoints} />;
 }

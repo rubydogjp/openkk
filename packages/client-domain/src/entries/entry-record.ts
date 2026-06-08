@@ -70,6 +70,86 @@ export function getBusinessAdjustedEntryLines(
   );
 }
 
+export const BUSINESS_RATE_TRANSFER_LOCAL_ID = "virtual:business-rate-transfer";
+
+export function excludeBusinessRateTransfer<T extends { localId?: string }>(
+  entries: T[],
+): T[] {
+  return entries.filter(
+    (entry) => entry.localId !== BUSINESS_RATE_TRANSFER_LOCAL_ID,
+  );
+}
+
+export function buildBusinessRateTransferEntry(input: {
+  fiscalPeriodId: string;
+  entries: EntryRecord[];
+  date: string;
+}): EntryRecord | null {
+  const delta = new Map<
+    string,
+    { accountType: EntryAccountVisualType; signed: number }
+  >();
+  const accumulate = (lines: EntryLine[], factor: number) => {
+    for (const line of lines) {
+      const signed =
+        (line.side === "debit" ? 1 : -1) * parseAmount(line.amount) * factor;
+      const current = delta.get(line.accountName);
+      if (current == null) {
+        delta.set(line.accountName, { accountType: line.accountType, signed });
+      } else {
+        current.signed += signed;
+      }
+    }
+  };
+
+  for (const record of input.entries) {
+    const rate = parseBusinessRate(record.businessRate);
+    if (rate >= 1) continue;
+    const raw = getEntryLines(record);
+    accumulate(applyBusinessRateToLines(raw, rate), 1);
+    accumulate(raw, -1);
+  }
+
+  const debits: EntryLine[] = [];
+  const credits: EntryLine[] = [];
+  for (const [accountName, { accountType, signed }] of delta) {
+    const amount = Math.round(signed);
+    if (amount === 0) continue;
+    const line: EntryLine = {
+      side: amount > 0 ? "debit" : "credit",
+      accountName,
+      accountType,
+      amount: formatYen(Math.abs(amount)),
+    };
+    (amount > 0 ? debits : credits).push(line);
+  }
+
+  const lines = [...debits, ...credits];
+  if (lines.length === 0) return null;
+
+  const debitLine = debits[0] ?? null;
+  const creditLine = credits[0] ?? null;
+  return {
+    id: `materialized-business-rate-transfer-${input.fiscalPeriodId}`,
+    fiscalPeriodId: input.fiscalPeriodId,
+    date: input.date,
+    weekday: "",
+    lines,
+    debit: debitLine?.accountName ?? "",
+    debitType: debitLine?.accountType ?? "asset",
+    debitAmount: debitLine?.amount ?? "",
+    credit: creditLine?.accountName ?? "",
+    creditType: creditLine?.accountType ?? "asset",
+    creditAmount: creditLine?.amount ?? "",
+    description: "家事按分の振替",
+    partner: "",
+    businessRate: "",
+    taxCategory: "対象外",
+    businessCategory: "",
+    localId: BUSINESS_RATE_TRANSFER_LOCAL_ID,
+  };
+}
+
 export type EntryRecord = {
   id: string;
   fiscalPeriodId: string;

@@ -5,9 +5,12 @@ import {
   buildGeneralLedgerDocument,
   buildJournalDocument,
   computeFsAggregate,
+  withClosingVirtualEntries,
+  type EntryRecord,
   type FiscalPeriod,
 } from "@rubydogjp/openkk-client-domain";
 import {
+  useOpenkkAssist,
   useOpenkkEntries,
   usePrintDocument,
 } from "@rubydogjp/openkk-client-usecases";
@@ -16,22 +19,33 @@ export function useStepDocumentPrinters(
   fiscalPeriod: FiscalPeriod | undefined,
 ) {
   const entriesState = useOpenkkEntries();
+  const assistState = useOpenkkAssist();
   const printDocument = usePrintDocument();
+
+  const closingEntries = (period: FiscalPeriod): EntryRecord[] =>
+    withClosingVirtualEntries({
+      fiscalPeriodId: period.id,
+      periodStartDate: period.startDate,
+      periodEndDate: period.endDate,
+      entries: entriesState.listFiscalPeriodEntries(period.id),
+      assets: assistState.listFixedAssets(),
+      carryovers: assistState.listOpeningCarryovers(period.id),
+    });
 
   const printJournal = () => {
     if (fiscalPeriod == null) return;
-    const entries = entriesState.listFiscalPeriodEntries(fiscalPeriod.id);
-    printDocument(buildJournalDocument(fiscalPeriod.name, entries));
+    printDocument(
+      buildJournalDocument(fiscalPeriod.name, closingEntries(fiscalPeriod)),
+    );
   };
 
   const printGeneralLedger = () => {
     if (fiscalPeriod == null) return;
-    const entries = entriesState.listFiscalPeriodEntries(fiscalPeriod.id);
     const openingBalanceLines = fiscalPeriod.opening?.openingBalanceLines ?? [];
     printDocument(
       buildGeneralLedgerDocument(
         fiscalPeriod.name,
-        entries,
+        closingEntries(fiscalPeriod),
         openingBalanceLines,
       ),
     );
@@ -39,10 +53,9 @@ export function useStepDocumentPrinters(
 
   const printFinancialStatements = () => {
     if (fiscalPeriod == null) return;
-    const entries = entriesState.listFiscalPeriodEntries(fiscalPeriod.id);
     const openingBalanceLines = fiscalPeriod.opening?.openingBalanceLines ?? [];
     const { amounts, bsRows, expenseWriteIns } = computeFsAggregate({
-      entries,
+      entries: closingEntries(fiscalPeriod),
       openingBalanceLines,
     });
     printDocument(
