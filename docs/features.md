@@ -155,15 +155,17 @@
 
 | テストレイヤー | ファイル数 | テスト数 | 対象 |
 |---|---|---|---|
-| ユニット | 35 | 261 | ドメインロジック・DB・パーサー |
+| ユニット | 37 | 328 | ドメインロジック・DB・パーサー・ユースケース・UI ロジック |
+| DB ポート契約適合 | (上記に含む) | 78 | `OpenkkDbPort` 共有 conformance を memory/file-db 両実アダプタ＋遅延非同期コアで検証（`server-ports/src/db-port-conformance.ts`） |
 | パッケージ構造 | 1 | 14 | workspace 整合性 |
-| E2E (dev mode) | 5 | 15+ シナリオ | ブラウザ操作フルフロー |
+| E2E (dev mode) | 6 | 16+ シナリオ | ブラウザ操作フルフロー（締めフローの帳票一貫性 `closing-business-rate.spec.ts` 含む） |
 | E2E (demo mode) | 1 | 5 (opt-in) | シードデータ・デモ表示 |
 | E2E (prod embedded) | 1 | — | prod 組み込みユーザー (`auth-prod.spec.ts`) |
 | E2E (export build) | 1 | — | 静的エクスポート smoke (`tests-export/`) |
 
 E2E は `NEXT_PUBLIC_OPENKK_MODE=dev` で起動したサーバー (port 4306) に対して実行する。
 demo mode テストは `OPENKK_DEMO_URL` 環境変数が設定されている場合のみ実行される。
+DB アダプタを追加したら `runDbPortConformance` に通し、dev(memory) と prod(OPFS worker) の挙動一致を担保する。
 
 ---
 

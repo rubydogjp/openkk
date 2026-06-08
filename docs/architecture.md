@@ -89,7 +89,9 @@ DB操作契約は `db-adapter.ts`、DB境界型は `persistence-types.ts`、SQLi
 | レイヤー | ツール | 対象 |
 |---|---|---|
 | ユニット | vitest | ドメインロジック・パーサー・DB adapter |
-| E2E | Playwright | ブラウザ操作フルフロー（dev モード） |
+| DB ポート契約適合 | vitest | `OpenkkDbPort` 共有 conformance（`server-ports/src/db-port-conformance.ts`）を memory/file-db 両実アダプタ＋遅延非同期コアに通し、dev(memory)↔prod(OPFS worker) の挙動一致を保証 |
+| E2E | Playwright | ブラウザ操作フルフロー（dev モード）。締めフローでは仮帳票＝確定帳票＝概要図を実画面で検証 |
 | パッケージ構造 | vitest | workspace 整合性チェック |
 
 E2E はリファレンスアプリ（port 4306）を `dev:e2e` で起動した状態で実行する。
+新しい `OpenkkDbPort` 実装を追加したら `runDbPortConformance` に通すこと。
