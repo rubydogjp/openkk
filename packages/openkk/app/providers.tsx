@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import {
   BackendApiProvider,
   OpenkkAppStateProvider,
@@ -11,10 +10,8 @@ import {
   OpenkkCalloutsProvider,
   OpenkkConfigProvider,
   PrintAdapterProvider,
-  fontWeight,
-  palette,
 } from "@rubydogjp/openkk-client";
-import type { BrandConfig, OpenkkCalloutSlots } from "@rubydogjp/openkk-client";
+import type { BrandConfig } from "@rubydogjp/openkk-client";
 import type { OpenkkBackendPort } from "@rubydogjp/openkk-client";
 import { createOpenkkEmbeddedBackend } from "@rubydogjp/openkk-embedded-backend";
 import { createOpenkkEmbeddedBackendAdapter } from "@rubydogjp/openkk-embedded-backend-adapter";
@@ -22,7 +19,6 @@ import { createFileDbAdapter } from "@rubydogjp/openkk-file-db-adapter";
 import { createMemoryDbAdapter } from "@rubydogjp/openkk-memory-db-adapter";
 import { printAdapter } from "@rubydogjp/openkk-print-adapter";
 
-import { buildOpenkkDemoSeed } from "./demo-seed";
 import { openkkConfig } from "./openkk-config";
 
 const SERVICE_WORKER_URL = "/sw.js";
@@ -42,9 +38,7 @@ function registerServiceWorker(): void {
 }
 
 export function Providers(props: { children: React.ReactNode }) {
-  const [backendApi, setBackendApi] = useState<OpenkkBackendPort | null>(
-    null,
-  );
+  const [backendApi, setBackendApi] = useState<OpenkkBackendPort | null>(null);
   const [bootError, setBootError] = useState<unknown>(null);
 
   useEffect(() => {
@@ -87,23 +81,19 @@ export function Providers(props: { children: React.ReactNode }) {
 
   if (backendApi == null) {
     return (
-      <div style={{ padding: 24, fontSize: 14, color: "#6b7280" }}>
-        起動中…
-      </div>
+      <div style={{ padding: 24, fontSize: 14, color: "#6b7280" }}>起動中…</div>
     );
   }
 
   return (
     <OpenkkConfigProvider config={openkkConfig}>
-      <BrandConfigProvider config={openkkBrandConfig}>
-        <OpenkkCalloutsProvider slots={openkkCalloutSlots}>
+      <BrandConfigProvider config={brandConfig}>
+        <OpenkkCalloutsProvider slots={{}}>
           <BackendApiProvider api={backendApi}>
             <PrintAdapterProvider adapter={printAdapter}>
               <OpenkkAppStateProvider>
                 <OpenkkEntriesProvider>
-                  <OpenkkAssistProvider>
-                    {props.children}
-                  </OpenkkAssistProvider>
+                  <OpenkkAssistProvider>{props.children}</OpenkkAssistProvider>
                 </OpenkkEntriesProvider>
               </OpenkkAppStateProvider>
             </PrintAdapterProvider>
@@ -114,43 +104,8 @@ export function Providers(props: { children: React.ReactNode }) {
   );
 }
 
-const openkkBrandConfig: BrandConfig = {
-  marketingSiteUrl: "https://rubydog.jp/openkk",
-  productSiteUrl: "https://rubydog.jp/openkk",
-  editionLabel:
-    openkkConfig.mode === "demo"
-      ? "デモ版"
-      : openkkConfig.mode === "dev"
-        ? "Dev版"
-        : "(無印版)",
-};
-
-const openkkCalloutSlots: OpenkkCalloutSlots = {
-  stepNextFiscalPeriodDemoFooter: (
-    <>
-      <div>デモ版を使っていただきありがとうございました!</div>
-      <div>
-        正式リリースは
-        <Link
-          href="https://x.com/rubydogjp"
-          target="_blank"
-          rel="noreferrer"
-          style={{
-            color: palette.brand,
-            fontWeight: fontWeight.bold,
-            textDecoration: "underline",
-            textUnderlineOffset: "2px",
-          }}
-        >
-          X公式アカウント
-        </Link>
-        でアナウンス予定です
-      </div>
-      <div>
-        レビュー・要望・バグ報告も同じアカウントまでお願いしますm(_ _)m
-      </div>
-    </>
-  ),
+const brandConfig: BrandConfig = {
+  editionLabel: openkkConfig.mode === "dev" ? "Dev版" : "(無印版)",
 };
 
 async function createFileBackendApi(): Promise<OpenkkBackendPort> {
@@ -165,10 +120,7 @@ async function createFileBackendApi(): Promise<OpenkkBackendPort> {
 }
 
 async function createMemoryBackendApi(): Promise<OpenkkBackendPort> {
-  const seed = openkkConfig.isDemoMode
-    ? buildOpenkkDemoSeed(openkkConfig)
-    : undefined;
-  const db = await createMemoryDbAdapter(seed);
+  const db = await createMemoryDbAdapter();
   const server = createOpenkkEmbeddedBackend(db, {
     userId: openkkConfig.mockUserId,
   });

@@ -83,7 +83,6 @@ export function OpenkkShellLayout(props: { children: React.ReactNode }) {
   const openkkConfig = useOpenkkConfig();
   const brandConfig = useBrandConfig();
   const session = appState.session;
-  const isDemoMode = openkkConfig.isDemoMode;
   const editionLabel = brandConfig.editionLabel ?? "";
   const currentFiscalPeriod =
     appState.fiscalPeriods.find(
@@ -149,7 +148,6 @@ export function OpenkkShellLayout(props: { children: React.ReactNode }) {
       pathname={pathname}
       router={router}
       contentMode={contentMode}
-      isDemoMode={isDemoMode}
       editionLabel={editionLabel}
     >
       {contentMode === "sign-in" ? (
@@ -169,14 +167,12 @@ function ShellChrome({
   pathname,
   router,
   contentMode,
-  isDemoMode,
   editionLabel,
   children,
 }: {
   pathname: string;
   router: ReturnType<typeof useRouter>;
   contentMode: Exclude<ShellContentMode, "loading">;
-  isDemoMode: boolean;
   editionLabel: string;
   children: ReactNode;
 }) {
@@ -624,9 +620,7 @@ function ShellChrome({
           <div style={{ flex: 1 }} />
 
           <div style={{ padding: 8, position: "relative" }}>
-            {hasSession &&
-            isDemoMode &&
-            brandConfig.marketingSiteUrl != null ? (
+            {hasSession && brandConfig.marketingSiteUrl != null ? (
               <button
                 type="button"
                 onClick={() =>
@@ -687,9 +681,9 @@ function ShellChrome({
                       overflow: "hidden",
                     }}
                   >
-                    {isDemoMode ? (
+                    {brandConfig.accountIconUrl != null ? (
                       <img
-                        src="/images/demo-mode.svg"
+                        src={brandConfig.accountIconUrl}
                         alt=""
                         width={20}
                         height={20}
@@ -766,9 +760,9 @@ function ShellChrome({
                           overflow: "hidden",
                         }}
                       >
-                        {isDemoMode ? (
+                        {brandConfig.accountIconUrl != null ? (
                           <img
-                            src="/images/demo-mode.svg"
+                            src={brandConfig.accountIconUrl}
                             alt=""
                             width={24}
                             height={24}
@@ -829,7 +823,7 @@ function ShellChrome({
                         padding: "6px 0 8px",
                       }}
                     >
-                      {isDemoMode && brandConfig.productSiteUrl != null && (
+                      {brandConfig.productSiteUrl != null && (
                         <MenuButton
                           icon={
                             <ExternalLinkIcon

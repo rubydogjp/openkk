@@ -10,15 +10,15 @@ import {
   DEFAULT_BOOK_ACCOUNTS,
   DEFAULT_BUSINESS_CATEGORIES,
   DEFAULT_TAX_CATEGORIES,
-  demoFixedAssetItems,
-  buildDemoEntries,
   getEntryLines,
-  demoOpeningBalanceLines,
+  bootstrapOpeningBalanceLines,
   type EntryRecord,
   type FixedAssetPreviewItem,
   type OpenkkConfig,
 } from "@rubydogjp/openkk-client";
 import type { MemoryDbSnapshot } from "@rubydogjp/openkk-memory-db-adapter";
+
+import { buildDemoEntries, demoFixedAssetItems } from "./demo-content";
 
 const DEMO_SEED_TIMESTAMP = new Date(0).toISOString();
 
@@ -56,7 +56,7 @@ function buildDemoSeedFiscalPeriod(
       fiscalPeriodId: "fp-2026",
       createdAt: DEMO_SEED_TIMESTAMP,
       updatedAt: DEMO_SEED_TIMESTAMP,
-      openingBalanceLines: demoOpeningBalanceLines,
+      openingBalanceLines: bootstrapOpeningBalanceLines,
       openingJournals: [],
     },
     createdAt: DEMO_SEED_TIMESTAMP,

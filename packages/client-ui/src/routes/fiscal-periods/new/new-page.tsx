@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   AppError,
+  resolveFiscalPeriodPolicy,
   validateFiscalPeriodDates,
 } from "@rubydogjp/openkk-client-domain";
 import {
@@ -12,7 +13,7 @@ import {
   useOpenkkConfig,
 } from "@rubydogjp/openkk-client-usecases";
 import { AppErrorText } from "../../../shared/app-error-text";
-import { DemoLockButton } from "../../../shared/demo-icon";
+import { LockButton } from "../../../shared/lock-icon";
 import { fontSize, fontWeight, palette, sizes, spacing, typography } from "../../../shared/design-tokens";
 import {
   FormDatePair,
@@ -52,12 +53,11 @@ export function CreateFiscalPeriodPage() {
     () => validateFiscalPeriodDates(startDate, endDate),
     [endDate, startDate],
   );
-  const isDemo = openkkConfig.isDemoMode;
-  const isReadOnlyDemo = isDemo && appState.fiscalPeriods.length > 0;
-  const canSubmit =
-    canCreate &&
-    dateValidation.ok &&
-    (!isDemo || appState.fiscalPeriods.length === 0);
+  const maxActivePeriods = resolveFiscalPeriodPolicy(openkkConfig).maxActivePeriods;
+  const atPeriodLimit =
+    maxActivePeriods != null &&
+    appState.fiscalPeriods.length >= maxActivePeriods;
+  const canSubmit = canCreate && dateValidation.ok && !atPeriodLimit;
 
   const handleCreate = async () => {
     if (!canSubmit) return;
@@ -115,7 +115,7 @@ export function CreateFiscalPeriodPage() {
             control={
               <FormTextInput
                 value={name}
-                readOnly={isReadOnlyDemo}
+                readOnly={atPeriodLimit}
                 onChange={(value) => {
                   setNameEdited(true);
                   setName(value);
@@ -135,16 +135,16 @@ export function CreateFiscalPeriodPage() {
                   end={endDate}
                   onChangeStart={setStartDate}
                   onChangeEnd={setEndDate}
-                  readOnly={isReadOnlyDemo}
+                  readOnly={atPeriodLimit}
                 />
-                {!dateValidation.ok && !isReadOnlyDemo ? (
+                {!dateValidation.ok && !atPeriodLimit ? (
                   <FormErrorText>{dateValidation.message}</FormErrorText>
                 ) : null}
               </>
             }
             hint={
-              isReadOnlyDemo
-                ? "demo 版では期間の作成はできません。通常環境で操作してください。"
+              atPeriodLimit
+                ? "有効な会計期間の上限に達しているため、新しい期間は作成できません。"
                 : undefined
             }
           />
@@ -161,8 +161,8 @@ export function CreateFiscalPeriodPage() {
           <FormSecondaryButton onClick={() => router.push("/steps")}>
             キャンセル
           </FormSecondaryButton>
-          {isReadOnlyDemo ? (
-            <DemoLockButton label="作成する" />
+          {atPeriodLimit ? (
+            <LockButton label="作成する" />
           ) : (
             <FormPrimaryButton onClick={handleCreate} disabled={!canSubmit}>
               作成する

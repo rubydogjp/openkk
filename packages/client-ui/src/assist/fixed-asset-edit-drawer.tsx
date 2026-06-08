@@ -3,8 +3,16 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { AmountInput } from "../shared/amount-field";
-import { DemoLockButton } from "../shared/demo-icon";
-import { fontSize, fontWeight, palette, radii, shadows, sizes, typography } from "../shared/design-tokens";
+import { LockButton } from "../shared/lock-icon";
+import {
+  fontSize,
+  fontWeight,
+  palette,
+  radii,
+  shadows,
+  sizes,
+  typography,
+} from "../shared/design-tokens";
 import {
   FormStyles,
   FormPrimaryButton,
@@ -23,14 +31,14 @@ import {
 export function FixedAssetEditDrawer({
   mode = "edit",
   asset,
-  isDemo,
+  editingLocked,
   onClose,
   onSave,
   onDelete,
 }: {
   mode?: "create" | "edit";
   asset: FixedAssetPreviewItem;
-  isDemo: boolean;
+  editingLocked: boolean;
   onClose: () => void;
   onSave: (draft: FixedAssetDraft) => Promise<boolean>;
   onDelete?: () => Promise<boolean>;
@@ -50,9 +58,11 @@ export function FixedAssetEditDrawer({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
-  const needsDisposalDate = draft.status === "売却済" || draft.status === "廃棄済";
+  const needsDisposalDate =
+    draft.status === "売却済" || draft.status === "廃棄済";
   const needsDisposalPrice = draft.status === "売却済";
-  const hasValidAcquisitionDate = parseIsoLocalDate(draft.acquisitionDate) != null;
+  const hasValidAcquisitionDate =
+    parseIsoLocalDate(draft.acquisitionDate) != null;
   const hasValidDisposalDate =
     !needsDisposalDate || parseIsoLocalDate(draft.disposalDate ?? "") != null;
   const canSave =
@@ -74,7 +84,7 @@ export function FixedAssetEditDrawer({
         usefulLife: draft.usefulLife,
         asOf:
           needsDisposalDate && draft.disposalDate
-            ? parseIsoLocalDate(draft.disposalDate) ?? config.today
+            ? (parseIsoLocalDate(draft.disposalDate) ?? config.today)
             : config.today,
       }),
     [
@@ -187,7 +197,11 @@ export function FixedAssetEditDrawer({
           }}
         >
           <div
-            style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: palette.text }}
+            style={{
+              fontSize: fontSize.lg,
+              fontWeight: fontWeight.bold,
+              color: palette.text,
+            }}
           >
             {mode === "create" ? "固定資産の追加" : "固定資産の編集"}
           </div>
@@ -273,7 +287,13 @@ export function FixedAssetEditDrawer({
           />
 
           {errorText != null ? (
-            <div style={{ fontSize: fontSize.sm, color: palette.danger, fontWeight: fontWeight.semibold }}>
+            <div
+              style={{
+                fontSize: fontSize.sm,
+                color: palette.danger,
+                fontWeight: fontWeight.semibold,
+              }}
+            >
               {errorText}
             </div>
           ) : null}
@@ -319,10 +339,13 @@ export function FixedAssetEditDrawer({
             <FormSecondaryButton onClick={onClose}>
               キャンセル
             </FormSecondaryButton>
-            {isDemo ? (
-              <DemoLockButton label="保存" />
+            {editingLocked ? (
+              <LockButton label="保存" />
             ) : (
-              <FormPrimaryButton onClick={handleSave} disabled={saving || deleting}>
+              <FormPrimaryButton
+                onClick={handleSave}
+                disabled={saving || deleting}
+              >
                 {saving ? "保存中…" : "保存"}
               </FormPrimaryButton>
             )}
@@ -429,7 +452,9 @@ function BusinessRateField({
         value={percent}
         onChange={(event) => onChange(Number(event.target.value))}
       />
-      <div style={{ fontSize: fontSize.sm, color: palette.textMuted }}>{percent}%</div>
+      <div style={{ fontSize: fontSize.sm, color: palette.textMuted }}>
+        {percent}%
+      </div>
     </div>
   );
 }
@@ -469,7 +494,10 @@ function DepreciationPreview({
         償却の自動計算（定額法）
       </div>
       <PreviewRow label="償却期間" value={period || "—"} />
-      <PreviewRow label="進捗" value={`${Math.round(progress * 100)}%（${remaining}）`} />
+      <PreviewRow
+        label="進捗"
+        value={`${Math.round(progress * 100)}%（${remaining}）`}
+      />
       <PreviewRow label="現在簿価" value={`${yen(currentBookValue)} 円`} />
       <PreviewRow label="当期償却費" value={`${yen(annualDepreciation)} 円`} />
     </div>
@@ -479,8 +507,16 @@ function DepreciationPreview({
 function PreviewRow({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-      <span style={{ fontSize: fontSize.sm, color: palette.textMuted }}>{label}</span>
-      <span style={{ fontSize: fontSize.sm, color: palette.text, fontWeight: fontWeight.semibold }}>
+      <span style={{ fontSize: fontSize.sm, color: palette.textMuted }}>
+        {label}
+      </span>
+      <span
+        style={{
+          fontSize: fontSize.sm,
+          color: palette.text,
+          fontWeight: fontWeight.semibold,
+        }}
+      >
         {value}
       </span>
     </div>

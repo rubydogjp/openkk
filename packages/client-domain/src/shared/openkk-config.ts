@@ -1,6 +1,6 @@
 import type { EmbeddedUser } from "./user";
 
-export type OpenkkMode = "prod" | "stg" | "dev" | "demo";
+export type OpenkkMode = "prod" | "stg" | "dev";
 
 export type OpenkkAuthMode = "embedded" | "custom";
 
@@ -20,12 +20,16 @@ export const DEFAULT_FISCAL_PERIOD_POLICY: FiscalPeriodPolicy = {
   archiveRetention: "persistent",
 };
 
+export type OpenkkEditingPolicy = {
+  locked?: boolean;
+  lockedNotice?: string;
+};
+
 export interface OpenkkConfig {
   today: Date;
   mode: OpenkkMode;
   isProdMode: boolean;
   isDevMode: boolean;
-  isDemoMode: boolean;
   isMockMode: boolean;
   authMode: OpenkkAuthMode;
   embeddedUser: EmbeddedUser;
@@ -35,6 +39,16 @@ export interface OpenkkConfig {
   sessionStorageKey: string;
   fiscalPeriodStorageKey: string;
   fiscalPeriodPolicy?: FiscalPeriodPolicy;
+  editingPolicy?: OpenkkEditingPolicy;
+}
+
+export function resolveEditingPolicy(
+  config: Pick<OpenkkConfig, "editingPolicy">,
+): { locked: boolean; lockedNotice?: string } {
+  return {
+    locked: config.editingPolicy?.locked ?? false,
+    lockedNotice: config.editingPolicy?.lockedNotice,
+  };
 }
 
 export function resolveFiscalPeriodPolicy(

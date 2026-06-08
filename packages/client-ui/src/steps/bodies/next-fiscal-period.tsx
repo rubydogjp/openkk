@@ -11,6 +11,7 @@ import {
   buildOpeningCarryoverJournalsFromReversibleEntries,
   computeFsAggregate,
   createFiscalPeriodArchiveZip,
+  resolveEditingPolicy,
   resolveFiscalPeriodPolicy,
 } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text";
@@ -27,7 +28,7 @@ import {
   palette,
   rings,
 } from "../../shared/design-tokens";
-import { DemoLockButton } from "../../shared/demo-icon";
+import { LockButton } from "../../shared/lock-icon";
 import { downloadBytes } from "../../shared/download";
 import {
   FormDatePair,
@@ -57,7 +58,7 @@ export function NextFiscalPeriodBody({
   onSwitchToStep?: (no: number) => void;
 }) {
   const config = useOpenkkConfig();
-  const demoFooterCallout = useOpenkkCallout("stepNextFiscalPeriodDemoFooter");
+  const nextPeriodFooter = useOpenkkCallout("stepNextFiscalPeriodFooter");
   const backendApi = useBackendApi();
   const appState = useOpenkkAppState();
   const entriesState = useOpenkkEntries();
@@ -115,6 +116,7 @@ export function NextFiscalPeriodBody({
   }
 
   const policy = resolveFiscalPeriodPolicy(config);
+  const editingLocked = resolveEditingPolicy(config).locked;
   const requiresArchiveBeforeNext =
     policy.maxActivePeriods != null && policy.maxActivePeriods <= 1;
   const isEphemeral = policy.archiveRetention === "ephemeral";
@@ -125,17 +127,16 @@ export function NextFiscalPeriodBody({
   const canCreateNext =
     canEnterPage &&
     currentFiscalPeriod.documentsReceivedCompleted &&
-    !config.isDemoMode &&
+    !editingLocked &&
     !isCreating &&
     name.trim() !== "" &&
     startDate.trim() !== "" &&
     endDate.trim() !== "" &&
     (!requiresArchiveBeforeNext || currentArchived);
-  const isDemo = config.isDemoMode;
   const canArchive =
     currentFiscalPeriod != null &&
     currentFiscalPeriod.archiveStatus !== "archived" &&
-    !config.isDemoMode &&
+    !editingLocked &&
     !isArchiving;
 
   const ephemeralWarning = {
@@ -432,8 +433,8 @@ export function NextFiscalPeriodBody({
                   justifyContent: "flex-end",
                 }}
               >
-                {isDemo ? (
-                  <DemoLockButton label="次期を作成" />
+                {editingLocked ? (
+                  <LockButton label="次期を作成" />
                 ) : (
                   <StepPrimaryButton
                     onClick={() => {
@@ -465,10 +466,10 @@ export function NextFiscalPeriodBody({
         )}
       </section>
 
-      {isDemo && demoFooterCallout != null ? (
+      {nextPeriodFooter != null ? (
         <>
           <StepDivider />
-          <StepCallout tone="info">{demoFooterCallout}</StepCallout>
+          <StepCallout tone="info">{nextPeriodFooter}</StepCallout>
         </>
       ) : null}
 
@@ -502,8 +503,8 @@ export function NextFiscalPeriodBody({
               {archiveStatus}
             </span>
           ) : null}
-          {isDemo ? (
-            <DemoLockButton label="圧縮保存" />
+          {editingLocked ? (
+            <LockButton label="圧縮保存" />
           ) : (
             <StepPrimaryButton
               onClick={handleArchive}

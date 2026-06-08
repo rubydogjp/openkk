@@ -2,7 +2,9 @@
 
 import { createContext, useContext, type ReactNode } from "react";
 
-export type OpenkkCalloutSlot = "stepNextFiscalPeriodDemoFooter";
+export type OpenkkCalloutSlot =
+  | "stepJournalizingPreClosingHint"
+  | "stepNextFiscalPeriodFooter";
 
 export type OpenkkCalloutSlots = Partial<Record<OpenkkCalloutSlot, ReactNode>>;
 

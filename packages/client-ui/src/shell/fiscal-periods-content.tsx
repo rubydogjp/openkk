@@ -7,13 +7,14 @@ import {
   AppError,
   isArchivedStub,
   readFiscalPeriodArchiveZip,
+  resolveEditingPolicy,
 } from "@rubydogjp/openkk-client-domain";
 import {
   useOpenkkAppState,
   useOpenkkConfig,
 } from "@rubydogjp/openkk-client-usecases";
 import { AppErrorText } from "../shared/app-error-text";
-import { DemoLockButton } from "../shared/demo-icon";
+import { LockButton } from "../shared/lock-icon";
 import {
   fontSize,
   fontWeight,
@@ -33,6 +34,7 @@ export function FiscalPeriodsContent() {
   const router = useRouter();
   const appState = useOpenkkAppState();
   const openkkConfig = useOpenkkConfig();
+  const editingLocked = resolveEditingPolicy(openkkConfig).locked;
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const [isImportingArchive, setIsImportingArchive] = useState(false);
@@ -112,8 +114,8 @@ export function FiscalPeriodsContent() {
           }}
         >
           <div style={{ position: "relative" }}>
-            {openkkConfig.isDemoMode ? (
-              <DemoLockButton label="ファイル" />
+            {editingLocked ? (
+              <LockButton label="ファイル" />
             ) : (
               <button
                 type="button"
@@ -185,8 +187,8 @@ export function FiscalPeriodsContent() {
               }}
             />
           </div>
-          {openkkConfig.isDemoMode ? (
-            <DemoLockButton label="追加" />
+          {editingLocked ? (
+            <LockButton label="追加" />
           ) : (
             <AddPeriodButton
               onClick={() => router.push("/fiscal-periods/new")}

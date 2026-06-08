@@ -1,10 +1,8 @@
 import { defineConfig } from "@playwright/test";
 
 // 静的 export (next build の out/) を配信して起動 smoke するための設定。
-// MODE=demo|prod を渡す（prod は本番同等の COOP/COEP を付与）。
-const MODE = process.env.MODE === "prod" ? "prod" : "demo";
-const PORT = MODE === "prod" ? 4308 : 4307;
-const COI = MODE === "prod" ? "1" : "0";
+const PORT = 4308;
+const COI = "1";
 
 export default defineConfig({
   testDir: "./tests-export",

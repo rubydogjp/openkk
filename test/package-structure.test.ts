@@ -279,7 +279,7 @@ describe("openkk workspace structure", () => {
     ).toBe(false);
 
     const demoSeed = fs.readFileSync(
-      path.join(packagesDir, "openkk/app/demo-seed.ts"),
+      path.join(packagesDir, "demo-app/src/demo-seed.ts"),
       "utf8",
     );
     expect(demoSeed).not.toMatch(/\b(sample|example)[A-Za-z0-9_]*/);

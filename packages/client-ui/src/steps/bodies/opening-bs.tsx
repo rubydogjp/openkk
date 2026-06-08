@@ -5,6 +5,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import {
   AppError,
   OPENING_EQUITY_LABELS,
+  resolveEditingPolicy,
 } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text";
 import {
@@ -28,7 +29,7 @@ import {
   spacing,
   typography,
 } from "../../shared/design-tokens";
-import { DemoIcon } from "../../shared/demo-icon";
+import { LockIcon } from "../../shared/lock-icon";
 import { FormStyles } from "../../shared/form-fields";
 import {
   StepCallout,
@@ -281,7 +282,7 @@ export function OpeningBsBody({
 
         {!isPeriodLocked && isCompleted && !isEditing ? (
           <SavedCommentSection
-            isDemo={config.isDemoMode}
+            editingLocked={resolveEditingPolicy(config).locked}
             onEdit={() => setIsEditingCompleted(true)}
           />
         ) : null}
@@ -429,10 +430,10 @@ export function OpeningBsBody({
 }
 
 function SavedCommentSection({
-  isDemo,
+  editingLocked,
   onEdit,
 }: {
-  isDemo: boolean;
+  editingLocked: boolean;
   onEdit: () => void;
 }) {
   return (
@@ -472,25 +473,25 @@ function SavedCommentSection({
         >
           <button
             type="button"
-            onClick={isDemo ? undefined : onEdit}
-            disabled={isDemo}
+            onClick={editingLocked ? undefined : onEdit}
+            disabled={editingLocked}
             style={{
               height: sizes.button.compactHeight,
               minWidth: sizes.button.compactMinWidth,
               padding: "0 14px",
               borderRadius: radii.sm,
-              border: `1px solid ${isDemo ? palette.borderStrong : palette.brand}`,
+              border: `1px solid ${editingLocked ? palette.borderStrong : palette.brand}`,
               background: palette.surface,
-              color: isDemo ? palette.textSoft : palette.brand,
+              color: editingLocked ? palette.textSoft : palette.brand,
               ...typography.control,
-              cursor: isDemo ? "default" : "pointer",
+              cursor: editingLocked ? "default" : "pointer",
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
               gap: spacing.s8,
             }}
           >
-            {isDemo ? <DemoIcon size={18} /> : null}
+            {editingLocked ? <LockIcon size={18} /> : null}
             <span>編集する</span>
           </button>
         </div>

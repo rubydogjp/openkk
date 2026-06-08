@@ -17,7 +17,6 @@
   },
   "scripts": {
     "dev": "NEXT_PUBLIC_OPENKK_MODE=dev next dev --port 4303",
-    "dev:demo": "NEXT_PUBLIC_OPENKK_MODE=demo next dev --port 4312",
     "dev:prod": "NEXT_PUBLIC_OPENKK_MODE=prod next dev --port 4322",
     "build": "next build",
     "start": "next start",

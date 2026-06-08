@@ -5,7 +5,7 @@ export * from "./shared/app-error-text";
 export * from "./shared/closed-period-lock";
 export * from "./shared/confirm-dialog";
 export * from "./shared/date-picker";
-export * from "./shared/demo-icon";
+export * from "./shared/lock-icon";
 export * from "./shared/design-tokens";
 export * from "./shared/document-file-tile";
 export * from "./shared/form-fields";

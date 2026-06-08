@@ -7,7 +7,7 @@ function bookAccountIdByName(name: string): string {
   return DEFAULT_BOOK_ACCOUNTS.find((acc) => acc.name === name)?.id ?? name;
 }
 
-function buildDemoOpeningJournals(fiscalPeriodId: string) {
+function buildBootstrapOpeningJournals(fiscalPeriodId: string) {
   const fiscalYear = fiscalPeriodId.slice(3, 7);
   const date = `${fiscalYear}-01-01`;
   const demoRows = [
@@ -91,7 +91,7 @@ function buildDemoOpeningJournals(fiscalPeriodId: string) {
   });
 }
 
-export const demoOpeningBalanceLines = [
+export const bootstrapOpeningBalanceLines = [
   { id: "cash", accountId: "a:現金", amount: 320000 },
   { id: "bank", accountId: "a:その他の預金", amount: 1800000 },
   { id: "receivable", accountId: "a:売掛金", amount: 240000 },
@@ -104,15 +104,15 @@ export const demoOpeningBalanceLines = [
   { id: "capital", accountId: "l:元入金", amount: 1834000 },
 ];
 
-export const demoOpeningDebitTotal = demoOpeningBalanceLines
+export const bootstrapOpeningDebitTotal = bootstrapOpeningBalanceLines
   .filter((line) => line.accountId.startsWith("a:"))
   .reduce((sum, line) => sum + line.amount, 0);
 
-export const demoOpeningCreditTotal = demoOpeningBalanceLines
+export const bootstrapOpeningCreditTotal = bootstrapOpeningBalanceLines
   .filter((line) => line.accountId.startsWith("l:"))
   .reduce((sum, line) => sum + line.amount, 0);
 
-function buildDemoFiscalPeriod2026(
+function buildBootstrapFiscalPeriod2026(
   userId: string,
   name: string,
   progress: "in-progress" | "fresh",
@@ -130,25 +130,25 @@ function buildDemoFiscalPeriod2026(
     settingsCompleted: isInProgress,
     openingBalancesCompleted: isInProgress,
     documentsReceivedCompleted: false,
-    openingDebitTotal: demoOpeningDebitTotal,
-    openingCreditTotal: demoOpeningCreditTotal,
-    createdAt: DEMO_FISCAL_PERIOD_TIMESTAMP,
-    updatedAt: DEMO_FISCAL_PERIOD_TIMESTAMP,
+    openingDebitTotal: bootstrapOpeningDebitTotal,
+    openingCreditTotal: bootstrapOpeningCreditTotal,
+    createdAt: BOOTSTRAP_FISCAL_PERIOD_TIMESTAMP,
+    updatedAt: BOOTSTRAP_FISCAL_PERIOD_TIMESTAMP,
     opening: {
       id: "opening-fp-2026",
       userId,
       fiscalPeriodId: "fp-2026",
-      createdAt: DEMO_FISCAL_PERIOD_TIMESTAMP,
-      updatedAt: DEMO_FISCAL_PERIOD_TIMESTAMP,
+      createdAt: BOOTSTRAP_FISCAL_PERIOD_TIMESTAMP,
+      updatedAt: BOOTSTRAP_FISCAL_PERIOD_TIMESTAMP,
 
-      openingBalanceLines: demoOpeningBalanceLines,
+      openingBalanceLines: bootstrapOpeningBalanceLines,
 
-      openingJournals: isInProgress ? buildDemoOpeningJournals("fp-2026") : [],
+      openingJournals: isInProgress ? buildBootstrapOpeningJournals("fp-2026") : [],
     },
   };
 }
 
-const DEMO_FISCAL_PERIOD_TIMESTAMP = new Date(0).toISOString();
+const BOOTSTRAP_FISCAL_PERIOD_TIMESTAMP = new Date(0).toISOString();
 
 export function buildBootstrapUser(config: OpenkkConfig): OpenkkUser | null {
   return config.authMode === "embedded" ? config.embeddedUser : null;
@@ -157,15 +157,9 @@ export function buildBootstrapUser(config: OpenkkConfig): OpenkkUser | null {
 export function buildBootstrapFiscalPeriods(
   config: OpenkkConfig,
 ): FiscalPeriod[] {
-  return config.mode === "demo"
-    ? [
-        buildDemoFiscalPeriod2026(
-          config.mockUserId,
-          "デモ期間2026年分",
-          "fresh",
-        ),
-      ]
-    : [buildDemoFiscalPeriod2026(config.mockUserId, "2026年分", "in-progress")];
+  return [
+    buildBootstrapFiscalPeriod2026(config.mockUserId, "2026年分", "in-progress"),
+  ];
 }
 
 export function buildBootstrapFiscalPeriodId(

@@ -11,10 +11,11 @@ import {
 import {
   buildPeriodLockMessage,
   formatIsoLocalDate,
+  resolveEditingPolicy,
   type FixedAssetPreviewItem,
 } from "@rubydogjp/openkk-client-domain";
 import { ClosedPeriodLock } from "../../../shared/closed-period-lock";
-import { DemoLockButton } from "../../../shared/demo-icon";
+import { LockButton } from "../../../shared/lock-icon";
 import { FixedAssetEditDrawer } from "../../../assist/fixed-asset-edit-drawer";
 import { FixedAssetsScreen } from "../../../assist/fixed-assets-screen";
 
@@ -24,7 +25,7 @@ export function FixedAssetsPage() {
   const assistState = useOpenkkAssist();
   const appState = useOpenkkAppState();
   const openkkConfig = useOpenkkConfig();
-  const isDemo = openkkConfig.isDemoMode;
+  const editingLocked = resolveEditingPolicy(openkkConfig).locked;
   const [newAssetDraft, setNewAssetDraft] =
     useState<FixedAssetPreviewItem | null>(null);
 
@@ -83,7 +84,7 @@ export function FixedAssetsPage() {
         items={assistState.listFixedAssets()}
         readOnly={isReadOnlyPeriod}
         onAdd={
-          isDemo || isReadOnlyPeriod
+          editingLocked || isReadOnlyPeriod
             ? undefined
             : () => {
                 navigateWithAssetParam(null);
@@ -102,15 +103,15 @@ export function FixedAssetsPage() {
             : (itemId) => navigateWithAssetParam(itemId)
         }
         addButtonSlot={
-          !isReadOnlyPeriod && isDemo ? (
-            <DemoLockButton label="追加" />
+          !isReadOnlyPeriod && editingLocked ? (
+            <LockButton label="追加" />
           ) : undefined
         }
       />
       {drawerAsset != null && !isReadOnlyPeriod ? (
         <FixedAssetEditDrawer
           asset={drawerAsset}
-          isDemo={isDemo}
+          editingLocked={editingLocked}
           onClose={() => navigateWithAssetParam(null)}
           onSave={async (draft) => {
             return await assistState.updateFixedAsset(drawerAsset.id, draft);
@@ -128,7 +129,7 @@ export function FixedAssetsPage() {
         <FixedAssetEditDrawer
           mode="create"
           asset={newAssetDraft}
-          isDemo={isDemo}
+          editingLocked={editingLocked}
           onClose={() => setNewAssetDraft(null)}
           onSave={async (draft) => {
             const createdId = await assistState.addFixedAsset(draft);

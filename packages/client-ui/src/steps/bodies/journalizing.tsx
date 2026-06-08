@@ -7,6 +7,7 @@ import { AppError } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text";
 import {
   useOpenkkAppState,
+  useOpenkkCallout,
   useOpenkkClosing,
   useOpenkkConfig,
 } from "@rubydogjp/openkk-client-usecases";
@@ -38,6 +39,7 @@ export function JournalizingBody({
   const config = useOpenkkConfig();
   const appState = useOpenkkAppState();
   const closingApi = useOpenkkClosing();
+  const preClosingHint = useOpenkkCallout("stepJournalizingPreClosingHint");
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (period) => period.id === appState.currentFiscalPeriodId,
   );
@@ -199,10 +201,8 @@ export function JournalizingBody({
               >
                 翌2月ごろに今期の取引が全て確定したら仮締めを実行して下さい。
               </div>
-              {config.isDemoMode ? (
-                <StepCallout tone="info">
-                  ※ デモ版では、いきなり仮締めを実行して構いません。
-                </StepCallout>
+              {preClosingHint != null ? (
+                <StepCallout tone="info">{preClosingHint}</StepCallout>
               ) : null}
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
                 <StepPrimaryButton

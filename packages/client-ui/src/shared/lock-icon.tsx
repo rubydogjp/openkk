@@ -4,7 +4,7 @@ import type { CSSProperties, ReactNode } from "react";
 
 import { fontSize, fontWeight, palette, radii, sizes, spacing, typography } from "./design-tokens";
 
-export function DemoIcon({
+export function LockIcon({
   size = 20,
   opacity = 1,
 }: {
@@ -31,8 +31,8 @@ export function DemoIcon({
   );
 }
 
-export function DemoLockButton({
-  label = "デモ版ではこの操作はできません",
+export function LockButton({
+  label = "この操作はできません",
   style,
 }: {
   label?: string;
@@ -58,15 +58,15 @@ export function DemoLockButton({
         ...style,
       }}
     >
-      <DemoIcon size={18} />
+      <LockIcon size={18} />
       <span>{label}</span>
     </button>
   );
 }
 
-export function DemoLockFabButton({
+export function LockFabButton({
   size = 56,
-  title = "デモ版では追加できません",
+  title = "追加できません",
 }: {
   size?: number;
   title?: string;
@@ -90,14 +90,14 @@ export function DemoLockFabButton({
         boxShadow: "0 6px 14px rgba(0,0,0,0.06)",
       }}
     >
-      <DemoIcon size={Math.round(size * 0.42)} />
+      <LockIcon size={Math.round(size * 0.42)} />
     </button>
   );
 }
 
-export function DemoLockCircleButton({
+export function LockCircleButton({
   size = 28,
-  title = "デモ版では編集できません",
+  title = "編集できません",
 }: {
   size?: number;
   title?: string;
@@ -118,12 +118,12 @@ export function DemoLockCircleButton({
         justifyContent: "center",
       }}
     >
-      <DemoIcon size={Math.round(size * 0.6)} />
+      <LockIcon size={Math.round(size * 0.6)} />
     </span>
   );
 }
 
-export function DemoLockNotice({
+export function LockNotice({
   title,
   description,
   compact = false,
@@ -158,7 +158,7 @@ export function DemoLockNotice({
           flexShrink: 0,
         }}
       >
-        <DemoIcon size={20} />
+        <LockIcon size={20} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold, color: palette.text }}>

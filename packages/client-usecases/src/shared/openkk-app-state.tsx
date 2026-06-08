@@ -14,9 +14,7 @@ import {
   AppError,
   buildBootstrapFiscalPeriodId,
   buildBootstrapUser,
-  buildDemoSeedEntriesForFiscalPeriod,
   buildSignedOutFiscalPeriodId,
-  demoOpeningBalanceLines,
   summarizeOpeningBalances,
   DEFAULT_BOOK_ACCOUNTS,
   DEFAULT_BUSINESS_CATEGORIES,
@@ -85,9 +83,23 @@ type OpenkkAppState = {
 
 const OpenkkAppStateContext = createContext<OpenkkAppState | null>(null);
 
-export function OpenkkAppStateProvider(props: { children: ReactNode }) {
+export type FiscalPeriodSeed = {
+  openingBalanceLines: { id: string; accountId: string; amount: number }[];
+  entries: EntryRecord[];
+};
+
+export type FiscalPeriodSeedProvider = (ctx: {
+  fiscalPeriod: FiscalPeriodApiRecord;
+  isFirst: boolean;
+}) => FiscalPeriodSeed | null;
+
+export function OpenkkAppStateProvider(props: {
+  children: ReactNode;
+  seedFiscalPeriod?: FiscalPeriodSeedProvider;
+}) {
   const config = useOpenkkConfig();
   const backendApi = useBackendApi();
+  const seedFiscalPeriod = props.seedFiscalPeriod;
 
   const [isReady, setIsReady] = useState<boolean>(false);
 
@@ -196,24 +208,28 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
       async createFiscalPeriod(input, options) {
         const created = await backendApi.fiscalPeriod.create(input);
 
-        const isDemoFirstPeriod =
-          config.isDemoMode && fiscalPeriods.length === 0;
+        const seed =
+          seedFiscalPeriod?.({
+            fiscalPeriod: created,
+            isFirst: fiscalPeriods.length === 0,
+          }) ?? null;
         let final = created;
-        if (isDemoFirstPeriod) {
+        if (seed != null) {
           final = await backendApi.fiscalPeriod.patch(created.id, {
             opening: {
               id: `op-${created.id}`,
               userId: user?.id ?? config.mockUserId,
               fiscalPeriodId: created.id,
-              openingBalanceLines: demoOpeningBalanceLines,
+              openingBalanceLines: seed.openingBalanceLines,
               openingJournals: [],
             },
           });
-          const seededEntries = buildDemoSeedEntriesForFiscalPeriod(created.id);
-          await backendApi.entries.importMany(
-            created.id,
-            seededEntries.map((record) => entryRecordToImportInput(record)),
-          );
+          if (seed.entries.length > 0) {
+            await backendApi.entries.importMany(
+              created.id,
+              seed.entries.map((record) => entryRecordToImportInput(record)),
+            );
+          }
         }
         setFiscalPeriods((current) => [
           ...current,
@@ -312,6 +328,7 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
     user,
     config,
     backendApi,
+    seedFiscalPeriod,
   ]);
 
   return (
@@ -419,12 +436,12 @@ export function applyFiscalPeriodUpdate(
   });
 }
 
-const DEMO_IMPORT_MASTER = {
+const DEFAULT_IMPORT_MASTER = {
   accounts: DEFAULT_BOOK_ACCOUNTS,
   taxes: DEFAULT_TAX_CATEGORIES,
   businesses: DEFAULT_BUSINESS_CATEGORIES,
 };
 
 function entryRecordToImportInput(record: EntryRecord) {
-  return entryRecordToImportPayload(record, DEMO_IMPORT_MASTER);
+  return entryRecordToImportPayload(record, DEFAULT_IMPORT_MASTER);
 }
