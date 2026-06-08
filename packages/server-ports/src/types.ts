@@ -72,6 +72,8 @@ export type FiscalPeriodApiRecord = {
   endDate: string;
   phase: "pre_opening" | "journalizing" | "pre_closing" | "post_closing";
   archiveStatus: "active" | "archived";
+  archiveDataAvailable?: boolean;
+  archivedAt?: string | null;
   settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
@@ -299,6 +301,10 @@ export type FiscalPeriodArchiveRequest = { id: string };
 export type FiscalPeriodArchiveResponse = {
   fiscalPeriod: FiscalPeriodApiRecord;
 };
+export type FiscalPeriodPurgeArchivedDataRequest = { id: string };
+export type FiscalPeriodPurgeArchivedDataResponse = {
+  fiscalPeriod: FiscalPeriodApiRecord;
+};
 export type FiscalPeriodRemoveRequest = { id: string };
 export type FiscalPeriodRemoveResponse = OpenkkNoContentResponse;
 
@@ -437,6 +443,11 @@ export type OpenkkHttpEndpointSpecs = {
     FiscalPeriodArchiveResponse,
     200
   >;
+  fiscalPeriodPurgeArchivedData: OpenkkHttpEndpointSpec<
+    FiscalPeriodPurgeArchivedDataRequest,
+    FiscalPeriodPurgeArchivedDataResponse,
+    200
+  >;
   fiscalPeriodRemove: OpenkkHttpEndpointSpec<
     FiscalPeriodRemoveRequest,
     FiscalPeriodRemoveResponse,
@@ -573,6 +584,11 @@ export const OPENKK_HTTP_ENDPOINTS = {
     path: "/fiscal-periods/{id}/archive",
     successStatus: 200,
   },
+  fiscalPeriodPurgeArchivedData: {
+    method: "POST",
+    path: "/fiscal-periods/{id}/purge-archived-data",
+    successStatus: 200,
+  },
   fiscalPeriodRemove: {
     method: "DELETE",
     path: "/fiscal-periods/{id}",
@@ -677,6 +693,12 @@ export interface FiscalPeriodApi {
     input: FiscalPeriodArchiveImportInput,
   ): Promise<FiscalPeriodApiRecord>;
   archive(id: string): Promise<FiscalPeriodApiRecord>;
+  /**
+   * アーカイブ済み期間の実データ(entries/lines/opening/closings 等)を削除し、
+   * 軽量スタブ(`archiveDataAvailable=false`)として残す。ephemeral ポリシーで
+   * 翌期へ進む確定後に呼ばれる。persistent バックエンドは未実装/no-op でよい。
+   */
+  purgeArchivedData(id: string): Promise<FiscalPeriodApiRecord>;
   patch(
     id: string,
     input: FiscalPeriodPatchInput,

@@ -111,6 +111,14 @@ function createMemoryDb(
         current = { ...current, archiveStatus: "archived" };
         return current;
       },
+      async purgeArchivedData() {
+        current = {
+          ...current,
+          archiveStatus: "archived",
+          archiveDataAvailable: false,
+        };
+        return current;
+      },
       async delete() {},
     },
     entries: {

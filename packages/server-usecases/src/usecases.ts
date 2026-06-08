@@ -135,6 +135,9 @@ function createFiscalPeriodUsecase(db: OpenkkDbPort) {
     async archive(_userId: string, id: string) {
       return db.fiscalPeriods.archive(id);
     },
+    async purgeArchivedData(_userId: string, id: string) {
+      return db.fiscalPeriods.purgeArchivedData(id);
+    },
     async delete(_userId: string, id: string) {
       await db.fiscalPeriods.delete(id);
     },

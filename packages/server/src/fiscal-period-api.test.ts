@@ -276,6 +276,17 @@ function createFiscalPeriodDb(
         fiscalPeriods.set(id, updated);
         return updated;
       },
+      async purgeArchivedData(id: string) {
+        const current = fiscalPeriods.get(id);
+        if (current == null) throw new Error(`fiscal period not found: ${id}`);
+        const updated = fiscalPeriod({
+          ...current,
+          archiveStatus: "archived",
+          archiveDataAvailable: false,
+        });
+        fiscalPeriods.set(id, updated);
+        return updated;
+      },
       async delete(id) {
         fiscalPeriods.delete(id);
       },

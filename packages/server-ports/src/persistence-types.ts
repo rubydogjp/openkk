@@ -48,6 +48,8 @@ export type FiscalPeriodDbRecord = {
   endDate: string;
   phase: FiscalPeriodDbPhase;
   archiveStatus: FiscalPeriodDbArchiveStatus;
+  archiveDataAvailable?: boolean;
+  archivedAt?: string | null;
   settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
@@ -69,7 +71,9 @@ export type FiscalPeriodDbPatchInput = Partial<{
   settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
-  opening: Required<Omit<FiscalPeriodOpeningDbRecord, "createdAt" | "updatedAt">>;
+  opening: Required<
+    Omit<FiscalPeriodOpeningDbRecord, "createdAt" | "updatedAt">
+  >;
 }>;
 
 export type EntryDbLine = {

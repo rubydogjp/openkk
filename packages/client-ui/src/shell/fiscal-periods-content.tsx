@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import {
   AppError,
+  isArchivedStub,
   readFiscalPeriodArchiveZip,
 } from "@rubydogjp/openkk-client-domain";
 import {
@@ -87,7 +88,7 @@ export function FiscalPeriodsContent() {
           display: "flex",
           flexDirection: "column",
         }}
-        >
+      >
         <header style={{ marginBottom: 14 }}>
           <h1
             style={{
@@ -313,34 +314,20 @@ function FiscalPeriodRow({
   showDivider: boolean;
   onSelect: () => void;
 }) {
+  const stub = isArchivedStub(period);
   const showOpeningBsChip =
-    period.archiveStatus !== "archived" && !period.openingBalancesCompleted && period.settingsCompleted;
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className="bk-fp-row is-clickable"
-      style={{
-        border: "none",
-        borderTop: showDivider ? `1px solid ${palette.hairline}` : "none",
-        background: palette.surface,
-        padding: "14px 16px",
-        textAlign: "left",
-        width: "100%",
-        boxSizing: "border-box",
-        cursor: "pointer",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 16,
-      }}
-    >
+    period.archiveStatus !== "archived" &&
+    !period.openingBalancesCompleted &&
+    period.settingsCompleted;
+
+  const content = (
+    <>
       <div style={{ minWidth: 0 }}>
         <div
           style={{
             fontSize: fontSize.md,
             fontWeight: fontWeight.bold,
-            color: palette.text,
+            color: stub ? palette.textLabel : palette.text,
             lineHeight: 1.4,
           }}
         >
@@ -355,6 +342,17 @@ function FiscalPeriodRow({
         >
           {period.startDate} 〜 {period.endDate}
         </div>
+        {stub && period.archivedAt != null ? (
+          <div
+            style={{
+              marginTop: 4,
+              fontSize: fontSize.xs,
+              color: palette.textSoft,
+            }}
+          >
+            圧縮保存日時: {formatArchivedAt(period.archivedAt)}
+          </div>
+        ) : null}
         {showOpeningBsChip ? (
           <div style={{ marginTop: 6 }}>
             <InlineChip
@@ -374,34 +372,88 @@ function FiscalPeriodRow({
         }}
       >
         <InlineChip
-          label={period.archiveStatus === "archived" ? "圧縮保存済み" : stageLabel(period.phase)}
+          label={
+            stub
+              ? "圧縮保存済み（削除）"
+              : period.archiveStatus === "archived"
+                ? "圧縮保存済み"
+                : stageLabel(period.phase)
+          }
           background={
-            period.archiveStatus === "archived"
-              ? "#DCFCE7"
-              : period.phase === "journalizing"
-              ? "#DCFCE7"
-              : palette.formGroupBg
+            stub
+              ? palette.formGroupBg
+              : period.archiveStatus === "archived"
+                ? "#DCFCE7"
+                : period.phase === "journalizing"
+                  ? "#DCFCE7"
+                  : palette.formGroupBg
           }
           foreground={
-            period.archiveStatus === "archived"
-              ? palette.success
-              : period.phase === "journalizing"
-              ? palette.success
-              : palette.textLabel
+            stub
+              ? palette.textSoft
+              : period.archiveStatus === "archived"
+                ? palette.success
+                : period.phase === "journalizing"
+                  ? palette.success
+                  : palette.textLabel
           }
         />
-        <div
-          style={{
-            fontSize: fontSize.xl,
-            color: palette.textLabel,
-            lineHeight: 1,
-          }}
-        >
-          ›
-        </div>
+        {stub ? null : (
+          <div
+            style={{
+              fontSize: fontSize.xl,
+              color: palette.textLabel,
+              lineHeight: 1,
+            }}
+          >
+            ›
+          </div>
+        )}
       </div>
+    </>
+  );
+
+  const sharedStyle = {
+    borderTop: showDivider ? `1px solid ${palette.hairline}` : "none",
+    background: palette.surface,
+    padding: "14px 16px",
+    textAlign: "left" as const,
+    width: "100%",
+    boxSizing: "border-box" as const,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 16,
+  };
+
+  if (stub) {
+    return (
+      <div
+        className="bk-fp-row"
+        aria-disabled="true"
+        style={{ ...sharedStyle, cursor: "default" }}
+      >
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className="bk-fp-row is-clickable"
+      style={{ ...sharedStyle, border: "none", cursor: "pointer" }}
+    >
+      {content}
     </button>
   );
+}
+
+function formatArchivedAt(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toISOString().slice(0, 10);
 }
 
 function FiscalPeriodsEmptyState() {
@@ -580,7 +632,9 @@ function InlineChip({
   );
 }
 
-function stageLabel(phase: "pre_opening" | "journalizing" | "pre_closing" | "post_closing") {
+function stageLabel(
+  phase: "pre_opening" | "journalizing" | "pre_closing" | "post_closing",
+) {
   if (phase === "pre_opening") return "開始前";
   if (phase === "journalizing") return "記帳中";
   if (phase === "pre_closing") return "仮締め済み";

@@ -7,6 +7,15 @@ export function isJournalizingActive(
   return period.archiveStatus === "active" && period.phase === "journalizing";
 }
 
+export function isArchivedStub(
+  period: FiscalPeriod | null | undefined,
+): boolean {
+  if (period == null) return false;
+  return (
+    period.archiveStatus === "archived" && period.archiveDataAvailable === false
+  );
+}
+
 export type PeriodLockMessage = { title: string; description: string };
 
 export function buildPeriodLockMessage(

@@ -9,6 +9,7 @@ import {
   buildFiscalPeriodArchiveFilename,
   buildFiscalPeriodArchivePayload,
   createFiscalPeriodArchiveZip,
+  isArchivedStub,
   type FiscalPeriod,
 } from "@rubydogjp/openkk-client-domain";
 import {
@@ -41,6 +42,8 @@ export function ArchivedFiscalPeriodScreen({
   const router = useRouter();
   const [isDownloading, setIsDownloading] = useState(false);
   const [screenError, setScreenError] = useState<unknown>(null);
+  // ephemeral バックエンドで実データが削除済みのスタブ。閲覧・DL は提供しない。
+  const dataPurged = isArchivedStub(fiscalPeriod);
 
   const handleDownload = async () => {
     if (isDownloading) return;
@@ -77,8 +80,7 @@ export function ArchivedFiscalPeriodScreen({
       setScreenError(
         AppError.from(error, {
           fallbackUserMessage: "圧縮済みファイルの作成に失敗しました",
-          fallbackDeveloperMessage:
-            "steps/archived: download archive failed",
+          fallbackDeveloperMessage: "steps/archived: download archive failed",
         }),
       );
     } finally {
@@ -131,8 +133,29 @@ export function ArchivedFiscalPeriodScreen({
             label="期間"
             value={`${fiscalPeriod.startDate} 〜 ${fiscalPeriod.endDate}`}
           />
-          <StepMetaRow label="状態" value="圧縮保存済み" divider />
+          <StepMetaRow
+            label="状態"
+            value={
+              dataPurged
+                ? "圧縮保存済み（データは削除されました）"
+                : "圧縮保存済み"
+            }
+            divider
+          />
         </StepMetaCard>
+
+        {dataPurged ? (
+          <div
+            style={{
+              marginTop: 14,
+              fontSize: fontSize.sm,
+              color: palette.textLabel,
+              lineHeight: 1.7,
+            }}
+          >
+            この会計期間のデータはサーバから削除されています。再ダウンロード・閲覧はできません。
+          </div>
+        ) : null}
 
         <div
           style={{
@@ -150,13 +173,15 @@ export function ArchivedFiscalPeriodScreen({
           >
             期間一覧へ
           </StepPrimaryButton>
-          <StepPrimaryButton
-            onClick={handleDownload}
-            disabled={isDownloading}
-            variant="success"
-          >
-            {isDownloading ? "作成中" : "圧縮済みファイルをダウンロード"}
-          </StepPrimaryButton>
+          {dataPurged ? null : (
+            <StepPrimaryButton
+              onClick={handleDownload}
+              disabled={isDownloading}
+              variant="success"
+            >
+              {isDownloading ? "作成中" : "圧縮済みファイルをダウンロード"}
+            </StepPrimaryButton>
+          )}
         </div>
 
         {screenError != null ? (

@@ -194,6 +194,7 @@ function embeddedServer(
       importArchived: async () => unused(),
       patch: async () => unused(),
       archive: async () => unused(),
+      purgeArchivedData: async () => unused(),
       remove: async () => undefined,
       ...overrides.fiscalPeriod,
     },

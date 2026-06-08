@@ -20,6 +20,8 @@ export type FiscalPeriod = {
   endDate: string;
   phase: FiscalPeriodPhase;
   archiveStatus: FiscalPeriodArchiveStatus;
+  archiveDataAvailable: boolean;
+  archivedAt?: string | null;
   settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;

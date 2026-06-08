@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { AppError } from "../shared/app-error";
 import {
+  FISCAL_PERIOD_ARCHIVE_FORMAT,
+  FISCAL_PERIOD_ARCHIVE_VERSION,
   buildFiscalPeriodArchiveFilename,
   buildFiscalPeriodArchivePayload,
   createFiscalPeriodArchiveZip,
@@ -9,6 +11,38 @@ import {
 } from "./fiscal-period-archive";
 
 describe("fiscal period archive", () => {
+  it("keeps the archive format a stable public contract", () => {
+    expect(FISCAL_PERIOD_ARCHIVE_FORMAT).toBe("openkk.fiscal-period-archive");
+    expect(FISCAL_PERIOD_ARCHIVE_VERSION).toBe(1);
+
+    const zip = createFiscalPeriodArchiveZip(
+      buildFiscalPeriodArchivePayload({
+        createdAt: "2026-06-05T00:00:00.000Z",
+        fiscalPeriod: {
+          id: "fp-1",
+          name: "2026年分",
+          startDate: "2026-01-01",
+          endDate: "2026-12-31",
+        },
+        entries: [],
+        fixedAssets: [],
+        closings: [],
+      }),
+    );
+    const names = listZipEntryNames(zip).sort();
+    expect(names).toEqual([
+      "closings.json",
+      "entries.json",
+      "fiscal-period.json",
+      "fixed-assets.json",
+      "manifest.json",
+    ]);
+
+    const payload = readFiscalPeriodArchiveZip(zip);
+    expect(payload.manifest.format).toBe("openkk.fiscal-period-archive");
+    expect(payload.manifest.version).toBe(1);
+  });
+
   it("round-trips a fiscal period archive through a zip file", () => {
     const payload = buildFiscalPeriodArchivePayload({
       createdAt: "2026-06-05T00:00:00.000Z",
@@ -159,6 +193,24 @@ describe("fiscal period archive", () => {
     expect((error as AppError).messageForUser).toContain("内容を確認");
   });
 });
+
+function listZipEntryNames(zip: Uint8Array): string[] {
+  const decoder = new TextDecoder();
+  const names: string[] = [];
+  let offset = 0;
+  while (offset + 4 <= zip.length) {
+    const view = new DataView(zip.buffer, zip.byteOffset + offset);
+    if (view.getUint32(0, true) !== 0x04034b50) break;
+    const nameLength = view.getUint16(26, true);
+    const extraLength = view.getUint16(28, true);
+    const compressedSize = view.getUint32(18, true);
+    names.push(
+      decoder.decode(zip.slice(offset + 30, offset + 30 + nameLength)),
+    );
+    offset += 30 + nameLength + extraLength + compressedSize;
+  }
+  return names;
+}
 
 function captureError(fn: () => unknown): unknown {
   try {

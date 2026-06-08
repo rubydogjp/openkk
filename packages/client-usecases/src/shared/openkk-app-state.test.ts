@@ -44,6 +44,7 @@ function period(overrides: Partial<FiscalPeriod> = {}): FiscalPeriod {
     endDate: "2026-12-31",
     phase: "journalizing",
     archiveStatus: "active",
+    archiveDataAvailable: true,
     settingsCompleted: true,
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,

@@ -126,6 +126,7 @@ function buildDemoFiscalPeriod2026(
     endDate: "2026-12-31",
     phase: isInProgress ? "journalizing" : "pre_opening",
     archiveStatus: "active",
+    archiveDataAvailable: true,
     settingsCompleted: isInProgress,
     openingBalancesCompleted: isInProgress,
     documentsReceivedCompleted: false,

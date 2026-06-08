@@ -118,6 +118,10 @@ export function createOpenkkEmbeddedBackendAdapter(
         const response = await request("fiscalPeriodArchive", { id });
         return response.fiscalPeriod;
       },
+      purgeArchivedData: async (id) => {
+        const response = await request("fiscalPeriodPurgeArchivedData", { id });
+        return response.fiscalPeriod;
+      },
       remove: async (id) => {
         await request("fiscalPeriodRemove", { id });
       },
@@ -335,6 +339,18 @@ async function dispatchEmbeddedHttp(
         return {
           status: 200,
           body: { fiscalPeriod: await server.fiscalPeriod.archive(request.id) },
+        };
+      }
+      case "fiscalPeriodPurgeArchivedData": {
+        const request =
+          body as EndpointRequest<"fiscalPeriodPurgeArchivedData">;
+        return {
+          status: 200,
+          body: {
+            fiscalPeriod: await server.fiscalPeriod.purgeArchivedData(
+              request.id,
+            ),
+          },
         };
       }
       case "fiscalPeriodRemove": {

@@ -68,6 +68,7 @@ type OpenkkAppState = {
     }>,
   ) => Promise<boolean>;
   archiveFiscalPeriod: (fiscalPeriodId: string) => Promise<boolean>;
+  purgeArchivedFiscalPeriod: (fiscalPeriodId: string) => Promise<boolean>;
   syncFiscalPeriod: (period: FiscalPeriodApiRecord) => void;
   signInAsEmbeddedUser: () => void;
   signOut: () => void;
@@ -253,6 +254,12 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
         );
         return true;
       },
+      async purgeArchivedFiscalPeriod(fiscalPeriodId) {
+        const purged =
+          await backendApi.fiscalPeriod.purgeArchivedData(fiscalPeriodId);
+        setFiscalPeriods((current) => applyFiscalPeriodUpdate(current, purged));
+        return true;
+      },
       syncFiscalPeriod(period) {
         setFiscalPeriods((current) => applyFiscalPeriodUpdate(current, period));
       },
@@ -357,6 +364,8 @@ function mapRemoteFiscalPeriod(period: FiscalPeriodApiRecord): FiscalPeriod {
     endDate: period.endDate,
     phase: period.phase,
     archiveStatus: period.archiveStatus,
+    archiveDataAvailable: period.archiveDataAvailable ?? true,
+    archivedAt: period.archivedAt ?? null,
     settingsCompleted: period.settingsCompleted,
     openingBalancesCompleted: period.openingBalancesCompleted,
     documentsReceivedCompleted: period.documentsReceivedCompleted,

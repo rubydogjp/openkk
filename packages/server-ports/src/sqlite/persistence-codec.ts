@@ -30,6 +30,12 @@ export function parseFiscalPeriodDbRecord(json: string): FiscalPeriodDbRecord {
     requiredBoolean(value, "settingsCompleted");
     requiredBoolean(value, "openingBalancesCompleted");
     requiredBoolean(value, "documentsReceivedCompleted");
+    if (value.archiveDataAvailable !== undefined) {
+      requiredBoolean(value, "archiveDataAvailable");
+    }
+    if (value.archivedAt !== undefined && value.archivedAt !== null) {
+      requiredString(value, "archivedAt");
+    }
     if (value.opening !== undefined && value.opening !== null) {
       validateOpening(objectValue(value, "opening"));
     }

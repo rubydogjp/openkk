@@ -40,6 +40,7 @@ export interface FiscalPeriodsDb {
     patch: FiscalPeriodDbPatchInput,
   ): Promise<FiscalPeriodDbRecord>;
   archive(id: string): Promise<FiscalPeriodDbRecord>;
+  purgeArchivedData(id: string): Promise<FiscalPeriodDbRecord>;
   delete(id: string): Promise<void>;
 }
 

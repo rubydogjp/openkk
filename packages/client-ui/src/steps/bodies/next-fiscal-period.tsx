@@ -11,6 +11,7 @@ import {
   buildOpeningCarryoverJournalsFromReversibleEntries,
   computeFsAggregate,
   createFiscalPeriodArchiveZip,
+  resolveFiscalPeriodPolicy,
 } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text";
 import {
@@ -81,6 +82,7 @@ export function NextFiscalPeriodBody({
   const [nameEdited, setNameEdited] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
+  const [pendingAdvance, setPendingAdvance] = useState(false);
   const [carries, setCarries] = useState<Record<string, boolean>>({
     bs: true,
     transfer: true,
@@ -112,6 +114,12 @@ export function NextFiscalPeriodBody({
     );
   }
 
+  const policy = resolveFiscalPeriodPolicy(config);
+  const requiresArchiveBeforeNext =
+    policy.maxActivePeriods != null && policy.maxActivePeriods <= 1;
+  const isEphemeral = policy.archiveRetention === "ephemeral";
+  const currentArchived = currentFiscalPeriod.archiveStatus === "archived";
+
   const canEnterPage = currentFiscalPeriod.phase === "post_closing";
   const isNotStarted = !canEnterPage;
   const canCreateNext =
@@ -121,13 +129,23 @@ export function NextFiscalPeriodBody({
     !isCreating &&
     name.trim() !== "" &&
     startDate.trim() !== "" &&
-    endDate.trim() !== "";
+    endDate.trim() !== "" &&
+    (!requiresArchiveBeforeNext || currentArchived);
   const isDemo = config.isDemoMode;
   const canArchive =
     currentFiscalPeriod != null &&
     currentFiscalPeriod.archiveStatus !== "archived" &&
     !config.isDemoMode &&
     !isArchiving;
+
+  const ephemeralWarning = {
+    title: policy.ephemeralArchiveWarning?.title ?? "この先は元に戻せません",
+    body:
+      policy.ephemeralArchiveWarning?.body ??
+      "次へ進むと、この会計期間の圧縮済みデータはサーバから削除され、二度とダウンロードできません。必要な場合は先にダウンロードしてください。",
+    confirmLabel:
+      policy.ephemeralArchiveWarning?.confirmLabel ?? "理解して次期を作成",
+  };
 
   const handleCreate = async () => {
     if (!canCreateNext) return;
@@ -193,6 +211,9 @@ export function NextFiscalPeriodBody({
             bookAccountId: asset.bookAccountId,
           });
         }
+      }
+      if (isEphemeral && currentArchived) {
+        await appState.purgeArchivedFiscalPeriod(currentFiscalPeriod.id);
       }
       setScreenError(null);
       appState.selectFiscalPeriod(createdId);
@@ -358,25 +379,77 @@ export function NextFiscalPeriodBody({
           />
         </StepMetaCard>
         {canEnterPage ? (
-          <div
-            style={{
-              marginTop: 16,
-              display: "flex",
-              justifyContent: "flex-end",
-            }}
-          >
-            {isDemo ? (
-              <DemoLockButton label="次期を作成" />
+          <>
+            {requiresArchiveBeforeNext && !currentArchived ? (
+              <div style={{ marginTop: 16 }}>
+                <StepCallout tone="info">
+                  翌期を作成する前に、下の「圧縮保存」で現在の会計期間を保存してください。
+                </StepCallout>
+              </div>
+            ) : null}
+            {pendingAdvance ? (
+              <div style={{ marginTop: 16 }}>
+                <StepCallout tone="warning">
+                  <span
+                    style={{
+                      display: "block",
+                      fontWeight: fontWeight.bold,
+                      marginBottom: 4,
+                    }}
+                  >
+                    {ephemeralWarning.title}
+                  </span>
+                  {ephemeralWarning.body}
+                </StepCallout>
+                <div
+                  style={{
+                    marginTop: 12,
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    gap: 12,
+                  }}
+                >
+                  <StepSecondaryButton onClick={() => setPendingAdvance(false)}>
+                    キャンセル
+                  </StepSecondaryButton>
+                  <StepPrimaryButton
+                    onClick={() => {
+                      setPendingAdvance(false);
+                      void handleCreate();
+                    }}
+                    disabled={!canCreateNext}
+                    variant="success"
+                  >
+                    {isCreating ? "作成中" : ephemeralWarning.confirmLabel}
+                  </StepPrimaryButton>
+                </div>
+              </div>
             ) : (
-              <StepPrimaryButton
-                onClick={handleCreate}
-                disabled={!canCreateNext}
-                variant="success"
+              <div
+                style={{
+                  marginTop: 16,
+                  display: "flex",
+                  justifyContent: "flex-end",
+                }}
               >
-                {isCreating ? "作成中" : "次期を作成"}
-              </StepPrimaryButton>
+                {isDemo ? (
+                  <DemoLockButton label="次期を作成" />
+                ) : (
+                  <StepPrimaryButton
+                    onClick={() => {
+                      if (!canCreateNext) return;
+                      if (isEphemeral) setPendingAdvance(true);
+                      else void handleCreate();
+                    }}
+                    disabled={!canCreateNext}
+                    variant="success"
+                  >
+                    {isCreating ? "作成中" : "次期を作成"}
+                  </StepPrimaryButton>
+                )}
+              </div>
             )}
-          </div>
+          </>
         ) : (
           <div
             style={{

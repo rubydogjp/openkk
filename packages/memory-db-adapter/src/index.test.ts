@@ -214,6 +214,68 @@ describe("createMemoryDbAdapter / fiscalPeriods", () => {
     expect(await db.closings.get(period.id, 2026)).toBeNull();
   });
 
+  it("purgeArchivedData strips child data and leaves an archived stub", async () => {
+    const db = await makeDb();
+    const period = await db.fiscalPeriods.create("user-1", {
+      name: "FY2026",
+      startDate: "2026-01-01",
+      endDate: "2026-12-31",
+    });
+    await db.entries.create("user-1", period.id, {
+      date: "2026-04-01",
+      description: "entry",
+      businessRate: 1,
+      lines: [testEntryLine],
+    });
+    await db.fixedAssets.create("user-1", period.id, {
+      name: "Camera",
+      acquisitionDate: "2026-04-01",
+      acquisitionCost: 100000,
+      usefulLife: 3,
+      depreciationMethod: "straight_line",
+      businessRate: 1,
+      bookAccountId: "acct_equipment",
+    });
+    await db.fiscalPeriods.update(period.id, {
+      settingsCompleted: true,
+      opening: {
+        ...period.opening!,
+        openingBalanceLines: [
+          { id: "balance-1", accountId: "acct_cash", amount: 1000 },
+        ],
+        openingJournals: [],
+      },
+    });
+    await db.preClosings.run(period.id, 2026);
+    await db.fiscalPeriods.archive(period.id);
+
+    const stub = await db.fiscalPeriods.purgeArchivedData(period.id);
+
+    expect(stub.archiveStatus).toBe("archived");
+    expect(stub.archiveDataAvailable).toBe(false);
+    expect(stub.archivedAt).toEqual(expect.any(String));
+    // 子データは全て削除され、期間行はスタブとして残る。
+    expect(await db.entries.getAll(period.id)).toEqual([]);
+    expect(await db.fixedAssets.getAllByFiscalPeriod(period.id)).toEqual([]);
+    expect(await db.preClosings.get(period.id, 2026)).toBeNull();
+    const reloaded = await db.fiscalPeriods.getById(period.id);
+    expect(reloaded).not.toBeNull();
+    expect(reloaded?.archiveDataAvailable).toBe(false);
+    expect(reloaded?.opening?.openingBalanceLines ?? []).toEqual([]);
+  });
+
+  it("purgeArchivedData rejects a period that is not archived", async () => {
+    const db = await makeDb();
+    const period = await db.fiscalPeriods.create("user-1", {
+      name: "active",
+      startDate: "2026-01-01",
+      endDate: "2026-12-31",
+    });
+    await expect(db.fiscalPeriods.purgeArchivedData(period.id)).rejects.toThrow(
+      /must be archived/,
+    );
+  });
+
   it("imports archived fiscal periods with child records in one operation", async () => {
     const db = await makeDb();
     const imported = await db.fiscalPeriods.importArchived("user-1", {

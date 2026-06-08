@@ -232,6 +232,13 @@ function createEntryDb(
       async archive(id: string) {
         return fiscalPeriod({ id, archiveStatus: "archived" });
       },
+      async purgeArchivedData(id: string) {
+        return fiscalPeriod({
+          id,
+          archiveStatus: "archived",
+          archiveDataAvailable: false,
+        });
+      },
       async delete() {},
     },
     entries: {

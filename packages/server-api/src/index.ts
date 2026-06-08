@@ -145,6 +145,16 @@ export function createOpenkkServerApi(
         assertMutableFiscalPeriod(current, "archive");
         return usecases.fiscalPeriod.archive(uid, id);
       },
+      purgeArchivedData: async (id) => {
+        const current = await getOwnedFiscalPeriod(id);
+        if (current.archiveStatus !== "archived") {
+          throw serverConflictError(
+            `Fiscal period ${id} must be archived before purging data`,
+            "圧縮保存後の会計期間のみ実データを削除できます",
+          );
+        }
+        return usecases.fiscalPeriod.purgeArchivedData(uid, id);
+      },
       remove: async (id) => {
         await getOwnedFiscalPeriod(id);
         await usecases.fiscalPeriod.delete(uid, id);

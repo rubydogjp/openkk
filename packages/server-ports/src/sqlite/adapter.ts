@@ -450,10 +450,67 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         createdAt: msToIso(row[2]),
         updatedAt: msToIso(now),
         archiveStatus: "archived",
+        archivedAt: current.archivedAt ?? msToIso(now),
       };
       await db.exec({
         sql: `UPDATE fiscal_periods SET data = ?, updated_at = ? WHERE id = ?`,
         bind: [serializeFiscalPeriodDbRecord(updated), now, id],
+      });
+      return {
+        ...updated,
+        opening: requireOpening(await loadOpeningByFiscalPeriod(db, id), id),
+      };
+    },
+    async purgeArchivedData(id) {
+      const rows = (await db.exec({
+        sql: `SELECT user_id, data, created_at FROM fiscal_periods WHERE id = ?`,
+        bind: [id],
+        returnValue: "resultRows",
+        rowMode: "array",
+      })) as Array<[string, string, number]>;
+      const row = rows[0];
+      if (row == null)
+        throw serverNotFoundError(`fiscal period not found: ${id}`);
+      const current = parseFiscalPeriodDbRecord(row[1]);
+      if (current.archiveStatus !== "archived") {
+        throw serverConflictError(
+          `fiscal period must be archived before purge: ${id}`,
+          "圧縮保存後の会計期間のみ実データを削除できます",
+        );
+      }
+      const now = nowMs();
+      const updated: FiscalPeriodDbRecord = {
+        ...current,
+        userId: row[0],
+        createdAt: msToIso(row[2]),
+        updatedAt: msToIso(now),
+        archiveDataAvailable: false,
+        archivedAt: current.archivedAt ?? msToIso(now),
+      };
+      await runInTransaction(db, async () => {
+        // 子データを削除（entry_lines / opening 配下は CASCADE で連鎖削除される）。
+        await db.exec({
+          sql: `DELETE FROM entries WHERE fiscal_period_id = ?`,
+          bind: [id],
+        });
+        await db.exec({
+          sql: `DELETE FROM fixed_assets WHERE fiscal_period_id = ?`,
+          bind: [id],
+        });
+        await db.exec({
+          sql: `DELETE FROM pre_closings WHERE fiscal_period_id = ?`,
+          bind: [id],
+        });
+        await db.exec({
+          sql: `DELETE FROM closings WHERE fiscal_period_id = ?`,
+          bind: [id],
+        });
+        // opening を空（既定）へリセットし、期首残高・再振替も消す。
+        await replaceOpening(db, defaultOpening(row[0], id, now), now);
+        await db.exec({
+          sql: `UPDATE fiscal_periods SET data = ?, updated_at = ? WHERE id = ?`,
+          bind: [serializeFiscalPeriodDbRecord(updated), now, id],
+        });
       });
       return {
         ...updated,

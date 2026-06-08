@@ -75,6 +75,38 @@ Archived fiscal periods are read-only. Mutations against them must fail with `Op
 | amount | non-negative number |
 | `usefulLife`, closing `year` | positive integer |
 
-`fiscalPeriod.archive` preserves `phase` and sets `archiveStatus` to `archived`.
+`fiscalPeriod.archive` preserves `phase`, sets `archiveStatus` to `archived`, and stamps `archivedAt`.
 
 `FiscalPeriodArchiveImportInput` creates a new active period in the archived `phase`.
+
+## Fiscal Period Lifecycle Policy
+
+Third-party backends declare a lifecycle policy via `OpenkkConfig.fiscalPeriodPolicy`
+(resolve it with `resolveFiscalPeriodPolicy`). Defaults preserve plain-OpenKK behaviour.
+
+| Field | Default | Meaning |
+|---|---|---|
+| `maxActivePeriods` | `null` | Max non-archived periods. `null` = unlimited. `1` blocks creating a next period until the current one is archived. |
+| `archiveRetention` | `"persistent"` | `"persistent"` keeps archived data forever. `"ephemeral"` purges archived data when advancing to the next period (stub remains). |
+| `ephemeralArchiveWarning` | — | Optional per-edition override for the irreversible-advance warning text. |
+
+`FiscalPeriodApiRecord` carries two lifecycle fields (both optional on the wire, default
+`archiveDataAvailable: true` / `archivedAt: null`):
+
+- `archiveDataAvailable` — `false` marks a purged stub: real data is gone, download/view is unavailable.
+- `archivedAt` — ISO timestamp for listing and ordering archived periods.
+
+`fiscalPeriod.purgeArchivedData(id)` deletes an archived period's real data
+(entries/lines/opening/fixed assets/closings) and returns the lightweight stub
+(`archiveDataAvailable: false`). It requires the period to be `archived` (otherwise `409`).
+`persistent` backends may leave it unimplemented / no-op. Carryover into the next period
+must be committed **before** purge so the new period never depends on purged data.
+
+## Archive Zip Format (stable public contract)
+
+The `openkk.fiscal-period-archive` zip (current `version: 1`) is a **stable, versioned
+public contract** so archives exported by any backend (e.g. a cloud host) re-import into
+plain OpenKK / the PWA. A zip contains `manifest.json`, `fiscal-period.json`,
+`entries.json`, `fixed-assets.json`, `closings.json` (stored, UTF-8, CRC32-checked).
+Build/read it via `createFiscalPeriodArchiveZip` / `readFiscalPeriodArchiveZip`.
+Breaking changes must bump `FISCAL_PERIOD_ARCHIVE_VERSION`; readers stay backward-compatible.

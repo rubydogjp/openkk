@@ -12,6 +12,7 @@ function period(overrides: Partial<FiscalPeriod> = {}): FiscalPeriod {
     endDate: "2026-12-31",
     phase: "journalizing",
     archiveStatus: "active",
+    archiveDataAvailable: true,
     settingsCompleted: true,
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,
@@ -42,7 +43,9 @@ describe("isJournalizingActive", () => {
   });
 
   it("returns false when archived", () => {
-    expect(isJournalizingActive(period({ archiveStatus: "archived" }))).toBe(false);
+    expect(isJournalizingActive(period({ archiveStatus: "archived" }))).toBe(
+      false,
+    );
   });
 
   it("returns true when journalizing", () => {
@@ -87,7 +90,10 @@ describe("buildPeriodLockMessage", () => {
   });
 
   it("incorporates custom subjectVerb in the description", () => {
-    const msg = buildPeriodLockMessage(period({ phase: "pre_opening" }), "入力できます");
+    const msg = buildPeriodLockMessage(
+      period({ phase: "pre_opening" }),
+      "入力できます",
+    );
     expect(msg?.description).toContain("入力できます");
   });
 });
