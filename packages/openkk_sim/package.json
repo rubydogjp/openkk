@@ -1,6 +1,6 @@
 {
   "name": "@rubydogjp/openkk-sim",
-  "version": "26.1.5",
+  "version": "26.1.6",
   "private": true,
   "type": "module",
   "description": "オープン会計 Sim版 runnable Next.js app: メモリDB+モック時計の開発・検証用バンドル。",
