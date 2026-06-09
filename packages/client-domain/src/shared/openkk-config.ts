@@ -1,6 +1,8 @@
 import type { EmbeddedUser } from "./user";
 
-export type OpenkkMode = "prod" | "stg" | "dev";
+export type OpenkkEnv = "dev" | "stg" | "prod";
+
+export type OpenkkBundle = "demo" | "sim" | "original";
 
 export type OpenkkAuthMode = "embedded" | "custom";
 
@@ -29,9 +31,9 @@ export type OpenkkEditingPolicy = {
 
 export interface OpenkkConfig {
   today: Date;
-  mode: OpenkkMode;
-  isProdMode: boolean;
-  isDevMode: boolean;
+  env: OpenkkEnv;
+  bundle: OpenkkBundle;
+  bundleLabel: string;
   isMockMode: boolean;
   authMode: OpenkkAuthMode;
   embeddedUser: EmbeddedUser;

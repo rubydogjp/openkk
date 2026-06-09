@@ -17,7 +17,7 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: "npm --workspace @rubydogjp/openkk run dev:e2e",
+    command: "npm --workspace @rubydogjp/openkk-sim run dev:e2e",
     port: 4306,
     reuseExistingServer: true,
     timeout: 180_000,

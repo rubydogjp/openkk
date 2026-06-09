@@ -4,7 +4,7 @@
 
 | 種別 | 用途 | サインイン | サインアウト |
 |---|---|---|---|
-| `EmbeddedUser` | この端末固定の1名（dev/demo/prod） | 起動時に自動 | 不可（常にサインイン状態） |
+| `EmbeddedUser` | この端末固定の1名（sim/demo/original） | 起動時に自動 | 不可（常にサインイン状態） |
 | `CustomUser` | OSS 派生プロダクトの実ユーザー（Google 等） | 認証フロー経由 | 可 |
 
 ```ts
@@ -29,7 +29,7 @@ type CustomUser = {
 - `"embedded"`（既定）: `config.embeddedUser` で自動サインイン。サインアウト UI は非活性。
 - `"custom"`: 起動時はサインアウト状態（前回サインインした `CustomUser` を localStorage から復元）。
 
-リファレンスアプリ（dev/demo/prod）はすべて `authMode: "embedded"`。
+リファレンスアプリ（sim/demo/original の3バンドル）はすべて `authMode: "embedded"`。
 
 ## CustomUser 認証の実装（サードパーティ向け）
 

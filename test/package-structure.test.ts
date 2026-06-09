@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 
 const rootDir = path.resolve(import.meta.dirname, "..");
 const packagesDir = path.join(rootDir, "packages");
+
+const APP_DIRS = new Set(["openkk", "openkk_sim", "openkk_demo"]);
 const rootPackageJson = readJson(path.join(rootDir, "package.json"));
 const workspaceNames = rootPackageJson.workspaces.map((workspace: string) =>
   workspace.replace(/^packages\//, ""),
@@ -32,7 +34,7 @@ describe("openkk workspace structure", () => {
 
   it("keeps library packages on the same public entry shape", () => {
     for (const record of packageRecords.filter(
-      (item) => item.packageDir !== "openkk",
+      (item) => !APP_DIRS.has(item.packageDir),
     )) {
       expect(record.packageJson.name).toBe(packageName(record.packageDir));
       expect(record.packageJson.private).toBeUndefined();
@@ -63,7 +65,7 @@ describe("openkk workspace structure", () => {
         expect(fs.existsSync(path.join(record.dir, "src/styles.css"))).toBe(
           true,
         );
-      } else if (record.packageDir !== "openkk") {
+      } else if (!APP_DIRS.has(record.packageDir)) {
         expect(styleExport).toBeUndefined();
       }
     }
@@ -72,7 +74,7 @@ describe("openkk workspace structure", () => {
   it("keeps tsconfig layout predictable", () => {
     for (const record of packageRecords) {
       expect(record.tsconfig.extends).toBe("../../tsconfig.base.json");
-      if (record.packageDir === "openkk") {
+      if (APP_DIRS.has(record.packageDir)) {
         expect(record.tsconfig.compilerOptions.jsx).toBe("preserve");
         expect(record.tsconfig.include).toContain("**/*.tsx");
       } else {
@@ -279,7 +281,7 @@ describe("openkk workspace structure", () => {
     ).toBe(false);
 
     const demoSeed = fs.readFileSync(
-      path.join(packagesDir, "demo-app/src/demo-seed.ts"),
+      path.join(packagesDir, "openkk_demo/demo/demo-seed.ts"),
       "utf8",
     );
     expect(demoSeed).not.toMatch(/\b(sample|example)[A-Za-z0-9_]*/);

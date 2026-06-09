@@ -80,10 +80,7 @@ export function OpenkkShellLayout(props: { children: React.ReactNode }) {
   const pathname = normalizePathname(usePathname());
   const router = useRouter();
   const appState = useOpenkkAppState();
-  const openkkConfig = useOpenkkConfig();
-  const brandConfig = useBrandConfig();
   const session = appState.session;
-  const editionLabel = brandConfig.editionLabel ?? "";
   const currentFiscalPeriod =
     appState.fiscalPeriods.find(
       (p) => p.id === appState.currentFiscalPeriodId,
@@ -144,12 +141,7 @@ export function OpenkkShellLayout(props: { children: React.ReactNode }) {
   }
 
   return (
-    <ShellChrome
-      pathname={pathname}
-      router={router}
-      contentMode={contentMode}
-      editionLabel={editionLabel}
-    >
+    <ShellChrome pathname={pathname} router={router} contentMode={contentMode}>
       {contentMode === "sign-in" ? (
         <SignInContent />
       ) : contentMode === "fiscal-periods" ? (
@@ -167,13 +159,11 @@ function ShellChrome({
   pathname,
   router,
   contentMode,
-  editionLabel,
   children,
 }: {
   pathname: string;
   router: ReturnType<typeof useRouter>;
   contentMode: Exclude<ShellContentMode, "loading">;
-  editionLabel: string;
   children: ReactNode;
 }) {
   const appState = useOpenkkAppState();
@@ -385,7 +375,7 @@ function ShellChrome({
                   textOverflow: "ellipsis",
                 }}
               >
-                {editionLabel}
+                {openkkConfig.bundleLabel}
               </div>
             </div>
           </div>

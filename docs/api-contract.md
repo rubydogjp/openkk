@@ -88,7 +88,7 @@ Third-party backends declare a lifecycle policy via `OpenkkConfig.fiscalPeriodPo
 |---|---|---|
 | `maxActivePeriods` | `null` | Max non-archived periods. `null` = unlimited. `1` blocks creating a next period until the current one is archived. |
 | `archiveRetention` | `"persistent"` | `"persistent"` keeps archived data forever. `"ephemeral"` purges archived data when advancing to the next period (stub remains). |
-| `ephemeralArchiveWarning` | — | Optional per-edition override for the irreversible-advance warning text. |
+| `ephemeralArchiveWarning` | — | Optional per-bundle override for the irreversible-advance warning text. |
 
 `FiscalPeriodApiRecord` carries two lifecycle fields (both optional on the wire, default
 `archiveDataAvailable: true` / `archivedAt: null`):

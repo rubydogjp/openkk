@@ -17,21 +17,23 @@
     "packages/embedded-backend",
     "packages/embedded-backend-adapter",
     "packages/print-adapter",
-    "packages/demo-app",
-    "packages/openkk"
+    "packages/frontend",
+    "packages/openkk",
+    "packages/openkk_sim",
+    "packages/openkk_demo"
   ],
   "scripts": {
     "prepare": "npm run build:packages",
     "check": "npm run build:packages && npm run lint && npm test",
-    "build:packages": "npm run build -w @rubydogjp/openkk-client-domain -w @rubydogjp/openkk-server-domain -w @rubydogjp/openkk-client-ports -w @rubydogjp/openkk-server-ports -w @rubydogjp/openkk-client-usecases -w @rubydogjp/openkk-server-usecases -w @rubydogjp/openkk-client-ui -w @rubydogjp/openkk-server-api -w @rubydogjp/openkk-client -w @rubydogjp/openkk-server -w @rubydogjp/openkk-print-adapter -w @rubydogjp/openkk-file-db-adapter -w @rubydogjp/openkk-memory-db-adapter -w @rubydogjp/openkk-embedded-backend -w @rubydogjp/openkk-embedded-backend-adapter -w @rubydogjp/openkk-demo-app",
+    "build:packages": "npm run build -w @rubydogjp/openkk-client-domain -w @rubydogjp/openkk-server-domain -w @rubydogjp/openkk-client-ports -w @rubydogjp/openkk-server-ports -w @rubydogjp/openkk-client-usecases -w @rubydogjp/openkk-server-usecases -w @rubydogjp/openkk-client-ui -w @rubydogjp/openkk-server-api -w @rubydogjp/openkk-client -w @rubydogjp/openkk-server -w @rubydogjp/openkk-print-adapter -w @rubydogjp/openkk-file-db-adapter -w @rubydogjp/openkk-memory-db-adapter -w @rubydogjp/openkk-embedded-backend -w @rubydogjp/openkk-embedded-backend-adapter -w @rubydogjp/openkk-frontend",
     "lint": "npm run lint --workspaces --if-present",
     "test": "vitest run",
     "test:watch": "vitest",
     "gen-deps": "node scripts/gen-dep-graph.mjs",
     "gen-master-data": "node scripts/gen-master-data.mjs",
     "test:e2e": "playwright test --config=e2e/playwright.config.ts",
-    "test:e2e:export": "npm run test:e2e:export:prod",
-    "test:e2e:export:prod": "NEXT_PUBLIC_OPENKK_MODE=prod npm run build -w @rubydogjp/openkk && MODE=prod playwright test --config=e2e/playwright.export.config.ts"
+    "test:e2e:export": "npm run test:e2e:export:original",
+    "test:e2e:export:original": "npm run build -w @rubydogjp/openkk && playwright test --config=e2e/playwright.export.config.ts"
   },
   "devDependencies": {
     "vitest": "^3.2.4",

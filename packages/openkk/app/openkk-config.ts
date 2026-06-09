@@ -1,40 +1,26 @@
-import type { OpenkkConfig, OpenkkMode } from "@rubydogjp/openkk-client";
+import type { OpenkkConfig } from "@rubydogjp/openkk-client";
+import { parseOpenkkEnv } from "@rubydogjp/openkk-frontend";
 
-const openkkMode = parseOpenkkMode(process.env.NEXT_PUBLIC_OPENKK_MODE);
-const userId = openkkMode === "dev" ? "openkk-dev-user" : "openkk-prod-user";
-const mockToday = new Date(2026, 8, 5);
-const useMockClock = openkkMode === "dev";
+const BUNDLE = "original";
 
-const embeddedUserDisplayName =
-  openkkMode === "dev" ? "開発ユーザー" : "このPCのデータ";
+const env = parseOpenkkEnv(process.env.NEXT_PUBLIC_OPENKK_ENV);
+const userId = "openkk-original-user";
 
 export const openkkConfig: OpenkkConfig = {
-  today: useMockClock ? new Date(mockToday) : new Date(),
-  mode: openkkMode,
-  isProdMode: openkkMode === "prod",
-  isDevMode: openkkMode === "dev",
-  isMockMode: useMockClock,
+  today: new Date(),
+  env,
+  bundle: BUNDLE,
+  bundleLabel: "無印版",
+  isMockMode: false,
   authMode: "embedded",
   embeddedUser: {
     kind: "embedded",
     id: userId,
-    displayName: embeddedUserDisplayName,
+    displayName: "このPCのデータ",
   },
   mockUserId: userId,
-  initialMockUserId: useMockClock ? userId : null,
-
+  initialMockUserId: null,
   initialMockFiscalPeriodId: null,
-  sessionStorageKey: `openkk.${openkkMode}.session.user_id`,
-  fiscalPeriodStorageKey: `openkk.${openkkMode}.fiscal_period_id`,
+  sessionStorageKey: `openkk.${BUNDLE}.session.user_id`,
+  fiscalPeriodStorageKey: `openkk.${BUNDLE}.fiscal_period_id`,
 };
-
-function parseOpenkkMode(value: string | undefined): OpenkkMode {
-  switch (value) {
-    case "dev":
-    case "stg":
-    case "prod":
-      return value;
-    default:
-      return "prod";
-  }
-}

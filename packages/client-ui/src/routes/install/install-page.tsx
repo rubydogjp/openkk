@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
-import { useBrandConfig } from "@rubydogjp/openkk-client-usecases";
+import { useOpenkkConfig } from "@rubydogjp/openkk-client-usecases";
 
 import {
   getDeferredInstallPrompt,
@@ -42,8 +42,8 @@ function canInstall(): boolean {
 
 export function InstallPage() {
   const router = useRouter();
-  const brandConfig = useBrandConfig();
-  const editionLabel = brandConfig.editionLabel ?? "";
+  const openkkConfig = useOpenkkConfig();
+  const bundleLabel = openkkConfig.bundleLabel;
   const [phase, setPhase] = useState<Phase>("checking");
 
   useEffect(() => {
@@ -116,9 +116,9 @@ export function InstallPage() {
       >
         オープン会計
       </h1>
-      {editionLabel ? (
+      {bundleLabel ? (
         <div style={{ fontSize: fontSize.sm, color: palette.textSoft }}>
-          {editionLabel}
+          {bundleLabel}
         </div>
       ) : null}
 

@@ -1,0 +1,40 @@
+{
+  "name": "@rubydogjp/openkk-frontend",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@rubydogjp/openkk-client": "^1.0.0",
+    "@rubydogjp/openkk-print-adapter": "^1.0.0"
+  },
+  "peerDependencies": {
+    "next": "^15.3.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.6",
+    "@types/react-dom": "^19.1.5",
+    "next": "^15.3.2",
+    "typescript": "^5.8.3"
+  },
+  "description": "オープン会計 frontend ランタイム共通基盤 — bundle 非依存の Providers 配線・env パース・Next 設定を 3 バンドルアプリ(openkk/openkk_sim/openkk_demo)で共有する。",
+  "license": "Apache-2.0",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -3,7 +3,5 @@ export interface BrandConfig {
 
   productSiteUrl?: string;
 
-  editionLabel?: string | null;
-
   accountIconUrl?: string;
 }

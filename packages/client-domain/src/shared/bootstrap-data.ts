@@ -171,5 +171,5 @@ export function buildBootstrapFiscalPeriodId(
 export function buildSignedOutFiscalPeriodId(
   config: OpenkkConfig,
 ): string | null {
-  return config.mode === "dev" ? config.initialMockFiscalPeriodId : null;
+  return config.isMockMode ? config.initialMockFiscalPeriodId : null;
 }

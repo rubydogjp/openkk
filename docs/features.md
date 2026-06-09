@@ -158,25 +158,28 @@
 | ユニット | 37 | 328 | ドメインロジック・DB・パーサー・ユースケース・UI ロジック |
 | DB ポート契約適合 | (上記に含む) | 78 | `OpenkkDbPort` 共有 conformance を memory/file-db 両実アダプタ＋遅延非同期コアで検証（`server-ports/src/db-port-conformance.ts`） |
 | パッケージ構造 | 1 | 14 | workspace 整合性 |
-| E2E (dev mode) | 6 | 16+ シナリオ | ブラウザ操作フルフロー（締めフローの帳票一貫性 `closing-business-rate.spec.ts` 含む） |
-| E2E (demo mode) | 1 | 5 (opt-in) | シードデータ・デモ表示 |
-| E2E (prod embedded) | 1 | — | prod 組み込みユーザー (`auth-prod.spec.ts`) |
+| E2E (sim バンドル) | 6 | 16+ シナリオ | ブラウザ操作フルフロー（締めフローの帳票一貫性 `closing-business-rate.spec.ts` 含む） |
+| E2E (demo バンドル) | 1 | 5 (opt-in) | シードデータ・デモ表示 |
+| E2E (original embedded) | 1 | — | original 組み込みユーザー (`auth-prod.spec.ts`) |
 | E2E (export build) | 1 | — | 静的エクスポート smoke (`tests-export/`) |
 
-E2E は `NEXT_PUBLIC_OPENKK_MODE=dev` で起動したサーバー (port 4306) に対して実行する。
-demo mode テストは `OPENKK_DEMO_URL` 環境変数が設定されている場合のみ実行される。
-DB アダプタを追加したら `runDbPortConformance` に通し、dev(memory) と prod(OPFS worker) の挙動一致を担保する。
+E2E は sim バンドル (`@rubydogjp/openkk-sim`) で起動したサーバー (port 4306) に対して実行する。
+demo バンドルのテストは `OPENKK_DEMO_URL` 環境変数が設定されている場合のみ実行される。
+DB アダプタを追加したら `runDbPortConformance` に通し、memory(sim/demo) と OPFS worker(original) の挙動一致を担保する。
 
 ---
 
-## モード一覧
+## バンドル一覧
 
-| モード | 説明 | DB | シードデータ | 認証 |
-|---|---|---|---|---|
-| `dev` | 開発用 | memory | なし (任意に作成) | embedded |
-| `demo` | 公開デモ | memory | あり (buildOpenkkDemoSeed) | embedded |
-| `prod` | PWA 無印版 (この端末に保存) | SQLite OPFS | なし | embedded |
-| `stg` | ステージング | 任意 | 任意 | 任意 |
+版は実行時切替ではなく **バンドル（別パッケージのアプリ）** で分ける。`bundle`（版）・`env`（実行環境）・`brand`（ロゴ/表示名）は直交した独立概念。
+
+| bundle | パッケージ | 表示名 (`bundleLabel`) | DB | シードデータ | 認証 |
+|---|---|---|---|---|---|
+| `sim` | `@rubydogjp/openkk-sim` (`packages/openkk_sim`) | Sim版 | memory + モック時計 | なし (任意に作成) | embedded |
+| `demo` | `@rubydogjp/openkk-demo` (`packages/openkk_demo`) | デモ版 | memory | あり (buildOpenkkDemoSeed) | embedded |
+| `original` | `@rubydogjp/openkk` (`packages/openkk`) | 無印版 | SQLite OPFS | なし | embedded |
+
+`env`（`NEXT_PUBLIC_OPENKK_ENV` = `dev` / `stg` / `prod`、既定 `prod`）はログレベル等の実行環境のみを指し、bundle とは独立に設定する。共通配線は `@rubydogjp/openkk-frontend`（`packages/frontend`）に集約。
 
 ---
 
@@ -186,9 +189,9 @@ DB アダプタを追加したら `runDbPortConformance` に通し、dev(memory)
 
 | 種別 | 用途 | サインイン | サインアウト |
 |---|---|---|---|
-| `EmbeddedUser` | この端末固定の1名（dev/demo/prod） | 起動時に自動 | 不可（`userCanSignOut`=false） |
+| `EmbeddedUser` | この端末固定の1名（sim/demo/original） | 起動時に自動 | 不可（`userCanSignOut`=false） |
 | `CustomUser` | OSS 派生プロダクトの実ユーザー（Google 等） | 認証フロー経由 | 可 |
 
-リファレンスアプリ（dev/demo/prod）は全て `authMode:"embedded"`。CustomUser 認証はサードパーティが `OpenkkServerPort.auth`（`AuthApi`）を実装して `CustomUser` を返すことで有効化する。実装手順は [`authentication.md`](./authentication.md) を参照。
+リファレンスアプリ（sim/demo/original の3バンドル）は全て `authMode:"embedded"`。CustomUser 認証はサードパーティが `OpenkkServerPort.auth`（`AuthApi`）を実装して `CustomUser` を返すことで有効化する。実装手順は [`authentication.md`](./authentication.md) を参照。
 
 **実装パッケージ:** `client-domain` (`user.ts`, `Session`), `client-usecases` (`openkk-app-state`), `client-ui` (`shell-layout`, `sign-in-content`), `server-ports` (`AuthApi`)
