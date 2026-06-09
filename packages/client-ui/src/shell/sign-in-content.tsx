@@ -79,7 +79,7 @@ export function SignInContent() {
             textTransform: "uppercase",
           }}
         >
-          {openkkConfig.bundle}
+          {openkkConfig.bundleLabel}
         </div>
         <h1
           style={{

@@ -9,7 +9,6 @@ const userId = "openkk-original-user";
 export const openkkConfig: OpenkkConfig = {
   today: new Date(),
   env,
-  bundle: BUNDLE,
   bundleLabel: "無印版",
   isMockMode: false,
   authMode: "embedded",

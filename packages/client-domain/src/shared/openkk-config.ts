@@ -2,8 +2,6 @@ import type { EmbeddedUser } from "./user";
 
 export type OpenkkEnv = "dev" | "stg" | "prod";
 
-export type OpenkkBundle = "demo" | "sim" | "original";
-
 export type OpenkkAuthMode = "embedded" | "custom";
 
 export type FiscalPeriodArchiveRetention = "persistent" | "ephemeral";
@@ -32,7 +30,6 @@ export type OpenkkEditingPolicy = {
 export interface OpenkkConfig {
   today: Date;
   env: OpenkkEnv;
-  bundle: OpenkkBundle;
   bundleLabel: string;
   isMockMode: boolean;
   authMode: OpenkkAuthMode;
@@ -44,6 +41,7 @@ export interface OpenkkConfig {
   fiscalPeriodStorageKey: string;
   fiscalPeriodPolicy?: FiscalPeriodPolicy;
   editingPolicy?: OpenkkEditingPolicy;
+  debugRoutesEnabled?: boolean;
 }
 
 export function resolveEditingPolicy(

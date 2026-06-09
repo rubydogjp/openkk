@@ -10,9 +10,9 @@ const mockToday = new Date(2026, 8, 5);
 export const openkkConfig: OpenkkConfig = {
   today: new Date(mockToday),
   env,
-  bundle: BUNDLE,
   bundleLabel: "Sim版",
   isMockMode: true,
+  debugRoutesEnabled: true,
   authMode: "embedded",
   embeddedUser: {
     kind: "embedded",
