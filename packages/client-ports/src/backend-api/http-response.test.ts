@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  isMaintenanceModeError,
   openkkHttpTransportError,
   resolveOpenkkHttpResponse,
 } from "./http-response";
+import { MAINTENANCE_MODE_ERROR_CODE } from "./types";
 
 describe("resolveOpenkkHttpResponse", () => {
   it("returns the response body only for the endpoint success status", () => {
@@ -99,6 +101,48 @@ describe("resolveOpenkkHttpResponse", () => {
       originalMessage: '{"message":"temporarily unavailable"}',
       statusCode: 503,
     });
+  });
+});
+
+describe("isMaintenanceModeError", () => {
+  it("detects the maintenance error code preserved on a thrown envelope", () => {
+    const error = captureError(() =>
+      resolveOpenkkHttpResponse("entriesGetAll", {
+        status: 503,
+        body: {
+          messageForDeveloper: "service in maintenance",
+          messageForUser: "メンテナンス中です",
+          originalMessage: null,
+          statusCode: 503,
+          code: MAINTENANCE_MODE_ERROR_CODE,
+        },
+      }),
+    );
+    expect(isMaintenanceModeError(error)).toBe(true);
+  });
+
+  it("ignores unrelated server errors", () => {
+    const error = captureError(() =>
+      resolveOpenkkHttpResponse("entriesGetAll", {
+        status: 500,
+        body: {
+          messageForDeveloper: "database unavailable",
+          messageForUser: "データを読み込めませんでした",
+          originalMessage: null,
+          statusCode: 500,
+        },
+      }),
+    );
+    expect(isMaintenanceModeError(error)).toBe(false);
+  });
+
+  it("falls back to a 503 whose developer message names the code", () => {
+    expect(
+      isMaintenanceModeError({
+        statusCode: 503,
+        messageForDeveloper: `aborted by ${MAINTENANCE_MODE_ERROR_CODE}`,
+      }),
+    ).toBe(true);
   });
 });
 

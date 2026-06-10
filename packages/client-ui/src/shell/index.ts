@@ -1,6 +1,7 @@
 export * from "./shell-layout";
 export * from "./sign-in-content";
 export * from "./fiscal-periods-content";
+export * from "./maintenance-content";
 
 export { EntriesPage } from "../routes/entries/entries-page";
 export { AssistPage } from "../routes/assist/assist-page";

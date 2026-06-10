@@ -242,6 +242,16 @@ export type MasterBusinessCategory = {
   updatedAt: string;
 };
 
+export type MaintenanceStatus = {
+  enabled: boolean;
+  title: string;
+  message: string;
+  updatedAt: string | null;
+};
+
+export type MaintenanceGetRequest = OpenkkEmptyRequest;
+export type MaintenanceGetResponse = MaintenanceStatus;
+
 export type PreClosingGetRequest = { fiscalPeriodId: string; year: number };
 export type PreClosingGetResponse = { preClosing: PreClosingApiRecord | null };
 export type PreClosingRunRequest = { fiscalPeriodId: string; year: number };
@@ -488,6 +498,11 @@ export type OpenkkHttpEndpointSpecs = {
     MasterBusinessCategoriesResponse,
     200
   >;
+  maintenanceGet: OpenkkHttpEndpointSpec<
+    MaintenanceGetRequest,
+    MaintenanceGetResponse,
+    200
+  >;
 };
 
 export type OpenkkHttpEndpointKey = keyof OpenkkHttpEndpointSpecs;
@@ -627,6 +642,11 @@ export const OPENKK_HTTP_ENDPOINTS = {
   masterBusinessCategories: {
     method: "GET",
     path: "/master/business-categories",
+    successStatus: 200,
+  },
+  maintenanceGet: {
+    method: "GET",
+    path: "/maintenance",
     successStatus: 200,
   },
 } as const satisfies {

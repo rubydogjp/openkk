@@ -3,7 +3,11 @@ export type OpenkkApiErrorDto = {
   messageForUser: string;
   originalMessage: string | null;
   statusCode: number | null;
+  code?: string | null;
 };
+
+export const MAINTENANCE_MODE_ERROR_CODE = "maintenance_mode_enabled";
+export const MAINTENANCE_MODE_STATUS = 503;
 
 export type OpenkkHttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 export type OpenkkHttpSuccessStatus = 200 | 201 | 204;
@@ -241,6 +245,16 @@ export type MasterBusinessCategory = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type MaintenanceStatus = {
+  enabled: boolean;
+  title: string;
+  message: string;
+  updatedAt: string | null;
+};
+
+export type MaintenanceGetRequest = OpenkkEmptyRequest;
+export type MaintenanceGetResponse = MaintenanceStatus;
 
 export type PreClosingGetRequest = { fiscalPeriodId: string; year: number };
 export type PreClosingGetResponse = { preClosing: PreClosingApiRecord | null };
@@ -488,6 +502,11 @@ export type OpenkkHttpEndpointSpecs = {
     MasterBusinessCategoriesResponse,
     200
   >;
+  maintenanceGet: OpenkkHttpEndpointSpec<
+    MaintenanceGetRequest,
+    MaintenanceGetResponse,
+    200
+  >;
 };
 
 export type OpenkkHttpEndpointKey = keyof OpenkkHttpEndpointSpecs;
@@ -629,6 +648,11 @@ export const OPENKK_HTTP_ENDPOINTS = {
     path: "/master/business-categories",
     successStatus: 200,
   },
+  maintenanceGet: {
+    method: "GET",
+    path: "/maintenance",
+    successStatus: 200,
+  },
 } as const satisfies {
   [Key in OpenkkHttpEndpointKey]: Pick<
     OpenkkHttpEndpointSpecs[Key],
@@ -726,6 +750,10 @@ export interface MasterDataApi {
   getBusinessCategories(): Promise<MasterBusinessCategory[]>;
 }
 
+export interface MaintenanceApi {
+  get(): Promise<MaintenanceStatus>;
+}
+
 export interface OpenkkBackendPort {
   auth: AuthApi;
   preClosing: PreClosingApi;
@@ -734,4 +762,5 @@ export interface OpenkkBackendPort {
   fiscalPeriod: FiscalPeriodApi;
   fixedAssets: FixedAssetsApi;
   masterData: MasterDataApi;
+  maintenance: MaintenanceApi;
 }

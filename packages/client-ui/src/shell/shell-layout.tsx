@@ -7,6 +7,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   useOpenkkAppState,
   useBrandConfig,
+  useMaintenance,
   useOpenkkConfig,
 } from "@rubydogjp/openkk-client-usecases";
 import { userCanSignOut, userEmail } from "@rubydogjp/openkk-client-domain";
@@ -24,6 +25,7 @@ import {
 import { normalizePathname } from "../shared/pathname";
 import "../shared/pwa-install";
 import { DataLoadErrorBanner } from "./data-load-error-banner";
+import { MaintenanceScreen } from "./maintenance-content";
 import { ArchivedFiscalPeriodScreen } from "../routes/steps/archived-fiscal-period-screen";
 import { FiscalPeriodsContent } from "./fiscal-periods-content";
 import { SignInContent } from "./sign-in-content";
@@ -80,6 +82,7 @@ export function OpenkkShellLayout(props: { children: React.ReactNode }) {
   const pathname = normalizePathname(usePathname());
   const router = useRouter();
   const appState = useOpenkkAppState();
+  const maintenance = useMaintenance();
   const session = appState.session;
   const currentFiscalPeriod =
     appState.fiscalPeriods.find(
@@ -124,6 +127,15 @@ export function OpenkkShellLayout(props: { children: React.ReactNode }) {
       router.replace(ARCHIVED_WORKSPACE_PATH);
     }
   }, [appState.isReady, currentFiscalPeriod, pathname, router, session]);
+
+  if (maintenance.status?.enabled) {
+    return (
+      <MaintenanceScreen
+        title={maintenance.status.title}
+        message={maintenance.status.message}
+      />
+    );
+  }
 
   if (contentMode === "loading") {
     return (

@@ -164,8 +164,18 @@ export function createOpenkkEmbeddedBackendAdapter(
         return response.businessCategories;
       },
     },
+    maintenance: {
+      get: async () => request("maintenanceGet", {}),
+    },
   };
 }
+
+const EMBEDDED_MAINTENANCE_STATUS = {
+  enabled: false,
+  title: "",
+  message: "",
+  updatedAt: null,
+} as const;
 
 async function dispatchEmbeddedHttp(
   server: OpenkkServerPort,
@@ -420,6 +430,8 @@ async function dispatchEmbeddedHttp(
             businessCategories: await server.masterData.getBusinessCategories(),
           },
         };
+      case "maintenanceGet":
+        return { status: 200, body: EMBEDDED_MAINTENANCE_STATUS };
       default: {
         const unsupported: never = key;
         throw new Error(`unsupported endpoint: ${String(unsupported)}`);

@@ -6,6 +6,7 @@ import {
   OpenkkAppStateProvider,
   OpenkkAssistProvider,
   OpenkkEntriesProvider,
+  OpenkkMaintenanceProvider,
   BrandConfigProvider,
   OpenkkCalloutsProvider,
   OpenkkConfigProvider,
@@ -75,13 +76,19 @@ export function OpenkkAppProviders(props: {
       <BrandConfigProvider config={runtime.brandConfig}>
         <OpenkkCalloutsProvider slots={runtime.calloutSlots}>
           <BackendApiProvider api={backendApi}>
-            <PrintAdapterProvider adapter={printAdapter}>
-              <OpenkkAppStateProvider seedFiscalPeriod={runtime.seedFiscalPeriod}>
-                <OpenkkEntriesProvider>
-                  <OpenkkAssistProvider>{props.children}</OpenkkAssistProvider>
-                </OpenkkEntriesProvider>
-              </OpenkkAppStateProvider>
-            </PrintAdapterProvider>
+            <OpenkkMaintenanceProvider>
+              <PrintAdapterProvider adapter={printAdapter}>
+                <OpenkkAppStateProvider
+                  seedFiscalPeriod={runtime.seedFiscalPeriod}
+                >
+                  <OpenkkEntriesProvider>
+                    <OpenkkAssistProvider>
+                      {props.children}
+                    </OpenkkAssistProvider>
+                  </OpenkkEntriesProvider>
+                </OpenkkAppStateProvider>
+              </PrintAdapterProvider>
+            </OpenkkMaintenanceProvider>
           </BackendApiProvider>
         </OpenkkCalloutsProvider>
       </BrandConfigProvider>

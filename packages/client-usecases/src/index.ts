@@ -1,4 +1,5 @@
 export * from "./shared/backend-api-context";
+export * from "./shared/maintenance-state";
 export * from "./shared/print-adapter-context";
 export * from "./shared/openkk-config-context";
 export * from "./shared/brand-config-context";
