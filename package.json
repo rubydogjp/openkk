@@ -36,8 +36,8 @@
     "test:e2e:export:original": "npm run build -w @rubydogjp/openkk && playwright test --config=e2e/playwright.export.config.ts"
   },
   "devDependencies": {
-    "vitest": "^3.2.4",
-    "@playwright/test": "^1.58.2"
+    "@playwright/test": "^1.58.2",
+    "vitest": "^3.2.4"
   },
   "version": "1.0.0",
   "description": "オープン会計 — open-source double-entry bookkeeping library for sole proprietors. Hexagonal architecture with swappable backend and storage adapters.",
@@ -50,5 +50,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rubydogjp/openkk.git"
+  },
+  "overrides": {
+    "postcss": "8.5.15",
+    "esbuild": "0.28.1"
   }
 }
