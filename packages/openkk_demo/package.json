@@ -1,6 +1,6 @@
 {
   "name": "@rubydogjp/openkk-demo",
-  "version": "26.1.6",
+  "version": "26.1.7",
   "private": true,
   "type": "module",
   "description": "オープン会計 デモ版 runnable Next.js app: サンプルデータ投入＋編集ロックの体験用バンドル。",
