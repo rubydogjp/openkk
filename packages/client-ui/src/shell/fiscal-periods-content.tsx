@@ -14,8 +14,8 @@ import {
   useOpenkkAppState,
   useOpenkkConfig,
 } from "@rubydogjp/openkk-client-usecases";
-import { AppErrorText } from "../shared/app-error-text";
-import { LockButton } from "../shared/lock-icon";
+import { AppErrorText } from "../shared/app-error-text.js";
+import { LockButton } from "../shared/lock-icon.js";
 import {
   fontSize,
   fontWeight,
@@ -25,7 +25,7 @@ import {
   sizes,
   spacing,
   typography,
-} from "../shared/design-tokens";
+} from "../shared/design-tokens.js";
 
 type FiscalPeriod = ReturnType<
   typeof useOpenkkAppState

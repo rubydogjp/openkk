@@ -1,6 +1,6 @@
 "use client";
 
-import { fontSize, fontWeight, palette, radii, spacing } from "../shared/design-tokens";
+import { fontSize, fontWeight, palette, radii, spacing } from "../shared/design-tokens.js";
 
 export function MaintenanceScreen(props: { title: string; message: string }) {
   const title = props.title.trim() === "" ? "メンテナンス中" : props.title;

@@ -1,4 +1,4 @@
-import { serverValidationError } from "./app-error";
+import { serverValidationError } from "./app-error.js";
 
 export function parseIsoDate(value: string): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);

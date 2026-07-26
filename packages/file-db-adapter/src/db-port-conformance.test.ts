@@ -1,8 +1,8 @@
 import { afterEach, vi } from "vitest";
 import type { DbSnapshot, OpenkkDbPort } from "@rubydogjp/openkk-server-ports";
 
-import { runDbPortConformance } from "../../server-ports/src/db-port-conformance";
-import { RealDbWorker } from "./real-db-worker";
+import { runDbPortConformance } from "../../server-ports/src/db-port-conformance.js";
+import { RealDbWorker } from "./real-db-worker.js";
 
 // file-db-adapter を実トランスポート（Worker メッセージ往復 → sqlite-wasm）で
 // 共有契約スイートに通す。Node では OPFS が使えないため Worker を RealDbWorker
@@ -13,7 +13,7 @@ import { RealDbWorker } from "./real-db-worker";
 async function makeFileDbAdapter(seed?: DbSnapshot): Promise<OpenkkDbPort> {
   vi.resetModules();
   vi.stubGlobal("Worker", RealDbWorker);
-  const { createFileDbAdapter } = await import("./index");
+  const { createFileDbAdapter } = await import("./index.js");
   return createFileDbAdapter({ vfsName: "opfs-conformance" }, seed);
 }
 

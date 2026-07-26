@@ -14,7 +14,7 @@ import type {
   MasterBusinessCategoryDbRecord,
   MasterTaxCategoryDbRecord,
   PreClosingDbRecord,
-} from "../persistence-types";
+} from "../persistence-types.js";
 import type {
   ClosingsDb,
   EntriesDb,
@@ -23,20 +23,20 @@ import type {
   MasterDataDb,
   OpenkkDbPort,
   PreClosingsDb,
-} from "../db-adapter";
+} from "../db-adapter.js";
 import {
   msToIso,
   parseFiscalPeriodDbRecord,
   parseFixedAssetDbRecord,
   serializeFiscalPeriodDbRecord,
   serializeFixedAssetDbRecord,
-} from "./persistence-codec";
+} from "./persistence-codec.js";
 import {
   defaultOpening,
   loadOpeningByFiscalPeriod,
   loadOpeningsByUser,
   replaceOpening,
-} from "./opening-store";
+} from "./opening-store.js";
 
 export interface SqlDb {
   exec(

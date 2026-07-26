@@ -1,7 +1,7 @@
-import type { OpenkkConfig } from "./openkk-config";
-import type { FiscalPeriod } from "./models";
-import type { OpenkkUser } from "./user";
-import { DEFAULT_BOOK_ACCOUNTS } from "../entries/default-master-data";
+import type { OpenkkConfig } from "./openkk-config.js";
+import type { FiscalPeriod } from "./models.js";
+import type { OpenkkUser } from "./user.js";
+import { DEFAULT_BOOK_ACCOUNTS } from "../entries/default-master-data.js";
 
 function bookAccountIdByName(name: string): string {
   return DEFAULT_BOOK_ACCOUNTS.find((acc) => acc.name === name)?.id ?? name;

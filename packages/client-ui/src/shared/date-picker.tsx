@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { parseIsoLocalDate } from "@rubydogjp/openkk-client-domain";
 
-import { fontSize, fontWeight, palette, radii, sizes, spacing, typography } from "./design-tokens";
+import { fontSize, fontWeight, palette, radii, sizes, spacing, typography } from "./design-tokens.js";
 
 const WEEKDAY_JP = ["日", "月", "火", "水", "木", "金", "土"];
 

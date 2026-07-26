@@ -1,7 +1,7 @@
 // マスターデータ本体 (型・デフォルト勘定科目/税区分/事業区分) は
 // generated-master-data.ts に生成される。canonical な単一ソースは openkk 内の
 // resources/gen/bookkeeping_master_data.json。再生成は `npm run gen-master-data`。
-export * from "./generated-master-data";
+export * from "./generated-master-data.js";
 
 export function mergeOptions(
   primary: Iterable<string>,

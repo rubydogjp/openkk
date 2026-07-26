@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { EntryRecord } from "../entries/entry-record";
-import { buildFinancialStatementsDocument } from "./financial-statements-print";
-import { computeFsAggregate } from "./fs-data";
-import { buildGeneralLedgerDocument } from "./general-ledger-print";
-import { buildJournalDocument } from "./journal-print";
+import type { EntryRecord } from "../entries/entry-record.js";
+import { buildFinancialStatementsDocument } from "./financial-statements-print.js";
+import { computeFsAggregate } from "./fs-data.js";
+import { buildGeneralLedgerDocument } from "./general-ledger-print.js";
+import { buildJournalDocument } from "./journal-print.js";
 
 describe("print documents", () => {
   it("renders journal data from supplied entries and escapes HTML", () => {

@@ -2,8 +2,8 @@
 
 import type { CSSProperties, ReactNode } from "react";
 
-import { fontWeight, palette, radii, rings, shadows, sizes, spacing, typography } from "./design-tokens";
-import { DatePickerButton, formatDateButtonLabel } from "./date-picker";
+import { fontWeight, palette, radii, rings, shadows, sizes, spacing, typography } from "./design-tokens.js";
+import { DatePickerButton, formatDateButtonLabel } from "./date-picker.js";
 
 const inputClassName = "bk-form-input";
 

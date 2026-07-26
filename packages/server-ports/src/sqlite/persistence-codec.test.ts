@@ -4,7 +4,7 @@ import {
   parseFiscalPeriodDbRecord,
   parseFixedAssetDbRecord,
   serializeFiscalPeriodDbRecord,
-} from "./persistence-codec";
+} from "./persistence-codec.js";
 
 describe("SQLite persistence codecs", () => {
   it("parses phase and archive status independently", () => {

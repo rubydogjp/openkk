@@ -1,10 +1,10 @@
 
 
-import type { OpeningBalanceLine } from "../fs-data";
+import type { OpeningBalanceLine } from "../fs-data.js";
 import {
   JOURNAL_EXAMPLE_ENTRIES,
   JOURNAL_EXAMPLE_FP_NAME,
-} from "./journal-example";
+} from "./journal-example.js";
 
 export const GENERAL_LEDGER_EXAMPLE_FP_NAME = JOURNAL_EXAMPLE_FP_NAME;
 export const GENERAL_LEDGER_EXAMPLE_ENTRIES = JOURNAL_EXAMPLE_ENTRIES;

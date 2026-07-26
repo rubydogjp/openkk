@@ -1,6 +1,6 @@
 "use client";
 
-import { fontSize, fontWeight, palette } from "../shared/design-tokens";
+import { fontSize, fontWeight, palette } from "../shared/design-tokens.js";
 import {
   guideDescription,
   guideOptions,

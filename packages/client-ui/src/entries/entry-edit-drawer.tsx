@@ -10,9 +10,9 @@ import {
   type ReactNode,
 } from "react";
 
-import { StepFormRow } from "../steps/step-ui";
-import { AmountInput } from "../shared/amount-field";
-import { DatePickerButton } from "../shared/date-picker";
+import { StepFormRow } from "../steps/step-ui.js";
+import { AmountInput } from "../shared/amount-field.js";
+import { DatePickerButton } from "../shared/date-picker.js";
 import {
   fontSize,
   fontWeight,
@@ -22,14 +22,14 @@ import {
   shadows,
   sizes,
   typography,
-} from "../shared/design-tokens";
+} from "../shared/design-tokens.js";
 import {
   resolveBookAccountByName,
   type QuickGuideOption,
   type QuickGuidePage,
   type QuickGuideTemplate,
 } from "@rubydogjp/openkk-client-domain";
-import { QuickGuidePanel, QuickGuideTriggerButton } from "./quick-guide-panel";
+import { QuickGuidePanel, QuickGuideTriggerButton } from "./quick-guide-panel.js";
 import type {
   EntryDraft,
   EntryMasterAccountOption,

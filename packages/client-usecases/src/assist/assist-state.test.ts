@@ -4,7 +4,7 @@ import {
   fixedAssetDraftToPatch,
   nextOpeningCarryoverId,
   replaceLoadedFixedAssets,
-} from "./assist-state";
+} from "./assist-state.js";
 import type {
   FixedAssetDraft,
   FixedAssetPreviewItem,

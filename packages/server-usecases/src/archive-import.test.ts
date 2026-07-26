@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { AppError } from "@rubydogjp/openkk-server-domain";
 import type { FiscalPeriodArchiveImportInput } from "@rubydogjp/openkk-server-ports";
-import { normalizeArchiveImportInput } from "./archive-import";
+import { normalizeArchiveImportInput } from "./archive-import.js";
 
 describe("normalizeArchiveImportInput", () => {
   it("normalizes archived fiscal period payload for db import", () => {

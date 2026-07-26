@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { EntryRecord } from "../entries/entry-record";
+import type { EntryRecord } from "../entries/entry-record.js";
 import {
   buildOpeningBalanceLinesFromClosingBsRows,
   computeFsAggregate,
-} from "./fs-data";
+} from "./fs-data.js";
 
 describe("computeFsAggregate", () => {
   it("builds profit-and-loss and balance-sheet values from real entries", () => {

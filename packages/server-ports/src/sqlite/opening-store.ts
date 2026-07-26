@@ -1,8 +1,8 @@
 import type {
   OpeningJournalDbRecord,
   FiscalPeriodOpeningDbRecord,
-} from "../persistence-types";
-import { isoToMs, msToIso, validateOpeningDbRecord } from "./persistence-codec";
+} from "../persistence-types.js";
+import { isoToMs, msToIso, validateOpeningDbRecord } from "./persistence-codec.js";
 
 type OpeningSqlDb = {
   exec(

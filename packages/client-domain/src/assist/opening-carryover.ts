@@ -1,4 +1,4 @@
-import type { EntryAccountVisualType } from "../entries/entries-types";
+import type { EntryAccountVisualType } from "../entries/entries-types.js";
 
 export type OpeningCarryoverRecord = {
   id: string;

@@ -4,8 +4,8 @@ import {
   isMaintenanceModeError,
   openkkHttpTransportError,
   resolveOpenkkHttpResponse,
-} from "./http-response";
-import { MAINTENANCE_MODE_ERROR_CODE } from "./types";
+} from "./http-response.js";
+import { MAINTENANCE_MODE_ERROR_CODE } from "./types.js";
 
 describe("resolveOpenkkHttpResponse", () => {
   it("returns the response body only for the endpoint success status", () => {

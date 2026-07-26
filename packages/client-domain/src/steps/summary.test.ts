@@ -7,12 +7,12 @@ import {
   parseBusinessRate,
   summarizeOpeningBalances,
   type EntrySummaryRow,
-} from "./summary";
+} from "./summary.js";
 import {
   buildBusinessRateTransferEntry,
   excludeBusinessRateTransfer,
   type EntryRecord,
-} from "../entries/entry-record";
+} from "../entries/entry-record.js";
 
 function plTotals(rows: EntrySummaryRow[]): {
   revenue: number;

@@ -1,4 +1,4 @@
 
 
-export * from "./types";
-export * from "./http-response";
+export * from "./types.js";
+export * from "./http-response.js";

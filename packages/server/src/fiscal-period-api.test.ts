@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { AppError } from "@rubydogjp/openkk-server-domain";
-import { createOpenkkServer } from "./index";
+import { createOpenkkServer } from "./index.js";
 import type {
   ClosingApiRecord,
   EntryApiRecord,

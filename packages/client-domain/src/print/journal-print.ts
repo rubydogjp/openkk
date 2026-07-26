@@ -3,9 +3,9 @@ import {
   getEntryLines,
   type EntryLine,
   type EntryRecord,
-} from "../entries/entry-record";
-import { parseAmount } from "../shared/parse-utils";
-import { buildPrintDocument, escapeHtml as esc } from "./print-shell";
+} from "../entries/entry-record.js";
+import { parseAmount } from "../shared/parse-utils.js";
+import { buildPrintDocument, escapeHtml as esc } from "./print-shell.js";
 
 function parseNum(str: string): number {
   return parseAmount(str);

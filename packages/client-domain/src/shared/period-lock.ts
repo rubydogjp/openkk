@@ -1,4 +1,4 @@
-import type { FiscalPeriod } from "./models";
+import type { FiscalPeriod } from "./models.js";
 
 export function isJournalizingActive(
   period: FiscalPeriod | null | undefined,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { AppError, jsonToAppError } from "./app-error";
+import { AppError, jsonToAppError } from "./app-error.js";
 
 describe("AppError", () => {
   it("keeps existing client AppError instances", () => {

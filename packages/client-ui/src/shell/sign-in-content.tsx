@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { AppError } from "@rubydogjp/openkk-client-domain";
-import { AppErrorText } from "../shared/app-error-text";
+import { AppErrorText } from "../shared/app-error-text.js";
 
 import {
   useOpenkkAppState,
@@ -17,7 +17,7 @@ import {
   shadows,
   sizes,
   typography,
-} from "../shared/design-tokens";
+} from "../shared/design-tokens.js";
 
 export function SignInContent() {
   const appState = useOpenkkAppState();

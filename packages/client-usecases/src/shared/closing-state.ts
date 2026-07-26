@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { useBackendApi } from "./backend-api-context";
-import { useOpenkkAppState } from "./openkk-app-state";
+import { useBackendApi } from "./backend-api-context.js";
+import { useOpenkkAppState } from "./openkk-app-state.js";
 
 export type OpenkkClosing = {
   runPreClosing: (fiscalPeriodId: string, year: number) => Promise<void>;

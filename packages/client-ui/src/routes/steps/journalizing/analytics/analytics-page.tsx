@@ -23,8 +23,8 @@ import {
   palette,
   sizes,
   typography,
-} from "../../../../shared/design-tokens";
-import { PlBsDiagramSection } from "../../../../shared/pl-bs-diagram";
+} from "../../../../shared/design-tokens.js";
+import { PlBsDiagramSection } from "../../../../shared/pl-bs-diagram.js";
 
 type MonthTile = {
   year: number;

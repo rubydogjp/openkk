@@ -1,4 +1,4 @@
-import type { OpenkkUser } from "./user";
+import type { OpenkkUser } from "./user.js";
 
 export type Session = {
   user: OpenkkUser;

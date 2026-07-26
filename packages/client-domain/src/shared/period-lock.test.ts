@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { buildPeriodLockMessage, isJournalizingActive } from "./period-lock";
-import type { FiscalPeriod } from "./models";
+import { buildPeriodLockMessage, isJournalizingActive } from "./period-lock.js";
+import type { FiscalPeriod } from "./models.js";
 
 function period(overrides: Partial<FiscalPeriod> = {}): FiscalPeriod {
   return {

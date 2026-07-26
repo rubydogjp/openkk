@@ -10,17 +10,17 @@ import {
 } from "react";
 
 import { AppError } from "@rubydogjp/openkk-client-domain";
-import { useOpenkkAppState } from "../shared/openkk-app-state";
-import { useBackendApi } from "../shared/backend-api-context";
+import { useOpenkkAppState } from "../shared/openkk-app-state.js";
+import { useBackendApi } from "../shared/backend-api-context.js";
 import {
   entryRecordToImportPayload,
   resolveBookAccountId,
   resolveBusinessCategoryId,
   resolveTaxCategoryId,
   safeRate,
-} from "./import-mapping";
+} from "./import-mapping.js";
 
-export { entryRecordToImportPayload } from "./import-mapping";
+export { entryRecordToImportPayload } from "./import-mapping.js";
 import type {
   EntryApiRecord,
   EntryApiLineInput,

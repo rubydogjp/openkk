@@ -21,14 +21,14 @@ import {
   sizes,
   spacing,
   typography,
-} from "../shared/design-tokens";
-import { normalizePathname } from "../shared/pathname";
-import "../shared/pwa-install";
-import { DataLoadErrorBanner } from "./data-load-error-banner";
-import { MaintenanceScreen } from "./maintenance-content";
-import { ArchivedFiscalPeriodScreen } from "../routes/steps/archived-fiscal-period-screen";
-import { FiscalPeriodsContent } from "./fiscal-periods-content";
-import { SignInContent } from "./sign-in-content";
+} from "../shared/design-tokens.js";
+import { normalizePathname } from "../shared/pathname.js";
+import "../shared/pwa-install.js";
+import { DataLoadErrorBanner } from "./data-load-error-banner.js";
+import { MaintenanceScreen } from "./maintenance-content.js";
+import { ArchivedFiscalPeriodScreen } from "../routes/steps/archived-fiscal-period-screen.js";
+import { FiscalPeriodsContent } from "./fiscal-periods-content.js";
+import { SignInContent } from "./sign-in-content.js";
 import {
   ARCHIVED_WORKSPACE_PATH,
   FISCAL_PERIOD_CREATE_PATH,
@@ -37,7 +37,7 @@ import {
   shouldRedirectArchivedWorkspace,
   shouldRedirectMissingFiscalPeriod,
   type ShellContentMode,
-} from "./shell-content-mode";
+} from "./shell-content-mode.js";
 
 const PALETTE = {
   sidebarBg: palette.chromeSurface,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { OpenkkDbPort } from "./db-adapter";
-import type { DbSnapshot } from "./sqlite/adapter";
+import type { OpenkkDbPort } from "./db-adapter.js";
+import type { DbSnapshot } from "./sqlite/adapter.js";
 
 export type DbPortConformanceContext = {
   makeAdapter: () => Promise<OpenkkDbPort>;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatDateButtonLabel, isoDateToWeekday } from "./date-picker";
+import { formatDateButtonLabel, isoDateToWeekday } from "./date-picker.js";
 
 describe("date-picker date formatting", () => {
   it("formats ISO dates using the local calendar weekday", () => {

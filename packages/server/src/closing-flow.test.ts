@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createOpenkkServer } from "./index";
+import { createOpenkkServer } from "./index.js";
 import type {
   EntryApiRecord,
   EntryUpsertInput,

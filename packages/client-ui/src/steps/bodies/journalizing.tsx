@@ -4,21 +4,21 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { AppError } from "@rubydogjp/openkk-client-domain";
-import { AppErrorText } from "../../shared/app-error-text";
+import { AppErrorText } from "../../shared/app-error-text.js";
 import {
   useOpenkkAppState,
   useOpenkkCallout,
   useOpenkkClosing,
   useOpenkkConfig,
 } from "@rubydogjp/openkk-client-usecases";
-import { fontSize, fontWeight, palette } from "../../shared/design-tokens";
-import { useConfirmDialog } from "../../shared/confirm-dialog";
+import { fontSize, fontWeight, palette } from "../../shared/design-tokens.js";
+import { useConfirmDialog } from "../../shared/confirm-dialog.js";
 import { isCurrentMonthWithinFiscalPeriod } from "@rubydogjp/openkk-client-domain";
 import {
   JournalizingNotStartedTrendChart,
   JournalizingCompletedTrendChart,
   Step3TrendChart,
-} from "../step-trend-charts";
+} from "../step-trend-charts.js";
 import type { StepTrendPoint } from "@rubydogjp/openkk-client-domain";
 import {
   StepDivider,
@@ -26,7 +26,7 @@ import {
   StepPrimaryButton,
   StepSecondaryButton,
   StepSectionLabel,
-} from "../step-ui";
+} from "../step-ui.js";
 
 export function JournalizingBody({
   onSwitchToStep,

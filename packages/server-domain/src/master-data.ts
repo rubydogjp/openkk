@@ -1,1 +1,1 @@
-export * from "./generated-master-data";
+export * from "./generated-master-data.js";

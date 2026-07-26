@@ -4,7 +4,7 @@ import type {
   FiscalPeriodDbRecord,
   FiscalPeriodOpeningDbRecord,
   FixedAssetDbRecord,
-} from "../persistence-types";
+} from "../persistence-types.js";
 
 export function msToIso(ms: number): string {
   return new Date(ms).toISOString();

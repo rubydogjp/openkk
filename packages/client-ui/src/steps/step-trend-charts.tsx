@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import type { StepTrendPoint } from "@rubydogjp/openkk-client-domain";
-import { fontSize, fontWeight, palette } from "../shared/design-tokens";
+import { fontSize, fontWeight, palette } from "../shared/design-tokens.js";
 
 const REVENUE_LIGHT = "rgba(21, 128, 61, 0.32)";
 const EXPENSE_LIGHT = "rgba(37, 99, 235, 0.32)";

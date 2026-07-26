@@ -1,6 +1,6 @@
 "use client";
 
-import { MaintenanceScreen } from "../../../shell/maintenance-content";
+import { MaintenanceScreen } from "../../../shell/maintenance-content.js";
 
 export function MaintenancePreviewPage() {
   return (

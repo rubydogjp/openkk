@@ -8,7 +8,9 @@
       }
     ],
     "allowJs": true,
-    "incremental": true
+    "incremental": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler"
   },
   "include": [
     "next-env.d.ts",

@@ -1,6 +1,6 @@
 "use client";
 
-import { fontFamily, fontSize, fontWeight, palette } from "./design-tokens";
+import { fontFamily, fontSize, fontWeight, palette } from "./design-tokens.js";
 
 const PANEL_H = 180;
 const GAP = 3;

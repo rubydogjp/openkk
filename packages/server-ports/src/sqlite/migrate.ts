@@ -1,4 +1,4 @@
-import { SCHEMA_MIGRATIONS, SCHEMA_VERSION } from "./schema";
+import { SCHEMA_MIGRATIONS, SCHEMA_VERSION } from "./schema.js";
 
 export type MigrationDb = {
   selectValue(sql: string): unknown;

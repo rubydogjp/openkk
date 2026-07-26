@@ -4,7 +4,7 @@ import {
   entryRecordToImportPayload,
   removeEntryRecord,
   replaceFiscalPeriodEntryRecords,
-} from "./entries-state";
+} from "./entries-state.js";
 import type { EntryRecord } from "@rubydogjp/openkk-client-domain";
 import type {
   MasterBookAccount,

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   computePeriodDepreciation,
   computeStraightLineDepreciation,
-} from "./fixed-asset-depreciation";
+} from "./fixed-asset-depreciation.js";
 
 describe("computeStraightLineDepreciation", () => {
   it("computes half-life progress and book value", () => {

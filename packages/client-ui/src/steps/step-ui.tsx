@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 
-import { fontSize, fontWeight, palette, radii, shadows, sizes, spacing, typography } from "../shared/design-tokens";
+import { fontSize, fontWeight, palette, radii, shadows, sizes, spacing, typography } from "../shared/design-tokens.js";
 
 export type StatusChipTone = "brand" | "success" | "muted" | "warning";
 

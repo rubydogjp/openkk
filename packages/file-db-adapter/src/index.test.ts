@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { RealDbWorker } from "./real-db-worker";
+import { RealDbWorker } from "./real-db-worker.js";
 
 type WorkerMessage = {
   id: number;
@@ -54,7 +54,7 @@ describe("createFileDbAdapter — behavior parity over the worker proxy", () => 
 
   async function makeDb() {
     vi.stubGlobal("Worker", RealDbWorker);
-    const { createFileDbAdapter } = await import("./index");
+    const { createFileDbAdapter } = await import("./index.js");
     return createFileDbAdapter({ vfsName: "opfs-behavior" });
   }
 
@@ -152,7 +152,7 @@ describe("createFileDbAdapter", () => {
       { kind: "response", ok: false, error: "ANOTHER_TAB" },
       { kind: "response", ok: true },
     ];
-    const { createFileDbAdapter } = await import("./index");
+    const { createFileDbAdapter } = await import("./index.js");
 
     await expect(createFileDbAdapter({ vfsName: "opfs-test" })).rejects.toThrow(
       "ANOTHER_TAB",
@@ -171,7 +171,7 @@ describe("createFileDbAdapter", () => {
       { kind: "throw", error: new Error("postMessage failed") },
       { kind: "response", ok: true },
     ];
-    const { createFileDbAdapter } = await import("./index");
+    const { createFileDbAdapter } = await import("./index.js");
 
     await expect(createFileDbAdapter({ vfsName: "opfs-test" })).rejects.toThrow(
       "postMessage failed",
@@ -186,7 +186,7 @@ describe("createFileDbAdapter", () => {
 
   it("reuses the singleton only for matching file DB options", async () => {
     vi.stubGlobal("Worker", FakeWorker);
-    const { createFileDbAdapter } = await import("./index");
+    const { createFileDbAdapter } = await import("./index.js");
 
     const first = await createFileDbAdapter({
       vfsName: "opfs-test",

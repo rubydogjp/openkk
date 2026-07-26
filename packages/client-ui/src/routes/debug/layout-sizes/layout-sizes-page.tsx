@@ -11,8 +11,8 @@ import {
   spacing,
   tokenDefaults,
   typography,
-} from "../../../shared/design-tokens";
-import { DocumentFileList } from "../../../shared/document-file-tile";
+} from "../../../shared/design-tokens.js";
+import { DocumentFileList } from "../../../shared/document-file-tile.js";
 
 type InventoryItem = {
   name: string;

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { fontSize, fontWeight, palette, radii, shadows, sizes, typography } from "./design-tokens";
+import { fontSize, fontWeight, palette, radii, shadows, sizes, typography } from "./design-tokens.js";
 
 export type ConfirmDialogTone = "confirm" | "warning" | "danger" | "success";
 

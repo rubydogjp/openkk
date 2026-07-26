@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   isCurrentMonthWithinFiscalPeriod,
   validateFiscalPeriodDates,
-} from "./period-check";
+} from "./period-check.js";
 
 describe("isCurrentMonthWithinFiscalPeriod", () => {
   it("returns true when today is the first month of the period", () => {

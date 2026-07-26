@@ -9,9 +9,9 @@ import {
   type ReactNode,
 } from "react";
 
-import { useOpenkkAppState } from "../shared/openkk-app-state";
-import { useBackendApi } from "../shared/backend-api-context";
-import { useOpenkkConfig } from "../shared/openkk-config-context";
+import { useOpenkkAppState } from "../shared/openkk-app-state.js";
+import { useBackendApi } from "../shared/backend-api-context.js";
+import { useOpenkkConfig } from "../shared/openkk-config-context.js";
 import {
   parseAmount,
   parseBusinessRate,

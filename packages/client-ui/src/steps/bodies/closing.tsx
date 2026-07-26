@@ -8,20 +8,20 @@ import {
   computeFsAggregate,
   withClosingVirtualEntries,
 } from "@rubydogjp/openkk-client-domain";
-import { AppErrorText } from "../../shared/app-error-text";
+import { AppErrorText } from "../../shared/app-error-text.js";
 import {
   useOpenkkAppState,
   useOpenkkAssist,
   useOpenkkClosing,
   useOpenkkEntries,
 } from "@rubydogjp/openkk-client-usecases";
-import { formatDateButtonLabel } from "../../shared/date-picker";
-import { palette } from "../../shared/design-tokens";
-import { useConfirmDialog } from "../../shared/confirm-dialog";
-import { PlBsDiagramSection } from "../../shared/pl-bs-diagram";
-import { DocumentFileList } from "../../shared/document-file-tile";
-import { useStepDocumentPrinters } from "../use-step-document-printers";
-import { ClosingExplainerAnimation } from "../closing-animation";
+import { formatDateButtonLabel } from "../../shared/date-picker.js";
+import { palette } from "../../shared/design-tokens.js";
+import { useConfirmDialog } from "../../shared/confirm-dialog.js";
+import { PlBsDiagramSection } from "../../shared/pl-bs-diagram.js";
+import { DocumentFileList } from "../../shared/document-file-tile.js";
+import { useStepDocumentPrinters } from "../use-step-document-printers.js";
+import { ClosingExplainerAnimation } from "../closing-animation.js";
 import {
   ActionChoiceCard,
   ActionGrid,
@@ -34,7 +34,7 @@ import {
   StepSecondaryButton,
   StepSectionLabel,
   UndoIcon,
-} from "../step-ui";
+} from "../step-ui.js";
 
 export function ClosingBody({
   onSwitchToStep,

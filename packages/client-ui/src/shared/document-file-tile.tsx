@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from "react";
 
-import { palette, radii, sizes, spacing, typography } from "./design-tokens";
+import { palette, radii, sizes, spacing, typography } from "./design-tokens.js";
 
 export type DocumentFileItem = {
   label: string;

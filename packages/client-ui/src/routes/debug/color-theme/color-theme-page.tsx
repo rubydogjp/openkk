@@ -5,7 +5,7 @@ import {
   fontWeight,
   shadows,
   typography,
-} from "../../../shared/design-tokens";
+} from "../../../shared/design-tokens.js";
 
 type PaletteToken = {
   group: string;

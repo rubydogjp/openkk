@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import type { FixedAssetPreviewItem } from "../assist/fixed-asset-data";
-import type { OpeningCarryoverRecord } from "../assist/opening-carryover";
-import { getEntryLines, type EntryRecord } from "./entry-record";
-import { parseAmount } from "../shared/parse-utils";
+import type { FixedAssetPreviewItem } from "../assist/fixed-asset-data.js";
+import type { OpeningCarryoverRecord } from "../assist/opening-carryover.js";
+import { getEntryLines, type EntryRecord } from "./entry-record.js";
+import { parseAmount } from "../shared/parse-utils.js";
 import {
   buildClosingVirtualEntries,
   buildVirtualBusinessRateTransferRows,
   buildVirtualFixedAssetRows,
   materializeVirtualEntryRows,
   withClosingVirtualEntries,
-} from "./virtual-entries";
+} from "./virtual-entries.js";
 
 function depreciatingAsset(
   overrides: Partial<FixedAssetPreviewItem> = {},

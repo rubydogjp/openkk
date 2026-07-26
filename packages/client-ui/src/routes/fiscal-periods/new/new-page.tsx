@@ -12,9 +12,9 @@ import {
   useOpenkkAppState,
   useOpenkkConfig,
 } from "@rubydogjp/openkk-client-usecases";
-import { AppErrorText } from "../../../shared/app-error-text";
-import { LockButton } from "../../../shared/lock-icon";
-import { fontSize, fontWeight, palette, sizes, spacing, typography } from "../../../shared/design-tokens";
+import { AppErrorText } from "../../../shared/app-error-text.js";
+import { LockButton } from "../../../shared/lock-icon.js";
+import { fontSize, fontWeight, palette, sizes, spacing, typography } from "../../../shared/design-tokens.js";
 import {
   FormDatePair,
   FormErrorText,
@@ -22,8 +22,8 @@ import {
   FormSecondaryButton,
   FormStyles,
   FormTextInput,
-} from "../../../shared/form-fields";
-import { StepFormRow, StepMetaCard } from "../../../steps/step-ui";
+} from "../../../shared/form-fields.js";
+import { StepFormRow, StepMetaCard } from "../../../steps/step-ui.js";
 
 export function CreateFiscalPeriodPage() {
   const router = useRouter();

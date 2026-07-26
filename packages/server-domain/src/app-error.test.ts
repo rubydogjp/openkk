@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { AppError } from "./app-error";
+import { AppError } from "./app-error.js";
 
 describe("server AppError", () => {
   it("round-trips through the API error DTO shape", () => {

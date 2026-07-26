@@ -8,7 +8,7 @@ import type {
   FixedAssetPatchInput,
   OpenkkDbPort,
 } from "@rubydogjp/openkk-server-ports";
-import { normalizeArchiveImportInput } from "./archive-import";
+import { normalizeArchiveImportInput } from "./archive-import.js";
 
 export type ServerUsecases = ReturnType<typeof createServerUsecases>;
 

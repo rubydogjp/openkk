@@ -7,7 +7,7 @@ import {
   userEmail,
   type CustomUser,
   type EmbeddedUser,
-} from "./user";
+} from "./user.js";
 
 const embedded: EmbeddedUser = {
   kind: "embedded",

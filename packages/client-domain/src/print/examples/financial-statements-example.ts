@@ -1,4 +1,4 @@
-import type { FsBsRow } from "../fs-data";
+import type { FsBsRow } from "../fs-data.js";
 
 export const FINANCIAL_STATEMENTS_EXAMPLE_FP_NAME = "サンプル期間 (2026年度)";
 

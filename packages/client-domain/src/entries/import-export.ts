@@ -1,6 +1,6 @@
-import type { EntryLine, EntryRecord } from "./entry-record";
-import { AppError } from "../shared/app-error";
-import { parseIsoLocalDate, weekdayJa } from "../shared/parse-utils";
+import type { EntryLine, EntryRecord } from "./entry-record.js";
+import { AppError } from "../shared/app-error.js";
+import { parseIsoLocalDate, weekdayJa } from "../shared/parse-utils.js";
 
 type JournalJsonEntry = {
   id?: string;

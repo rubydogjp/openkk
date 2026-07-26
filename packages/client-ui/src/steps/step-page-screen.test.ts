@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getStepNoForPathname } from "./step-page-screen";
+import { getStepNoForPathname } from "./step-page-screen.js";
 
 describe("getStepNoForPathname", () => {
   it("matches step paths without trailing slash", () => {

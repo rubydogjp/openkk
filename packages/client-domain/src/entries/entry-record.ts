@@ -1,5 +1,5 @@
-import type { EntryAccountVisualType, EntryPreviewRow } from "./entries-types";
-import { parseAmount, parseBusinessRate } from "../shared/parse-utils";
+import type { EntryAccountVisualType, EntryPreviewRow } from "./entries-types.js";
+import { parseAmount, parseBusinessRate } from "../shared/parse-utils.js";
 
 export type EntryLine = {
   side: "debit" | "credit";

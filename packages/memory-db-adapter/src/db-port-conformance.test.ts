@@ -7,8 +7,8 @@ import {
   type SqlDb,
 } from "@rubydogjp/openkk-server-ports";
 
-import { createMemoryDbAdapter } from "./index";
-import { runDbPortConformance } from "../../server-ports/src/db-port-conformance";
+import { createMemoryDbAdapter } from "./index.js";
+import { runDbPortConformance } from "../../server-ports/src/db-port-conformance.js";
 
 // 1) 既定のアダプタ（memory-db）。exec は同期 SQLite を async で包む。
 runDbPortConformance("memory-db-adapter (sync transport)", {

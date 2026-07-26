@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 
-import { palette } from "../shared/design-tokens";
+import { palette } from "../shared/design-tokens.js";
 import type { PrintOrientation } from "@rubydogjp/openkk-client-domain";
 
 export type PreviewScaffoldProps = {

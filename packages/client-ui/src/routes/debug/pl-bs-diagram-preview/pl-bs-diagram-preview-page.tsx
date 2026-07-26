@@ -1,6 +1,6 @@
 "use client";
 
-import { palette, typography } from "../../../shared/design-tokens";
+import { palette, typography } from "../../../shared/design-tokens.js";
 
 export function PlBsDiagramPreviewPage() {
   if (false) {

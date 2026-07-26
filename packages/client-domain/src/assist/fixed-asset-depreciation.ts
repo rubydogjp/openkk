@@ -2,7 +2,7 @@
 // 固定資産の「真実」は取得価額・取得日・耐用年数で、簿価・進捗・当期償却費などの
 // 表示値はすべてここから導出する（保存された preview 値には依存しない）。
 
-import { parseIsoLocalDate } from "../shared/parse-utils";
+import { parseIsoLocalDate } from "../shared/parse-utils.js";
 
 export type StraightLineDepreciationInput = {
   acquisitionDate: string; // "YYYY-MM-DD"

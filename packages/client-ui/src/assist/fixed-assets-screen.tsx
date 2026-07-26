@@ -3,10 +3,10 @@
 import type { ReactNode } from "react";
 
 import type { FixedAssetPreviewItem } from "@rubydogjp/openkk-client-domain";
-import { AmountText } from "../shared/amount-field";
-import { fontSize, fontWeight, palette, radii, sizes, spacing, typography } from "../shared/design-tokens";
-import { StepCallout } from "../steps/step-ui";
-import { AssistBreadcrumb } from "./assist-breadcrumb";
+import { AmountText } from "../shared/amount-field.js";
+import { fontSize, fontWeight, palette, radii, sizes, spacing, typography } from "../shared/design-tokens.js";
+import { StepCallout } from "../steps/step-ui.js";
+import { AssistBreadcrumb } from "./assist-breadcrumb.js";
 
 const fixedAssetColors = {
   blue: palette.action,

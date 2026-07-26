@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { deriveSteps } from "./step-derivation";
+import { deriveSteps } from "./step-derivation.js";
 
 describe("deriveSteps", () => {
   it("keeps exactly one current step before all steps are done", () => {

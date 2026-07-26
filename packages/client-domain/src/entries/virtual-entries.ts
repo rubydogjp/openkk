@@ -1,17 +1,17 @@
-import type { FixedAssetPreviewItem } from "../assist/fixed-asset-data";
+import type { FixedAssetPreviewItem } from "../assist/fixed-asset-data.js";
 import {
   computePeriodDepreciation,
   computeStraightLineDepreciation,
-} from "../assist/fixed-asset-depreciation";
-import type { OpeningCarryoverRecord } from "../assist/opening-carryover";
-import type { EntryAccountVisualType, EntryPreviewRow } from "./entries-types";
+} from "../assist/fixed-asset-depreciation.js";
+import type { OpeningCarryoverRecord } from "../assist/opening-carryover.js";
+import type { EntryAccountVisualType, EntryPreviewRow } from "./entries-types.js";
 import {
   BUSINESS_RATE_TRANSFER_LOCAL_ID,
   buildBusinessRateTransferEntry,
   recordToPreviewRows,
   type EntryRecord,
-} from "./entry-record";
-import { parseAmount, parseIsoLocalDate } from "../shared/parse-utils";
+} from "./entry-record.js";
+import { parseAmount, parseIsoLocalDate } from "../shared/parse-utils.js";
 
 const BUSINESS_RATE_TRANSFER_ROW_ID = "business-rate-transfer";
 

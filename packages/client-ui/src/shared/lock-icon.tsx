@@ -2,7 +2,7 @@
 
 import type { CSSProperties, ReactNode } from "react";
 
-import { fontSize, fontWeight, palette, radii, sizes, spacing, typography } from "./design-tokens";
+import { fontSize, fontWeight, palette, radii, sizes, spacing, typography } from "./design-tokens.js";
 
 export function LockIcon({
   size = 20,

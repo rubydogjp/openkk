@@ -14,10 +14,10 @@ import {
   resolveEditingPolicy,
   type FixedAssetPreviewItem,
 } from "@rubydogjp/openkk-client-domain";
-import { ClosedPeriodLock } from "../../../shared/closed-period-lock";
-import { LockButton } from "../../../shared/lock-icon";
-import { FixedAssetEditDrawer } from "../../../assist/fixed-asset-edit-drawer";
-import { FixedAssetsScreen } from "../../../assist/fixed-assets-screen";
+import { ClosedPeriodLock } from "../../../shared/closed-period-lock.js";
+import { LockButton } from "../../../shared/lock-icon.js";
+import { FixedAssetEditDrawer } from "../../../assist/fixed-asset-edit-drawer.js";
+import { FixedAssetsScreen } from "../../../assist/fixed-assets-screen.js";
 
 export function FixedAssetsPage() {
   const router = useRouter();

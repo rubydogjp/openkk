@@ -6,24 +6,24 @@ import {
   AppError,
   validateFiscalPeriodDates,
 } from "@rubydogjp/openkk-client-domain";
-import { AppErrorText } from "../../shared/app-error-text";
+import { AppErrorText } from "../../shared/app-error-text.js";
 import { useOpenkkAppState } from "@rubydogjp/openkk-client-usecases";
-import { palette } from "../../shared/design-tokens";
-import { useConfirmDialog } from "../../shared/confirm-dialog";
+import { palette } from "../../shared/design-tokens.js";
+import { useConfirmDialog } from "../../shared/confirm-dialog.js";
 import {
   FormDatePair,
   FormErrorText,
   FormReadOnlyValue,
   FormStyles,
   FormTextInput,
-} from "../../shared/form-fields";
+} from "../../shared/form-fields.js";
 import {
   PlayIcon,
   StepCallout,
   StepFormRow,
   StepMetaCard,
   StepPrimaryButton,
-} from "../step-ui";
+} from "../step-ui.js";
 
 export function FiscalPeriodSettingsBody({
   onSwitchToStep,

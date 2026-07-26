@@ -10,17 +10,17 @@ import {
   type ReactNode,
 } from "react";
 
-import { fontSize, fontWeight, palette, sizes, typography } from "../shared/design-tokens";
-import { normalizePathname } from "../shared/pathname";
-import { ClosingBody } from "./bodies/closing";
-import { DocumentReceiveBody } from "./bodies/document-receive";
-import { FiscalPeriodSettingsBody } from "./bodies/fiscal-period-settings";
-import { JournalizingBody } from "./bodies/journalizing";
-import { NextFiscalPeriodBody } from "./bodies/next-fiscal-period";
-import { OpeningBsBody } from "./bodies/opening-bs";
+import { fontSize, fontWeight, palette, sizes, typography } from "../shared/design-tokens.js";
+import { normalizePathname } from "../shared/pathname.js";
+import { ClosingBody } from "./bodies/closing.js";
+import { DocumentReceiveBody } from "./bodies/document-receive.js";
+import { FiscalPeriodSettingsBody } from "./bodies/fiscal-period-settings.js";
+import { JournalizingBody } from "./bodies/journalizing.js";
+import { NextFiscalPeriodBody } from "./bodies/next-fiscal-period.js";
+import { OpeningBsBody } from "./bodies/opening-bs.js";
 import type { StepItem } from "@rubydogjp/openkk-client-domain";
 import { type StepTrendPoint } from "@rubydogjp/openkk-client-domain";
-import { StatusChip } from "./step-ui";
+import { StatusChip } from "./step-ui.js";
 
 export const STEP_PATHS: Record<number, string> = {
   1: "/steps/fiscal-period-settings",

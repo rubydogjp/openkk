@@ -14,7 +14,7 @@ import {
   resolveEditingPolicy,
   resolveFiscalPeriodPolicy,
 } from "@rubydogjp/openkk-client-domain";
-import { AppErrorText } from "../../shared/app-error-text";
+import { AppErrorText } from "../../shared/app-error-text.js";
 import {
   useBackendApi,
   useOpenkkAppState,
@@ -27,14 +27,14 @@ import {
   fontWeight,
   palette,
   rings,
-} from "../../shared/design-tokens";
-import { LockButton } from "../../shared/lock-icon";
-import { downloadBytes } from "../../shared/download";
+} from "../../shared/design-tokens.js";
+import { LockButton } from "../../shared/lock-icon.js";
+import { downloadBytes } from "../../shared/download.js";
 import {
   FormDatePair,
   FormStyles,
   FormTextInput,
-} from "../../shared/form-fields";
+} from "../../shared/form-fields.js";
 import {
   StepDivider,
   StepFormRow,
@@ -44,7 +44,7 @@ import {
   StepPrimaryButton,
   StepSecondaryButton,
   StepSectionLabel,
-} from "../step-ui";
+} from "../step-ui.js";
 
 const CARRY_ITEMS: Array<{ id: string; label: string }> = [
   { id: "bs", label: "期末のBS → 翌期首のBS" },

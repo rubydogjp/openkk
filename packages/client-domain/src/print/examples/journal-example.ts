@@ -1,4 +1,4 @@
-import type { EntryRecord } from "../../entries/entry-record";
+import type { EntryRecord } from "../../entries/entry-record.js";
 
 const FP_ID = "fp-example";
 

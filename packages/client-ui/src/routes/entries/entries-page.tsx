@@ -31,8 +31,8 @@ import {
   VirtualEntryDrawer,
   type EntryFileKind,
   type EntryStatusMessage,
-} from "../../entries/entries-ui";
-import { EntryEditDrawer } from "../../entries/entry-edit-drawer";
+} from "../../entries/entries-ui.js";
+import { EntryEditDrawer } from "../../entries/entry-edit-drawer.js";
 
 type YearMonthValue = {
   year: number;

@@ -3,8 +3,8 @@ import {
   computeRevenueContribution,
   parseBusinessRate,
   type EntrySummaryRow,
-} from "./summary";
-import { buildYearMonthRange, parseYearMonth } from "./year-month";
+} from "./summary.js";
+import { buildYearMonthRange, parseYearMonth } from "./year-month.js";
 
 export type StepTrendPoint = {
   label: string;

@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 
-import { fontFamily, fontWeight, palette, radii, sizes, typography } from "./design-tokens";
+import { fontFamily, fontWeight, palette, radii, sizes, typography } from "./design-tokens.js";
 
 const AMOUNT_FONT = {
   ...typography.amount,

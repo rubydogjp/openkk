@@ -17,7 +17,7 @@ import {
   type OpenkkBackendPort,
 } from "@rubydogjp/openkk-client-ports";
 
-import { BackendApiProvider, useBackendApi } from "./backend-api-context";
+import { BackendApiProvider, useBackendApi } from "./backend-api-context.js";
 
 const MAINTENANCE_RECHECK_INTERVAL_MS = 30_000;
 

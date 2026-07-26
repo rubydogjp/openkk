@@ -11,7 +11,7 @@ import {
   spacing,
   tokenDefaults,
   typography,
-} from "../../../shared/design-tokens";
+} from "../../../shared/design-tokens.js";
 
 type TypeToken = {
   name: string;

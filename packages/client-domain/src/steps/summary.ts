@@ -1,10 +1,10 @@
-import { parseAmount, parseBusinessRate } from "../shared/parse-utils";
+import { parseAmount, parseBusinessRate } from "../shared/parse-utils.js";
 import {
   applyBusinessRateToLines,
   type EntryLine,
-} from "../entries/entry-record";
-import type { EntryAccountVisualType } from "../entries/entries-types";
-export { parseAmount, parseBusinessRate } from "../shared/parse-utils";
+} from "../entries/entry-record.js";
+import type { EntryAccountVisualType } from "../entries/entries-types.js";
+export { parseAmount, parseBusinessRate } from "../shared/parse-utils.js";
 
 export type EntrySummaryRow = {
   businessRate: string;

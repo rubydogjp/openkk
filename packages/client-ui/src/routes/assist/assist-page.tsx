@@ -2,14 +2,14 @@
 
 import { useRouter } from "next/navigation";
 
-import { StepCallout } from "../../steps/step-ui";
+import { StepCallout } from "../../steps/step-ui.js";
 import {
   fontSize,
   fontWeight,
   palette,
   sizes,
   typography,
-} from "../../shared/design-tokens";
+} from "../../shared/design-tokens.js";
 
 const items = [
   {

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 
-import { fontSize, fontWeight, palette, radii, sizes, spacing, typography } from "./design-tokens";
+import { fontSize, fontWeight, palette, radii, sizes, spacing, typography } from "./design-tokens.js";
 
 export type ClosedPeriodLockProps = {
   title?: string;

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { EntryRecord } from "../entries/entry-record";
+import type { EntryRecord } from "../entries/entry-record.js";
 import {
   buildNextFiscalPeriodSuggestion,
   buildOpeningCarryoverJournalsFromReversibleEntries,
-} from "./next-fiscal-period";
+} from "./next-fiscal-period.js";
 
 describe("buildNextFiscalPeriodSuggestion", () => {
   it("suggests the next calendar year for a calendar-year period", () => {

@@ -3,18 +3,18 @@
 import { useState } from "react";
 
 import { AppError } from "@rubydogjp/openkk-client-domain";
-import { AppErrorText } from "../../shared/app-error-text";
+import { AppErrorText } from "../../shared/app-error-text.js";
 import { useOpenkkAppState } from "@rubydogjp/openkk-client-usecases";
-import { palette } from "../../shared/design-tokens";
-import { DocumentFileList } from "../../shared/document-file-tile";
-import { useStepDocumentPrinters } from "../use-step-document-printers";
+import { palette } from "../../shared/design-tokens.js";
+import { DocumentFileList } from "../../shared/document-file-tile.js";
+import { useStepDocumentPrinters } from "../use-step-document-printers.js";
 import {
   StepCallout,
   StepDivider,
   StepPrimaryButton,
   StepSecondaryButton,
   StepSectionLabel,
-} from "../step-ui";
+} from "../step-ui.js";
 
 export function DocumentReceiveBody({
   onSwitchToStep,

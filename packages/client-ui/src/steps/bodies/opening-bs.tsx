@@ -7,18 +7,18 @@ import {
   OPENING_EQUITY_LABELS,
   resolveEditingPolicy,
 } from "@rubydogjp/openkk-client-domain";
-import { AppErrorText } from "../../shared/app-error-text";
+import { AppErrorText } from "../../shared/app-error-text.js";
 import {
   useOpenkkAppState,
   useOpenkkConfig,
 } from "@rubydogjp/openkk-client-usecases";
-import { AccountChipCell } from "../../entries/entries-ui";
+import { AccountChipCell } from "../../entries/entries-ui.js";
 import type { EntryAccountVisualType } from "@rubydogjp/openkk-client-domain";
 import {
   AmountInput,
   AmountReadOnlyField,
   AmountText,
-} from "../../shared/amount-field";
+} from "../../shared/amount-field.js";
 import {
   fontSize,
   fontWeight,
@@ -28,14 +28,14 @@ import {
   sizes,
   spacing,
   typography,
-} from "../../shared/design-tokens";
-import { LockIcon } from "../../shared/lock-icon";
-import { FormStyles } from "../../shared/form-fields";
+} from "../../shared/design-tokens.js";
+import { LockIcon } from "../../shared/lock-icon.js";
+import { FormStyles } from "../../shared/form-fields.js";
 import {
   StepCallout,
   StepPrimaryButton,
   StepSecondaryButton,
-} from "../step-ui";
+} from "../step-ui.js";
 
 const BS_ROWS: Array<{ assetLabel: string; liabilityLabel: string }> = [
   { assetLabel: "現金", liabilityLabel: "支払手形" },

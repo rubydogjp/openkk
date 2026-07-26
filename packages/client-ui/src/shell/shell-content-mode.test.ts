@@ -8,7 +8,7 @@ import {
   resolveShellContentMode,
   shouldRedirectArchivedWorkspace,
   shouldRedirectMissingFiscalPeriod,
-} from "./shell-content-mode";
+} from "./shell-content-mode.js";
 
 describe("resolveShellContentMode", () => {
   it("shows loading until app state is ready", () => {

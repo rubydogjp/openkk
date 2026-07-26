@@ -5,7 +5,7 @@ import {
   type OpenkkApiErrorDto,
   type OpenkkHttpEndpointKey,
   type OpenkkHttpEndpointSpecs,
-} from "./types";
+} from "./types.js";
 
 export type OpenkkHttpResponse = {
   status: number;

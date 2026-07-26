@@ -1,23 +1,23 @@
 import { describe, expect, it } from "vitest";
 
-import type { FixedAssetPreviewItem } from "../assist/fixed-asset-data";
-import type { OpeningCarryoverRecord } from "../assist/opening-carryover";
+import type { FixedAssetPreviewItem } from "../assist/fixed-asset-data.js";
+import type { OpeningCarryoverRecord } from "../assist/opening-carryover.js";
 import {
   computeExpenseContribution,
   computeRevenueContribution,
   parseBusinessRate,
   type EntrySummaryRow,
-} from "../steps/summary";
+} from "../steps/summary.js";
 import {
   type EntryRecord,
   getEntryLines,
   recordToPreviewRows,
-} from "./entry-record";
+} from "./entry-record.js";
 import {
   buildVirtualFixedAssetRows,
   buildVirtualOpeningCarryoverRows,
   materializeVirtualEntryRows,
-} from "./virtual-entries";
+} from "./virtual-entries.js";
 
 describe("entry scenario rows", () => {
   it("keeps compound entries balanced while exposing each line to summaries", () => {

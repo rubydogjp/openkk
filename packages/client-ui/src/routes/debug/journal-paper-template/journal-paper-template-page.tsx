@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 
 import { usePrintDocument } from "@rubydogjp/openkk-client-usecases";
-import { PreviewScaffold } from "../../../print/preview-scaffold";
+import { PreviewScaffold } from "../../../print/preview-scaffold.js";
 import {
   buildJournalBody,
   buildJournalDocument,

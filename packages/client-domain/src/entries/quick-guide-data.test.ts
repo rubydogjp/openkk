@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_BOOK_ACCOUNTS } from "./default-master-data";
+import { DEFAULT_BOOK_ACCOUNTS } from "./default-master-data.js";
 import {
   guideOptions,
   guideTitle,
   resolveBookAccountByName,
   type QuickGuidePage,
-} from "./quick-guide-data";
+} from "./quick-guide-data.js";
 
 describe("quick guide data", () => {
   it("does not expose unresolved fallback text", () => {

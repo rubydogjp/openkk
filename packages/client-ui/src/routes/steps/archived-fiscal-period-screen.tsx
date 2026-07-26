@@ -16,21 +16,21 @@ import {
   useBackendApi,
   useOpenkkAppState,
 } from "@rubydogjp/openkk-client-usecases";
-import { AppErrorText } from "../../shared/app-error-text";
+import { AppErrorText } from "../../shared/app-error-text.js";
 import {
   fontSize,
   fontWeight,
   palette,
   sizes,
   typography,
-} from "../../shared/design-tokens";
-import { downloadBytes } from "../../shared/download";
+} from "../../shared/design-tokens.js";
+import { downloadBytes } from "../../shared/download.js";
 import {
   StepMetaCard,
   StepMetaRow,
   StepPrimaryButton,
   StepSectionLabel,
-} from "../../steps/step-ui";
+} from "../../steps/step-ui.js";
 
 export function ArchivedFiscalPeriodScreen({
   fiscalPeriod,

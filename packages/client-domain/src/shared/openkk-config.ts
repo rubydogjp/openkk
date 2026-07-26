@@ -1,4 +1,4 @@
-import type { EmbeddedUser } from "./user";
+import type { EmbeddedUser } from "./user.js";
 
 export type OpenkkEnv = "dev" | "stg" | "prod";
 

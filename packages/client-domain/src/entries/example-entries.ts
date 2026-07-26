@@ -1,4 +1,4 @@
-import type { EntryPreviewRow } from "./entries-types";
+import type { EntryPreviewRow } from "./entries-types.js";
 
 export const exampleEntriesMonth = {
   year: 2026,

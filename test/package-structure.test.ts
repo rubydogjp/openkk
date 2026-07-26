@@ -57,6 +57,28 @@ describe("openkk workspace structure", () => {
     }
   });
 
+  it("keeps relative imports extension-qualified in library packages", () => {
+    const offenders: string[] = [];
+
+    for (const record of packageRecords.filter(
+      (item) => !APP_DIRS.has(item.packageDir),
+    )) {
+      for (const file of sourceFiles(path.join(record.dir, "src"))) {
+        const source = fs.readFileSync(file, "utf8");
+        const specifiers = source.matchAll(
+          /(?:from\s*|import\s*\(\s*|^\s*import\s+)(["'])(\.\.?\/[^"']*)\1/gm,
+        );
+        for (const [, , specifier] of specifiers) {
+          if (!/\.(js|json|css)$/.test(specifier)) {
+            offenders.push(`${path.relative(rootDir, file)}: ${specifier}`);
+          }
+        }
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
   it("keeps style subpath exports limited to client packages", () => {
     for (const record of packageRecords) {
       const styleExport = record.packageJson.exports?.["./styles.css"];
@@ -218,7 +240,7 @@ describe("openkk workspace structure", () => {
     );
 
     expect(persistenceTypes).not.toMatch(/Api(?:Record|Request|Response)/);
-    expect(dbAdapter).toContain('from "./persistence-types"');
+    expect(dbAdapter).toContain('from "./persistence-types.js"');
     expect(sqliteAdapter).not.toMatch(/ApiRecord/);
   });
 
@@ -299,6 +321,15 @@ function packageName(packageDir: string): string {
 
 function readJson(file: string) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
+}
+
+function sourceFiles(dir: string): string[] {
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) return sourceFiles(full);
+    return /\.tsx?$/.test(entry.name) ? [full] : [];
+  });
 }
 
 function findInternalImports(packageDir: string): Set<string> {

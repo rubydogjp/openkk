@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { fontWeight, palette, typography } from "../../../shared/design-tokens";
+import { fontWeight, palette, typography } from "../../../shared/design-tokens.js";
 
 export function JsonImportPage() {
   if (false) {

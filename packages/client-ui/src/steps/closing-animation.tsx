@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { fontSize, fontWeight, palette } from "../shared/design-tokens";
+import { fontSize, fontWeight, palette } from "../shared/design-tokens.js";
 
 export function ClosingExplainerAnimation({
   onCompleted,

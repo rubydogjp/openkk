@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { AppError } from "../shared/app-error";
+import { AppError } from "../shared/app-error.js";
 import {
   exportEntriesAsJson,
   exportEntriesAsCsv,
   importEntriesFromJson,
   importEntriesFromCsv,
-} from "./import-export";
-import type { EntryRecord } from "./entry-record";
+} from "./import-export.js";
+import type { EntryRecord } from "./entry-record.js";
 
 function entry(overrides: Partial<EntryRecord> = {}): EntryRecord {
   return {

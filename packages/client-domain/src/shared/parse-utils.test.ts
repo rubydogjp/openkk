@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseAmount, parseBusinessRate, parseIsoLocalDate } from "./parse-utils";
+import { parseAmount, parseBusinessRate, parseIsoLocalDate } from "./parse-utils.js";
 
 describe("parseAmount", () => {
   it("treats non-finite numeric amounts as zero", () => {

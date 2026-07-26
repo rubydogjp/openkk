@@ -1,5 +1,5 @@
-import type { FsBsRow, FsExpenseWriteIn } from "./fs-data";
-import { buildPrintDocument, escapeHtml as esc } from "./print-shell";
+import type { FsBsRow, FsExpenseWriteIn } from "./fs-data.js";
+import { buildPrintDocument, escapeHtml as esc } from "./print-shell.js";
 
 function writeInLabelOverrides(
   writeIns: ReadonlyArray<FsExpenseWriteIn> | undefined,

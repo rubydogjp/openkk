@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
-import { AmountInput } from "../shared/amount-field";
-import { LockButton } from "../shared/lock-icon";
+import { AmountInput } from "../shared/amount-field.js";
+import { LockButton } from "../shared/lock-icon.js";
 import {
   fontSize,
   fontWeight,
@@ -12,13 +12,13 @@ import {
   shadows,
   sizes,
   typography,
-} from "../shared/design-tokens";
+} from "../shared/design-tokens.js";
 import {
   FormStyles,
   FormPrimaryButton,
   FormSecondaryButton,
   FormTextInput,
-} from "../shared/form-fields";
+} from "../shared/form-fields.js";
 import { useOpenkkConfig } from "@rubydogjp/openkk-client-usecases";
 import {
   computeStraightLineDepreciation,

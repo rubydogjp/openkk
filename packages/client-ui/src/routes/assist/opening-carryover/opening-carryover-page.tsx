@@ -16,11 +16,11 @@ import {
   useOpenkkEntries,
   type EntryDraft,
 } from "@rubydogjp/openkk-client-usecases";
-import { EntriesTable } from "../../../entries/entries-ui";
-import { EntryEditDrawer } from "../../../entries/entry-edit-drawer";
-import { AssistBreadcrumb } from "../../../assist/assist-breadcrumb";
-import { ClosedPeriodLock } from "../../../shared/closed-period-lock";
-import { isoDateToWeekday } from "../../../shared/date-picker";
+import { EntriesTable } from "../../../entries/entries-ui.js";
+import { EntryEditDrawer } from "../../../entries/entry-edit-drawer.js";
+import { AssistBreadcrumb } from "../../../assist/assist-breadcrumb.js";
+import { ClosedPeriodLock } from "../../../shared/closed-period-lock.js";
+import { isoDateToWeekday } from "../../../shared/date-picker.js";
 import {
   fontSize,
   fontWeight,
@@ -28,7 +28,7 @@ import {
   radii,
   sizes,
   spacing,
-} from "../../../shared/design-tokens";
+} from "../../../shared/design-tokens.js";
 
 export function OpeningCarryoverPage() {
   const router = useRouter();

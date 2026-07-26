@@ -1,4 +1,4 @@
-import { parseIsoLocalDate } from "../shared/parse-utils";
+import { parseIsoLocalDate } from "../shared/parse-utils.js";
 
 export type FiscalPeriodDateValidationResult =
   | { ok: true }

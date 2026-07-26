@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { EntryUpsertInput } from "@rubydogjp/openkk-client-ports";
 import type { OpenkkServerPort } from "@rubydogjp/openkk-embedded-backend";
-import { createOpenkkEmbeddedBackendAdapter } from "./index";
+import { createOpenkkEmbeddedBackendAdapter } from "./index.js";
 
 describe("createOpenkkEmbeddedBackendAdapter", () => {
   it("passes calls through an in-process HTTP-style request boundary", async () => {

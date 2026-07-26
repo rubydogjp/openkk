@@ -7,7 +7,7 @@ import {
   fontWeight,
   palette,
   typography,
-} from "../../shared/design-tokens";
+} from "../../shared/design-tokens.js";
 
 const debugItems = [
   {

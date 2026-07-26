@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildYearMonthRange, compareYearMonth, parseYearMonth } from "./year-month";
+import { buildYearMonthRange, compareYearMonth, parseYearMonth } from "./year-month.js";
 
 describe("parseYearMonth", () => {
   it("parses YYYY-MM string", () => {

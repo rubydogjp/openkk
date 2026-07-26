@@ -1,4 +1,4 @@
-import { AppError } from "../shared/app-error";
+import { AppError } from "../shared/app-error.js";
 
 export const FISCAL_PERIOD_ARCHIVE_FORMAT = "openkk.fiscal-period-archive";
 export const FISCAL_PERIOD_ARCHIVE_VERSION = 1;

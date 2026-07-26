@@ -1,13 +1,13 @@
-export * from "./shared/backend-api-context";
-export * from "./shared/maintenance-state";
-export * from "./shared/print-adapter-context";
-export * from "./shared/openkk-config-context";
-export * from "./shared/brand-config-context";
-export * from "./shared/callouts-context";
+export * from "./shared/backend-api-context.js";
+export * from "./shared/maintenance-state.js";
+export * from "./shared/print-adapter-context.js";
+export * from "./shared/openkk-config-context.js";
+export * from "./shared/brand-config-context.js";
+export * from "./shared/callouts-context.js";
 
-export * from "./shared/openkk-app-state";
-export * from "./shared/closing-state";
+export * from "./shared/openkk-app-state.js";
+export * from "./shared/closing-state.js";
 
-export * from "./entries/entries-state";
-export * from "./assist/assist-state";
-export * from "./print/print-state";
+export * from "./entries/entries-state.js";
+export * from "./assist/assist-state.js";
+export * from "./print/print-state.js";

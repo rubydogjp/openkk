@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { applyFiscalPeriodUpdate } from "./openkk-app-state";
+import { applyFiscalPeriodUpdate } from "./openkk-app-state.js";
 import type { FiscalPeriod } from "@rubydogjp/openkk-client-domain";
 import type { FiscalPeriodApiRecord } from "@rubydogjp/openkk-client-ports";
 

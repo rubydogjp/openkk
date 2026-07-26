@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { runMigrations, type MigrationDb } from "./migrate";
+import { runMigrations, type MigrationDb } from "./migrate.js";
 import {
   SCHEMA_MIGRATIONS,
   SCHEMA_VERSION,
   SQLITE_TABLE_NAMES,
-} from "./schema";
+} from "./schema.js";
 
 describe("SQLite schema", () => {
   it("keeps the unreleased normalized schema at version 3", () => {

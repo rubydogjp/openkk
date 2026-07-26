@@ -1,6 +1,6 @@
-import { getEntryLines, type EntryRecord } from "../entries/entry-record";
-import { parseAmount } from "../shared/parse-utils";
-import { OPENING_EQUITY_LABELS } from "../steps/summary";
+import { getEntryLines, type EntryRecord } from "../entries/entry-record.js";
+import { parseAmount } from "../shared/parse-utils.js";
+import { OPENING_EQUITY_LABELS } from "../steps/summary.js";
 
 export type FsBsRow = {
   assetLabel: string;

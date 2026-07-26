@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { palette, typography } from "../shared/design-tokens";
+import { palette, typography } from "../shared/design-tokens.js";
 
 export function AssistBreadcrumb({ current }: { current: string }) {
   return (

@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { AmountText } from "../shared/amount-field";
-import { ClosedPeriodLock } from "../shared/closed-period-lock";
+import { AmountText } from "../shared/amount-field.js";
+import { ClosedPeriodLock } from "../shared/closed-period-lock.js";
 import {
   fontSize,
   fontWeight,
@@ -13,7 +13,7 @@ import {
   sizes,
   spacing,
   typography,
-} from "../shared/design-tokens";
+} from "../shared/design-tokens.js";
 import type {
   EntryAccountVisualType,
   EntryPreviewRow,

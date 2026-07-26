@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-import { palette } from "../shared/design-tokens";
+import { palette } from "../shared/design-tokens.js";
 
 export function RootRedirectPage() {
   const router = useRouter();

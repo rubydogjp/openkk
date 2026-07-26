@@ -5,8 +5,8 @@ import { useSearchParams } from "next/navigation";
 
 import { AppError } from "@rubydogjp/openkk-client-domain";
 import { useOpenkkAppState } from "@rubydogjp/openkk-client-usecases";
-import { AppErrorText } from "../../shared/app-error-text";
-import { fontSize, fontWeight, palette, shadows } from "../../shared/design-tokens";
+import { AppErrorText } from "../../shared/app-error-text.js";
+import { fontSize, fontWeight, palette, shadows } from "../../shared/design-tokens.js";
 
 export function AuthResultPage() {
   const appState = useOpenkkAppState();

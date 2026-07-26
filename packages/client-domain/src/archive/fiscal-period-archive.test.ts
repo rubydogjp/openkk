@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { AppError } from "../shared/app-error";
+import { AppError } from "../shared/app-error.js";
 import {
   FISCAL_PERIOD_ARCHIVE_FORMAT,
   FISCAL_PERIOD_ARCHIVE_VERSION,
@@ -8,7 +8,7 @@ import {
   buildFiscalPeriodArchivePayload,
   createFiscalPeriodArchiveZip,
   readFiscalPeriodArchiveZip,
-} from "./fiscal-period-archive";
+} from "./fiscal-period-archive.js";
 
 describe("fiscal period archive", () => {
   it("keeps the archive format a stable public contract", () => {

@@ -15,7 +15,7 @@ import {
 import type { OpenkkBackendPort } from "@rubydogjp/openkk-client";
 import { printAdapter } from "@rubydogjp/openkk-print-adapter";
 
-import type { OpenkkBundleRuntime } from "./bundle-runtime";
+import type { OpenkkBundleRuntime } from "./bundle-runtime.js";
 
 const SERVICE_WORKER_URL = "/sw.js";
 const SERVICE_WORKER_BUILD_ID = process.env.NEXT_PUBLIC_BUILD_ID ?? "default";

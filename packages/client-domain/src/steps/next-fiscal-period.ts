@@ -1,14 +1,14 @@
-import { DEFAULT_BOOK_ACCOUNTS } from "../entries/default-master-data";
+import { DEFAULT_BOOK_ACCOUNTS } from "../entries/default-master-data.js";
 import {
   getEntryLines,
   type EntryLine,
   type EntryRecord,
-} from "../entries/entry-record";
+} from "../entries/entry-record.js";
 import {
   parseAmount,
   parseBusinessRate,
   parseIsoLocalDate,
-} from "../shared/parse-utils";
+} from "../shared/parse-utils.js";
 
 export type NextFiscalPeriodSuggestion = {
   name: string;

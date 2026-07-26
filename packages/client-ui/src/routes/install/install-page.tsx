@@ -10,13 +10,13 @@ import {
   clearDeferredInstallPrompt,
   isAppInstalled,
   subscribeInstallChange,
-} from "../../shared/pwa-install";
+} from "../../shared/pwa-install.js";
 import {
   palette,
   fontSize,
   fontWeight,
   fontFamily,
-} from "../../shared/design-tokens";
+} from "../../shared/design-tokens.js";
 
 // navigator.install は新しい Web Install API (実験的)。あれば利用する。
 type NavigatorWithInstall = Navigator & {

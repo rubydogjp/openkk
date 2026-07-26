@@ -13,9 +13,9 @@ import {
   buildStepTrendPoints,
   excludeBusinessRateTransfer,
 } from "@rubydogjp/openkk-client-domain";
-import { normalizePathname } from "../../shared/pathname";
-import { StepsPageScreen } from "../../steps/step-page-screen";
-import { ArchivedFiscalPeriodScreen } from "./archived-fiscal-period-screen";
+import { normalizePathname } from "../../shared/pathname.js";
+import { StepsPageScreen } from "../../steps/step-page-screen.js";
+import { ArchivedFiscalPeriodScreen } from "./archived-fiscal-period-screen.js";
 
 const STEPPER_PASSTHROUGH_PATHS = new Set<string>([
   "/steps/journalizing/analytics",

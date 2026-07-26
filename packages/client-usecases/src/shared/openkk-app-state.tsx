@@ -28,9 +28,9 @@ import type {
   OpenkkUser,
   Session,
 } from "@rubydogjp/openkk-client-domain";
-import { useBackendApi } from "./backend-api-context";
-import { useOpenkkConfig } from "./openkk-config-context";
-import { entryRecordToImportPayload } from "../entries/import-mapping";
+import { useBackendApi } from "./backend-api-context.js";
+import { useOpenkkConfig } from "./openkk-config-context.js";
+import { entryRecordToImportPayload } from "../entries/import-mapping.js";
 
 type OpenkkAppState = {
   session: Session | null;

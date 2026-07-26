@@ -1,7 +1,7 @@
 // Generated from resources/gen/bookkeeping_master_data.json. Do not edit directly.
 // Regenerate: npm run gen-master-data
 
-import type { EntryAccountVisualType } from "./entries-types";
+import type { EntryAccountVisualType } from "./entries-types.js";
 
 export type NormalBalanceSide = "debit" | "credit";
 
