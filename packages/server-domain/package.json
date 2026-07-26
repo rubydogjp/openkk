@@ -1,6 +1,6 @@
 {
   "name": "@rubydogjp/openkk-server-domain",
-  "version": "26.1.9",
+  "version": "26.1.10",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
