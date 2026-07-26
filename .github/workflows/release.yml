@@ -25,9 +25,10 @@ jobs:
           registry-url: "https://registry.npmjs.org"
           package-manager-cache: false
 
-      - name: Verify tag matches package versions
-        if: github.ref_type == 'tag'
-        run: node scripts/verify-release-version.mjs "$GITHUB_REF_NAME"
+      - name: Verify release
+        env:
+          RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+        run: node scripts/verify-release.mjs
 
       - run: npm ci
 
