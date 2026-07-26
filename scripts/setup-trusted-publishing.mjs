@@ -33,6 +33,8 @@ const targets = readdirSync(packagesDir, { withFileTypes: true })
   .sort();
 
 console.log(`${repo} / ${WORKFLOW_FILE} を ${targets.length} パッケージに設定します`);
+console.log("最初の 2FA 画面で「次の 5 分間はスキップ」を選ぶと、残りは無認証で通ります。");
+console.log("");
 
 const failed = [];
 
@@ -56,7 +58,7 @@ for (const name of targets) {
     console.log(`  ok   ${name}`);
   } catch {
     failed.push(name);
-    console.error(`  FAIL ${name}`);
+    console.log(`  FAIL ${name}`);
   }
 }
 
@@ -65,7 +67,7 @@ if (failed.length > 0) {
   console.error(`${failed.length} 件が失敗しました:`);
   for (const name of failed) console.error(`  ${name}`);
   console.error("");
-  console.error("パッケージが npm 上に存在しない場合は先に publish が必要です。");
+  console.error("再実行すれば残りが処理されます。");
   process.exit(1);
 }
 
