@@ -17,16 +17,17 @@
   },
   "scripts": {
     "dev": "next dev --port 4322",
+    "dev:vscode": "next dev --hostname localhost --port 4322",
     "build": "next build",
     "start": "next start",
     "lint": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@rubydogjp/openkk-client": "^1.0.0",
-    "@rubydogjp/openkk-embedded-backend": "^1.0.0",
-    "@rubydogjp/openkk-embedded-backend-adapter": "^1.0.0",
-    "@rubydogjp/openkk-file-db-adapter": "^1.0.0",
-    "@rubydogjp/openkk-frontend": "^1.0.0",
+    "@rubydogjp/openkk-client": "^26.1.7",
+    "@rubydogjp/openkk-embedded-backend": "^26.1.7",
+    "@rubydogjp/openkk-embedded-backend-adapter": "^26.1.7",
+    "@rubydogjp/openkk-file-db-adapter": "^26.1.7",
+    "@rubydogjp/openkk-frontend": "^26.1.7",
     "next": "^15.3.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"

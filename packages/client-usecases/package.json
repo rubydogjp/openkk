@@ -1,6 +1,6 @@
 {
   "name": "@rubydogjp/openkk-client-usecases",
-  "version": "1.0.0",
+  "version": "26.1.7",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -15,8 +15,8 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@rubydogjp/openkk-client-ports": "^1.0.0",
-    "@rubydogjp/openkk-client-domain": "^1.0.0"
+    "@rubydogjp/openkk-client-ports": "^26.1.7",
+    "@rubydogjp/openkk-client-domain": "^26.1.7"
   },
   "peerDependencies": {
     "react": "^19.0.0"

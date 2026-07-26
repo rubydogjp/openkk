@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "publish せず、配布物の内容だけ確認する"
+        type: boolean
+        default: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Verify tag matches package versions
+        if: github.ref_type == 'tag'
+        run: node scripts/verify-release-version.mjs "$GITHUB_REF_NAME"
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Publish (dry run)
+        if: github.ref_type != 'tag' || inputs.dry_run
+        run: npm publish --workspaces --access public --dry-run
+
+      - name: Publish
+        if: github.ref_type == 'tag' && !inputs.dry_run
+        run: npm publish --workspaces --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

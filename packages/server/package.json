@@ -1,6 +1,6 @@
 {
   "name": "@rubydogjp/openkk-server",
-  "version": "1.0.0",
+  "version": "26.1.7",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -15,10 +15,10 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@rubydogjp/openkk-server-ports": "^1.0.0",
-    "@rubydogjp/openkk-server-api": "^1.0.0",
-    "@rubydogjp/openkk-server-domain": "^1.0.0",
-    "@rubydogjp/openkk-server-usecases": "^1.0.0"
+    "@rubydogjp/openkk-server-ports": "^26.1.7",
+    "@rubydogjp/openkk-server-api": "^26.1.7",
+    "@rubydogjp/openkk-server-domain": "^26.1.7",
+    "@rubydogjp/openkk-server-usecases": "^26.1.7"
   },
   "devDependencies": {
     "typescript": "^5.8.3"
