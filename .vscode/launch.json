@@ -2,28 +2,25 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "OpenKK Dev",
-      "type": "node-terminal",
+      "name": "OpenKK Original",
+      "type": "chrome",
       "request": "launch",
-      "cwd": "${workspaceFolder}/packages/openkk",
-      "command": "npm run dev",
-      "serverReadyAction": {
-        "pattern": "- Local:\\s+(http://localhost:4303)",
-        "uriFormat": "%s",
-        "action": "openExternally"
-      }
+      "url": "http://localhost:4322",
+      "preLaunchTask": "openkk: original"
+    },
+    {
+      "name": "OpenKK Sim",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:4303",
+      "preLaunchTask": "openkk: sim"
     },
     {
       "name": "OpenKK Demo",
-      "type": "node-terminal",
+      "type": "chrome",
       "request": "launch",
-      "cwd": "${workspaceFolder}/packages/openkk",
-      "command": "npm run dev:demo",
-      "serverReadyAction": {
-        "pattern": "- Local:\\s+(http://localhost:4312)",
-        "uriFormat": "%s",
-        "action": "openExternally"
-      }
+      "url": "http://localhost:4304",
+      "preLaunchTask": "openkk: demo"
     }
   ]
 }
