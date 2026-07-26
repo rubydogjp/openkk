@@ -33,6 +33,7 @@
     "gen-master-data": "node scripts/gen-master-data.mjs",
     "gen-theme-docs": "node scripts/gen-theme-docs.mjs",
     "version:set": "node scripts/set-version.mjs",
+    "setup-trusted-publishing": "node scripts/setup-trusted-publishing.mjs",
     "dev:vscode:openkk": "npm run dev:vscode -w @rubydogjp/openkk",
     "dev:vscode:sim": "npm run dev:vscode -w @rubydogjp/openkk-sim",
     "dev:vscode:demo": "npm run dev:vscode -w @rubydogjp/openkk-demo",
