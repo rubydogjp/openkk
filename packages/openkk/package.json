@@ -1,6 +1,6 @@
 {
   "name": "@rubydogjp/openkk",
-  "version": "26.1.8",
+  "version": "26.1.9",
   "private": true,
   "type": "module",
   "description": "オープン会計 runnable Next.js app: open-source double-entry bookkeeping for sole proprietors.",
@@ -23,11 +23,11 @@
     "lint": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@rubydogjp/openkk-client": "^26.1.8",
-    "@rubydogjp/openkk-embedded-backend": "^26.1.8",
-    "@rubydogjp/openkk-embedded-backend-adapter": "^26.1.8",
-    "@rubydogjp/openkk-file-db-adapter": "^26.1.8",
-    "@rubydogjp/openkk-frontend": "^26.1.8",
+    "@rubydogjp/openkk-client": "^26.1.9",
+    "@rubydogjp/openkk-embedded-backend": "^26.1.9",
+    "@rubydogjp/openkk-embedded-backend-adapter": "^26.1.9",
+    "@rubydogjp/openkk-file-db-adapter": "^26.1.9",
+    "@rubydogjp/openkk-frontend": "^26.1.9",
     "next": "^15.3.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"

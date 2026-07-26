@@ -1,6 +1,6 @@
 {
   "name": "@rubydogjp/openkk-embedded-backend",
-  "version": "26.1.8",
+  "version": "26.1.9",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -15,7 +15,7 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@rubydogjp/openkk-server": "^26.1.8"
+    "@rubydogjp/openkk-server": "^26.1.9"
   },
   "devDependencies": {
     "typescript": "^5.8.3"
