@@ -1,6 +1,6 @@
 {
   "name": "@rubydogjp/openkk-frontend",
-  "version": "26.1.10",
+  "version": "26.1.11",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -15,8 +15,8 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@rubydogjp/openkk-client": "^26.1.10",
-    "@rubydogjp/openkk-print-adapter": "^26.1.10"
+    "@rubydogjp/openkk-client": "^26.1.11",
+    "@rubydogjp/openkk-print-adapter": "^26.1.11"
   },
   "peerDependencies": {
     "next": "^15.3.2",

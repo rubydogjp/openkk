@@ -1,6 +1,6 @@
 {
   "name": "@rubydogjp/openkk-client-domain",
-  "version": "26.1.10",
+  "version": "26.1.11",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
