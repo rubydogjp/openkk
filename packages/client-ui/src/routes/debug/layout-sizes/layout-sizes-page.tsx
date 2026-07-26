@@ -9,6 +9,7 @@ import {
   shadows,
   sizes,
   spacing,
+  tokenDefaults,
   typography,
 } from "../../../shared/design-tokens";
 import { DocumentFileList } from "../../../shared/document-file-tile";
@@ -493,8 +494,8 @@ const proposedButtonExamples = [
   },
   {
     label: "売上高",
-    height: sizes.account.tableHeight,
-    minWidth: sizes.account.tableWidth,
+    height: tokenDefaults.sizes.account.tableHeight,
+    minWidth: tokenDefaults.sizes.account.tableWidth,
     padding: "0 11px",
     icon: true,
     chevron: false,
@@ -503,8 +504,8 @@ const proposedButtonExamples = [
   },
   {
     label: "詳細",
-    height: sizes.button.compactHeight,
-    minWidth: sizes.button.compactMinWidth,
+    height: tokenDefaults.sizes.button.compactHeight,
+    minWidth: tokenDefaults.sizes.button.compactMinWidth,
     padding: "0 14px",
     icon: false,
     chevron: false,
@@ -513,8 +514,8 @@ const proposedButtonExamples = [
   },
   {
     label: "追加",
-    height: sizes.button.compactHeight,
-    minWidth: sizes.button.compactIconTextMinWidth,
+    height: tokenDefaults.sizes.button.compactHeight,
+    minWidth: tokenDefaults.sizes.button.compactIconTextMinWidth,
     padding: "0 12px",
     icon: true,
     chevron: false,
@@ -523,8 +524,8 @@ const proposedButtonExamples = [
   },
   {
     label: "期間",
-    height: sizes.field.height,
-    minWidth: sizes.button.formSecondaryMinWidth,
+    height: tokenDefaults.sizes.field.height,
+    minWidth: tokenDefaults.sizes.button.formSecondaryMinWidth,
     padding: "0 12px",
     icon: false,
     chevron: true,
@@ -533,8 +534,8 @@ const proposedButtonExamples = [
   },
   {
     label: "キャンセル",
-    height: sizes.button.formHeight,
-    minWidth: sizes.button.formSecondaryMinWidth,
+    height: tokenDefaults.sizes.button.formHeight,
+    minWidth: tokenDefaults.sizes.button.formSecondaryMinWidth,
     padding: "0 16px",
     icon: false,
     chevron: false,
@@ -543,8 +544,8 @@ const proposedButtonExamples = [
   },
   {
     label: "保存する",
-    height: sizes.button.formHeight,
-    minWidth: sizes.button.formPrimaryMinWidth,
+    height: tokenDefaults.sizes.button.formHeight,
+    minWidth: tokenDefaults.sizes.button.formPrimaryMinWidth,
     padding: "0 18px",
     icon: false,
     chevron: false,
@@ -553,8 +554,8 @@ const proposedButtonExamples = [
   },
   {
     label: "サインイン",
-    height: sizes.button.ctaHeight,
-    minWidth: sizes.button.ctaMinWidth,
+    height: tokenDefaults.sizes.button.ctaHeight,
+    minWidth: tokenDefaults.sizes.button.ctaMinWidth,
     padding: "0 20px",
     icon: false,
     chevron: false,
@@ -905,7 +906,7 @@ export function LayoutSizesPage() {
                       display: "flex",
                       alignItems: "center",
                       gap: spacing.s10,
-                      padding: `${spacing.s14}px ${spacing.s12}px ${spacing.s8}px`,
+                      padding: `${spacing.s14} ${spacing.s12} ${spacing.s8}`,
                     }}
                   >
                     <div
@@ -944,7 +945,7 @@ export function LayoutSizesPage() {
                           display: "flex",
                           alignItems: "center",
                           gap: spacing.s10,
-                          padding: `0 ${spacing.s12}px`,
+                          padding: `0 ${spacing.s12}`,
                           borderRadius: radii.sm,
                           background:
                             index === 1 ? palette.surfaceTint : "transparent",
@@ -998,7 +999,7 @@ export function LayoutSizesPage() {
                         <div
                           key={label}
                           style={{
-                            padding: `0 ${spacing.s12}px`,
+                            padding: `0 ${spacing.s12}`,
                             ...typography.label,
                             color: palette.textLabel,
                           }}
@@ -1018,19 +1019,19 @@ export function LayoutSizesPage() {
                     >
                       <div
                         style={{
-                          padding: `0 ${spacing.s12}px`,
+                          padding: `0 ${spacing.s12}`,
                           ...typography.body,
                         }}
                       >
                         05/21
                       </div>
-                      <div style={{ padding: `0 ${spacing.s8}px` }}>
+                      <div style={{ padding: `0 ${spacing.s8}` }}>
                         <span style={idealAccountStyle}>売上高</span>
                         <span style={idealChipStyle}>取引先</span>
                       </div>
                       <div
                         style={{
-                          padding: `0 ${spacing.s12}px`,
+                          padding: `0 ${spacing.s12}`,
                           textAlign: "right",
                           ...typography.amount,
                         }}
@@ -1057,7 +1058,7 @@ export function LayoutSizesPage() {
                       display: "flex",
                       alignItems: "center",
                       gap: spacing.s12,
-                      padding: `0 ${spacing.s12}px`,
+                      padding: `0 ${spacing.s12}`,
                       borderBottom: `1px solid ${palette.borderSubtle}`,
                     }}
                   >
@@ -1169,7 +1170,7 @@ export function LayoutSizesPage() {
                   <div
                     style={{
                       height: 52,
-                      padding: `0 ${spacing.s20}px`,
+                      padding: `0 ${spacing.s20}`,
                       display: "flex",
                       alignItems: "center",
                       borderBottom: `1px solid ${palette.borderSubtle}`,
@@ -1190,7 +1191,7 @@ export function LayoutSizesPage() {
                     <FormPreviewField label="金額" value="88,000" />
                     <p
                       style={{
-                        margin: `${spacing.s12}px 0 0`,
+                        margin: `${spacing.s12} 0 0`,
                         ...typography.helper,
                         color: palette.textSoft,
                       }}
@@ -1231,7 +1232,7 @@ export function LayoutSizesPage() {
                   <div
                     style={{
                       height: 52,
-                      padding: `0 ${spacing.s20}px`,
+                      padding: `0 ${spacing.s20}`,
                       display: "flex",
                       alignItems: "center",
                       borderBottom: `1px solid ${palette.borderSubtle}`,
@@ -1304,7 +1305,7 @@ export function LayoutSizesPage() {
                       <div
                         key={label}
                         style={{
-                          padding: `0 ${spacing.s12}px`,
+                          padding: `0 ${spacing.s12}`,
                           ...typography.label,
                           color: palette.textLabel,
                         }}
@@ -1324,19 +1325,19 @@ export function LayoutSizesPage() {
                   >
                     <div
                       style={{
-                        padding: `0 ${spacing.s12}px`,
+                        padding: `0 ${spacing.s12}`,
                         ...typography.body,
                       }}
                     >
                       05/21
                     </div>
-                    <div style={{ padding: `0 ${spacing.s8}px` }}>
+                    <div style={{ padding: `0 ${spacing.s8}` }}>
                       <span style={idealAccountStyle}>売上高</span>
                       <span style={idealChipStyle}>取引先</span>
                     </div>
                     <div
                       style={{
-                        padding: `0 ${spacing.s12}px`,
+                        padding: `0 ${spacing.s12}`,
                         textAlign: "right",
                         ...typography.amount,
                       }}
@@ -1940,7 +1941,7 @@ const idealInputStyle: CSSProperties = {
   borderRadius: radii.sm,
   border: `1px solid ${palette.borderStrong}`,
   background: palette.surface,
-  padding: `0 ${spacing.s12}px`,
+  padding: `0 ${spacing.s12}`,
   color: palette.text,
   fontFamily: "inherit",
   ...typography.input,
@@ -1949,7 +1950,7 @@ const idealInputStyle: CSSProperties = {
 const idealSecondaryButtonStyle: CSSProperties = {
   height: sizes.button.formHeight,
   minWidth: sizes.button.formSecondaryMinWidth,
-  padding: `0 ${spacing.s16}px`,
+  padding: `0 ${spacing.s16}`,
   borderRadius: radii.sm,
   border: `1px solid ${palette.actionBorder}`,
   background: palette.surface,

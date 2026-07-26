@@ -1,4 +1,5 @@
-
+// 上書きの方法は docs/theming.md を参照。
+// 数値トークンは単位付きの文字列なので、`${spacing.s12}px` のように単位を足さないこと。
 
 const slate = {
   white: "#FFFFFF",
@@ -13,8 +14,51 @@ const slate = {
   s900: "#0F172A",
 };
 
-export const palette = {
+type VarMap<T> = { [K in keyof T]: string };
 
+const kebab = (key: string) =>
+  key.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
+
+const cssVar = (name: string, fallback: string) => `var(--openkk-${name}, ${fallback})`;
+
+function stringVars<T extends Record<string, string>>(
+  prefix: string,
+  defaults: T,
+): VarMap<T> {
+  return Object.fromEntries(
+    Object.entries(defaults).map(([key, value]) => [
+      key,
+      cssVar(`${prefix}-${kebab(key)}`, value),
+    ]),
+  ) as VarMap<T>;
+}
+
+function pxVars<T extends Record<string, number>>(
+  prefix: string,
+  defaults: T,
+  nameOf: (key: string) => string = kebab,
+): VarMap<T> {
+  return Object.fromEntries(
+    Object.entries(defaults).map(([key, value]) => [
+      key,
+      cssVar(`${prefix}-${nameOf(key)}`, `${value}px`),
+    ]),
+  ) as VarMap<T>;
+}
+
+function unitlessVars<T extends Record<string, number>>(
+  prefix: string,
+  defaults: T,
+): VarMap<T> {
+  return Object.fromEntries(
+    Object.entries(defaults).map(([key, value]) => [
+      key,
+      cssVar(`${prefix}-${kebab(key)}`, String(value)),
+    ]),
+  ) as VarMap<T>;
+}
+
+const paletteDefaults = {
   surface: slate.white,
 
   pageBg: slate.white,
@@ -94,10 +138,7 @@ export const palette = {
   accountLossBorder: "#FDA4AF",
 };
 
-export const slateScale = slate;
-
-export const shadows = {
-
+const shadowDefaults = {
   card: "0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.03)",
 
   drawer:
@@ -110,11 +151,11 @@ export const shadows = {
   primaryButton: "0 1px 2px rgba(37, 99, 235, 0.22)",
 };
 
-export const rings = {
+const ringDefaults = {
   brandFocus: "0 0 0 3px rgba(37, 99, 235, 0.14)",
 };
 
-export const fontSize = {
+const fontSizeDefaults = {
   micro: 10,
   xs: 11,
   sm: 12,
@@ -124,93 +165,19 @@ export const fontSize = {
   xl: 18,
 };
 
-export const fontWeight = {
+const fontWeightDefaults = {
   regular: 400,
   medium: 500,
   semibold: 600,
   bold: 700,
 };
 
-export const fontFamily = {
+const fontFamilyDefaults = {
   sans: 'var(--font-sans), "Noto Sans JP", sans-serif',
   mono: 'var(--font-mono), "Noto Sans Mono", ui-monospace, monospace',
 };
 
-export const typography = {
-  finePrint: {
-    fontSize: fontSize.micro,
-    lineHeight: 1.4,
-    fontWeight: fontWeight.semibold,
-  },
-  meta: {
-    fontSize: fontSize.xs,
-    lineHeight: 1.45,
-    fontWeight: fontWeight.medium,
-  },
-  helper: {
-    fontSize: fontSize.sm,
-    lineHeight: 1.6,
-    fontWeight: fontWeight.regular,
-  },
-  body: {
-    fontSize: fontSize.base,
-    lineHeight: 1.7,
-    fontWeight: fontWeight.regular,
-  },
-  input: {
-    fontSize: fontSize.md,
-    lineHeight: 1.45,
-    fontWeight: fontWeight.regular,
-  },
-  label: {
-    fontSize: fontSize.sm,
-    lineHeight: 1.4,
-    fontWeight: fontWeight.semibold,
-  },
-  control: {
-    fontSize: fontSize.base,
-    lineHeight: 1.4,
-    fontWeight: fontWeight.semibold,
-  },
-  amount: {
-    fontFamily: fontFamily.mono,
-    fontSize: fontSize.base,
-    lineHeight: 1.4,
-    fontWeight: fontWeight.semibold,
-  },
-  chip: {
-    fontSize: fontSize.sm,
-    lineHeight: 1.35,
-    fontWeight: fontWeight.regular,
-  },
-  accountLabel: {
-    fontSize: fontSize.base,
-    lineHeight: 1.35,
-    fontWeight: fontWeight.bold,
-  },
-  sectionTitle: {
-    fontSize: fontSize.lg,
-    lineHeight: 1.45,
-    fontWeight: fontWeight.bold,
-  },
-  contentTitle: {
-    fontSize: fontSize.xl,
-    lineHeight: 1.4,
-    fontWeight: fontWeight.bold,
-  },
-  dialogTitle: {
-    fontSize: 20,
-    lineHeight: 1.3,
-    fontWeight: fontWeight.bold,
-  },
-  pageTitle: {
-    fontSize: 24,
-    lineHeight: 1.25,
-    fontWeight: fontWeight.bold,
-  },
-} as const;
-
-export const spacing = {
+const spacingDefaults = {
   s2: 2,
   s4: 4,
   s6: 6,
@@ -226,7 +193,7 @@ export const spacing = {
   s40: 40,
 };
 
-export const radii = {
+const radiiDefaults = {
   xs: 6,
   sm: 8,
   md: 10,
@@ -234,7 +201,7 @@ export const radii = {
   pill: 999,
 };
 
-export const sizes = {
+const sizeDefaults = {
   button: {
     compactHeight: 36,
     compactMinWidth: 72,
@@ -274,4 +241,143 @@ export const sizes = {
     width: 560,
     headerHeight: 52,
   },
+};
+
+const typographyDefaults = {
+  finePrint: { fontSize: "micro", lineHeight: 1.4, fontWeight: "semibold" },
+  meta: { fontSize: "xs", lineHeight: 1.45, fontWeight: "medium" },
+  helper: { fontSize: "sm", lineHeight: 1.6, fontWeight: "regular" },
+  body: { fontSize: "base", lineHeight: 1.7, fontWeight: "regular" },
+  input: { fontSize: "md", lineHeight: 1.45, fontWeight: "regular" },
+  label: { fontSize: "sm", lineHeight: 1.4, fontWeight: "semibold" },
+  control: { fontSize: "base", lineHeight: 1.4, fontWeight: "semibold" },
+  amount: {
+    fontFamily: "mono",
+    fontSize: "base",
+    lineHeight: 1.4,
+    fontWeight: "semibold",
+  },
+  chip: { fontSize: "sm", lineHeight: 1.35, fontWeight: "regular" },
+  accountLabel: { fontSize: "base", lineHeight: 1.35, fontWeight: "bold" },
+  sectionTitle: { fontSize: "lg", lineHeight: 1.45, fontWeight: "bold" },
+  contentTitle: { fontSize: "xl", lineHeight: 1.4, fontWeight: "bold" },
+  dialogTitle: { fontSize: 20, lineHeight: 1.3, fontWeight: "bold" },
+  pageTitle: { fontSize: 24, lineHeight: 1.25, fontWeight: "bold" },
 } as const;
+
+export const palette = stringVars("color", paletteDefaults);
+
+export const slateScale = slate;
+
+export const shadows = stringVars("shadow", shadowDefaults);
+
+export const rings = stringVars("ring", ringDefaults);
+
+export const fontSize = pxVars("font-size", fontSizeDefaults);
+
+export const fontWeight = unitlessVars("font-weight", fontWeightDefaults);
+
+export const fontFamily = stringVars("font-family", fontFamilyDefaults);
+
+export const spacing = pxVars("space", spacingDefaults, (key) =>
+  key.replace(/^s/, ""),
+);
+
+export const radii = pxVars("radius", radiiDefaults);
+
+export const sizes = {
+  button: pxVars("size-button", sizeDefaults.button),
+  field: pxVars("size-field", sizeDefaults.field),
+  chip: pxVars("size-chip", sizeDefaults.chip),
+  account: pxVars("size-account", sizeDefaults.account),
+  shell: pxVars("size-shell", sizeDefaults.shell),
+  content: pxVars("size-content", sizeDefaults.content),
+  drawer: pxVars("size-drawer", sizeDefaults.drawer),
+};
+
+type TypographyToken = keyof typeof typographyDefaults;
+
+type TypographyStyle = {
+  fontSize: string;
+  lineHeight: string;
+  fontWeight: string;
+  fontFamily?: string;
+};
+
+function typographyStyle(token: TypographyToken): TypographyStyle {
+  const spec = typographyDefaults[token];
+  const name = `typography-${kebab(token)}`;
+
+  const size =
+    typeof spec.fontSize === "number"
+      ? `${spec.fontSize}px`
+      : fontSize[spec.fontSize];
+
+  const style: TypographyStyle = {
+    fontSize: cssVar(`${name}-font-size`, size),
+    lineHeight: cssVar(`${name}-line-height`, String(spec.lineHeight)),
+    fontWeight: cssVar(`${name}-font-weight`, fontWeight[spec.fontWeight]),
+  };
+
+  if ("fontFamily" in spec) {
+    style.fontFamily = cssVar(
+      `${name}-font-family`,
+      fontFamily[spec.fontFamily],
+    );
+  }
+
+  return style;
+}
+
+export const typography = {
+  finePrint: typographyStyle("finePrint"),
+  meta: typographyStyle("meta"),
+  helper: typographyStyle("helper"),
+  body: typographyStyle("body"),
+  input: typographyStyle("input"),
+  label: typographyStyle("label"),
+  control: typographyStyle("control"),
+  amount: typographyStyle("amount"),
+  chip: typographyStyle("chip"),
+  accountLabel: typographyStyle("accountLabel"),
+  sectionTitle: typographyStyle("sectionTitle"),
+  contentTitle: typographyStyle("contentTitle"),
+  dialogTitle: typographyStyle("dialogTitle"),
+  pageTitle: typographyStyle("pageTitle"),
+};
+
+export const tokenDefaults = {
+  palette: paletteDefaults,
+  shadows: shadowDefaults,
+  rings: ringDefaults,
+  fontSize: fontSizeDefaults,
+  fontWeight: fontWeightDefaults,
+  fontFamily: fontFamilyDefaults,
+  spacing: spacingDefaults,
+  radii: radiiDefaults,
+  sizes: sizeDefaults,
+  typography: Object.fromEntries(
+    Object.entries(typographyDefaults).map(([token, spec]) => [
+      token,
+      {
+        fontSize:
+          typeof spec.fontSize === "number"
+            ? spec.fontSize
+            : fontSizeDefaults[spec.fontSize],
+        lineHeight: spec.lineHeight,
+        fontWeight: fontWeightDefaults[spec.fontWeight],
+        ...("fontFamily" in spec
+          ? { fontFamily: fontFamilyDefaults[spec.fontFamily] }
+          : {}),
+      },
+    ]),
+  ) as Record<
+    TypographyToken,
+    {
+      fontSize: number;
+      lineHeight: number;
+      fontWeight: number;
+      fontFamily?: string;
+    }
+  >,
+};

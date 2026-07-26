@@ -19,12 +19,13 @@
 }
 
 .bk-amount-input {
-  box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.04);
+  box-shadow: var(--openkk-shadow-input-inset, inset 0 1px 0 rgba(15, 23, 42, 0.04));
   transition: border-color 80ms ease;
 }
 .bk-amount-input:focus {
-  border-color: #1D4ED8 !important;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14), inset 0 1px 0 rgba(15, 23, 42, 0.04);
+  border-color: var(--openkk-color-brand, #1D4ED8) !important;
+  box-shadow: var(--openkk-ring-brand-focus, 0 0 0 3px rgba(37, 99, 235, 0.14)),
+    var(--openkk-shadow-input-inset, inset 0 1px 0 rgba(15, 23, 42, 0.04));
 }
 
 .bk-step-row {

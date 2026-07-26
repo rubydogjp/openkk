@@ -9,17 +9,13 @@ import {
   radii,
   shadows,
   spacing,
+  tokenDefaults,
   typography,
 } from "../../../shared/design-tokens";
 
 type TypeToken = {
   name: string;
-  spec: {
-    fontSize: number;
-    lineHeight: number;
-    fontWeight: number;
-    fontFamily?: string;
-  };
+  styleToken: keyof typeof typography;
   role: string;
   sample: string;
   keepReason: string;
@@ -28,7 +24,7 @@ type TypeToken = {
 const typeTokens: TypeToken[] = [
   {
     name: "Fine Print",
-    spec: typography.finePrint,
+    styleToken: "finePrint",
     role: "10px / 軸・曜日など、短いメタ表示だけ。",
     sample: "05/21 WED",
     keepReason:
@@ -36,14 +32,14 @@ const typeTokens: TypeToken[] = [
   },
   {
     name: "Meta",
-    spec: typography.meta,
+    styleToken: "meta",
     role: "11px / ラベルより弱い補助メタ。",
     sample: "最終更新 12:34",
     keepReason: "Fine Print より読ませるが、本文ではない情報に限定する。",
   },
   {
     name: "Helper",
-    spec: typography.helper,
+    styleToken: "helper",
     role: "12px / 説明・補足・validation。",
     sample: "この項目はあとから変更できます。",
     keepReason:
@@ -51,7 +47,7 @@ const typeTokens: TypeToken[] = [
   },
   {
     name: "Body",
-    spec: typography.body,
+    styleToken: "body",
     role: "13px / アプリ本文とテーブル本文の標準。",
     sample: "売上、経費、決算整理を順番に確認します。",
     keepReason:
@@ -59,7 +55,7 @@ const typeTokens: TypeToken[] = [
   },
   {
     name: "Input",
-    spec: typography.input,
+    styleToken: "input",
     role: "14px / 入力値と steps の導入文。",
     sample: "5月分 売上入金",
     keepReason:
@@ -67,7 +63,7 @@ const typeTokens: TypeToken[] = [
   },
   {
     name: "Label",
-    spec: typography.label,
+    styleToken: "label",
     role: "12px / フォーム・表ヘッダー・固定ラベル。",
     sample: "取引日",
     keepReason:
@@ -75,21 +71,21 @@ const typeTokens: TypeToken[] = [
   },
   {
     name: "Control",
-    spec: typography.control,
+    styleToken: "control",
     role: "13px / ボタン・select・menu item。",
     sample: "追加",
     keepReason: "Body と同サイズだが、押せる要素として semibold に固定する。",
   },
   {
     name: "Amount",
-    spec: typography.amount,
+    styleToken: "amount",
     role: "13px / 金額・数値列。",
     sample: "1,234,567",
     keepReason: "NotoSansMono 専用。桁揃えが目的なので Body とは分ける。",
   },
   {
     name: "Chip",
-    spec: typography.chip,
+    styleToken: "chip",
     role: "12px / 取引先・事業割合などのタグ。",
     sample: "取引先: RubyDog",
     keepReason:
@@ -97,7 +93,7 @@ const typeTokens: TypeToken[] = [
   },
   {
     name: "Account Label",
-    spec: typography.accountLabel,
+    styleToken: "accountLabel",
     role: "13px / 勘定科目コンテナ。",
     sample: "売上高",
     keepReason:
@@ -105,7 +101,7 @@ const typeTokens: TypeToken[] = [
   },
   {
     name: "Section Title",
-    spec: typography.sectionTitle,
+    styleToken: "sectionTitle",
     role: "15px / カード・drawer 内の小見出し。",
     sample: "取引情報",
     keepReason:
@@ -113,14 +109,14 @@ const typeTokens: TypeToken[] = [
   },
   {
     name: "Content Title",
-    spec: typography.contentTitle,
+    styleToken: "contentTitle",
     role: "18px / steps の H2 相当。",
     sample: "月別の収支推移を確認する",
     keepReason: "Markdown 的な章見出し。Section Title と役割が違うため残す。",
   },
   {
     name: "Dialog Title",
-    spec: typography.dialogTitle,
+    styleToken: "dialogTitle",
     role: "20px / モーダル・空状態の短い独立タイトル。",
     sample: "期間がロックされています",
     keepReason:
@@ -128,7 +124,7 @@ const typeTokens: TypeToken[] = [
   },
   {
     name: "Page Title",
-    spec: typography.pageTitle,
+    styleToken: "pageTitle",
     role: "24px / ページ H1。",
     sample: "決算書を作成する",
     keepReason:
@@ -429,7 +425,9 @@ function Card({
 }
 
 function TypeRow({ token }: { token: TypeToken }) {
-  const cssText = `${token.spec.fontSize}px / ${token.spec.lineHeight} / ${token.spec.fontWeight}`;
+  const specStyle = typography[token.styleToken];
+  const specDefaults = tokenDefaults.typography[token.styleToken];
+  const cssText = `${specDefaults.fontSize}px / ${specDefaults.lineHeight} / ${specDefaults.fontWeight}`;
 
   return (
     <Card
@@ -445,7 +443,7 @@ function TypeRow({ token }: { token: TypeToken }) {
         <code style={codeStyle}>{cssText}</code>
       </div>
       <div>
-        <div style={{ ...token.spec, color: palette.text }}>{token.sample}</div>
+        <div style={{ ...specStyle, color: palette.text }}>{token.sample}</div>
         <div
           style={{ marginTop: 6, ...typography.meta, color: palette.textLabel }}
         >

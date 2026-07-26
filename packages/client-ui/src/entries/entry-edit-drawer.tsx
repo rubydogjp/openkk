@@ -1177,7 +1177,7 @@ function PlainInput({
         border: `1px solid ${C.border}`,
         borderRadius: radii.sm,
         background: C.bg,
-        padding: `0 ${sizes.field.paddingX}px`,
+        padding: `0 ${sizes.field.paddingX}`,
         ...typography.input,
         color: C.text,
         outline: "none",

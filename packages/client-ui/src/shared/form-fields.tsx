@@ -21,7 +21,7 @@ export function FormStack({
   gap = spacing.s28,
   children,
 }: {
-  gap?: number;
+  gap?: number | string;
   children: ReactNode;
 }) {
   return (
@@ -83,7 +83,7 @@ export function FormTextInput({
         background: readOnly ? palette.pageBg : palette.surface,
 
         color: readOnly ? palette.textMuted : palette.text,
-        padding: `0 ${sizes.field.paddingX}px`,
+        padding: `0 ${sizes.field.paddingX}`,
         ...typography.input,
         outline: "none",
       }}
@@ -110,7 +110,7 @@ export function FormReadOnlyValue({
         background: palette.pageBg,
 
         color: palette.textMuted,
-        padding: `0 ${sizes.field.paddingX}px`,
+        padding: `0 ${sizes.field.paddingX}`,
         display: "flex",
         alignItems: "center",
         ...typography.input,
@@ -159,7 +159,7 @@ function ReadOnlyDate({ value }: { value: string }) {
         borderRadius: radii.sm,
         border: `1px solid ${palette.borderSubtle}`,
         background: palette.pageBg,
-        padding: `0 ${sizes.field.paddingX}px`,
+        padding: `0 ${sizes.field.paddingX}`,
         display: "inline-flex",
         alignItems: "center",
         color: palette.textMuted,
@@ -175,7 +175,7 @@ export function FormHelpText({ children }: { children: ReactNode }) {
   return (
     <p
       style={{
-        margin: `${spacing.s12}px 0 0`,
+        margin: `${spacing.s12} 0 0`,
         color: palette.textMuted,
         ...typography.helper,
       }}
@@ -189,7 +189,7 @@ export function FormErrorText({ children }: { children: ReactNode }) {
   return (
     <p
       style={{
-        margin: `${spacing.s12}px 0 0`,
+        margin: `${spacing.s12} 0 0`,
         color: palette.danger,
         ...typography.helper,
         fontWeight: fontWeight.semibold,

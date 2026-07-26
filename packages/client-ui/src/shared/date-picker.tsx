@@ -51,7 +51,7 @@ export function DatePickerButton(props: {
         aria-label={props.ariaLabel}
         style={{
           height: sizes.field.height,
-          padding: `0 ${sizes.field.paddingX}px`,
+          padding: `0 ${sizes.field.paddingX}`,
           borderRadius: radii.sm,
           border: `1px solid ${palette.action}`,
           background: palette.surface,

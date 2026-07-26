@@ -69,7 +69,7 @@ export function AmountInput({
         border: `1px solid ${palette.borderStrong}`,
         borderRadius: radii.sm,
         background: palette.surface,
-        padding: `0 ${sizes.field.paddingX}px`,
+        padding: `0 ${sizes.field.paddingX}`,
         color: palette.text,
         outline: "none",
       }}
@@ -88,7 +88,7 @@ export function AmountReadOnlyField({ value }: { value: string }) {
         border: `1px solid ${palette.borderSubtle}`,
         borderRadius: radii.sm,
         background: palette.surface,
-        padding: `0 ${sizes.field.paddingX}px`,
+        padding: `0 ${sizes.field.paddingX}`,
         color: palette.textMuted,
         display: "flex",
         alignItems: "center",

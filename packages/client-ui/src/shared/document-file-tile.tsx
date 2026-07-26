@@ -110,7 +110,7 @@ const listStyle: CSSProperties = {
 
 const rowStyle: CSSProperties = {
   minHeight: 66,
-  padding: `0 ${spacing.s12}px`,
+  padding: `0 ${spacing.s12}`,
   display: "flex",
   alignItems: "center",
   gap: spacing.s12,

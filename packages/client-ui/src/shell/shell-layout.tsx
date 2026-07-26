@@ -328,7 +328,7 @@ function ShellChrome({
         style={{
           height: "100vh",
           display: "grid",
-          gridTemplateColumns: `${SIDEBAR_WIDTH}px 1fr`,
+          gridTemplateColumns: `${SIDEBAR_WIDTH} 1fr`,
           overflow: "hidden",
         }}
       >
@@ -881,7 +881,7 @@ function ShellChrome({
                   gap: spacing.s8,
                   height: sizes.button.ctaHeight,
                   minWidth: sizes.button.ctaMinWidth,
-                  padding: `0 ${spacing.s12}px`,
+                  padding: `0 ${spacing.s12}`,
                   borderRadius: radii.sm,
                   border: "none",
                   background: palette.brand,
