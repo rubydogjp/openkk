@@ -1,6 +1,6 @@
 {
   "name": "@rubydogjp/openkk-memory-db-adapter",
-  "version": "26.1.7",
+  "version": "26.1.8",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@sqlite.org/sqlite-wasm": "^3.50.0-build1",
-    "@rubydogjp/openkk-server-ports": "^26.1.7"
+    "@rubydogjp/openkk-server-ports": "^26.1.8"
   },
   "files": [
     "dist"

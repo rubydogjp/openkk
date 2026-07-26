@@ -1,6 +1,6 @@
 {
   "name": "@rubydogjp/openkk-sim",
-  "version": "26.1.7",
+  "version": "26.1.8",
   "private": true,
   "type": "module",
   "description": "オープン会計 Sim版 runnable Next.js app: メモリDB+モック時計の開発・検証用バンドル。",
@@ -24,11 +24,11 @@
     "dev:e2e": "next dev --port 4306"
   },
   "dependencies": {
-    "@rubydogjp/openkk-client": "^26.1.7",
-    "@rubydogjp/openkk-embedded-backend": "^26.1.7",
-    "@rubydogjp/openkk-embedded-backend-adapter": "^26.1.7",
-    "@rubydogjp/openkk-frontend": "^26.1.7",
-    "@rubydogjp/openkk-memory-db-adapter": "^26.1.7",
+    "@rubydogjp/openkk-client": "^26.1.8",
+    "@rubydogjp/openkk-embedded-backend": "^26.1.8",
+    "@rubydogjp/openkk-embedded-backend-adapter": "^26.1.8",
+    "@rubydogjp/openkk-frontend": "^26.1.8",
+    "@rubydogjp/openkk-memory-db-adapter": "^26.1.8",
     "next": "^15.3.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
