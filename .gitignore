@@ -11,3 +11,6 @@ dist
 .next/
 out/
 next-env.d.ts
+
+# repository rules
+.secrets/
