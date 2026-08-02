@@ -28,7 +28,7 @@
     "@rubydogjp/openkk-embedded-backend-adapter": "^26.1.11",
     "@rubydogjp/openkk-file-db-adapter": "^26.1.11",
     "@rubydogjp/openkk-frontend": "^26.1.11",
-    "next": "^15.3.2",
+    "next": "^16.2.12",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },

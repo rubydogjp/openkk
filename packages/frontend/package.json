@@ -19,14 +19,14 @@
     "@rubydogjp/openkk-print-adapter": "^26.1.11"
   },
   "peerDependencies": {
-    "next": "^15.3.2",
+    "next": "^15.3.2 || ^16.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.5",
-    "next": "^15.3.2",
+    "next": "^16.2.12",
     "typescript": "^5.8.3"
   },
   "description": "オープン会計 frontend ランタイム共通基盤 — bundle 非依存の Providers 配線・env パース・Next 設定を 3 バンドルアプリ(openkk/openkk_sim/openkk_demo)で共有する。",
