@@ -1,7 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 
 import { AppError } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text.js";
@@ -30,9 +30,11 @@ import {
 
 export function JournalizingBody({
   onSwitchToStep,
+  onBusyChange,
   trendPoints,
 }: {
   onSwitchToStep?: (no: number) => void;
+  onBusyChange?: (busy: boolean) => void;
   trendPoints?: StepTrendPoint[];
 }) {
   const router = useRouter();
@@ -40,6 +42,23 @@ export function JournalizingBody({
   const appState = useOpenkkAppState();
   const closingApi = useOpenkkClosing();
   const preClosingHint = useOpenkkCallout("stepJournalizingPreClosingHint");
+
+  // 「終わった」と伝えるのは、記録終了の節に切り替わったとき。
+  // 併せてグラフ側も自分で「まだ幅を測っている」と申告するので、
+  // 外からは両方が終わるまで待てる。
+  const preClosingShown =
+    appState.fiscalPeriods.find(
+      (period) => period.id === appState.currentFiscalPeriodId,
+    )?.phase === "pre_closing" ||
+    appState.fiscalPeriods.find(
+      (period) => period.id === appState.currentFiscalPeriodId,
+    )?.phase === "post_closing";
+  useEffect(() => {
+    if (preClosingShown) onBusyChange?.(false);
+  }, [preClosingShown, onBusyChange]);
+  useEffect(() => {
+    return () => onBusyChange?.(false);
+  }, [onBusyChange]);
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (period) => period.id === appState.currentFiscalPeriodId,
   );
@@ -113,6 +132,7 @@ export function JournalizingBody({
       });
       if (!forceConfirmed) return;
     }
+    onBusyChange?.(true);
     try {
       if (appState.currentFiscalPeriodId != null) {
         const year = Number(currentFiscalPeriod.endDate.slice(0, 4));
@@ -120,6 +140,7 @@ export function JournalizingBody({
       }
       setScreenError(null);
     } catch (error) {
+      onBusyChange?.(false);
       setScreenError(
         AppError.from(error, {
           fallbackUserMessage: "仮締めの更新に失敗しました",

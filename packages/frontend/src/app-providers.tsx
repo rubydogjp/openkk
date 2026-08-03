@@ -14,6 +14,7 @@ import {
 } from "@rubydogjp/openkk-client";
 import type { OpenkkBackendPort } from "@rubydogjp/openkk-client";
 import { printAdapter } from "@rubydogjp/openkk-print-adapter";
+import { WorkInProgressProvider } from "@rubydogjp/openkk-client";
 
 import type { OpenkkBundleRuntime } from "./bundle-runtime.js";
 
@@ -83,7 +84,9 @@ export function OpenkkAppProviders(props: {
                 >
                   <OpenkkEntriesProvider>
                     <OpenkkAssistProvider>
-                      {props.children}
+                      <WorkInProgressProvider>
+                        {props.children}
+                      </WorkInProgressProvider>
                     </OpenkkAssistProvider>
                   </OpenkkEntriesProvider>
                 </OpenkkAppStateProvider>

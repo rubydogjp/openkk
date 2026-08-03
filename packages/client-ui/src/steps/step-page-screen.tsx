@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import { fontSize, fontWeight, palette, sizes, typography } from "../shared/design-tokens.js";
+import { useReportWorkInProgress } from "../shared/work-in-progress.js";
 import { normalizePathname } from "../shared/pathname.js";
 import { ClosingBody } from "./bodies/closing.js";
 import { DocumentReceiveBody } from "./bodies/document-receive.js";
@@ -63,6 +64,8 @@ export function StepsPageScreen({
   const mainRef = useRef<HTMLElement>(null);
 
   const [bodyBusy, setBodyBusy] = useState(false);
+  // 処理中であることを画面の外にも伝える (テストや自動操作が正確に待てる)
+  useReportWorkInProgress(bodyBusy);
 
   useEffect(() => {
     if (previousCurrentStepRef.current === currentStepNumber) return;
@@ -201,6 +204,7 @@ function StepBody({
       return (
         <JournalizingBody
           onSwitchToStep={onSwitchToStep}
+          onBusyChange={onBusyChange}
           trendPoints={trendPoints}
         />
       );

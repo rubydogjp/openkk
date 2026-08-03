@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { useReportWorkInProgress } from "../shared/work-in-progress.js";
+
 import type { StepTrendPoint } from "@rubydogjp/openkk-client-domain";
 import { fontSize, fontWeight, palette } from "../shared/design-tokens.js";
 
@@ -59,6 +61,8 @@ export function Step3TrendChart({
 
   const plotContainerRef = useRef<HTMLDivElement>(null);
   const [availableWidth, setAvailableWidth] = useState<number | null>(null);
+  // 幅を測るまでは描き直しが続く。外から待てるように申告しておく。
+  useReportWorkInProgress(availableWidth == null);
   useEffect(() => {
     const el = plotContainerRef.current;
     if (el == null) return;
@@ -329,6 +333,8 @@ export function JournalizingCompletedTrendChart({
 
   const plotContainerRef = useRef<HTMLDivElement>(null);
   const [availableWidth, setAvailableWidth] = useState<number | null>(null);
+  // 幅を測るまでは描き直しが続く。外から待てるように申告しておく。
+  useReportWorkInProgress(availableWidth == null);
   useEffect(() => {
     const el = plotContainerRef.current;
     if (el == null) return;

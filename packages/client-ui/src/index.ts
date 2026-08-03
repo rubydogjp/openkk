@@ -10,6 +10,7 @@ export * from "./shared/design-tokens.js";
 export * from "./shared/document-file-tile.js";
 export * from "./shared/form-fields.js";
 export * from "./shared/pl-bs-diagram.js";
+export * from "./shared/work-in-progress.js";
 
 export * from "./entries/entries-ui.js";
 export * from "./entries/entry-edit-drawer.js";

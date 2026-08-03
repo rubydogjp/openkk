@@ -78,6 +78,15 @@ export function ClosingBody({
     }).summary;
   }, [currentFiscalPeriod, entriesState, assistState]);
 
+  // 「終わった」と伝えるのは、締めの結果を実際に見せ終えたとき。
+  const closingResultShown =
+    !showRunningAnimation &&
+    currentFiscalPeriod?.phase === "post_closing" &&
+    fsSummary != null;
+  useEffect(() => {
+    if (closingResultShown) onBusyChange?.(false);
+  }, [closingResultShown, onBusyChange]);
+
   if (currentFiscalPeriod == null) {
     return (
       <div style={{ color: palette.textLabel }}>期間を選択してください</div>
@@ -216,8 +225,6 @@ export function ClosingBody({
               key={animationKey}
               onCompleted={() => {
                 setShowRunningAnimation(false);
-
-                onBusyChange?.(false);
               }}
             />
           </section>

@@ -30,7 +30,22 @@ export async function expectStep(page: Page, title: string) {
   });
 }
 
+/**
+ * アプリが「処理中」と申告している間は待つ。
+ *
+ * 締めのように待ち時間が読めない処理とアニメーションを挟む画面があり、
+ * その最中は画面が描き変わり続けるため、押せた・押せないが運任せになる。
+ * アプリ側が data-openkk-busy で始まりと終わりを伝えるので、それに従う。
+ */
+export async function waitUntilSettled(page: Page) {
+  await page.waitForSelector('html[data-openkk-busy="0"]', {
+    timeout: 60_000,
+  });
+}
+
 export async function clickButton(page: Page, name: string) {
+  await waitUntilSettled(page);
+
   const dialog = page.locator(".bk-dialog-card");
   if (await dialog.isVisible().catch(() => false)) {
     await dialog.getByRole("button", { name }).click();
