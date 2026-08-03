@@ -1,6 +1,6 @@
 {
   "name": "@rubydogjp/openkk-client-ui",
-  "version": "26.1.11",
+  "version": "26.1.12",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -20,8 +20,8 @@
     "build": "tsc -p tsconfig.build.json && cp src/styles.css dist/styles.css"
   },
   "dependencies": {
-    "@rubydogjp/openkk-client-domain": "^26.1.11",
-    "@rubydogjp/openkk-client-usecases": "^26.1.11"
+    "@rubydogjp/openkk-client-domain": "^26.1.12",
+    "@rubydogjp/openkk-client-usecases": "^26.1.12"
   },
   "peerDependencies": {
     "next": "^15.0.0 || ^16.0.0",

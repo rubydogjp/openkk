@@ -1,6 +1,6 @@
 {
   "name": "@rubydogjp/openkk-client-ports",
-  "version": "26.1.11",
+  "version": "26.1.12",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -15,7 +15,7 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@rubydogjp/openkk-client-domain": "^26.1.11"
+    "@rubydogjp/openkk-client-domain": "^26.1.12"
   },
   "devDependencies": {
     "typescript": "^5.8.3"
