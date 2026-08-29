@@ -43,11 +43,15 @@ describe("openkk server fiscal period API", () => {
         id: "fp-user-1",
         userId: "user-1",
         name: "user-1 period",
+        phase: "pre_opening",
+        settingsCompleted: false,
       }),
       fiscalPeriod({
         id: "fp-user-2",
         userId: "user-2",
         name: "user-2 period",
+        phase: "pre_opening",
+        settingsCompleted: false,
       }),
     ]);
     const server = createOpenkkServer(db, { userId: "user-1" });
@@ -68,7 +72,12 @@ describe("openkk server fiscal period API", () => {
 
   it("rejects fiscal period patches that would invert the period range", async () => {
     const db = createFiscalPeriodDb([
-      fiscalPeriod({ id: "fp-user-1", userId: "user-1" }),
+      fiscalPeriod({
+        id: "fp-user-1",
+        userId: "user-1",
+        phase: "pre_opening",
+        settingsCompleted: false,
+      }),
     ]);
     const server = createOpenkkServer(db, { userId: "user-1" });
 
@@ -78,6 +87,26 @@ describe("openkk server fiscal period API", () => {
 
     expect((await db.fiscalPeriods.getById("fp-user-1"))?.startDate).toBe(
       "2026-01-01",
+    );
+  });
+
+  it("rejects setup-field patches after the fiscal period has started", async () => {
+    const db = createFiscalPeriodDb([
+      fiscalPeriod({ id: "fp-started", userId: "user-1" }),
+    ]);
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(
+      server.fiscalPeriod.patch("fp-started", { endDate: "2026-11-30" }),
+    ).rejects.toThrow(/cannot update endDate from phase journalizing/);
+    await expect(
+      server.fiscalPeriod.patch("fp-started", { settingsCompleted: false }),
+    ).rejects.toThrow(
+      /cannot update settingsCompleted from phase journalizing/,
+    );
+
+    expect((await db.fiscalPeriods.getById("fp-started"))?.endDate).toBe(
+      "2026-12-31",
     );
   });
 
@@ -107,6 +136,55 @@ describe("openkk server fiscal period API", () => {
     );
   });
 
+  it("allows only document receipt completion after final closing", async () => {
+    const db = createFiscalPeriodDb([
+      fiscalPeriod({
+        id: "fp-closed",
+        userId: "user-1",
+        phase: "post_closing",
+      }),
+    ]);
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(
+      server.fiscalPeriod.patch("fp-closed", { name: "renamed after close" }),
+    ).rejects.toThrow(/only allows document receipt completion after closing/);
+
+    const completed = await server.fiscalPeriod.patch("fp-closed", {
+      documentsReceivedCompleted: true,
+    });
+    expect(completed.documentsReceivedCompleted).toBe(true);
+    expect(completed.name).toBe("2026年分");
+  });
+
+  it("archives only fully completed post-closing periods", async () => {
+    const db = createFiscalPeriodDb([
+      fiscalPeriod({ id: "fp-open", userId: "user-1" }),
+      fiscalPeriod({
+        id: "fp-no-documents",
+        userId: "user-1",
+        phase: "post_closing",
+      }),
+      fiscalPeriod({
+        id: "fp-complete",
+        userId: "user-1",
+        phase: "post_closing",
+        documentsReceivedCompleted: true,
+      }),
+    ]);
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(server.fiscalPeriod.archive("fp-open")).rejects.toThrow(
+      /cannot archive from phase journalizing/,
+    );
+    await expect(
+      server.fiscalPeriod.archive("fp-no-documents"),
+    ).rejects.toThrow(/cannot be archived before documents are received/);
+
+    const archived = await server.fiscalPeriod.archive("fp-complete");
+    expect(archived.archiveStatus).toBe("archived");
+  });
+
   it("rejects an opening patch whose opening journal is unbalanced", async () => {
     const db = createFiscalPeriodDb([
       fiscalPeriod({ id: "fp-user-1", userId: "user-1" }),
@@ -127,6 +205,51 @@ describe("openkk server fiscal period API", () => {
         }),
       }),
     ).rejects.toThrow(/Opening journal debit total .* must equal credit total/);
+  });
+
+  it("accepts a balanced zero-value opening-journal draft", async () => {
+    const db = createFiscalPeriodDb([
+      fiscalPeriod({ id: "fp-user-1", userId: "user-1" }),
+    ]);
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    const updated = await server.fiscalPeriod.patch("fp-user-1", {
+      opening: openingPatch({
+        openingJournals: [
+          {
+            id: "draft-journal",
+            date: "2026-01-01",
+            description: "",
+            businessRate: 1,
+            lines: [
+              {
+                id: "draft-debit",
+                side: "debit",
+                bookAccountId: "acct_cash",
+                amount: 0,
+                partnerName: "",
+                taxCategoryId: "",
+                businessCategoryId: "",
+              },
+              {
+                id: "draft-credit",
+                side: "credit",
+                bookAccountId: "acct_sales",
+                amount: 0,
+                partnerName: "",
+                taxCategoryId: "",
+                businessCategoryId: "",
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    expect(updated.opening?.openingJournals?.[0]).toMatchObject({
+      id: "draft-journal",
+      lines: [{ amount: 0 }, { amount: 0 }],
+    });
   });
 
   it("rejects an opening patch with a negative opening balance amount", async () => {

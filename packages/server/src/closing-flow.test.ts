@@ -34,6 +34,7 @@ describe("openkk server closing flow", () => {
     const closed = await server.closing.run({
       fiscalPeriodId: "fp-1",
       year: 2026,
+      entries: [],
     });
     expect(closed.phase).toBe("post_closing");
     expect(await server.preClosing.get("fp-1", 2026)).toEqual({});
@@ -46,6 +47,46 @@ describe("openkk server closing flow", () => {
     const reopened = await server.preClosing.cancel("fp-1", 2026);
     expect(reopened.phase).toBe("journalizing");
     expect(await server.preClosing.get("fp-1", 2026)).toBeNull();
+  });
+
+  it("requires the closing year to match the fiscal period end year", async () => {
+    const server = createOpenkkServer(createMemoryDb(), { userId: "user-1" });
+
+    await expect(
+      server.preClosing.run({ fiscalPeriodId: "fp-1", year: 2025 }),
+    ).rejects.toThrow(/must match fiscal period end year 2026/);
+    await server.preClosing.run({ fiscalPeriodId: "fp-1", year: 2026 });
+    await expect(
+      server.closing.run({ fiscalPeriodId: "fp-1", year: 2025, entries: [] }),
+    ).rejects.toThrow(/must match fiscal period end year 2026/);
+  });
+
+  it("accepts only unique, in-period generated entries for final closing", async () => {
+    const server = createOpenkkServer(createMemoryDb(), { userId: "user-1" });
+    await server.preClosing.run({ fiscalPeriodId: "fp-1", year: 2026 });
+    const generated = validClosingEntry("virtual:closing-entry");
+
+    await expect(
+      server.closing.run({
+        fiscalPeriodId: "fp-1",
+        year: 2026,
+        entries: [{ ...generated, localId: "ordinary-entry" }],
+      }),
+    ).rejects.toThrow(/must use a reserved generated localId/);
+    await expect(
+      server.closing.run({
+        fiscalPeriodId: "fp-1",
+        year: 2026,
+        entries: [generated, generated],
+      }),
+    ).rejects.toThrow(/duplicate localId/);
+    await expect(
+      server.closing.run({
+        fiscalPeriodId: "fp-1",
+        year: 2026,
+        entries: [{ ...generated, date: "2027-01-01" }],
+      }),
+    ).rejects.toThrow(/must be within fiscal period/);
   });
 
   it("rejects closing changes in archived fiscal periods", async () => {
@@ -264,6 +305,33 @@ function entryLinesWithIds(
   lines: EntryUpsertInput["lines"],
 ): EntryApiRecord["lines"] {
   return lines.map((line, index) => ({ ...line, id: `line-${index + 1}` }));
+}
+
+function validClosingEntry(localId: string): EntryUpsertInput {
+  return {
+    date: "2026-12-31",
+    description: "closing generated entry",
+    localId,
+    businessRate: 1,
+    lines: [
+      {
+        side: "debit",
+        bookAccountId: "acct_cash",
+        amount: 1000,
+        partnerName: "",
+        taxCategoryId: "tax_exempt",
+        businessCategoryId: "biz_none",
+      },
+      {
+        side: "credit",
+        bookAccountId: "acct_sales",
+        amount: 1000,
+        partnerName: "",
+        taxCategoryId: "tax_exempt",
+        businessCategoryId: "biz_none",
+      },
+    ],
+  };
 }
 
 function fixedAsset(

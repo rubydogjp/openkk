@@ -265,7 +265,11 @@ export type PreClosingCancelResponse = { fiscalPeriod: FiscalPeriodApiRecord };
 
 export type ClosingGetRequest = { fiscalPeriodId: string; year: number };
 export type ClosingGetResponse = { closing: ClosingApiRecord | null };
-export type ClosingRunRequest = { fiscalPeriodId: string; year: number };
+export type ClosingRunRequest = {
+  fiscalPeriodId: string;
+  year: number;
+  entries: EntryUpsertInput[];
+};
 export type ClosingRunResponse = { fiscalPeriod: FiscalPeriodApiRecord };
 
 export type EntriesGetAllRequest = { fiscalPeriodId: string };
@@ -674,10 +678,7 @@ export interface AuthApi {
 
 export interface ClosingApi {
   get(fiscalPeriodId: string, year: number): Promise<ClosingApiRecord | null>;
-  run(input: {
-    fiscalPeriodId: string;
-    year: number;
-  }): Promise<FiscalPeriodApiRecord>;
+  run(input: ClosingRunRequest): Promise<FiscalPeriodApiRecord>;
 }
 
 export interface PreClosingApi {

@@ -8,6 +8,8 @@ import {
 import type {
   ClosingDbRecord,
   EntryDbRecord,
+  EntryDbUpsertInput,
+  FiscalPeriodDbPatchInput,
   FiscalPeriodDbRecord,
   FixedAssetDbRecord,
   MasterBookAccountDbRecord,
@@ -367,61 +369,64 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       return record;
     },
     async update(id, patch) {
-      const rows = (await db.exec({
-        sql: `SELECT user_id, data, created_at FROM fiscal_periods WHERE id = ?`,
-        bind: [id],
-        returnValue: "resultRows",
-        rowMode: "array",
-      })) as Array<[string, string, number]>;
-      const row = rows[0];
-      if (row == null)
-        throw serverNotFoundError(`fiscal period not found: ${id}`);
-      const now = nowMs();
-      const timestamp = msToIso(now);
-      const stored = parseFiscalPeriodDbRecord(row[1]);
-      const existingOpening = requireOpening(
-        await loadOpeningByFiscalPeriod(db, id),
-        id,
-      );
-      const existing: FiscalPeriodDbRecord = {
-        ...stored,
-        userId: row[0],
-        createdAt: msToIso(row[2]),
-        updatedAt: timestamp,
-        opening: existingOpening,
-      };
-      const normalizedOpening =
-        patch.opening === undefined
-          ? existing.opening
-          : {
-              ...patch.opening,
-              userId: row[0],
-              fiscalPeriodId: id,
-              createdAt: existingOpening.createdAt,
-              updatedAt: timestamp,
-            };
-      const updated: FiscalPeriodDbRecord = {
-        ...existing,
-        ...(patch.name !== undefined ? { name: patch.name } : {}),
-        ...(patch.startDate !== undefined
-          ? { startDate: patch.startDate }
-          : {}),
-        ...(patch.endDate !== undefined ? { endDate: patch.endDate } : {}),
-        ...(patch.settingsCompleted !== undefined
-          ? { settingsCompleted: patch.settingsCompleted }
-          : {}),
-        ...(patch.openingBalancesCompleted !== undefined
-          ? { openingBalancesCompleted: patch.openingBalancesCompleted }
-          : {}),
-        ...(patch.documentsReceivedCompleted !== undefined
-          ? { documentsReceivedCompleted: patch.documentsReceivedCompleted }
-          : {}),
-        ...(patch.settingsCompleted === true && existing.phase === "pre_opening"
-          ? { phase: "journalizing" as const }
-          : {}),
-        opening: normalizedOpening,
-      };
+      let updated: FiscalPeriodDbRecord | null = null;
       await runInTransaction(db, async () => {
+        const rows = (await db.exec({
+          sql: `SELECT user_id, data, created_at FROM fiscal_periods WHERE id = ?`,
+          bind: [id],
+          returnValue: "resultRows",
+          rowMode: "array",
+        })) as Array<[string, string, number]>;
+        const row = rows[0];
+        if (row == null)
+          throw serverNotFoundError(`fiscal period not found: ${id}`);
+        const now = nowMs();
+        const timestamp = msToIso(now);
+        const stored = parseFiscalPeriodDbRecord(row[1]);
+        assertDbFiscalPeriodPatchAllowed(stored, patch);
+        const existingOpening = requireOpening(
+          await loadOpeningByFiscalPeriod(db, id),
+          id,
+        );
+        const existing: FiscalPeriodDbRecord = {
+          ...stored,
+          userId: row[0],
+          createdAt: msToIso(row[2]),
+          updatedAt: timestamp,
+          opening: existingOpening,
+        };
+        const normalizedOpening =
+          patch.opening === undefined
+            ? existing.opening
+            : {
+                ...patch.opening,
+                userId: row[0],
+                fiscalPeriodId: id,
+                createdAt: existingOpening.createdAt,
+                updatedAt: timestamp,
+              };
+        updated = {
+          ...existing,
+          ...(patch.name !== undefined ? { name: patch.name } : {}),
+          ...(patch.startDate !== undefined
+            ? { startDate: patch.startDate }
+            : {}),
+          ...(patch.endDate !== undefined ? { endDate: patch.endDate } : {}),
+          ...(patch.settingsCompleted !== undefined
+            ? { settingsCompleted: patch.settingsCompleted }
+            : {}),
+          ...(patch.openingBalancesCompleted !== undefined
+            ? { openingBalancesCompleted: patch.openingBalancesCompleted }
+            : {}),
+          ...(patch.documentsReceivedCompleted !== undefined
+            ? { documentsReceivedCompleted: patch.documentsReceivedCompleted }
+            : {}),
+          ...(patch.settingsCompleted === true &&
+          existing.phase === "pre_opening"
+            ? { phase: "journalizing" as const }
+            : {}),
+          opening: normalizedOpening,
+        };
         await db.exec({
           sql: `UPDATE fiscal_periods SET data = ?, updated_at = ? WHERE id = ?`,
           bind: [serializeFiscalPeriodDbRecord(updated), now, id],
@@ -430,34 +435,47 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
           await replaceOpening(db, normalizedOpening!, now);
         }
       });
-      return updated;
+      return updated!;
     },
     async archive(id) {
-      const rows = (await db.exec({
-        sql: `SELECT user_id, data, created_at FROM fiscal_periods WHERE id = ?`,
-        bind: [id],
-        returnValue: "resultRows",
-        rowMode: "array",
-      })) as Array<[string, string, number]>;
-      const row = rows[0];
-      if (row == null)
-        throw serverNotFoundError(`fiscal period not found: ${id}`);
-      const now = nowMs();
-      const current = parseFiscalPeriodDbRecord(row[1]);
-      const updated: FiscalPeriodDbRecord = {
-        ...current,
-        userId: row[0],
-        createdAt: msToIso(row[2]),
-        updatedAt: msToIso(now),
-        archiveStatus: "archived",
-        archivedAt: current.archivedAt ?? msToIso(now),
-      };
-      await db.exec({
-        sql: `UPDATE fiscal_periods SET data = ?, updated_at = ? WHERE id = ?`,
-        bind: [serializeFiscalPeriodDbRecord(updated), now, id],
+      let updated: FiscalPeriodDbRecord | null = null;
+      await runInTransaction(db, async () => {
+        const rows = (await db.exec({
+          sql: `SELECT user_id, data, created_at FROM fiscal_periods WHERE id = ?`,
+          bind: [id],
+          returnValue: "resultRows",
+          rowMode: "array",
+        })) as Array<[string, string, number]>;
+        const row = rows[0];
+        if (row == null)
+          throw serverNotFoundError(`fiscal period not found: ${id}`);
+        const now = nowMs();
+        const current = parseFiscalPeriodDbRecord(row[1]);
+        if (
+          current.archiveStatus === "archived" ||
+          current.phase !== "post_closing" ||
+          !current.documentsReceivedCompleted
+        ) {
+          throw serverConflictError(
+            `fiscal period cannot be archived from phase ${current.phase} (${current.archiveStatus})`,
+            "本締めと書類受領が完了した会計期間のみ圧縮保存できます",
+          );
+        }
+        updated = {
+          ...current,
+          userId: row[0],
+          createdAt: msToIso(row[2]),
+          updatedAt: msToIso(now),
+          archiveStatus: "archived",
+          archivedAt: current.archivedAt ?? msToIso(now),
+        };
+        await db.exec({
+          sql: `UPDATE fiscal_periods SET data = ?, updated_at = ? WHERE id = ?`,
+          bind: [serializeFiscalPeriodDbRecord(updated), now, id],
+        });
       });
       return {
-        ...updated,
+        ...updated!,
         opening: requireOpening(await loadOpeningByFiscalPeriod(db, id), id),
       };
     },
@@ -536,6 +554,83 @@ function requireOpening<Opening>(
   return opening;
 }
 
+async function assertDbFiscalPeriodAllows(
+  db: SqlDb,
+  fiscalPeriodId: string,
+  allowedPhases: FiscalPeriodDbRecord["phase"][],
+  operation: string,
+): Promise<void> {
+  const rows = (await db.exec({
+    sql: `SELECT data FROM fiscal_periods WHERE id = ?`,
+    bind: [fiscalPeriodId],
+    returnValue: "resultRows",
+    rowMode: "array",
+  })) as Array<[string]>;
+  const row = rows[0];
+  // 存在しない親は後続 INSERT の外部キー制約に判定させる。
+  if (row == null) return;
+  const period = parseFiscalPeriodDbRecord(row[0]);
+  if (
+    period.archiveStatus === "archived" ||
+    !allowedPhases.includes(period.phase)
+  ) {
+    throw serverConflictError(
+      `fiscal period cannot ${operation} from phase ${period.phase} (${period.archiveStatus})`,
+      "会計期間の状態が変わったため、この操作を実行できません",
+    );
+  }
+}
+
+function assertDbFiscalPeriodPatchAllowed(
+  period: FiscalPeriodDbRecord,
+  patch: FiscalPeriodDbPatchInput,
+): void {
+  if (period.archiveStatus === "archived") {
+    throw serverConflictError(
+      `archived fiscal period cannot be updated: ${period.id}`,
+      "圧縮保存済みの会計期間は変更できません",
+    );
+  }
+  const changedKeys = Object.entries(patch)
+    .filter(([, value]) => value !== undefined)
+    .map(([key]) => key);
+  if (period.phase === "pre_closing") {
+    throw serverConflictError(
+      `fiscal period cannot be updated from phase pre_closing`,
+      "仮締め中の会計期間は変更できません",
+    );
+  }
+  const allowedKeysByPhase: Record<
+    FiscalPeriodDbRecord["phase"],
+    ReadonlySet<string>
+  > = {
+    pre_opening: new Set([
+      "name",
+      "startDate",
+      "endDate",
+      "settingsCompleted",
+      "openingBalancesCompleted",
+      "opening",
+    ]),
+    journalizing: new Set(["openingBalancesCompleted", "opening"]),
+    pre_closing: new Set(),
+    post_closing: new Set(["documentsReceivedCompleted"]),
+  };
+  const disallowedKey = changedKeys.find(
+    (key) => !allowedKeysByPhase[period.phase].has(key),
+  );
+  if (
+    disallowedKey != null ||
+    (period.phase === "post_closing" &&
+      (changedKeys.length !== 1 || patch.documentsReceivedCompleted !== true))
+  ) {
+    throw serverConflictError(
+      `fiscal period cannot update ${disallowedKey ?? "patch"} from phase ${period.phase}`,
+      "会計期間の状態が変わったため、この操作を実行できません",
+    );
+  }
+}
+
 function createEntriesDb(db: SqlDb): EntriesDb {
   async function loadAllByFiscalPeriod(fpId: string): Promise<EntryDbRecord[]> {
     return loadEntries(
@@ -573,6 +668,12 @@ function createEntriesDb(db: SqlDb): EntriesDb {
         updatedAt: timestamp,
       };
       await runInTransaction(db, async () => {
+        await assertDbFiscalPeriodAllows(
+          db,
+          fiscalPeriodId,
+          ["journalizing"],
+          "create entry",
+        );
         await db.exec({
           sql: `INSERT INTO entries(id, fiscal_period_id, date, local_id, description, business_rate, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
           bind: [
@@ -591,22 +692,32 @@ function createEntriesDb(db: SqlDb): EntriesDb {
       return record;
     },
     async update(id, input) {
-      const existing =
-        (
-          await loadEntries(db, `WHERE e.id = ? ORDER BY l.position ASC`, [id])
-        )[0] ?? null;
-      if (existing == null) throw serverNotFoundError(`entry not found: ${id}`);
-      const now = nowMs();
-      const updated: EntryDbRecord = {
-        ...existing,
-        date: input.date,
-        description: input.description,
-        localId: input.localId ?? existing.localId,
-        businessRate: input.businessRate,
-        lines: input.lines.map((line) => ({ ...line, id: newId("eline") })),
-        updatedAt: msToIso(now),
-      };
+      let updated: EntryDbRecord | null = null;
       await runInTransaction(db, async () => {
+        const existing =
+          (
+            await loadEntries(db, `WHERE e.id = ? ORDER BY l.position ASC`, [
+              id,
+            ])
+          )[0] ?? null;
+        if (existing == null)
+          throw serverNotFoundError(`entry not found: ${id}`);
+        await assertDbFiscalPeriodAllows(
+          db,
+          existing.fiscalPeriodId,
+          ["journalizing"],
+          "update entry",
+        );
+        const now = nowMs();
+        updated = {
+          ...existing,
+          date: input.date,
+          description: input.description,
+          localId: input.localId ?? existing.localId,
+          businessRate: input.businessRate,
+          lines: input.lines.map((line) => ({ ...line, id: newId("eline") })),
+          updatedAt: msToIso(now),
+        };
         await db.exec({
           sql: `UPDATE entries SET date = ?, local_id = ?, description = ?, business_rate = ?, updated_at = ? WHERE id = ?`,
           bind: [
@@ -624,10 +735,25 @@ function createEntriesDb(db: SqlDb): EntriesDb {
         });
         await insertEntryLines(db, updated);
       });
-      return updated;
+      return updated!;
     },
     async delete(id) {
-      await db.exec({ sql: `DELETE FROM entries WHERE id = ?`, bind: [id] });
+      await runInTransaction(db, async () => {
+        const rows = (await db.exec({
+          sql: `SELECT fiscal_period_id FROM entries WHERE id = ?`,
+          bind: [id],
+          returnValue: "resultRows",
+          rowMode: "array",
+        })) as Array<[string]>;
+        if (rows[0] == null) return;
+        await assertDbFiscalPeriodAllows(
+          db,
+          rows[0][0],
+          ["journalizing"],
+          "delete entry",
+        );
+        await db.exec({ sql: `DELETE FROM entries WHERE id = ?`, bind: [id] });
+      });
     },
     async importMany(userId, fiscalPeriodId, inputs) {
       const now = nowMs();
@@ -653,6 +779,12 @@ function createEntriesDb(db: SqlDb): EntriesDb {
       }
       let insertedIds = new Set<string>();
       await runInTransaction(db, async () => {
+        await assertDbFiscalPeriodAllows(
+          db,
+          fiscalPeriodId,
+          ["pre_opening", "journalizing"],
+          "import entries",
+        );
         insertedIds = await insertImportedEntries(db, candidates, now);
         for (const entry of candidates) {
           if (insertedIds.has(entry.id)) await insertEntryLines(db, entry);
@@ -858,77 +990,109 @@ function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
         createdAt: timestamp,
         updatedAt: timestamp,
       };
-      await db.exec({
-        sql: `INSERT INTO fixed_assets(id, fiscal_period_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
-        bind: [
-          id,
+      await runInTransaction(db, async () => {
+        await assertDbFiscalPeriodAllows(
+          db,
           fiscalPeriodId,
-          serializeFixedAssetDbRecord(record),
-          now,
-          now,
-        ],
+          ["pre_opening", "journalizing"],
+          "create fixed asset",
+        );
+        await db.exec({
+          sql: `INSERT INTO fixed_assets(id, fiscal_period_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
+          bind: [
+            id,
+            fiscalPeriodId,
+            serializeFixedAssetDbRecord(record),
+            now,
+            now,
+          ],
+        });
       });
       return record;
     },
     async update(id, patch) {
-      const rows = (await db.exec({
-        sql: `SELECT fa.data, fp.user_id, fa.created_at
-          FROM fixed_assets fa
-          JOIN fiscal_periods fp ON fp.id = fa.fiscal_period_id
-          WHERE fa.id = ?`,
-        bind: [id],
-        returnValue: "resultRows",
-        rowMode: "array",
-      })) as Array<[string, string, number]>;
-      const row = rows[0];
-      if (row == null)
-        throw serverNotFoundError(`fixed asset not found: ${id}`);
-      const now = nowMs();
-      const existing: FixedAssetDbRecord = {
-        ...parseFixedAssetDbRecord(row[0]),
-        userId: row[1],
-        createdAt: msToIso(row[2]),
-        updatedAt: msToIso(now),
-      };
-      const updated: FixedAssetDbRecord = {
-        ...existing,
-        ...(patch.name !== undefined ? { name: patch.name } : {}),
-        ...(patch.acquisitionDate !== undefined
-          ? { acquisitionDate: patch.acquisitionDate }
-          : {}),
-        ...(patch.acquisitionCost !== undefined
-          ? { acquisitionCost: patch.acquisitionCost }
-          : {}),
-        ...(patch.usefulLife !== undefined
-          ? { usefulLife: patch.usefulLife }
-          : {}),
-        ...(patch.depreciationMethod !== undefined
-          ? { depreciationMethod: patch.depreciationMethod }
-          : {}),
-        ...(patch.businessRate !== undefined
-          ? { businessRate: patch.businessRate }
-          : {}),
-        ...(patch.status !== undefined ? { status: patch.status } : {}),
-        ...(patch.disposalDate !== undefined
-          ? { disposalDate: patch.disposalDate }
-          : {}),
-        ...(patch.disposalPrice !== undefined
-          ? { disposalPrice: patch.disposalPrice }
-          : {}),
-        ...(patch.bookAccountId !== undefined
-          ? { bookAccountId: patch.bookAccountId }
-          : {}),
-      };
-      await db.exec({
-        sql: `UPDATE fixed_assets SET data = ?, updated_at = ? WHERE id = ?`,
-        bind: [serializeFixedAssetDbRecord(updated), now, id],
+      let updated: FixedAssetDbRecord | null = null;
+      await runInTransaction(db, async () => {
+        const rows = (await db.exec({
+          sql: `SELECT fa.data, fp.user_id, fa.created_at
+            FROM fixed_assets fa
+            JOIN fiscal_periods fp ON fp.id = fa.fiscal_period_id
+            WHERE fa.id = ?`,
+          bind: [id],
+          returnValue: "resultRows",
+          rowMode: "array",
+        })) as Array<[string, string, number]>;
+        const row = rows[0];
+        if (row == null)
+          throw serverNotFoundError(`fixed asset not found: ${id}`);
+        const now = nowMs();
+        const existing: FixedAssetDbRecord = {
+          ...parseFixedAssetDbRecord(row[0]),
+          userId: row[1],
+          createdAt: msToIso(row[2]),
+          updatedAt: msToIso(now),
+        };
+        await assertDbFiscalPeriodAllows(
+          db,
+          existing.fiscalPeriodId,
+          ["journalizing"],
+          "update fixed asset",
+        );
+        updated = {
+          ...existing,
+          ...(patch.name !== undefined ? { name: patch.name } : {}),
+          ...(patch.acquisitionDate !== undefined
+            ? { acquisitionDate: patch.acquisitionDate }
+            : {}),
+          ...(patch.acquisitionCost !== undefined
+            ? { acquisitionCost: patch.acquisitionCost }
+            : {}),
+          ...(patch.usefulLife !== undefined
+            ? { usefulLife: patch.usefulLife }
+            : {}),
+          ...(patch.depreciationMethod !== undefined
+            ? { depreciationMethod: patch.depreciationMethod }
+            : {}),
+          ...(patch.businessRate !== undefined
+            ? { businessRate: patch.businessRate }
+            : {}),
+          ...(patch.status !== undefined ? { status: patch.status } : {}),
+          ...(patch.disposalDate !== undefined
+            ? { disposalDate: patch.disposalDate }
+            : {}),
+          ...(patch.disposalPrice !== undefined
+            ? { disposalPrice: patch.disposalPrice }
+            : {}),
+          ...(patch.bookAccountId !== undefined
+            ? { bookAccountId: patch.bookAccountId }
+            : {}),
+        };
+        await db.exec({
+          sql: `UPDATE fixed_assets SET data = ?, updated_at = ? WHERE id = ?`,
+          bind: [serializeFixedAssetDbRecord(updated), now, id],
+        });
       });
-      return updated;
+      return updated!;
     },
     async delete(id) {
-      await db.exec({
-        sql: `DELETE FROM fixed_assets WHERE id = ?`,
-        bind: [id],
+      await runInTransaction(db, async () => {
+        const rows = (await db.exec({
+          sql: `SELECT fiscal_period_id FROM fixed_assets WHERE id = ?`,
+          bind: [id],
+          returnValue: "resultRows",
+          rowMode: "array",
+        })) as Array<[string]>;
+        if (rows[0] == null) return;
+        await assertDbFiscalPeriodAllows(
+          db,
+          rows[0][0],
+          ["journalizing"],
+          "delete fixed asset",
+        );
+        await db.exec({
+          sql: `DELETE FROM fixed_assets WHERE id = ?`,
+          bind: [id],
+        });
       });
     },
   };
@@ -970,6 +1134,7 @@ function createPreClosingsDb(db: SqlDb): PreClosingsDb {
             sql: `DELETE FROM pre_closings WHERE fiscal_period_id = ? AND year = ?`,
             bind: [fiscalPeriodId, year],
           });
+          await deleteClosingGeneratedEntries(db, fiscalPeriodId);
         },
       );
     },
@@ -987,13 +1152,19 @@ function createClosingsDb(db: SqlDb): ClosingsDb {
       })) as Array<[number]>;
       return rows[0] == null ? null : ({} satisfies ClosingDbRecord);
     },
-    async run(fiscalPeriodId, year) {
+    async run(fiscalPeriodId, year, entries) {
       return transitionFiscalPeriod(
         db,
         fiscalPeriodId,
         "pre_closing",
         "post_closing",
-        async () => {
+        async (userId) => {
+          await replaceClosingGeneratedEntries(
+            db,
+            userId,
+            fiscalPeriodId,
+            entries,
+          );
           await db.exec({
             sql: `INSERT OR REPLACE INTO closings(fiscal_period_id, year) VALUES(?, ?)`,
             bind: [fiscalPeriodId, year],
@@ -1004,12 +1175,57 @@ function createClosingsDb(db: SqlDb): ClosingsDb {
   };
 }
 
+const CLOSING_GENERATED_LOCAL_ID_PREFIX = "virtual:";
+
+async function deleteClosingGeneratedEntries(
+  db: SqlDb,
+  fiscalPeriodId: string,
+): Promise<void> {
+  await db.exec({
+    sql: `DELETE FROM entries WHERE fiscal_period_id = ? AND local_id LIKE ?`,
+    bind: [fiscalPeriodId, `${CLOSING_GENERATED_LOCAL_ID_PREFIX}%`],
+  });
+}
+
+async function replaceClosingGeneratedEntries(
+  db: SqlDb,
+  userId: string,
+  fiscalPeriodId: string,
+  inputs: EntryDbUpsertInput[],
+): Promise<void> {
+  await deleteClosingGeneratedEntries(db, fiscalPeriodId);
+  const now = nowMs();
+  const timestamp = msToIso(now);
+  const candidates: EntryDbRecord[] = inputs.map((input) => ({
+    id: newId("entry"),
+    userId,
+    fiscalPeriodId,
+    date: input.date,
+    description: input.description,
+    localId: input.localId ?? "",
+    businessRate: input.businessRate,
+    lines: input.lines.map((line) => ({ ...line, id: newId("eline") })),
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  }));
+  const insertedIds = await insertImportedEntries(db, candidates, now);
+  if (insertedIds.size !== candidates.length) {
+    throw serverConflictError(
+      "closing generated entries contain duplicate localIds",
+      "本締め用の自動仕訳が重複したため、本締めを中止しました",
+    );
+  }
+  for (const entry of candidates) {
+    await insertEntryLines(db, entry);
+  }
+}
+
 async function transitionFiscalPeriod(
   db: SqlDb,
   fiscalPeriodId: string,
   expectedPhase: FiscalPeriodDbRecord["phase"],
   nextPhase: FiscalPeriodDbRecord["phase"],
-  writeTransitionData: () => Promise<void>,
+  writeTransitionData: (userId: string) => Promise<void>,
 ): Promise<FiscalPeriodDbRecord> {
   let updated: FiscalPeriodDbRecord | null = null;
   await runInTransaction(db, async () => {
@@ -1035,7 +1251,7 @@ async function transitionFiscalPeriod(
         "会計期間の状態が変わったため、この操作を実行できません",
       );
     }
-    await writeTransitionData();
+    await writeTransitionData(row[0]);
     const now = nowMs();
     updated = {
       ...current,

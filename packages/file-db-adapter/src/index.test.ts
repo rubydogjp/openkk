@@ -59,11 +59,12 @@ describe("createFileDbAdapter — behavior parity over the worker proxy", () => 
   }
 
   async function seedFiscalPeriod(db: Awaited<ReturnType<typeof makeDb>>) {
-    return db.fiscalPeriods.create("user-1", {
+    const created = await db.fiscalPeriods.create("user-1", {
       name: "2026年分",
       startDate: "2026-01-01",
       endDate: "2026-12-31",
     });
+    return db.fiscalPeriods.update(created.id, { settingsCompleted: true });
   }
 
   function entryInput(localId: string) {

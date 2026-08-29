@@ -82,7 +82,11 @@ export interface FixedAssetsDb {
 
 export interface ClosingsDb {
   get(fiscalPeriodId: string, year: number): Promise<ClosingDbRecord | null>;
-  run(fiscalPeriodId: string, year: number): Promise<FiscalPeriodDbRecord>;
+  run(
+    fiscalPeriodId: string,
+    year: number,
+    entries: EntryDbUpsertInput[],
+  ): Promise<FiscalPeriodDbRecord>;
 }
 
 export interface PreClosingsDb {

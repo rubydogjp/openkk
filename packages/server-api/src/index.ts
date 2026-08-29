@@ -54,29 +54,35 @@ export function createOpenkkServerApi(
     },
     preClosing: {
       get: async (fpId, year) => {
-        await getOwnedFiscalPeriod(fpId);
+        const period = await getOwnedFiscalPeriod(fpId);
+        assertClosingYear(period, year);
         return usecases.preClosing.get(uid, fpId, year);
       },
       run: async ({ fiscalPeriodId, year }) => {
         const period = await getOwnedFiscalPeriod(fiscalPeriodId);
         assertPeriodPhase(period, "journalizing", "run pre-closing");
+        assertClosingYear(period, year);
         return usecases.preClosing.run(uid, fiscalPeriodId, year);
       },
       cancel: async (fpId, year) => {
         const period = await getOwnedFiscalPeriod(fpId);
         assertPeriodPhase(period, "pre_closing", "cancel pre-closing");
+        assertClosingYear(period, year);
         return usecases.preClosing.cancel(uid, fpId, year);
       },
     },
     closing: {
       get: async (fpId, year) => {
-        await getOwnedFiscalPeriod(fpId);
+        const period = await getOwnedFiscalPeriod(fpId);
+        assertClosingYear(period, year);
         return usecases.closing.get(uid, fpId, year);
       },
-      run: async ({ fiscalPeriodId, year }) => {
+      run: async ({ fiscalPeriodId, year, entries }) => {
         const period = await getOwnedFiscalPeriod(fiscalPeriodId);
         assertPeriodPhase(period, "pre_closing", "run closing");
-        return usecases.closing.run(uid, fiscalPeriodId, year);
+        assertClosingYear(period, year);
+        assertClosingGeneratedEntries(entries, period);
+        return usecases.closing.run(uid, fiscalPeriodId, year, entries);
       },
     },
     entries: {
@@ -86,14 +92,14 @@ export function createOpenkkServerApi(
       },
       create: async (fpId, input) => {
         const period = await getOwnedFiscalPeriod(fpId);
-        assertMutableFiscalPeriod(period, "create entry");
-        assertEntryInput(input);
+        assertPeriodPhase(period, "journalizing", "create entry");
+        assertEntryInput(input, period);
         return usecases.entries.create(uid, fpId, input);
       },
       patch: async (fpId, id, input) => {
         const period = await getOwnedFiscalPeriod(fpId);
-        assertMutableFiscalPeriod(period, "update entry");
-        assertEntryInput(input);
+        assertPeriodPhase(period, "journalizing", "update entry");
+        assertEntryInput(input, period);
         const existing = await usecases.entries.getById(uid, id);
         if (existing == null || existing.fiscalPeriodId !== fpId) {
           throw serverNotFoundError(
@@ -104,7 +110,7 @@ export function createOpenkkServerApi(
       },
       remove: async (fpId, id) => {
         const period = await getOwnedFiscalPeriod(fpId);
-        assertMutableFiscalPeriod(period, "delete entry");
+        assertPeriodPhase(period, "journalizing", "delete entry");
         const existing = await usecases.entries.getById(uid, id);
         if (existing == null || existing.fiscalPeriodId !== fpId) {
           throw serverNotFoundError(
@@ -115,8 +121,12 @@ export function createOpenkkServerApi(
       },
       importMany: async (fpId, inputs) => {
         const period = await getOwnedFiscalPeriod(fpId);
-        assertMutableFiscalPeriod(period, "import entries");
-        inputs.forEach(assertEntryInput);
+        assertPeriodPhaseOneOf(
+          period,
+          ["pre_opening", "journalizing"],
+          "import entries",
+        );
+        inputs.forEach((input) => assertEntryInput(input, period));
         const entries = await usecases.entries.importMany(uid, fpId, inputs);
         return { importedCount: entries.length, entries };
       },
@@ -137,12 +147,19 @@ export function createOpenkkServerApi(
             `Archived fiscal period ${id} cannot be updated`,
           );
         }
+        assertFiscalPeriodPatchAllowed(current, patch);
         assertFiscalPeriodPatchInput(current, patch);
         return usecases.fiscalPeriod.update(uid, id, patch);
       },
       archive: async (id) => {
         const current = await getOwnedFiscalPeriod(id);
-        assertMutableFiscalPeriod(current, "archive");
+        assertPeriodPhase(current, "post_closing", "archive");
+        if (!current.documentsReceivedCompleted) {
+          throw serverConflictError(
+            `Fiscal period ${id} cannot be archived before documents are received`,
+            "書類の受領を完了してから圧縮保存してください",
+          );
+        }
         return usecases.fiscalPeriod.archive(uid, id);
       },
       purgeArchivedData: async (id) => {
@@ -167,13 +184,17 @@ export function createOpenkkServerApi(
       },
       create: async (fpId, input) => {
         const period = await getOwnedFiscalPeriod(fpId);
-        assertMutableFiscalPeriod(period, "create fixed asset");
+        assertPeriodPhaseOneOf(
+          period,
+          ["pre_opening", "journalizing"],
+          "create fixed asset",
+        );
         assertFixedAssetCreateInput(input);
         return usecases.fixedAssets.create(uid, fpId, input);
       },
       patch: async (fpId, id, patch) => {
         const period = await getOwnedFiscalPeriod(fpId);
-        assertMutableFiscalPeriod(period, "update fixed asset");
+        assertPeriodPhase(period, "journalizing", "update fixed asset");
         assertFixedAssetPatchInput(patch);
         const existing = await usecases.fixedAssets.getById(uid, id);
         if (existing == null || existing.fiscalPeriodId !== fpId) {
@@ -186,7 +207,7 @@ export function createOpenkkServerApi(
       },
       remove: async (fpId, id) => {
         const period = await getOwnedFiscalPeriod(fpId);
-        assertMutableFiscalPeriod(period, "delete fixed asset");
+        assertPeriodPhase(period, "journalizing", "delete fixed asset");
         const existing = await usecases.fixedAssets.getById(uid, id);
         if (existing == null || existing.fiscalPeriodId !== fpId) {
           throw serverNotFoundError(
@@ -229,6 +250,31 @@ function assertPeriodPhase(
   }
 }
 
+function assertPeriodPhaseOneOf(
+  period: FiscalPeriodApiRecord,
+  expectedPhases: FiscalPeriodApiRecord["phase"][],
+  operation: string,
+) {
+  assertMutableFiscalPeriod(period, operation);
+  if (!expectedPhases.includes(period.phase)) {
+    throw serverConflictError(
+      `Fiscal period ${period.id} cannot ${operation} from phase ${period.phase}`,
+      "会計期間の状態が変わったため、この操作を実行できません",
+    );
+  }
+}
+
+function assertClosingYear(period: FiscalPeriodApiRecord, year: number) {
+  assertPositiveInteger(year, "Closing year");
+  const expectedYear = Number(period.endDate.slice(0, 4));
+  if (year !== expectedYear) {
+    throw serverValidationError(
+      `Closing year ${year} must match fiscal period end year ${expectedYear}`,
+      "締め年度が会計期間の終了年と一致しません",
+    );
+  }
+}
+
 function archivedFiscalPeriodError(messageForDeveloper: string) {
   return serverConflictError(
     messageForDeveloper,
@@ -237,6 +283,7 @@ function archivedFiscalPeriodError(messageForDeveloper: string) {
 }
 
 function assertFiscalPeriodCreateInput(input: FiscalPeriodCreateInput) {
+  assertNonBlankString(input.name, "Fiscal period name");
   assertDateRange(input.startDate, input.endDate, "Fiscal period");
 }
 
@@ -246,6 +293,9 @@ function assertFiscalPeriodPatchInput(
 ) {
   const startDate = patch.startDate ?? current.startDate;
   const endDate = patch.endDate ?? current.endDate;
+  if (patch.name != null) {
+    assertNonBlankString(patch.name, "Fiscal period name");
+  }
   assertDateRange(startDate, endDate, "Fiscal period");
 
   const opening = patch.opening;
@@ -266,21 +316,146 @@ function assertFiscalPeriodPatchInput(
           "Opening journal line amount",
         );
       }
-      assertEntryLinesBalanced(journal.lines, "Opening journal");
+      // 再振替の新規作成では、編集開始用の借貸 0 円の下書きを保存する。
+      // 借貸行の存在と一致は必須のまま、期首仕訳に限ってゼロを許可する。
+      assertEntryLinesBalanced(journal.lines, "Opening journal", {
+        allowZero: true,
+      });
     }
   }
 }
 
-function assertEntryInput(input: EntryUpsertInput) {
+function assertFiscalPeriodPatchAllowed(
+  current: FiscalPeriodApiRecord,
+  patch: FiscalPeriodPatchInput,
+) {
+  const changedKeys = Object.entries(patch)
+    .filter(([, value]) => value !== undefined)
+    .map(([key]) => key);
+  const allowedKeysByPhase: Record<
+    FiscalPeriodApiRecord["phase"],
+    ReadonlySet<string>
+  > = {
+    pre_opening: new Set([
+      "name",
+      "startDate",
+      "endDate",
+      "settingsCompleted",
+      "openingBalancesCompleted",
+      "opening",
+    ]),
+    journalizing: new Set(["openingBalancesCompleted", "opening"]),
+    pre_closing: new Set(),
+    post_closing: new Set(["documentsReceivedCompleted"]),
+  };
+  if (current.phase === "pre_closing") {
+    throw serverConflictError(
+      `Fiscal period ${current.id} cannot be updated from phase pre_closing`,
+      "仮締め中の会計期間は変更できません",
+    );
+  }
+  if (
+    current.phase === "post_closing" &&
+    (changedKeys.length !== 1 ||
+      changedKeys[0] !== "documentsReceivedCompleted" ||
+      patch.documentsReceivedCompleted !== true)
+  ) {
+    throw serverConflictError(
+      `Fiscal period ${current.id} only allows document receipt completion after closing`,
+      "本締め後は書類受領の完了以外を変更できません",
+    );
+  }
+  const disallowedKey = changedKeys.find(
+    (key) => !allowedKeysByPhase[current.phase].has(key),
+  );
+  if (disallowedKey != null) {
+    throw serverConflictError(
+      `Fiscal period ${current.id} cannot update ${disallowedKey} from phase ${current.phase}`,
+      "開始後は会計期間の設定を変更できません",
+    );
+  }
+}
+
+function assertEntryInput(
+  input: EntryUpsertInput,
+  period: FiscalPeriodApiRecord,
+  allowClosingGenerated = false,
+) {
+  assertNonBlankString(input.description, "Entry description");
   assertIsoDate(input.date, "Entry date");
+  if (input.date < period.startDate || input.date > period.endDate) {
+    throw serverValidationError(
+      `Entry date ${input.date} must be within fiscal period ${period.startDate} to ${period.endDate}`,
+      "仕訳日付を会計期間内にしてください",
+    );
+  }
+  if (
+    !allowClosingGenerated &&
+    typeof input.localId === "string" &&
+    input.localId.startsWith(CLOSING_GENERATED_LOCAL_ID_PREFIX)
+  ) {
+    throw serverValidationError(
+      `Entry localId prefix ${CLOSING_GENERATED_LOCAL_ID_PREFIX} is reserved`,
+      "この仕訳識別子は本締め用に予約されています",
+    );
+  }
   assertUnitRate(input.businessRate, "Entry business rate");
+  if (!Array.isArray(input.lines)) {
+    throw serverValidationError("Entry lines must be an array");
+  }
   for (const line of input.lines) {
+    if (line == null || typeof line !== "object") {
+      throw serverValidationError("Entry line must be an object");
+    }
+    assertNonBlankString(line.bookAccountId, "Entry line book account");
     assertNonNegativeFiniteNumber(line.amount, "Entry line amount");
   }
   assertEntryLinesBalanced(input.lines, "Entry");
 }
 
+const CLOSING_GENERATED_LOCAL_ID_PREFIX = "virtual:";
+
+function assertClosingGeneratedEntries(
+  entries: EntryUpsertInput[] | undefined,
+  period: FiscalPeriodApiRecord,
+) {
+  if (!Array.isArray(entries)) {
+    throw serverValidationError(
+      "Closing entries must be an array",
+      "本締め用の自動仕訳データが不正です",
+    );
+  }
+  const localIds = new Set<string>();
+  for (const entry of entries) {
+    if (entry == null || typeof entry !== "object") {
+      throw serverValidationError("Closing entry must be an object");
+    }
+    if (
+      typeof entry.localId !== "string" ||
+      !entry.localId.startsWith(CLOSING_GENERATED_LOCAL_ID_PREFIX)
+    ) {
+      throw serverValidationError(
+        "Closing entries must use a reserved generated localId",
+        "本締め用の自動仕訳識別子が不正です",
+      );
+    }
+    if (localIds.has(entry.localId)) {
+      throw serverValidationError(
+        `Closing entries contain duplicate localId: ${entry.localId}`,
+        "本締め用の自動仕訳が重複しています",
+      );
+    }
+    localIds.add(entry.localId);
+    assertEntryInput(entry, period, true);
+  }
+}
+
 function assertFixedAssetCreateInput(input: FixedAssetCreateInput) {
+  assertNonBlankString(input.name, "Fixed asset name");
+  assertNonBlankString(input.bookAccountId, "Fixed asset book account");
+  if (input.depreciationMethod !== "straight_line") {
+    throw serverValidationError("Fixed asset depreciation method is invalid");
+  }
   assertIsoDate(input.acquisitionDate, "Fixed asset acquisition date");
   assertNonNegativeFiniteNumber(
     input.acquisitionCost,
@@ -291,6 +466,21 @@ function assertFixedAssetCreateInput(input: FixedAssetCreateInput) {
 }
 
 function assertFixedAssetPatchInput(input: FixedAssetPatchInput) {
+  if (input.name != null) {
+    assertNonBlankString(input.name, "Fixed asset name");
+  }
+  if (input.bookAccountId != null) {
+    assertNonBlankString(input.bookAccountId, "Fixed asset book account");
+  }
+  if (
+    input.depreciationMethod != null &&
+    input.depreciationMethod !== "straight_line"
+  ) {
+    throw serverValidationError("Fixed asset depreciation method is invalid");
+  }
+  if (input.status != null && !FIXED_ASSET_STATUSES.includes(input.status)) {
+    throw serverValidationError("Fixed asset status is invalid");
+  }
   if (input.acquisitionDate != null) {
     assertIsoDate(input.acquisitionDate, "Fixed asset acquisition date");
   }
@@ -321,12 +511,21 @@ const DISPOSAL_STATUSES: ReadonlyArray<FixedAssetPatchInput["status"]> = [
   "sold",
   "disposed",
 ];
+const FIXED_ASSET_STATUSES: ReadonlyArray<
+  NonNullable<FixedAssetPatchInput["status"]>
+> = ["active", "sold", "disposed", "retired"];
 
 function assertFixedAssetDisposalConsistency(
-  existing: { status: string; disposalDate: string },
+  existing: {
+    status: string;
+    acquisitionDate: string;
+    disposalDate: string;
+  },
   patch: FixedAssetPatchInput,
 ) {
   const effectiveStatus = patch.status ?? existing.status;
+  const effectiveAcquisitionDate =
+    patch.acquisitionDate ?? existing.acquisitionDate;
   const effectiveDisposalDate = patch.disposalDate ?? existing.disposalDate;
   if (
     DISPOSAL_STATUSES.includes(
@@ -338,5 +537,20 @@ function assertFixedAssetDisposalConsistency(
       `Fixed asset with status ${effectiveStatus} requires a disposal date`,
       "売却・廃棄の固定資産には処分日を入力してください",
     );
+  }
+  if (
+    effectiveDisposalDate.trim() !== "" &&
+    effectiveDisposalDate < effectiveAcquisitionDate
+  ) {
+    throw serverValidationError(
+      `Fixed asset disposal date ${effectiveDisposalDate} must not be before acquisition date ${effectiveAcquisitionDate}`,
+      "固定資産の処分日は取得日以降にしてください",
+    );
+  }
+}
+
+function assertNonBlankString(value: unknown, label: string) {
+  if (typeof value !== "string" || value.trim() === "") {
+    throw serverValidationError(`${label} is required`);
   }
 }

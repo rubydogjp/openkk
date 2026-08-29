@@ -139,7 +139,7 @@ export function ClosingBody({
     setShowRunningAnimation(true);
     setAnimationKey((k) => k + 1);
     try {
-      await materializeAssistEntriesForFinalClosing({
+      const entries = prepareAssistEntriesForFinalClosing({
         fiscalPeriodId: currentFiscalPeriod.id,
         periodStartDate: currentFiscalPeriod.startDate,
         periodEndDate: currentFiscalPeriod.endDate,
@@ -148,7 +148,12 @@ export function ClosingBody({
       });
       if (appState.currentFiscalPeriodId != null) {
         const year = Number(currentFiscalPeriod.endDate.slice(0, 4));
-        await closingApi.runFinal(appState.currentFiscalPeriodId, year);
+        await closingApi.runFinal(
+          appState.currentFiscalPeriodId,
+          year,
+          entries,
+        );
+        entriesState.reload();
       }
       setScreenError(null);
     } catch (error) {
@@ -293,7 +298,7 @@ export function ClosingBody({
   );
 }
 
-async function materializeAssistEntriesForFinalClosing(input: {
+function prepareAssistEntriesForFinalClosing(input: {
   fiscalPeriodId: string;
   periodStartDate: string;
   periodEndDate: string;
@@ -303,20 +308,20 @@ async function materializeAssistEntriesForFinalClosing(input: {
   >;
   entriesState: Pick<
     ReturnType<typeof useOpenkkEntries>,
-    "listFiscalPeriodEntries" | "mergeFiscalPeriodEntries"
+    "listFiscalPeriodEntries" | "prepareFiscalPeriodEntries"
   >;
 }) {
   const entries = buildClosingVirtualEntries({
     fiscalPeriodId: input.fiscalPeriodId,
     periodStartDate: input.periodStartDate,
     periodEndDate: input.periodEndDate,
-    entries: input.entriesState.listFiscalPeriodEntries(input.fiscalPeriodId),
+    // 旧バージョンの非原子的な本締めが残した生成仕訳は再利用せず、
+    // 現在の補助データから必ず作り直してサーバー側で原子的に置換する。
+    entries: input.entriesState
+      .listFiscalPeriodEntries(input.fiscalPeriodId)
+      .filter((entry) => !entry.localId?.startsWith("virtual:")),
     assets: input.assistState.listFixedAssets(),
     carryovers: input.assistState.listOpeningCarryovers(input.fiscalPeriodId),
   });
-  if (entries.length === 0) return;
-  await input.entriesState.mergeFiscalPeriodEntries(
-    input.fiscalPeriodId,
-    entries,
-  );
+  return input.entriesState.prepareFiscalPeriodEntries(entries);
 }

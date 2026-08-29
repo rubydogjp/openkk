@@ -134,7 +134,8 @@ export function NextFiscalPeriodBody({
     endDate.trim() !== "" &&
     (!requiresArchiveBeforeNext || currentArchived);
   const canArchive =
-    currentFiscalPeriod != null &&
+    canEnterPage &&
+    currentFiscalPeriod.documentsReceivedCompleted &&
     currentFiscalPeriod.archiveStatus !== "archived" &&
     !editingLocked &&
     !isArchiving;

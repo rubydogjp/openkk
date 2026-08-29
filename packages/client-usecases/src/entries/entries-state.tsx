@@ -24,6 +24,7 @@ export { entryRecordToImportPayload } from "./import-mapping.js";
 import type {
   EntryApiRecord,
   EntryApiLineInput,
+  EntryUpsertInput,
   MasterBookAccount,
   MasterBusinessCategory,
   MasterTaxCategory,
@@ -87,6 +88,9 @@ type EntriesState = {
     fiscalPeriodId: string,
     importedEntries: EntryRecord[],
   ) => Promise<{ imported: number; skipped: number }>;
+  prepareFiscalPeriodEntries: (
+    importedEntries: EntryRecord[],
+  ) => EntryUpsertInput[];
 
   accountOptions: EntryMasterAccountOption[];
   taxCategoryOptions: EntryMasterCategoryOption[];
@@ -336,6 +340,15 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
           imported: response.importedCount,
           skipped: Math.max(0, importedEntries.length - response.importedCount),
         };
+      },
+      prepareFiscalPeriodEntries(importedEntries) {
+        return importedEntries.map((entry) =>
+          entryRecordToImportPayload(entry, {
+            accounts: bookAccounts,
+            taxes: taxCategories,
+            businesses: businessCategories,
+          }),
+        );
       },
       accountOptions,
       taxCategoryOptions,

@@ -71,12 +71,32 @@ export function assertUnitRate(value: number, label: string): void {
 export function assertEntryLinesBalanced(
   lines: ReadonlyArray<{ side: "debit" | "credit"; amount: number }>,
   label: string,
+  options: { allowZero?: boolean } = {},
 ): void {
   let debitTotal = 0;
   let creditTotal = 0;
+  let hasDebit = false;
+  let hasCredit = false;
   for (const line of lines) {
-    if (line.side === "debit") debitTotal += line.amount;
-    else creditTotal += line.amount;
+    if (line.side === "debit") {
+      hasDebit = true;
+      debitTotal += line.amount;
+    } else if (line.side === "credit") {
+      hasCredit = true;
+      creditTotal += line.amount;
+    } else {
+      throw serverValidationError(`${label} line side is invalid`);
+    }
+  }
+  if (
+    !hasDebit ||
+    !hasCredit ||
+    (!options.allowZero && (debitTotal <= 0 || creditTotal <= 0))
+  ) {
+    throw serverValidationError(
+      `${label} must have positive debit and credit lines`,
+      "借方と貸方に1件以上の正の金額を入力してください",
+    );
   }
   if (Math.abs(debitTotal - creditTotal) > 1e-6) {
     throw serverValidationError(

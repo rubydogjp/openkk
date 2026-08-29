@@ -61,8 +61,13 @@ function createClosingUsecase(db: OpenkkDbPort) {
     async get(_userId: string, fiscalPeriodId: string, year: number) {
       return db.closings.get(fiscalPeriodId, year);
     },
-    async run(_userId: string, fiscalPeriodId: string, year: number) {
-      return db.closings.run(fiscalPeriodId, year);
+    async run(
+      _userId: string,
+      fiscalPeriodId: string,
+      year: number,
+      entries: EntryUpsertInput[],
+    ) {
+      return db.closings.run(fiscalPeriodId, year, entries);
     },
   };
 }

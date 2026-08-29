@@ -47,6 +47,37 @@ export function normalizeArchiveImportInput(
   const normalizedClosings = closings.map((closing) =>
     normalizeArchivedClosing(objectValue(closing, "archive closing")),
   );
+  const expectedClosingYear = Number(endDate.slice(0, 4));
+  const closingKeys = new Set<string>();
+  for (const closing of normalizedClosings) {
+    if (closing.year !== expectedClosingYear) {
+      throw serverValidationError(
+        `archive closing.year must match fiscal period end year ${expectedClosingYear}`,
+      );
+    }
+    const key = `${closing.kind}:${closing.year}`;
+    if (closingKeys.has(key)) {
+      throw serverValidationError(`archive closing is duplicated: ${key}`);
+    }
+    closingKeys.add(key);
+  }
+  const normalizedEntries = entries.map((entry) =>
+    normalizeArchivedEntry(
+      objectValue(entry, "archive entry"),
+      startDate,
+      endDate,
+    ),
+  );
+  const entryLocalIds = new Set<string>();
+  for (const entry of normalizedEntries) {
+    if (entry.localId == null) continue;
+    if (entryLocalIds.has(entry.localId)) {
+      throw serverValidationError(
+        `archive entry.localId is duplicated: ${entry.localId}`,
+      );
+    }
+    entryLocalIds.add(entry.localId);
+  }
   return {
     fiscalPeriod: {
       name: requireString(fiscalPeriod.name, "archive fiscalPeriod.name"),
@@ -63,9 +94,7 @@ export function normalizeArchiveImportInput(
           ? undefined
           : normalizeArchivedOpening(sourceOpening, userId),
     },
-    entries: entries.map((entry) =>
-      normalizeArchivedEntry(objectValue(entry, "archive entry")),
-    ),
+    entries: normalizedEntries,
     fixedAssets: fixedAssets.map((fixedAsset) =>
       normalizeArchivedFixedAsset(
         objectValue(fixedAsset, "archive fixedAsset"),
@@ -149,11 +178,14 @@ function normalizeArchivedOpening(value: unknown, userId: string) {
           };
         },
       );
-      assertEntryLinesBalanced(lines, "archive openingJournal");
+      // 現行UIが保存する再振替の 0 円下書きも往復可能にする。
+      assertEntryLinesBalanced(lines, "archive openingJournal", {
+        allowZero: true,
+      });
       return {
         id,
         date: requireIsoDate(item.date, "archive openingJournal.date"),
-        description: requireString(
+        description: requireStringValue(
           item.description,
           "archive openingJournal.description",
         ),
@@ -169,8 +201,15 @@ function normalizeArchivedOpening(value: unknown, userId: string) {
 
 function normalizeArchivedEntry(
   value: Record<string, unknown>,
+  periodStartDate: string,
+  periodEndDate: string,
 ): EntryUpsertInput {
   const date = requireIsoDate(value.date, "archive entry.date");
+  if (date < periodStartDate || date > periodEndDate) {
+    throw serverValidationError(
+      `archive entry.date must be within fiscal period ${periodStartDate} to ${periodEndDate}`,
+    );
+  }
   const description = requireString(
     value.description,
     "archive entry.description",
@@ -208,6 +247,10 @@ function normalizeArchivedEntry(
 
 function normalizeArchivedFixedAsset(value: Record<string, unknown>) {
   const patchInput: FixedAssetPatchInput = {};
+  const acquisitionDate = requireIsoDate(
+    value.acquisitionDate,
+    "archive fixedAsset.acquisitionDate",
+  );
   const status =
     typeof value.status === "string"
       ? normalizeFixedAssetStatus(value.status)
@@ -227,13 +270,26 @@ function normalizeArchivedFixedAsset(value: Record<string, unknown>) {
       );
     }
   }
+  if (
+    (status === "sold" || status === "disposed") &&
+    patchInput.disposalDate == null
+  ) {
+    throw serverValidationError(
+      `archive fixedAsset with status ${status} requires disposalDate`,
+    );
+  }
+  if (
+    patchInput.disposalDate != null &&
+    patchInput.disposalDate < acquisitionDate
+  ) {
+    throw serverValidationError(
+      "archive fixedAsset.disposalDate must not be before acquisitionDate",
+    );
+  }
   return {
     createInput: {
       name: requireString(value.name, "archive fixedAsset.name"),
-      acquisitionDate: requireIsoDate(
-        value.acquisitionDate,
-        "archive fixedAsset.acquisitionDate",
-      ),
+      acquisitionDate,
       acquisitionCost: requireNonNegativeNumber(
         value.acquisitionCost,
         "archive fixedAsset.acquisitionCost",
@@ -257,12 +313,12 @@ function normalizeArchivedFixedAsset(value: Record<string, unknown>) {
 }
 
 function normalizeArchivedClosing(value: Record<string, unknown>) {
+  if (value.kind !== "pre_closing" && value.kind !== "closing") {
+    throw serverValidationError("archive closing.kind is invalid");
+  }
   return {
     year: requirePositiveInteger(value.year, "archive closing.year"),
-    kind:
-      value.kind === "pre_closing"
-        ? ("pre_closing" as const)
-        : ("closing" as const),
+    kind: value.kind,
   };
 }
 
@@ -308,8 +364,15 @@ function requireArrayValue(value: unknown, label = "archive value"): unknown[] {
 }
 
 function requireString(value: unknown, label: string): string {
-  if (typeof value !== "string" || value.length === 0) {
+  if (typeof value !== "string" || value.trim().length === 0) {
     throw serverValidationError(`${label} is required`);
+  }
+  return value;
+}
+
+function requireStringValue(value: unknown, label: string): string {
+  if (typeof value !== "string") {
+    throw serverValidationError(`${label} must be a string`);
   }
   return value;
 }

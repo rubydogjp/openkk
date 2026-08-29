@@ -82,6 +82,34 @@ describe("openkk server fixed asset API", () => {
     expect(await server.fixedAssets.getAll("fp-1")).toEqual([]);
   });
 
+  it("rejects unknown fixed asset enum values at the runtime boundary", async () => {
+    const db = createFixedAssetDb();
+    const server = createOpenkkServer(db, { userId: "user-1" });
+    const invalidCreate = {
+      name: "不正な償却方法",
+      acquisitionDate: "2026-04-01",
+      acquisitionCost: 180000,
+      usefulLife: 4,
+      depreciationMethod: "declining_balance",
+      businessRate: 1,
+      bookAccountId: "acct_asset_工具器具備品",
+    } as unknown as FixedAssetCreateInput;
+
+    await expect(
+      server.fixedAssets.create("fp-1", invalidCreate),
+    ).rejects.toThrow(/depreciation method is invalid/);
+
+    const created = await server.fixedAssets.create("fp-1", {
+      ...invalidCreate,
+      depreciationMethod: "straight_line",
+    });
+    await expect(
+      server.fixedAssets.patch("fp-1", created.id, {
+        status: "unknown",
+      } as unknown as FixedAssetPatchInput),
+    ).rejects.toThrow(/status is invalid/);
+  });
+
   it("rejects invalid disposal dates before persisting", async () => {
     const db = createFixedAssetDb();
     const server = createOpenkkServer(db, { userId: "user-1" });
@@ -101,6 +129,29 @@ describe("openkk server fixed asset API", () => {
         disposalDate: "2026-13-01",
       }),
     ).rejects.toThrow(/Fixed asset disposal date is invalid/);
+
+    expect((await server.fixedAssets.getAll("fp-1"))[0]?.status).toBe("active");
+  });
+
+  it("rejects a disposal date before the acquisition date", async () => {
+    const db = createFixedAssetDb();
+    const server = createOpenkkServer(db, { userId: "user-1" });
+    const created = await server.fixedAssets.create("fp-1", {
+      name: "売却対象の資産",
+      acquisitionDate: "2026-04-01",
+      acquisitionCost: 180000,
+      usefulLife: 4,
+      depreciationMethod: "straight_line",
+      businessRate: 1,
+      bookAccountId: "acct_asset_工具器具備品",
+    });
+
+    await expect(
+      server.fixedAssets.patch("fp-1", created.id, {
+        status: "sold",
+        disposalDate: "2026-03-31",
+      }),
+    ).rejects.toThrow(/must not be before acquisition date/);
 
     expect((await server.fixedAssets.getAll("fp-1"))[0]?.status).toBe("active");
   });
@@ -188,6 +239,25 @@ describe("openkk server fixed asset API", () => {
         bookAccountId: "acct_asset_工具器具備品",
       }),
     ).rejects.toThrow(/Archived fiscal period fp-1 cannot create fixed asset/);
+
+    expect(await server.fixedAssets.getAll("fp-1")).toEqual([]);
+  });
+
+  it("rejects fixed asset mutations after final closing", async () => {
+    const db = createFixedAssetDb({ phase: "post_closing" });
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(
+      server.fixedAssets.create("fp-1", {
+        name: "closed asset",
+        acquisitionDate: "2026-04-01",
+        acquisitionCost: 180000,
+        usefulLife: 4,
+        depreciationMethod: "straight_line",
+        businessRate: 1,
+        bookAccountId: "acct_asset_工具器具備品",
+      }),
+    ).rejects.toThrow(/cannot create fixed asset from phase post_closing/);
 
     expect(await server.fixedAssets.getAll("fp-1")).toEqual([]);
   });

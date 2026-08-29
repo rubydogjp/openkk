@@ -17,6 +17,22 @@ const testEntryLine = {
   businessCategoryId: "",
 };
 
+const testCreditEntryLine = {
+  ...testEntryLine,
+  side: "credit" as const,
+  bookAccountId: "acct_sales",
+};
+
+function closingGeneratedEntry(localId: string, description: string) {
+  return {
+    date: "2026-12-31",
+    description,
+    localId,
+    businessRate: 1,
+    lines: [testEntryLine, testCreditEntryLine],
+  };
+}
+
 export function runDbPortConformance(
   label: string,
   ctx: DbPortConformanceContext,
@@ -28,11 +44,12 @@ export function runDbPortConformance(
     userId = "user-1",
     name = "Test period",
   ) {
-    return db.fiscalPeriods.create(userId, {
+    const created = await db.fiscalPeriods.create(userId, {
       name,
       startDate: "2026-01-01",
       endDate: "2026-12-31",
     });
+    return db.fiscalPeriods.update(created.id, { settingsCompleted: true });
   }
 
   function seedWithPeriods(...ids: string[]): DbSnapshot {
@@ -188,7 +205,7 @@ export function runDbPortConformance(
 
       await expect(
         db.fiscalPeriods.update(period.id, {
-          name: "must be rolled back",
+          openingBalancesCompleted: true,
           opening: invalidOpening,
         }),
       ).rejects.toThrow(/UNIQUE constraint failed/);
@@ -203,15 +220,11 @@ export function runDbPortConformance(
       ).rejects.toThrow(/fiscal period not found/);
     });
 
-    it.each([
-      "pre_opening",
-      "journalizing",
-      "pre_closing",
-      "post_closing",
-    ] as const)("archives without changing the %s phase", async (phase) => {
+    it("archives only a completed post-closing fiscal period", async () => {
       const sqlPhasePeriod = {
         ...seedWithPeriods("fp-archive").fiscalPeriods[0]!.record,
-        phase,
+        phase: "post_closing" as const,
+        documentsReceivedCompleted: true,
       };
       const phaseDb = await ctx.makeSeededAdapter({
         fiscalPeriods: [{ userId: "user-1", record: sqlPhasePeriod }],
@@ -223,7 +236,7 @@ export function runDbPortConformance(
 
       const archived = await phaseDb.fiscalPeriods.archive("fp-archive");
 
-      expect(archived.phase).toBe(phase);
+      expect(archived.phase).toBe("post_closing");
       expect(archived.archiveStatus).toBe("archived");
     });
 
@@ -234,6 +247,7 @@ export function runDbPortConformance(
         startDate: "2026-01-01",
         endDate: "2026-12-31",
       });
+      await db.fiscalPeriods.update(period.id, { settingsCompleted: true });
       await db.entries.create("user-1", period.id, {
         date: "2026-04-01",
         description: "entry",
@@ -249,7 +263,6 @@ export function runDbPortConformance(
         businessRate: 1,
         bookAccountId: "acct_equipment",
       });
-      await db.fiscalPeriods.update(period.id, { settingsCompleted: true });
       await db.preClosings.run(period.id, 2026);
 
       await db.fiscalPeriods.delete(period.id);
@@ -268,6 +281,16 @@ export function runDbPortConformance(
         startDate: "2026-01-01",
         endDate: "2026-12-31",
       });
+      await db.fiscalPeriods.update(period.id, {
+        settingsCompleted: true,
+        opening: {
+          ...period.opening!,
+          openingBalanceLines: [
+            { id: "balance-1", accountId: "acct_cash", amount: 1000 },
+          ],
+          openingJournals: [],
+        },
+      });
       await db.entries.create("user-1", period.id, {
         date: "2026-04-01",
         description: "entry",
@@ -283,17 +306,11 @@ export function runDbPortConformance(
         businessRate: 1,
         bookAccountId: "acct_equipment",
       });
-      await db.fiscalPeriods.update(period.id, {
-        settingsCompleted: true,
-        opening: {
-          ...period.opening!,
-          openingBalanceLines: [
-            { id: "balance-1", accountId: "acct_cash", amount: 1000 },
-          ],
-          openingJournals: [],
-        },
-      });
       await db.preClosings.run(period.id, 2026);
+      await db.closings.run(period.id, 2026, []);
+      await db.fiscalPeriods.update(period.id, {
+        documentsReceivedCompleted: true,
+      });
       await db.fiscalPeriods.archive(period.id);
 
       const stub = await db.fiscalPeriods.purgeArchivedData(period.id);
@@ -622,6 +639,86 @@ export function runDbPortConformance(
       await expect(db.preClosings.run("missing", 2026)).rejects.toThrow(
         /fiscal period not found/,
       );
+    });
+
+    it("commits generated entries and final closing in one transition", async () => {
+      const db = await makeDb();
+      const period = await createTestFiscalPeriod(db);
+      await db.entries.importMany("user-1", period.id, [
+        closingGeneratedEntry("virtual:legacy", "legacy generated entry"),
+      ]);
+      await db.preClosings.run(period.id, 2026);
+
+      const closed = await db.closings.run(period.id, 2026, [
+        closingGeneratedEntry("virtual:final", "final generated entry"),
+      ]);
+
+      expect(closed.phase).toBe("post_closing");
+      expect(await db.closings.get(period.id, 2026)).toEqual({});
+      expect(
+        (await db.entries.getAll(period.id)).map((entry) => entry.localId),
+      ).toEqual(["virtual:final"]);
+      await expect(
+        db.entries.create(
+          "user-1",
+          period.id,
+          closingGeneratedEntry("ordinary", "late entry"),
+        ),
+      ).rejects.toThrow(/cannot create entry from phase post_closing/);
+      await expect(
+        db.fixedAssets.create("user-1", period.id, {
+          name: "late asset",
+          acquisitionDate: "2026-12-31",
+          acquisitionCost: 1000,
+          usefulLife: 1,
+          depreciationMethod: "straight_line",
+          businessRate: 1,
+          bookAccountId: "acct_equipment",
+        }),
+      ).rejects.toThrow(/cannot create fixed asset from phase post_closing/);
+      await expect(
+        db.fiscalPeriods.update(period.id, { name: "late rename" }),
+      ).rejects.toThrow(/cannot update name from phase post_closing/);
+    });
+
+    it("removes legacy generated entries when pre-closing is cancelled", async () => {
+      const db = await makeDb();
+      const period = await createTestFiscalPeriod(db);
+      await db.entries.importMany("user-1", period.id, [
+        closingGeneratedEntry("virtual:legacy", "legacy generated entry"),
+      ]);
+      await db.preClosings.run(period.id, 2026);
+
+      const reopened = await db.preClosings.cancel(period.id, 2026);
+
+      expect(reopened.phase).toBe("journalizing");
+      expect(await db.preClosings.get(period.id, 2026)).toBeNull();
+      expect(await db.entries.getAll(period.id)).toEqual([]);
+    });
+
+    it("rolls back generated entry replacement when final closing fails", async () => {
+      const db = await makeDb();
+      const period = await createTestFiscalPeriod(db);
+      await db.entries.importMany("user-1", period.id, [
+        closingGeneratedEntry("virtual:legacy", "legacy generated entry"),
+      ]);
+      await db.preClosings.run(period.id, 2026);
+      const duplicate = closingGeneratedEntry(
+        "virtual:duplicate",
+        "duplicate generated entry",
+      );
+
+      await expect(
+        db.closings.run(period.id, 2026, [duplicate, duplicate]),
+      ).rejects.toThrow(/duplicate localIds/);
+
+      expect((await db.fiscalPeriods.getById(period.id))?.phase).toBe(
+        "pre_closing",
+      );
+      expect(await db.closings.get(period.id, 2026)).toBeNull();
+      expect(
+        (await db.entries.getAll(period.id)).map((entry) => entry.localId),
+      ).toEqual(["virtual:legacy"]);
     });
 
     it("loads stable seed records", async () => {

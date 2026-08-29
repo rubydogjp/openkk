@@ -114,6 +114,84 @@ describe("openkk server entries API", () => {
     expect(await server.entries.getAll("fp-1")).toEqual([]);
   });
 
+  it("rejects empty and zero-value entries before persisting", async () => {
+    const db = createEntryDb();
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(
+      server.entries.create(
+        "fp-1",
+        validEntryInput({ localId: "empty", lines: [] }),
+      ),
+    ).rejects.toThrow(/must have positive debit and credit lines/);
+    await expect(
+      server.entries.create("fp-1", {
+        ...validEntryInput({ localId: "zero" }),
+        lines: validEntryInput().lines.map((line) => ({ ...line, amount: 0 })),
+      }),
+    ).rejects.toThrow(/must have positive debit and credit lines/);
+
+    expect(await server.entries.getAll("fp-1")).toEqual([]);
+  });
+
+  it("rejects entries dated outside the fiscal period", async () => {
+    const db = createEntryDb();
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(
+      server.entries.create(
+        "fp-1",
+        validEntryInput({ date: "2027-01-01", localId: "outside" }),
+      ),
+    ).rejects.toThrow(/must be within fiscal period 2026-01-01 to 2026-12-31/);
+
+    expect(await server.entries.getAll("fp-1")).toEqual([]);
+  });
+
+  it("reserves generated localIds for the atomic closing operation", async () => {
+    const db = createEntryDb();
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(
+      server.entries.importMany("fp-1", [
+        validEntryInput({ localId: "virtual:not-allowed" }),
+      ]),
+    ).rejects.toThrow(/localId prefix virtual: is reserved/);
+
+    expect(await server.entries.getAll("fp-1")).toEqual([]);
+  });
+
+  it("rejects every entry mutation after final closing", async () => {
+    const db = createEntryDb({ phase: "post_closing" });
+    const existing = await db.entries.create(
+      "user-1",
+      "fp-1",
+      validEntryInput({ localId: "existing" }),
+    );
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(
+      server.entries.create("fp-1", validEntryInput({ localId: "new" })),
+    ).rejects.toThrow(/cannot create entry from phase post_closing/);
+    await expect(
+      server.entries.patch(
+        "fp-1",
+        existing.id,
+        validEntryInput({ localId: "existing" }),
+      ),
+    ).rejects.toThrow(/cannot update entry from phase post_closing/);
+    await expect(server.entries.remove("fp-1", existing.id)).rejects.toThrow(
+      /cannot delete entry from phase post_closing/,
+    );
+    await expect(
+      server.entries.importMany("fp-1", [
+        validEntryInput({ localId: "import" }),
+      ]),
+    ).rejects.toThrow(/cannot import entries from phase post_closing/);
+
+    expect(await server.entries.getAll("fp-1")).toHaveLength(1);
+  });
+
   it("rejects invalid dates in bulk import before persisting", async () => {
     const db = createEntryDb();
     const server = createOpenkkServer(db, { userId: "user-1" });
@@ -125,7 +203,7 @@ describe("openkk server entries API", () => {
           description: "valid",
           localId: "valid",
           businessRate: 1,
-          lines: [],
+          lines: validEntryInput().lines,
         },
         {
           date: "2026-13-01",
@@ -351,6 +429,36 @@ function entryLinesWithIds(
   lines: EntryUpsertInput["lines"],
 ): EntryApiRecord["lines"] {
   return lines.map((line, index) => ({ ...line, id: `line-${index + 1}` }));
+}
+
+function validEntryInput(
+  overrides: Partial<EntryUpsertInput> = {},
+): EntryUpsertInput {
+  return {
+    date: "2026-04-01",
+    description: "valid entry",
+    localId: "valid-entry",
+    businessRate: 1,
+    lines: [
+      {
+        side: "debit",
+        bookAccountId: "acct_cash",
+        amount: 1000,
+        partnerName: "",
+        taxCategoryId: "tax_exempt",
+        businessCategoryId: "biz_none",
+      },
+      {
+        side: "credit",
+        bookAccountId: "acct_sales",
+        amount: 1000,
+        partnerName: "",
+        taxCategoryId: "tax_exempt",
+        businessCategoryId: "biz_none",
+      },
+    ],
+    ...overrides,
+  };
 }
 
 function fiscalPeriod(

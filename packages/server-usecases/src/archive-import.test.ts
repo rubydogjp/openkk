@@ -128,6 +128,15 @@ describe("normalizeArchiveImportInput", () => {
     );
   });
 
+  it("rejects archived entries outside the fiscal period", () => {
+    const input = validArchiveInput();
+    input.entries[0]!.date = "2027-01-01";
+
+    expect(() => normalizeArchiveImportInput(input, "user-1")).toThrow(
+      /archive entry.date must be within fiscal period/,
+    );
+  });
+
   it("rejects malformed top-level archive collections", () => {
     const input = validArchiveInput();
     (input as unknown as { entries: unknown }).entries = undefined;
@@ -170,6 +179,46 @@ describe("normalizeArchiveImportInput", () => {
     );
   });
 
+  it("rejects inconsistent archived fixed asset disposal data", () => {
+    const missingDate = validArchiveInput();
+    delete missingDate.fixedAssets[0]!.disposalDate;
+    expect(() => normalizeArchiveImportInput(missingDate, "user-1")).toThrow(
+      /requires disposalDate/,
+    );
+
+    const beforeAcquisition = validArchiveInput();
+    beforeAcquisition.fixedAssets[0]!.disposalDate = "2026-03-31";
+    expect(() =>
+      normalizeArchiveImportInput(beforeAcquisition, "user-1"),
+    ).toThrow(/must not be before acquisitionDate/);
+  });
+
+  it("rejects an unknown archived closing kind", () => {
+    const input = validArchiveInput();
+    input.closings = [{ year: 2026, kind: "unexpected" }];
+
+    expect(() => normalizeArchiveImportInput(input, "user-1")).toThrow(
+      /archive closing.kind is invalid/,
+    );
+  });
+
+  it("rejects mismatched or duplicate archived closing records", () => {
+    const wrongYear = validArchiveInput();
+    wrongYear.closings = [{ year: 2025, kind: "closing" }];
+    expect(() => normalizeArchiveImportInput(wrongYear, "user-1")).toThrow(
+      /must match fiscal period end year 2026/,
+    );
+
+    const duplicate = validArchiveInput();
+    duplicate.closings = [
+      { year: 2026, kind: "closing" },
+      { year: 2026, kind: "closing" },
+    ];
+    expect(() => normalizeArchiveImportInput(duplicate, "user-1")).toThrow(
+      /archive closing is duplicated/,
+    );
+  });
+
   it("rejects an unbalanced archived opening journal", () => {
     const input = validArchiveInput();
     archiveOpening(input).openingJournals[0]!.lines[1]!.amount = 900;
@@ -182,6 +231,29 @@ describe("normalizeArchiveImportInput", () => {
     expect((error as AppError).messageForDeveloper).toContain(
       "archive openingJournal debit total",
     );
+  });
+
+  it("restores a balanced zero-value opening-journal draft", () => {
+    const input = validArchiveInput();
+    const journal = (
+      input.fiscalPeriod.opening as {
+        openingJournals: Array<{
+          description: string;
+          lines: Array<{ amount: number }>;
+        }>;
+      }
+    ).openingJournals[0]!;
+    journal.description = "";
+    journal.lines.forEach((line) => {
+      line.amount = 0;
+    });
+
+    const normalized = normalizeArchiveImportInput(input, "user-1");
+
+    expect(normalized.fiscalPeriod.opening?.openingJournals[0]).toMatchObject({
+      description: "",
+      lines: [{ amount: 0 }, { amount: 0 }],
+    });
   });
 
   it("rejects an unbalanced archived entry", () => {
