@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -12,15 +13,24 @@ import {
 import { AppError } from "@rubydogjp/openkk-client-domain";
 import { useOpenkkAppState } from "../shared/openkk-app-state.js";
 import { useBackendApi } from "../shared/backend-api-context.js";
+import { useOpenkkConfig } from "../shared/openkk-config-context.js";
+import { assertEditingUnlocked } from "../shared/editing-policy.js";
+import { isSelectedFiscalPeriodDataPurged } from "../shared/archive-data-policy.js";
+import { AsyncStateVersion } from "../shared/async-state-version.js";
+import {
+  earliestEntryDate,
+  removeEntryRecord,
+  replaceFiscalPeriodEntryRecords,
+  upsertEntryRecord,
+} from "./entry-record-state.js";
 import {
   entryRecordToImportPayload,
+  optionalEntryLocalId,
   resolveBookAccountId,
   resolveBusinessCategoryId,
   resolveTaxCategoryId,
-  safeRate,
 } from "./import-mapping.js";
 
-export { entryRecordToImportPayload } from "./import-mapping.js";
 import type {
   EntryApiRecord,
   EntryApiLineInput,
@@ -32,8 +42,9 @@ import type {
 
 import {
   parseAmount,
-  parseIsoLocalDate,
+  formatBusinessRatePercent,
   recordToPreviewRows,
+  resolveEntryBusinessRate,
   weekdayJa,
   type EntryRecord,
   type EntryLine,
@@ -48,6 +59,7 @@ export type EntryDraft = {
   description: string;
   partner: string;
   businessRate: string;
+  businessRateRatio?: number;
   taxCategory: string;
   businessCategory: string;
   lines: EntryLine[];
@@ -87,7 +99,11 @@ type EntriesState = {
   mergeFiscalPeriodEntries: (
     fiscalPeriodId: string,
     importedEntries: EntryRecord[],
-  ) => Promise<{ imported: number; skipped: number }>;
+  ) => Promise<{
+    imported: number;
+    skipped: number;
+    earliestImportedDate: string | null;
+  }>;
   prepareFiscalPeriodEntries: (
     importedEntries: EntryRecord[],
   ) => EntryUpsertInput[];
@@ -100,6 +116,7 @@ type EntriesState = {
 
   loadError: unknown;
   reload: () => void;
+  reloadAndWait: () => Promise<EntryRecord[]>;
 };
 
 const EntriesContext = createContext<EntriesState | null>(null);
@@ -107,6 +124,7 @@ const EntriesContext = createContext<EntriesState | null>(null);
 export function OpenkkEntriesProvider(props: { children: ReactNode }) {
   const backendApi = useBackendApi();
   const appState = useOpenkkAppState();
+  const config = useOpenkkConfig();
 
   const [records, setRecords] = useState<EntryRecord[]>([]);
   const [bookAccounts, setBookAccounts] = useState<MasterBookAccount[]>([]);
@@ -114,8 +132,15 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
   const [businessCategories, setBusinessCategories] = useState<
     MasterBusinessCategory[]
   >([]);
-  const [loadError, setLoadError] = useState<unknown>(null);
+  const [masterLoadError, setMasterLoadError] = useState<unknown>(null);
+  const [entriesLoadError, setEntriesLoadError] = useState<unknown>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
+  const periodVersions = useRef(new AsyncStateVersion<string>());
+  const entryMutationVersions = useRef(new AsyncStateVersion<string>());
+  const currentFiscalPeriodDataPurged = isSelectedFiscalPeriodDataPurged(
+    appState.fiscalPeriods,
+    appState.currentFiscalPeriodId,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -130,11 +155,11 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
         setBookAccounts(accounts);
         setTaxCategories(taxes);
         setBusinessCategories(businesses);
-        setLoadError(null);
+        setMasterLoadError(null);
       } catch (error) {
         if (cancelled) return;
         console.error("[openkk] master data load failed:", error);
-        setLoadError(error);
+        setMasterLoadError(error);
       }
     })();
     return () => {
@@ -144,15 +169,28 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
 
   useEffect(() => {
     const fiscalPeriodId = appState.currentFiscalPeriodId;
-    if (fiscalPeriodId == null || fiscalPeriodId.length === 0) {
+    if (
+      fiscalPeriodId == null ||
+      fiscalPeriodId.length === 0 ||
+      currentFiscalPeriodDataPurged
+    ) {
       setRecords([]);
+      setEntriesLoadError(null);
       return;
     }
     let cancelled = false;
+    const authOperationVersion = appState.captureAuthOperationVersion();
+    const readVersion = periodVersions.current.capture(fiscalPeriodId);
     void (async () => {
       try {
         const remoteEntries = await backendApi.entries.getAll(fiscalPeriodId);
-        if (cancelled) return;
+        if (
+          cancelled ||
+          !appState.isAuthOperationCurrent(authOperationVersion) ||
+          !periodVersions.current.isCurrent(fiscalPeriodId, readVersion)
+        ) {
+          return;
+        }
         setRecords((current) =>
           replaceFiscalPeriodEntryRecords(
             current,
@@ -168,11 +206,17 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
             ),
           ),
         );
-        setLoadError(null);
+        setEntriesLoadError(null);
       } catch (error) {
-        if (cancelled) return;
+        if (
+          cancelled ||
+          !appState.isAuthOperationCurrent(authOperationVersion) ||
+          !periodVersions.current.isCurrent(fiscalPeriodId, readVersion)
+        ) {
+          return;
+        }
         console.error("[openkk] entries load failed:", error);
-        setLoadError(error);
+        setEntriesLoadError(error);
       }
     })();
     return () => {
@@ -183,10 +227,12 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
     bookAccounts,
     businessCategories,
     taxCategories,
+    currentFiscalPeriodDataPurged,
     reloadNonce,
   ]);
 
   const value = useMemo<EntriesState>(() => {
+    const loadError = masterLoadError ?? entriesLoadError;
     const accountOptions: EntryMasterAccountOption[] = bookAccounts.map(
       (account) => ({
         id: account.id,
@@ -232,6 +278,9 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
         return records.find((record) => record.id === entryId) ?? null;
       },
       async createEntryFromDraft(fiscalPeriodId, draft) {
+        assertEditingUnlocked(config, "entries.createEntryFromDraft");
+        const authOperationVersion = appState.captureAuthOperationVersion();
+        periodVersions.current.invalidate(fiscalPeriodId);
         const lines = buildEntryApiLinesFromDraft(
           draft,
           {
@@ -245,27 +294,36 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
             messageForUser: "勘定科目の解決に失敗したため作成できませんでした",
           },
         );
-        const created = await backendApi.entries.create(fiscalPeriodId, {
-          date: draft.date,
-          description: draft.description,
-          businessRate: safeRate(draft.businessRate),
-          lines,
-        });
-        const mapped = mapRemoteEntryToRecord({
-          entry: created,
-          fiscalPeriodId,
-          accounts: bookAccounts,
-          taxes: taxCategories,
-          businesses: businessCategories,
-        });
-        setRecords((current) => [...current, mapped]);
-        return mapped.id;
+        try {
+          const created = await backendApi.entries.create(fiscalPeriodId, {
+            date: draft.date,
+            description: draft.description,
+            businessRate: resolveEntryBusinessRate(draft),
+            lines,
+          });
+          appState.assertAuthOperationCurrent(authOperationVersion);
+          const mapped = mapRemoteEntryToRecord({
+            entry: created,
+            fiscalPeriodId,
+            accounts: bookAccounts,
+            taxes: taxCategories,
+            businesses: businessCategories,
+          });
+          setRecords((current) => upsertEntryRecord(current, mapped));
+          return mapped.id;
+        } finally {
+          periodVersions.current.invalidate(fiscalPeriodId);
+        }
       },
       async saveEntry(entryId, draft) {
+        assertEditingUnlocked(config, "entries.saveEntry");
+        const authOperationVersion = appState.captureAuthOperationVersion();
         const currentRecord = records.find((record) => record.id === entryId);
         if (currentRecord == null) {
           return false;
         }
+        periodVersions.current.invalidate(currentRecord.fiscalPeriodId);
+        const mutationVersion = entryMutationVersions.current.invalidate(entryId);
         const lines = buildEntryApiLinesFromDraft(
           draft,
           {
@@ -279,42 +337,62 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
             messageForUser: "勘定科目の解決に失敗したため保存できませんでした",
           },
         );
-        const patched = await backendApi.entries.patch(
-          currentRecord.fiscalPeriodId,
-          entryId,
-          {
-            date: draft.date,
-            description: draft.description,
-            localId: currentRecord.localId,
-            businessRate: safeRate(draft.businessRate),
-            lines,
-          },
-        );
-        setRecords((current) =>
-          current.map((record) =>
-            record.id === entryId
-              ? mapRemoteEntryToRecord({
+        try {
+          const patched = await backendApi.entries.patch(
+            currentRecord.fiscalPeriodId,
+            entryId,
+            {
+              date: draft.date,
+              description: draft.description,
+              localId: optionalEntryLocalId(currentRecord.localId),
+              businessRate: resolveEntryBusinessRate(draft),
+              lines,
+            },
+          );
+          appState.assertAuthOperationCurrent(authOperationVersion);
+          if (entryMutationVersions.current.isCurrent(entryId, mutationVersion)) {
+            setRecords((current) =>
+              upsertEntryRecord(
+                current,
+                mapRemoteEntryToRecord({
                   entry: patched,
                   fiscalPeriodId: currentRecord.fiscalPeriodId,
                   accounts: bookAccounts,
                   taxes: taxCategories,
                   businesses: businessCategories,
-                })
-              : record,
-          ),
-        );
-        return true;
+                }),
+              ),
+            );
+          }
+          return true;
+        } finally {
+          periodVersions.current.invalidate(currentRecord.fiscalPeriodId);
+        }
       },
       async deleteEntry(entryId) {
+        assertEditingUnlocked(config, "entries.deleteEntry");
+        const authOperationVersion = appState.captureAuthOperationVersion();
         const currentRecord = records.find((record) => record.id === entryId);
         if (currentRecord == null) {
           return false;
         }
-        await backendApi.entries.remove(currentRecord.fiscalPeriodId, entryId);
-        setRecords((current) => removeEntryRecord(current, entryId));
-        return true;
+        periodVersions.current.invalidate(currentRecord.fiscalPeriodId);
+        const mutationVersion = entryMutationVersions.current.invalidate(entryId);
+        try {
+          await backendApi.entries.remove(currentRecord.fiscalPeriodId, entryId);
+          appState.assertAuthOperationCurrent(authOperationVersion);
+          if (entryMutationVersions.current.isCurrent(entryId, mutationVersion)) {
+            setRecords((current) => removeEntryRecord(current, entryId));
+          }
+          return true;
+        } finally {
+          periodVersions.current.invalidate(currentRecord.fiscalPeriodId);
+        }
       },
       async mergeFiscalPeriodEntries(fiscalPeriodId, importedEntries) {
+        assertEditingUnlocked(config, "entries.mergeFiscalPeriodEntries");
+        const authOperationVersion = appState.captureAuthOperationVersion();
+        periodVersions.current.invalidate(fiscalPeriodId);
         const payload = importedEntries.map((entry) =>
           entryRecordToImportPayload(entry, {
             accounts: bookAccounts,
@@ -322,24 +400,35 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
             businesses: businessCategories,
           }),
         );
-        const response = await backendApi.entries.importMany(
-          fiscalPeriodId,
-          payload,
-        );
-        const appended = response.entries.map((entry) =>
-          mapRemoteEntryToRecord({
-            entry,
+        try {
+          const response = await backendApi.entries.importMany(
             fiscalPeriodId,
-            accounts: bookAccounts,
-            taxes: taxCategories,
-            businesses: businessCategories,
-          }),
-        );
-        setRecords((current) => [...current, ...appended]);
-        return {
-          imported: response.importedCount,
-          skipped: Math.max(0, importedEntries.length - response.importedCount),
-        };
+            payload,
+          );
+          appState.assertAuthOperationCurrent(authOperationVersion);
+          const appended = response.entries.map((entry) =>
+            mapRemoteEntryToRecord({
+              entry,
+              fiscalPeriodId,
+              accounts: bookAccounts,
+              taxes: taxCategories,
+              businesses: businessCategories,
+            }),
+          );
+          setRecords((current) =>
+            appended.reduce(upsertEntryRecord, current),
+          );
+          return {
+            imported: response.importedCount,
+            skipped: Math.max(
+              0,
+              importedEntries.length - response.importedCount,
+            ),
+            earliestImportedDate: earliestEntryDate(appended),
+          };
+        } finally {
+          periodVersions.current.invalidate(fiscalPeriodId);
+        }
       },
       prepareFiscalPeriodEntries(importedEntries) {
         return importedEntries.map((entry) =>
@@ -376,33 +465,79 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
       reload() {
         setReloadNonce((nonce) => nonce + 1);
       },
+      async reloadAndWait() {
+        const authOperationVersion = appState.captureAuthOperationVersion();
+        const fiscalPeriodId = appState.currentFiscalPeriodId;
+        if (fiscalPeriodId == null || fiscalPeriodId.length === 0) {
+          setRecords([]);
+          setEntriesLoadError(null);
+          return [];
+        }
+        if (currentFiscalPeriodDataPurged) {
+          setRecords([]);
+          setEntriesLoadError(null);
+          return [];
+        }
+        try {
+          for (let attempt = 0; attempt < 3; attempt += 1) {
+            const readVersion = periodVersions.current.capture(fiscalPeriodId);
+            const remoteEntries = await backendApi.entries.getAll(fiscalPeriodId);
+            appState.assertAuthOperationCurrent(authOperationVersion);
+            if (!periodVersions.current.isCurrent(fiscalPeriodId, readVersion)) {
+              continue;
+            }
+            const mappedEntries = remoteEntries.map((entry) =>
+              mapRemoteEntryToRecord({
+                entry,
+                fiscalPeriodId,
+                accounts: bookAccounts,
+                taxes: taxCategories,
+                businesses: businessCategories,
+              }),
+            );
+            setRecords((current) =>
+              replaceFiscalPeriodEntryRecords(
+                current,
+                fiscalPeriodId,
+                mappedEntries,
+              ),
+            );
+            setEntriesLoadError(null);
+            return mappedEntries;
+          }
+          throw new AppError({
+            messageForDeveloper:
+              "entries.reloadAndWait: entries changed during three reads",
+            messageForUser:
+              "仕訳が同時に更新されたため読み込み直せませんでした。もう一度お試しください",
+            originalMessage: null,
+            statusCode: null,
+          });
+        } catch (error) {
+          if (!appState.isAuthOperationCurrent(authOperationVersion)) throw error;
+          setEntriesLoadError(error);
+          throw error;
+        }
+      },
     };
-  }, [bookAccounts, businessCategories, records, taxCategories, loadError]);
+  }, [
+    appState.currentFiscalPeriodId,
+    backendApi,
+    bookAccounts,
+    businessCategories,
+    config,
+    currentFiscalPeriodDataPurged,
+    entriesLoadError,
+    masterLoadError,
+    records,
+    taxCategories,
+  ]);
 
   return (
     <EntriesContext.Provider value={value}>
       {props.children}
     </EntriesContext.Provider>
   );
-}
-
-export function replaceFiscalPeriodEntryRecords(
-  current: EntryRecord[],
-  fiscalPeriodId: string | null,
-  nextRecords: EntryRecord[],
-): EntryRecord[] {
-  if (fiscalPeriodId == null || fiscalPeriodId.length === 0) return [];
-  return [
-    ...current.filter((record) => record.fiscalPeriodId !== fiscalPeriodId),
-    ...nextRecords,
-  ];
-}
-
-export function removeEntryRecord(
-  current: EntryRecord[],
-  entryId: string,
-): EntryRecord[] {
-  return current.filter((record) => record.id !== entryId);
 }
 
 function mapRemoteEntryToRecord(input: {
@@ -418,6 +553,9 @@ function mapRemoteEntryToRecord(input: {
     accountType: mapAccountType(line.bookAccountId, input.accounts, "asset"),
     amount: formatAmount(line.amount),
     bookAccountId: line.bookAccountId,
+    partnerName: line.partnerName,
+    taxCategoryId: line.taxCategoryId,
+    businessCategoryId: line.businessCategoryId,
   }));
   const debitLine = lines.find((line) => line.side === "debit") ?? null;
   const creditLine = lines.find((line) => line.side === "credit") ?? null;
@@ -452,7 +590,8 @@ function mapRemoteEntryToRecord(input: {
     creditAmount: creditLine?.amount ?? "0",
     description: input.entry.description,
     partner: headerPartner,
-    businessRate: String(Math.round((input.entry.businessRate ?? 1) * 100)),
+    businessRate: formatBusinessRatePercent(input.entry.businessRate ?? 1),
+    businessRateRatio: input.entry.businessRate ?? 1,
     taxCategory: headerTax,
     businessCategory: headerBiz,
     localId: input.entry.localId,
@@ -531,10 +670,14 @@ function buildEntryApiLinesFromDraft(
         accounts: master.accounts,
       }) ?? "",
     amount: parseAmount(line.amount),
-    partnerName: draft.partner,
-    taxCategoryId: resolveTaxCategoryId(null, draft.taxCategory, master.taxes),
+    partnerName: line.partnerName ?? draft.partner,
+    taxCategoryId: resolveTaxCategoryId(
+      line.taxCategoryId ?? null,
+      draft.taxCategory,
+      master.taxes,
+    ),
     businessCategoryId: resolveBusinessCategoryId(
-      null,
+      line.businessCategoryId ?? null,
       draft.businessCategory,
       master.businesses,
     ),

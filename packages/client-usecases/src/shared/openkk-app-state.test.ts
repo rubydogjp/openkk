@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { applyFiscalPeriodUpdate } from "./openkk-app-state.js";
+import {
+  applyFiscalPeriodUpdate,
+} from "./openkk-app-state.js";
 import type { FiscalPeriod } from "@rubydogjp/openkk-client-domain";
 import type { FiscalPeriodApiRecord } from "@rubydogjp/openkk-client-ports";
 
@@ -32,6 +34,23 @@ describe("applyFiscalPeriodUpdate", () => {
 
     expect(next?.phase).toBe("pre_closing");
     expect(next?.archiveStatus).toBe("archived");
+  });
+
+  it("upserts a missing period and removes stale duplicates", () => {
+    const patched = remotePeriod({ id: "fp-new", name: "server" });
+
+    expect(applyFiscalPeriodUpdate([], patched).map((item) => item.id)).toEqual([
+      "fp-new",
+    ]);
+    expect(
+      applyFiscalPeriodUpdate(
+        [
+          period({ id: "fp-new", name: "old-1" }),
+          period({ id: "fp-new", name: "old-2" }),
+        ],
+        patched,
+      ).map((item) => item.name),
+    ).toEqual(["server"]);
   });
 });
 

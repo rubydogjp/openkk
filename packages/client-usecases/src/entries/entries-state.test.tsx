@@ -2,9 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import {
   entryRecordToImportPayload,
+  optionalEntryLocalId,
+} from "./import-mapping.js";
+import {
+  earliestEntryDate,
   removeEntryRecord,
   replaceFiscalPeriodEntryRecords,
-} from "./entries-state.js";
+  upsertEntryRecord,
+} from "./entry-record-state.js";
 import type { EntryRecord } from "@rubydogjp/openkk-client-domain";
 import type {
   MasterBookAccount,
@@ -24,9 +29,11 @@ const accounts: Pick<MasterBookAccount, "id" | "name" | "accountType">[] = [
 
 const taxes: Pick<MasterTaxCategory, "id" | "name">[] = [
   { id: "tax_10", name: "課税 10%" },
+  { id: "tax_8", name: "軽減税率 8%" },
 ];
 const businesses: Pick<MasterBusinessCategory, "id" | "name">[] = [
   { id: "biz_service", name: "第5種（サービス業等）" },
+  { id: "biz_retail", name: "第2種（小売業等）" },
 ];
 
 function entry(overrides: Partial<EntryRecord> = {}): EntryRecord {
@@ -51,6 +58,34 @@ function entry(overrides: Partial<EntryRecord> = {}): EntryRecord {
 }
 
 describe("entryRecordToImportPayload", () => {
+  it("omits an empty backend localId from update/import payloads", () => {
+    expect(optionalEntryLocalId("")).toBeUndefined();
+    expect(optionalEntryLocalId("   ")).toBeUndefined();
+    expect(optionalEntryLocalId(undefined)).toBeUndefined();
+    expect(optionalEntryLocalId("entry-key")).toBe("entry-key");
+
+    const payload = entryRecordToImportPayload(entry({ localId: "" }), {
+      accounts,
+      taxes,
+      businesses,
+    });
+
+    expect(payload.localId).toBeUndefined();
+  });
+
+  it("maps a blank tax category to out-of-scope taxation", () => {
+    const payload = entryRecordToImportPayload(entry({ taxCategory: "" }), {
+      accounts,
+      taxes,
+      businesses,
+    });
+
+    expect(payload.lines.map((line) => line.taxCategoryId)).toEqual([
+      "tax_out_of_scope",
+      "tax_out_of_scope",
+    ]);
+  });
+
   it("preserves compound journal lines when importing entries", () => {
     const entry: EntryRecord = {
       id: "entry-1",
@@ -158,6 +193,71 @@ describe("entryRecordToImportPayload", () => {
 
     expect(payload.businessRate).toBe(1);
   });
+
+  it("preserves an exact backend rate instead of its rounded display value", () => {
+    const payload = entryRecordToImportPayload(
+      entry({
+        businessRate: "33.33",
+        businessRateRatio: 0.3333333333333333,
+      }),
+      { accounts, taxes, businesses },
+    );
+
+    expect(payload.businessRate).toBe(0.3333333333333333);
+  });
+
+  it("preserves line-specific metadata instead of replacing it with header values", () => {
+    const payload = entryRecordToImportPayload(
+      entry({
+        partner: "header partner",
+        lines: [
+          {
+            side: "debit",
+            accountName: "仕入",
+            accountType: "cost_of_sales",
+            amount: "10,000",
+            bookAccountId: "acct_cost_of_sales_商品仕入高",
+            partnerName: "line partner",
+            taxCategoryId: "tax_8",
+            businessCategoryId: "biz_retail",
+          },
+          {
+            side: "credit",
+            accountName: "未払金",
+            accountType: "liability",
+            amount: "10,000",
+            bookAccountId: "acct_accrued_expense",
+          },
+        ],
+      }),
+      { accounts, taxes, businesses },
+    );
+
+    expect(payload.lines).toEqual([
+      expect.objectContaining({
+        partnerName: "line partner",
+        taxCategoryId: "tax_8",
+        businessCategoryId: "biz_retail",
+      }),
+      expect.objectContaining({
+        partnerName: "header partner",
+        taxCategoryId: "tax_10",
+        businessCategoryId: "biz_service",
+      }),
+    ]);
+  });
+});
+
+describe("earliestEntryDate", () => {
+  it("uses only records actually inserted by the backend", () => {
+    const inserted = [
+      entry({ id: "new-december", date: "2026-12-20" }),
+      entry({ id: "new-october", date: "2026-10-05" }),
+    ];
+
+    expect(earliestEntryDate(inserted)).toBe("2026-10-05");
+    expect(earliestEntryDate([])).toBeNull();
+  });
 });
 
 describe("replaceFiscalPeriodEntryRecords", () => {
@@ -199,5 +299,21 @@ describe("removeEntryRecord", () => {
     const current = [entry({ id: "entry-1", fiscalPeriodId: "fp-1" })];
 
     expect(removeEntryRecord(current, "missing")).toEqual(current);
+  });
+});
+
+describe("upsertEntryRecord", () => {
+  it("replaces an existing record instead of duplicating an async result", () => {
+    const current = [entry({ id: "entry-1", description: "old" })];
+    const next = entry({ id: "entry-1", description: "new" });
+
+    expect(upsertEntryRecord(current, next)).toEqual([next]);
+  });
+
+  it("appends a previously unseen record", () => {
+    const current = [entry({ id: "entry-1" })];
+    const next = entry({ id: "entry-2" });
+
+    expect(upsertEntryRecord(current, next)).toEqual([current[0], next]);
   });
 });

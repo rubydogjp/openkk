@@ -18,6 +18,7 @@ import {
 } from "@rubydogjp/openkk-client-ports";
 
 import { BackendApiProvider, useBackendApi } from "./backend-api-context.js";
+import { AsyncStateVersion } from "./async-state-version.js";
 
 const MAINTENANCE_RECHECK_INTERVAL_MS = 30_000;
 
@@ -38,14 +39,24 @@ const MaintenanceContext = createContext<MaintenanceState | null>(null);
 export function OpenkkMaintenanceProvider(props: { children: ReactNode }) {
   const api = useBackendApi();
   const [status, setStatus] = useState<MaintenanceStatus | null>(null);
+  const refreshVersions = useRef(new AsyncStateVersion<"maintenance">());
   const isActive = status?.enabled === true;
 
   const refreshStatus = useCallback(async () => {
+    const refreshVersion = refreshVersions.current.invalidate("maintenance");
     try {
       const fetched = await api.maintenance.get();
+      if (
+        !refreshVersions.current.isCurrent("maintenance", refreshVersion)
+      ) {
+        return;
+      }
       setStatus(fetched.enabled ? fetched : null);
     } catch (error) {
-      if (isMaintenanceModeError(error)) {
+      if (
+        refreshVersions.current.isCurrent("maintenance", refreshVersion) &&
+        isMaintenanceModeError(error)
+      ) {
         setStatus((prev) => prev ?? FALLBACK_MAINTENANCE_STATUS);
       }
     }
@@ -61,6 +72,17 @@ export function OpenkkMaintenanceProvider(props: { children: ReactNode }) {
     [api, enterMaintenance],
   );
 
+  useEffect(
+    () => () => {
+      refreshVersions.current.invalidate("maintenance");
+    },
+    [],
+  );
+
+  useEffect(() => {
+    void refreshStatus();
+  }, [refreshStatus]);
+
   useEffect(() => {
     if (!isActive) return;
     const timer = setInterval(() => {
@@ -73,9 +95,7 @@ export function OpenkkMaintenanceProvider(props: { children: ReactNode }) {
 
   return (
     <MaintenanceContext.Provider value={value}>
-      <BackendApiProvider api={wrappedApi}>
-        {props.children}
-      </BackendApiProvider>
+      <BackendApiProvider api={wrappedApi}>{props.children}</BackendApiProvider>
     </MaintenanceContext.Provider>
   );
 }

@@ -2,7 +2,7 @@ import {
   AppError,
   getEntryLines,
   parseAmount,
-  parseBusinessRate,
+  resolveEntryBusinessRate,
   type EntryAccountVisualType,
   type EntryRecord,
 } from "@rubydogjp/openkk-client-domain";
@@ -19,8 +19,10 @@ export type ImportMaster = {
   businesses: Pick<MasterBusinessCategory, "id" | "name">[];
 };
 
-export function safeRate(value: string): number {
-  return parseBusinessRate(value);
+export function optionalEntryLocalId(
+  localId: string | null | undefined,
+): string | undefined {
+  return localId != null && localId.trim() !== "" ? localId : undefined;
 }
 
 /**
@@ -64,7 +66,7 @@ export function resolveTaxCategoryId(
   }
   return (
     categories.find((category) => category.name === name)?.id ??
-    (name.trim() === "" ? "tax_exempt" : name)
+    (name.trim() === "" ? "tax_out_of_scope" : name)
   );
 }
 
@@ -110,9 +112,17 @@ export function entryRecordToImportPayload(
           accounts: master.accounts,
         }) ?? "",
       amount: parseAmount(line.amount),
-      partnerName: entry.partner,
-      taxCategoryId: "",
-      businessCategoryId: "",
+      partnerName: line.partnerName ?? entry.partner,
+      taxCategoryId: resolveTaxCategoryId(
+        line.taxCategoryId ?? null,
+        entry.taxCategory,
+        master.taxes,
+      ),
+      businessCategoryId: resolveBusinessCategoryId(
+        line.businessCategoryId ?? null,
+        entry.businessCategory,
+        master.businesses,
+      ),
     }),
   );
   if (lines.some((line) => line.bookAccountId === "")) {
@@ -123,26 +133,11 @@ export function entryRecordToImportPayload(
       statusCode: null,
     });
   }
-  const taxCategoryId = resolveTaxCategoryId(
-    entry.debitTaxCategoryId ?? entry.creditTaxCategoryId ?? null,
-    entry.taxCategory,
-    master.taxes,
-  );
-  const businessCategoryId = resolveBusinessCategoryId(
-    entry.debitBusinessCategoryId ?? entry.creditBusinessCategoryId ?? null,
-    entry.businessCategory,
-    master.businesses,
-  );
-  const linesWithCategories = lines.map((line) => ({
-    ...line,
-    taxCategoryId: taxCategoryId,
-    businessCategoryId: businessCategoryId,
-  }));
   return {
     date: entry.date,
     description: entry.description,
-    localId: entry.localId,
-    businessRate: safeRate(entry.businessRate),
-    lines: linesWithCategories,
+    localId: optionalEntryLocalId(entry.localId),
+    businessRate: resolveEntryBusinessRate(entry),
+    lines,
   };
 }

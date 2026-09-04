@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -12,17 +13,29 @@ import {
 import { useOpenkkAppState } from "../shared/openkk-app-state.js";
 import { useBackendApi } from "../shared/backend-api-context.js";
 import { useOpenkkConfig } from "../shared/openkk-config-context.js";
+import { assertEditingUnlocked } from "../shared/editing-policy.js";
+import { isSelectedFiscalPeriodDataPurged } from "../shared/archive-data-policy.js";
+import { AsyncStateVersion } from "../shared/async-state-version.js";
 import {
+  buildCategoryIdByValue,
+  fixedAssetDraftToPatch,
+  groupAccountIdsByName,
+  listFixedAssetsForPeriod,
+  mapFixedAssetToPreview,
+  mapOpeningJournalToRecord,
+  nextOpeningCarryoverId,
+  openingDraftBusinessRate,
+  replaceLoadedFixedAssets,
+  resolveBookAccountId,
+  resolveCategoryId,
+  resolveFixedAssetDraftBusinessRate,
+  upsertFixedAsset,
+} from "./assist-state-helpers.js";
+import {
+  capFixedAssetPreviewDate,
   parseAmount,
-  parseBusinessRate,
-  parseIsoLocalDate,
   AppError,
-  computeStraightLineDepreciation,
 } from "@rubydogjp/openkk-client-domain";
-import type {
-  FixedAssetApiRecord,
-  FixedAssetPatchInput,
-} from "@rubydogjp/openkk-client-ports";
 
 import type {
   FixedAssetDraft,
@@ -35,7 +48,7 @@ import type {
 } from "@rubydogjp/openkk-client-domain";
 
 type AssistState = {
-  listFixedAssets: () => FixedAssetPreviewItem[];
+  listFixedAssets: (fiscalPeriodId?: string) => FixedAssetPreviewItem[];
   getFixedAsset: (assetId: string) => FixedAssetPreviewItem | null;
   addFixedAsset: (draft: FixedAssetDraft) => Promise<string | null>;
   updateFixedAsset: (
@@ -45,7 +58,10 @@ type AssistState = {
   deleteFixedAsset: (assetId: string) => Promise<boolean>;
   listOpeningCarryovers: (fiscalPeriodId: string) => OpeningCarryoverRecord[];
   getOpeningCarryover: (carryoverId: string) => OpeningCarryoverRecord | null;
-  addOpeningCarryover: (fiscalPeriodId: string) => Promise<string | null>;
+  addOpeningCarryover: (
+    fiscalPeriodId: string,
+    draft: OpeningCarryoverDraft,
+  ) => Promise<string | null>;
   updateOpeningCarryover: (
     carryoverId: string,
     draft: OpeningCarryoverDraft,
@@ -68,41 +84,88 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
   const [bookAccountNameById, setBookAccountNameById] = useState<
     Record<string, string>
   >({});
-  const [bookAccountIdByName, setBookAccountIdByName] = useState<
-    Record<string, string>
+  const [bookAccountIdsByName, setBookAccountIdsByName] = useState<
+    Record<string, string[]>
   >({});
   const [bookAccountTypeById, setBookAccountTypeById] = useState<
     Record<string, EntryAccountVisualType>
   >({});
-  const [loadError, setLoadError] = useState<unknown>(null);
+  const [taxCategoryIdByValue, setTaxCategoryIdByValue] = useState<
+    Record<string, string>
+  >({});
+  const [taxCategoryNameById, setTaxCategoryNameById] = useState<
+    Record<string, string>
+  >({});
+  const [businessCategoryIdByValue, setBusinessCategoryIdByValue] = useState<
+    Record<string, string>
+  >({});
+  const [businessCategoryNameById, setBusinessCategoryNameById] = useState<
+    Record<string, string>
+  >({});
+  const [masterLoadError, setMasterLoadError] = useState<unknown>(null);
+  const [fixedAssetsLoadError, setFixedAssetsLoadError] =
+    useState<unknown>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
+  const selectedFiscalPeriodId = useRef(appState.currentFiscalPeriodId);
+  const periodVersions = useRef(new AsyncStateVersion<string>());
+  const assetMutationVersions = useRef(new AsyncStateVersion<string>());
+  selectedFiscalPeriodId.current = appState.currentFiscalPeriodId;
+  const currentFiscalPeriod = appState.fiscalPeriods.find(
+    (period) => period.id === appState.currentFiscalPeriodId,
+  );
+  const currentFiscalPeriodEndDate = currentFiscalPeriod?.endDate;
+  const currentFiscalPeriodDataPurged = isSelectedFiscalPeriodDataPurged(
+    appState.fiscalPeriods,
+    appState.currentFiscalPeriodId,
+  );
+  const fixedAssetPreviewAsOf = useMemo(
+    () =>
+      capFixedAssetPreviewDate(config.today, currentFiscalPeriodEndDate),
+    [config.today, currentFiscalPeriodEndDate],
+  );
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
-        const accounts = await backendApi.masterData.getBookAccounts();
+        const [accounts, taxCategories, businessCategories] = await Promise.all(
+          [
+            backendApi.masterData.getBookAccounts(),
+            backendApi.masterData.getTaxCategories(),
+            backendApi.masterData.getBusinessCategories(),
+          ],
+        );
         if (cancelled) return;
         setBookAccountNameById(
           Object.fromEntries(
             accounts.map((account) => [account.id, account.name]),
           ),
         );
-        setBookAccountIdByName(
-          Object.fromEntries(
-            accounts.map((account) => [account.name, account.id]),
-          ),
-        );
+        setBookAccountIdsByName(groupAccountIdsByName(accounts));
         setBookAccountTypeById(
           Object.fromEntries(
             accounts.map((account) => [account.id, account.accountType]),
           ) as Record<string, EntryAccountVisualType>,
         );
-        setLoadError(null);
+        setTaxCategoryIdByValue(buildCategoryIdByValue(taxCategories));
+        setTaxCategoryNameById(
+          Object.fromEntries(
+            taxCategories.map((category) => [category.id, category.name]),
+          ),
+        );
+        setBusinessCategoryIdByValue(
+          buildCategoryIdByValue(businessCategories),
+        );
+        setBusinessCategoryNameById(
+          Object.fromEntries(
+            businessCategories.map((category) => [category.id, category.name]),
+          ),
+        );
+        setMasterLoadError(null);
       } catch (error) {
         if (cancelled) return;
         console.error("[openkk] assist master data load failed:", error);
-        setLoadError(error);
+        setMasterLoadError(error);
       }
     })();
     return () => {
@@ -112,15 +175,28 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
 
   useEffect(() => {
     const fiscalPeriodId = appState.currentFiscalPeriodId;
-    if (fiscalPeriodId == null || fiscalPeriodId.length === 0) {
+    if (
+      fiscalPeriodId == null ||
+      fiscalPeriodId.length === 0 ||
+      currentFiscalPeriodDataPurged
+    ) {
       setFixedAssets([]);
+      setFixedAssetsLoadError(null);
       return;
     }
     let cancelled = false;
+    const authOperationVersion = appState.captureAuthOperationVersion();
+    const readVersion = periodVersions.current.capture(fiscalPeriodId);
     void (async () => {
       try {
         const remote = await backendApi.fixedAssets.getAll(fiscalPeriodId);
-        if (cancelled) return;
+        if (
+          cancelled ||
+          !appState.isAuthOperationCurrent(authOperationVersion) ||
+          !periodVersions.current.isCurrent(fiscalPeriodId, readVersion)
+        ) {
+          return;
+        }
         setFixedAssets(
           replaceLoadedFixedAssets(
             fiscalPeriodId,
@@ -128,16 +204,23 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
               mapFixedAssetToPreview(
                 asset,
                 bookAccountNameById[asset.bookAccountId],
-                config.today,
+                fixedAssetPreviewAsOf,
+                currentFiscalPeriodEndDate,
               ),
             ),
           ),
         );
-        setLoadError(null);
+        setFixedAssetsLoadError(null);
       } catch (error) {
-        if (cancelled) return;
+        if (
+          cancelled ||
+          !appState.isAuthOperationCurrent(authOperationVersion) ||
+          !periodVersions.current.isCurrent(fiscalPeriodId, readVersion)
+        ) {
+          return;
+        }
         console.error("[openkk] fixed assets load failed:", error);
-        setLoadError(error);
+        setFixedAssetsLoadError(error);
       }
     })();
     return () => {
@@ -146,24 +229,38 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
   }, [
     appState.currentFiscalPeriodId,
     bookAccountNameById,
-    config.today,
+    currentFiscalPeriodEndDate,
+    currentFiscalPeriodDataPurged,
+    fixedAssetPreviewAsOf,
     reloadNonce,
   ]);
 
   const value = useMemo<AssistState>(() => {
+    const loadError = masterLoadError ?? fixedAssetsLoadError;
     return {
-      listFixedAssets() {
-        return fixedAssets;
+      listFixedAssets(fiscalPeriodId) {
+        return listFixedAssetsForPeriod(fixedAssets, fiscalPeriodId);
       },
       getFixedAsset(assetId) {
         return fixedAssets.find((asset) => asset.id === assetId) ?? null;
       },
       async addFixedAsset(draft) {
+        assertEditingUnlocked(config, "assist.addFixedAsset");
+        const authOperationVersion = appState.captureAuthOperationVersion();
         const fiscalPeriodId = appState.currentFiscalPeriodId;
         if (fiscalPeriodId == null || fiscalPeriodId.length === 0) {
           return null;
         }
-        const accountId = bookAccountIdByName[draft.account] ?? null;
+        periodVersions.current.invalidate(fiscalPeriodId);
+        const accountId = resolveBookAccountId(
+          undefined,
+          draft.account,
+          "asset",
+          {
+            accountIdsByName: bookAccountIdsByName,
+            accountTypeById: bookAccountTypeById,
+          },
+        );
         if (accountId == null || accountId.length === 0) {
           throw new AppError({
             messageForDeveloper: "assist.addFixedAsset: accountId missing",
@@ -172,35 +269,51 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
             statusCode: null,
           });
         }
-        const created = await backendApi.fixedAssets.create(fiscalPeriodId, {
-          name: draft.name,
-          acquisitionDate: draft.acquisitionDate,
-          acquisitionCost: parseAmount(draft.acquisitionCost),
-          usefulLife: Math.max(1, Math.round(draft.usefulLife) || 1),
-          depreciationMethod: "straight_line",
-          businessRate:
-            Math.max(0, Math.min(100, draft.businessRatePercent)) / 100,
-          bookAccountId: accountId,
-        });
-        setFixedAssets((current) => [
-          ...current,
-          mapFixedAssetToPreview(
-            created,
-            bookAccountNameById[created.bookAccountId],
-            config.today,
-          ),
-        ]);
-        return created.id;
+        try {
+          const created = await backendApi.fixedAssets.create(fiscalPeriodId, {
+            name: draft.name,
+            acquisitionDate: draft.acquisitionDate,
+            acquisitionCost: parseAmount(draft.acquisitionCost),
+            usefulLife: Math.max(1, Math.round(draft.usefulLife) || 1),
+            depreciationMethod: "straight_line",
+            businessRate: resolveFixedAssetDraftBusinessRate(draft),
+            bookAccountId: accountId,
+          });
+          appState.assertAuthOperationCurrent(authOperationVersion);
+          if (selectedFiscalPeriodId.current === fiscalPeriodId) {
+            const mapped = mapFixedAssetToPreview(
+              created,
+              bookAccountNameById[created.bookAccountId],
+              fixedAssetPreviewAsOf,
+              currentFiscalPeriodEndDate,
+            );
+            setFixedAssets((current) => upsertFixedAsset(current, mapped));
+          }
+          return created.id;
+        } finally {
+          periodVersions.current.invalidate(fiscalPeriodId);
+        }
       },
       async updateFixedAsset(assetId, draft) {
+        assertEditingUnlocked(config, "assist.updateFixedAsset");
+        const authOperationVersion = appState.captureAuthOperationVersion();
         const current =
           fixedAssets.find((asset) => asset.id === assetId) ?? null;
         const fiscalPeriodId =
           current?.fiscalPeriodId ?? appState.currentFiscalPeriodId ?? "";
         if (fiscalPeriodId.length === 0) return false;
+        periodVersions.current.invalidate(fiscalPeriodId);
+        const mutationVersion = assetMutationVersions.current.invalidate(assetId);
         // ユーザーが科目名を変更した場合は draft 側を優先して解決する。
-        const accountId =
-          bookAccountIdByName[draft.account] ?? current?.accountId ?? null;
+        const accountId = resolveBookAccountId(
+          current?.accountId,
+          draft.account,
+          "asset",
+          {
+            accountIdsByName: bookAccountIdsByName,
+            accountTypeById: bookAccountTypeById,
+          },
+        );
         if (accountId == null || accountId.length === 0) {
           throw new AppError({
             messageForDeveloper: "assist.updateFixedAsset: accountId missing",
@@ -211,23 +324,31 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         }
         // 簿価・進捗・残期間は計算で導出するため保存しない。保存するのは
         // 償却計算の元になる「真実」の値（取得価額・取得日・耐用年数・事業割合）のみ。
-        const patched = await backendApi.fixedAssets.patch(
-          fiscalPeriodId,
-          assetId,
-          fixedAssetDraftToPatch(draft, accountId),
-        );
-        setFixedAssets((currentList) =>
-          currentList.map((asset) =>
-            asset.id === assetId
-              ? mapFixedAssetToPreview(
-                  patched,
-                  bookAccountNameById[patched.bookAccountId],
-                  config.today,
-                )
-              : asset,
-          ),
-        );
-        return true;
+        try {
+          const patched = await backendApi.fixedAssets.patch(
+            fiscalPeriodId,
+            assetId,
+            fixedAssetDraftToPatch(draft, accountId),
+          );
+          appState.assertAuthOperationCurrent(authOperationVersion);
+          if (
+            selectedFiscalPeriodId.current === fiscalPeriodId &&
+            assetMutationVersions.current.isCurrent(assetId, mutationVersion)
+          ) {
+            const mapped = mapFixedAssetToPreview(
+              patched,
+              bookAccountNameById[patched.bookAccountId],
+              fixedAssetPreviewAsOf,
+              currentFiscalPeriodEndDate,
+            );
+            setFixedAssets((currentList) =>
+              upsertFixedAsset(currentList, mapped),
+            );
+          }
+          return true;
+        } finally {
+          periodVersions.current.invalidate(fiscalPeriodId);
+        }
       },
       listOpeningCarryovers(fiscalPeriodId) {
         const period = appState.fiscalPeriods.find(
@@ -241,6 +362,8 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
               fiscalPeriodId,
               bookAccountNameById,
               bookAccountTypeById,
+              taxCategoryNameById,
+              businessCategoryNameById,
             ),
           )
           .sort((left, right) => {
@@ -263,22 +386,37 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
           fiscalPeriodId,
           bookAccountNameById,
           bookAccountTypeById,
+          taxCategoryNameById,
+          businessCategoryNameById,
         );
       },
-      async addOpeningCarryover(fiscalPeriodId) {
+      async addOpeningCarryover(fiscalPeriodId, draft) {
+        assertEditingUnlocked(config, "assist.addOpeningCarryover");
         const period = appState.fiscalPeriods.find(
           (p) => p.id === fiscalPeriodId,
         );
         const opening = period?.opening;
         if (period == null || opening == null) return null;
         const debitAccountId =
-          bookAccountIdByName["売掛金"] ??
-          Object.values(bookAccountIdByName)[0] ??
-          "";
+          resolveBookAccountId(
+            draft.debitBookAccountId,
+            draft.debit,
+            draft.debitType,
+            {
+              accountIdsByName: bookAccountIdsByName,
+              accountTypeById: bookAccountTypeById,
+            },
+          ) ?? "";
         const creditAccountId =
-          bookAccountIdByName["売上"] ??
-          Object.values(bookAccountIdByName)[0] ??
-          "";
+          resolveBookAccountId(
+            draft.creditBookAccountId,
+            draft.credit,
+            draft.creditType,
+            {
+              accountIdsByName: bookAccountIdsByName,
+              accountTypeById: bookAccountTypeById,
+            },
+          ) ?? "";
         if (debitAccountId === "" || creditAccountId === "") {
           throw new AppError({
             messageForDeveloper:
@@ -289,49 +427,73 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
             statusCode: null,
           });
         }
-        const nextId = nextOpeningCarryoverId(
+        let nextId: string | null = null;
+        const updated = await appState.updateFiscalPeriod(
           fiscalPeriodId,
-          opening.openingJournals ?? [],
-        );
-        const newJournal = {
-          id: nextId,
-          date: period.startDate,
-          description: "期首再振替",
-          businessRate: 1,
-          lines: [
-            {
-              id: `${nextId}-d`,
-              side: "debit" as const,
-              bookAccountId: debitAccountId,
-              amount: 0,
-              partnerName: "",
-              taxCategoryId: "",
-              businessCategoryId: "",
-            },
-            {
-              id: `${nextId}-c`,
-              side: "credit" as const,
-              bookAccountId: creditAccountId,
-              amount: 0,
-              partnerName: "",
-              taxCategoryId: "",
-              businessCategoryId: "",
-            },
-          ],
-        };
-        const updatedJournals = [
-          ...(opening.openingJournals ?? []),
-          newJournal,
-        ];
-        await appState.updateFiscalPeriod(fiscalPeriodId, {
-          opening: {
-            ...opening,
-            openingJournals: updatedJournals,
+          (currentPeriod) => {
+            const currentOpening = currentPeriod.opening;
+            if (currentOpening == null) return null;
+            nextId = nextOpeningCarryoverId(
+              fiscalPeriodId,
+              currentOpening.openingJournals ?? [],
+            );
+            const newJournal = {
+              id: nextId,
+              date: draft.date,
+              description: draft.description,
+              businessRate: openingDraftBusinessRate(draft),
+              lines: [
+                {
+                  id: `${nextId}-d`,
+                  side: "debit" as const,
+                  bookAccountId: debitAccountId,
+                  amount: parseAmount(draft.debitAmount),
+                  partnerName: draft.partner,
+                  taxCategoryId: resolveCategoryId(
+                    draft.taxCategory,
+                    taxCategoryIdByValue,
+                    "tax_out_of_scope",
+                  ),
+                  businessCategoryId: resolveCategoryId(
+                    draft.businessCategory,
+                    businessCategoryIdByValue,
+                    "biz_none",
+                  ),
+                },
+                {
+                  id: `${nextId}-c`,
+                  side: "credit" as const,
+                  bookAccountId: creditAccountId,
+                  amount: parseAmount(draft.creditAmount),
+                  partnerName: draft.partner,
+                  taxCategoryId: resolveCategoryId(
+                    draft.taxCategory,
+                    taxCategoryIdByValue,
+                    "tax_out_of_scope",
+                  ),
+                  businessCategoryId: resolveCategoryId(
+                    draft.businessCategory,
+                    businessCategoryIdByValue,
+                    "biz_none",
+                  ),
+                },
+              ],
+            };
+            return {
+              opening: {
+                ...currentOpening,
+                openingJournals: [
+                  ...(currentOpening.openingJournals ?? []),
+                  newJournal,
+                ],
+              },
+            };
           },
-        });
-        return nextId;
+        );
+        return updated ? nextId : null;
       },
       async updateOpeningCarryover(carryoverId, draft) {
+        assertEditingUnlocked(config, "assist.updateOpeningCarryover");
         const fiscalPeriodId = appState.currentFiscalPeriodId;
         if (fiscalPeriodId == null || fiscalPeriodId.length === 0) return false;
         const period = appState.fiscalPeriods.find(
@@ -340,9 +502,25 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         const opening = period?.opening;
         if (period == null || opening == null) return false;
         const debitAccountId =
-          resolveBookAccountIdByName(draft.debit, bookAccountIdByName) ?? "";
+          resolveBookAccountId(
+            draft.debitBookAccountId,
+            draft.debit,
+            draft.debitType,
+            {
+              accountIdsByName: bookAccountIdsByName,
+              accountTypeById: bookAccountTypeById,
+            },
+          ) ?? "";
         const creditAccountId =
-          resolveBookAccountIdByName(draft.credit, bookAccountIdByName) ?? "";
+          resolveBookAccountId(
+            draft.creditBookAccountId,
+            draft.credit,
+            draft.creditType,
+            {
+              accountIdsByName: bookAccountIdsByName,
+              accountTypeById: bookAccountTypeById,
+            },
+          ) ?? "";
         if (debitAccountId === "" || creditAccountId === "") {
           throw new AppError({
             messageForDeveloper:
@@ -352,64 +530,101 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
             statusCode: null,
           });
         }
-        const journals = opening.openingJournals ?? [];
-        let updated = false;
-        const nextJournals = journals.map((journal) => {
-          if (journal.id !== carryoverId) return journal;
-          updated = true;
-          return {
-            ...journal,
-            date: draft.date,
-            description: draft.description,
-            businessRate: parseBusinessRate(draft.businessRate),
-            lines: [
-              {
-                id:
-                  journal.lines.find((line) => line.side === "debit")?.id ??
-                  `${journal.id}-d`,
-                side: "debit" as const,
-                bookAccountId: debitAccountId,
-                amount: parseAmount(draft.debitAmount),
-                partnerName: draft.partner,
-                taxCategoryId: draft.taxCategory,
-                businessCategoryId: draft.businessCategory,
+        return await appState.updateFiscalPeriod(
+          fiscalPeriodId,
+          (currentPeriod) => {
+            const currentOpening = currentPeriod.opening;
+            if (currentOpening == null) return null;
+            const journals = currentOpening.openingJournals ?? [];
+            const target = journals.find(
+              (journal) => journal.id === carryoverId,
+            );
+            if (target == null) return null;
+            const nextJournal = {
+              ...target,
+              date: draft.date,
+              description: draft.description,
+              businessRate: openingDraftBusinessRate(draft),
+              lines: [
+                {
+                  id:
+                    target.lines.find((line) => line.side === "debit")?.id ??
+                    `${target.id}-d`,
+                  side: "debit" as const,
+                  bookAccountId: debitAccountId,
+                  amount: parseAmount(draft.debitAmount),
+                  partnerName: draft.partner,
+                  taxCategoryId: resolveCategoryId(
+                    draft.taxCategory,
+                    taxCategoryIdByValue,
+                    "tax_out_of_scope",
+                  ),
+                  businessCategoryId: resolveCategoryId(
+                    draft.businessCategory,
+                    businessCategoryIdByValue,
+                    "biz_none",
+                  ),
+                },
+                {
+                  id:
+                    target.lines.find((line) => line.side === "credit")?.id ??
+                    `${target.id}-c`,
+                  side: "credit" as const,
+                  bookAccountId: creditAccountId,
+                  amount: parseAmount(draft.creditAmount),
+                  partnerName: draft.partner,
+                  taxCategoryId: resolveCategoryId(
+                    draft.taxCategory,
+                    taxCategoryIdByValue,
+                    "tax_out_of_scope",
+                  ),
+                  businessCategoryId: resolveCategoryId(
+                    draft.businessCategory,
+                    businessCategoryIdByValue,
+                    "biz_none",
+                  ),
+                },
+              ],
+            };
+            return {
+              opening: {
+                ...currentOpening,
+                openingJournals: journals.map((journal) =>
+                  journal.id === carryoverId ? nextJournal : journal,
+                ),
               },
-              {
-                id:
-                  journal.lines.find((line) => line.side === "credit")?.id ??
-                  `${journal.id}-c`,
-                side: "credit" as const,
-                bookAccountId: creditAccountId,
-                amount: parseAmount(draft.creditAmount),
-                partnerName: draft.partner,
-                taxCategoryId: draft.taxCategory,
-                businessCategoryId: draft.businessCategory,
-              },
-            ],
-          };
-        });
-        if (!updated) return false;
-        await appState.updateFiscalPeriod(fiscalPeriodId, {
-          opening: {
-            ...opening,
-            openingJournals: nextJournals,
+            };
           },
-        });
-        return true;
+        );
       },
       async deleteFixedAsset(assetId) {
+        assertEditingUnlocked(config, "assist.deleteFixedAsset");
+        const authOperationVersion = appState.captureAuthOperationVersion();
         const current =
           fixedAssets.find((asset) => asset.id === assetId) ?? null;
         const fiscalPeriodId =
           current?.fiscalPeriodId ?? appState.currentFiscalPeriodId ?? "";
         if (fiscalPeriodId.length === 0) return false;
-        await backendApi.fixedAssets.remove(fiscalPeriodId, assetId);
-        setFixedAssets((currentList) =>
-          currentList.filter((asset) => asset.id !== assetId),
-        );
-        return true;
+        periodVersions.current.invalidate(fiscalPeriodId);
+        const mutationVersion = assetMutationVersions.current.invalidate(assetId);
+        try {
+          await backendApi.fixedAssets.remove(fiscalPeriodId, assetId);
+          appState.assertAuthOperationCurrent(authOperationVersion);
+          if (
+            selectedFiscalPeriodId.current === fiscalPeriodId &&
+            assetMutationVersions.current.isCurrent(assetId, mutationVersion)
+          ) {
+            setFixedAssets((currentList) =>
+              currentList.filter((asset) => asset.id !== assetId),
+            );
+          }
+          return true;
+        } finally {
+          periodVersions.current.invalidate(fiscalPeriodId);
+        }
       },
       async deleteOpeningCarryover(carryoverId) {
+        assertEditingUnlocked(config, "assist.deleteOpeningCarryover");
         const fiscalPeriodId = appState.currentFiscalPeriodId;
         if (fiscalPeriodId == null || fiscalPeriodId.length === 0) return false;
         const period = appState.fiscalPeriods.find(
@@ -417,18 +632,24 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         );
         const opening = period?.opening;
         if (period == null || opening == null) return false;
-        const journals = opening.openingJournals ?? [];
-        const nextJournals = journals.filter(
-          (journal) => journal.id !== carryoverId,
-        );
-        if (nextJournals.length === journals.length) return false;
-        await appState.updateFiscalPeriod(fiscalPeriodId, {
-          opening: {
-            ...opening,
-            openingJournals: nextJournals,
+        return await appState.updateFiscalPeriod(
+          fiscalPeriodId,
+          (currentPeriod) => {
+            const currentOpening = currentPeriod.opening;
+            if (currentOpening == null) return null;
+            const journals = currentOpening.openingJournals ?? [];
+            const nextJournals = journals.filter(
+              (journal) => journal.id !== carryoverId,
+            );
+            if (nextJournals.length === journals.length) return null;
+            return {
+              opening: {
+                ...currentOpening,
+                openingJournals: nextJournals,
+              },
+            };
           },
-        });
-        return true;
+        );
       },
       loadError,
       reload() {
@@ -438,12 +659,18 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
   }, [
     appState.currentFiscalPeriodId,
     appState.fiscalPeriods,
-    bookAccountIdByName,
+    bookAccountIdsByName,
     bookAccountNameById,
     bookAccountTypeById,
-    config.today,
+    businessCategoryIdByValue,
+    businessCategoryNameById,
+    currentFiscalPeriodEndDate,
+    fixedAssetPreviewAsOf,
     fixedAssets,
-    loadError,
+    fixedAssetsLoadError,
+    masterLoadError,
+    taxCategoryIdByValue,
+    taxCategoryNameById,
   ]);
 
   return (
@@ -453,175 +680,11 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
   );
 }
 
-export function replaceLoadedFixedAssets(
-  fiscalPeriodId: string | null,
-  nextAssets: FixedAssetPreviewItem[],
-): FixedAssetPreviewItem[] {
-  if (fiscalPeriodId == null || fiscalPeriodId.length === 0) return [];
-  return nextAssets;
-}
-
-export function nextOpeningCarryoverId(
-  fiscalPeriodId: string,
-  journals: ReadonlyArray<{ id: string }>,
-): string {
-  const prefix = `oc-${fiscalPeriodId}-`;
-  const maxSuffix = journals.reduce((max, journal) => {
-    if (!journal.id.startsWith(prefix)) return max;
-    const suffix = Number(journal.id.slice(prefix.length));
-    return Number.isInteger(suffix) && suffix > max ? suffix : max;
-  }, 0);
-  return `${prefix}${maxSuffix + 1}`;
-}
-
-function mapOpeningJournalToRecord(
-  journal: {
-    id: string;
-    date: string;
-    description: string;
-    businessRate: number;
-    lines: Array<{
-      side: "debit" | "credit";
-      bookAccountId: string;
-      amount: number;
-      partnerName: string;
-      taxCategoryId: string;
-      businessCategoryId: string;
-    }>;
-  },
-  fiscalPeriodId: string,
-  accountNameById: Record<string, string>,
-  accountTypeById: Record<string, EntryAccountVisualType>,
-): OpeningCarryoverRecord {
-  const debit = journal.lines.find((line) => line.side === "debit");
-  const credit = journal.lines.find((line) => line.side === "credit");
-  return {
-    id: journal.id,
-    fiscalPeriodId,
-    date: journal.date,
-    description: journal.description,
-    debit:
-      accountNameById[debit?.bookAccountId ?? ""] ?? debit?.bookAccountId ?? "",
-    debitType: accountTypeById[debit?.bookAccountId ?? ""] ?? "asset",
-    debitAmount: formatAmount(debit?.amount ?? 0),
-    credit:
-      accountNameById[credit?.bookAccountId ?? ""] ??
-      credit?.bookAccountId ??
-      "",
-    creditType: accountTypeById[credit?.bookAccountId ?? ""] ?? "revenue",
-    creditAmount: formatAmount(credit?.amount ?? 0),
-    partner: debit?.partnerName ?? credit?.partnerName ?? "",
-    taxCategory: debit?.taxCategoryId ?? credit?.taxCategoryId ?? "対象外",
-    businessCategory:
-      debit?.businessCategoryId ?? credit?.businessCategoryId ?? "対象外",
-    businessRate: String(Math.round((journal.businessRate ?? 1) * 100)),
-    debitBookAccountId: debit?.bookAccountId,
-    creditBookAccountId: credit?.bookAccountId,
-  };
-}
-
-function resolveBookAccountIdByName(
-  name: string,
-  accountIdByName: Record<string, string>,
-): string | null {
-  const id = accountIdByName[name];
-  return id == null || id.length === 0 ? null : id;
-}
-
-function formatAmount(value: number): string {
-  return new Intl.NumberFormat("ja-JP").format(Math.abs(value));
-}
-
-function mapFixedAssetToPreview(
-  asset: FixedAssetApiRecord,
-  accountName: string | undefined,
-  today: Date,
-): FixedAssetPreviewItem {
-  // 売却・廃棄・除却済みは処分日（無ければ今日）で償却を打ち切る。
-  const isClosed = asset.status !== "active";
-  const asOf =
-    isClosed && asset.disposalDate
-      ? (parseIsoLocalDate(asset.disposalDate) ?? today)
-      : today;
-  const depreciation = computeStraightLineDepreciation({
-    acquisitionDate: asset.acquisitionDate,
-    acquisitionCost: asset.acquisitionCost,
-    usefulLife: asset.usefulLife,
-    asOf,
-  });
-  return {
-    id: asset.id,
-    fiscalPeriodId: asset.fiscalPeriodId,
-    name: asset.name,
-    account: accountName ?? asset.bookAccountId,
-    accountId: asset.bookAccountId,
-    period: depreciation.periodLabel,
-    remaining: depreciation.remainingLabel,
-    progress: depreciation.progress,
-    current: formatYen(depreciation.currentBookValue),
-    purchase: formatYen(asset.acquisitionCost),
-    status: mapFixedAssetStatusLabel(asset.status),
-    depreciationAmount: formatYen(depreciation.annualDepreciation),
-    acquisitionDate: asset.acquisitionDate,
-    acquisitionCost: asset.acquisitionCost,
-    usefulLife: asset.usefulLife,
-    businessRate: asset.businessRate,
-    disposalDate: asset.disposalDate || undefined,
-    disposalPrice: asset.disposalPrice
-      ? formatYen(asset.disposalPrice)
-      : undefined,
-  };
-}
-
-function formatYen(value: number): string {
-  return new Intl.NumberFormat("ja-JP").format(value);
-}
-
-function mapFixedAssetStatusLabel(status: string): string {
-  if (status === "active") return "償却中";
-  if (status === "sold") return "売却済";
-  if (status === "disposed") return "廃棄済";
-  if (status === "retired") return "完了";
-  return status;
-}
-
-function mapFixedAssetStatusApi(
-  statusLabel: string,
-): "active" | "sold" | "disposed" | "retired" {
-  if (statusLabel === "償却中") return "active";
-  if (statusLabel === "売却済") return "sold";
-  if (statusLabel === "廃棄済") return "disposed";
-  if (statusLabel === "完了") return "retired";
-  return "active";
-}
-
-export function fixedAssetDraftToPatch(
-  draft: FixedAssetDraft,
-  bookAccountId: string,
-): FixedAssetPatchInput {
-  return {
-    name: draft.name,
-    acquisitionDate: draft.acquisitionDate,
-    acquisitionCost: parseAmount(draft.acquisitionCost),
-    usefulLife: Math.max(1, Math.round(draft.usefulLife) || 1),
-    businessRate: Math.max(0, Math.min(100, draft.businessRatePercent)) / 100,
-    status: mapFixedAssetStatusApi(draft.status),
-    disposalDate: isFixedAssetClosedStatus(draft.status)
-      ? (draft.disposalDate ?? "")
-      : "",
-    disposalPrice:
-      draft.status === "売却済" ? parseAmount(draft.disposalPrice ?? "0") : 0,
-    bookAccountId,
-  };
-}
-
-function isFixedAssetClosedStatus(statusLabel: string): boolean {
-  return (
-    statusLabel === "売却済" ||
-    statusLabel === "廃棄済" ||
-    statusLabel === "完了"
-  );
-}
+export {
+  fixedAssetDraftToPatch,
+  nextOpeningCarryoverId,
+  replaceLoadedFixedAssets,
+};
 
 export function useOpenkkAssist() {
   const value = useContext(AssistContext);
