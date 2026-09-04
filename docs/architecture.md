@@ -74,13 +74,19 @@ server side:   api → usecases → ports → domain
 
 ### 所有者チェックの責務
 
-リソースの所有者検証は `server-api` の `getOwnedFiscalPeriod` に集約する。会計期間に紐づくリソース（entries / fixedAssets / closings 等）はすべて先に対象 fiscal period の所有を検証してから操作するため、エンティティ単位の操作も期間経由で保護される。一方 `server-usecases` の各メソッドは `userId` を受け取るが所有チェックは行わない（薄い委譲）。`server-usecases` を直接呼び出す独自 composition root を組む場合は、呼び出し側で同等の所有者検証を実装すること。
+所有者検証は `server-usecases` の不変条件とする。会計期間に紐づくリソース（entries / fixedAssets / closings 等）は、対象 fiscal period または対象エンティティの `userId` を確認してから DB 操作へ進む。所有者の異なるリソースも不存在と同じエラーにし、識別子の有無を他ユーザーへ漏らさない。
+
+`server-api` でも、URL 上の fiscal period と子リソースの所属関係、会計期間のフェーズ、入力形式を検証する。これは HTTP 境界の検証であり、`server-usecases` の所有者検証を省略する理由にはしない。これにより `server-usecases` を直接利用する独自 composition root でも同じ所有者境界が保たれる。
+
+本締め用の生成仕訳はクライアントから受け取った内容を信用せず、`server-domain` が永続化済みの仕訳・固定資産・期首データから再計算して一致を検証する。
 
 ## DB スキーマとマイグレーション
 
 DB操作契約は `db-adapter.ts`、DB境界型は `persistence-types.ts`、SQLite固有のDDL・migration・adapterは `sqlite/` に分離する。テーブル構造は [`database-schema.md`](./database-schema.md) を参照。
 
 `file-db-adapter`・`memory-db-adapter` は共通SQLiteアダプタをラップし、起動時に `runMigrations()` を呼ぶ。DB実装を差し替える場合は `OpenkkDbPort` を実装し、保存モデルとDDLはその実装内で管理する。
+
+SQLite の単一接続では、トランザクションへ別操作が混入しないよう読取を含む公開ポート呼出しを直列化する。
 
 エントリの取込み（`importMany`）は `localId` 単位で冪等で、同一 fiscal period に既存の `localId` はスキップされる。バルク挿入はトランザクションで囲まれ、途中失敗時はロールバックされる。
 

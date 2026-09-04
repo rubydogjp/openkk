@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { createOpenkkServer } from "./index.js";
+import {
+  MAX_ENTRY_IMPORT_ITEMS,
+  MAX_ENTRY_IMPORT_LINES,
+  MAX_ENTRY_LINES,
+} from "@rubydogjp/openkk-server-domain";
 import type {
   ClosingApiRecord,
   EntryApiRecord,
@@ -18,6 +23,62 @@ import type {
 } from "@rubydogjp/openkk-server-ports";
 
 describe("openkk server entries API", () => {
+  it("rejects child-data reads after archived data was purged", async () => {
+    const db = createEntryDb({
+      archiveStatus: "archived",
+      archiveDataAvailable: false,
+    });
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(server.entries.getAll("fp-1")).rejects.toThrow(
+      /after archived data was purged/,
+    );
+  });
+
+  it("finishes a queued data read before purging archived data", async () => {
+    const db = createEntryDb({
+      phase: "post_closing",
+      archiveStatus: "archived",
+      documentsReceivedCompleted: true,
+    });
+    const trace: string[] = [];
+    let releaseRead!: () => void;
+    let markReadStarted!: () => void;
+    const readGate = new Promise<void>((resolve) => {
+      releaseRead = resolve;
+    });
+    const readStarted = new Promise<void>((resolve) => {
+      markReadStarted = resolve;
+    });
+    db.entries.getAll = async () => {
+      trace.push("read:start");
+      markReadStarted();
+      await readGate;
+      trace.push("read:end");
+      return [];
+    };
+    db.fiscalPeriods.purgeArchivedData = async (id) => {
+      trace.push("purge");
+      return fiscalPeriod({
+        id,
+        phase: "post_closing",
+        archiveStatus: "archived",
+        archiveDataAvailable: false,
+        documentsReceivedCompleted: true,
+      });
+    };
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    const reading = server.entries.getAll("fp-1");
+    const purging = server.fiscalPeriod.purgeArchivedData("fp-1");
+    await readStarted;
+    expect(trace).toEqual(["read:start"]);
+
+    releaseRead();
+    await Promise.all([reading, purging]);
+    expect(trace).toEqual(["read:start", "read:end", "purge"]);
+  });
+
   it("rejects invalid entry dates before persisting", async () => {
     const db = createEntryDb();
     const server = createOpenkkServer(db, { userId: "user-1" });
@@ -77,6 +138,53 @@ describe("openkk server entries API", () => {
       }),
     ).rejects.toThrow(/Entry business rate must be between 0 and 1/);
 
+    await expect(
+      server.entries.create("fp-1", {
+        ...validEntryInput({ localId: "fractional-yen" }),
+        lines: validEntryInput().lines.map((line) => ({
+          ...line,
+          amount: 1000.5,
+        })),
+      }),
+    ).rejects.toThrow(/safe integer/);
+
+    const hugeLine = {
+      ...validEntryInput().lines[0]!,
+      amount: Number.MAX_SAFE_INTEGER,
+    };
+    await expect(
+      server.entries.create("fp-1", {
+        ...validEntryInput({ localId: "overflow-total" }),
+        lines: [
+          { ...hugeLine, side: "debit" },
+          { ...hugeLine, side: "debit" },
+          { ...hugeLine, side: "credit" },
+          { ...hugeLine, side: "credit" },
+        ],
+      }),
+    ).rejects.toThrow(/totals exceed the safe integer range/);
+
+    expect(await server.entries.getAll("fp-1")).toEqual([]);
+  });
+
+  it("rejects runtime field types before persisting", async () => {
+    const db = createEntryDb();
+    const server = createOpenkkServer(db, { userId: "user-1" });
+    const invalidPartner = validEntryInput({ localId: "invalid-partner" });
+    invalidPartner.lines[0]!.partnerName = 123 as unknown as string;
+
+    await expect(
+      server.entries.create("fp-1", invalidPartner),
+    ).rejects.toThrow(/Entry line partner must be a string/);
+    await expect(
+      server.entries.create("fp-1", {
+        ...validEntryInput(),
+        localId: 123,
+      } as unknown as EntryUpsertInput),
+    ).rejects.toThrow(/Entry localId must be a string/);
+    await expect(
+      server.entries.create("fp-1", validEntryInput({ localId: "" })),
+    ).rejects.toThrow(/Entry localId is required/);
     expect(await server.entries.getAll("fp-1")).toEqual([]);
   });
 
@@ -134,6 +242,20 @@ describe("openkk server entries API", () => {
     expect(await server.entries.getAll("fp-1")).toEqual([]);
   });
 
+  it("rejects oversized compound entries before inspecting every line", async () => {
+    const db = createEntryDb();
+    const server = createOpenkkServer(db, { userId: "user-1" });
+    const line = validEntryInput().lines[0]!;
+
+    await expect(
+      server.entries.create("fp-1", {
+        ...validEntryInput({ localId: "too-many-lines" }),
+        lines: Array.from({ length: MAX_ENTRY_LINES + 1 }, () => line),
+      }),
+    ).rejects.toThrow(/1,000 line limit/);
+    expect(await server.entries.getAll("fp-1")).toEqual([]);
+  });
+
   it("rejects entries dated outside the fiscal period", async () => {
     const db = createEntryDb();
     const server = createOpenkkServer(db, { userId: "user-1" });
@@ -146,6 +268,45 @@ describe("openkk server entries API", () => {
     ).rejects.toThrow(/must be within fiscal period 2026-01-01 to 2026-12-31/);
 
     expect(await server.entries.getAll("fp-1")).toEqual([]);
+  });
+
+  it("rejects unknown master-data references", async () => {
+    const db = createEntryDb();
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(
+      server.entries.create(
+        "fp-1",
+        validEntryInput({
+          lines: validEntryInput().lines.map((line) => ({
+            ...line,
+            bookAccountId: "unknown-account",
+          })),
+        }),
+      ),
+    ).rejects.toThrow(/Unknown book account/);
+    await expect(
+      server.entries.create(
+        "fp-1",
+        validEntryInput({
+          lines: validEntryInput().lines.map((line) => ({
+            ...line,
+            taxCategoryId: "unknown-tax",
+          })),
+        }),
+      ),
+    ).rejects.toThrow(/Unknown tax category/);
+    await expect(
+      server.entries.create(
+        "fp-1",
+        validEntryInput({
+          lines: validEntryInput().lines.map((line) => ({
+            ...line,
+            businessCategoryId: "unknown-business",
+          })),
+        }),
+      ),
+    ).rejects.toThrow(/Unknown business category/);
   });
 
   it("reserves generated localIds for the atomic closing operation", async () => {
@@ -218,6 +379,54 @@ describe("openkk server entries API", () => {
     expect(await server.entries.getAll("fp-1")).toEqual([]);
   });
 
+  it("rejects a non-array bulk import payload as a validation error", async () => {
+    const db = createEntryDb();
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(
+      server.entries.importMany(
+        "fp-1",
+        null as unknown as EntryUpsertInput[],
+      ),
+    ).rejects.toThrow(/Entry import input must be an array/);
+    expect(await server.entries.getAll("fp-1")).toEqual([]);
+  });
+
+  it("rejects oversized import batches before validating every item", async () => {
+    const db = createEntryDb();
+    const server = createOpenkkServer(db, { userId: "user-1" });
+    const oversized = Array.from(
+      { length: MAX_ENTRY_IMPORT_ITEMS + 1 },
+      () => null,
+    ) as unknown as EntryUpsertInput[];
+
+    await expect(server.entries.importMany("fp-1", oversized)).rejects.toThrow(
+      /item limit/,
+    );
+    expect(await server.entries.getAll("fp-1")).toEqual([]);
+  });
+
+  it("rejects oversized import line totals before validating every line", async () => {
+    const db = createEntryDb();
+    const server = createOpenkkServer(db, { userId: "user-1" });
+    const repeatedLines = Array.from({ length: MAX_ENTRY_LINES }, () =>
+      validEntryInput().lines[0]!,
+    );
+    const oversized = Array.from(
+      { length: MAX_ENTRY_IMPORT_LINES / MAX_ENTRY_LINES + 1 },
+      (_, index) =>
+        validEntryInput({
+          localId: `many-lines-${index}`,
+          lines: repeatedLines,
+        }),
+    );
+
+    await expect(server.entries.importMany("fp-1", oversized)).rejects.toThrow(
+      /100,000 line limit/,
+    );
+    expect(await server.entries.getAll("fp-1")).toEqual([]);
+  });
+
   it("rejects entry creation in archived fiscal periods", async () => {
     const db = createEntryDb({ archiveStatus: "archived" });
     const server = createOpenkkServer(db, { userId: "user-1" });
@@ -282,8 +491,10 @@ function createEntryDb(
       async getAllByUser() {
         return [fiscalPeriod({ id: "fp-1", ...fiscalPeriodOverrides })];
       },
-      async getById() {
-        return null;
+      async getById(id) {
+        return id === "fp-1"
+          ? fiscalPeriod({ id, ...fiscalPeriodOverrides })
+          : null;
       },
       async create(_userId: string, input: FiscalPeriodCreateInput) {
         return fiscalPeriod({ ...input, id: "fp-1" });

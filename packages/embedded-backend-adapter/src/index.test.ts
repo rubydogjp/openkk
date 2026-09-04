@@ -45,6 +45,14 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
           taxCategoryId: "",
           businessCategoryId: "",
         },
+        {
+          side: "credit",
+          bookAccountId: "sales",
+          amount: 1000,
+          partnerName: "",
+          taxCategoryId: "",
+          businessCategoryId: "",
+        },
       ],
     });
 

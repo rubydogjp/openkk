@@ -1,4 +1,13 @@
-import { parseIsoDate } from "@rubydogjp/openkk-server-domain";
+import {
+  assertDateRange,
+  assertEntryLinesBalanced,
+  assertOpeningBalanceAccountId,
+  assertUniqueAccountIds,
+  MAX_ENTRY_IMPORT_ITEMS,
+  MAX_ENTRY_IMPORT_LINES,
+  parseIsoDate,
+  serverValidationError,
+} from "@rubydogjp/openkk-server-domain";
 import type {
   EntryDbLine,
   FiscalPeriodDbRecord,
@@ -16,8 +25,8 @@ export function isoToMs(iso: string): number {
 
 export function parseFiscalPeriodDbRecord(json: string): FiscalPeriodDbRecord {
   return decodeRecord(json, "fiscal period", (value) => {
-    requiredString(value, "id");
-    requiredString(value, "name");
+    requiredNonBlankString(value, "id");
+    requiredNonBlankString(value, "name");
     isoDate(value, "startDate");
     isoDate(value, "endDate");
     enumValue(value, "phase", [
@@ -34,11 +43,17 @@ export function parseFiscalPeriodDbRecord(json: string): FiscalPeriodDbRecord {
       requiredBoolean(value, "archiveDataAvailable");
     }
     if (value.archivedAt !== undefined && value.archivedAt !== null) {
-      requiredString(value, "archivedAt");
+      isoTimestamp(value, "archivedAt");
     }
     if (value.opening !== undefined && value.opening !== null) {
       validateOpening(objectValue(value, "opening"));
     }
+    assertDateRange(
+      value.startDate as string,
+      value.endDate as string,
+      "fiscal period",
+    );
+    validateFiscalPeriodLifecycle(value);
     return value as FiscalPeriodDbRecord;
   });
 }
@@ -59,6 +74,10 @@ export function serializeFiscalPeriodDbRecord(
 export function validateOpeningDbRecord(
   opening: FiscalPeriodOpeningDbRecord,
 ): void {
+  assertOpeningCollectionSizeLimits(
+    opening.openingBalanceLines ?? [],
+    opening.openingJournals ?? [],
+  );
   decodeRecord(JSON.stringify(opening), "opening", (value) => {
     validateOpening(value);
   });
@@ -66,11 +85,11 @@ export function validateOpeningDbRecord(
 
 export function parseFixedAssetDbRecord(json: string): FixedAssetDbRecord {
   return decodeRecord(json, "fixed asset", (value) => {
-    requiredString(value, "id");
-    requiredString(value, "fiscalPeriodId");
-    requiredString(value, "name");
+    requiredNonBlankString(value, "id");
+    requiredNonBlankString(value, "fiscalPeriodId");
+    requiredNonBlankString(value, "name");
     isoDate(value, "acquisitionDate");
-    nonNegativeNumber(value, "acquisitionCost");
+    positiveInteger(value, "acquisitionCost");
     positiveInteger(value, "usefulLife");
     enumValue(value, "depreciationMethod", ["straight_line"]);
     unitRate(value, "businessRate");
@@ -78,7 +97,7 @@ export function parseFixedAssetDbRecord(json: string): FixedAssetDbRecord {
     requiredString(value, "disposalDate");
     if (value.disposalDate !== "") isoDate(value, "disposalDate");
     nonNegativeNumber(value, "disposalPrice");
-    requiredString(value, "bookAccountId");
+    requiredNonBlankString(value, "bookAccountId");
     return value as FixedAssetDbRecord;
   });
 }
@@ -94,33 +113,100 @@ export function serializeFixedAssetDbRecord(value: FixedAssetDbRecord): string {
 }
 
 function validateOpening(value: Record<string, unknown>): void {
-  requiredString(value, "id");
-  requiredString(value, "userId");
-  requiredString(value, "fiscalPeriodId");
-  optionalArray(value, "openingBalanceLines")?.forEach((item) => {
+  requiredNonBlankString(value, "id");
+  requiredNonBlankString(value, "userId");
+  requiredNonBlankString(value, "fiscalPeriodId");
+  isoTimestamp(value, "createdAt");
+  isoTimestamp(value, "updatedAt");
+  const openingBalanceLines = optionalArray(value, "openingBalanceLines") ?? [];
+  const openingJournals = optionalArray(value, "openingJournals") ?? [];
+  assertOpeningCollectionSizeLimits(openingBalanceLines, openingJournals);
+  openingBalanceLines.forEach((item) => {
     const line = asObject(item, "opening balance line");
-    requiredString(line, "id");
-    requiredString(line, "accountId");
+    requiredNonBlankString(line, "id");
+    requiredNonBlankString(line, "accountId");
+    assertOpeningBalanceAccountId(
+      line.accountId as string,
+      "opening balance accountId",
+    );
     nonNegativeNumber(line, "amount");
   });
-  optionalArray(value, "openingJournals")?.forEach((item) => {
+  assertUniqueObjectValues(openingBalanceLines, "id", "opening balance line");
+  assertUniqueAccountIds(
+    openingBalanceLines.map(
+      (item) => asObject(item, "opening balance line").accountId as string,
+    ),
+    "opening balance lines",
+  );
+  openingJournals.forEach((item) => {
     const journal = asObject(item, "opening journal");
-    requiredString(journal, "id");
+    requiredNonBlankString(journal, "id");
     isoDate(journal, "date");
     requiredString(journal, "description");
     unitRate(journal, "businessRate");
-    arrayValue(journal, "lines").forEach((line) => {
+    const lines = arrayValue(journal, "lines");
+    lines.forEach((line) => {
       const record = asObject(line, "opening journal line");
-      requiredString(record, "id");
+      requiredNonBlankString(record, "id");
       validateEntryLine(record);
     });
+    assertUniqueObjectValues(lines, "id", "opening journal line");
+    assertEntryLinesBalanced(
+      lines.map((line) => {
+        const record = asObject(line, "opening journal line");
+        return {
+          side: record.side as "debit" | "credit",
+          amount: record.amount as number,
+        };
+      }),
+      "opening journal",
+      { allowZero: true },
+    );
   });
+  assertUniqueObjectValues(openingJournals, "id", "opening journal");
+}
+
+function assertOpeningCollectionSizeLimits(
+  openingBalanceLines: unknown[],
+  openingJournals: unknown[],
+): void {
+  if (openingBalanceLines.length > MAX_ENTRY_IMPORT_ITEMS) {
+    throw serverValidationError(
+      `Opening balance lines exceed the ${MAX_ENTRY_IMPORT_ITEMS.toLocaleString("en-US")} item limit`,
+    );
+  }
+  if (openingJournals.length > MAX_ENTRY_IMPORT_ITEMS) {
+    throw serverValidationError(
+      `Opening journals exceed the ${MAX_ENTRY_IMPORT_ITEMS.toLocaleString("en-US")} item limit`,
+    );
+  }
+  let totalLineCount = 0;
+  for (const journal of openingJournals) {
+    if (
+      typeof journal !== "object" ||
+      journal == null ||
+      Array.isArray(journal)
+    ) {
+      continue;
+    }
+    const lines = (journal as { lines?: unknown }).lines;
+    if (!Array.isArray(lines)) continue;
+    totalLineCount += lines.length;
+    if (
+      !Number.isSafeInteger(totalLineCount) ||
+      totalLineCount > MAX_ENTRY_IMPORT_LINES
+    ) {
+      throw serverValidationError(
+        `Opening journal lines exceed the ${MAX_ENTRY_IMPORT_LINES.toLocaleString("en-US")} line limit`,
+      );
+    }
+  }
 }
 
 function validateEntryLine(value: unknown): asserts value is EntryDbLine {
   const line = asObject(value, "entry line");
   enumValue(line, "side", ["debit", "credit"]);
-  requiredString(line, "bookAccountId");
+  requiredNonBlankString(line, "bookAccountId");
   nonNegativeNumber(line, "amount");
   requiredString(line, "partnerName");
   requiredString(line, "taxCategoryId");
@@ -171,6 +257,16 @@ function requiredString(value: Record<string, unknown>, key: string): void {
     throw new Error(`${key} must be a string`);
 }
 
+function requiredNonBlankString(
+  value: Record<string, unknown>,
+  key: string,
+): void {
+  requiredString(value, key);
+  if ((value[key] as string).trim() === "") {
+    throw new Error(`${key} must not be blank`);
+  }
+}
+
 function requiredBoolean(value: Record<string, unknown>, key: string): void {
   if (typeof value[key] !== "boolean")
     throw new Error(`${key} must be a boolean`);
@@ -183,14 +279,14 @@ function finiteNumber(value: Record<string, unknown>, key: string): void {
 }
 
 function nonNegativeNumber(value: Record<string, unknown>, key: string): void {
-  finiteNumber(value, key);
-  if ((value[key] as number) < 0)
-    throw new Error(`${key} must not be negative`);
+  if (!Number.isSafeInteger(value[key]) || (value[key] as number) < 0) {
+    throw new Error(`${key} must be a non-negative safe integer`);
+  }
 }
 
 function positiveInteger(value: Record<string, unknown>, key: string): void {
-  if (!Number.isInteger(value[key]) || (value[key] as number) < 1) {
-    throw new Error(`${key} must be a positive integer`);
+  if (!Number.isSafeInteger(value[key]) || (value[key] as number) < 1) {
+    throw new Error(`${key} must be a positive safe integer`);
   }
 }
 
@@ -204,6 +300,45 @@ function isoDate(value: Record<string, unknown>, key: string): void {
   requiredString(value, key);
   if (parseIsoDate(value[key] as string) == null) {
     throw new Error(`${key} must be an ISO date`);
+  }
+}
+
+function isoTimestamp(value: Record<string, unknown>, key: string): void {
+  requiredString(value, key);
+  const timestamp = value[key] as string;
+  const parsed = new Date(timestamp);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString() !== timestamp) {
+    throw new Error(`${key} must be an ISO timestamp`);
+  }
+}
+
+function assertUniqueObjectValues(
+  values: unknown[],
+  key: string,
+  label: string,
+): void {
+  const seen = new Set<unknown>();
+  for (const value of values) {
+    const field = asObject(value, label)[key];
+    if (seen.has(field)) throw new Error(`${label} ${key} must be unique`);
+    seen.add(field);
+  }
+}
+
+function validateFiscalPeriodLifecycle(value: Record<string, unknown>): void {
+  const phase = value.phase;
+  const settingsCompleted = value.settingsCompleted;
+  const openingBalancesCompleted = value.openingBalancesCompleted;
+  const documentsReceivedCompleted = value.documentsReceivedCompleted;
+  if (
+    (phase === "pre_opening" ? settingsCompleted : !settingsCompleted) ||
+    ((phase === "pre_closing" || phase === "post_closing") &&
+      !openingBalancesCompleted) ||
+    (documentsReceivedCompleted && phase !== "post_closing") ||
+    (value.archiveDataAvailable === false && value.archiveStatus !== "archived") ||
+    (value.archiveStatus === "active" && value.archivedAt != null)
+  ) {
+    throw new Error("fiscal period lifecycle fields are inconsistent");
   }
 }
 

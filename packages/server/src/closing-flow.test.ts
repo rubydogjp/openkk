@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { createOpenkkServer } from "./index.js";
+import {
+  MAX_ENTRY_IMPORT_ITEMS,
+  MAX_ENTRY_IMPORT_LINES,
+  MAX_ENTRY_LINES,
+} from "@rubydogjp/openkk-server-domain";
 import type {
   EntryApiRecord,
   EntryUpsertInput,
@@ -61,6 +66,134 @@ describe("openkk server closing flow", () => {
     ).rejects.toThrow(/must match fiscal period end year 2026/);
   });
 
+  it("rejects malformed closing operation objects as validation errors", async () => {
+    const server = createOpenkkServer(createMemoryDb(), { userId: "user-1" });
+
+    await expect(
+      server.preClosing.run(
+        null as unknown as Parameters<typeof server.preClosing.run>[0],
+      ),
+    ).rejects.toThrow(/Pre-closing input must be an object/);
+    await expect(
+      server.closing.run(
+        null as unknown as Parameters<typeof server.closing.run>[0],
+      ),
+    ).rejects.toThrow(/Closing input must be an object/);
+  });
+
+  it("requires settings and opening balances before pre-closing", async () => {
+    const settingsIncomplete = createOpenkkServer(
+      createMemoryDb({ settingsCompleted: false }),
+      { userId: "user-1" },
+    );
+    await expect(
+      settingsIncomplete.preClosing.run({ fiscalPeriodId: "fp-1", year: 2026 }),
+    ).rejects.toThrow(/before settings are completed/);
+
+    const openingIncomplete = createOpenkkServer(
+      createMemoryDb({ openingBalancesCompleted: false }),
+      { userId: "user-1" },
+    );
+    await expect(
+      openingIncomplete.preClosing.run({ fiscalPeriodId: "fp-1", year: 2026 }),
+    ).rejects.toThrow(/before opening balances are completed/);
+  });
+
+  it("does not let a concurrent entry creation slip past pre-closing", async () => {
+    const server = createOpenkkServer(createMemoryDb(), { userId: "user-1" });
+    const [preClosing, entryCreate] = await Promise.allSettled([
+      server.preClosing.run({ fiscalPeriodId: "fp-1", year: 2026 }),
+      server.entries.create("fp-1", {
+        date: "2026-08-31",
+        description: "仮締めと競合する仕訳",
+        businessRate: 1,
+        lines: [
+          {
+            side: "debit",
+            bookAccountId: "acct_cash",
+            amount: 1000,
+            partnerName: "",
+            taxCategoryId: "tax_exempt",
+            businessCategoryId: "biz_none",
+          },
+          {
+            side: "credit",
+            bookAccountId: "acct_sales",
+            amount: 1000,
+            partnerName: "",
+            taxCategoryId: "tax_exempt",
+            businessCategoryId: "biz_none",
+          },
+        ],
+      }),
+    ]);
+
+    expect(preClosing.status).toBe("fulfilled");
+    expect(entryCreate.status).toBe("rejected");
+    if (entryCreate.status === "rejected") {
+      expect(String(entryCreate.reason)).toContain(
+        "cannot create entry from phase pre_closing",
+      );
+    }
+  });
+
+  it("recomputes fixed-asset closing entries and rejects missing materialization", async () => {
+    const asset = fixedAsset({
+      id: "asset-1",
+      acquisitionDate: "2026-01-01",
+      acquisitionCost: 120_000,
+      usefulLife: 4,
+      businessRate: 1,
+      status: "active",
+      bookAccountId: "acct_equipment",
+    });
+    const server = createOpenkkServer(
+      createMemoryDb({}, { fixedAssets: [asset] }),
+      { userId: "user-1" },
+    );
+    await server.preClosing.run({ fiscalPeriodId: "fp-1", year: 2026 });
+
+    await expect(
+      server.closing.run({
+        fiscalPeriodId: "fp-1",
+        year: 2026,
+        entries: [],
+      }),
+    ).rejects.toThrow(/do not match the current fiscal-period source data/);
+
+    const closed = await server.closing.run({
+      fiscalPeriodId: "fp-1",
+      year: 2026,
+      entries: [
+        {
+          date: "2026-12-31",
+          description: "assetの減価償却",
+          localId: "virtual:virtual-fixed-asset-asset-1",
+          businessRate: 1,
+          lines: [
+            {
+              side: "debit",
+              bookAccountId: "acct_depreciation",
+              amount: 29_999,
+              partnerName: "",
+              taxCategoryId: "tax_out_of_scope",
+              businessCategoryId: "biz_none",
+            },
+            {
+              side: "credit",
+              bookAccountId: "acct_equipment",
+              amount: 29_999,
+              partnerName: "",
+              taxCategoryId: "tax_out_of_scope",
+              businessCategoryId: "biz_none",
+            },
+          ],
+        },
+      ],
+    });
+    expect(closed.phase).toBe("post_closing");
+  });
+
   it("accepts only unique, in-period generated entries for final closing", async () => {
     const server = createOpenkkServer(createMemoryDb(), { userId: "user-1" });
     await server.preClosing.run({ fiscalPeriodId: "fp-1", year: 2026 });
@@ -89,6 +222,53 @@ describe("openkk server closing flow", () => {
     ).rejects.toThrow(/must be within fiscal period/);
   });
 
+  it("rejects oversized generated closing input before comparison", async () => {
+    const tooManyServer = createOpenkkServer(createMemoryDb(), {
+      userId: "user-1",
+    });
+    await tooManyServer.preClosing.run({
+      fiscalPeriodId: "fp-1",
+      year: 2026,
+    });
+    const generated = validClosingEntry("virtual:closing-entry");
+    await expect(
+      tooManyServer.closing.run({
+        fiscalPeriodId: "fp-1",
+        year: 2026,
+        entries: Array(MAX_ENTRY_IMPORT_ITEMS + 1).fill(generated),
+      }),
+    ).rejects.toThrow(/Closing entries exceed the 10,000 item limit/);
+
+    const tooManyLinesServer = createOpenkkServer(createMemoryDb(), {
+      userId: "user-1",
+    });
+    await tooManyLinesServer.preClosing.run({
+      fiscalPeriodId: "fp-1",
+      year: 2026,
+    });
+    const debit = generated.lines[0]!;
+    const credit = generated.lines[1]!;
+    const lines = [
+      ...Array(MAX_ENTRY_LINES / 2).fill(debit),
+      ...Array(MAX_ENTRY_LINES / 2).fill(credit),
+    ];
+    const entries = Array.from(
+      { length: MAX_ENTRY_IMPORT_LINES / MAX_ENTRY_LINES + 1 },
+      (_, index) => ({
+        ...generated,
+        localId: `virtual:closing-entry-${index}`,
+        lines,
+      }),
+    );
+    await expect(
+      tooManyLinesServer.closing.run({
+        fiscalPeriodId: "fp-1",
+        year: 2026,
+        entries,
+      }),
+    ).rejects.toThrow(/Closing entries exceed the 100,000 line limit/);
+  });
+
   it("rejects closing changes in archived fiscal periods", async () => {
     const server = createOpenkkServer(
       createMemoryDb({ archiveStatus: "archived" }),
@@ -112,6 +292,10 @@ describe("openkk server closing flow", () => {
 
 function createMemoryDb(
   fiscalPeriodOverrides: Partial<FiscalPeriodApiRecord> = {},
+  sources: {
+    entries?: EntryApiRecord[];
+    fixedAssets?: FixedAssetApiRecord[];
+  } = {},
 ): OpenkkDbPort {
   const preClosings = new Set<string>();
   const closings = new Set<string>();
@@ -121,8 +305,8 @@ function createMemoryDb(
       async getAllByUser() {
         return [current];
       },
-      async getById() {
-        return null;
+      async getById(id) {
+        return id === current.id ? current : null;
       },
       async create(_userId: string, input: FiscalPeriodCreateInput) {
         return fiscalPeriod({ ...input, id: "fp-1" });
@@ -164,7 +348,7 @@ function createMemoryDb(
     },
     entries: {
       async getAll() {
-        return [];
+        return sources.entries ?? [];
       },
       async getById() {
         return null;
@@ -207,7 +391,7 @@ function createMemoryDb(
     },
     fixedAssets: {
       async getAllByFiscalPeriod() {
-        return [];
+        return sources.fixedAssets ?? [];
       },
       async getById() {
         return null;
@@ -268,7 +452,7 @@ const TEST_TIMESTAMP = "1970-01-01T00:00:00.000Z";
 function fiscalPeriod(
   overrides: Partial<FiscalPeriodApiRecord>,
 ): FiscalPeriodApiRecord {
-  return {
+  const period: FiscalPeriodApiRecord = {
     id: "fp-1",
     userId: "user-1",
     name: "2026年分",
@@ -279,9 +463,25 @@ function fiscalPeriod(
     settingsCompleted: true,
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,
+    opening: null,
     createdAt: TEST_TIMESTAMP,
     updatedAt: TEST_TIMESTAMP,
     ...overrides,
+  };
+  return {
+    ...period,
+    opening:
+      overrides.opening === undefined
+        ? {
+            id: `op-${period.id}`,
+            userId: period.userId,
+            fiscalPeriodId: period.id,
+            createdAt: TEST_TIMESTAMP,
+            updatedAt: TEST_TIMESTAMP,
+            openingBalanceLines: [],
+            openingJournals: [],
+          }
+        : overrides.opening,
   };
 }
 

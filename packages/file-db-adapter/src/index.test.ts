@@ -10,7 +10,8 @@ type WorkerMessage = {
 
 type WorkerOutcome =
   | { kind: "response"; ok: boolean; error?: string; result?: unknown }
-  | { kind: "throw"; error: Error };
+  | { kind: "throw"; error: Error }
+  | { kind: "hang" };
 
 class FakeWorker {
   static outcomes: WorkerOutcome[] = [];
@@ -20,14 +21,20 @@ class FakeWorker {
   onmessageerror: (() => void) | null = null;
   onerror: ((event: ErrorEvent) => void) | null = null;
   terminated = false;
+  hangNext = false;
 
   constructor() {
     FakeWorker.instances.push(this);
   }
 
   postMessage(message: WorkerMessage): void {
+    if (this.hangNext) {
+      this.hangNext = false;
+      return;
+    }
     const outcome = FakeWorker.outcomes.shift();
     if (outcome?.kind === "throw") throw outcome.error;
+    if (outcome?.kind === "hang") return;
     queueMicrotask(() => {
       this.onmessage?.({
         data: {
@@ -43,6 +50,19 @@ class FakeWorker {
   terminate(): void {
     this.terminated = true;
   }
+
+  crash(message: string): void {
+    this.onerror?.({ message } as ErrorEvent);
+  }
+}
+
+function withDeadline<T>(promise: Promise<T>, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_resolve, reject) => {
+      setTimeout(() => reject(new Error(`${label} timed out`)), 250);
+    }),
+  ]);
 }
 
 describe("createFileDbAdapter — behavior parity over the worker proxy", () => {
@@ -206,5 +226,32 @@ describe("createFileDbAdapter", () => {
       }),
     ).toThrow(/already initialized with different options/);
     expect(FakeWorker.instances).toHaveLength(1);
+  });
+
+  it("rejects in-flight and future calls after a runtime worker crash and allows recreation", async () => {
+    vi.stubGlobal("Worker", FakeWorker);
+    FakeWorker.outcomes = [{ kind: "response", ok: true }];
+    const { createFileDbAdapter } = await import("./index.js");
+    const first = await createFileDbAdapter({ vfsName: "opfs-test" });
+
+    FakeWorker.instances[0]!.hangNext = true;
+    const inFlight = first.fiscalPeriods.getAllByUser("user-1");
+    await Promise.resolve();
+    FakeWorker.instances[0]!.crash("worker boom");
+
+    await expect(withDeadline(inFlight, "in-flight call")).rejects.toThrow(
+      "worker boom",
+    );
+    await expect(
+      withDeadline(first.fiscalPeriods.getAllByUser("user-1"), "future call"),
+    ).rejects.toThrow("worker boom");
+    expect(FakeWorker.instances[0]!.terminated).toBe(true);
+
+    const second = await withDeadline(
+      createFileDbAdapter({ vfsName: "opfs-test" }),
+      "adapter recreation",
+    );
+    expect(second).not.toBe(first);
+    expect(FakeWorker.instances).toHaveLength(2);
   });
 });

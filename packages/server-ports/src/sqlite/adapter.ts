@@ -1,15 +1,19 @@
 import {
+  CLOSING_GENERATED_LOCAL_ID_PREFIX,
   DEFAULT_BOOK_ACCOUNTS,
   DEFAULT_BUSINESS_CATEGORIES,
   DEFAULT_TAX_CATEGORIES,
+  MAX_ENTRY_IMPORT_ITEMS,
+  MAX_ENTRY_IMPORT_LINES,
   serverConflictError,
   serverNotFoundError,
+  serverValidationError,
 } from "@rubydogjp/openkk-server-domain";
 import type {
   ClosingDbRecord,
   EntryDbRecord,
   EntryDbUpsertInput,
-  FiscalPeriodDbPatchInput,
+  FiscalPeriodArchiveDbImportInput,
   FiscalPeriodDbRecord,
   FixedAssetDbRecord,
   MasterBookAccountDbRecord,
@@ -39,6 +43,19 @@ import {
   loadOpeningsByUser,
   replaceOpening,
 } from "./opening-store.js";
+import { serializeOpenkkDbPortOperations } from "./serialized-port.js";
+import {
+  assertDbArchiveImportSizeLimits,
+  assertDbClosingGeneratedSizeLimits,
+  assertDbClosingYear,
+  assertDbEntryInput,
+  assertDbFiscalPeriodPatchAllowed,
+  assertDbFixedAssetRecord,
+  assertDbImportedClosingState,
+  assertDbOpeningForPeriod,
+  assertDbPeriodOwnership,
+  assertDbStoredEntryRecord,
+} from "./record-validation.js";
 
 export interface SqlDb {
   exec(
@@ -69,14 +86,14 @@ export async function createSqliteDbAdapter(
   if (seed != null) {
     await seedStores(db, seed);
   }
-  return {
+  return serializeOpenkkDbPortOperations({
     fiscalPeriods: createFiscalPeriodsDb(db),
     entries: createEntriesDb(db),
     fixedAssets: createFixedAssetsDb(db),
     preClosings: createPreClosingsDb(db),
     closings: createClosingsDb(db),
     masterData: createMasterDataDb(),
-  };
+  });
 }
 
 function newId(prefix: string): string {
@@ -91,7 +108,6 @@ function nowMs(): number {
 }
 
 const MASTER_RECORD_TIMESTAMP = msToIso(0);
-
 async function runInTransaction(
   db: SqlDb,
   fn: () => Promise<void>,
@@ -118,17 +134,13 @@ async function seedStoresInner(
   seed: DbSnapshot,
   now: number,
 ): Promise<void> {
+  const periods = new Map<string, FiscalPeriodDbRecord>();
   for (const item of seed.fiscalPeriods) {
-    await db.exec({
-      sql: `INSERT INTO fiscal_periods(id, user_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
-      bind: [
-        item.record.id,
-        item.userId,
-        serializeFiscalPeriodDbRecord(item.record),
-        now,
-        now,
-      ],
-    });
+    if (item.userId !== item.record.userId) {
+      throw serverValidationError(
+        `Seed fiscal period ownership is inconsistent: ${item.record.id}`,
+      );
+    }
     const seededOpening =
       item.record.opening == null
         ? defaultOpening(item.userId, item.record.id, now)
@@ -137,9 +149,23 @@ async function seedStoresInner(
             createdAt: msToIso(now),
             updatedAt: msToIso(now),
           };
+    const record = {
+      ...item.record,
+      userId: item.userId,
+      opening: seededOpening,
+    };
+    assertDbOpeningForPeriod(seededOpening, record);
+    const serializedRecord = serializeFiscalPeriodDbRecord(record);
+    await db.exec({
+      sql: `INSERT INTO fiscal_periods(id, user_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
+      bind: [item.record.id, item.userId, serializedRecord, now, now],
+    });
     await replaceOpening(db, seededOpening, now);
+    periods.set(record.id, record);
   }
   for (const entry of seed.entries) {
+    const period = periods.get(entry.fiscalPeriodId);
+    if (period != null) assertDbStoredEntryRecord(entry, period);
     await db.exec({
       sql: `INSERT INTO entries(id, fiscal_period_id, date, local_id, description, business_rate, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
       bind: [
@@ -156,6 +182,15 @@ async function seedStoresInner(
     await insertEntryLines(db, entry);
   }
   for (const asset of seed.fixedAssets) {
+    const period = periods.get(asset.fiscalPeriodId);
+    if (period != null) {
+      if (asset.userId !== period.userId) {
+        throw serverValidationError(
+          `Seed fixed asset ownership is inconsistent: ${asset.id}`,
+        );
+      }
+      assertDbFixedAssetRecord(asset, period);
+    }
     await db.exec({
       sql: `INSERT INTO fixed_assets(id, fiscal_period_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
       bind: [
@@ -193,13 +228,15 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       const openings = await loadOpeningsByUser(db, userId);
       return rows.map(([data, createdAt, updatedAt]) => {
         const record = parseFiscalPeriodDbRecord(data);
-        return {
+        const result: FiscalPeriodDbRecord = {
           ...record,
           userId,
           createdAt: msToIso(createdAt),
           updatedAt: msToIso(updatedAt),
           opening: requireOpening(openings.get(record.id), record.id),
         };
+        assertDbOpeningForPeriod(result.opening!, result);
+        return result;
       });
     },
     async getById(id) {
@@ -212,13 +249,15 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       const row = rows[0];
       if (row == null) return null;
       const record = parseFiscalPeriodDbRecord(row[1]);
-      return {
+      const result: FiscalPeriodDbRecord = {
         ...record,
         userId: row[0],
         createdAt: msToIso(row[2]),
         updatedAt: msToIso(row[3]),
         opening: requireOpening(await loadOpeningByFiscalPeriod(db, id), id),
       };
+      assertDbOpeningForPeriod(result.opening!, result);
+      return result;
     },
     async create(userId, input) {
       const id = newId("fp");
@@ -239,16 +278,24 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         createdAt: timestamp,
         updatedAt: timestamp,
       };
+      assertDbOpeningForPeriod(record.opening!, record);
+      const serializedRecord = serializeFiscalPeriodDbRecord(record);
       await runInTransaction(db, async () => {
+        await assertNoOverlappingActiveFiscalPeriod(db, {
+          userId,
+          startDate: record.startDate,
+          endDate: record.endDate,
+        });
         await db.exec({
           sql: `INSERT INTO fiscal_periods(id, user_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
-          bind: [id, userId, serializeFiscalPeriodDbRecord(record), now, now],
+          bind: [id, userId, serializedRecord, now, now],
         });
         await replaceOpening(db, record.opening!, now);
       });
       return record;
     },
     async importArchived(userId, input) {
+      assertDbArchiveImportSizeLimits(input);
       const fiscalPeriodId = newId("fp");
       const now = nowMs();
       const timestamp = msToIso(now);
@@ -279,19 +326,32 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         createdAt: timestamp,
         updatedAt: timestamp,
       };
+      assertDbOpeningForPeriod(opening, record);
+      assertDbImportedClosingState(
+        record,
+        input.preClosings ?? [],
+        input.closings,
+      );
+      const serializedRecord = serializeFiscalPeriodDbRecord(record);
       await runInTransaction(db, async () => {
+        await assertNoOverlappingActiveFiscalPeriod(db, {
+          userId,
+          startDate: record.startDate,
+          endDate: record.endDate,
+        });
         await db.exec({
           sql: `INSERT INTO fiscal_periods(id, user_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
           bind: [
             record.id,
             userId,
-            serializeFiscalPeriodDbRecord(record),
+            serializedRecord,
             now,
             now,
           ],
         });
         await replaceOpening(db, opening, now);
         for (const inputEntry of input.entries) {
+          assertDbEntryInput(inputEntry, record, "Archived entry");
           const id = newId("entry");
           const entry: EntryDbRecord = {
             id,
@@ -342,6 +402,7 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
             createdAt: timestamp,
             updatedAt: timestamp,
           };
+          assertDbFixedAssetRecord(asset, record);
           await db.exec({
             sql: `INSERT INTO fixed_assets(id, fiscal_period_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
             bind: [
@@ -405,6 +466,17 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
                 createdAt: existingOpening.createdAt,
                 updatedAt: timestamp,
               };
+        if (
+          patch.opening !== undefined &&
+          (patch.opening.id !== existingOpening.id ||
+            patch.opening.userId !== row[0] ||
+            patch.opening.fiscalPeriodId !== id)
+        ) {
+          throw serverValidationError(
+            "Opening identity and ownership must match the fiscal period",
+            "期首データの識別子と会計期間情報が一致しません",
+          );
+        }
         updated = {
           ...existing,
           ...(patch.name !== undefined ? { name: patch.name } : {}),
@@ -427,9 +499,19 @@ function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
             : {}),
           opening: normalizedOpening,
         };
+        assertDbOpeningForPeriod(normalizedOpening!, updated);
+        const serializedRecord = serializeFiscalPeriodDbRecord(updated);
+        if (patch.startDate !== undefined || patch.endDate !== undefined) {
+          await assertNoOverlappingActiveFiscalPeriod(db, {
+            userId: row[0],
+            startDate: updated.startDate,
+            endDate: updated.endDate,
+            excludeFiscalPeriodId: id,
+          });
+        }
         await db.exec({
           sql: `UPDATE fiscal_periods SET data = ?, updated_at = ? WHERE id = ?`,
-          bind: [serializeFiscalPeriodDbRecord(updated), now, id],
+          bind: [serializedRecord, now, id],
         });
         if (patch.opening !== undefined) {
           await replaceOpening(db, normalizedOpening!, now);
@@ -554,22 +636,54 @@ function requireOpening<Opening>(
   return opening;
 }
 
+async function assertNoOverlappingActiveFiscalPeriod(
+  db: SqlDb,
+  input: {
+    userId: string;
+    startDate: string;
+    endDate: string;
+    excludeFiscalPeriodId?: string;
+  },
+): Promise<void> {
+  const rows = (await db.exec({
+    sql: `SELECT data FROM fiscal_periods WHERE user_id = ?`,
+    bind: [input.userId],
+    returnValue: "resultRows",
+    rowMode: "array",
+  })) as Array<[string]>;
+  const overlap = rows
+    .map(([data]) => parseFiscalPeriodDbRecord(data))
+    .find(
+      (period) =>
+        period.id !== input.excludeFiscalPeriodId &&
+        period.archiveStatus === "active" &&
+        input.startDate <= period.endDate &&
+        input.endDate >= period.startDate,
+    );
+  if (overlap != null) {
+    throw serverConflictError(
+      `fiscal period ${input.startDate} to ${input.endDate} overlaps active fiscal period ${overlap.id}`,
+      "既存の会計期間と日付が重複しています",
+    );
+  }
+}
+
 async function assertDbFiscalPeriodAllows(
   db: SqlDb,
   fiscalPeriodId: string,
   allowedPhases: FiscalPeriodDbRecord["phase"][],
   operation: string,
-): Promise<void> {
+): Promise<FiscalPeriodDbRecord | null> {
   const rows = (await db.exec({
-    sql: `SELECT data FROM fiscal_periods WHERE id = ?`,
+    sql: `SELECT user_id, data FROM fiscal_periods WHERE id = ?`,
     bind: [fiscalPeriodId],
     returnValue: "resultRows",
     rowMode: "array",
-  })) as Array<[string]>;
+  })) as Array<[string, string]>;
   const row = rows[0];
   // 存在しない親は後続 INSERT の外部キー制約に判定させる。
-  if (row == null) return;
-  const period = parseFiscalPeriodDbRecord(row[0]);
+  if (row == null) return null;
+  const period = { ...parseFiscalPeriodDbRecord(row[1]), userId: row[0] };
   if (
     period.archiveStatus === "archived" ||
     !allowedPhases.includes(period.phase)
@@ -579,56 +693,7 @@ async function assertDbFiscalPeriodAllows(
       "会計期間の状態が変わったため、この操作を実行できません",
     );
   }
-}
-
-function assertDbFiscalPeriodPatchAllowed(
-  period: FiscalPeriodDbRecord,
-  patch: FiscalPeriodDbPatchInput,
-): void {
-  if (period.archiveStatus === "archived") {
-    throw serverConflictError(
-      `archived fiscal period cannot be updated: ${period.id}`,
-      "圧縮保存済みの会計期間は変更できません",
-    );
-  }
-  const changedKeys = Object.entries(patch)
-    .filter(([, value]) => value !== undefined)
-    .map(([key]) => key);
-  if (period.phase === "pre_closing") {
-    throw serverConflictError(
-      `fiscal period cannot be updated from phase pre_closing`,
-      "仮締め中の会計期間は変更できません",
-    );
-  }
-  const allowedKeysByPhase: Record<
-    FiscalPeriodDbRecord["phase"],
-    ReadonlySet<string>
-  > = {
-    pre_opening: new Set([
-      "name",
-      "startDate",
-      "endDate",
-      "settingsCompleted",
-      "openingBalancesCompleted",
-      "opening",
-    ]),
-    journalizing: new Set(["openingBalancesCompleted", "opening"]),
-    pre_closing: new Set(),
-    post_closing: new Set(["documentsReceivedCompleted"]),
-  };
-  const disallowedKey = changedKeys.find(
-    (key) => !allowedKeysByPhase[period.phase].has(key),
-  );
-  if (
-    disallowedKey != null ||
-    (period.phase === "post_closing" &&
-      (changedKeys.length !== 1 || patch.documentsReceivedCompleted !== true))
-  ) {
-    throw serverConflictError(
-      `fiscal period cannot update ${disallowedKey ?? "patch"} from phase ${period.phase}`,
-      "会計期間の状態が変わったため、この操作を実行できません",
-    );
-  }
+  return period;
 }
 
 function createEntriesDb(db: SqlDb): EntriesDb {
@@ -668,12 +733,14 @@ function createEntriesDb(db: SqlDb): EntriesDb {
         updatedAt: timestamp,
       };
       await runInTransaction(db, async () => {
-        await assertDbFiscalPeriodAllows(
+        const period = await assertDbFiscalPeriodAllows(
           db,
           fiscalPeriodId,
           ["journalizing"],
           "create entry",
         );
+        assertDbPeriodOwnership(userId, period);
+        assertDbEntryInput(input, period, "Entry");
         await db.exec({
           sql: `INSERT INTO entries(id, fiscal_period_id, date, local_id, description, business_rate, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
           bind: [
@@ -702,12 +769,13 @@ function createEntriesDb(db: SqlDb): EntriesDb {
           )[0] ?? null;
         if (existing == null)
           throw serverNotFoundError(`entry not found: ${id}`);
-        await assertDbFiscalPeriodAllows(
+        const period = await assertDbFiscalPeriodAllows(
           db,
           existing.fiscalPeriodId,
           ["journalizing"],
           "update entry",
         );
+        assertDbEntryInput(input, period, "Entry");
         const now = nowMs();
         updated = {
           ...existing,
@@ -756,6 +824,29 @@ function createEntriesDb(db: SqlDb): EntriesDb {
       });
     },
     async importMany(userId, fiscalPeriodId, inputs) {
+      if (!Array.isArray(inputs)) {
+        throw serverValidationError("Entry import input must be an array");
+      }
+      if (inputs.length > MAX_ENTRY_IMPORT_ITEMS) {
+        throw serverValidationError(
+          `Entry import exceeds the ${MAX_ENTRY_IMPORT_ITEMS} item limit`,
+        );
+      }
+      let importLineCount = 0;
+      for (const input of inputs) {
+        if (input == null || !Array.isArray(input.lines)) {
+          throw serverValidationError("Entry import lines must be an array");
+        }
+        importLineCount += input.lines.length;
+        if (
+          !Number.isSafeInteger(importLineCount) ||
+          importLineCount > MAX_ENTRY_IMPORT_LINES
+        ) {
+          throw serverValidationError(
+            `Entry import exceeds the ${MAX_ENTRY_IMPORT_LINES.toLocaleString("en-US")} line limit`,
+          );
+        }
+      }
       const now = nowMs();
       const timestamp = msToIso(now);
       const candidates: EntryDbRecord[] = [];
@@ -779,12 +870,14 @@ function createEntriesDb(db: SqlDb): EntriesDb {
       }
       let insertedIds = new Set<string>();
       await runInTransaction(db, async () => {
-        await assertDbFiscalPeriodAllows(
+        const period = await assertDbFiscalPeriodAllows(
           db,
           fiscalPeriodId,
           ["pre_opening", "journalizing"],
           "import entries",
         );
+        assertDbPeriodOwnership(userId, period);
+        inputs.forEach((input) => assertDbEntryInput(input, period, "Entry"));
         insertedIds = await insertImportedEntries(db, candidates, now);
         for (const entry of candidates) {
           if (insertedIds.has(entry.id)) await insertEntryLines(db, entry);
@@ -812,6 +905,7 @@ type EntryRow = [
   string | null,
   string | null,
   string | null,
+  string,
 ];
 
 async function loadEntries(
@@ -824,7 +918,7 @@ async function loadEntries(
       e.id, fp.user_id, e.fiscal_period_id, e.date, e.description, e.local_id,
       e.business_rate, e.created_at, e.updated_at,
       l.id, l.side, l.book_account_id, l.amount, l.partner_name,
-      l.tax_category_id, l.business_category_id
+      l.tax_category_id, l.business_category_id, fp.data
     FROM entries e
     JOIN fiscal_periods fp ON fp.id = e.fiscal_period_id
     LEFT JOIN entry_lines l ON l.entry_id = e.id
@@ -834,6 +928,7 @@ async function loadEntries(
     rowMode: "array",
   })) as EntryRow[];
   const records = new Map<string, EntryDbRecord>();
+  const periods = new Map<string, FiscalPeriodDbRecord>();
   for (const row of rows) {
     let record = records.get(row[0]);
     if (record == null) {
@@ -850,6 +945,10 @@ async function loadEntries(
         lines: [],
       };
       records.set(record.id, record);
+      periods.set(record.id, {
+        ...parseFiscalPeriodDbRecord(row[16]),
+        userId: row[1],
+      });
     }
     if (row[10] != null) {
       record.lines.push({
@@ -862,6 +961,13 @@ async function loadEntries(
         businessCategoryId: row[15]!,
       });
     }
+  }
+  for (const record of records.values()) {
+    const period = periods.get(record.id);
+    if (period == null) {
+      throw new Error(`fiscal period not found for stored entry: ${record.id}`);
+    }
+    assertDbStoredEntryRecord(record, period);
   }
   return [...records.values()];
 }
@@ -934,40 +1040,55 @@ function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
   return {
     async getAllByFiscalPeriod(fiscalPeriodId) {
       const rows = (await db.exec({
-        sql: `SELECT fa.data, fp.user_id, fa.created_at, fa.updated_at
+        sql: `SELECT fa.data, fp.user_id, fa.created_at, fa.updated_at, fp.data
           FROM fixed_assets fa
           JOIN fiscal_periods fp ON fp.id = fa.fiscal_period_id
           WHERE fa.fiscal_period_id = ? ORDER BY fa.created_at ASC, fa.id ASC`,
         bind: [fiscalPeriodId],
         returnValue: "resultRows",
         rowMode: "array",
-      })) as Array<[string, string, number, number]>;
-      return rows.map(([data, userId, createdAt, updatedAt]) => ({
-        ...parseFixedAssetDbRecord(data),
-        userId,
-        createdAt: msToIso(createdAt),
-        updatedAt: msToIso(updatedAt),
-      }));
+      })) as Array<[string, string, number, number, string]>;
+      return rows.map(
+        ([data, userId, createdAt, updatedAt, periodData]) => {
+          const asset: FixedAssetDbRecord = {
+            ...parseFixedAssetDbRecord(data),
+            userId,
+            createdAt: msToIso(createdAt),
+            updatedAt: msToIso(updatedAt),
+          };
+          const period = {
+            ...parseFiscalPeriodDbRecord(periodData),
+            userId,
+          };
+          assertDbFixedAssetRecord(asset, period);
+          return asset;
+        },
+      );
     },
     async getById(id) {
       const rows = (await db.exec({
-        sql: `SELECT fa.data, fp.user_id, fa.created_at, fa.updated_at
+        sql: `SELECT fa.data, fp.user_id, fa.created_at, fa.updated_at, fp.data
           FROM fixed_assets fa
           JOIN fiscal_periods fp ON fp.id = fa.fiscal_period_id
           WHERE fa.id = ?`,
         bind: [id],
         returnValue: "resultRows",
         rowMode: "array",
-      })) as Array<[string, string, number, number]>;
+      })) as Array<[string, string, number, number, string]>;
       const row = rows[0];
-      return row == null
-        ? null
-        : {
-            ...parseFixedAssetDbRecord(row[0]),
-            userId: row[1],
-            createdAt: msToIso(row[2]),
-            updatedAt: msToIso(row[3]),
-          };
+      if (row == null) return null;
+      const asset: FixedAssetDbRecord = {
+        ...parseFixedAssetDbRecord(row[0]),
+        userId: row[1],
+        createdAt: msToIso(row[2]),
+        updatedAt: msToIso(row[3]),
+      };
+      const period = {
+        ...parseFiscalPeriodDbRecord(row[4]),
+        userId: row[1],
+      };
+      assertDbFixedAssetRecord(asset, period);
+      return asset;
     },
     async create(userId, fiscalPeriodId, input) {
       const id = newId("fa");
@@ -991,12 +1112,14 @@ function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
         updatedAt: timestamp,
       };
       await runInTransaction(db, async () => {
-        await assertDbFiscalPeriodAllows(
+        const period = await assertDbFiscalPeriodAllows(
           db,
           fiscalPeriodId,
           ["pre_opening", "journalizing"],
           "create fixed asset",
         );
+        assertDbPeriodOwnership(userId, period);
+        assertDbFixedAssetRecord(record, period);
         await db.exec({
           sql: `INSERT INTO fixed_assets(id, fiscal_period_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
           bind: [
@@ -1032,7 +1155,7 @@ function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
           createdAt: msToIso(row[2]),
           updatedAt: msToIso(now),
         };
-        await assertDbFiscalPeriodAllows(
+        const period = await assertDbFiscalPeriodAllows(
           db,
           existing.fiscalPeriodId,
           ["journalizing"],
@@ -1067,6 +1190,7 @@ function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
             ? { bookAccountId: patch.bookAccountId }
             : {}),
         };
+        assertDbFixedAssetRecord(updated, period);
         await db.exec({
           sql: `UPDATE fixed_assets SET data = ?, updated_at = ? WHERE id = ?`,
           bind: [serializeFixedAssetDbRecord(updated), now, id],
@@ -1115,7 +1239,8 @@ function createPreClosingsDb(db: SqlDb): PreClosingsDb {
         fiscalPeriodId,
         "journalizing",
         "pre_closing",
-        async () => {
+        async (_userId, period) => {
+          assertDbClosingYear(period, year);
           await db.exec({
             sql: `INSERT OR REPLACE INTO pre_closings(fiscal_period_id, year) VALUES(?, ?)`,
             bind: [fiscalPeriodId, year],
@@ -1129,7 +1254,14 @@ function createPreClosingsDb(db: SqlDb): PreClosingsDb {
         fiscalPeriodId,
         "pre_closing",
         "journalizing",
-        async () => {
+        async (_userId, period) => {
+          assertDbClosingYear(period, year);
+          await assertDbClosingMarkerExists(
+            db,
+            "pre_closings",
+            fiscalPeriodId,
+            year,
+          );
           await db.exec({
             sql: `DELETE FROM pre_closings WHERE fiscal_period_id = ? AND year = ?`,
             bind: [fiscalPeriodId, year],
@@ -1153,17 +1285,26 @@ function createClosingsDb(db: SqlDb): ClosingsDb {
       return rows[0] == null ? null : ({} satisfies ClosingDbRecord);
     },
     async run(fiscalPeriodId, year, entries) {
+      assertDbClosingGeneratedSizeLimits(entries);
       return transitionFiscalPeriod(
         db,
         fiscalPeriodId,
         "pre_closing",
         "post_closing",
-        async (userId) => {
+        async (userId, period) => {
+          assertDbClosingYear(period, year);
+          await assertDbClosingMarkerExists(
+            db,
+            "pre_closings",
+            fiscalPeriodId,
+            year,
+          );
           await replaceClosingGeneratedEntries(
             db,
             userId,
             fiscalPeriodId,
             entries,
+            period,
           );
           await db.exec({
             sql: `INSERT OR REPLACE INTO closings(fiscal_period_id, year) VALUES(?, ?)`,
@@ -1174,8 +1315,6 @@ function createClosingsDb(db: SqlDb): ClosingsDb {
     },
   };
 }
-
-const CLOSING_GENERATED_LOCAL_ID_PREFIX = "virtual:";
 
 async function deleteClosingGeneratedEntries(
   db: SqlDb,
@@ -1192,7 +1331,19 @@ async function replaceClosingGeneratedEntries(
   userId: string,
   fiscalPeriodId: string,
   inputs: EntryDbUpsertInput[],
+  period: FiscalPeriodDbRecord,
 ): Promise<void> {
+  for (const input of inputs) {
+    assertDbEntryInput(input, period, "Closing entry");
+    if (
+      typeof input.localId !== "string" ||
+      !input.localId.startsWith(CLOSING_GENERATED_LOCAL_ID_PREFIX)
+    ) {
+      throw serverValidationError(
+        "Closing entry localId must use the reserved generated prefix",
+      );
+    }
+  }
   await deleteClosingGeneratedEntries(db, fiscalPeriodId);
   const now = nowMs();
   const timestamp = msToIso(now);
@@ -1220,12 +1371,35 @@ async function replaceClosingGeneratedEntries(
   }
 }
 
+async function assertDbClosingMarkerExists(
+  db: SqlDb,
+  table: "pre_closings" | "closings",
+  fiscalPeriodId: string,
+  year: number,
+): Promise<void> {
+  const rows = (await db.exec({
+    sql: `SELECT 1 FROM ${table} WHERE fiscal_period_id = ? AND year = ?`,
+    bind: [fiscalPeriodId, year],
+    returnValue: "resultRows",
+    rowMode: "array",
+  })) as Array<[number]>;
+  if (rows[0] == null) {
+    throw serverConflictError(
+      `${table} marker is missing for fiscal period ${fiscalPeriodId} and year ${year}`,
+      "締め状態の保存データが一致しないため、処理を実行できません",
+    );
+  }
+}
+
 async function transitionFiscalPeriod(
   db: SqlDb,
   fiscalPeriodId: string,
   expectedPhase: FiscalPeriodDbRecord["phase"],
   nextPhase: FiscalPeriodDbRecord["phase"],
-  writeTransitionData: (userId: string) => Promise<void>,
+  writeTransitionData: (
+    userId: string,
+    period: FiscalPeriodDbRecord,
+  ) => Promise<void>,
 ): Promise<FiscalPeriodDbRecord> {
   let updated: FiscalPeriodDbRecord | null = null;
   await runInTransaction(db, async () => {
@@ -1251,7 +1425,6 @@ async function transitionFiscalPeriod(
         "会計期間の状態が変わったため、この操作を実行できません",
       );
     }
-    await writeTransitionData(row[0]);
     const now = nowMs();
     updated = {
       ...current,
@@ -1260,9 +1433,17 @@ async function transitionFiscalPeriod(
       updatedAt: msToIso(now),
       phase: nextPhase,
     };
+    const opening = requireOpening(
+      await loadOpeningByFiscalPeriod(db, fiscalPeriodId),
+      fiscalPeriodId,
+    );
+    assertDbOpeningForPeriod(opening, updated);
+    const serializedRecord = serializeFiscalPeriodDbRecord(updated);
+    const currentWithOwnership = { ...current, userId: row[0] };
+    await writeTransitionData(row[0], currentWithOwnership);
     await db.exec({
       sql: `UPDATE fiscal_periods SET data = ?, updated_at = ? WHERE id = ?`,
-      bind: [serializeFiscalPeriodDbRecord(updated), now, fiscalPeriodId],
+      bind: [serializedRecord, now, fiscalPeriodId],
     });
   });
   const opening = requireOpening(

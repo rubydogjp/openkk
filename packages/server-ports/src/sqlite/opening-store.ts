@@ -238,6 +238,9 @@ async function loadOpenings(
       businessCategoryId,
     });
   }
+  for (const opening of result.values()) {
+    validateOpeningDbRecord(opening);
+  }
   return result;
 }
 

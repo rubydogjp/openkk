@@ -1,5 +1,10 @@
 import { serverValidationError } from "./app-error.js";
 
+export const MAX_ENTRY_IMPORT_ITEMS = 10_000;
+export const MAX_ENTRY_IMPORT_LINES = 100_000;
+export const MAX_ENTRY_LINES = 1_000;
+export const MAX_FIXED_ASSET_USEFUL_LIFE_YEARS = 100;
+
 export function parseIsoDate(value: string): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (match == null) return null;
@@ -51,8 +56,19 @@ export function assertNonNegativeFiniteNumber(
   }
 }
 
+export function assertNonNegativeSafeInteger(
+  value: number,
+  label: string,
+): void {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw serverValidationError(
+      `${label} must be a non-negative finite number and a safe integer`,
+    );
+  }
+}
+
 export function assertPositiveInteger(value: number, label: string): void {
-  if (!Number.isInteger(value) || value < 1) {
+  if (!Number.isSafeInteger(value) || value < 1) {
     throw serverValidationError(`${label} must be a positive integer`);
   }
 }
@@ -73,11 +89,18 @@ export function assertEntryLinesBalanced(
   label: string,
   options: { allowZero?: boolean } = {},
 ): void {
+  if (lines.length > MAX_ENTRY_LINES) {
+    throw serverValidationError(
+      `${label} exceeds the ${MAX_ENTRY_LINES.toLocaleString("en-US")} line limit`,
+      `1件の仕訳に登録できる明細は${MAX_ENTRY_LINES.toLocaleString()}件までです`,
+    );
+  }
   let debitTotal = 0;
   let creditTotal = 0;
   let hasDebit = false;
   let hasCredit = false;
   for (const line of lines) {
+    assertNonNegativeSafeInteger(line.amount, `${label} line amount`);
     if (line.side === "debit") {
       hasDebit = true;
       debitTotal += line.amount;
@@ -86,6 +109,15 @@ export function assertEntryLinesBalanced(
       creditTotal += line.amount;
     } else {
       throw serverValidationError(`${label} line side is invalid`);
+    }
+    if (
+      !Number.isSafeInteger(debitTotal) ||
+      !Number.isSafeInteger(creditTotal)
+    ) {
+      throw serverValidationError(
+        `${label} totals exceed the safe integer range`,
+        "仕訳金額の合計が大きすぎます",
+      );
     }
   }
   if (
@@ -119,5 +151,24 @@ export function assertUniqueAccountIds(
       );
     }
     seen.add(accountId);
+  }
+}
+
+export function assertOpeningBalanceAccountId(
+  accountId: string,
+  label: string,
+): void {
+  const hasValidPrefix =
+    accountId.startsWith("a:") || accountId.startsWith("l:");
+  const accountName = accountId.slice(2);
+  if (
+    !hasValidPrefix ||
+    accountName.trim() === "" ||
+    accountName !== accountName.trim()
+  ) {
+    throw serverValidationError(
+      `${label} must contain an a: or l: prefix and a non-blank account name: ${accountId}`,
+      "期首残高の勘定科目が不正です",
+    );
   }
 }

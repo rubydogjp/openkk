@@ -1,8 +1,10 @@
 import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
 import {
+  createSqliteDbAdapter,
   runMigrations,
   SCHEMA_MIGRATIONS,
   SCHEMA_VERSION,
+  type SqlDb,
 } from "@rubydogjp/openkk-server-ports";
 import { describe, expect, it } from "vitest";
 
@@ -31,13 +33,14 @@ describe("SQLite v1 to v2 migration", () => {
       archived: false,
       settingsCompleted: true,
       openingBalancesCompleted: true,
-      documentsReceivedCompleted: true,
+      documentsReceivedCompleted: false,
       opening: {
         id: "opening-1",
         userId: "user-1",
         fiscalPeriodId: "fp-1",
         openingBalanceLines: [
-          { id: "balance-1", accountId: "acct_cash", amount: 1000 },
+          { id: "balance-1", accountId: "a:現金", amount: 1000 },
+          { id: "balance-2", accountId: "l:元入金", amount: 1000 },
         ],
         carryoverJournals: [
           {
@@ -52,8 +55,17 @@ describe("SQLite v1 to v2 migration", () => {
                 bookAccountId: "acct_cash",
                 amount: 1000,
                 partnerName: "",
-                taxCategoryName: "tax-0",
-                businessCategoryName: "",
+                taxCategoryName: "tax_out_of_scope",
+                businessCategoryName: "biz_none",
+              },
+              {
+                id: "journal-line-2",
+                side: "credit",
+                bookAccountId: "acct_sales",
+                amount: 1000,
+                partnerName: "",
+                taxCategoryName: "tax_out_of_scope",
+                businessCategoryName: "biz_none",
               },
             ],
           },
@@ -73,8 +85,16 @@ describe("SQLite v1 to v2 migration", () => {
           bookAccountId: "acct_cash",
           amount: 1000,
           partnerName: "",
-          taxCategoryName: "tax-0",
-          businessCategoryName: "",
+          taxCategoryName: "tax_out_of_scope",
+          businessCategoryName: "biz_none",
+        },
+        {
+          side: "credit",
+          bookAccountId: "acct_sales",
+          amount: 1000,
+          partnerName: "",
+          taxCategoryName: "tax_out_of_scope",
+          businessCategoryName: "biz_none",
         },
       ],
     };
@@ -134,7 +154,7 @@ describe("SQLite v1 to v2 migration", () => {
       db.selectValue(
         `SELECT account_id FROM opening_balance_lines WHERE opening_id='opening-1'`,
       ),
-    ).toBe("acct_cash");
+    ).toBe("a:現金");
     expect(
       db.selectValue(
         `SELECT id FROM opening_journals WHERE opening_id='opening-1'`,
@@ -149,17 +169,27 @@ describe("SQLite v1 to v2 migration", () => {
       db.selectValue(
         `SELECT COUNT(*) FROM entry_lines WHERE entry_id='entry-1'`,
       ),
-    ).toBe(1);
+    ).toBe(2);
     expect(
       db.selectValue(
         `SELECT tax_category_id FROM entry_lines WHERE entry_id='entry-1'`,
       ),
-    ).toBe("tax-0");
+    ).toBe("tax_out_of_scope");
     expect(
       db.selectValue(
         `SELECT tax_category_id FROM opening_journal_lines WHERE opening_id='opening-1'`,
       ),
-    ).toBe("tax-0");
+    ).toBe("tax_out_of_scope");
+    const sync = db as unknown as { exec(arg: unknown): unknown };
+    const sqlDb: SqlDb = { exec: async (arg) => sync.exec(arg) };
+    const adapter = await createSqliteDbAdapter(sqlDb);
+    await expect(adapter.fiscalPeriods.getById("fp-1")).resolves.toMatchObject({
+      id: "fp-1",
+      phase: "pre_closing",
+      openingBalancesCompleted: true,
+      documentsReceivedCompleted: false,
+    });
+    await expect(adapter.entries.getAll("fp-1")).resolves.toHaveLength(1);
     const queryPlan = db.exec({
       sql: `EXPLAIN QUERY PLAN
         SELECT id FROM entries
