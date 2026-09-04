@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import { useOpenkkConfig } from "@rubydogjp/openkk-client-usecases";
 
 import {
   getDeferredInstallPrompt,
-  clearDeferredInstallPrompt,
   isAppInstalled,
+  requestAppInstall,
   subscribeInstallChange,
+  takeDeferredInstallPrompt,
 } from "../../shared/pwa-install.js";
 import {
   palette,
@@ -17,26 +18,35 @@ import {
   fontWeight,
   fontFamily,
 } from "../../shared/design-tokens.js";
+import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 
-// navigator.install は新しい Web Install API (実験的)。あれば利用する。
-type NavigatorWithInstall = Navigator & {
+const INSTALL_AVAILABILITY_TIMEOUT_MS = 2500;
+
+type NavigatorWithExperimentalInstall = Navigator & {
   install?: () => Promise<unknown>;
   standalone?: boolean;
 };
 
-type Phase = "checking" | "ready" | "installed" | "unsupported";
+type Phase =
+  | "checking"
+  | "ready"
+  | "installing"
+  | "installed"
+  | "dismissed"
+  | "unsupported";
 
 function isStandalone(): boolean {
   return (
     window.matchMedia("(display-mode: standalone)").matches ||
-    (navigator as NavigatorWithInstall).standalone === true
+    (navigator as NavigatorWithExperimentalInstall).standalone === true
   );
 }
 
 function canInstall(): boolean {
   return (
     getDeferredInstallPrompt() != null ||
-    typeof (navigator as NavigatorWithInstall).install === "function"
+    typeof (navigator as NavigatorWithExperimentalInstall).install ===
+      "function"
   );
 }
 
@@ -45,9 +55,10 @@ export function InstallPage() {
   const openkkConfig = useOpenkkConfig();
   const bundleLabel = openkkConfig.bundleLabel;
   const [phase, setPhase] = useState<Phase>("checking");
+  const installLock = useRef(new ExclusiveActionLock());
 
   useEffect(() => {
-    const evaluate = () => {
+    const evaluateInstallAvailability = () => {
       if (isStandalone() || isAppInstalled()) {
         setPhase("installed");
         return;
@@ -56,39 +67,37 @@ export function InstallPage() {
         setPhase("ready");
       }
     };
-    // 既にアプリ全体で捕捉済みの beforeinstallprompt を即反映する。
-    evaluate();
-    const unsubscribe = subscribeInstallChange(evaluate);
+    evaluateInstallAvailability();
+    const unsubscribe = subscribeInstallChange(evaluateInstallAvailability);
 
-    // 一定時間 installable にならなければ非対応とみなす。
-    const timer = window.setTimeout(() => {
+    const unsupportedDetectionTimer = window.setTimeout(() => {
       setPhase((p) => (p === "checking" ? "unsupported" : p));
-    }, 2500);
+    }, INSTALL_AVAILABILITY_TIMEOUT_MS);
 
     return () => {
       unsubscribe();
-      window.clearTimeout(timer);
+      window.clearTimeout(unsupportedDetectionTimer);
     };
   }, []);
 
   async function handleInstall() {
-    const prompt = getDeferredInstallPrompt();
-    if (prompt != null) {
-      await prompt.prompt();
-      try {
-        await prompt.userChoice;
-      } catch {
-      }
-      clearDeferredInstallPrompt();
-      return;
-    }
-    const nav = navigator as NavigatorWithInstall;
-    if (typeof nav.install === "function") {
-      try {
-        await nav.install();
-        setPhase("installed");
-      } catch {
-      }
+    if (phase !== "ready") return;
+    const release = installLock.current.tryAcquire();
+    if (release == null) return;
+    setPhase("installing");
+    const prompt = takeDeferredInstallPrompt();
+    const nav = navigator as NavigatorWithExperimentalInstall;
+    try {
+      const outcome = await requestAppInstall({
+        prompt,
+        install:
+          prompt == null && typeof nav.install === "function"
+            ? () => nav.install!()
+            : undefined,
+      });
+      setPhase(outcome);
+    } finally {
+      release();
     }
   }
 
@@ -124,25 +133,46 @@ export function InstallPage() {
 
       {phase === "installed" ? (
         <>
-          <p style={{ margin: 0, fontSize: fontSize.md, color: palette.textSoft }}>
+          <p
+            style={{
+              margin: 0,
+              fontSize: fontSize.md,
+              color: palette.textSoft,
+            }}
+          >
             ホーム画面に追加済みです
           </p>
           <PrimaryButton onClick={() => router.push("/")}>
             アプリを開く
           </PrimaryButton>
         </>
-      ) : phase === "unsupported" ? (
+      ) : phase === "unsupported" || phase === "dismissed" ? (
         <>
-          <p style={{ margin: 0, fontSize: fontSize.md, color: palette.textSoft }}>
-            この環境では「ホーム画面に追加」できません
+          <p
+            style={{
+              margin: 0,
+              fontSize: fontSize.md,
+              color: palette.textSoft,
+            }}
+          >
+            {phase === "dismissed"
+              ? "ホーム画面への追加をキャンセルしました"
+              : "この環境では「ホーム画面に追加」できません"}
           </p>
           <PrimaryButton onClick={() => router.push("/")}>
             このままブラウザで開始
           </PrimaryButton>
         </>
       ) : (
-        <PrimaryButton onClick={handleInstall} disabled={phase === "checking"}>
-          {phase === "checking" ? "準備中…" : "ホーム画面に追加"}
+        <PrimaryButton
+          onClick={handleInstall}
+          disabled={phase === "checking" || phase === "installing"}
+        >
+          {phase === "checking"
+            ? "準備中…"
+            : phase === "installing"
+              ? "追加しています…"
+              : "ホーム画面に追加"}
         </PrimaryButton>
       )}
     </main>

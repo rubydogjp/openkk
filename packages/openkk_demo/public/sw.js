@@ -1,18 +1,9 @@
-// Download 版 (PWA) 用 service worker。
-// オフラインでも主要ルートのアプリ shell と既訪問ページが動くように cache を握る。
-//
-// 戦略:
-//   install                 → 主要な静的 export ルート、RSC payload、静的 asset を事前 cache
-//   document (HTML)         → network-first (新しい deploy を取りに行く)
-//   static (js/css/wasm/...) → cache-first (immutable assets を高速に返す)
-//   その他                   → passthrough (fetch そのまま)
-//
-// 更新導線: 各 deploy で registration URL の ?v= を変える (consumer 側で
-// process.env.NEXT_PUBLIC_BUILD_ID を渡す)。URL が変わると browser は新しい
-// SW を fetch、activate で古い cache を捨てる。
-
 const version = new URL(self.location.href).searchParams.get("v") ?? "default";
-const CACHE_NAME = `openkk-app-${version}`;
+const CACHE_PREFIX = "openkk-app-";
+const CACHE_NAME = `${CACHE_PREFIX}${version}`;
+const MAX_PRECACHE_RESOURCE_COUNT = 250;
+const STATIC_ASSET_PATH_PATTERN =
+  /\.(js|css|wasm|png|jpg|jpeg|svg|ico|ttf|woff2?|txt)$/;
 const APP_SHELL_ROUTES = [
   "/",
   "/steps",
@@ -49,75 +40,105 @@ self.addEventListener("install", (event) => {
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    (async () => {
-      // 自分以外のバージョンの cache を削除
-      const names = await caches.keys();
-      await Promise.all(
-        names
-          .filter((n) => n.startsWith("openkk-") && n !== CACHE_NAME)
-          .map((n) => caches.delete(n)),
-      );
-      await self.clients.claim();
-    })(),
-  );
+  event.waitUntil(activateWorker());
 });
 
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
-  // 別オリジン (API 等) はそのまま pass-through (cache しない)
-  if (url.origin !== self.location.origin) return;
-  // GET 以外も cache しない
-  if (event.request.method !== "GET") return;
+  if (!isSameOriginGetRequest(event.request, url)) return;
 
-  if (event.request.destination === "document") {
+  if (isNetworkFirstRequest(event.request)) {
     event.respondWith(networkFirst(event.request));
     return;
   }
-  if (event.request.destination === "manifest") {
-    event.respondWith(networkFirst(event.request));
-    return;
-  }
-  if (
-    /\.(js|css|wasm|png|jpg|jpeg|svg|ico|ttf|woff2?|txt)$/.test(url.pathname)
-  ) {
+  if (STATIC_ASSET_PATH_PATTERN.test(url.pathname)) {
     event.respondWith(cacheFirst(event.request));
-    return;
   }
-  // それ以外は default fetch (cache しない)
 });
+
+async function activateWorker() {
+  await cleanupOldCaches();
+  await self.clients.claim();
+}
+
+function isSameOriginGetRequest(request, url) {
+  return url.origin === self.location.origin && request.method === "GET";
+}
+
+function isNetworkFirstRequest(request) {
+  return (
+    request.destination === "document" || request.destination === "manifest"
+  );
+}
 
 async function precacheAppShell() {
   const cache = await caches.open(CACHE_NAME);
-  const queue = [...PRECACHE_URLS];
-  const queued = new Set(queue);
-  const fetched = new Set();
+  const pendingPathnames = [...PRECACHE_URLS];
+  const discoveredPathnames = new Set(pendingPathnames);
+  const fetchedPathnames = new Set();
+  const failedPathnames = new Set();
 
-  while (queue.length > 0 && fetched.size < 250) {
-    const pathname = queue.shift();
-    fetched.add(pathname);
+  while (
+    pendingPathnames.length > 0 &&
+    fetchedPathnames.size < MAX_PRECACHE_RESOURCE_COUNT
+  ) {
+    const pathname = pendingPathnames.shift();
+    fetchedPathnames.add(pathname);
 
     const request = new Request(new URL(pathname, self.location.origin), {
       cache: "reload",
     });
     try {
       const response = await fetch(request);
-      if (!response.ok) continue;
+      if (!response.ok) {
+        failedPathnames.add(pathname);
+        continue;
+      }
       await cache.put(request, response.clone());
 
       if (isDiscoverableText(response)) {
         const text = await response.clone().text();
         for (const asset of discoverSameOriginAssets(text, request.url)) {
-          if (!queued.has(asset) && !fetched.has(asset)) {
-            queued.add(asset);
-            queue.push(asset);
+          if (
+            !discoveredPathnames.has(asset) &&
+            !fetchedPathnames.has(asset)
+          ) {
+            discoveredPathnames.add(asset);
+            pendingPathnames.push(asset);
           }
         }
       }
     } catch {
-      // Installation should not fail just because one route is temporarily unavailable.
+      failedPathnames.add(pathname);
     }
   }
+
+  if (failedPathnames.size > 0 || pendingPathnames.length > 0) {
+    throw new Error("OpenKK app shell precache is incomplete");
+  }
+}
+
+async function cleanupOldCaches() {
+  const cacheNames = await readCacheNamesIfAvailable();
+  await Promise.all(
+    cacheNames
+      .filter((name) => name.startsWith(CACHE_PREFIX) && name !== CACHE_NAME)
+      .map(deleteCacheIfPossible),
+  );
+}
+
+async function readCacheNamesIfAvailable() {
+  try {
+    return await caches.keys();
+  } catch {
+    return [];
+  }
+}
+
+async function deleteCacheIfPossible(name) {
+  try {
+    await caches.delete(name);
+  } catch {}
 }
 
 function isDiscoverableText(response) {
@@ -167,25 +188,55 @@ function isPrecacheAsset(pathname) {
 }
 
 async function cacheFirst(request) {
-  const cache = await caches.open(CACHE_NAME);
-  const cached = await cache.match(request);
+  const cached = await readFromCurrentCacheIfAvailable(request);
   if (cached) return cached;
   const response = await fetch(request);
-  if (response.ok) cache.put(request, response.clone());
+  if (response.ok) {
+    await cacheResponseIfPossible(request, response);
+  }
   return response;
 }
 
 async function networkFirst(request) {
+  let networkFailure;
+  let serverFailureResponse;
   try {
     const response = await fetch(request);
     if (response.ok) {
-      const cache = await caches.open(CACHE_NAME);
-      cache.put(request, response.clone());
+      await cacheResponseIfPossible(request, response);
+      return response;
     }
-    return response;
+    if (response.status < 500) return response;
+    serverFailureResponse = response;
   } catch (error) {
-    const cached = await caches.match(request);
-    if (cached) return cached;
-    throw error;
+    networkFailure = error;
   }
+  const cached = await readFromAnyCacheIfAvailable(request);
+  if (cached) return cached;
+  if (serverFailureResponse) return serverFailureResponse;
+  throw networkFailure;
+}
+
+async function readFromCurrentCacheIfAvailable(request) {
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    return await cache.match(request, { ignoreSearch: true });
+  } catch {
+    return undefined;
+  }
+}
+
+async function readFromAnyCacheIfAvailable(request) {
+  try {
+    return await caches.match(request, { ignoreSearch: true });
+  } catch {
+    return undefined;
+  }
+}
+
+async function cacheResponseIfPossible(request, response) {
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.put(request, response.clone());
+  } catch {}
 }

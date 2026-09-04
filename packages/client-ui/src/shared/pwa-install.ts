@@ -1,9 +1,4 @@
-// beforeinstallprompt はページ読み込み時に一度だけ早期に発火するため、
-// /install ページの useEffect で待つと取りこぼす。ここでアプリ全体として
-// 早期に捕捉・保持し、各画面はこの状態を読むだけにする。
-// (このモジュールを早く読み込ませるため shell から side-effect import する)
-
-type InstallPromptEvent = Event & {
+export type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
@@ -42,8 +37,11 @@ export function getDeferredInstallPrompt(): InstallPromptEvent | null {
   return deferredPrompt;
 }
 
-export function clearDeferredInstallPrompt(): void {
+export function takeDeferredInstallPrompt(): InstallPromptEvent | null {
+  const prompt = deferredPrompt;
   deferredPrompt = null;
+  if (prompt != null) notify();
+  return prompt;
 }
 
 export function isAppInstalled(): boolean {
@@ -55,4 +53,28 @@ export function subscribeInstallChange(callback: () => void): () => void {
   return () => {
     listeners.delete(callback);
   };
+}
+
+export async function requestAppInstall(input: {
+  prompt: InstallPromptEvent | null;
+  install?: () => Promise<unknown>;
+}): Promise<"installed" | "dismissed" | "unsupported"> {
+  if (input.prompt != null) {
+    try {
+      await input.prompt.prompt();
+      const choice = await input.prompt.userChoice;
+      return choice.outcome === "accepted" ? "installed" : "dismissed";
+    } catch {
+      return "unsupported";
+    }
+  }
+  if (input.install != null) {
+    try {
+      await input.install();
+      return "installed";
+    } catch {
+      return "unsupported";
+    }
+  }
+  return "unsupported";
 }
