@@ -5,14 +5,15 @@ import { useMemo, useState } from "react";
 
 import {
   useOpenkkAppState,
+  useOpenkkAssist,
   useOpenkkEntries,
   useOpenkkConfig,
 } from "@rubydogjp/openkk-client-usecases";
 import {
   computeExpenseContribution,
   computeRevenueContribution,
-  excludeBusinessRateTransfer,
-  parseBusinessRate,
+  buildAnalyticsEntries,
+  resolveEntryBusinessRate,
   buildYearMonthRange,
   compareYearMonth,
   parseYearMonth,
@@ -40,6 +41,7 @@ type MonthTile = {
 export function JournalizingAnalyticsPage() {
   const appState = useOpenkkAppState();
   const entriesState = useOpenkkEntries();
+  const assistState = useOpenkkAssist();
   const openkkConfig = useOpenkkConfig();
   const [expandedMonths, setExpandedMonths] = useState<string[]>([]);
   const currentFiscalPeriod = appState.fiscalPeriods.find(
@@ -55,15 +57,23 @@ export function JournalizingAnalyticsPage() {
       year: openkkConfig.today.getFullYear(),
       month: openkkConfig.today.getMonth() + 1,
     };
+    const effectiveEntries = buildAnalyticsEntries({
+      fiscalPeriodId: currentFiscalPeriod.id,
+      periodStartDate: currentFiscalPeriod.startDate,
+      periodEndDate: currentFiscalPeriod.endDate,
+      entries: entriesState.listFiscalPeriodEntries(currentFiscalPeriod.id),
+      assets: assistState.listFixedAssets(currentFiscalPeriod.id),
+      carryovers: assistState.listOpeningCarryovers(currentFiscalPeriod.id),
+    });
     return months.map((yearMonth) => {
       const monthKey = yearMonth.key;
-      const monthRecords = excludeBusinessRateTransfer(
-        entriesState.listMonthEntries(currentFiscalPeriod.id, monthKey),
+      const monthRecords = effectiveEntries.filter((entry) =>
+        entry.date.startsWith(monthKey),
       );
       let revenue = 0;
       let expenses = 0;
       for (const record of monthRecords) {
-        const rate = parseBusinessRate(record.businessRate);
+        const rate = resolveEntryBusinessRate(record);
         revenue += computeRevenueContribution(record, rate);
         expenses += computeExpenseContribution(record, rate);
       }
@@ -80,7 +90,7 @@ export function JournalizingAnalyticsPage() {
           compareYearMonth(yearMonth, currentMonth) <= 0,
       };
     });
-  }, [currentFiscalPeriod, entriesState, openkkConfig.today]);
+  }, [assistState, currentFiscalPeriod, entriesState, openkkConfig.today]);
 
   return (
     <section style={{ padding: "24px 24px 96px" }}>

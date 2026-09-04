@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
+import { ConfirmDialogResolver } from "./confirm-dialog-resolver.js";
 import { fontSize, fontWeight, palette, radii, shadows, sizes, typography } from "./design-tokens.js";
 
 export type ConfirmDialogTone = "confirm" | "warning" | "danger" | "success";
@@ -45,13 +46,54 @@ const toneMap = {
 function ConfirmDialogView(
   props: ConfirmDialogOptions & { onConfirm: () => void; onCancel: () => void },
 ) {
-  const { tone, title, body, confirmLabel, cancelLabel, onConfirm, onCancel } = props;
+  const {
+    tone,
+    title,
+    body,
+    confirmLabel,
+    cancelLabel,
+    onConfirm,
+    onCancel,
+  } = props;
   const t = toneMap[tone];
   const IconComp = t.Icon;
+  const titleId = useId();
+  const bodyId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    cancelButtonRef.current?.focus();
+    return () => previouslyFocused?.focus();
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onCancel();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const focusable = Array.from(
+        dialogRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      );
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (first == null || last == null) return;
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -59,7 +101,6 @@ function ConfirmDialogView(
 
   return (
     <>
-
       <div
         className="bk-dialog-backdrop"
         onClick={onCancel}
@@ -83,9 +124,13 @@ function ConfirmDialogView(
           pointerEvents: "none",
         }}
       >
-
         <div
+          ref={dialogRef}
           className="bk-dialog-card"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          aria-describedby={body.length > 0 ? bodyId : undefined}
           style={{
             width: "100%",
             maxWidth: 480,
@@ -96,7 +141,6 @@ function ConfirmDialogView(
             pointerEvents: "all",
           }}
         >
-
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div
               style={{
@@ -112,11 +156,23 @@ function ConfirmDialogView(
             >
               <IconComp size={26} color={t.iconColor} />
             </div>
-            <div style={{ fontSize: typography.dialogTitle.fontSize, fontWeight: fontWeight.bold, color: palette.text }}>{title}</div>
+            <div
+              id={titleId}
+              style={{
+                fontSize: typography.dialogTitle.fontSize,
+                fontWeight: fontWeight.bold,
+                color: palette.text,
+              }}
+            >
+              {title}
+            </div>
           </div>
 
           {body.length > 0 && (
-            <div style={{ marginTop: 16, display: "grid", gap: 6 }}>
+            <div
+              id={bodyId}
+              style={{ marginTop: 16, display: "grid", gap: 6 }}
+            >
               {body.map((paragraph, i) => (
                 <p
                   key={i}
@@ -142,7 +198,12 @@ function ConfirmDialogView(
               gap: 10,
             }}
           >
-            <button type="button" onClick={onCancel} style={cancelStyle}>
+            <button
+              ref={cancelButtonRef}
+              type="button"
+              onClick={onCancel}
+              style={cancelStyle}
+            >
               {cancelLabel ?? "キャンセル"}
             </button>
             <button
@@ -161,17 +222,23 @@ function ConfirmDialogView(
 
 export function useConfirmDialog() {
   const [options, setOptions] = useState<ConfirmDialogOptions | null>(null);
-  const resolveRef = useRef<((result: boolean) => void) | null>(null);
+  const resolverRef = useRef(new ConfirmDialogResolver());
+
+  useEffect(
+    () => () => {
+      resolverRef.current.settle(false);
+    },
+    [],
+  );
 
   const confirm = (opts: ConfirmDialogOptions): Promise<boolean> =>
     new Promise((resolve) => {
-      resolveRef.current = resolve;
+      resolverRef.current.start(resolve);
       setOptions(opts);
     });
 
   const dismiss = (result: boolean) => {
-    resolveRef.current?.(result);
-    resolveRef.current = null;
+    resolverRef.current.settle(result);
     setOptions(null);
   };
 
@@ -235,7 +302,15 @@ function WarningIcon({ size, color }: { size: number; color: string }) {
         strokeWidth="1.6"
         strokeLinejoin="round"
       />
-      <line x1="12" y1="9" x2="12" y2="13" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+      <line
+        x1="12"
+        y1="9"
+        x2="12"
+        y2="13"
+        stroke={color}
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
       <circle cx="12" cy="17" r="0.8" fill={color} />
     </svg>
   );
@@ -245,7 +320,15 @@ function ErrorIcon({ size, color }: { size: number; color: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="12" r="9.5" stroke={color} strokeWidth="1.6" />
-      <line x1="12" y1="8" x2="12" y2="13" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+      <line
+        x1="12"
+        y1="8"
+        x2="12"
+        y2="13"
+        stroke={color}
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
       <circle cx="12" cy="16.5" r="0.8" fill={color} />
     </svg>
   );

@@ -5,13 +5,14 @@ import { useMemo } from "react";
 
 import {
   useOpenkkAppState,
+  useOpenkkAssist,
   useOpenkkEntries,
   useOpenkkConfig,
 } from "@rubydogjp/openkk-client-usecases";
 import {
   deriveSteps,
+  buildAnalyticsEntries,
   buildStepTrendPoints,
-  excludeBusinessRateTransfer,
 } from "@rubydogjp/openkk-client-domain";
 import { normalizePathname } from "../../shared/pathname.js";
 import { StepsPageScreen } from "../../steps/step-page-screen.js";
@@ -27,10 +28,10 @@ export function StepsLayout({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  return <StepsStepperHost />;
+  return <StepsStepperHost pathname={pathname} />;
 }
 
-function StepsStepperHost() {
+function StepsStepperHost({ pathname }: { pathname: string }) {
   const appState = useOpenkkAppState();
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (period) => period.id === appState.currentFiscalPeriodId,
@@ -44,7 +45,10 @@ function StepsStepperHost() {
     );
   }
 
-  if (currentFiscalPeriod.archiveStatus === "archived") {
+  if (
+    currentFiscalPeriod.archiveStatus === "archived" &&
+    pathname !== "/steps/next-fiscal-period"
+  ) {
     return <ArchivedFiscalPeriodScreen fiscalPeriod={currentFiscalPeriod} />;
   }
 
@@ -80,13 +84,19 @@ function StepsPageScreenWithChart({
   currentEndDate: string;
 }) {
   const entriesState = useOpenkkEntries();
+  const assistState = useOpenkkAssist();
   const openkkConfig = useOpenkkConfig();
   const trendPoints = useMemo(
     () =>
       buildStepTrendPoints({
-        entries: excludeBusinessRateTransfer(
-          entriesState.listFiscalPeriodEntries(currentFiscalPeriodId),
-        ),
+        entries: buildAnalyticsEntries({
+          fiscalPeriodId: currentFiscalPeriodId,
+          periodStartDate: currentStartDate,
+          periodEndDate: currentEndDate,
+          entries: entriesState.listFiscalPeriodEntries(currentFiscalPeriodId),
+          assets: assistState.listFixedAssets(currentFiscalPeriodId),
+          carryovers: assistState.listOpeningCarryovers(currentFiscalPeriodId),
+        }),
         startDate: currentStartDate,
         endDate: currentEndDate,
 
@@ -94,6 +104,7 @@ function StepsPageScreenWithChart({
       }),
     [
       entriesState,
+      assistState,
       openkkConfig,
       currentFiscalPeriodId,
       currentStartDate,

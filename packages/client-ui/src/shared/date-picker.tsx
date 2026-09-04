@@ -39,6 +39,8 @@ export function DatePickerButton(props: {
   value: string;
   onChange: (value: string) => void;
   ariaLabel?: string;
+  minDate?: string;
+  maxDate?: string;
 }) {
   const [open, setOpen] = useState(false);
   const label = formatDateButtonLabel(props.value);
@@ -81,6 +83,8 @@ export function DatePickerButton(props: {
       {open ? (
         <DatePickerDialog
           value={props.value}
+          minDate={props.minDate}
+          maxDate={props.maxDate}
           onConfirm={(v) => {
             props.onChange(v);
             setOpen(false);
@@ -94,10 +98,18 @@ export function DatePickerButton(props: {
 
 function DatePickerDialog(props: {
   value: string;
+  minDate?: string;
+  maxDate?: string;
   onConfirm: (value: string) => void;
   onCancel: () => void;
 }) {
-  const initial = parseIsoDate(props.value) ?? new Date();
+  const minDate = props.minDate == null ? null : parseIsoDate(props.minDate);
+  const maxDate = props.maxDate == null ? null : parseIsoDate(props.maxDate);
+  const initial = clampDateToBounds(
+    parseIsoDate(props.value) ?? new Date(),
+    minDate,
+    maxDate,
+  );
   const [selected, setSelected] = useState<Date>(initial);
   const [viewYear, setViewYear] = useState(initial.getFullYear());
   const [viewMonth, setViewMonth] = useState(initial.getMonth());
@@ -113,6 +125,19 @@ function DatePickerDialog(props: {
     selected.getFullYear() === viewYear &&
     selected.getMonth() === viewMonth &&
     selected.getDate() === day;
+
+  const isAllowed = (date: Date) =>
+    (minDate == null || date >= minDate) &&
+    (maxDate == null || date <= maxDate);
+
+  const canGoPrev =
+    minDate == null ||
+    viewYear > minDate.getFullYear() ||
+    (viewYear === minDate.getFullYear() && viewMonth > minDate.getMonth());
+  const canGoNext =
+    maxDate == null ||
+    viewYear < maxDate.getFullYear() ||
+    (viewYear === maxDate.getFullYear() && viewMonth < maxDate.getMonth());
 
   const prevMonth = () => {
     if (viewMonth === 0) { setViewYear((y) => y - 1); setViewMonth(11); }
@@ -187,11 +212,35 @@ function DatePickerDialog(props: {
               marginBottom: 10,
             }}
           >
-            <button type="button" onClick={prevMonth} style={navBtnStyle}>‹</button>
+            <button
+              type="button"
+              onClick={prevMonth}
+              disabled={!canGoPrev}
+              aria-label="前の月"
+              style={{
+                ...navBtnStyle,
+                opacity: canGoPrev ? 1 : 0.35,
+                cursor: canGoPrev ? "pointer" : "default",
+              }}
+            >
+              ‹
+            </button>
             <span style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold, color: palette.text }}>
               {viewYear}年{viewMonth + 1}月
             </span>
-            <button type="button" onClick={nextMonth} style={navBtnStyle}>›</button>
+            <button
+              type="button"
+              onClick={nextMonth}
+              disabled={!canGoNext}
+              aria-label="次の月"
+              style={{
+                ...navBtnStyle,
+                opacity: canGoNext ? 1 : 0.35,
+                cursor: canGoNext ? "pointer" : "default",
+              }}
+            >
+              ›
+            </button>
           </div>
 
           <div
@@ -221,20 +270,28 @@ function DatePickerDialog(props: {
             {cells.map((day, i) => {
               if (day == null) return <div key={`e${i}`} style={{ aspectRatio: "1" }} />;
               const sel = isSelected(day);
+              const candidate = new Date(viewYear, viewMonth, day);
+              const allowed = isAllowed(candidate);
               return (
                 <button
                   key={day}
                   type="button"
-                  onClick={() => setSelected(new Date(viewYear, viewMonth, day))}
+                  onClick={() => setSelected(candidate)}
+                  disabled={!allowed}
                   style={{
                     aspectRatio: "1",
                     borderRadius: 999,
                     border: "none",
                     background: sel ? palette.action : "transparent",
-                    color: sel ? palette.surface : palette.textSoft,
+                    color: sel
+                      ? palette.surface
+                      : allowed
+                        ? palette.textSoft
+                        : palette.textMuted,
                     fontSize: fontSize.base,
                     fontWeight: sel ? fontWeight.bold : fontWeight.medium,
-                    cursor: "pointer",
+                    cursor: allowed ? "pointer" : "default",
+                    opacity: allowed ? 1 : 0.35,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -263,6 +320,16 @@ function DatePickerDialog(props: {
       </div>
     </div>
   );
+}
+
+function clampDateToBounds(
+  date: Date,
+  minDate: Date | null,
+  maxDate: Date | null,
+): Date {
+  if (minDate != null && date < minDate) return new Date(minDate);
+  if (maxDate != null && date > maxDate) return new Date(maxDate);
+  return date;
 }
 
 function CalendarIcon(props: { size: number; color: string }) {

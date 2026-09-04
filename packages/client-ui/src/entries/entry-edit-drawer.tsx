@@ -13,6 +13,8 @@ import {
 import { StepFormRow } from "../steps/step-ui.js";
 import { AmountInput } from "../shared/amount-field.js";
 import { DatePickerButton } from "../shared/date-picker.js";
+import { ExclusiveActionLock } from "../shared/exclusive-action-lock.js";
+import { debugAppError } from "../shared/app-error-text.js";
 import {
   fontSize,
   fontWeight,
@@ -37,12 +39,19 @@ import type {
   EntrySuggestions,
 } from "@rubydogjp/openkk-client-usecases";
 import {
+  AppError,
   parseAmount,
   getEntryLines,
+  MAX_JOURNAL_ENTRY_LINES,
   type EntryRecord,
   type EntryLine,
 } from "@rubydogjp/openkk-client-domain";
 import type { EntryAccountVisualType } from "@rubydogjp/openkk-client-domain";
+import {
+  validateEntryAmounts,
+  validateEntryDate,
+  validateEntryLineCount,
+} from "./entry-edit-validation.js";
 
 const C = {
   text: palette.text,
@@ -126,33 +135,43 @@ export function EntryEditDrawer(props: {
   suggestions: EntrySuggestions;
   mode?: "create" | "edit";
   allowCompound?: boolean;
+  minDate?: string;
+  maxDate?: string;
   onSave: (draft: EntryDraft) => Promise<void> | void;
   onDelete?: () => Promise<void> | void;
   onClose: () => void;
 }) {
   const mode = props.mode ?? "edit";
   const allowCompound = props.allowCompound ?? true;
+  const rowPairIdSequence = useRef(0);
+  const nextRowPairId = () => {
+    rowPairIdSequence.current += 1;
+    return `row-${rowPairIdSequence.current}`;
+  };
   const [draft, setDraft] = useState<RowPairDraft>(() =>
-    recordToRowPairDraft(props.entry),
+    recordToRowPairDraft(props.entry, nextRowPairId),
   );
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [triedSave, setTriedSave] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
+  const mutationLock = useRef(new ExclusiveActionLock());
 
   const [guideStack, setGuideStack] = useState<QuickGuidePage[]>([]);
 
   useEffect(() => {
-    setDraft(recordToRowPairDraft(props.entry));
+    setDraft(recordToRowPairDraft(props.entry, nextRowPairId));
+    setConfirmingDelete(false);
     setTriedSave(false);
     setErrorText(null);
-  }, [props.entry]);
+    setGuideStack([]);
+  }, [props.entry.id]);
 
   const { onClose } = props;
   useEffect(() => {
     function handle(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape" && !mutationLock.current.isLocked) onClose();
     }
     document.addEventListener("keydown", handle);
     return () => document.removeEventListener("keydown", handle);
@@ -160,6 +179,39 @@ export function EntryEditDrawer(props: {
 
   const update = (patch: Partial<RowPairDraft>) =>
     setDraft((current) => ({ ...current, ...patch }));
+
+  const updatePartner = (value: string) =>
+    setDraft((current) => ({
+      ...current,
+      partner: value,
+      pairs: current.pairs.map((row) => ({
+        ...row,
+        debitPartnerName: null,
+        creditPartnerName: null,
+      })),
+    }));
+
+  const updateTaxCategory = (value: string) =>
+    setDraft((current) => ({
+      ...current,
+      taxCategory: value,
+      pairs: current.pairs.map((row) => ({
+        ...row,
+        debitTaxCategoryId: null,
+        creditTaxCategoryId: null,
+      })),
+    }));
+
+  const updateBusinessCategory = (value: string) =>
+    setDraft((current) => ({
+      ...current,
+      businessCategory: value,
+      pairs: current.pairs.map((row) => ({
+        ...row,
+        debitBusinessCategoryId: null,
+        creditBusinessCategoryId: null,
+      })),
+    }));
 
   const updateRow = (index: number, patch: Partial<RowPair>) => {
     setDraft((current) => ({
@@ -191,6 +243,12 @@ export function EntryEditDrawer(props: {
           creditAccountName: defCredit?.name ?? "",
           creditAccountType: defCredit?.accountType ?? "asset",
           creditAmount: "",
+          debitPartnerName: null,
+          debitTaxCategoryId: null,
+          debitBusinessCategoryId: null,
+          creditPartnerName: null,
+          creditTaxCategoryId: null,
+          creditBusinessCategoryId: null,
         },
       ],
     }));
@@ -235,6 +293,12 @@ export function EntryEditDrawer(props: {
         creditAccountName: credit.name,
         creditAccountType: credit.accountType,
         creditAmount: "",
+        debitPartnerName: null,
+        debitTaxCategoryId: null,
+        debitBusinessCategoryId: null,
+        creditPartnerName: null,
+        creditTaxCategoryId: null,
+        creditBusinessCategoryId: null,
       };
       const shouldSetDescription =
         template.description != null &&
@@ -251,6 +315,10 @@ export function EntryEditDrawer(props: {
         ...current,
         description: newDescription,
         businessRate: newBusinessRate,
+        businessRateRatio:
+          template.businessRatePercent == null
+            ? current.businessRateRatio
+            : undefined,
         pairs: [newPair],
       };
     });
@@ -280,7 +348,11 @@ export function EntryEditDrawer(props: {
     (sum, row) => sum + parseAmount(row.creditAmount),
     0,
   );
-  const isBalanced = debitTotal === creditTotal && debitTotal > 0;
+  const isBalanced =
+    Number.isSafeInteger(debitTotal) &&
+    Number.isSafeInteger(creditTotal) &&
+    debitTotal === creditTotal &&
+    debitTotal > 0;
   const hasDescription = draft.description.trim().length > 0;
   const allRowsValid = draft.pairs.every((row) => {
     const hasDebit =
@@ -302,12 +374,35 @@ export function EntryEditDrawer(props: {
   });
 
   const validationMessages: string[] = [];
+  const dateValidationMessage = validateEntryDate(
+    draft.date,
+    props.minDate,
+    props.maxDate,
+  );
+  if (dateValidationMessage != null)
+    validationMessages.push(dateValidationMessage);
+  const amountValidationMessage = validateEntryAmounts(
+    draft.pairs.map((row) => row.debitAmount),
+    draft.pairs.map((row) => row.creditAmount),
+  );
+  if (amountValidationMessage != null)
+    validationMessages.push(amountValidationMessage);
+  const entryLineCount = draft.pairs.reduce(
+    (count, row) =>
+      count +
+      (parseAmount(row.debitAmount) > 0 ? 1 : 0) +
+      (parseAmount(row.creditAmount) > 0 ? 1 : 0),
+    0,
+  );
+  const lineCountValidationMessage = validateEntryLineCount(entryLineCount);
+  if (lineCountValidationMessage != null)
+    validationMessages.push(lineCountValidationMessage);
   if (!hasDescription) validationMessages.push("摘要を入力してください。");
   if (!allRowsValid)
     validationMessages.push(
       "入力した行の勘定科目と金額をすべて入力してください。",
     );
-  if (!isBalanced)
+  if (!isBalanced && amountValidationMessage == null)
     validationMessages.push(
       `借方金額と貸方金額の合計を一致させてください。差額: ¥${Math.abs(
         debitTotal - creditTotal,
@@ -317,29 +412,47 @@ export function EntryEditDrawer(props: {
   const handleSave = async () => {
     setTriedSave(true);
     if (validationMessages.length > 0) return;
+    const release = mutationLock.current.tryAcquire();
+    if (release == null) return;
     setSaving(true);
     setErrorText(null);
     try {
       await props.onSave(rowPairDraftToEntryDraft(draft, props.accountOptions));
-    } catch {
-      setErrorText("保存に失敗しました");
+    } catch (error) {
+      const appError = AppError.from(error, {
+        fallbackUserMessage: "保存に失敗しました",
+      });
+      debugAppError(error);
+      setErrorText(appError.messageForUser);
     } finally {
       setSaving(false);
+      release();
     }
   };
 
   const handleDelete = async () => {
-    if (props.onDelete == null || deleting) return;
+    if (props.onDelete == null) return;
+    const release = mutationLock.current.tryAcquire();
+    if (release == null) return;
     setConfirmingDelete(false);
     setDeleting(true);
     setErrorText(null);
     try {
       await props.onDelete();
-    } catch {
-      setErrorText("削除に失敗しました");
+    } catch (error) {
+      const appError = AppError.from(error, {
+        fallbackUserMessage: "削除に失敗しました",
+      });
+      debugAppError(error);
+      setErrorText(appError.messageForUser);
     } finally {
       setDeleting(false);
+      release();
     }
+  };
+
+  const requestClose = () => {
+    if (!mutationLock.current.isLocked) props.onClose();
   };
 
   const footerMessages =
@@ -352,7 +465,7 @@ export function EntryEditDrawer(props: {
   return (
     <>
       <div
-        onClick={props.onClose}
+        onClick={requestClose}
         aria-hidden="true"
         style={{
           position: "fixed",
@@ -418,13 +531,15 @@ export function EntryEditDrawer(props: {
           <button
             type="button"
             aria-label="閉じる"
-            onClick={props.onClose}
+            onClick={requestClose}
+            disabled={saving || deleting}
             style={{
               width: 32,
               height: 32,
               border: "none",
               background: "transparent",
-              cursor: "pointer",
+              cursor: saving || deleting ? "default" : "pointer",
+              opacity: saving || deleting ? 0.5 : 1,
               color: C.soft,
               borderRadius: radii.sm,
               display: "flex",
@@ -469,6 +584,8 @@ export function EntryEditDrawer(props: {
                   <DatePickerButton
                     ariaLabel="日付"
                     value={draft.date}
+                    minDate={props.minDate}
+                    maxDate={props.maxDate}
                     onChange={(value) => update({ date: value })}
                   />
                 }
@@ -582,7 +699,9 @@ export function EntryEditDrawer(props: {
                       variant="add"
                       ariaLabel="複合仕訳を追加"
                       label="複合仕訳を追加"
-                      enabled
+                      enabled={
+                        draft.pairs.length < MAX_JOURNAL_ENTRY_LINES / 2
+                      }
                       onClick={addRow}
                     />
                   </div>
@@ -607,7 +726,7 @@ export function EntryEditDrawer(props: {
                   <div style={{ width: 200, maxWidth: "100%" }}>
                     <FreeformChip
                       value={draft.partner}
-                      onChange={(value) => update({ partner: value })}
+                      onChange={updatePartner}
                       options={mergeOptions([], props.suggestions.partner)}
                       placeholder="取引先を入力"
                     />
@@ -623,10 +742,14 @@ export function EntryEditDrawer(props: {
                       onChange={(next) => {
                         const n = parseInt(next, 10);
                         if (Number.isNaN(n))
-                          update({ businessRate: next.trim() });
+                          update({
+                            businessRate: next.trim(),
+                            businessRateRatio: undefined,
+                          });
                         else
                           update({
                             businessRate: String(Math.max(0, Math.min(100, n))),
+                            businessRateRatio: undefined,
                           });
                       }}
                       options={BIZ_RATE_PRESETS}
@@ -643,7 +766,7 @@ export function EntryEditDrawer(props: {
                   <div style={{ width: 120 }}>
                     <FreeformChip
                       value={draft.taxCategory}
-                      onChange={(value) => update({ taxCategory: value })}
+                      onChange={updateTaxCategory}
                       options={mergeOptions(
                         props.taxCategoryOptions.map((o) => o.name),
                         props.suggestions.taxCategory,
@@ -659,7 +782,7 @@ export function EntryEditDrawer(props: {
                   <div style={{ width: 120 }}>
                     <FreeformChip
                       value={draft.businessCategory}
-                      onChange={(value) => update({ businessCategory: value })}
+                      onChange={updateBusinessCategory}
                       options={mergeOptions(
                         props.businessCategoryOptions.map((o) => o.name),
                         props.suggestions.businessCategory,
@@ -715,8 +838,13 @@ export function EntryEditDrawer(props: {
             <div style={{ display: "flex", gap: 10 }}>
               <button
                 type="button"
-                onClick={props.onClose}
-                style={secondaryButtonStyle}
+                onClick={requestClose}
+                disabled={saving || deleting}
+                style={{
+                  ...secondaryButtonStyle,
+                  opacity: saving || deleting ? 0.5 : 1,
+                  cursor: saving || deleting ? "default" : "pointer",
+                }}
               >
                 キャンセル
               </button>
@@ -1678,27 +1806,29 @@ type RowPair = {
   creditAccountName: string;
   creditAccountType: EntryAccountVisualType;
   creditAmount: string;
+  debitPartnerName: string | null;
+  debitTaxCategoryId: string | null;
+  debitBusinessCategoryId: string | null;
+  creditPartnerName: string | null;
+  creditTaxCategoryId: string | null;
+  creditBusinessCategoryId: string | null;
 };
-
-// Stable per-row key so removing a middle row doesn't shift other rows'
-// internal state (open dropdowns, focus) onto their neighbours.
-let rowPairKeySeq = 0;
-function nextRowPairId(): string {
-  rowPairKeySeq += 1;
-  return `row-${rowPairKeySeq}`;
-}
 
 type RowPairDraft = {
   date: string;
   description: string;
   partner: string;
   businessRate: string;
+  businessRateRatio?: number;
   taxCategory: string;
   businessCategory: string;
   pairs: RowPair[];
 };
 
-function recordToRowPairDraft(record: EntryRecord): RowPairDraft {
+function recordToRowPairDraft(
+  record: EntryRecord,
+  nextRowPairId: () => string,
+): RowPairDraft {
   const lines = getEntryLines(record);
   const debits = lines.filter((line) => line.side === "debit");
   const credits = lines.filter((line) => line.side === "credit");
@@ -1713,10 +1843,16 @@ function recordToRowPairDraft(record: EntryRecord): RowPairDraft {
       debitAccountName: debit?.accountName ?? "",
       debitAccountType: debit?.accountType ?? "expense",
       debitAmount: debit?.amount ?? "",
+      debitPartnerName: debit?.partnerName ?? null,
+      debitTaxCategoryId: debit?.taxCategoryId ?? null,
+      debitBusinessCategoryId: debit?.businessCategoryId ?? null,
       creditAccountId: credit?.bookAccountId,
       creditAccountName: credit?.accountName ?? "",
       creditAccountType: credit?.accountType ?? "asset",
       creditAmount: credit?.amount ?? "",
+      creditPartnerName: credit?.partnerName ?? null,
+      creditTaxCategoryId: credit?.taxCategoryId ?? null,
+      creditBusinessCategoryId: credit?.businessCategoryId ?? null,
     });
   }
   return {
@@ -1724,6 +1860,7 @@ function recordToRowPairDraft(record: EntryRecord): RowPairDraft {
     description: record.description,
     partner: record.partner,
     businessRate: record.businessRate,
+    businessRateRatio: record.businessRateRatio,
     taxCategory: record.taxCategory,
     businessCategory: record.businessCategory,
     pairs,
@@ -1754,6 +1891,15 @@ function rowPairDraftToEntryDraft(
         accountType: pair.debitAccountType,
         amount: pair.debitAmount,
         bookAccountId: matched?.id,
+        ...(pair.debitPartnerName == null
+          ? {}
+          : { partnerName: pair.debitPartnerName }),
+        ...(pair.debitTaxCategoryId == null
+          ? {}
+          : { taxCategoryId: pair.debitTaxCategoryId }),
+        ...(pair.debitBusinessCategoryId == null
+          ? {}
+          : { businessCategoryId: pair.debitBusinessCategoryId }),
       });
     }
     if (
@@ -1774,6 +1920,15 @@ function rowPairDraftToEntryDraft(
         accountType: pair.creditAccountType,
         amount: pair.creditAmount,
         bookAccountId: matched?.id,
+        ...(pair.creditPartnerName == null
+          ? {}
+          : { partnerName: pair.creditPartnerName }),
+        ...(pair.creditTaxCategoryId == null
+          ? {}
+          : { taxCategoryId: pair.creditTaxCategoryId }),
+        ...(pair.creditBusinessCategoryId == null
+          ? {}
+          : { businessCategoryId: pair.creditBusinessCategoryId }),
       });
     }
   }
@@ -1782,6 +1937,7 @@ function rowPairDraftToEntryDraft(
     description: draft.description,
     partner: draft.partner,
     businessRate: draft.businessRate,
+    businessRateRatio: draft.businessRateRatio,
     taxCategory: draft.taxCategory,
     businessCategory: draft.businessCategory,
     lines,

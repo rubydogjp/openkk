@@ -1,10 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   AppError,
+  hasActiveFiscalPeriodOverlap,
+  resolveEditingPolicy,
   resolveFiscalPeriodPolicy,
   validateFiscalPeriodDates,
 } from "@rubydogjp/openkk-client-domain";
@@ -14,7 +16,15 @@ import {
 } from "@rubydogjp/openkk-client-usecases";
 import { AppErrorText } from "../../../shared/app-error-text.js";
 import { LockButton } from "../../../shared/lock-icon.js";
-import { fontSize, fontWeight, palette, sizes, spacing, typography } from "../../../shared/design-tokens.js";
+import { ExclusiveActionLock } from "../../../shared/exclusive-action-lock.js";
+import {
+  fontSize,
+  fontWeight,
+  palette,
+  sizes,
+  spacing,
+  typography,
+} from "../../../shared/design-tokens.js";
 import {
   FormDatePair,
   FormErrorText,
@@ -35,6 +45,9 @@ export function CreateFiscalPeriodPage() {
   const [endDate, setEndDate] = useState(`${initialYear}-12-31`);
   const [nameEdited, setNameEdited] = useState(false);
   const [screenError, setScreenError] = useState<unknown>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const createLock = useRef(new ExclusiveActionLock());
+  const editingLocked = resolveEditingPolicy(openkkConfig).locked;
 
   useEffect(() => {
     if (nameEdited) return;
@@ -53,14 +66,31 @@ export function CreateFiscalPeriodPage() {
     () => validateFiscalPeriodDates(startDate, endDate),
     [endDate, startDate],
   );
-  const maxActivePeriods = resolveFiscalPeriodPolicy(openkkConfig).maxActivePeriods;
+  const hasOverlap =
+    dateValidation.ok &&
+    hasActiveFiscalPeriodOverlap(
+      { startDate, endDate },
+      appState.fiscalPeriods,
+    );
+  const maxActivePeriods =
+    resolveFiscalPeriodPolicy(openkkConfig).maxActivePeriods;
   const atPeriodLimit =
     maxActivePeriods != null &&
-    appState.fiscalPeriods.length >= maxActivePeriods;
-  const canSubmit = canCreate && dateValidation.ok && !atPeriodLimit;
+    appState.fiscalPeriods.filter((period) => period.archiveStatus === "active")
+      .length >= maxActivePeriods;
+  const canSubmit =
+    canCreate &&
+    dateValidation.ok &&
+    !hasOverlap &&
+    !atPeriodLimit &&
+    !editingLocked &&
+    !isCreating;
 
   const handleCreate = async () => {
     if (!canSubmit) return;
+    const release = createLock.current.tryAcquire();
+    if (release == null) return;
+    setIsCreating(true);
     try {
       const createdId = await appState.createFiscalPeriod({
         name,
@@ -78,6 +108,9 @@ export function CreateFiscalPeriodPage() {
             "fiscal-periods/new: createFiscalPeriod failed",
         }),
       );
+    } finally {
+      setIsCreating(false);
+      release();
     }
   };
 
@@ -115,7 +148,7 @@ export function CreateFiscalPeriodPage() {
             control={
               <FormTextInput
                 value={name}
-                readOnly={atPeriodLimit}
+                readOnly={atPeriodLimit || editingLocked}
                 onChange={(value) => {
                   setNameEdited(true);
                   setName(value);
@@ -135,16 +168,22 @@ export function CreateFiscalPeriodPage() {
                   end={endDate}
                   onChangeStart={setStartDate}
                   onChangeEnd={setEndDate}
-                  readOnly={atPeriodLimit}
+                  readOnly={atPeriodLimit || editingLocked}
                 />
-                {!dateValidation.ok && !atPeriodLimit ? (
+                {!dateValidation.ok && !atPeriodLimit && !editingLocked ? (
                   <FormErrorText>{dateValidation.message}</FormErrorText>
+                ) : hasOverlap && !atPeriodLimit && !editingLocked ? (
+                  <FormErrorText>
+                    既存の有効な会計期間と日付が重複しています。
+                  </FormErrorText>
                 ) : null}
               </>
             }
             hint={
               atPeriodLimit
                 ? "有効な会計期間の上限に達しているため、新しい期間は作成できません。"
+                : editingLocked
+                  ? "この環境ではデータの編集がロックされています。"
                 : undefined
             }
           />
@@ -158,14 +197,19 @@ export function CreateFiscalPeriodPage() {
             gap: spacing.s10,
           }}
         >
-          <FormSecondaryButton onClick={() => router.push("/steps")}>
+          <FormSecondaryButton
+            onClick={() => {
+              if (!createLock.current.isLocked) router.push("/steps");
+            }}
+            disabled={isCreating}
+          >
             キャンセル
           </FormSecondaryButton>
-          {atPeriodLimit ? (
+          {atPeriodLimit || editingLocked ? (
             <LockButton label="作成する" />
           ) : (
             <FormPrimaryButton onClick={handleCreate} disabled={!canSubmit}>
-              作成する
+              {isCreating ? "作成中…" : "作成する"}
             </FormPrimaryButton>
           )}
         </div>

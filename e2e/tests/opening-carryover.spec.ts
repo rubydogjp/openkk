@@ -18,7 +18,7 @@ test.describe("opening carryover (再振替)", () => {
     await expect(page.getByRole("button", { name: "追加" })).toBeVisible();
 
     await page.getByRole("button", { name: "追加" }).click();
-    const drawer = page.getByRole("dialog", { name: "仕訳の編集" });
+    const drawer = page.getByRole("dialog", { name: "仕訳の新規作成" });
     await expect(drawer).toBeVisible();
 
     // 追加時に既定の勘定科目・日付が入った再振替が生成される。日付・科目は
@@ -26,7 +26,7 @@ test.describe("opening carryover (再振替)", () => {
     await drawer.getByLabel("摘要").fill("再振替テスト: 未払費用");
     await drawer.locator(".bk-amount-input").first().fill("30000");
     await drawer.locator(".bk-amount-input").last().fill("30000");
-    await clickButton(page, "保存");
+    await clickButton(page, "作成");
 
     await expect(drawer).not.toBeVisible({ timeout: 5_000 });
     await expect(page.getByText("再振替テスト: 未払費用")).toBeVisible();
@@ -102,12 +102,12 @@ async function navigateToCarryover(page: Page) {
 
 async function addCarryover(page: Page, description: string, amount: string) {
   await page.getByRole("button", { name: "追加" }).click();
-  const drawer = page.getByRole("dialog", { name: "仕訳の編集" });
+  const drawer = page.getByRole("dialog", { name: "仕訳の新規作成" });
   await expect(drawer).toBeVisible();
   // 日付・勘定科目は既定値を使う（ボタン/ピッカー UI のため）。
   await drawer.getByLabel("摘要").fill(description);
   await drawer.locator(".bk-amount-input").first().fill(amount);
   await drawer.locator(".bk-amount-input").last().fill(amount);
-  await clickButton(page, "保存");
+  await clickButton(page, "作成");
   await expect(drawer).not.toBeVisible({ timeout: 5_000 });
 }

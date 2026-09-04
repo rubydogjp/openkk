@@ -10,7 +10,11 @@ import {
   useMaintenance,
   useOpenkkConfig,
 } from "@rubydogjp/openkk-client-usecases";
-import { userCanSignOut, userEmail } from "@rubydogjp/openkk-client-domain";
+import {
+  AppError,
+  userCanSignOut,
+  userEmail,
+} from "@rubydogjp/openkk-client-domain";
 
 import {
   fontSize,
@@ -25,6 +29,8 @@ import {
 import { normalizePathname } from "../shared/pathname.js";
 import "../shared/pwa-install.js";
 import { DataLoadErrorBanner } from "./data-load-error-banner.js";
+import { AppErrorText } from "../shared/app-error-text.js";
+import { ExclusiveActionLock } from "../shared/exclusive-action-lock.js";
 import { MaintenanceScreen } from "./maintenance-content.js";
 import { ArchivedFiscalPeriodScreen } from "../routes/steps/archived-fiscal-period-screen.js";
 import { FiscalPeriodsContent } from "./fiscal-periods-content.js";
@@ -199,6 +205,9 @@ function ShellChrome({
   const workspaceTriggerRef = useRef<HTMLButtonElement>(null);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [authActionError, setAuthActionError] = useState<unknown>(null);
+  const [authActionPending, setAuthActionPending] = useState(false);
+  const authActionLock = useRef(new ExclusiveActionLock());
 
   useEffect(() => {
     setDrawerOpen(false);
@@ -252,15 +261,58 @@ function ShellChrome({
   }
 
   async function handleSignInClick() {
+    const release = authActionLock.current.tryAcquire();
+    if (release == null) return;
+    setAuthActionError(null);
     if (openkkConfig.authMode === "embedded") {
       appState.signInAsEmbeddedUser();
+      release();
       return;
     }
+    setAuthActionPending(true);
+    let navigationStarted = false;
     try {
       const redirectUrl = `${window.location.origin}/auth/result`;
       const result = await appState.startSignIn(redirectUrl);
       window.location.href = result.authUrl;
-    } catch {}
+      navigationStarted = true;
+    } catch (error) {
+      setAuthActionError(
+        AppError.from(error, {
+          fallbackUserMessage: "サインインを開始できませんでした",
+          fallbackDeveloperMessage: "shell: startSignIn failed",
+        }),
+      );
+    } finally {
+      if (!navigationStarted) {
+        setAuthActionPending(false);
+        release();
+      }
+    }
+  }
+
+  async function handleSignOut() {
+    const release = authActionLock.current.tryAcquire();
+    if (release == null) return;
+    setMenuOpen(false);
+    setAuthActionError(null);
+    setAuthActionPending(true);
+    try {
+      await appState.signOut();
+    } catch (error) {
+      setAuthActionError(
+        AppError.from(error, {
+          fallbackUserMessage:
+            "この端末ではサインアウトしましたが、サーバーへの通知に失敗しました",
+          fallbackDeveloperMessage:
+            "shell: remote signOut failed after clearing local session",
+        }),
+      );
+    } finally {
+      setAuthActionPending(false);
+      release();
+    }
+    router.push("/");
   }
 
   return (
@@ -858,12 +910,8 @@ function ShellChrome({
                             ? PALETTE.menuTextActive
                             : PALETTE.menuTextDisabled
                         }
-                        disabled={!canSignOut}
-                        onClick={() => {
-                          setMenuOpen(false);
-                          appState.signOut();
-                          router.push("/");
-                        }}
+                        disabled={!canSignOut || authActionPending}
+                        onClick={() => void handleSignOut()}
                       />
                     </div>
                   </div>
@@ -873,6 +921,7 @@ function ShellChrome({
               <button
                 type="button"
                 onClick={handleSignInClick}
+                disabled={authActionPending}
                 style={{
                   width: "100%",
                   display: "flex",
@@ -886,7 +935,8 @@ function ShellChrome({
                   border: "none",
                   background: palette.brand,
                   color: palette.surface,
-                  cursor: "pointer",
+                  cursor: authActionPending ? "default" : "pointer",
+                  opacity: authActionPending ? 0.65 : 1,
                   ...typography.control,
                   fontWeight: fontWeight.bold,
                   boxShadow: shadows.primaryButton,
@@ -910,6 +960,18 @@ function ShellChrome({
             background: palette.surface,
           }}
         >
+          {authActionError != null ? (
+            <div
+              role="alert"
+              style={{
+                padding: "10px 16px",
+                background: palette.dangerBg,
+                borderBottom: `1px solid ${palette.dangerBorder}`,
+              }}
+            >
+              <AppErrorText error={authActionError} />
+            </div>
+          ) : null}
           <DataLoadErrorBanner />
           {children}
         </div>

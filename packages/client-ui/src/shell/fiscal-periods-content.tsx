@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import {
   AppError,
+  assertFiscalPeriodArchiveByteLength,
   isArchivedStub,
   readFiscalPeriodArchiveZip,
   resolveEditingPolicy,
@@ -16,6 +17,7 @@ import {
 } from "@rubydogjp/openkk-client-usecases";
 import { AppErrorText } from "../shared/app-error-text.js";
 import { LockButton } from "../shared/lock-icon.js";
+import { ExclusiveActionLock } from "../shared/exclusive-action-lock.js";
 import {
   fontSize,
   fontWeight,
@@ -39,17 +41,20 @@ export function FiscalPeriodsContent() {
   const allowArchiveImport =
     resolveFiscalPeriodPolicy(openkkConfig).allowArchiveImport !== false;
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const archiveImportLock = useRef(new ExclusiveActionLock());
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const [isImportingArchive, setIsImportingArchive] = useState(false);
   const [screenError, setScreenError] = useState<unknown>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const handleArchiveFile = async (file: File) => {
-    if (isImportingArchive) return;
+    const release = archiveImportLock.current.tryAcquire();
+    if (release == null) return;
     setIsImportingArchive(true);
     try {
       setStatusMessage(null);
       setScreenError(null);
+      assertFiscalPeriodArchiveByteLength(file.size);
       const bytes = new Uint8Array(await file.arrayBuffer());
       const payload = readFiscalPeriodArchiveZip(bytes);
       const createdId = await appState.importArchivedFiscalPeriod(payload);
@@ -70,6 +75,7 @@ export function FiscalPeriodsContent() {
       setStatusMessage(null);
     } finally {
       setIsImportingArchive(false);
+      release();
     }
   };
 

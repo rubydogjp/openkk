@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import {
@@ -8,17 +8,20 @@ import {
   recordToPreviewRows,
   type EntryRecord,
   buildPeriodLockMessage,
+  resolveEditingPolicy,
   type OpeningCarryoverRecord,
 } from "@rubydogjp/openkk-client-domain";
 import {
   useOpenkkAppState,
   useOpenkkAssist,
+  useOpenkkConfig,
   useOpenkkEntries,
   type EntryDraft,
 } from "@rubydogjp/openkk-client-usecases";
 import { EntriesTable } from "../../../entries/entries-ui.js";
 import { EntryEditDrawer } from "../../../entries/entry-edit-drawer.js";
 import { AssistBreadcrumb } from "../../../assist/assist-breadcrumb.js";
+import { buildNewOpeningCarryoverDraft } from "../../../assist/opening-carryover-draft.js";
 import { ClosedPeriodLock } from "../../../shared/closed-period-lock.js";
 import { isoDateToWeekday } from "../../../shared/date-picker.js";
 import {
@@ -36,6 +39,10 @@ export function OpeningCarryoverPage() {
   const appState = useOpenkkAppState();
   const assistState = useOpenkkAssist();
   const entriesState = useOpenkkEntries();
+  const config = useOpenkkConfig();
+  const editingLocked = resolveEditingPolicy(config).locked;
+  const [newCarryoverDraft, setNewCarryoverDraft] =
+    useState<OpeningCarryoverRecord | null>(null);
   const fiscalPeriodId = appState.currentFiscalPeriodId ?? "";
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (period) => period.id === appState.currentFiscalPeriodId,
@@ -62,9 +69,10 @@ export function OpeningCarryoverPage() {
   );
   const drawerCarryoverId = searchParams.get("carryover");
   const drawerCarryover =
-    drawerCarryoverId == null
+    newCarryoverDraft ??
+    (drawerCarryoverId == null
       ? null
-      : (records.find((record) => record.id === drawerCarryoverId) ?? null);
+      : (records.find((record) => record.id === drawerCarryoverId) ?? null));
   const drawerEntry =
     drawerCarryover == null ? null : carryoverToEntryRecord(drawerCarryover);
 
@@ -84,12 +92,29 @@ export function OpeningCarryoverPage() {
     );
   };
 
-  const handleAdd = async () => {
+  useEffect(() => {
+    setNewCarryoverDraft((current) =>
+      current == null || current.fiscalPeriodId === fiscalPeriodId
+        ? current
+        : null,
+    );
+  }, [fiscalPeriodId]);
+
+  const closeDrawer = () => {
+    setNewCarryoverDraft(null);
+    navigateWithCarryoverParam(null);
+  };
+
+  const handleAdd = () => {
     if (fiscalPeriodId === "") return;
-    const createdId = await assistState.addOpeningCarryover(fiscalPeriodId);
-    if (createdId != null) {
-      navigateWithCarryoverParam(createdId);
-    }
+    navigateWithCarryoverParam(null);
+    setNewCarryoverDraft(
+      buildNewOpeningCarryoverDraft(
+        fiscalPeriodId,
+        currentFiscalPeriod?.startDate ?? "",
+        entriesState.accountOptions,
+      ),
+    );
   };
 
   return (
@@ -124,8 +149,10 @@ export function OpeningCarryoverPage() {
             marginBottom: 14,
           }}
         >
-          {isReadOnlyPeriod ? (
-            <LockedCarryoverButton />
+          {isReadOnlyPeriod || editingLocked ? (
+            <LockedCarryoverButton
+              label={isReadOnlyPeriod ? "記録終了" : "編集ロック"}
+            />
           ) : lockMessage == null && fiscalPeriodId !== "" ? (
             <AddCarryoverButton onClick={handleAdd} />
           ) : null}
@@ -141,14 +168,14 @@ export function OpeningCarryoverPage() {
             rows={rows}
             fillHeight
             headerTone="warning"
-            readOnly={isReadOnlyPeriod}
+            readOnly={isReadOnlyPeriod || editingLocked}
             activeRecordId={
-              !isReadOnlyPeriod && drawerCarryover != null
+              !isReadOnlyPeriod && !editingLocked && drawerCarryover != null
                 ? drawerCarryover.id
                 : null
             }
             onOpenEntry={
-              isReadOnlyPeriod
+              isReadOnlyPeriod || editingLocked
                 ? undefined
                 : (row) => {
                     if (row.recordId == null) return;
@@ -158,22 +185,39 @@ export function OpeningCarryoverPage() {
           />
         )}
       </div>
-      {drawerEntry != null && drawerCarryover != null && !isReadOnlyPeriod ? (
+      {drawerEntry != null &&
+      drawerCarryover != null &&
+      !isReadOnlyPeriod &&
+      !editingLocked ? (
         <EntryEditDrawer
+          key={`${newCarryoverDraft == null ? "edit" : "create"}:${drawerEntry.id}`}
+          mode={newCarryoverDraft == null ? "edit" : "create"}
           entry={drawerEntry}
+          minDate={currentFiscalPeriod?.startDate}
+          maxDate={currentFiscalPeriod?.endDate}
           accountOptions={entriesState.accountOptions}
           taxCategoryOptions={entriesState.taxCategoryOptions}
           businessCategoryOptions={entriesState.businessCategoryOptions}
           suggestions={entriesState.listSuggestions(fiscalPeriodId)}
           allowCompound={false}
-          onClose={() => navigateWithCarryoverParam(null)}
+          onClose={closeDrawer}
           onSave={async (draft) => {
-            const ok = await assistState.updateOpeningCarryover(
-              drawerCarryover.id,
-              entryDraftToCarryoverDraft(drawerCarryover, draft),
+            const carryoverDraft = entryDraftToCarryoverDraft(
+              drawerCarryover,
+              draft,
             );
+            const ok =
+              newCarryoverDraft == null
+                ? await assistState.updateOpeningCarryover(
+                    drawerCarryover.id,
+                    carryoverDraft,
+                  )
+                : (await assistState.addOpeningCarryover(
+                    fiscalPeriodId,
+                    carryoverDraft,
+                  )) != null;
             if (ok) {
-              navigateWithCarryoverParam(null);
+              closeDrawer();
             } else {
               throw new AppError({
                 messageForDeveloper: "updateOpeningCarryover returned false",
@@ -183,21 +227,26 @@ export function OpeningCarryoverPage() {
               });
             }
           }}
-          onDelete={async () => {
-            const ok = await assistState.deleteOpeningCarryover(
-              drawerCarryover.id,
-            );
-            if (ok) {
-              navigateWithCarryoverParam(null);
-            } else {
-              throw new AppError({
-                messageForDeveloper: "deleteOpeningCarryover returned false",
-                messageForUser: "再振替仕訳の削除に失敗しました",
-                originalMessage: null,
-                statusCode: null,
-              });
-            }
-          }}
+          onDelete={
+            newCarryoverDraft == null
+              ? async () => {
+                  const ok = await assistState.deleteOpeningCarryover(
+                    drawerCarryover.id,
+                  );
+                  if (ok) {
+                    closeDrawer();
+                  } else {
+                    throw new AppError({
+                      messageForDeveloper:
+                        "deleteOpeningCarryover returned false",
+                      messageForUser: "再振替仕訳の削除に失敗しました",
+                      originalMessage: null,
+                      statusCode: null,
+                    });
+                  }
+                }
+              : undefined
+          }
         />
       ) : null}
     </section>
@@ -231,7 +280,7 @@ function AddCarryoverButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-function LockedCarryoverButton() {
+function LockedCarryoverButton({ label }: { label: string }) {
   return (
     <button
       type="button"
@@ -252,7 +301,7 @@ function LockedCarryoverButton() {
         gap: spacing.s6,
       }}
     >
-      <LockGlyph /> 記録終了
+      <LockGlyph /> {label}
     </button>
   );
 }
@@ -320,6 +369,7 @@ function carryoverToEntryRecord(record: OpeningCarryoverRecord): EntryRecord {
     description: record.description,
     partner: record.partner,
     businessRate: record.businessRate,
+    businessRateRatio: record.businessRateRatio,
     taxCategory: record.taxCategory,
     businessCategory: record.businessCategory,
     debitBookAccountId: record.debitBookAccountId,
@@ -364,5 +414,6 @@ function entryDraftToCarryoverDraft(
     taxCategory: draft.taxCategory,
     businessCategory: draft.businessCategory,
     businessRate: draft.businessRate,
+    businessRateRatio: draft.businessRateRatio,
   };
 }

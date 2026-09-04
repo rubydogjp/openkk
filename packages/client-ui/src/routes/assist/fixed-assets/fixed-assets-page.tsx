@@ -10,6 +10,7 @@ import {
 } from "@rubydogjp/openkk-client-usecases";
 import {
   buildPeriodLockMessage,
+  capFixedAssetPreviewDate,
   formatIsoLocalDate,
   resolveEditingPolicy,
   type FixedAssetPreviewItem,
@@ -38,10 +39,18 @@ export function FixedAssetsPage() {
     currentFiscalPeriod?.phase === "post_closing" ||
     currentFiscalPeriod?.phase === "pre_closing";
   const screenLockMessage = isReadOnlyPeriod ? null : lockMessage;
+  const fixedAssetPreviewAsOf = capFixedAssetPreviewDate(
+    openkkConfig.today,
+    currentFiscalPeriod?.endDate,
+  );
 
   const drawerAssetId = searchParams.get("asset");
-  const drawerAsset =
+  const candidateDrawerAsset =
     drawerAssetId == null ? null : assistState.getFixedAsset(drawerAssetId);
+  const drawerAsset =
+    candidateDrawerAsset?.fiscalPeriodId === fiscalPeriodId
+      ? candidateDrawerAsset
+      : null;
 
   useEffect(() => {
     setNewAssetDraft((current) =>
@@ -81,7 +90,7 @@ export function FixedAssetsPage() {
   return (
     <>
       <FixedAssetsScreen
-        items={assistState.listFixedAssets()}
+        items={assistState.listFixedAssets(fiscalPeriodId)}
         readOnly={isReadOnlyPeriod}
         onAdd={
           editingLocked || isReadOnlyPeriod
@@ -98,7 +107,7 @@ export function FixedAssetsPage() {
               }
         }
         onOpenItem={
-          isReadOnlyPeriod
+          isReadOnlyPeriod || editingLocked
             ? undefined
             : (itemId) => navigateWithAssetParam(itemId)
         }
@@ -108,9 +117,13 @@ export function FixedAssetsPage() {
           ) : undefined
         }
       />
-      {drawerAsset != null && !isReadOnlyPeriod ? (
+      {drawerAsset != null && !isReadOnlyPeriod && !editingLocked ? (
         <FixedAssetEditDrawer
+          key={`edit:${drawerAsset.id}`}
           asset={drawerAsset}
+          periodStartDate={currentFiscalPeriod?.startDate ?? ""}
+          periodEndDate={currentFiscalPeriod?.endDate ?? ""}
+          previewAsOf={fixedAssetPreviewAsOf}
           editingLocked={editingLocked}
           onClose={() => navigateWithAssetParam(null)}
           onSave={async (draft) => {
@@ -125,10 +138,14 @@ export function FixedAssetsPage() {
           }}
         />
       ) : null}
-      {newAssetDraft != null && !isReadOnlyPeriod ? (
+      {newAssetDraft != null && !isReadOnlyPeriod && !editingLocked ? (
         <FixedAssetEditDrawer
+          key={`create:${newAssetDraft.id}`}
           mode="create"
           asset={newAssetDraft}
+          periodStartDate={currentFiscalPeriod?.startDate ?? ""}
+          periodEndDate={currentFiscalPeriod?.endDate ?? ""}
+          previewAsOf={fixedAssetPreviewAsOf}
           editingLocked={editingLocked}
           onClose={() => setNewAssetDraft(null)}
           onSave={async (draft) => {

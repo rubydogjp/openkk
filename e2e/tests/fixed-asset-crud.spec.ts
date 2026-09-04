@@ -78,11 +78,14 @@ test.describe("fixed asset CRUD", () => {
     const drawer = page.getByRole("dialog", { name: "固定資産の編集" });
     await expect(drawer).toBeVisible();
 
-    page.once("dialog", async (dialog) => {
-      expect(dialog.message()).toContain("固定資産を削除しますか");
-      await dialog.accept();
-    });
     await drawer.getByRole("button", { name: "削除", exact: true }).click();
+    const confirmDialog = page.getByRole("alertdialog", {
+      name: "固定資産を削除する",
+    });
+    await expect(confirmDialog).toBeVisible();
+    await confirmDialog
+      .getByRole("button", { name: "削除する", exact: true })
+      .click();
 
     await expect(page.getByText("削除対象の固定資産")).not.toBeVisible({
       timeout: 5_000,

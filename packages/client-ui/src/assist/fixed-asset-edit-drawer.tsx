@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { AmountInput } from "../shared/amount-field.js";
+import { useConfirmDialog } from "../shared/confirm-dialog.js";
 import { LockButton } from "../shared/lock-icon.js";
+import { ExclusiveActionLock } from "../shared/exclusive-action-lock.js";
 import {
   fontSize,
   fontWeight,
@@ -19,11 +21,14 @@ import {
   FormSecondaryButton,
   FormTextInput,
 } from "../shared/form-fields.js";
-import { useOpenkkConfig } from "@rubydogjp/openkk-client-usecases";
 import {
+  computeFixedAssetDraftPeriodDepreciation,
   computeStraightLineDepreciation,
+  MAX_FIXED_ASSET_USEFUL_LIFE_YEARS,
   parseAmount,
   parseIsoLocalDate,
+  resolveFixedAssetDraftPreviewDate,
+  validateFixedAssetDraft,
   type FixedAssetDraft,
   type FixedAssetPreviewItem,
 } from "@rubydogjp/openkk-client-domain";
@@ -31,6 +36,9 @@ import {
 export function FixedAssetEditDrawer({
   mode = "edit",
   asset,
+  periodStartDate,
+  periodEndDate,
+  previewAsOf,
   editingLocked,
   onClose,
   onSave,
@@ -38,85 +46,84 @@ export function FixedAssetEditDrawer({
 }: {
   mode?: "create" | "edit";
   asset: FixedAssetPreviewItem;
+  periodStartDate: string;
+  periodEndDate: string;
+  previewAsOf: Date;
   editingLocked: boolean;
   onClose: () => void;
   onSave: (draft: FixedAssetDraft) => Promise<boolean>;
   onDelete?: () => Promise<boolean>;
 }) {
-  const config = useOpenkkConfig();
-  const [draft, setDraft] = useState<FixedAssetDraft>(() => ({
-    name: asset.name,
-    account: asset.account,
-    acquisitionDate: asset.acquisitionDate ?? "",
-    acquisitionCost: asset.purchase,
-    usefulLife: asset.usefulLife ?? 0,
-    businessRatePercent: Math.round((asset.businessRate ?? 1) * 100),
-    status: asset.status,
-    disposalDate: asset.disposalDate ?? "",
-    disposalPrice: asset.disposalPrice ?? "",
-  }));
+  const [draft, setDraft] = useState<FixedAssetDraft>(() =>
+    fixedAssetToDraft(asset),
+  );
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
+  const mutationLock = useRef(new ExclusiveActionLock());
+  const { confirm, dialog } = useConfirmDialog();
   const needsDisposalDate =
     draft.status === "売却済" || draft.status === "廃棄済";
   const needsDisposalPrice = draft.status === "売却済";
-  const hasValidAcquisitionDate =
-    parseIsoLocalDate(draft.acquisitionDate) != null;
-  const hasValidDisposalDate =
-    !needsDisposalDate || parseIsoLocalDate(draft.disposalDate ?? "") != null;
-  const canSave =
-    draft.name.trim().length > 0 &&
-    draft.account.trim().length > 0 &&
-    hasValidAcquisitionDate &&
-    parseAmount(draft.acquisitionCost) > 0 &&
-    draft.usefulLife > 0 &&
-    hasValidDisposalDate &&
-    (!needsDisposalPrice || parseAmount(draft.disposalPrice ?? "") > 0);
 
-  // 簿価・進捗・残期間・当期償却費は入力値からリアルタイムに計算して表示する
-  // （ユーザーは直接編集しない）。
-  const preview = useMemo(
-    () =>
-      computeStraightLineDepreciation({
+  const calculatedPreview = useMemo(() => {
+    const asOf = resolveFixedAssetDraftPreviewDate(
+      previewAsOf,
+      draft.status,
+      draft.disposalDate,
+      parseIsoLocalDate(periodEndDate) ?? previewAsOf,
+    );
+    return {
+      ...computeStraightLineDepreciation({
         acquisitionDate: draft.acquisitionDate,
         acquisitionCost: parseAmount(draft.acquisitionCost),
         usefulLife: draft.usefulLife,
-        asOf:
-          needsDisposalDate && draft.disposalDate
-            ? (parseIsoLocalDate(draft.disposalDate) ?? config.today)
-            : config.today,
+        asOf,
       }),
-    [
+      periodDepreciation: computeFixedAssetDraftPeriodDepreciation({
+        draft,
+        periodStartDate,
+        asOf,
+      }),
+    };
+  }, [
       draft.acquisitionDate,
       draft.acquisitionCost,
       draft.disposalDate,
+      draft.status,
       draft.usefulLife,
-      config.today,
-      needsDisposalDate,
-    ],
-  );
+      periodEndDate,
+      periodStartDate,
+      previewAsOf,
+    ]);
+  const validationError = validateFixedAssetDraft({
+    draft,
+    periodStartDate,
+    periodEndDate,
+    currentBookValue: calculatedPreview.currentBookValue,
+  });
+  const canSave = validationError == null;
+
+  useEffect(() => {
+    setDraft(fixedAssetToDraft(asset));
+    setErrorText(null);
+  }, [asset.id]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && !mutationLock.current.isLocked) onClose();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
   const handleSave = async () => {
-    if (saving) return;
     if (!canSave) {
-      setErrorText(
-        needsDisposalPrice
-          ? "名称・勘定科目・取得日・取得価額・耐用年数・処分日・売却額を入力してください"
-          : needsDisposalDate
-            ? "名称・勘定科目・取得日・取得価額・耐用年数・処分日を入力してください"
-            : "名称・勘定科目・取得日・取得価額・耐用年数を入力してください",
-      );
+      setErrorText(validationError);
       return;
     }
+    const release = mutationLock.current.tryAcquire();
+    if (release == null) return;
     setSaving(true);
     setErrorText(null);
     try {
@@ -127,22 +134,39 @@ export function FixedAssetEditDrawer({
       setErrorText(e instanceof Error ? e.message : "保存に失敗しました");
     } finally {
       setSaving(false);
+      release();
     }
   };
 
   const handleDelete = async () => {
-    if (onDelete == null || deleting || saving) return;
-    if (!window.confirm("固定資産を削除しますか？")) return;
-    setDeleting(true);
-    setErrorText(null);
+    if (onDelete == null) return;
+    const release = mutationLock.current.tryAcquire();
+    if (release == null) return;
     try {
-      const ok = await onDelete();
-      if (!ok) setErrorText("削除に失敗しました");
-    } catch (e) {
-      setErrorText(e instanceof Error ? e.message : "削除に失敗しました");
+      const confirmed = await confirm({
+        tone: "danger",
+        title: "固定資産を削除する",
+        body: ["この固定資産を削除します。"],
+        confirmLabel: "削除する",
+      });
+      if (!confirmed) return;
+      setDeleting(true);
+      setErrorText(null);
+      try {
+        const ok = await onDelete();
+        if (!ok) setErrorText("削除に失敗しました");
+      } catch (e) {
+        setErrorText(e instanceof Error ? e.message : "削除に失敗しました");
+      } finally {
+        setDeleting(false);
+      }
     } finally {
-      setDeleting(false);
+      release();
     }
+  };
+
+  const requestClose = () => {
+    if (!mutationLock.current.isLocked) onClose();
   };
 
   return (
@@ -150,7 +174,7 @@ export function FixedAssetEditDrawer({
       <FormStyles />
 
       <div
-        onClick={onClose}
+        onClick={requestClose}
         style={{
           position: "fixed",
           inset: 0,
@@ -232,6 +256,7 @@ export function FixedAssetEditDrawer({
           <Field label="取得日">
             <DateInput
               value={draft.acquisitionDate}
+              max={periodEndDate}
               onChange={(v) => setDraft({ ...draft, acquisitionDate: v })}
             />
           </Field>
@@ -250,7 +275,13 @@ export function FixedAssetEditDrawer({
           <Field label="事業割合 (0-100%)">
             <BusinessRateField
               value={draft.businessRatePercent}
-              onChange={(v) => setDraft({ ...draft, businessRatePercent: v })}
+              onChange={(v) =>
+                setDraft({
+                  ...draft,
+                  businessRatePercent: v,
+                  businessRateRatio: undefined,
+                })
+              }
             />
           </Field>
           {mode === "edit" ? (
@@ -265,6 +296,8 @@ export function FixedAssetEditDrawer({
             <Field label="処分日">
               <DateInput
                 value={draft.disposalDate ?? ""}
+                min={laterIsoDate(draft.acquisitionDate, periodStartDate)}
+                max={periodEndDate}
                 onChange={(v) => setDraft({ ...draft, disposalDate: v })}
               />
             </Field>
@@ -279,11 +312,11 @@ export function FixedAssetEditDrawer({
           ) : null}
 
           <DepreciationPreview
-            period={preview.periodLabel}
-            remaining={preview.remainingLabel}
-            progress={preview.progress}
-            currentBookValue={preview.currentBookValue}
-            annualDepreciation={preview.annualDepreciation}
+            period={calculatedPreview.periodLabel}
+            remaining={calculatedPreview.remainingLabel}
+            progress={calculatedPreview.progress}
+            currentBookValue={calculatedPreview.currentBookValue}
+            periodDepreciation={calculatedPreview.periodDepreciation}
           />
 
           {errorText != null ? (
@@ -336,7 +369,10 @@ export function FixedAssetEditDrawer({
             <span />
           )}
           <div style={{ display: "flex", gap: 10 }}>
-            <FormSecondaryButton onClick={onClose}>
+            <FormSecondaryButton
+              onClick={requestClose}
+              disabled={saving || deleting}
+            >
               キャンセル
             </FormSecondaryButton>
             {editingLocked ? (
@@ -352,8 +388,30 @@ export function FixedAssetEditDrawer({
           </div>
         </footer>
       </aside>
+      {dialog}
     </>
   );
+}
+
+function fixedAssetToDraft(asset: FixedAssetPreviewItem): FixedAssetDraft {
+  return {
+    name: asset.name,
+    account: asset.account,
+    acquisitionDate: asset.acquisitionDate ?? "",
+    acquisitionCost: asset.purchase,
+    usefulLife: asset.usefulLife ?? 0,
+    businessRatePercent: (asset.businessRate ?? 1) * 100,
+    businessRateRatio: asset.businessRate ?? 1,
+    status: asset.status,
+    disposalDate: asset.disposalDate ?? "",
+    disposalPrice: asset.disposalPrice ?? "",
+  };
+}
+
+function laterIsoDate(left: string, right: string): string {
+  if (parseIsoLocalDate(left) == null) return right;
+  if (parseIsoLocalDate(right) == null) return left;
+  return left > right ? left : right;
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -395,15 +453,21 @@ const controlStyle = {
 
 function DateInput({
   value,
+  min,
+  max,
   onChange,
 }: {
   value: string;
+  min?: string;
+  max?: string;
   onChange: (value: string) => void;
 }) {
   return (
     <input
       type="date"
       value={value}
+      min={min}
+      max={max}
       onChange={(event) => onChange(event.target.value)}
       style={{ ...controlStyle, width: "100%" }}
     />
@@ -427,7 +491,14 @@ function UsefulLifeInput({
       value={Number.isFinite(value) && value > 0 ? value : ""}
       onChange={(event) => {
         const next = parseInt(event.target.value, 10);
-        onChange(Number.isNaN(next) ? 0 : Math.max(0, next));
+        onChange(
+          Number.isNaN(next)
+            ? 0
+            : Math.min(
+                MAX_FIXED_ASSET_USEFUL_LIFE_YEARS,
+                Math.max(0, next),
+              ),
+        );
       }}
       style={{ ...controlStyle, width: "100%" }}
     />
@@ -464,13 +535,13 @@ function DepreciationPreview({
   remaining,
   progress,
   currentBookValue,
-  annualDepreciation,
+  periodDepreciation,
 }: {
   period: string;
   remaining: string;
   progress: number;
   currentBookValue: number;
-  annualDepreciation: number;
+  periodDepreciation: number;
 }) {
   const yen = (value: number) => new Intl.NumberFormat("ja-JP").format(value);
   return (
@@ -499,7 +570,7 @@ function DepreciationPreview({
         value={`${Math.round(progress * 100)}%（${remaining}）`}
       />
       <PreviewRow label="現在簿価" value={`${yen(currentBookValue)} 円`} />
-      <PreviewRow label="当期償却費" value={`${yen(annualDepreciation)} 円`} />
+      <PreviewRow label="当期償却費" value={`${yen(periodDepreciation)} 円`} />
     </div>
   );
 }

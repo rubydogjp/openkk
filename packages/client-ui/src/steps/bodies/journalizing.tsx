@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { AppError } from "@rubydogjp/openkk-client-domain";
+import {
+  AppError,
+  resolveEditingPolicy,
+} from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text.js";
 import {
   useOpenkkAppState,
@@ -13,6 +16,8 @@ import {
 } from "@rubydogjp/openkk-client-usecases";
 import { fontSize, fontWeight, palette } from "../../shared/design-tokens.js";
 import { useConfirmDialog } from "../../shared/confirm-dialog.js";
+import { LockButton } from "../../shared/lock-icon.js";
+import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 import { isCurrentMonthWithinFiscalPeriod } from "@rubydogjp/openkk-client-domain";
 import {
   JournalizingNotStartedTrendChart,
@@ -42,28 +47,23 @@ export function JournalizingBody({
   const appState = useOpenkkAppState();
   const closingApi = useOpenkkClosing();
   const preClosingHint = useOpenkkCallout("stepJournalizingPreClosingHint");
+  const currentFiscalPeriod = appState.fiscalPeriods.find(
+    (period) => period.id === appState.currentFiscalPeriodId,
+  );
 
-  // 「終わった」と伝えるのは、記録終了の節に切り替わったとき。
-  // 併せてグラフ側も自分で「まだ幅を測っている」と申告するので、
-  // 外からは両方が終わるまで待てる。
   const preClosingShown =
-    appState.fiscalPeriods.find(
-      (period) => period.id === appState.currentFiscalPeriodId,
-    )?.phase === "pre_closing" ||
-    appState.fiscalPeriods.find(
-      (period) => period.id === appState.currentFiscalPeriodId,
-    )?.phase === "post_closing";
+    currentFiscalPeriod?.phase === "pre_closing" ||
+    currentFiscalPeriod?.phase === "post_closing";
   useEffect(() => {
     if (preClosingShown) onBusyChange?.(false);
   }, [preClosingShown, onBusyChange]);
   useEffect(() => {
     return () => onBusyChange?.(false);
   }, [onBusyChange]);
-  const currentFiscalPeriod = appState.fiscalPeriods.find(
-    (period) => period.id === appState.currentFiscalPeriodId,
-  );
   const { confirm, dialog } = useConfirmDialog();
   const [screenError, setScreenError] = useState<unknown>(null);
+  const preClosingLock = useRef(new ExclusiveActionLock());
+  const editingLocked = resolveEditingPolicy(config).locked;
 
   if (currentFiscalPeriod == null) {
     return (
@@ -74,9 +74,7 @@ export function JournalizingBody({
   if (!currentFiscalPeriod.openingBalancesCompleted) {
     return (
       <>
-        <StepCallout tone="warning">
-          この手順はまだ進められません。
-        </StepCallout>
+        <StepCallout tone="warning">この手順はまだ進められません。</StepCallout>
         <StepDivider />
         <section>
           <StepSectionLabel>記録中</StepSectionLabel>
@@ -102,52 +100,53 @@ export function JournalizingBody({
     currentFiscalPeriod.phase === "post_closing";
 
   const handleRunPreClosing = async () => {
-    const confirmed = await confirm({
-
-      tone: "success",
-      title: "仮締め",
-      body: [
-        "今期の取引記録を確定します。",
-        "編集はロックされますが、確認してから解除することができます。",
-      ],
-      confirmLabel: "実行する",
-    });
-    if (!confirmed) return;
-    if (
-      isCurrentMonthWithinFiscalPeriod(
-        currentFiscalPeriod.startDate,
-        currentFiscalPeriod.endDate,
-        config.today,
-      )
-    ) {
-      const forceConfirmed = await confirm({
-
-        tone: "danger",
-        title: "まだ期中です",
+    const release = preClosingLock.current.tryAcquire();
+    if (release == null) return;
+    try {
+      const confirmed = await confirm({
+        tone: "success",
+        title: "仮締め",
         body: [
-          "現在日付はまだこの期間の途中です。通常は翌2月頃に実行される操作です。",
-          "内容を確認したうえで、そのまま進める場合のみ実行してください。",
+          "今期の取引記録を確定します。",
+          "編集はロックされますが、確認してから解除することができます。",
         ],
         confirmLabel: "実行する",
       });
-      if (!forceConfirmed) return;
-    }
-    onBusyChange?.(true);
-    try {
-      if (appState.currentFiscalPeriodId != null) {
-        const year = Number(currentFiscalPeriod.endDate.slice(0, 4));
-        await closingApi.runPreClosing(appState.currentFiscalPeriodId, year);
+      if (!confirmed) return;
+      if (
+        isCurrentMonthWithinFiscalPeriod(
+          currentFiscalPeriod.startDate,
+          currentFiscalPeriod.endDate,
+          config.today,
+        )
+      ) {
+        const forceConfirmed = await confirm({
+          tone: "danger",
+          title: "まだ期中です",
+          body: [
+            "現在日付はまだこの期間の途中です。通常は翌2月頃に実行される操作です。",
+            "内容を確認したうえで、そのまま進める場合のみ実行してください。",
+          ],
+          confirmLabel: "実行する",
+        });
+        if (!forceConfirmed) return;
       }
-      setScreenError(null);
-    } catch (error) {
-      onBusyChange?.(false);
-      setScreenError(
-        AppError.from(error, {
-          fallbackUserMessage: "仮締めの更新に失敗しました",
-          fallbackDeveloperMessage:
-            "steps/journalizing: pre-closing failed",
-        }),
-      );
+      onBusyChange?.(true);
+      try {
+        const year = Number(currentFiscalPeriod.endDate.slice(0, 4));
+        await closingApi.runPreClosing(currentFiscalPeriod.id, year);
+        setScreenError(null);
+      } catch (error) {
+        onBusyChange?.(false);
+        setScreenError(
+          AppError.from(error, {
+            fallbackUserMessage: "仮締めの更新に失敗しました",
+            fallbackDeveloperMessage: "steps/journalizing: pre-closing failed",
+          }),
+        );
+      }
+    } finally {
+      release();
     }
   };
 
@@ -159,9 +158,7 @@ export function JournalizingBody({
         <section>
           <StepSectionLabel>記録終了</StepSectionLabel>
           {trendPoints != null && trendPoints.length > 0 ? (
-            <JournalizingCompletedTrendChart
-              points={trendPoints}
-            />
+            <JournalizingCompletedTrendChart points={trendPoints} />
           ) : null}
           <div
             style={{
@@ -177,7 +174,6 @@ export function JournalizingBody({
         </section>
       ) : (
         <>
-
           <StepCallout tone="action">
             <div style={{ fontWeight: fontWeight.bold, color: palette.text }}>
               ヒント
@@ -226,12 +222,16 @@ export function JournalizingBody({
                 <StepCallout tone="info">{preClosingHint}</StepCallout>
               ) : null}
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                <StepPrimaryButton
-                  onClick={handleRunPreClosing}
-                  variant="success"
-                >
-                  仮締めを実行
-                </StepPrimaryButton>
+                {editingLocked ? (
+                  <LockButton label="仮締めを実行" />
+                ) : (
+                  <StepPrimaryButton
+                    onClick={handleRunPreClosing}
+                    variant="success"
+                  >
+                    仮締めを実行
+                  </StepPrimaryButton>
+                )}
               </div>
             </div>
           </section>

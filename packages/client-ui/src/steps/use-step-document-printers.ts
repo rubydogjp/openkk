@@ -28,7 +28,7 @@ export function useStepDocumentPrinters(
       periodStartDate: period.startDate,
       periodEndDate: period.endDate,
       entries: entriesState.listFiscalPeriodEntries(period.id),
-      assets: assistState.listFixedAssets(),
+      assets: assistState.listFixedAssets(period.id),
       carryovers: assistState.listOpeningCarryovers(period.id),
     });
 

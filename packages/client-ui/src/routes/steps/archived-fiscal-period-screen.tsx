@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -25,6 +25,7 @@ import {
   typography,
 } from "../../shared/design-tokens.js";
 import { downloadBytes } from "../../shared/download.js";
+import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 import {
   StepMetaCard,
   StepMetaRow,
@@ -41,12 +42,14 @@ export function ArchivedFiscalPeriodScreen({
   const appState = useOpenkkAppState();
   const router = useRouter();
   const [isDownloading, setIsDownloading] = useState(false);
+  const downloadLock = useRef(new ExclusiveActionLock());
   const [screenError, setScreenError] = useState<unknown>(null);
-  // ephemeral バックエンドで実データが削除済みのスタブ。閲覧・DL は提供しない。
-  const dataPurged = isArchivedStub(fiscalPeriod);
+  const archivePayloadPurged = isArchivedStub(fiscalPeriod);
 
   const handleDownload = async () => {
-    if (isDownloading) return;
+    const release = downloadLock.current.tryAcquire();
+    if (release == null) return;
+    const authOperationVersion = appState.captureAuthOperationVersion();
     setIsDownloading(true);
     try {
       const year = Number(fiscalPeriod.endDate.slice(0, 4));
@@ -56,6 +59,7 @@ export function ArchivedFiscalPeriodScreen({
         backendApi.preClosing.get(fiscalPeriod.id, year),
         backendApi.closing.get(fiscalPeriod.id, year),
       ]);
+      appState.assertAuthOperationCurrent(authOperationVersion);
       const payload = buildFiscalPeriodArchivePayload({
         createdAt: new Date().toISOString(),
         fiscalPeriod,
@@ -77,6 +81,7 @@ export function ArchivedFiscalPeriodScreen({
       );
       setScreenError(null);
     } catch (error) {
+      if (!appState.isAuthOperationCurrent(authOperationVersion)) return;
       setScreenError(
         AppError.from(error, {
           fallbackUserMessage: "圧縮済みファイルの作成に失敗しました",
@@ -85,6 +90,7 @@ export function ArchivedFiscalPeriodScreen({
       );
     } finally {
       setIsDownloading(false);
+      release();
     }
   };
 
@@ -136,7 +142,7 @@ export function ArchivedFiscalPeriodScreen({
           <StepMetaRow
             label="状態"
             value={
-              dataPurged
+              archivePayloadPurged
                 ? "圧縮保存済み（データは削除されました）"
                 : "圧縮保存済み"
             }
@@ -144,7 +150,7 @@ export function ArchivedFiscalPeriodScreen({
           />
         </StepMetaCard>
 
-        {dataPurged ? (
+        {archivePayloadPurged ? (
           <div
             style={{
               marginTop: 14,
@@ -173,7 +179,7 @@ export function ArchivedFiscalPeriodScreen({
           >
             期間一覧へ
           </StepPrimaryButton>
-          {dataPurged ? null : (
+          {archivePayloadPurged ? null : (
             <StepPrimaryButton
               onClick={handleDownload}
               disabled={isDownloading}

@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import {
   AppError,
-  OPENING_EQUITY_LABELS,
   resolveEditingPolicy,
+  type EntryAccountVisualType,
 } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text.js";
 import {
@@ -13,7 +13,6 @@ import {
   useOpenkkConfig,
 } from "@rubydogjp/openkk-client-usecases";
 import { AccountChipCell } from "../../entries/entries-ui.js";
-import type { EntryAccountVisualType } from "@rubydogjp/openkk-client-domain";
 import {
   AmountInput,
   AmountReadOnlyField,
@@ -29,110 +28,28 @@ import {
   spacing,
   typography,
 } from "../../shared/design-tokens.js";
-import { LockIcon } from "../../shared/lock-icon.js";
+import { LockButton, LockIcon } from "../../shared/lock-icon.js";
 import { FormStyles } from "../../shared/form-fields.js";
+import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 import {
   StepCallout,
   StepPrimaryButton,
   StepSecondaryButton,
 } from "../step-ui.js";
+import {
+  BS_ROWS,
+  assetKey,
+  buildAssetSlots,
+  buildInitialAmounts,
+  buildLiabilitySlots,
+  isEditableLiability,
+  liabilityAccountType,
+  liabilityKey,
+  parseOpeningAmount,
+  sumOpeningAmounts,
+} from "./opening-bs-model.js";
 
-const BS_ROWS: Array<{ assetLabel: string; liabilityLabel: string }> = [
-  { assetLabel: "現金", liabilityLabel: "支払手形" },
-  { assetLabel: "当座預金", liabilityLabel: "買掛金" },
-  { assetLabel: "定期預金", liabilityLabel: "借入金" },
-  { assetLabel: "その他の預金", liabilityLabel: "未払金" },
-  { assetLabel: "受取手形", liabilityLabel: "前受金" },
-  { assetLabel: "売掛金", liabilityLabel: "預り金" },
-  { assetLabel: "有価証券", liabilityLabel: "" },
-  { assetLabel: "棚卸資産", liabilityLabel: "" },
-  { assetLabel: "前払金", liabilityLabel: "" },
-  { assetLabel: "貸付金", liabilityLabel: "" },
-  { assetLabel: "建物", liabilityLabel: "" },
-  { assetLabel: "建物附属設備", liabilityLabel: "" },
-  { assetLabel: "機械装置", liabilityLabel: "" },
-  { assetLabel: "車両運搬具", liabilityLabel: "貸倒引当金" },
-  { assetLabel: "工具器具備品", liabilityLabel: "" },
-  { assetLabel: "土地", liabilityLabel: "" },
-  { assetLabel: "", liabilityLabel: "" },
-  { assetLabel: "", liabilityLabel: "" },
-  { assetLabel: "", liabilityLabel: "" },
-  { assetLabel: "", liabilityLabel: "" },
-  { assetLabel: "", liabilityLabel: "事業主借" },
-  { assetLabel: "", liabilityLabel: "元入金" },
-  { assetLabel: "事業主貸", liabilityLabel: "" },
-];
-
-const HANDLED_ASSET_NAMES = new Set<string>([
-  "現金",
-  "当座預金",
-  "普通預金",
-  "定期預金",
-  "その他の預金",
-  "受取手形",
-  "売掛金",
-  "有価証券",
-  "棚卸資産",
-  "商品",
-  "前払金",
-  "前払費用",
-  "貸付金",
-  "建物",
-  "建物附属設備",
-  "機械装置",
-  "車両運搬具",
-  "工具器具備品",
-  "土地",
-  "事業主貸",
-]);
-
-const EQUITY_LABELS = OPENING_EQUITY_LABELS;
-
-const assetKey = (label: string) => `a:${label}`;
-const liabilityKey = (label: string) => `l:${label}`;
-const isEditableLiability = (label: string) => label !== "";
-const liabilityAccountType = (label: string): EntryAccountVisualType =>
-  EQUITY_LABELS.has(label) ? "equity" : "liability";
-
-function parseInputAmount(value: string): number {
-  const n = parseInt(value.replace(/[^0-9]/g, ""), 10);
-  return isNaN(n) ? 0 : n;
-}
-
-type AssetSlot = { kind: "fixed" | "extra"; label: string };
-
-function buildAssetSlots(
-  openingBalanceLines: Array<{ accountId: string }>,
-): AssetSlot[] {
-  const extras: string[] = [];
-  const seen = new Set<string>();
-  for (const line of openingBalanceLines) {
-    if (!line.accountId.startsWith("a:")) continue;
-    const name = line.accountId.slice(2);
-    if (HANDLED_ASSET_NAMES.has(name)) continue;
-    if (seen.has(name)) continue;
-    seen.add(name);
-    extras.push(name);
-  }
-  return BS_ROWS.map((row, index): AssetSlot => {
-    if (row.assetLabel !== "") return { kind: "fixed", label: row.assetLabel };
-    if (index >= 16 && index <= 21) {
-      const extraIndex = index - 16;
-      return { kind: "extra", label: extras[extraIndex] ?? "" };
-    }
-    return { kind: "fixed", label: "" };
-  });
-}
-
-function buildInitialAmounts(
-  openingBalanceLines: Array<{ accountId: string; amount: number }>,
-): Record<string, string> {
-  const map: Record<string, string> = {};
-  for (const line of openingBalanceLines) {
-    if (line.amount > 0) map[line.accountId] = String(line.amount);
-  }
-  return map;
-}
+const ORDINARY_DEPOSIT_ACCOUNT_ID_INCLUDED_IN_OTHER_DEPOSITS = "a:普通預金";
 
 export function OpeningBsBody({
   onSwitchToStep,
@@ -143,6 +60,7 @@ export function OpeningBsBody({
   const appState = useOpenkkAppState();
   const [screenError, setScreenError] = useState<unknown>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const saveLock = useRef(new ExclusiveActionLock());
   const [isEditingCompleted, setIsEditingCompleted] = useState(false);
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (period) => period.id === appState.currentFiscalPeriodId,
@@ -157,25 +75,58 @@ export function OpeningBsBody({
     () => buildAssetSlots(openingBalanceLines),
     [openingBalanceLines],
   );
+  const liabilitySlots = useMemo(
+    () => buildLiabilitySlots(openingBalanceLines),
+    [openingBalanceLines],
+  );
+  const visibleAccountIds = useMemo(
+    () =>
+      new Set([
+        ...assetSlots
+          .filter((slot) => slot.label !== "")
+          .map((slot) => assetKey(slot.label)),
+        ...liabilitySlots
+          .filter((slot) => slot.label !== "")
+          .map((slot) => liabilityKey(slot.label)),
+        ORDINARY_DEPOSIT_ACCOUNT_ID_INCLUDED_IN_OTHER_DEPOSITS,
+      ]),
+    [assetSlots, liabilitySlots],
+  );
+  const preservedUnrenderedLines = useMemo(
+    () =>
+      openingBalanceLines.filter(
+        (line) => !visibleAccountIds.has(line.accountId) && line.amount > 0,
+      ),
+    [openingBalanceLines, visibleAccountIds],
+  );
+
+  useEffect(() => {
+    setAmounts(buildInitialAmounts(openingBalanceLines));
+    setIsEditingCompleted(false);
+    setScreenError(null);
+  }, [currentFiscalPeriod?.id, openingBalanceLines]);
 
   const assetTotal = useMemo(() => {
-    let total = 0;
-    for (const slot of assetSlots) {
-      if (slot.label === "") continue;
-      total += parseInputAmount(amounts[assetKey(slot.label)] ?? "");
-    }
-    return total;
-  }, [amounts, assetSlots]);
+    return sumOpeningAmounts([
+      ...assetSlots
+        .filter((slot) => slot.label !== "")
+        .map((slot) => amounts[assetKey(slot.label)] ?? ""),
+      ...preservedUnrenderedLines
+        .filter((line) => line.accountId.startsWith("a:"))
+        .map((line) => line.amount),
+    ]);
+  }, [amounts, assetSlots, preservedUnrenderedLines]);
 
   const liabilityTotal = useMemo(() => {
-    return BS_ROWS.filter((row) =>
-      isEditableLiability(row.liabilityLabel),
-    ).reduce(
-      (sum, row) =>
-        sum + parseInputAmount(amounts[liabilityKey(row.liabilityLabel)] ?? ""),
-      0,
-    );
-  }, [amounts]);
+    return sumOpeningAmounts([
+      ...liabilitySlots
+        .filter((slot) => slot.label !== "")
+        .map((slot) => amounts[liabilityKey(slot.label)] ?? ""),
+      ...preservedUnrenderedLines
+        .filter((line) => line.accountId.startsWith("l:"))
+        .map((line) => line.amount),
+    ]);
+  }, [amounts, liabilitySlots, preservedUnrenderedLines]);
 
   if (currentFiscalPeriod == null) {
     return (
@@ -183,6 +134,7 @@ export function OpeningBsBody({
     );
   }
   const isNotStarted = !currentFiscalPeriod.settingsCompleted;
+  const editingLocked = resolveEditingPolicy(config).locked;
 
   const isPeriodLocked =
     currentFiscalPeriod.phase === "post_closing" ||
@@ -190,55 +142,56 @@ export function OpeningBsBody({
 
   const isCompleted = currentFiscalPeriod.openingBalancesCompleted;
   const isEditing =
-    !isNotStarted && !isPeriodLocked && (!isCompleted || isEditingCompleted);
-  const isMockMode = config.isMockMode;
+    !isNotStarted &&
+    !isPeriodLocked &&
+    !editingLocked &&
+    (!isCompleted || isEditingCompleted);
+  const amountsAreSafe = assetTotal != null && liabilityTotal != null;
+  const balancesMatch =
+    amountsAreSafe && assetTotal === liabilityTotal;
 
   const handleSave = async () => {
-    if (isSaving) return;
+    const release = saveLock.current.tryAcquire();
+    if (release == null) return;
     setIsSaving(true);
     try {
-      if (isMockMode) {
-        const lines = [
-          ...assetSlots.flatMap((slot) => {
-            if (slot.label === "") return [];
-            const key = assetKey(slot.label);
-            const amount = parseInputAmount(amounts[key] ?? "");
-            if (amount <= 0) return [];
-            return [{ id: key, accountId: key, amount }];
-          }),
-          ...BS_ROWS.flatMap((row) => {
-            if (!isEditableLiability(row.liabilityLabel)) return [];
-            const key = liabilityKey(row.liabilityLabel);
-            const amount = parseInputAmount(amounts[key] ?? "");
-            if (amount <= 0) return [];
-            return [{ id: key, accountId: key, amount }];
-          }),
-        ];
-        const updated = await appState.updateFiscalPeriod(
-          currentFiscalPeriod.id,
-          {
+      if (!balancesMatch) return;
+      const lines = [
+        ...assetSlots.flatMap((slot) => {
+          if (slot.label === "") return [];
+          const key = assetKey(slot.label);
+          const amount = parseOpeningAmount(amounts[key] ?? "") ?? 0;
+          if (amount <= 0) return [];
+          return [{ id: key, accountId: key, amount }];
+        }),
+        ...liabilitySlots.flatMap((slot) => {
+          if (!isEditableLiability(slot.label)) return [];
+          const key = liabilityKey(slot.label);
+          const amount = parseOpeningAmount(amounts[key] ?? "") ?? 0;
+          if (amount <= 0) return [];
+          return [{ id: key, accountId: key, amount }];
+        }),
+        ...preservedUnrenderedLines,
+      ];
+      const updated = await appState.updateFiscalPeriod(
+        currentFiscalPeriod.id,
+        (latestPeriod) => {
+          const latestOpening = latestPeriod.opening ?? {
+            id: `op-${currentFiscalPeriod.id}`,
+            userId: appState.session?.user.id ?? "",
+            fiscalPeriodId: currentFiscalPeriod.id,
+            openingJournals: [],
+          };
+          return {
             openingBalancesCompleted: true,
             opening: {
-              ...(currentFiscalPeriod.opening ?? {
-                id: `op-${currentFiscalPeriod.id}`,
-                userId: appState.session?.user.id ?? "",
-                fiscalPeriodId: currentFiscalPeriod.id,
-                openingJournals: [],
-              }),
+              ...latestOpening,
               openingBalanceLines: lines,
             },
-          },
-        );
-        if (!updated) return;
-      } else {
-        const updated = await appState.updateFiscalPeriod(
-          currentFiscalPeriod.id,
-          {
-            openingBalancesCompleted: true,
-          },
-        );
-        if (!updated) return;
-      }
+          };
+        },
+      );
+      if (!updated) return;
       setScreenError(null);
       setIsEditingCompleted(false);
       onSwitchToStep?.(3);
@@ -252,6 +205,7 @@ export function OpeningBsBody({
       );
     } finally {
       setIsSaving(false);
+      release();
     }
   };
 
@@ -280,9 +234,16 @@ export function OpeningBsBody({
           </StepCallout>
         ) : null}
 
+        {!isPeriodLocked && editingLocked ? (
+          <StepCallout tone="info">
+            {resolveEditingPolicy(config).lockedNotice ??
+              "この環境ではデータの編集がロックされています。"}
+          </StepCallout>
+        ) : null}
+
         {!isPeriodLocked && isCompleted && !isEditing ? (
           <SavedCommentSection
-            editingLocked={resolveEditingPolicy(config).locked}
+            editingLocked={editingLocked}
             onEdit={() => setIsEditingCompleted(true)}
           />
         ) : null}
@@ -328,9 +289,10 @@ export function OpeningBsBody({
 
           {BS_ROWS.map((row, index) => {
             const assetSlot = assetSlots[index];
-            if (!assetSlot) return null;
+            const liabilitySlot = liabilitySlots[index];
+            if (!assetSlot || !liabilitySlot) return null;
             const assetLabel = assetSlot.label;
-            const liabilityLabel = row.liabilityLabel;
+            const liabilityLabel = liabilitySlot.label;
             const assetId = assetKey(assetLabel);
             const liabilityId = liabilityKey(liabilityLabel);
             const assetAmount = amounts[assetId] ?? "";
@@ -385,14 +347,24 @@ export function OpeningBsBody({
           >
             <TotalLabelCell>合計</TotalLabelCell>
             <TotalAmountCell>
-              {assetTotal.toLocaleString("ja-JP")}
+              {formatOpeningTotal(assetTotal)}
             </TotalAmountCell>
             <TotalLabelCell>合計</TotalLabelCell>
             <TotalAmountCell>
-              {liabilityTotal.toLocaleString("ja-JP")}
+              {formatOpeningTotal(liabilityTotal)}
             </TotalAmountCell>
           </div>
         </div>
+
+        {isEditing && !amountsAreSafe ? (
+          <StepCallout tone="warning">
+            金額または合計が大きすぎるため、安全に計算できる金額へ修正してください。
+          </StepCallout>
+        ) : isEditing && !balancesMatch ? (
+          <StepCallout tone="warning">
+            資産合計と負債・純資産合計を一致させてください。
+          </StepCallout>
+        ) : null}
 
         <div
           style={{
@@ -404,6 +376,8 @@ export function OpeningBsBody({
             <StepSecondaryButton onClick={() => onSwitchToStep?.(1)}>
               前の手順へ
             </StepSecondaryButton>
+          ) : editingLocked && !isCompleted ? (
+            <LockButton label="保存して次へ" />
           ) : !isEditing ? (
             <StepPrimaryButton onClick={() => onSwitchToStep?.(3)}>
               次の手順へ
@@ -411,7 +385,7 @@ export function OpeningBsBody({
           ) : (
             <StepPrimaryButton
               onClick={handleSave}
-              disabled={isSaving}
+              disabled={isSaving || !balancesMatch}
               variant="success"
             >
               {isSaving
@@ -427,6 +401,10 @@ export function OpeningBsBody({
       </div>
     </>
   );
+}
+
+function formatOpeningTotal(value: number | null): string {
+  return value == null ? "—" : value.toLocaleString("ja-JP");
 }
 
 function SavedCommentSection({

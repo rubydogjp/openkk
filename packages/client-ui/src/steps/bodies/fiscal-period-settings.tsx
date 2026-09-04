@@ -1,15 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   AppError,
+  hasActiveFiscalPeriodOverlap,
+  resolveEditingPolicy,
   validateFiscalPeriodDates,
 } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text.js";
-import { useOpenkkAppState } from "@rubydogjp/openkk-client-usecases";
+import {
+  useOpenkkAppState,
+  useOpenkkConfig,
+} from "@rubydogjp/openkk-client-usecases";
 import { palette } from "../../shared/design-tokens.js";
 import { useConfirmDialog } from "../../shared/confirm-dialog.js";
+import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 import {
   FormDatePair,
   FormErrorText,
@@ -31,6 +37,8 @@ export function FiscalPeriodSettingsBody({
   onSwitchToStep?: (stepNo: number) => void;
 }) {
   const appState = useOpenkkAppState();
+  const config = useOpenkkConfig();
+  const editingLocked = resolveEditingPolicy(config).locked;
   const { confirm, dialog } = useConfirmDialog();
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (period) => period.id === appState.currentFiscalPeriodId,
@@ -42,22 +50,50 @@ export function FiscalPeriodSettingsBody({
   );
   const [endDate, setEndDate] = useState(currentFiscalPeriod?.endDate ?? "");
   const [screenError, setScreenError] = useState<unknown>(null);
+  const [isStarting, setIsStarting] = useState(false);
+  const startLock = useRef(new ExclusiveActionLock());
 
-  const canSave = useMemo(() => {
-    const dateValidation = validateFiscalPeriodDates(startDate, endDate);
-    return (
-      currentFiscalPeriod != null &&
-      !currentFiscalPeriod.settingsCompleted &&
-      name.trim() !== "" &&
-      startDate.trim() !== "" &&
-      endDate.trim() !== "" &&
-      dateValidation.ok
-    );
-  }, [currentFiscalPeriod, endDate, name, startDate]);
+  useEffect(() => {
+    setName(currentFiscalPeriod?.name ?? "");
+    setStartDate(currentFiscalPeriod?.startDate ?? "");
+    setEndDate(currentFiscalPeriod?.endDate ?? "");
+    setScreenError(null);
+  }, [currentFiscalPeriod?.id]);
+
   const dateValidation = useMemo(
     () => validateFiscalPeriodDates(startDate, endDate),
     [endDate, startDate],
   );
+  const hasOverlap =
+    dateValidation.ok &&
+    currentFiscalPeriod != null &&
+    hasActiveFiscalPeriodOverlap(
+      { startDate, endDate },
+      appState.fiscalPeriods,
+      currentFiscalPeriod.id,
+    );
+  const canSave = useMemo(() => {
+    return (
+      currentFiscalPeriod != null &&
+      !currentFiscalPeriod.settingsCompleted &&
+      !editingLocked &&
+      name.trim() !== "" &&
+      startDate.trim() !== "" &&
+      endDate.trim() !== "" &&
+      dateValidation.ok &&
+      !hasOverlap &&
+      !isStarting
+    );
+  }, [
+    currentFiscalPeriod,
+    dateValidation.ok,
+    editingLocked,
+    endDate,
+    hasOverlap,
+    isStarting,
+    name,
+    startDate,
+  ]);
 
   if (currentFiscalPeriod == null) {
     return (
@@ -69,15 +105,20 @@ export function FiscalPeriodSettingsBody({
     currentFiscalPeriod.phase === "post_closing" ||
     currentFiscalPeriod.phase === "pre_closing";
   const isStarted = currentFiscalPeriod.settingsCompleted;
-  const isReadOnly = isStarted || isPeriodLocked;
-  const lockMessage = isPeriodLocked
-    ? "仮締め以降のため変更できません。"
-    : isStarted
-      ? "開始済みのため変更できません。"
-      : null;
+  const isReadOnly = isStarted || isPeriodLocked || editingLocked;
+  const lockMessage = editingLocked
+    ? (resolveEditingPolicy(config).lockedNotice ??
+      "この環境ではデータの編集がロックされています。")
+    : isPeriodLocked
+      ? "仮締め以降のため変更できません。"
+      : isStarted
+        ? "開始済みのため変更できません。"
+        : null;
 
   const handleStart = async () => {
-    if (!dateValidation.ok) return;
+    if (!canSave) return;
+    const release = startLock.current.tryAcquire();
+    if (release == null) return;
     const confirmed = await confirm({
       tone: "success",
       title: "期間を開始",
@@ -87,7 +128,11 @@ export function FiscalPeriodSettingsBody({
       ],
       confirmLabel: "開始する",
     });
-    if (!confirmed) return;
+    if (!confirmed) {
+      release();
+      return;
+    }
+    setIsStarting(true);
     try {
       const updated = await appState.updateFiscalPeriod(
         currentFiscalPeriod.id,
@@ -108,6 +153,9 @@ export function FiscalPeriodSettingsBody({
             "steps/fiscal-period-settings: updateFiscalPeriod failed",
         }),
       );
+    } finally {
+      setIsStarting(false);
+      release();
     }
   };
 
@@ -148,6 +196,10 @@ export function FiscalPeriodSettingsBody({
               />
               {!dateValidation.ok && !isReadOnly ? (
                 <FormErrorText>{dateValidation.message}</FormErrorText>
+              ) : hasOverlap && !isReadOnly ? (
+                <FormErrorText>
+                  既存の有効な会計期間と日付が重複しています。
+                </FormErrorText>
               ) : null}
             </>
           }
@@ -191,7 +243,7 @@ export function FiscalPeriodSettingsBody({
             variant="success"
             icon={<PlayIcon color={palette.surface} />}
           >
-            開始する
+            {isStarting ? "開始中…" : "開始する"}
           </StepPrimaryButton>
         </div>
       )}

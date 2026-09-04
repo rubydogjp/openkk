@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { AppError } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../shared/app-error-text.js";
@@ -18,24 +18,31 @@ import {
   sizes,
   typography,
 } from "../shared/design-tokens.js";
+import { ExclusiveActionLock } from "../shared/exclusive-action-lock.js";
 
 export function SignInContent() {
   const appState = useOpenkkAppState();
   const openkkConfig = useOpenkkConfig();
   const [screenError, setScreenError] = useState<unknown>(null);
   const [submitting, setSubmitting] = useState(false);
+  const signInLock = useRef(new ExclusiveActionLock());
 
   const handleSignIn = async () => {
+    const release = signInLock.current.tryAcquire();
+    if (release == null) return;
     setScreenError(null);
     if (openkkConfig.authMode === "embedded") {
       appState.signInAsEmbeddedUser();
+      release();
       return;
     }
+    setSubmitting(true);
+    let navigationStarted = false;
     try {
-      setSubmitting(true);
       const redirectUrl = `${window.location.origin}/auth/result`;
       const result = await appState.startSignIn(redirectUrl);
       window.location.href = result.authUrl;
+      navigationStarted = true;
     } catch (error) {
       setScreenError(
         AppError.from(error, {
@@ -43,7 +50,11 @@ export function SignInContent() {
           fallbackDeveloperMessage: "shell: startAuthSession failed",
         }),
       );
-      setSubmitting(false);
+    } finally {
+      if (!navigationStarted) {
+        setSubmitting(false);
+        release();
+      }
     }
   };
 

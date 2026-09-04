@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   AppError,
@@ -11,8 +11,10 @@ import {
   buildOpeningCarryoverJournalsFromReversibleEntries,
   computeFsAggregate,
   createFiscalPeriodArchiveZip,
+  hasActiveFiscalPeriodOverlap,
   resolveEditingPolicy,
   resolveFiscalPeriodPolicy,
+  validateFiscalPeriodDates,
 } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text.js";
 import {
@@ -30,8 +32,10 @@ import {
 } from "../../shared/design-tokens.js";
 import { LockButton } from "../../shared/lock-icon.js";
 import { downloadBytes } from "../../shared/download.js";
+import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 import {
   FormDatePair,
+  FormErrorText,
   FormStyles,
   FormTextInput,
 } from "../../shared/form-fields.js";
@@ -51,6 +55,11 @@ const CARRY_ITEMS: Array<{ id: string; label: string }> = [
   { id: "transfer", label: "期末の振替 → 翌期首の再振替" },
   { id: "fixed", label: "固定資産データ" },
 ];
+const DEFAULT_CARRIES: Record<string, boolean> = {
+  bs: true,
+  transfer: true,
+  fixed: true,
+};
 
 export function NextFiscalPeriodBody({
   onSwitchToStep,
@@ -83,12 +92,10 @@ export function NextFiscalPeriodBody({
   const [nameEdited, setNameEdited] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
+  const workflowLock = useRef(new ExclusiveActionLock());
   const [pendingAdvance, setPendingAdvance] = useState(false);
-  const [carries, setCarries] = useState<Record<string, boolean>>({
-    bs: true,
-    transfer: true,
-    fixed: true,
-  });
+  const [carries, setCarries] =
+    useState<Record<string, boolean>>(DEFAULT_CARRIES);
 
   useEffect(() => {
     if (currentFiscalPeriod == null) return;
@@ -96,6 +103,10 @@ export function NextFiscalPeriodBody({
     setStartDate(suggested.startDate);
     setEndDate(suggested.endDate);
     setNameEdited(false);
+    setArchiveStatus(null);
+    setPendingAdvance(false);
+    setCarries(DEFAULT_CARRIES);
+    setScreenError(null);
   }, [
     currentFiscalPeriod?.id,
     suggested.endDate,
@@ -121,24 +132,42 @@ export function NextFiscalPeriodBody({
     policy.maxActivePeriods != null && policy.maxActivePeriods <= 1;
   const isEphemeral = policy.archiveRetention === "ephemeral";
   const currentArchived = currentFiscalPeriod.archiveStatus === "archived";
+  const activePeriodCount = appState.fiscalPeriods.filter(
+    (period) => period.archiveStatus === "active",
+  ).length;
+  const atActivePeriodLimit =
+    policy.maxActivePeriods != null &&
+    activePeriodCount >= policy.maxActivePeriods;
 
   const canEnterPage = currentFiscalPeriod.phase === "post_closing";
   const isNotStarted = !canEnterPage;
+  const dateValidation = validateFiscalPeriodDates(startDate, endDate);
+  const hasOverlap =
+    dateValidation.ok &&
+    hasActiveFiscalPeriodOverlap(
+      { startDate, endDate },
+      appState.fiscalPeriods,
+    );
   const canCreateNext =
     canEnterPage &&
     currentFiscalPeriod.documentsReceivedCompleted &&
     !editingLocked &&
     !isCreating &&
+    !isArchiving &&
     name.trim() !== "" &&
     startDate.trim() !== "" &&
     endDate.trim() !== "" &&
+    dateValidation.ok &&
+    !hasOverlap &&
+    !atActivePeriodLimit &&
     (!requiresArchiveBeforeNext || currentArchived);
   const canArchive =
     canEnterPage &&
     currentFiscalPeriod.documentsReceivedCompleted &&
     currentFiscalPeriod.archiveStatus !== "archived" &&
     !editingLocked &&
-    !isArchiving;
+    !isArchiving &&
+    !isCreating;
 
   const ephemeralWarning = {
     title: policy.ephemeralArchiveWarning?.title ?? "この先は元に戻せません",
@@ -151,9 +180,14 @@ export function NextFiscalPeriodBody({
 
   const handleCreate = async () => {
     if (!canCreateNext) return;
+    const release = workflowLock.current.tryAcquire();
+    if (release == null) return;
+    const authOperationVersion = appState.captureAuthOperationVersion();
     setIsCreating(true);
+    let createdId: string | null = null;
+    let initializationCompleted = false;
     try {
-      const createdId = await appState.createFiscalPeriod(
+      createdId = await appState.createFiscalPeriod(
         {
           name,
           startDate,
@@ -161,11 +195,11 @@ export function NextFiscalPeriodBody({
         },
         { select: false },
       );
+      appState.assertAuthOperationCurrent(authOperationVersion);
       if (createdId == null) return;
       if (carries.bs || carries.transfer) {
-        const entries = entriesState.listFiscalPeriodEntries(
-          currentFiscalPeriod.id,
-        );
+        const entries = await entriesState.reloadAndWait();
+        appState.assertAuthOperationCurrent(authOperationVersion);
         const aggregate = computeFsAggregate({
           openingBalanceLines:
             currentFiscalPeriod.opening?.openingBalanceLines ?? [],
@@ -196,13 +230,16 @@ export function NextFiscalPeriodBody({
             openingJournals,
           },
         });
+        appState.assertAuthOperationCurrent(authOperationVersion);
       }
       if (carries.fixed) {
         const fixedAssets = await backendApi.fixedAssets.getAll(
           currentFiscalPeriod.id,
         );
+        appState.assertAuthOperationCurrent(authOperationVersion);
         for (const asset of fixedAssets) {
           if (asset.status !== "active") continue;
+          appState.assertAuthOperationCurrent(authOperationVersion);
           await backendApi.fixedAssets.create(createdId, {
             name: asset.name,
             acquisitionDate: asset.acquisitionDate,
@@ -212,14 +249,46 @@ export function NextFiscalPeriodBody({
             businessRate: asset.businessRate,
             bookAccountId: asset.bookAccountId,
           });
+          appState.assertAuthOperationCurrent(authOperationVersion);
         }
       }
+      initializationCompleted = true;
       if (isEphemeral && currentArchived) {
         await appState.purgeArchivedFiscalPeriod(currentFiscalPeriod.id);
+        appState.assertAuthOperationCurrent(authOperationVersion);
       }
       setScreenError(null);
       appState.selectFiscalPeriod(createdId);
     } catch (error) {
+      if (
+        createdId != null &&
+        !initializationCompleted &&
+        appState.isAuthOperationCurrent(authOperationVersion)
+      ) {
+        try {
+          await appState.discardFiscalPeriod(createdId);
+          createdId = null;
+        } catch (cleanupError) {
+          if (!appState.isAuthOperationCurrent(authOperationVersion)) return;
+          setScreenError(
+            new AppError({
+              messageForDeveloper: `next fiscal period setup and cleanup failed: ${createdId}; original=${String(error)}; cleanup=${String(cleanupError)}`,
+              messageForUser:
+                "次の期間の初期化に失敗し、作成途中の期間も自動削除できませんでした。期間一覧で不要な期間を確認してください",
+              originalMessage: String(error),
+              statusCode: null,
+            }),
+          );
+          return;
+        }
+      } else if (
+        createdId != null &&
+        initializationCompleted &&
+        appState.isAuthOperationCurrent(authOperationVersion)
+      ) {
+        appState.selectFiscalPeriod(createdId);
+      }
+      if (!appState.isAuthOperationCurrent(authOperationVersion)) return;
       setScreenError(
         AppError.from(error, {
           fallbackUserMessage: "次の期間の作成に失敗しました",
@@ -229,6 +298,7 @@ export function NextFiscalPeriodBody({
       );
     } finally {
       setIsCreating(false);
+      release();
     }
   };
 
@@ -237,6 +307,9 @@ export function NextFiscalPeriodBody({
 
   const handleArchive = async () => {
     if (!canArchive) return;
+    const release = workflowLock.current.tryAcquire();
+    if (release == null) return;
+    const authOperationVersion = appState.captureAuthOperationVersion();
     setIsArchiving(true);
     try {
       const year = Number(currentFiscalPeriod.endDate.slice(0, 4));
@@ -246,6 +319,7 @@ export function NextFiscalPeriodBody({
         backendApi.preClosing.get(currentFiscalPeriod.id, year),
         backendApi.closing.get(currentFiscalPeriod.id, year),
       ]);
+      appState.assertAuthOperationCurrent(authOperationVersion);
       const payload = buildFiscalPeriodArchivePayload({
         createdAt: new Date().toISOString(),
         fiscalPeriod: { ...currentFiscalPeriod, archiveStatus: "archived" },
@@ -273,15 +347,17 @@ export function NextFiscalPeriodBody({
         ],
       });
       const zip = createFiscalPeriodArchiveZip(payload);
-      await appState.archiveFiscalPeriod(currentFiscalPeriod.id);
       downloadBytes(
         zip,
         buildFiscalPeriodArchiveFilename(currentFiscalPeriod),
         "application/zip",
       );
+      await appState.archiveFiscalPeriod(currentFiscalPeriod.id);
+      appState.assertAuthOperationCurrent(authOperationVersion);
       setArchiveStatus("圧縮保存しました");
       setScreenError(null);
     } catch (error) {
+      if (!appState.isAuthOperationCurrent(authOperationVersion)) return;
       setScreenError(
         AppError.from(error, {
           fallbackUserMessage: "圧縮保存に失敗しました",
@@ -291,6 +367,7 @@ export function NextFiscalPeriodBody({
       );
     } finally {
       setIsArchiving(false);
+      release();
     }
   };
 
@@ -331,17 +408,26 @@ export function NextFiscalPeriodBody({
             label="期間"
             divider
             control={
-              <FormDatePair
-                start={startDate}
-                end={endDate}
-                onChangeStart={(value) => {
-                  if (!isNotStarted) setStartDate(value);
-                }}
-                onChangeEnd={(value) => {
-                  if (!isNotStarted) setEndDate(value);
-                }}
-                readOnly={isNotStarted}
-              />
+              <>
+                <FormDatePair
+                  start={startDate}
+                  end={endDate}
+                  onChangeStart={(value) => {
+                    if (!isNotStarted) setStartDate(value);
+                  }}
+                  onChangeEnd={(value) => {
+                    if (!isNotStarted) setEndDate(value);
+                  }}
+                  readOnly={isNotStarted}
+                />
+                {!isNotStarted && !dateValidation.ok ? (
+                  <FormErrorText>{dateValidation.message}</FormErrorText>
+                ) : !isNotStarted && hasOverlap ? (
+                  <FormErrorText>
+                    既存の有効な会計期間と日付が重複しています。
+                  </FormErrorText>
+                ) : null}
+              </>
             }
           />
         </StepMetaCard>

@@ -1,20 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useRouter, useSearchParams } from "next/navigation";
 
 import {
   AppError,
+  assertJournalImportSize,
   buildVirtualBusinessRateTransferRows,
   buildVirtualFixedAssetRows,
   buildVirtualOpeningCarryoverRows,
+  decodeJournalImportBytes,
   exportEntriesAsCsv,
   exportEntriesAsJson,
   importEntriesFromCsv,
   importEntriesFromJson,
   buildPeriodLockMessage,
   formatIsoLocalDate,
+  resolveEditingPolicy,
   weekdayJa,
   type EntryRecord,
   type EntryPreviewRow,
@@ -33,6 +36,8 @@ import {
   type EntryStatusMessage,
 } from "../../entries/entries-ui.js";
 import { EntryEditDrawer } from "../../entries/entry-edit-drawer.js";
+import { downloadBytes } from "../../shared/download.js";
+import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 
 type YearMonthValue = {
   year: number;
@@ -46,15 +51,18 @@ export function EntriesPage() {
   const openkkConfig = useOpenkkConfig();
   const entriesState = useOpenkkEntries();
   const assistState = useOpenkkAssist();
+  const editingLocked = resolveEditingPolicy(openkkConfig).locked;
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (period) => period.id === appState.currentFiscalPeriodId,
   );
   const fiscalPeriodId = appState.currentFiscalPeriodId ?? "";
-  // 表示月の初期値は「今日の月」(config.today)。demo/dev は mock 時計、prod は実日付。
-  const today = openkkConfig.today;
+  const configuredToday = openkkConfig.today;
   const [displayedMonth, setDisplayedMonth] = useState<YearMonthValue>(() =>
     clampMonthToPeriod(
-      { year: today.getFullYear(), month: today.getMonth() + 1 },
+      {
+        year: configuredToday.getFullYear(),
+        month: configuredToday.getMonth() + 1,
+      },
       currentFiscalPeriod?.startDate ?? null,
       currentFiscalPeriod?.endDate ?? null,
     ),
@@ -63,13 +71,17 @@ export function EntriesPage() {
     null,
   );
   const [newEntryDraft, setNewEntryDraft] = useState<EntryRecord | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const importLock = useRef(new ExclusiveActionLock());
+  const selectedFiscalPeriodId = useRef(fiscalPeriodId);
+  selectedFiscalPeriodId.current = fiscalPeriodId;
 
   useEffect(() => {
     const monthParam = searchParams.get("month");
     const fromParam = parseMonthParam(monthParam);
     const baseMonth = fromParam ?? {
-      year: today.getFullYear(),
-      month: today.getMonth() + 1,
+      year: configuredToday.getFullYear(),
+      month: configuredToday.getMonth() + 1,
     };
     setDisplayedMonth(
       clampMonthToPeriod(
@@ -83,7 +95,7 @@ export function EntriesPage() {
     currentFiscalPeriod?.id,
     currentFiscalPeriod?.startDate,
     searchParams,
-    today,
+    configuredToday,
   ]);
 
   useEffect(() => {
@@ -125,7 +137,8 @@ export function EntriesPage() {
     currentFiscalPeriod,
     "仕訳を取り込めます",
   );
-  const canImport = fiscalPeriodId !== "" && importLockedMessage == null;
+  const canImport =
+    fiscalPeriodId !== "" && importLockedMessage == null && !editingLocked;
   const rows =
     fiscalPeriodId === ""
       ? []
@@ -154,7 +167,7 @@ export function EntriesPage() {
       }),
       ...buildVirtualFixedAssetRows({
         fiscalPeriodId,
-        assets: assistState.listFixedAssets(),
+        assets: assistState.listFixedAssets(fiscalPeriodId),
         periodStartDate: currentFiscalPeriod?.startDate ?? null,
         periodEndDate: currentFiscalPeriod?.endDate ?? null,
         yearMonth,
@@ -164,7 +177,7 @@ export function EntriesPage() {
         periodStartDate: currentFiscalPeriod?.startDate ?? null,
         periodEndDate: currentFiscalPeriod?.endDate ?? null,
         entries: realEntries,
-        assets: assistState.listFixedAssets(),
+        assets: assistState.listFixedAssets(fiscalPeriodId),
         carryovers: assistState.listOpeningCarryovers(fiscalPeriodId),
         yearMonth,
       }),
@@ -194,8 +207,12 @@ export function EntriesPage() {
   );
   const drawerEntryId = searchParams.get("entry");
   const drawerVirtualEntryId = searchParams.get("virtualEntry");
-  const drawerEntry =
+  const candidateDrawerEntry =
     drawerEntryId == null ? null : entriesState.getEntry(drawerEntryId);
+  const drawerEntry =
+    candidateDrawerEntry?.fiscalPeriodId === fiscalPeriodId
+      ? candidateDrawerEntry
+      : null;
   const drawerVirtualRows =
     drawerVirtualEntryId == null
       ? []
@@ -303,25 +320,33 @@ export function EntriesPage() {
       });
       return;
     }
+    const release = importLock.current.tryAcquire();
+    if (release == null) return;
+    setIsImporting(true);
     try {
-      const text = await file.text();
+      assertJournalImportSize(file.size);
+      const text = decodeJournalImportBytes(
+        new Uint8Array(await file.arrayBuffer()),
+      );
       const importedEntries =
         kind === "json"
           ? importEntriesFromJson({ text, fiscalPeriodId })
           : importEntriesFromCsv({ text, fiscalPeriodId });
+      if (selectedFiscalPeriodId.current !== fiscalPeriodId) {
+        throw new AppError({
+          messageForDeveloper: "entries: fiscal period changed during import",
+          messageForUser:
+            "取込中に会計期間が切り替わったため、データは保存しませんでした",
+          originalMessage: null,
+          statusCode: null,
+        });
+      }
       const result = await entriesState.mergeFiscalPeriodEntries(
         fiscalPeriodId,
         importedEntries,
       );
-      // 取り込んだ取引が見えるよう、最も早い取込月へ移動する
-      // （既定表示月に取込分が無いと「取り込んだのに何も出ない」状態になるため）。
-      const earliestDate = importedEntries
-        .map((entry) => entry.date)
-        .filter(
-          (date): date is string =>
-            typeof date === "string" && date.length >= 7,
-        )
-        .sort((left, right) => left.localeCompare(right))[0];
+      if (selectedFiscalPeriodId.current !== fiscalPeriodId) return;
+      const earliestDate = result.earliestImportedDate;
       if (result.imported > 0 && earliestDate != null) {
         navigateWithMonth(parseYearMonth(earliestDate));
       }
@@ -337,6 +362,9 @@ export function EntriesPage() {
           fallbackDeveloperMessage: "entries: import file failed",
         }).messageForUser,
       });
+    } finally {
+      setIsImporting(false);
+      release();
     }
   };
 
@@ -345,20 +373,21 @@ export function EntriesPage() {
       setStatusMessage({ kind: "error", text: "期間が未選択です" });
       return;
     }
+    const manualEntriesForFileExport = fullPeriodEntries.filter(
+      (entry) => !entry.localId?.startsWith("virtual:"),
+    );
     const data =
       kind === "json"
-        ? exportEntriesAsJson(fullPeriodEntries)
-        : exportEntriesAsCsv(fullPeriodEntries);
-    const blob = new Blob([data], {
-      type: kind === "json" ? "application/json" : "text/csv",
-    });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
+        ? exportEntriesAsJson(manualEntriesForFileExport)
+        : `\uFEFF${exportEntriesAsCsv(manualEntriesForFileExport)}`;
     const filename = `${fiscalPeriodId}_journal.${kind}`;
-    anchor.href = url;
-    anchor.download = filename;
-    anchor.click();
-    URL.revokeObjectURL(url);
+    downloadBytes(
+      new TextEncoder().encode(data),
+      filename,
+      kind === "json"
+        ? "application/json;charset=utf-8"
+        : "text/csv;charset=utf-8",
+    );
     setStatusMessage({ kind: "success", text: `${filename} を出力しました` });
   };
 
@@ -372,13 +401,15 @@ export function EntriesPage() {
         onPrev={() => navigateWithMonth(shiftMonth(displayedMonth, -1))}
         onNext={() => navigateWithMonth(shiftMonth(displayedMonth, 1))}
         lockedMessage={screenLockedMessage}
-        readOnly={isReadOnlyPeriod}
+        readOnly={isReadOnlyPeriod || editingLocked}
         statusMessage={statusMessage}
         activeRecordId={
-          !isReadOnlyPeriod && drawerEntry != null ? drawerEntry.id : null
+          !isReadOnlyPeriod && !editingLocked && drawerEntry != null
+            ? drawerEntry.id
+            : null
         }
         onAddEntry={
-          lockedMessage == null && !isReadOnlyPeriod
+          lockedMessage == null && !isReadOnlyPeriod && !editingLocked
             ? () => {
                 if (fiscalPeriodId === "") return;
                 navigateWithEntryParam(null);
@@ -398,7 +429,7 @@ export function EntriesPage() {
             : undefined
         }
         onOpenEntry={
-          lockedMessage == null
+          lockedMessage == null && !editingLocked
             ? (row) => {
                 if (row.virtual != null) {
                   setNewEntryDraft(null);
@@ -411,15 +442,19 @@ export function EntriesPage() {
               }
             : undefined
         }
-        onImportFile={canImport ? handleImportFile : undefined}
+        onImportFile={canImport && !isImporting ? handleImportFile : undefined}
         onExport={fiscalPeriodId !== "" ? handleExport : undefined}
       />
       {drawerEntry != null &&
       newEntryDraft == null &&
       lockedMessage == null &&
-      !isReadOnlyPeriod ? (
+      !isReadOnlyPeriod &&
+      !editingLocked ? (
         <EntryEditDrawer
+          key={`edit:${drawerEntry.id}`}
           entry={drawerEntry}
+          minDate={currentFiscalPeriod?.startDate}
+          maxDate={currentFiscalPeriod?.endDate}
           accountOptions={entriesState.accountOptions}
           taxCategoryOptions={entriesState.taxCategoryOptions}
           businessCategoryOptions={entriesState.businessCategoryOptions}
@@ -455,10 +490,16 @@ export function EntriesPage() {
           }}
         />
       ) : null}
-      {newEntryDraft != null && lockedMessage == null && !isReadOnlyPeriod ? (
+      {newEntryDraft != null &&
+      lockedMessage == null &&
+      !isReadOnlyPeriod &&
+      !editingLocked ? (
         <EntryEditDrawer
+          key={`create:${newEntryDraft.id}`}
           mode="create"
           entry={newEntryDraft}
+          minDate={currentFiscalPeriod?.startDate}
+          maxDate={currentFiscalPeriod?.endDate}
           accountOptions={entriesState.accountOptions}
           taxCategoryOptions={entriesState.taxCategoryOptions}
           businessCategoryOptions={entriesState.businessCategoryOptions}

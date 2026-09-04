@@ -1,12 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
-import { AppError } from "@rubydogjp/openkk-client-domain";
+import {
+  AppError,
+  resolveEditingPolicy,
+} from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text.js";
-import { useOpenkkAppState } from "@rubydogjp/openkk-client-usecases";
+import {
+  useOpenkkAppState,
+  useOpenkkConfig,
+} from "@rubydogjp/openkk-client-usecases";
 import { palette } from "../../shared/design-tokens.js";
 import { DocumentFileList } from "../../shared/document-file-tile.js";
+import { LockButton } from "../../shared/lock-icon.js";
+import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 import { useStepDocumentPrinters } from "../use-step-document-printers.js";
 import {
   StepCallout,
@@ -22,7 +30,11 @@ export function DocumentReceiveBody({
   onSwitchToStep?: (no: number) => void;
 } = {}) {
   const appState = useOpenkkAppState();
+  const config = useOpenkkConfig();
+  const editingLocked = resolveEditingPolicy(config).locked;
   const [screenError, setScreenError] = useState<unknown>(null);
+  const [isCompleting, setIsCompleting] = useState(false);
+  const completeLock = useRef(new ExclusiveActionLock());
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (period) => period.id === appState.currentFiscalPeriodId,
   );
@@ -39,6 +51,10 @@ export function DocumentReceiveBody({
   const isDone = currentFiscalPeriod.documentsReceivedCompleted;
 
   const handleComplete = async () => {
+    if (!canComplete || isDone || editingLocked) return;
+    const release = completeLock.current.tryAcquire();
+    if (release == null) return;
+    setIsCompleting(true);
     try {
       const updated = await appState.updateFiscalPeriod(
         currentFiscalPeriod.id,
@@ -54,6 +70,9 @@ export function DocumentReceiveBody({
             "steps/document-receive: updateFiscalPeriod failed",
         }),
       );
+    } finally {
+      setIsCompleting(false);
+      release();
     }
   };
 
@@ -114,9 +133,15 @@ export function DocumentReceiveBody({
               <StepPrimaryButton onClick={() => onSwitchToStep?.(6)}>
                 次の手順へ
               </StepPrimaryButton>
+            ) : editingLocked ? (
+              <LockButton label="全て受け取りました" />
             ) : (
-              <StepPrimaryButton onClick={handleComplete} variant="success">
-                全て受け取りました
+              <StepPrimaryButton
+                onClick={handleComplete}
+                disabled={isCompleting}
+                variant="success"
+              >
+                {isCompleting ? "更新中…" : "全て受け取りました"}
               </StepPrimaryButton>
             )}
           </div>

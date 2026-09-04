@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   AppError,
   buildClosingVirtualEntries,
   computeFsAggregate,
+  resolveEditingPolicy,
   withClosingVirtualEntries,
 } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text.js";
@@ -13,6 +14,7 @@ import {
   useOpenkkAppState,
   useOpenkkAssist,
   useOpenkkClosing,
+  useOpenkkConfig,
   useOpenkkEntries,
 } from "@rubydogjp/openkk-client-usecases";
 import { formatDateButtonLabel } from "../../shared/date-picker.js";
@@ -22,6 +24,8 @@ import { PlBsDiagramSection } from "../../shared/pl-bs-diagram.js";
 import { DocumentFileList } from "../../shared/document-file-tile.js";
 import { useStepDocumentPrinters } from "../use-step-document-printers.js";
 import { ClosingExplainerAnimation } from "../closing-animation.js";
+import { LockButton } from "../../shared/lock-icon.js";
+import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 import {
   ActionChoiceCard,
   ActionGrid,
@@ -44,6 +48,8 @@ export function ClosingBody({
   onBusyChange?: (busy: boolean) => void;
 }) {
   const appState = useOpenkkAppState();
+  const config = useOpenkkConfig();
+  const editingLocked = resolveEditingPolicy(config).locked;
   const entriesState = useOpenkkEntries();
   const assistState = useOpenkkAssist();
   const closingApi = useOpenkkClosing();
@@ -51,6 +57,7 @@ export function ClosingBody({
   const [screenError, setScreenError] = useState<unknown>(null);
   const [showRunningAnimation, setShowRunningAnimation] = useState(false);
   const [animationKey, setAnimationKey] = useState(0);
+  const closingMutationLock = useRef(new ExclusiveActionLock());
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (period) => period.id === appState.currentFiscalPeriodId,
   );
@@ -68,7 +75,7 @@ export function ClosingBody({
       periodStartDate: currentFiscalPeriod.startDate,
       periodEndDate: currentFiscalPeriod.endDate,
       entries: entriesState.listFiscalPeriodEntries(currentFiscalPeriod.id),
-      assets: assistState.listFixedAssets(),
+      assets: assistState.listFixedAssets(currentFiscalPeriod.id),
       carryovers: assistState.listOpeningCarryovers(currentFiscalPeriod.id),
     });
     return computeFsAggregate({
@@ -78,7 +85,6 @@ export function ClosingBody({
     }).summary;
   }, [currentFiscalPeriod, entriesState, assistState]);
 
-  // 「終わった」と伝えるのは、締めの結果を実際に見せ終えたとき。
   const closingResultShown =
     !showRunningAnimation &&
     currentFiscalPeriod?.phase === "post_closing" &&
@@ -100,71 +106,78 @@ export function ClosingBody({
   const isBusy = showRunningAnimation;
 
   const handleCancelPreClosing = async () => {
-    const confirmed = await confirm({
-      tone: "danger",
-      title: "仮締めを取り消す",
-      body: ["1つ前の手順に戻り、ロックを解除して再び編集できるようにします。"],
-      confirmLabel: "取り消す",
-    });
-    if (!confirmed) return;
+    const release = closingMutationLock.current.tryAcquire();
+    if (release == null) return;
     try {
-      if (appState.currentFiscalPeriodId != null) {
+      const confirmed = await confirm({
+        tone: "danger",
+        title: "仮締めを取り消す",
+        body: [
+          "1つ前の手順に戻り、ロックを解除して再び編集できるようにします。",
+        ],
+        confirmLabel: "取り消す",
+      });
+      if (!confirmed) return;
+      try {
         const year = Number(currentFiscalPeriod.endDate.slice(0, 4));
-        await closingApi.cancelPreClosing(appState.currentFiscalPeriodId, year);
+        await closingApi.cancelPreClosing(currentFiscalPeriod.id, year);
+        setScreenError(null);
+      } catch (error) {
+        setScreenError(
+          AppError.from(error, {
+            fallbackUserMessage: "仮締めの取り消しに失敗しました",
+            fallbackDeveloperMessage:
+              "steps/closing: cancel pre-closing failed",
+          }),
+        );
       }
-      setScreenError(null);
-    } catch (error) {
-      setScreenError(
-        AppError.from(error, {
-          fallbackUserMessage: "仮締めの取り消しに失敗しました",
-          fallbackDeveloperMessage: "steps/closing: cancel pre-closing failed",
-        }),
-      );
+    } finally {
+      release();
     }
   };
 
   const handleFinalize = async () => {
-    const confirmed = await confirm({
-      tone: "danger",
-      title: "本締め",
-      body: [
-        "この操作は取り消せません。",
-        "仮書類を十分にプレビューし、間違いがないことをチェックした上で実行してください。",
-      ],
-      confirmLabel: "実行する",
-    });
-    if (!confirmed) return;
-
-    onBusyChange?.(true);
-    setShowRunningAnimation(true);
-    setAnimationKey((k) => k + 1);
+    const release = closingMutationLock.current.tryAcquire();
+    if (release == null) return;
     try {
-      const entries = prepareAssistEntriesForFinalClosing({
-        fiscalPeriodId: currentFiscalPeriod.id,
-        periodStartDate: currentFiscalPeriod.startDate,
-        periodEndDate: currentFiscalPeriod.endDate,
-        assistState,
-        entriesState,
+      const confirmed = await confirm({
+        tone: "danger",
+        title: "本締め",
+        body: [
+          "この操作は取り消せません。",
+          "仮書類を十分にプレビューし、間違いがないことをチェックした上で実行してください。",
+        ],
+        confirmLabel: "実行する",
       });
-      if (appState.currentFiscalPeriodId != null) {
+      if (!confirmed) return;
+
+      onBusyChange?.(true);
+      setShowRunningAnimation(true);
+      setAnimationKey((k) => k + 1);
+      try {
+        const entries = prepareAssistEntriesForFinalClosing({
+          fiscalPeriodId: currentFiscalPeriod.id,
+          periodStartDate: currentFiscalPeriod.startDate,
+          periodEndDate: currentFiscalPeriod.endDate,
+          assistState,
+          entriesState,
+        });
         const year = Number(currentFiscalPeriod.endDate.slice(0, 4));
-        await closingApi.runFinal(
-          appState.currentFiscalPeriodId,
-          year,
-          entries,
+        await closingApi.runFinal(currentFiscalPeriod.id, year, entries);
+        await entriesState.reloadAndWait();
+        setScreenError(null);
+      } catch (error) {
+        setShowRunningAnimation(false);
+        onBusyChange?.(false);
+        setScreenError(
+          AppError.from(error, {
+            fallbackUserMessage: "本締めに失敗しました",
+            fallbackDeveloperMessage: "steps/closing: finalize failed",
+          }),
         );
-        entriesState.reload();
       }
-      setScreenError(null);
-    } catch (error) {
-      setShowRunningAnimation(false);
-      onBusyChange?.(false);
-      setScreenError(
-        AppError.from(error, {
-          fallbackUserMessage: "本締めに失敗しました",
-          fallbackDeveloperMessage: "steps/closing: finalize failed",
-        }),
-      );
+    } finally {
+      release();
     }
   };
 
@@ -269,9 +282,13 @@ export function ClosingBody({
                 title="前の手順に戻る"
                 description="書類に問題が見つかった場合、仮締めを取り消します。ロックは解除され、仕訳データを再編集できるようになります。"
                 action={
-                  <StepSecondaryButton onClick={handleCancelPreClosing}>
-                    取り消す
-                  </StepSecondaryButton>
+                  editingLocked ? (
+                    <LockButton label="取り消す" />
+                  ) : (
+                    <StepSecondaryButton onClick={handleCancelPreClosing}>
+                      取り消す
+                    </StepSecondaryButton>
+                  )
                 }
               />
               <ActionChoiceCard
@@ -279,9 +296,16 @@ export function ClosingBody({
                 title="本締めを実行する"
                 description="書類に問題がなかった場合、本締めを実行します。仕訳データは確定され、編集ができなくなります。"
                 action={
-                  <StepPrimaryButton onClick={handleFinalize} variant="success">
-                    本締めを実行
-                  </StepPrimaryButton>
+                  editingLocked ? (
+                    <LockButton label="本締めを実行" />
+                  ) : (
+                    <StepPrimaryButton
+                      onClick={handleFinalize}
+                      variant="success"
+                    >
+                      本締めを実行
+                    </StepPrimaryButton>
+                  )
                 }
               />
             </ActionGrid>
@@ -311,16 +335,15 @@ function prepareAssistEntriesForFinalClosing(input: {
     "listFiscalPeriodEntries" | "prepareFiscalPeriodEntries"
   >;
 }) {
+  const manualEntriesForFinalClosing = input.entriesState
+    .listFiscalPeriodEntries(input.fiscalPeriodId)
+    .filter((entry) => !entry.localId?.startsWith("virtual:"));
   const entries = buildClosingVirtualEntries({
     fiscalPeriodId: input.fiscalPeriodId,
     periodStartDate: input.periodStartDate,
     periodEndDate: input.periodEndDate,
-    // 旧バージョンの非原子的な本締めが残した生成仕訳は再利用せず、
-    // 現在の補助データから必ず作り直してサーバー側で原子的に置換する。
-    entries: input.entriesState
-      .listFiscalPeriodEntries(input.fiscalPeriodId)
-      .filter((entry) => !entry.localId?.startsWith("virtual:")),
-    assets: input.assistState.listFixedAssets(),
+    entries: manualEntriesForFinalClosing,
+    assets: input.assistState.listFixedAssets(input.fiscalPeriodId),
     carryovers: input.assistState.listOpeningCarryovers(input.fiscalPeriodId),
   });
   return input.entriesState.prepareFiscalPeriodEntries(entries);
