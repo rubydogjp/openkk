@@ -1,6 +1,24 @@
-import type { EntryLine, EntryRecord } from "./entry-record.js";
+import {
+  getEntryLines,
+  type EntryLine,
+  type EntryRecord,
+} from "./entry-record.js";
 import { AppError } from "../shared/app-error.js";
 import { parseIsoLocalDate, weekdayJa } from "../shared/parse-utils.js";
+import {
+  assertJournalEntryLineCount,
+  assertJournalImportEntryCount,
+  assertJournalImportLineCount,
+  assertJournalImportSize,
+} from "./journal-import-policy.js";
+
+export {
+  assertJournalImportSize,
+  MAX_JOURNAL_ENTRY_LINES,
+  MAX_JOURNAL_IMPORT_ENTRIES,
+  MAX_JOURNAL_IMPORT_LINES,
+  MAX_JOURNAL_IMPORT_SIZE,
+} from "./journal-import-policy.js";
 
 type JournalJsonEntry = {
   id?: string;
@@ -16,6 +34,7 @@ type JournalJsonEntry = {
   description: string;
   partner: string;
   businessRate: string;
+  businessRateRatio?: number;
   taxCategory: string;
   businessCategory: string;
   lines?: EntryLine[];
@@ -28,7 +47,10 @@ export function exportEntriesAsJson(entries: EntryRecord[]) {
     {
       schema: OPENKK_JOURNAL_SCHEMA,
       entries: entries.map((entry) => ({
-        localId: entry.localId ?? entry.id,
+        localId:
+          entry.localId == null || entry.localId.trim() === ""
+            ? entry.id
+            : entry.localId,
         date: entry.date,
         weekday: entry.weekday,
         debit: entry.debit,
@@ -40,11 +62,10 @@ export function exportEntriesAsJson(entries: EntryRecord[]) {
         description: entry.description,
         partner: entry.partner,
         businessRate: entry.businessRate,
+        businessRateRatio: entry.businessRateRatio,
         taxCategory: entry.taxCategory,
         businessCategory: entry.businessCategory,
-        ...(entry.lines != null && entry.lines.length > 0
-          ? { lines: entry.lines.map((line) => ({ ...line })) }
-          : {}),
+        lines: getEntryLines(entry).map((line) => ({ ...line })),
       })),
     },
     null,
@@ -56,6 +77,7 @@ export function importEntriesFromJson(input: {
   text: string;
   fiscalPeriodId: string;
 }): EntryRecord[] {
+  assertJournalImportSize(input.text.length);
   const parsed = parseEntriesJson(input.text);
   if (
     parsed.schema != null &&
@@ -69,39 +91,48 @@ export function importEntriesFromJson(input: {
   if (!Array.isArray(parsed.entries)) {
     throw importFileFormatError("entries array not found");
   }
+  assertJournalImportEntryCount(parsed.entries.length);
   const seenLocalIds = new Set<string>();
+  let importLineCount = 0;
   return parsed.entries.map((raw, index) => {
-    const entry = raw as JournalJsonEntry;
     const rowNo = index + 1;
+    if (!isRecord(raw)) {
+      throw importFileRowError(`row ${rowNo}: entry must be an object`, rowNo);
+    }
+    const entry = raw as Partial<JournalJsonEntry>;
     const localId = validateRequiredLocalId(
       typeof entry.localId === "string" ? entry.localId : "",
       rowNo,
       seenLocalIds,
     );
-    return normalizeEntry({
+    const normalized = normalizeEntry({
       fiscalPeriodId: input.fiscalPeriodId,
       id: `entry-${input.fiscalPeriodId}-json-${index + 1}`,
       rowNo,
       localId,
-      date: entry.date,
+      date: stringValue(entry.date),
       weekday: entry.weekday,
-      debit: entry.debit,
-      debitType: entry.debitType,
-      debitAmount: entry.debitAmount,
-      credit: entry.credit,
-      creditType: entry.creditType,
-      creditAmount: entry.creditAmount,
-      description: entry.description,
-      partner: entry.partner,
-      businessRate: entry.businessRate,
-      taxCategory: entry.taxCategory,
-      businessCategory: entry.businessCategory,
-      lines: Array.isArray(entry.lines) ? entry.lines : undefined,
+      debit: stringValue(entry.debit),
+      debitType: stringValue(entry.debitType) as EntryRecord["debitType"],
+      debitAmount: stringValue(entry.debitAmount),
+      credit: stringValue(entry.credit),
+      creditType: stringValue(entry.creditType) as EntryRecord["creditType"],
+      creditAmount: stringValue(entry.creditAmount),
+      description: stringValue(entry.description),
+      partner: stringValue(entry.partner),
+      businessRate: stringValue(entry.businessRate),
+      businessRateRatio: entry.businessRateRatio,
+      taxCategory: stringValue(entry.taxCategory),
+      businessCategory: stringValue(entry.businessCategory),
+      lines: validateJsonLines(entry.lines, rowNo),
     });
+    importLineCount += normalized.lines?.length ?? 2;
+    assertJournalImportLineCount(importLineCount);
+    return normalized;
   });
 }
 
-const csvHeaders = [
+const journalCsvDataHeaders = [
   "localId",
   "date",
   "weekday",
@@ -114,33 +145,55 @@ const csvHeaders = [
   "description",
   "partner",
   "businessRate",
+  "businessRateRatio",
   "taxCategory",
   "businessCategory",
   "lines",
 ] as const;
 
+const csvHeaders = [
+  ...journalCsvDataHeaders,
+  "openkkSchema",
+  "openkkEscapedFields",
+] as const;
+
+const OPENKK_JOURNAL_CSV_SCHEMA = "openkk-journal-csv-v1";
+
 export function exportEntriesAsCsv(entries: EntryRecord[]) {
   const lines = [csvHeaders.join(",")];
   for (const entry of entries) {
+    const rawValues = [
+      entry.localId == null || entry.localId.trim() === ""
+        ? entry.id
+        : entry.localId,
+      entry.date,
+      entry.weekday,
+      entry.debit,
+      entry.debitType,
+      entry.debitAmount,
+      entry.credit,
+      entry.creditType,
+      entry.creditAmount,
+      entry.description,
+      entry.partner,
+      entry.businessRate,
+      entry.businessRateRatio == null ? "" : String(entry.businessRateRatio),
+      entry.taxCategory,
+      entry.businessCategory,
+      JSON.stringify(getEntryLines(entry)),
+    ];
+    const escapedFields: Array<(typeof journalCsvDataHeaders)[number]> = [];
+    const safeValues = rawValues.map((value, index) => {
+      if (!needsSpreadsheetFormulaProtection(value)) return value;
+      const fieldName = journalCsvDataHeaders[index];
+      if (fieldName != null) escapedFields.push(fieldName);
+      return `'${value}`;
+    });
     lines.push(
       [
-        entry.localId ?? entry.id,
-        entry.date,
-        entry.weekday,
-        entry.debit,
-        entry.debitType,
-        entry.debitAmount,
-        entry.credit,
-        entry.creditType,
-        entry.creditAmount,
-        entry.description,
-        entry.partner,
-        entry.businessRate,
-        entry.taxCategory,
-        entry.businessCategory,
-        entry.lines != null && entry.lines.length > 0
-          ? JSON.stringify(entry.lines)
-          : "",
+        ...safeValues,
+        OPENKK_JOURNAL_CSV_SCHEMA,
+        JSON.stringify(escapedFields),
       ]
         .map(escapeCsvField)
         .join(","),
@@ -153,55 +206,77 @@ export function importEntriesFromCsv(input: {
   text: string;
   fiscalPeriodId: string;
 }): EntryRecord[] {
+  assertJournalImportSize(input.text.length);
   const rows = parseCsv(stripBom(input.text));
-  if (rows.length < 2) {
-    return [];
-  }
   const header = rows[0] ?? [];
   const indexMap = Object.fromEntries(
     csvHeaders.map((name) => [name, header.indexOf(name)]),
   ) as Record<(typeof csvHeaders)[number], number>;
-  if (indexMap.date < 0 || indexMap.debit < 0 || indexMap.credit < 0) {
+  if (
+    indexMap.localId < 0 ||
+    indexMap.date < 0 ||
+    indexMap.debit < 0 ||
+    indexMap.credit < 0
+  ) {
     throw importFileFormatError(
-      "CSV header missing required columns: date, debit, credit",
+      "CSV header missing required columns: localId, date, debit, credit",
     );
   }
+  if (rows.length < 2) return [];
+  assertJournalImportEntryCount(rows.length - 1);
 
   const seenLocalIds = new Set<string>();
+  let importLineCount = 0;
   return rows.slice(1).map((cells, index) => {
     const rowNo = index + 2;
+    const escapedFields = parseCsvEscapedFields(cells, indexMap, rowNo);
+    const read = (field: (typeof journalCsvDataHeaders)[number]) =>
+      readJournalCsvCell(cells, indexMap[field], escapedFields.has(field));
     const localId = validateRequiredLocalId(
-      readCsvCell(cells, indexMap.localId),
+      read("localId"),
       rowNo,
       seenLocalIds,
     );
-    return normalizeEntry({
+    const normalized = normalizeEntry({
       fiscalPeriodId: input.fiscalPeriodId,
       id: `entry-${input.fiscalPeriodId}-csv-${index + 1}`,
       rowNo,
       localId,
-      date: readCsvCell(cells, indexMap.date),
-      weekday: readCsvCell(cells, indexMap.weekday),
-      debit: readCsvCell(cells, indexMap.debit),
-      debitType: readCsvCell(
-        cells,
-        indexMap.debitType,
-      ) as EntryRecord["debitType"],
-      debitAmount: readCsvCell(cells, indexMap.debitAmount),
-      credit: readCsvCell(cells, indexMap.credit),
-      creditType: readCsvCell(
-        cells,
-        indexMap.creditType,
-      ) as EntryRecord["creditType"],
-      creditAmount: readCsvCell(cells, indexMap.creditAmount),
-      description: readCsvCell(cells, indexMap.description),
-      partner: readCsvCell(cells, indexMap.partner),
-      businessRate: readCsvCell(cells, indexMap.businessRate),
-      taxCategory: readCsvCell(cells, indexMap.taxCategory),
-      businessCategory: readCsvCell(cells, indexMap.businessCategory),
-      lines: parseCsvLinesCell(readCsvCell(cells, indexMap.lines), rowNo),
+      date: read("date"),
+      weekday: read("weekday"),
+      debit: read("debit"),
+      debitType: read("debitType") as EntryRecord["debitType"],
+      debitAmount: read("debitAmount"),
+      credit: read("credit"),
+      creditType: read("creditType") as EntryRecord["creditType"],
+      creditAmount: read("creditAmount"),
+      description: read("description"),
+      partner: read("partner"),
+      businessRate: read("businessRate"),
+      businessRateRatio: read("businessRateRatio"),
+      taxCategory: read("taxCategory"),
+      businessCategory: read("businessCategory"),
+      lines: parseCsvLinesCell(read("lines"), rowNo),
     });
+    importLineCount += normalized.lines?.length ?? 2;
+    assertJournalImportLineCount(importLineCount);
+    return normalized;
   });
+}
+
+export function decodeJournalImportBytes(bytes: Uint8Array): string {
+  assertJournalImportSize(bytes.byteLength);
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch (error) {
+    throw new AppError({
+      messageForDeveloper: "entries import is not valid UTF-8",
+      messageForUser:
+        "取込ファイルの文字コードを確認できませんでした。UTF-8形式で保存してからもう一度取り込んでください。",
+      originalMessage: error instanceof Error ? error.message : String(error),
+      statusCode: null,
+    });
+  }
 }
 
 function parseCsvLinesCell(
@@ -237,6 +312,7 @@ function normalizeEntry(input: {
   description: string;
   partner: string;
   businessRate: string;
+  businessRateRatio?: unknown;
   taxCategory: string;
   businessCategory: string;
   lines?: EntryLine[];
@@ -247,46 +323,117 @@ function normalizeEntry(input: {
       input.rowNo,
     );
   }
-  return {
+  const result: EntryRecord = {
     id: input.id,
     localId: input.localId,
     fiscalPeriodId: input.fiscalPeriodId,
     date: input.date,
-    weekday:
-      input.weekday && input.weekday.length > 0
-        ? input.weekday
-        : weekdayFromDate(input.date),
-    debit: input.debit || "未設定",
-    debitType: normalizeType(input.debitType),
-    debitAmount: normalizeAmount(input.debitAmount),
-    credit: input.credit || "未設定",
-    creditType: normalizeType(input.creditType),
-    creditAmount: normalizeAmount(input.creditAmount),
+    weekday: weekdayFromDate(input.date),
+    debit: input.debit.trim(),
+    debitType: normalizeType(input.debitType, input.rowNo, "debit type"),
+    debitAmount: normalizeAmount(
+      input.debitAmount,
+      input.rowNo,
+      "debit amount",
+    ),
+    credit: input.credit.trim(),
+    creditType: normalizeType(input.creditType, input.rowNo, "credit type"),
+    creditAmount: normalizeAmount(
+      input.creditAmount,
+      input.rowNo,
+      "credit amount",
+    ),
     description: input.description || "",
     partner: input.partner || "",
     businessRate: input.businessRate || "100",
+    businessRateRatio: normalizeBusinessRateRatio(
+      input.businessRateRatio,
+      input.rowNo,
+    ),
     taxCategory: input.taxCategory || "対象外",
     businessCategory: input.businessCategory || "対象外",
-    lines: normalizeLines(input.lines),
+    lines: normalizeLines(input.lines, input.rowNo),
   };
+  assertNormalizedEntry(result, input.rowNo);
+  return result;
+}
+
+function normalizeBusinessRateRatio(
+  value: unknown,
+  rowNo: number,
+): number | undefined {
+  if (value == null || value === "") return undefined;
+  const rate =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value.trim())
+        : Number.NaN;
+  if (!Number.isFinite(rate) || rate < 0 || rate > 1) {
+    throw importFileRowError(
+      `row ${rowNo}: invalid exact business rate`,
+      rowNo,
+    );
+  }
+  return rate;
 }
 
 function normalizeLines(
   lines: EntryLine[] | undefined,
+  rowNo: number,
 ): EntryLine[] | undefined {
   if (lines == null || lines.length === 0) return undefined;
-  return lines.map((line) => ({
-    side: line.side === "credit" ? "credit" : "debit",
-    accountName: line.accountName || "未設定",
-    accountType: normalizeType(line.accountType),
-    amount: normalizeAmount(line.amount),
-    ...(line.bookAccountId != null && line.bookAccountId.length > 0
-      ? { bookAccountId: line.bookAccountId }
-      : {}),
-  }));
+  assertJournalEntryLineCount(lines.length);
+  return lines.map((line, index) => {
+    if (!isRecord(line)) {
+      throw importFileRowError(
+        `row ${rowNo}: line ${index + 1} must be an object`,
+        rowNo,
+      );
+    }
+    if (line.side !== "debit" && line.side !== "credit") {
+      throw importFileRowError(
+        `row ${rowNo}: line ${index + 1} has invalid side`,
+        rowNo,
+      );
+    }
+    const accountName = stringValue(line.accountName).trim();
+    if (accountName === "") {
+      throw importFileRowError(
+        `row ${rowNo}: line ${index + 1} account is required`,
+        rowNo,
+      );
+    }
+    const bookAccountId = stringValue(line.bookAccountId).trim();
+    const partnerName = stringValue(line.partnerName).trim();
+    const taxCategoryId = stringValue(line.taxCategoryId).trim();
+    const businessCategoryId = stringValue(line.businessCategoryId).trim();
+    return {
+      side: line.side,
+      accountName,
+      accountType: normalizeType(
+        stringValue(line.accountType),
+        rowNo,
+        `line ${index + 1} account type`,
+      ),
+      amount: normalizeAmount(
+        stringValue(line.amount),
+        rowNo,
+        `line ${index + 1} amount`,
+      ),
+      ...(bookAccountId !== "" ? { bookAccountId } : {}),
+      ...(partnerName !== "" ? { partnerName } : {}),
+      ...(taxCategoryId !== "" ? { taxCategoryId } : {}),
+      ...(businessCategoryId !== "" ? { businessCategoryId } : {}),
+    };
+  });
 }
 
-function normalizeType(value: string): EntryRecord["debitType"] {
+function normalizeType(
+  value: string,
+  rowNo?: number,
+  label = "account type",
+): EntryRecord["debitType"] {
   if (
     value === "asset" ||
     value === "liability" ||
@@ -297,12 +444,21 @@ function normalizeType(value: string): EntryRecord["debitType"] {
   ) {
     return value;
   }
-  return "asset";
+  if (value.trim() === "") return "asset";
+  throw importFileRowError(
+    `row ${rowNo}: invalid ${label} (${value})`,
+    rowNo ?? 0,
+  );
 }
 
-function normalizeAmount(value: string) {
+function normalizeAmount(value: string, rowNo?: number, label = "amount") {
   const n = Number(String(value).replaceAll(",", "").trim());
-  if (!Number.isFinite(n)) return "0";
+  if (!Number.isSafeInteger(n) || n < 0) {
+    throw importFileRowError(
+      `row ${rowNo}: invalid ${label} (${value})`,
+      rowNo ?? 0,
+    );
+  }
   return n.toLocaleString("ja-JP");
 }
 
@@ -311,55 +467,229 @@ function weekdayFromDate(dateText: string) {
 }
 
 function escapeCsvField(value: string) {
-  if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+  if (
+    value.includes(",") ||
+    value.includes('"') ||
+    value.includes("\n") ||
+    value.includes("\r")
+  ) {
     return `"${value.replaceAll('"', '""')}"`;
   }
   return value;
+}
+
+function needsSpreadsheetFormulaProtection(value: string): boolean {
+  return /^[=+\-@\t\r\n]/.test(value);
+}
+
+function parseCsvEscapedFields(
+  cells: string[],
+  indexMap: Record<(typeof csvHeaders)[number], number>,
+  rowNo: number,
+): Set<(typeof journalCsvDataHeaders)[number]> {
+  if (
+    readCsvCell(cells, indexMap.openkkSchema) !== OPENKK_JOURNAL_CSV_SCHEMA
+  ) {
+    return new Set();
+  }
+  const raw = readCsvCell(cells, indexMap.openkkEscapedFields);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw importFileRowError(
+      `row ${rowNo}: invalid escaped fields metadata`,
+      rowNo,
+    );
+  }
+  if (
+    !Array.isArray(parsed) ||
+    parsed.some(
+      (field) =>
+        !isJournalCsvDataHeader(field),
+    )
+  ) {
+    throw importFileRowError(
+      `row ${rowNo}: invalid escaped fields metadata`,
+      rowNo,
+    );
+  }
+  return new Set(parsed as Array<(typeof journalCsvDataHeaders)[number]>);
+}
+
+function isJournalCsvDataHeader(
+  value: unknown,
+): value is (typeof journalCsvDataHeaders)[number] {
+  return (
+    typeof value === "string" &&
+    (journalCsvDataHeaders as readonly string[]).includes(value)
+  );
+}
+
+function readJournalCsvCell(
+  cells: string[],
+  index: number,
+  formulaProtected: boolean,
+): string {
+  const value = readCsvCell(cells, index);
+  return formulaProtected && value.startsWith("'") ? value.slice(1) : value;
 }
 
 function parseCsv(text: string) {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";
-  let inQuotes = false;
+  let state: "start" | "unquoted" | "quoted" | "after_quote" = "start";
+
+  const finishField = () => {
+    row.push(field);
+    field = "";
+    state = "start";
+  };
+  const finishRow = () => {
+    finishField();
+    rows.push(row);
+    row = [];
+  };
+
   for (let i = 0; i < text.length; i += 1) {
     const ch = text[i];
-    if (inQuotes) {
+    if (state === "quoted") {
       if (ch === '"') {
         if (text[i + 1] === '"') {
           field += '"';
           i += 1;
         } else {
-          inQuotes = false;
+          state = "after_quote";
         }
       } else {
         field += ch;
       }
       continue;
     }
+
+    const isLineBreak = ch === "\n" || ch === "\r";
+    if (state === "after_quote") {
+      if (ch === ",") {
+        finishField();
+        continue;
+      }
+      if (isLineBreak) {
+        finishRow();
+        if (ch === "\r" && text[i + 1] === "\n") i += 1;
+        continue;
+      }
+      throw importFileFormatError(
+        "CSV has an unexpected character after a closing quote",
+      );
+    }
+
     if (ch === '"') {
-      inQuotes = true;
+      if (state !== "start") {
+        throw importFileFormatError(
+          "CSV has an unexpected quote in an unquoted field",
+        );
+      }
+      state = "quoted";
       continue;
     }
     if (ch === ",") {
-      row.push(field);
-      field = "";
+      finishField();
       continue;
     }
-    if (ch === "\n") {
-      row.push(field);
-      rows.push(row);
-      row = [];
-      field = "";
+    if (isLineBreak) {
+      finishRow();
+      if (ch === "\r" && text[i + 1] === "\n") i += 1;
       continue;
     }
-    if (ch !== "\r") {
-      field += ch;
+    field += ch;
+    state = "unquoted";
+  }
+  if (state === "quoted") {
+    throw importFileFormatError("CSV has an unterminated quoted field");
+  }
+  finishRow();
+  return rows.filter((r) => r.some((v) => v.trim().length > 0));
+}
+
+function validateJsonLines(
+  value: unknown,
+  rowNo: number,
+): EntryLine[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) {
+    throw importFileRowError(`row ${rowNo}: lines must be an array`, rowNo);
+  }
+  return value as EntryLine[];
+}
+
+function assertNormalizedEntry(entry: EntryRecord, rowNo: number): void {
+  if (entry.description.trim() === "") {
+    throw importFileRowError(`row ${rowNo}: description is required`, rowNo);
+  }
+  const lines =
+    entry.lines != null && entry.lines.length > 0
+      ? entry.lines
+      : [
+          {
+            side: "debit" as const,
+            accountName: entry.debit,
+            accountType: entry.debitType,
+            amount: entry.debitAmount,
+          },
+          {
+            side: "credit" as const,
+            accountName: entry.credit,
+            accountType: entry.creditType,
+            amount: entry.creditAmount,
+          },
+        ];
+  for (const line of lines) {
+    if (line.accountName.trim() === "") {
+      throw importFileRowError(`row ${rowNo}: account is required`, rowNo);
     }
   }
-  row.push(field);
-  rows.push(row);
-  return rows.filter((r) => r.some((v) => v.trim().length > 0));
+  let debitTotal = 0;
+  let creditTotal = 0;
+  for (const line of lines) {
+    const amount = numericAmount(line.amount);
+    if (line.side === "debit") debitTotal += amount;
+    else creditTotal += amount;
+    if (
+      !Number.isSafeInteger(debitTotal) ||
+      !Number.isSafeInteger(creditTotal)
+    ) {
+      throw importFileRowError(
+        `row ${rowNo}: entry totals exceed the safe integer range`,
+        rowNo,
+      );
+    }
+  }
+  if (debitTotal <= 0 || creditTotal <= 0 || debitTotal !== creditTotal) {
+    throw importFileRowError(
+      `row ${rowNo}: debit and credit totals must be positive and equal`,
+      rowNo,
+    );
+  }
+  const rateText = entry.businessRate.trim();
+  const rate = rateText === "" ? 100 : Number(rateText);
+  if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
+    throw importFileRowError(`row ${rowNo}: invalid business rate`, rowNo);
+  }
+}
+
+function numericAmount(value: string): number {
+  return Number(value.replaceAll(",", ""));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value != null && !Array.isArray(value);
+}
+
+function stringValue(value: unknown): string {
+  return typeof value === "string" || typeof value === "number"
+    ? String(value)
+    : "";
 }
 
 function readCsvCell(cells: string[], index: number) {
@@ -395,10 +725,11 @@ function parseEntriesJson(text: string): {
   entries?: unknown;
 } {
   try {
-    return JSON.parse(stripBom(text)) as {
-      schema?: unknown;
-      entries?: unknown;
-    };
+    const parsed: unknown = JSON.parse(stripBom(text));
+    if (!isRecord(parsed)) {
+      throw new Error("journal JSON root must be an object");
+    }
+    return parsed;
   } catch (error) {
     throw new AppError({
       messageForDeveloper: "entries import JSON parse failed",

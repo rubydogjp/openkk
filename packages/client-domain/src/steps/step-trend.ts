@@ -1,9 +1,9 @@
 import {
   computeExpenseContribution,
   computeRevenueContribution,
-  parseBusinessRate,
   type EntrySummaryRow,
 } from "./summary.js";
+import { resolveEntryBusinessRate } from "../entries/entry-record.js";
 import { buildYearMonthRange, parseYearMonth } from "./year-month.js";
 
 export type StepTrendPoint = {
@@ -34,7 +34,7 @@ export function buildStepTrendPoints(input: {
     const key = entry.date.slice(0, 7);
     const bucket = totals.get(key);
     if (bucket == null) continue;
-    const rate = parseBusinessRate(entry.businessRate);
+    const rate = resolveEntryBusinessRate(entry);
     bucket.revenue += computeRevenueContribution(entry, rate);
     bucket.expenses += computeExpenseContribution(entry, rate);
   }

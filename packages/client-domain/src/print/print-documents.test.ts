@@ -37,6 +37,47 @@ describe("print documents", () => {
     expect(html).toContain("50,000");
   });
 
+  it("renders ledgers for opening-only accounts with no current transactions", () => {
+    const html = buildGeneralLedgerDocument("2026年分", [], [
+      { accountId: "a:敷金<保証>", amount: 300_000 },
+      { accountId: "l:元入金", amount: 300_000 },
+    ]);
+
+    expect(html.match(/class="bk-page"/g)).toHaveLength(2);
+    expect(html).toContain("敷金&lt;保証&gt;");
+    expect(html).not.toContain("敷金<保証>");
+    expect(html).toContain("元入金");
+    expect(html).toContain("前期繰越");
+    expect(html).toContain("300,000");
+    expect(html).not.toContain("仕訳データがありません");
+  });
+
+  it("keeps a contrary opening balance in the same account ledger", () => {
+    const html = buildGeneralLedgerDocument(
+      "2026年分",
+      [
+        entry({
+          debit: "現金",
+          debitType: "asset",
+          debitAmount: "100,000",
+        }),
+      ],
+      [{ accountId: "l:現金", amount: 50_000 }],
+    );
+
+    expect(html.match(/class="bk-page"/g)).toHaveLength(2);
+    expect(html).not.toContain("現金（資産）");
+    expect(html).not.toContain("現金（負債）");
+    const openingRow = html.slice(
+      html.indexOf("前期繰越"),
+      html.indexOf("</tr>", html.indexOf("前期繰越")),
+    );
+    expect(openingRow).toContain("50,000");
+    expect(openingRow.indexOf("50,000")).toBeGreaterThan(
+      openingRow.indexOf("</td>", openingRow.indexOf("前期繰越")),
+    );
+  });
+
   it("renders every line of compound entries in journal and ledger documents", () => {
     const compound = entry({
       debit: "仕入",
@@ -77,6 +118,119 @@ describe("print documents", () => {
     expect(ledgerHtml).toContain("荷造運賃");
     expect(ledgerHtml).toContain("未払金");
     expect(ledgerHtml).toContain("42,000");
+  });
+
+  it("creates separate ledgers for same-name accounts with different IDs", () => {
+    const html = buildGeneralLedgerDocument(
+      "2026年分",
+      [
+        entry({
+          id: "cost-bonus",
+          lines: [
+            {
+              side: "debit",
+              accountName: "賞与",
+              accountType: "cost_of_sales",
+              amount: "100",
+              bookAccountId: "acct_cost_of_sales_賞与",
+            },
+            {
+              side: "credit",
+              accountName: "普通預金",
+              accountType: "asset",
+              amount: "100",
+              bookAccountId: "acct_bank",
+            },
+          ],
+        }),
+        entry({
+          id: "expense-bonus",
+          lines: [
+            {
+              side: "debit",
+              accountName: "賞与",
+              accountType: "expense",
+              amount: "200",
+              bookAccountId: "acct_expense_賞与",
+            },
+            {
+              side: "credit",
+              accountName: "普通預金",
+              accountType: "asset",
+              amount: "200",
+              bookAccountId: "acct_bank",
+            },
+          ],
+        }),
+      ],
+      [],
+    );
+
+    expect(html).toContain("賞与（売上原価）");
+    expect(html).toContain("賞与（経費）");
+  });
+
+  it("paginates high-volume journals and ledgers without clipping rows", () => {
+    const entries = Array.from({ length: 60 }, (_, index) =>
+      entry({
+        id: `entry-${index + 1}`,
+        date: `2026-01-${String((index % 28) + 1).padStart(2, "0")}`,
+        description: `row-${index + 1}`,
+        lines: [
+          {
+            side: "debit",
+            accountName: "通信費",
+            accountType: "expense",
+            amount: "100",
+            bookAccountId: "acct_communication",
+          },
+          {
+            side: "credit",
+            accountName: "普通預金",
+            accountType: "asset",
+            amount: "100",
+            bookAccountId: "acct_bank",
+          },
+        ],
+      }),
+    );
+
+    const journalHtml = buildJournalDocument("2026年分", entries);
+    const ledgerHtml = buildGeneralLedgerDocument("2026年分", entries, []);
+    expect(journalHtml.match(/class="bk-page"/g)?.length).toBeGreaterThan(1);
+    expect(ledgerHtml.match(/class="bk-page"/g)?.length).toBeGreaterThan(2);
+    expect(journalHtml).toContain("row-60");
+    expect(ledgerHtml).toContain("row-60");
+    expect(journalHtml).not.toContain("overflow:hidden");
+    expect(ledgerHtml).not.toContain("overflow:hidden");
+  });
+
+  it("splits a single oversized compound journal across pages", () => {
+    const debitLines = Array.from({ length: 35 }, (_, index) => ({
+      side: "debit" as const,
+      accountName: `経費${index + 1}`,
+      accountType: "expense" as const,
+      amount: "1",
+    }));
+    const compound = entry({
+      description: "35行の複合仕訳",
+      lines: [
+        ...debitLines,
+        {
+          side: "credit",
+          accountName: "現金",
+          accountType: "asset",
+          amount: "35",
+        },
+      ],
+    });
+
+    const html = buildJournalDocument("2026年分", [compound]);
+
+    expect(html.match(/class="bk-page"/g)).toHaveLength(2);
+    expect(html).toContain("経費35");
+    expect(html.match(/35行の複合仕訳/g)).toHaveLength(1);
+    expect(html.match(/1月分 合計/g)).toHaveLength(1);
   });
 
   it("normalises non-finite printed amounts to blanks", () => {

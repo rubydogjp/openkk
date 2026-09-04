@@ -8,6 +8,7 @@ export { parseAmount, parseBusinessRate } from "../shared/parse-utils.js";
 
 export type EntrySummaryRow = {
   businessRate: string;
+  businessRateRatio?: number;
   debitType: string;
   debitAmount: string;
   creditType: string;

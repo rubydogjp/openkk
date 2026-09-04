@@ -29,12 +29,15 @@ export type EntryPreviewRow = {
   debit: string;
   debitType: EntryAccountVisualType;
   debitAmount: string;
+  debitBookAccountId?: string;
   credit: string;
   creditType: EntryAccountVisualType;
   creditAmount: string;
+  creditBookAccountId?: string;
   description: string;
   partner: string;
   businessRate: string;
+  businessRateRatio?: number;
   taxCategory: string;
   businessCategory: string;
   virtual?: VirtualEntrySource;

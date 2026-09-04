@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { parseAmount, parseBusinessRate, parseIsoLocalDate } from "./parse-utils.js";
+import {
+  formatBusinessRatePercent,
+  parseAmount,
+  parseBusinessRate,
+  parseIsoLocalDate,
+} from "./parse-utils.js";
 
 describe("parseAmount", () => {
   it("treats non-finite numeric amounts as zero", () => {
@@ -13,6 +18,11 @@ describe("parseBusinessRate", () => {
   it("treats non-finite rates as the default full business rate", () => {
     expect(parseBusinessRate("Infinity")).toBe(1);
     expect(parseBusinessRate("-Infinity")).toBe(1);
+  });
+
+  it("formats fractional backend rates without rounding to a whole percent", () => {
+    expect(formatBusinessRatePercent(0.3333)).toBe("33.33");
+    expect(formatBusinessRatePercent(0.29)).toBe("29");
   });
 });
 

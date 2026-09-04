@@ -34,3 +34,22 @@ export function validateFiscalPeriodDates(
   }
   return { ok: true };
 }
+
+export function hasActiveFiscalPeriodOverlap(
+  input: { startDate: string; endDate: string },
+  periods: ReadonlyArray<{
+    id: string;
+    startDate: string;
+    endDate: string;
+    archiveStatus: string;
+  }>,
+  excludedPeriodId?: string,
+): boolean {
+  return periods.some(
+    (period) =>
+      period.id !== excludedPeriodId &&
+      period.archiveStatus === "active" &&
+      input.startDate <= period.endDate &&
+      input.endDate >= period.startDate,
+  );
+}

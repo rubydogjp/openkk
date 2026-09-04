@@ -88,7 +88,7 @@ export function computeStraightLineDepreciation(
   const depreciableAmount = Math.max(0, cost - (cost > 0 ? 1 : 0));
   const accumulated = Math.min(
     depreciableAmount,
-    Math.floor(depreciableAmount * progress),
+    Math.floor((depreciableAmount * elapsedMonths) / totalMonths),
   );
   const currentBookValue = Math.max(cost > 0 ? 1 : 0, cost - accumulated);
 

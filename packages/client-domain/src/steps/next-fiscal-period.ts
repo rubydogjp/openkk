@@ -1,14 +1,15 @@
-import { DEFAULT_BOOK_ACCOUNTS } from "../entries/default-master-data.js";
+import {
+  DEFAULT_BOOK_ACCOUNTS,
+  DEFAULT_BUSINESS_CATEGORIES,
+  DEFAULT_TAX_CATEGORIES,
+} from "../entries/default-master-data.js";
 import {
   getEntryLines,
+  resolveEntryBusinessRate,
   type EntryLine,
   type EntryRecord,
 } from "../entries/entry-record.js";
-import {
-  parseAmount,
-  parseBusinessRate,
-  parseIsoLocalDate,
-} from "../shared/parse-utils.js";
+import { parseAmount, parseIsoLocalDate } from "../shared/parse-utils.js";
 
 export type NextFiscalPeriodSuggestion = {
   name: string;
@@ -20,13 +21,24 @@ export function buildNextFiscalPeriodSuggestion(input: {
   startDate: string;
   endDate: string;
 }): NextFiscalPeriodSuggestion {
-  const startDate = addYearsToIsoDate(input.startDate, 1) ?? input.startDate;
+  const startDate = addDaysToIsoDate(input.endDate, 1) ?? input.endDate;
   const endDate = addYearsToIsoDate(input.endDate, 1) ?? input.endDate;
   return {
     name: `${endDate.slice(0, 4)}年分`,
     startDate,
     endDate,
   };
+}
+
+function addDaysToIsoDate(value: string, days: number): string | null {
+  const date = parseIsoLocalDate(value);
+  if (date == null) return null;
+  date.setDate(date.getDate() + days);
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
 }
 
 type OpeningCarryoverJournal = {
@@ -73,6 +85,7 @@ export function buildOpeningCarryoverJournalsFromReversibleEntries(input: {
 
   for (const entry of input.entries) {
     const lines = getEntryLines(entry);
+    if (!areEntryLinesBalanced(lines)) continue;
     const balanceLines = lines.filter(isReversibleBalanceLine);
     const profitLossLines = lines.filter((line) =>
       PROFIT_LOSS_TYPES.has(line.accountType),
@@ -89,7 +102,7 @@ export function buildOpeningCarryoverJournalsFromReversibleEntries(input: {
         id: journalId,
         date: input.nextStartDate,
         description: `再振替: ${entry.description}`,
-        businessRate: parseBusinessRate(entry.businessRate),
+        businessRate: resolveEntryBusinessRate(entry),
         lines: [
           toOpeningJournalLine(`${journalId}-b`, reversedBalanceLine, entry),
           toOpeningJournalLine(`${journalId}-p`, reversedProfitLossLine, entry),
@@ -114,6 +127,21 @@ function reverseLine(line: EntryLine, amount: number): EntryLine {
     side: line.side === "debit" ? "credit" : "debit",
     amount: new Intl.NumberFormat("ja-JP").format(amount),
   };
+}
+
+function areEntryLinesBalanced(lines: EntryLine[]): boolean {
+  let debitTotal = 0;
+  let creditTotal = 0;
+  for (const line of lines) {
+    const amount = parseAmount(line.amount);
+    if (!Number.isSafeInteger(amount) || amount <= 0) return false;
+    if (line.side === "debit") debitTotal += amount;
+    else creditTotal += amount;
+    if (!Number.isSafeInteger(debitTotal) || !Number.isSafeInteger(creditTotal)) {
+      return false;
+    }
+  }
+  return debitTotal > 0 && debitTotal === creditTotal;
 }
 
 function matchReversiblePairs(
@@ -154,12 +182,6 @@ function matchReversiblePairs(
     }
   }
 
-  if (
-    remainingBalanceLines.some((item) => item.remaining > 0) ||
-    remainingProfitLossLines.some((item) => item.remaining > 0)
-  ) {
-    return [];
-  }
   return pairs;
 }
 
@@ -173,10 +195,52 @@ function toOpeningJournalLine(
     side: line.side,
     bookAccountId: resolveBookAccountId(line),
     amount: parseAmount(line.amount),
-    partnerName: entry.partner,
-    taxCategoryId: entry.taxCategory,
-    businessCategoryId: entry.businessCategory,
+    partnerName: line.partnerName ?? entry.partner,
+    taxCategoryId: resolveCategoryId({
+      explicitId:
+        line.taxCategoryId ??
+        (line.side === "debit"
+          ? entry.debitTaxCategoryId
+          : entry.creditTaxCategoryId),
+      displayValue: entry.taxCategory,
+      categories: DEFAULT_TAX_CATEGORIES,
+      blankFallbackId: "tax_out_of_scope",
+    }),
+    businessCategoryId: resolveCategoryId({
+      explicitId:
+        line.businessCategoryId ??
+        (line.side === "debit"
+          ? entry.debitBusinessCategoryId
+          : entry.creditBusinessCategoryId),
+      displayValue: entry.businessCategory,
+      categories: DEFAULT_BUSINESS_CATEGORIES,
+      blankFallbackId: "biz_none",
+    }),
   };
+}
+
+function resolveCategoryId(input: {
+  explicitId?: string;
+  displayValue: string;
+  categories: Array<{ id: string; name: string }>;
+  blankFallbackId: string;
+}): string {
+  const explicit = input.explicitId?.trim() ?? "";
+  if (explicit !== "") {
+    return (
+      input.categories.find(
+        (category) =>
+          category.id === explicit || category.name === explicit,
+      )?.id ?? explicit
+    );
+  }
+  const display = input.displayValue.trim();
+  if (display === "") return input.blankFallbackId;
+  return (
+    input.categories.find(
+      (category) => category.id === display || category.name === display,
+    )?.id ?? display
+  );
 }
 
 function resolveBookAccountId(line: EntryLine): string {

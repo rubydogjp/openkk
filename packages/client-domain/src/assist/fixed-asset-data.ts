@@ -27,6 +27,7 @@ export type FixedAssetDraft = {
   acquisitionCost: string; // 金額入力（カンマ区切り可）
   usefulLife: number; // 耐用年数（年）
   businessRatePercent: number; // 事業割合 0..100
+  businessRateRatio?: number;
   status: string;
   disposalDate?: string;
   disposalPrice?: string;

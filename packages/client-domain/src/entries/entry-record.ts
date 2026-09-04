@@ -1,4 +1,7 @@
-import type { EntryAccountVisualType, EntryPreviewRow } from "./entries-types.js";
+import type {
+  EntryAccountVisualType,
+  EntryPreviewRow,
+} from "./entries-types.js";
 import { parseAmount, parseBusinessRate } from "../shared/parse-utils.js";
 
 export type EntryLine = {
@@ -7,10 +10,15 @@ export type EntryLine = {
   accountType: EntryAccountVisualType;
   amount: string;
   bookAccountId?: string;
+  partnerName?: string;
+  taxCategoryId?: string;
+  businessCategoryId?: string;
 };
 
 const OWNER_WITHDRAWAL_ACCOUNT = "事業主貸"; // 費用の個人分（資産・借方）
 const OWNER_DEPOSIT_ACCOUNT = "事業主借"; // 収益の個人分（負債・貸方）
+const OWNER_WITHDRAWAL_ACCOUNT_ID = "acct_proprietor_withdrawal";
+const OWNER_DEPOSIT_ACCOUNT_ID = "acct_proprietor_loan";
 
 function isProfitAndLossType(type: EntryAccountVisualType): boolean {
   return type === "revenue" || type === "expense" || type === "cost_of_sales";
@@ -54,6 +62,9 @@ export function applyBusinessRateToLines(
         accountName,
         accountType,
         amount: formatYen(personal),
+        bookAccountId: toDeposit
+          ? OWNER_DEPOSIT_ACCOUNT_ID
+          : OWNER_WITHDRAWAL_ACCOUNT_ID,
       });
     }
   }
@@ -66,8 +77,18 @@ export function getBusinessAdjustedEntryLines(
 ): EntryLine[] {
   return applyBusinessRateToLines(
     getEntryLines(record),
-    parseBusinessRate(record.businessRate),
+    resolveEntryBusinessRate(record),
   );
+}
+
+export function resolveEntryBusinessRate(record: {
+  businessRate: string;
+  businessRateRatio?: number;
+}): number {
+  const exact = record.businessRateRatio;
+  return exact != null && Number.isFinite(exact) && exact >= 0 && exact <= 1
+    ? exact
+    : parseBusinessRate(record.businessRate);
 }
 
 export const BUSINESS_RATE_TRANSFER_LOCAL_ID = "virtual:business-rate-transfer";
@@ -87,15 +108,29 @@ export function buildBusinessRateTransferEntry(input: {
 }): EntryRecord | null {
   const delta = new Map<
     string,
-    { accountType: EntryAccountVisualType; signed: number }
+    {
+      accountName: string;
+      accountType: EntryAccountVisualType;
+      bookAccountId?: string;
+      signed: number;
+    }
   >();
   const accumulate = (lines: EntryLine[], factor: number) => {
     for (const line of lines) {
       const signed =
         (line.side === "debit" ? 1 : -1) * parseAmount(line.amount) * factor;
-      const current = delta.get(line.accountName);
+      const key =
+        line.bookAccountId == null || line.bookAccountId === ""
+          ? `legacy:${line.accountType}:${line.accountName}`
+          : `id:${line.bookAccountId}`;
+      const current = delta.get(key);
       if (current == null) {
-        delta.set(line.accountName, { accountType: line.accountType, signed });
+        delta.set(key, {
+          accountName: line.accountName,
+          accountType: line.accountType,
+          bookAccountId: line.bookAccountId,
+          signed,
+        });
       } else {
         current.signed += signed;
       }
@@ -103,7 +138,7 @@ export function buildBusinessRateTransferEntry(input: {
   };
 
   for (const record of input.entries) {
-    const rate = parseBusinessRate(record.businessRate);
+    const rate = resolveEntryBusinessRate(record);
     if (rate >= 1) continue;
     const raw = getEntryLines(record);
     accumulate(applyBusinessRateToLines(raw, rate), 1);
@@ -112,7 +147,12 @@ export function buildBusinessRateTransferEntry(input: {
 
   const debits: EntryLine[] = [];
   const credits: EntryLine[] = [];
-  for (const [accountName, { accountType, signed }] of delta) {
+  for (const {
+    accountName,
+    accountType,
+    bookAccountId,
+    signed,
+  } of delta.values()) {
     const amount = Math.round(signed);
     if (amount === 0) continue;
     const line: EntryLine = {
@@ -120,6 +160,7 @@ export function buildBusinessRateTransferEntry(input: {
       accountName,
       accountType,
       amount: formatYen(Math.abs(amount)),
+      bookAccountId,
     };
     (amount > 0 ? debits : credits).push(line);
   }
@@ -144,6 +185,7 @@ export function buildBusinessRateTransferEntry(input: {
     description: "家事按分の振替",
     partner: "",
     businessRate: "",
+    businessRateRatio: 1,
     taxCategory: "対象外",
     businessCategory: "",
     localId: BUSINESS_RATE_TRANSFER_LOCAL_ID,
@@ -167,6 +209,7 @@ export type EntryRecord = {
   description: string;
   partner: string;
   businessRate: string;
+  businessRateRatio?: number;
   taxCategory: string;
   businessCategory: string;
   localId?: string;
@@ -189,6 +232,9 @@ export function getEntryLines(record: EntryRecord): EntryLine[] {
       accountType: record.debitType,
       amount: record.debitAmount,
       bookAccountId: record.debitBookAccountId,
+      partnerName: record.partner,
+      taxCategoryId: record.debitTaxCategoryId,
+      businessCategoryId: record.debitBusinessCategoryId,
     },
     {
       side: "credit",
@@ -196,6 +242,9 @@ export function getEntryLines(record: EntryRecord): EntryLine[] {
       accountType: record.creditType,
       amount: record.creditAmount,
       bookAccountId: record.creditBookAccountId,
+      partnerName: record.partner,
+      taxCategoryId: record.creditTaxCategoryId,
+      businessCategoryId: record.creditBusinessCategoryId,
     },
   ];
 }
@@ -232,12 +281,15 @@ export function recordToPreviewRows(record: EntryRecord): EntryPreviewRow[] {
     debit: pair.debit?.accountName ?? "",
     debitType: pair.debit?.accountType ?? "asset",
     debitAmount: pair.debit?.amount ?? "",
+    debitBookAccountId: pair.debit?.bookAccountId,
     credit: pair.credit?.accountName ?? "",
     creditType: pair.credit?.accountType ?? "asset",
     creditAmount: pair.credit?.amount ?? "",
+    creditBookAccountId: pair.credit?.bookAccountId,
     description: record.description,
     partner: record.partner,
     businessRate: record.businessRate,
+    businessRateRatio: record.businessRateRatio,
     taxCategory: record.taxCategory,
     businessCategory: record.businessCategory,
   }));

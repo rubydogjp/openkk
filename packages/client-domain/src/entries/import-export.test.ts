@@ -2,11 +2,22 @@ import { describe, expect, it } from "vitest";
 
 import { AppError } from "../shared/app-error.js";
 import {
+  assertJournalImportSize,
+  decodeJournalImportBytes,
   exportEntriesAsJson,
   exportEntriesAsCsv,
   importEntriesFromJson,
   importEntriesFromCsv,
 } from "./import-export.js";
+import {
+  assertJournalImportEntryCount,
+  assertJournalImportLineCount,
+  assertJournalEntryLineCount,
+  MAX_JOURNAL_IMPORT_ENTRIES,
+  MAX_JOURNAL_IMPORT_LINES,
+  MAX_JOURNAL_ENTRY_LINES,
+  MAX_JOURNAL_IMPORT_SIZE,
+} from "./journal-import-policy.js";
 import type { EntryRecord } from "./entry-record.js";
 
 function entry(overrides: Partial<EntryRecord> = {}): EntryRecord {
@@ -31,10 +42,57 @@ function entry(overrides: Partial<EntryRecord> = {}): EntryRecord {
   };
 }
 
+describe("journal import limits", () => {
+  it("rejects oversized files before reading or parsing their contents", () => {
+    expect(() => assertJournalImportSize(MAX_JOURNAL_IMPORT_SIZE)).not.toThrow();
+    expect(() =>
+      assertJournalImportSize(MAX_JOURNAL_IMPORT_SIZE + 1),
+    ).toThrow(/size limit/);
+  });
+
+  it("rejects malformed UTF-8 instead of silently replacing bytes", () => {
+    expect(() => decodeJournalImportBytes(Uint8Array.of(0xc3, 0x28))).toThrow(
+      /not valid UTF-8/,
+    );
+  });
+
+  it("rejects oversized batches before normalizing every row", () => {
+    expect(() =>
+      assertJournalImportEntryCount(MAX_JOURNAL_IMPORT_ENTRIES),
+    ).not.toThrow();
+    expect(() =>
+      assertJournalImportEntryCount(MAX_JOURNAL_IMPORT_ENTRIES + 1),
+    ).toThrow(/too many entries/);
+  });
+
+  it("rejects an oversized compound entry before normalizing every line", () => {
+    expect(() =>
+      assertJournalEntryLineCount(MAX_JOURNAL_ENTRY_LINES),
+    ).not.toThrow();
+    expect(() =>
+      assertJournalEntryLineCount(MAX_JOURNAL_ENTRY_LINES + 1),
+    ).toThrow(/too many lines/);
+  });
+
+  it("rejects an oversized total across otherwise bounded entries", () => {
+    expect(() =>
+      assertJournalImportLineCount(MAX_JOURNAL_IMPORT_LINES),
+    ).not.toThrow();
+    expect(() =>
+      assertJournalImportLineCount(MAX_JOURNAL_IMPORT_LINES + 1),
+    ).toThrow(/too many lines/);
+  });
+});
+
 describe("JSON export/import round-trip", () => {
   it("preserves all fields through export then import", () => {
     const original = [
-      entry({ id: "e-1", localId: "sale-jan" }),
+      entry({
+        id: "e-1",
+        localId: "sale-jan",
+        businessRate: "33.3333333333",
+        businessRateRatio: 1 / 3,
+      }),
       entry({
         id: "e-2",
         localId: "rent-jan",
@@ -57,6 +115,7 @@ describe("JSON export/import round-trip", () => {
     expect(imported).toHaveLength(2);
     expect(imported[0]?.localId).toBe("sale-jan");
     expect(imported[0]?.debit).toBe("普通預金");
+    expect(imported[0]?.businessRateRatio).toBe(1 / 3);
     expect(imported[1]?.localId).toBe("rent-jan");
     expect(imported[1]?.debit).toBe("地代家賃");
     expect(imported[0]?.fiscalPeriodId).toBe("fp-2");
@@ -67,6 +126,21 @@ describe("JSON export/import round-trip", () => {
     const json = exportEntriesAsJson([e]);
     const parsed = JSON.parse(json) as { entries: Array<{ localId: string }> };
     expect(parsed.entries[0]?.localId).toBe("entry-xyz");
+  });
+
+  it("falls back to id when a persisted localId is blank", () => {
+    const e = entry({ id: "entry-blank", localId: "" });
+    const json = exportEntriesAsJson([e]);
+    const parsed = JSON.parse(json) as { entries: Array<{ localId: string }> };
+    expect(parsed.entries[0]?.localId).toBe("entry-blank");
+    expect(
+      importEntriesFromJson({ text: json, fiscalPeriodId: "fp-2" })[0]?.localId,
+    ).toBe("entry-blank");
+
+    const csv = exportEntriesAsCsv([e]);
+    expect(
+      importEntriesFromCsv({ text: csv, fiscalPeriodId: "fp-2" })[0]?.localId,
+    ).toBe("entry-blank");
   });
 
   it("accepts JSON with a leading UTF-8 BOM", () => {
@@ -94,6 +168,9 @@ describe("JSON export/import round-trip", () => {
           accountType: "cost_of_sales",
           amount: "168,000",
           bookAccountId: "acct_cost_of_sales_商品仕入高",
+          partnerName: "仕入先A",
+          taxCategoryId: "tax_8",
+          businessCategoryId: "biz_2",
         },
         {
           side: "debit",
@@ -118,6 +195,38 @@ describe("JSON export/import round-trip", () => {
     });
 
     expect(imported[0]?.lines).toEqual(original.lines);
+  });
+
+  it("preserves simple-entry account and category IDs as exported lines", () => {
+    const original = entry({
+      lines: undefined,
+      debitBookAccountId: "acct_bank_custom",
+      creditBookAccountId: "acct_sales_custom",
+      debitTaxCategoryId: "tax_debit_custom",
+      creditTaxCategoryId: "tax_credit_custom",
+      debitBusinessCategoryId: "biz_debit_custom",
+      creditBusinessCategoryId: "biz_credit_custom",
+    });
+
+    const imported = importEntriesFromJson({
+      text: exportEntriesAsJson([original]),
+      fiscalPeriodId: "fp-2",
+    });
+
+    expect(imported[0]?.lines).toEqual([
+      expect.objectContaining({
+        side: "debit",
+        bookAccountId: "acct_bank_custom",
+        taxCategoryId: "tax_debit_custom",
+        businessCategoryId: "biz_debit_custom",
+      }),
+      expect.objectContaining({
+        side: "credit",
+        bookAccountId: "acct_sales_custom",
+        taxCategoryId: "tax_credit_custom",
+        businessCategoryId: "biz_credit_custom",
+      }),
+    ]);
   });
 });
 
@@ -147,6 +256,18 @@ describe("importEntriesFromJson — error handling", () => {
     expect((error as AppError).messageForUser).toContain("取込ファイル");
   });
 
+  it("reports a format error when the JSON root is not an object", () => {
+    for (const text of ["null", "[]", '"journal"']) {
+      const error = captureError(() =>
+        importEntriesFromJson({ text, fiscalPeriodId: "fp-1" }),
+      );
+
+      expect(error).toBeInstanceOf(AppError);
+      expect((error as AppError).messageForDeveloper).toContain("JSON parse");
+      expect((error as AppError).messageForUser).toContain("JSONファイル");
+    }
+  });
+
   it("throws when entries is not an array", () => {
     expect(() =>
       importEntriesFromJson({
@@ -165,11 +286,11 @@ describe("importEntriesFromJson — error handling", () => {
           date: "2026-01-01",
           debit: "現金",
           debitType: "asset",
-          debitAmount: "0",
+          debitAmount: "100",
           credit: "売上",
           creditType: "revenue",
-          creditAmount: "0",
-          description: "",
+          creditAmount: "100",
+          description: "旧形式の取引",
           partner: "",
           businessRate: "",
           taxCategory: "対象外",
@@ -190,11 +311,11 @@ describe("importEntriesFromJson — error handling", () => {
           date: "2026-01-01",
           debit: "現金",
           debitType: "asset",
-          debitAmount: "0",
+          debitAmount: "100",
           credit: "売上",
           creditType: "revenue",
-          creditAmount: "0",
-          description: "",
+          creditAmount: "100",
+          description: "現金売上",
           partner: "",
           businessRate: "",
           taxCategory: "対象外",
@@ -279,7 +400,7 @@ describe("importEntriesFromJson — error handling", () => {
           credit: "売上",
           creditType: "revenue",
           creditAmount: "5000",
-          description: "",
+          description: "現金売上",
           partner: "",
           businessRate: "",
           taxCategory: "",
@@ -293,7 +414,7 @@ describe("importEntriesFromJson — error handling", () => {
     expect(e?.weekday).toBeTruthy();
   });
 
-  it("normalises non-finite imported amounts to zero", () => {
+  it("rejects non-finite imported amounts instead of silently using zero", () => {
     const json = JSON.stringify({
       entries: [
         {
@@ -305,7 +426,7 @@ describe("importEntriesFromJson — error handling", () => {
           credit: "売上",
           creditType: "revenue",
           creditAmount: "-Infinity",
-          description: "",
+          description: "不正金額",
           partner: "",
           businessRate: "",
           taxCategory: "",
@@ -314,10 +435,102 @@ describe("importEntriesFromJson — error handling", () => {
       ],
     });
 
-    const [e] = importEntriesFromJson({ text: json, fiscalPeriodId: "fp-1" });
+    expect(() =>
+      importEntriesFromJson({ text: json, fiscalPeriodId: "fp-1" }),
+    ).toThrow(/row 1: invalid debit amount/);
+  });
 
-    expect(e?.debitAmount).toBe("0");
-    expect(e?.creditAmount).toBe("0");
+  it("rejects an invalid exact business rate", () => {
+    const payload = JSON.parse(exportEntriesAsJson([entry()])) as {
+      entries: Array<{ businessRateRatio?: unknown }>;
+    };
+    payload.entries[0]!.businessRateRatio = 1.01;
+
+    expect(() =>
+      importEntriesFromJson({
+        text: JSON.stringify(payload),
+        fiscalPeriodId: "fp-1",
+      }),
+    ).toThrow(/row 1: invalid exact business rate/);
+  });
+
+  it("rejects compound totals outside the safe integer range", () => {
+    const amount = String(Number.MAX_SAFE_INTEGER);
+    const json = exportEntriesAsJson([
+      entry({
+        lines: [
+          {
+            side: "debit",
+            accountName: "現金",
+            accountType: "asset",
+            amount,
+          },
+          {
+            side: "debit",
+            accountName: "現金",
+            accountType: "asset",
+            amount,
+          },
+          {
+            side: "credit",
+            accountName: "売上",
+            accountType: "revenue",
+            amount,
+          },
+          {
+            side: "credit",
+            accountName: "売上",
+            accountType: "revenue",
+            amount,
+          },
+        ],
+      }),
+    ]);
+
+    expect(() =>
+      importEntriesFromJson({ text: json, fiscalPeriodId: "fp-1" }),
+    ).toThrow(/row 1: entry totals exceed the safe integer range/);
+  });
+
+  it("rejects non-object entries and malformed compound lines with row context", () => {
+    expect(() =>
+      importEntriesFromJson({
+        text: JSON.stringify({ entries: [null] }),
+        fiscalPeriodId: "fp-1",
+      }),
+    ).toThrow(/row 1: entry must be an object/);
+
+    const malformed = JSON.parse(exportEntriesAsJson([entry()])) as {
+      entries: Array<Record<string, unknown>>;
+    };
+    malformed.entries[0]!.lines = [null];
+    expect(() =>
+      importEntriesFromJson({
+        text: JSON.stringify(malformed),
+        fiscalPeriodId: "fp-1",
+      }),
+    ).toThrow(/row 1: line 1 must be an object/);
+
+    malformed.entries[0]!.lines = [
+      {
+        side: "debit",
+        accountName: "現金",
+        accountType: "asset",
+        amount: 1.5,
+      },
+      {
+        side: "credit",
+        accountName: "売上",
+        accountType: "revenue",
+        amount: 1.5,
+      },
+    ];
+    expect(() =>
+      importEntriesFromJson({
+        text: JSON.stringify(malformed),
+        fiscalPeriodId: "fp-1",
+      }),
+    ).toThrow(/row 1: invalid line 1 amount/);
   });
 });
 
@@ -333,7 +546,11 @@ function captureError(fn: () => unknown): unknown {
 describe("CSV export/import round-trip", () => {
   it("preserves all fields through export then import", () => {
     const original = [
-      entry({ localId: "a1" }),
+      entry({
+        localId: "a1",
+        businessRate: "33.3333333333",
+        businessRateRatio: 1 / 3,
+      }),
       entry({
         id: "e-2",
         localId: "a2",
@@ -354,6 +571,7 @@ describe("CSV export/import round-trip", () => {
     expect(imported).toHaveLength(2);
     expect(imported[0]?.localId).toBe("a1");
     expect(imported[0]?.debit).toBe("普通預金");
+    expect(imported[0]?.businessRateRatio).toBe(1 / 3);
     expect(imported[1]?.localId).toBe("a2");
     expect(imported[1]?.debit).toBe("地代家賃");
     expect(imported[0]?.debitType).toBe("asset");
@@ -375,6 +593,9 @@ describe("CSV export/import round-trip", () => {
           accountType: "cost_of_sales",
           amount: "168,000",
           bookAccountId: "acct_cost_of_sales_商品仕入高",
+          partnerName: "仕入先A",
+          taxCategoryId: "tax_8",
+          businessCategoryId: "biz_2",
         },
         {
           side: "debit",
@@ -418,6 +639,16 @@ describe("CSV export/import round-trip", () => {
     expect(imported[0]?.partner).toBe("株式会社,テスト");
   });
 
+  it("preserves carriage returns inside exported fields", () => {
+    const description = "1行目\r2行目";
+    const imported = importEntriesFromCsv({
+      text: exportEntriesAsCsv([entry({ description })]),
+      fiscalPeriodId: "fp-1",
+    });
+
+    expect(imported[0]?.description).toBe(description);
+  });
+
   it("handles CRLF line endings", () => {
     const csv = exportEntriesAsCsv([entry({ localId: "crlf1" })]).replace(
       /\n/g,
@@ -449,9 +680,57 @@ describe("CSV export/import round-trip", () => {
     });
     expect(imported).toHaveLength(0);
   });
+
+  it("protects spreadsheet formulas without changing re-imported values", () => {
+    const original = entry({
+      localId: "=local-id",
+      description: "+SUM(1,2)",
+      partner: "@partner",
+      taxCategory: "-1+2",
+    });
+    const csv = exportEntriesAsCsv([original]);
+
+    expect(csv).toContain("'=local-id");
+    expect(csv).toContain("'+SUM(1,2)");
+    expect(csv).toContain("'@partner");
+    expect(csv).toContain("'-1+2");
+    const imported = importEntriesFromCsv({ text: csv, fiscalPeriodId: "fp-2" });
+    expect(imported[0]?.localId).toBe(original.localId);
+    expect(imported[0]?.description).toBe(original.description);
+    expect(imported[0]?.partner).toBe(original.partner);
+    expect(imported[0]?.taxCategory).toBe(original.taxCategory);
+  });
+
+  it("does not strip a user's literal leading apostrophe", () => {
+    const description = "'=literal text";
+    const imported = importEntriesFromCsv({
+      text: exportEntriesAsCsv([entry({ description })]),
+      fiscalPeriodId: "fp-2",
+    });
+
+    expect(imported[0]?.description).toBe(description);
+  });
+
+  it("recomputes weekday from the imported date", () => {
+    const imported = importEntriesFromCsv({
+      text: exportEntriesAsCsv([entry({ weekday: "誤" })]),
+      fiscalPeriodId: "fp-2",
+    });
+
+    expect(imported[0]?.weekday).toBe("木");
+  });
 });
 
 describe("importEntriesFromCsv — error handling", () => {
+  it("rejects a malformed header even when there are no data rows", () => {
+    expect(() =>
+      importEntriesFromCsv({
+        text: "localId,description",
+        fiscalPeriodId: "fp-1",
+      }),
+    ).toThrow(/CSV header missing/);
+  });
+
   it("throws when required header columns are missing", () => {
     const badCsv = "localId,description\ne1,test";
     expect(() =>
@@ -492,5 +771,34 @@ describe("importEntriesFromCsv — error handling", () => {
         fiscalPeriodId: "fp-1",
       }),
     ).toThrow(/row 2: invalid date \(2026-13-01\)/);
+  });
+
+  it("rejects an unterminated quoted CSV field", () => {
+    const csv = `${exportEntriesAsCsv([entry()])}\n"unterminated`;
+    expect(() =>
+      importEntriesFromCsv({ text: csv, fiscalPeriodId: "fp-1" }),
+    ).toThrow(/unterminated quoted field/);
+  });
+
+  it("rejects quotes in the middle of an unquoted field", () => {
+    const csv = exportEntriesAsCsv([entry()]).replace(
+      "売上入金",
+      '売"上入金',
+    );
+
+    expect(() =>
+      importEntriesFromCsv({ text: csv, fiscalPeriodId: "fp-1" }),
+    ).toThrow(/unexpected quote/);
+  });
+
+  it("rejects characters after a closing quote", () => {
+    const csv = exportEntriesAsCsv([entry()]).replace(
+      "売上入金",
+      '"売上入金"x',
+    );
+
+    expect(() =>
+      importEntriesFromCsv({ text: csv, fiscalPeriodId: "fp-1" }),
+    ).toThrow(/unexpected character after a closing quote/);
   });
 });

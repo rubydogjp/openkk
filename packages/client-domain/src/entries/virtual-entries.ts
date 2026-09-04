@@ -4,14 +4,22 @@ import {
   computeStraightLineDepreciation,
 } from "../assist/fixed-asset-depreciation.js";
 import type { OpeningCarryoverRecord } from "../assist/opening-carryover.js";
-import type { EntryAccountVisualType, EntryPreviewRow } from "./entries-types.js";
+import type {
+  EntryAccountVisualType,
+  EntryPreviewRow,
+} from "./entries-types.js";
 import {
   BUSINESS_RATE_TRANSFER_LOCAL_ID,
   buildBusinessRateTransferEntry,
+  excludeBusinessRateTransfer,
   recordToPreviewRows,
   type EntryRecord,
 } from "./entry-record.js";
-import { parseAmount, parseIsoLocalDate } from "../shared/parse-utils.js";
+import {
+  formatBusinessRatePercent,
+  parseAmount,
+  parseIsoLocalDate,
+} from "../shared/parse-utils.js";
 
 const BUSINESS_RATE_TRANSFER_ROW_ID = "business-rate-transfer";
 
@@ -45,12 +53,15 @@ export function buildVirtualOpeningCarryoverRows(input: {
       debit: record.debit,
       debitType: record.debitType,
       debitAmount: record.debitAmount,
+      debitBookAccountId: record.debitBookAccountId,
       credit: record.credit,
       creditType: record.creditType,
       creditAmount: record.creditAmount,
+      creditBookAccountId: record.creditBookAccountId,
       description: record.description,
       partner: record.partner,
       businessRate: record.businessRate,
+      businessRateRatio: record.businessRateRatio,
       taxCategory: record.taxCategory,
       businessCategory: record.businessCategory,
       virtual: {
@@ -96,20 +107,9 @@ function fixedAssetVirtual(asset: FixedAssetPreviewItem) {
 function businessRateLabel(asset: FixedAssetPreviewItem): string {
   return asset.businessRate == null
     ? ""
-    : String(Math.round(asset.businessRate * 100));
+    : formatBusinessRatePercent(asset.businessRate);
 }
 
-/**
- * 固定資産から当期のバーチャル仕訳行を生成する。
- *
- * - 償却中: 期末月に当期償却費（期首〜期末の月割）を計上。
- * - 売却済: 処分月に「期首〜処分日の当期償却費」＋売却仕訳（処分日簿価で資産を除く）。
- * - 廃棄済: 処分月に「期首〜処分日の当期償却費」＋固定資産除却損で簿価を除却。
- * - 完了(償却済): 備忘価額のみのため仕訳なし。
- *
- * 減価償却費・除却損は全額ベースで計上し、家事按分は businessRate として持たせる。
- * 個人負担分（事業主貸）への振替は集計層（fs-data / summary）で行う。
- */
 export function buildVirtualFixedAssetRows(input: {
   fiscalPeriodId: string;
   assets: FixedAssetPreviewItem[];
@@ -135,7 +135,7 @@ export function buildVirtualFixedAssetRows(input: {
     const truth = fixedAssetTruth(asset);
     if (truth == null) continue;
 
-    if (asset.status === "償却中") {
+    if (asset.status === "償却中" || asset.status === "完了") {
       if (periodEndDate == null || !periodEndDate.startsWith(input.yearMonth)) {
         continue;
       }
@@ -181,7 +181,6 @@ export function buildVirtualFixedAssetRows(input: {
         rows.push(...buildRetirementRows({ asset, disposalDate, bookValue }));
       }
     }
-    // "完了"(retired) は備忘価額のみで仕訳不要。
   }
   return rows;
 }
@@ -204,11 +203,13 @@ function buildDepreciationRows(input: {
     date: monthDay(input.dateText),
     description: `${input.asset.name}の減価償却`,
     businessRate: businessRateLabel(input.asset),
+    businessRateRatio: input.asset.businessRate,
     virtual: fixedAssetVirtual(input.asset),
     debits: [
       {
         accountName: "減価償却費",
         accountType: "expense",
+        bookAccountId: "acct_depreciation",
         amount: depreciation,
       },
     ],
@@ -216,6 +217,7 @@ function buildDepreciationRows(input: {
       {
         accountName: input.asset.account,
         accountType: "asset",
+        bookAccountId: input.asset.accountId,
         amount: depreciation,
       },
     ],
@@ -236,6 +238,7 @@ function buildSaleRows(input: {
     debits.push({
       accountName: "普通預金",
       accountType: "asset",
+      bookAccountId: "acct_bank",
       amount: disposalPrice,
     });
   }
@@ -243,6 +246,7 @@ function buildSaleRows(input: {
     debits.push({
       accountName: "固定資産売却損",
       accountType: "expense",
+      bookAccountId: "acct_expense_固定資産売却損",
       amount: loss,
     });
   }
@@ -250,6 +254,7 @@ function buildSaleRows(input: {
     credits.push({
       accountName: input.asset.account,
       accountType: "asset",
+      bookAccountId: input.asset.accountId,
       amount: input.bookValue,
     });
   }
@@ -257,6 +262,7 @@ function buildSaleRows(input: {
     credits.push({
       accountName: "固定資産売却益",
       accountType: "revenue",
+      bookAccountId: "acct_revenue_固定資産売却益",
       amount: gain,
     });
   }
@@ -265,6 +271,7 @@ function buildSaleRows(input: {
     date: monthDay(input.disposalDate),
     description: `${input.asset.name}の売却`,
     businessRate: businessRateLabel(input.asset),
+    businessRateRatio: input.asset.businessRate,
     virtual: fixedAssetVirtual(input.asset),
     debits,
     credits,
@@ -283,11 +290,13 @@ function buildRetirementRows(input: {
     date: monthDay(input.disposalDate),
     description: `${input.asset.name}の除却`,
     businessRate: businessRateLabel(input.asset),
+    businessRateRatio: input.asset.businessRate,
     virtual: fixedAssetVirtual(input.asset),
     debits: [
       {
         accountName: "固定資産除却損",
         accountType: "expense",
+        bookAccountId: "acct_expense_固定資産除却損",
         amount: input.bookValue,
       },
     ],
@@ -295,6 +304,7 @@ function buildRetirementRows(input: {
       {
         accountName: input.asset.account,
         accountType: "asset",
+        bookAccountId: input.asset.accountId,
         amount: input.bookValue,
       },
     ],
@@ -312,6 +322,7 @@ function formatAmount(value: number): string {
 type VirtualPair = {
   accountName: string;
   accountType: EntryAccountVisualType;
+  bookAccountId?: string;
   amount: number;
 };
 
@@ -320,6 +331,7 @@ function buildVirtualRowsFromPairs(input: {
   date: string;
   description: string;
   businessRate: string;
+  businessRateRatio?: number;
   virtual: EntryPreviewRow["virtual"];
   debits: VirtualPair[];
   credits: VirtualPair[];
@@ -339,12 +351,15 @@ function buildVirtualRowsFromPairs(input: {
       debit: debit?.accountName ?? "",
       debitType: debit?.accountType ?? "asset",
       debitAmount: debit == null ? "" : formatAmount(debit.amount),
+      debitBookAccountId: debit?.bookAccountId,
       credit: credit?.accountName ?? "",
       creditType: credit?.accountType ?? "asset",
       creditAmount: credit == null ? "" : formatAmount(credit.amount),
+      creditBookAccountId: credit?.bookAccountId,
       description: input.description,
       partner: "",
       businessRate: input.businessRate,
+      businessRateRatio: input.businessRateRatio,
       taxCategory: "対象外",
       businessCategory: "",
       virtual: input.virtual,
@@ -441,6 +456,12 @@ export function withClosingVirtualEntries(input: {
   return [...input.entries, ...virtualEntries];
 }
 
+export function buildAnalyticsEntries(
+  input: Parameters<typeof withClosingVirtualEntries>[0],
+): EntryRecord[] {
+  return excludeBusinessRateTransfer(withClosingVirtualEntries(input));
+}
+
 export function buildVirtualBusinessRateTransferRows(input: {
   fiscalPeriodId: string;
   periodStartDate: string | null;
@@ -497,6 +518,7 @@ export function materializeVirtualEntryRows(input: {
           accountName: row.debit,
           accountType: row.debitType,
           amount: row.debitAmount,
+          bookAccountId: row.debitBookAccountId,
         });
       }
       if (row.credit.trim() !== "" && parseAmount(row.creditAmount) > 0) {
@@ -505,6 +527,7 @@ export function materializeVirtualEntryRows(input: {
           accountName: row.credit,
           accountType: row.creditType,
           amount: row.creditAmount,
+          bookAccountId: row.creditBookAccountId,
         });
       }
       return out;
@@ -527,6 +550,7 @@ export function materializeVirtualEntryRows(input: {
       description: first.description,
       partner: first.partner,
       businessRate: first.businessRate,
+      businessRateRatio: first.businessRateRatio,
       taxCategory: first.taxCategory,
       businessCategory: first.businessCategory,
       localId: `virtual:${recordId}`,

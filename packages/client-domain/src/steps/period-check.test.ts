@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  hasActiveFiscalPeriodOverlap,
   isCurrentMonthWithinFiscalPeriod,
   validateFiscalPeriodDates,
 } from "./period-check.js";
@@ -40,6 +41,48 @@ describe("isCurrentMonthWithinFiscalPeriod", () => {
     expect(isCurrentMonthWithinFiscalPeriod("2026-03-01", "2026-09-30", new Date(2026, 1, 28))).toBe(false);
     // one month after end
     expect(isCurrentMonthWithinFiscalPeriod("2026-03-01", "2026-09-30", new Date(2026, 9, 1))).toBe(false);
+  });
+});
+
+describe("hasActiveFiscalPeriodOverlap", () => {
+  const periods = [
+    {
+      id: "fp-active",
+      startDate: "2026-01-01",
+      endDate: "2026-12-31",
+      archiveStatus: "active",
+    },
+    {
+      id: "fp-archived",
+      startDate: "2025-01-01",
+      endDate: "2025-12-31",
+      archiveStatus: "archived",
+    },
+  ];
+
+  it("detects inclusive overlaps with active periods", () => {
+    expect(
+      hasActiveFiscalPeriodOverlap(
+        { startDate: "2026-12-31", endDate: "2027-12-30" },
+        periods,
+      ),
+    ).toBe(true);
+  });
+
+  it("ignores archived and explicitly excluded periods", () => {
+    expect(
+      hasActiveFiscalPeriodOverlap(
+        { startDate: "2025-01-01", endDate: "2025-12-31" },
+        periods,
+      ),
+    ).toBe(false);
+    expect(
+      hasActiveFiscalPeriodOverlap(
+        { startDate: "2026-01-01", endDate: "2026-12-31" },
+        periods,
+        "fp-active",
+      ),
+    ).toBe(false);
   });
 });
 

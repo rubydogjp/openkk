@@ -1,10 +1,21 @@
 import type { OpenkkConfig } from "./openkk-config.js";
 import type { FiscalPeriod } from "./models.js";
 import type { OpenkkUser } from "./user.js";
-import { DEFAULT_BOOK_ACCOUNTS } from "../entries/default-master-data.js";
+import {
+  DEFAULT_BOOK_ACCOUNTS,
+  DEFAULT_BUSINESS_CATEGORIES,
+} from "../entries/default-master-data.js";
 
 function bookAccountIdByName(name: string): string {
   return DEFAULT_BOOK_ACCOUNTS.find((acc) => acc.name === name)?.id ?? name;
+}
+
+function businessCategoryIdByName(name: string): string {
+  if (name.trim() === "") return "biz_none";
+  return (
+    DEFAULT_BUSINESS_CATEGORIES.find((category) => category.name === name)
+      ?.id ?? name
+  );
 }
 
 function buildBootstrapOpeningJournals(fiscalPeriodId: string) {
@@ -74,8 +85,8 @@ function buildBootstrapOpeningJournals(fiscalPeriodId: string) {
           bookAccountId: bookAccountIdByName(row.debit),
           amount: row.amount,
           partnerName: row.partner,
-          taxCategoryId: "対象外",
-          businessCategoryId: row.biz,
+          taxCategoryId: "tax_out_of_scope",
+          businessCategoryId: businessCategoryIdByName(row.biz),
         },
         {
           id: `${id}-c`,
@@ -83,8 +94,8 @@ function buildBootstrapOpeningJournals(fiscalPeriodId: string) {
           bookAccountId: bookAccountIdByName(row.credit),
           amount: row.amount,
           partnerName: row.partner,
-          taxCategoryId: "対象外",
-          businessCategoryId: row.biz,
+          taxCategoryId: "tax_out_of_scope",
+          businessCategoryId: businessCategoryIdByName(row.biz),
         },
       ],
     };
@@ -143,7 +154,9 @@ function buildBootstrapFiscalPeriod2026(
 
       openingBalanceLines: bootstrapOpeningBalanceLines,
 
-      openingJournals: isInProgress ? buildBootstrapOpeningJournals("fp-2026") : [],
+      openingJournals: isInProgress
+        ? buildBootstrapOpeningJournals("fp-2026")
+        : [],
     },
   };
 }
@@ -158,7 +171,11 @@ export function buildBootstrapFiscalPeriods(
   config: OpenkkConfig,
 ): FiscalPeriod[] {
   return [
-    buildBootstrapFiscalPeriod2026(config.mockUserId, "2026年分", "in-progress"),
+    buildBootstrapFiscalPeriod2026(
+      config.mockUserId,
+      "2026年分",
+      "in-progress",
+    ),
   ];
 }
 

@@ -33,7 +33,7 @@ describe("buildNextFiscalPeriodSuggestion", () => {
     });
   });
 
-  it("clamps leap-day boundaries to the target year's month end", () => {
+  it("starts on the day after a leap-spanning period ends", () => {
     expect(
       buildNextFiscalPeriodSuggestion({
         startDate: "2024-02-29",
@@ -41,8 +41,21 @@ describe("buildNextFiscalPeriodSuggestion", () => {
       }),
     ).toEqual({
       name: "2026年分",
-      startDate: "2025-02-28",
+      startDate: "2025-03-01",
       endDate: "2026-02-28",
+    });
+  });
+
+  it("does not leave a gap after a short first fiscal period", () => {
+    expect(
+      buildNextFiscalPeriodSuggestion({
+        startDate: "2026-04-01",
+        endDate: "2026-12-31",
+      }),
+    ).toEqual({
+      name: "2027年分",
+      startDate: "2027-01-01",
+      endDate: "2027-12-31",
     });
   });
 });
@@ -78,6 +91,23 @@ describe("buildOpeningCarryoverJournalsFromReversibleEntries", () => {
         { side: "credit", bookAccountId: "acct_purchases", amount: 168_000 },
       ],
     });
+  });
+
+  it("preserves an exact backend business rate in next-period reversals", () => {
+    const [journal] = buildOpeningCarryoverJournalsFromReversibleEntries({
+      nextFiscalPeriodId: "fp-2027",
+      nextStartDate: "2027-01-01",
+      entries: [
+        entry({
+          credit: "未払金",
+          creditType: "liability",
+          businessRate: "33.33",
+          businessRateRatio: 0.3333333333333333,
+        }),
+      ],
+    });
+
+    expect(journal?.businessRate).toBe(0.3333333333333333);
   });
 
   it("splits compound accrual entries into one reversal per profit/loss line", () => {
@@ -161,7 +191,7 @@ describe("buildOpeningCarryoverJournalsFromReversibleEntries", () => {
     ]);
   });
 
-  it("does not reverse partially matched entries", () => {
+  it("does not reverse unbalanced partially matched entries", () => {
     const journals = buildOpeningCarryoverJournalsFromReversibleEntries({
       nextFiscalPeriodId: "fp-2027",
       nextStartDate: "2027-01-01",
@@ -187,6 +217,52 @@ describe("buildOpeningCarryoverJournalsFromReversibleEntries", () => {
     });
 
     expect(journals).toEqual([]);
+  });
+
+  it("reverses the matched accrual portion of a balanced mixed-settlement entry", () => {
+    const journals = buildOpeningCarryoverJournalsFromReversibleEntries({
+      nextFiscalPeriodId: "fp-2027",
+      nextStartDate: "2027-01-01",
+      entries: [
+        entry({
+          id: "partially-accrued-expense",
+          lines: [
+            {
+              side: "debit",
+              accountName: "消耗品費",
+              accountType: "expense",
+              amount: "100,000",
+            },
+            {
+              side: "credit",
+              accountName: "未払金",
+              accountType: "liability",
+              amount: "90,000",
+            },
+            {
+              side: "credit",
+              accountName: "現金",
+              accountType: "asset",
+              amount: "10,000",
+            },
+          ],
+        }),
+      ],
+    });
+
+    expect(journals).toHaveLength(1);
+    expect(journals[0]?.lines).toEqual([
+      expect.objectContaining({
+        side: "debit",
+        bookAccountId: "acct_accrued_expense",
+        amount: 90_000,
+      }),
+      expect.objectContaining({
+        side: "credit",
+        bookAccountId: "acct_supplies",
+        amount: 90_000,
+      }),
+    ]);
   });
 
   it("does not reverse ordinary credit sales or credit purchases (売掛金 / 買掛金)", () => {
@@ -241,6 +317,115 @@ describe("buildOpeningCarryoverJournalsFromReversibleEntries", () => {
     });
 
     expect(journals).toEqual([]);
+  });
+
+  it("normalizes displayed category names to master IDs for carryover journals", () => {
+    const journals = buildOpeningCarryoverJournalsFromReversibleEntries({
+      nextFiscalPeriodId: "fp-2027",
+      nextStartDate: "2027-01-01",
+      entries: [
+        entry({
+          id: "display-categories",
+          partner: "取引先A",
+          taxCategory: "課税 10%",
+          businessCategory: "第5種（サービス業等）",
+          debit: "消耗品費",
+          debitType: "expense",
+          credit: "未払金",
+          creditType: "liability",
+        }),
+      ],
+    });
+
+    expect(journals[0]?.lines).toEqual([
+      expect.objectContaining({
+        partnerName: "取引先A",
+        taxCategoryId: "tax_10",
+        businessCategoryId: "biz_5",
+      }),
+      expect.objectContaining({
+        partnerName: "取引先A",
+        taxCategoryId: "tax_10",
+        businessCategoryId: "biz_5",
+      }),
+    ]);
+  });
+
+  it("preserves line-specific partner and category IDs in compound reversals", () => {
+    const journals = buildOpeningCarryoverJournalsFromReversibleEntries({
+      nextFiscalPeriodId: "fp-2027",
+      nextStartDate: "2027-01-01",
+      entries: [
+        entry({
+          id: "line-categories",
+          partner: "header partner",
+          taxCategory: "対象外",
+          businessCategory: "対象外",
+          lines: [
+            {
+              side: "debit",
+              accountName: "消耗品費",
+              accountType: "expense",
+              amount: "10,000",
+              partnerName: "expense partner",
+              taxCategoryId: "tax_8",
+              businessCategoryId: "biz_3",
+            },
+            {
+              side: "credit",
+              accountName: "未払金",
+              accountType: "liability",
+              amount: "10,000",
+              partnerName: "liability partner",
+              taxCategoryId: "tax_non_taxable",
+              businessCategoryId: "biz_6",
+            },
+          ],
+        }),
+      ],
+    });
+
+    expect(journals[0]?.lines).toEqual([
+      expect.objectContaining({
+        partnerName: "liability partner",
+        taxCategoryId: "tax_non_taxable",
+        businessCategoryId: "biz_6",
+      }),
+      expect.objectContaining({
+        partnerName: "expense partner",
+        taxCategoryId: "tax_8",
+        businessCategoryId: "biz_3",
+      }),
+    ]);
+  });
+
+  it("uses canonical out-of-scope IDs when legacy category fields are blank", () => {
+    const journals = buildOpeningCarryoverJournalsFromReversibleEntries({
+      nextFiscalPeriodId: "fp-2027",
+      nextStartDate: "2027-01-01",
+      entries: [
+        entry({
+          id: "blank-categories",
+          taxCategory: "",
+          businessCategory: "",
+          debit: "消耗品費",
+          debitType: "expense",
+          credit: "未払金",
+          creditType: "liability",
+        }),
+      ],
+    });
+
+    expect(journals[0]?.lines).toEqual([
+      expect.objectContaining({
+        taxCategoryId: "tax_out_of_scope",
+        businessCategoryId: "biz_none",
+      }),
+      expect.objectContaining({
+        taxCategoryId: "tax_out_of_scope",
+        businessCategoryId: "biz_none",
+      }),
+    ]);
   });
 });
 

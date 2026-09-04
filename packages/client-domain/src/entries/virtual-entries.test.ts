@@ -6,6 +6,7 @@ import { getEntryLines, type EntryRecord } from "./entry-record.js";
 import { parseAmount } from "../shared/parse-utils.js";
 import {
   buildClosingVirtualEntries,
+  buildAnalyticsEntries,
   buildVirtualBusinessRateTransferRows,
   buildVirtualFixedAssetRows,
   materializeVirtualEntryRows,
@@ -81,6 +82,80 @@ describe("buildVirtualFixedAssetRows", () => {
       creditAmount: "240,000",
     });
   });
+
+  it("depreciates through a sale date and removes the remaining book value", () => {
+    const rows = buildVirtualFixedAssetRows({
+      fiscalPeriodId: "fp-2026",
+      assets: [
+        depreciatingAsset({
+          status: "売却済",
+          disposalDate: "2026-06-15",
+          disposalPrice: "900,000",
+        }),
+      ],
+      periodStartDate: "2026-01-01",
+      periodEndDate: "2026-12-31",
+      yearMonth: "2026-06",
+    });
+    const entries = materializeVirtualEntryRows({
+      fiscalPeriodId: "fp-2026",
+      yearMonth: "2026-06",
+      rows,
+    });
+
+    expect(entries).toHaveLength(2);
+    const depreciation = entries.find((item) =>
+      item.localId?.includes("virtual-fixed-asset-fa-1"),
+    );
+    const sale = entries.find((item) =>
+      item.localId?.includes("virtual-fixed-asset-sale-fa-1"),
+    );
+    expect(depreciation?.lines).toEqual([
+      expect.objectContaining({ side: "debit", amount: "120,000" }),
+      expect.objectContaining({ side: "credit", amount: "120,000" }),
+    ]);
+    expect(sale?.lines).toEqual([
+      expect.objectContaining({
+        side: "debit",
+        accountName: "普通預金",
+        amount: "900,000",
+      }),
+      expect.objectContaining({
+        side: "credit",
+        accountName: "工具器具備品",
+        amount: "840,001",
+      }),
+      expect.objectContaining({
+        side: "credit",
+        accountName: "固定資産売却益",
+        amount: "59,999",
+      }),
+    ]);
+  });
+
+  it("keeps the final-year depreciation when the asset is marked complete", () => {
+    const rows = buildVirtualFixedAssetRows({
+      fiscalPeriodId: "fp-2026",
+      assets: [
+        depreciatingAsset({
+          status: "完了",
+          acquisitionDate: "2023-01-01",
+          usefulLife: 4,
+        }),
+      ],
+      periodStartDate: "2026-01-01",
+      periodEndDate: "2026-12-31",
+      yearMonth: "2026-12",
+    });
+
+    expect(rows).toEqual([
+      expect.objectContaining({
+        debit: "減価償却費",
+        debitAmount: "300,000",
+        creditAmount: "300,000",
+      }),
+    ]);
+  });
 });
 
 describe("materializeVirtualEntryRows", () => {
@@ -109,6 +184,23 @@ describe("materializeVirtualEntryRows", () => {
       .reduce((sum, line) => sum + parseAmount(line.amount), 0);
     expect(debit).toBe(240_000);
     expect(credit).toBe(240_000);
+  });
+
+  it("preserves the exact fixed-asset business rate when materializing", () => {
+    const rows = buildVirtualFixedAssetRows({
+      fiscalPeriodId: "fp-2026",
+      assets: [depreciatingAsset({ businessRate: 0.3333333333333333 })],
+      periodStartDate: "2026-01-01",
+      periodEndDate: "2026-12-31",
+      yearMonth: "2026-12",
+    });
+    const [record] = materializeVirtualEntryRows({
+      fiscalPeriodId: "fp-2026",
+      yearMonth: "2026-12",
+      rows,
+    });
+
+    expect(record?.businessRateRatio).toBe(0.3333333333333333);
   });
 });
 
@@ -175,6 +267,7 @@ describe("buildClosingVirtualEntries / 家事按分の振替", () => {
         accountName: "事業主貸",
         accountType: "asset",
         amount: "10,500",
+        bookAccountId: "acct_proprietor_withdrawal",
       },
     ]);
     expect(lines.filter((line) => line.side === "credit")).toEqual([
@@ -200,6 +293,26 @@ describe("buildClosingVirtualEntries / 家事按分の振替", () => {
     ).toEqual([]);
   });
 
+  it("uses the exact backend rate rather than the rounded display rate", () => {
+    const exactRateEntry = {
+      ...rentEntry("33.33"),
+      businessRateRatio: 0.3333333333333333,
+    };
+    const [transfer] = buildClosingVirtualEntries({
+      fiscalPeriodId: "fp-2026",
+      periodStartDate: "2026-01-01",
+      periodEndDate: "2026-12-31",
+      entries: [exactRateEntry],
+      assets: [],
+      carryovers: [],
+    });
+
+    const ownerDraw = getEntryLines(transfer!).find(
+      (line) => line.bookAccountId === "acct_proprietor_withdrawal",
+    );
+    expect(parseAmount(ownerDraw?.amount ?? "")).toBe(14_000);
+  });
+
   it("includes the depreciation expense personal portion in the transfer", () => {
     const entries = buildClosingVirtualEntries({
       fiscalPeriodId: "fp-2026",
@@ -223,6 +336,69 @@ describe("buildClosingVirtualEntries / 家事按分の振替", () => {
     expect(ownerDraw!.side).toBe("debit");
     expect(parseAmount(depreciation!.amount)).toBe(120_000);
     expect(depreciation!.side).toBe("credit");
+  });
+
+  it("keeps same-name accounts with different master IDs separate", () => {
+    const sameNameEntry = (input: {
+      id: string;
+      bookAccountId: string;
+      accountType: "expense" | "cost_of_sales";
+      amount: string;
+    }): EntryRecord => ({
+      ...rentEntry("50"),
+      id: input.id,
+      lines: [
+        {
+          side: "debit",
+          accountName: "賞与",
+          accountType: input.accountType,
+          amount: input.amount,
+          bookAccountId: input.bookAccountId,
+        },
+        {
+          side: "credit",
+          accountName: "普通預金",
+          accountType: "asset",
+          amount: input.amount,
+          bookAccountId: "acct_bank",
+        },
+      ],
+    });
+    const [transfer] = buildClosingVirtualEntries({
+      fiscalPeriodId: "fp-2026",
+      periodStartDate: "2026-01-01",
+      periodEndDate: "2026-12-31",
+      entries: [
+        sameNameEntry({
+          id: "cost",
+          bookAccountId: "acct_cost_of_sales_賞与",
+          accountType: "cost_of_sales",
+          amount: "100",
+        }),
+        sameNameEntry({
+          id: "expense",
+          bookAccountId: "acct_expense_賞与",
+          accountType: "expense",
+          amount: "200",
+        }),
+      ],
+      assets: [],
+      carryovers: [],
+    });
+
+    const bonusCredits = getEntryLines(transfer!).filter(
+      (line) => line.accountName === "賞与" && line.side === "credit",
+    );
+    expect(bonusCredits).toEqual([
+      expect.objectContaining({
+        bookAccountId: "acct_cost_of_sales_賞与",
+        amount: "50",
+      }),
+      expect.objectContaining({
+        bookAccountId: "acct_expense_賞与",
+        amount: "100",
+      }),
+    ]);
   });
 });
 
@@ -318,5 +494,53 @@ describe("withClosingVirtualEntries", () => {
         (entry) => entry.localId === "virtual:virtual-fixed-asset-fa-1",
       ),
     ).toHaveLength(1);
+  });
+});
+
+describe("buildAnalyticsEntries", () => {
+  it("includes assist entries but excludes the business-rate transfer", () => {
+    const result = buildAnalyticsEntries({
+      fiscalPeriodId: "fp-2026",
+      periodStartDate: "2026-01-01",
+      periodEndDate: "2026-12-31",
+      entries: [
+        {
+          id: "rent",
+          fiscalPeriodId: "fp-2026",
+          date: "2026-03-01",
+          weekday: "",
+          debit: "地代家賃",
+          debitType: "expense",
+          debitAmount: "100,000",
+          credit: "普通預金",
+          creditType: "asset",
+          creditAmount: "100,000",
+          description: "事務所家賃",
+          partner: "",
+          businessRate: "50",
+          taxCategory: "対象外",
+          businessCategory: "対象外",
+        },
+      ],
+      assets: [depreciatingAsset()],
+      carryovers: [carryover()],
+    });
+
+    expect(result.some((entry) => entry.id === "rent")).toBe(true);
+    expect(
+      result.some(
+        (entry) => entry.localId === "virtual:virtual-fixed-asset-fa-1",
+      ),
+    ).toBe(true);
+    expect(
+      result.some(
+        (entry) => entry.localId === "virtual:virtual-opening-carryover-oc-1",
+      ),
+    ).toBe(true);
+    expect(
+      result.some(
+        (entry) => entry.localId === "virtual:business-rate-transfer",
+      ),
+    ).toBe(false);
   });
 });

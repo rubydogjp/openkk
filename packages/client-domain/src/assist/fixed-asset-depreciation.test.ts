@@ -93,6 +93,19 @@ describe("computeStraightLineDepreciation", () => {
     expect(result.currentBookValue).toBe(0);
     expect(result.accumulated).toBe(0);
   });
+
+  it("uses the same integer-ratio rounding as server-side closing", () => {
+    const result = computeStraightLineDepreciation({
+      acquisitionDate: "2025-12-01",
+      acquisitionCost: 217,
+      usefulLife: 2,
+      asOf: new Date(2026, 11, 31),
+    });
+
+    expect(result.elapsedMonths).toBe(13);
+    expect(result.accumulated).toBe(117);
+    expect(result.currentBookValue).toBe(100);
+  });
 });
 
 describe("computePeriodDepreciation", () => {
@@ -147,5 +160,17 @@ describe("computePeriodDepreciation", () => {
         asOf: new Date(2026, 11, 31),
       }),
     ).toBe(0);
+  });
+
+  it("matches server rounding at a one-yen accumulated boundary", () => {
+    expect(
+      computePeriodDepreciation({
+        acquisitionDate: "2025-12-01",
+        acquisitionCost: 217,
+        usefulLife: 2,
+        periodStartDate: new Date(2026, 0, 1),
+        asOf: new Date(2026, 11, 31),
+      }),
+    ).toBe(108);
   });
 });

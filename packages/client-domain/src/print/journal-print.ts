@@ -34,12 +34,19 @@ const BOTTOM_PAD = 19;
 const TITLE_FS = 16;
 const TITLE_GAP = 19;
 const BODY_TOP = TOP_PAD + TITLE_FS + TITLE_GAP;
+const MAX_DETAIL_ROWS_PER_PAGE = 28;
 
-const TH = "border:1px solid #1D4ED8;background:#EEF5FF;color:#1D4ED8;font-weight:700;padding:5px 4px;text-align:center;";
-const TD = "border:1px solid #1D4ED8;color:#111827;background:#FFFFFF;padding:5px 4px;vertical-align:top;line-height:1.3;";
-const BAND = "border:1px solid #1D4ED8;color:#111827;background:#EEF5FF;padding:5px 4px;font-weight:700;vertical-align:top;line-height:1.3;";
+const TH =
+  "border:1px solid #1D4ED8;background:#EEF5FF;color:#1D4ED8;font-weight:700;padding:5px 4px;text-align:center;";
+const TD =
+  "border:1px solid #1D4ED8;color:#111827;background:#FFFFFF;padding:5px 4px;vertical-align:top;line-height:1.3;";
+const BAND =
+  "border:1px solid #1D4ED8;color:#111827;background:#EEF5FF;padding:5px 4px;font-weight:700;vertical-align:top;line-height:1.3;";
 
-export function buildJournalBody(_fpName: string, entries: EntryRecord[]): string {
+export function buildJournalBody(
+  _fpName: string,
+  entries: EntryRecord[],
+): string {
   const map = new Map<string, EntryRecord[]>();
   for (const e of entries) {
     const key = e.date.slice(0, 7);
@@ -58,8 +65,9 @@ export function buildJournalBody(_fpName: string, entries: EntryRecord[]): strin
     );
   }
 
+  let pageNumber = 0;
   return monthGroups
-    .map(([monthKey, rows], pageIdx) => {
+    .flatMap(([monthKey, rows]) => {
       const monthLabel = fmtMonthLabel(monthKey);
       const debitTotal = rows.reduce(
         (s, r) =>
@@ -78,25 +86,39 @@ export function buildJournalBody(_fpName: string, entries: EntryRecord[]): strin
         0,
       );
 
-      const rowsHtml = rows
-        .flatMap((row) =>
-          entryToVisualPairs(row).map(
-            (pair, index) => `<tr>
-  <td style="${TD}">${index === 0 ? esc(fmtDate(row.date)) : ""}</td>
+      const chunks = chunkEntriesByVisualRows(rows);
+      return chunks.map((pageRows, chunkIndex) => {
+        pageNumber += 1;
+        const rowsHtml = pageRows
+          .flatMap(({ entry, pairs, pairOffset }) =>
+            pairs.map((pair, index) => {
+              const isFirstPair = pairOffset + index === 0;
+              return `<tr>
+  <td style="${TD}">${isFirstPair ? esc(fmtDate(entry.date)) : ""}</td>
   <td style="${TD}">${esc(lineAccountName(pair.debit))}</td>
   <td style="${TD}"></td>
   <td style="${TD};text-align:right">${esc(lineAmount(pair.debit))}</td>
   <td style="${TD}">${esc(lineAccountName(pair.credit))}</td>
   <td style="${TD}"></td>
   <td style="${TD};text-align:right">${esc(lineAmount(pair.credit))}</td>
-  <td style="${TD}">${index === 0 ? esc(row.description) : ""}</td>
-  <td style="${TD}">${index === 0 ? esc(row.partner) : ""}</td>
-</tr>`,
-          ),
-        )
-        .join("\n");
+  <td style="${TD}">${isFirstPair ? esc(entry.description) : ""}</td>
+  <td style="${TD}">${isFirstPair ? esc(entry.partner) : ""}</td>
+</tr>`;
+            }),
+          )
+          .join("\n");
 
-      const tableHtml = `<table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px">
+        const isLastChunk = chunkIndex === chunks.length - 1;
+        const totalHtml = isLastChunk
+          ? `<tr>
+      <td colspan="3" style="${BAND}">${monthLabel} 合計</td>
+      <td style="${BAND};text-align:right">${fmt(debitTotal)}</td>
+      <td colspan="2" style="${BAND}"></td>
+      <td style="${BAND};text-align:right">${fmt(creditTotal)}</td>
+      <td colspan="2" style="${BAND}"></td>
+    </tr>`
+          : "";
+        const tableHtml = `<table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px">
   <colgroup>
     <col style="width:77px"><col style="width:101px"><col style="width:77px"><col style="width:69px">
     <col style="width:101px"><col style="width:77px"><col style="width:69px"><col style="width:93px"><col style="width:75px">
@@ -116,23 +138,53 @@ export function buildJournalBody(_fpName: string, entries: EntryRecord[]): strin
   </thead>
   <tbody>
     ${rowsHtml}
-    <tr>
-      <td colspan="3" style="${BAND}">${monthLabel} 合計</td>
-      <td style="${BAND};text-align:right">${fmt(debitTotal)}</td>
-      <td colspan="2" style="${BAND}"></td>
-      <td style="${BAND};text-align:right">${fmt(creditTotal)}</td>
-      <td colspan="2" style="${BAND}"></td>
-    </tr>
+    ${totalHtml}
   </tbody>
 </table>`;
 
-      return wrapPage(tableHtml, pageIdx + 1);
+        return wrapPage(tableHtml, pageNumber);
+      });
     })
     .join("");
 }
 
+type JournalPageEntry = {
+  entry: EntryRecord;
+  pairs: ReturnType<typeof entryToVisualPairs>;
+  pairOffset: number;
+};
+
+function chunkEntriesByVisualRows(entries: EntryRecord[]): JournalPageEntry[][] {
+  const chunks: JournalPageEntry[][] = [];
+  let current: JournalPageEntry[] = [];
+  let currentRows = 0;
+  for (const entry of entries) {
+    const pairs = entryToVisualPairs(entry);
+    for (let offset = 0; offset < pairs.length; ) {
+      if (currentRows === MAX_DETAIL_ROWS_PER_PAGE) {
+        chunks.push(current);
+        current = [];
+        currentRows = 0;
+      }
+      const take = Math.min(
+        MAX_DETAIL_ROWS_PER_PAGE - currentRows,
+        pairs.length - offset,
+      );
+      current.push({
+        entry,
+        pairs: pairs.slice(offset, offset + take),
+        pairOffset: offset,
+      });
+      currentRows += take;
+      offset += take;
+    }
+  }
+  if (current.length > 0) chunks.push(current);
+  return chunks;
+}
+
 function wrapPage(bodyHtml: string, pageNumber: number): string {
-  return `<div class="bk-page" style="position:relative;width:${PAGE_W}px;height:${PAGE_H}px;overflow:hidden;">
+  return `<div class="bk-page" style="position:relative;width:${PAGE_W}px;min-height:${PAGE_H}px;height:auto;overflow:visible;padding-bottom:${BOTTOM_PAD + 24}px;">
 <div style="position:absolute;top:${TOP_PAD}px;left:${SIDE_PAD}px;right:${SIDE_PAD}px;text-align:center;color:#1D4ED8;font-weight:700;font-size:${TITLE_FS}px;line-height:1;">仕訳帳</div>
 <div style="position:absolute;top:${BODY_TOP}px;left:${SIDE_PAD}px;right:${SIDE_PAD}px;">
 ${bodyHtml}
@@ -141,7 +193,10 @@ ${bodyHtml}
 </div>`;
 }
 
-export function buildJournalDocument(fpName: string, entries: EntryRecord[]): string {
+export function buildJournalDocument(
+  fpName: string,
+  entries: EntryRecord[],
+): string {
   return buildPrintDocument({
     title: "仕訳帳",
     orientation: "portrait",

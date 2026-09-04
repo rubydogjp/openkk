@@ -53,13 +53,23 @@ export function buildOpeningBalanceLinesFromClosingBsRows(
       fold("l:元入金", amount);
       return;
     }
-    if (amount <= 0) return;
-    fold(`${prefix}:${label}`, amount);
+    if (amount === 0) return;
+    if (amount > 0) {
+      fold(`${prefix}:${label}`, amount);
+    } else {
+      fold(`${prefix === "a" ? "l" : "a"}:${label}`, Math.abs(amount));
+    }
   };
 
   for (const row of bsRows) {
     addLine("a", row.assetLabel, row.assetClosing);
     addLine("l", row.liabilityLabel, row.liabilityClosing);
+  }
+
+  const carriedCapital = amounts.get("l:元入金") ?? 0;
+  if (carriedCapital < 0) {
+    amounts.delete("l:元入金");
+    fold("a:事業主貸", Math.abs(carriedCapital));
   }
 
   return [...amounts.entries()]
@@ -81,6 +91,20 @@ function sumValues(map: Map<string, number>): number {
   return total;
 }
 
+function reclassifyContraryBalances(
+  assets: Map<string, number>,
+  liabilities: Map<string, number>,
+): void {
+  const names = new Set([...assets.keys(), ...liabilities.keys()]);
+  for (const name of names) {
+    const netAsset = (assets.get(name) ?? 0) - (liabilities.get(name) ?? 0);
+    assets.delete(name);
+    liabilities.delete(name);
+    if (netAsset > 0) assets.set(name, netAsset);
+    if (netAsset < 0) liabilities.set(name, Math.abs(netAsset));
+  }
+}
+
 export function computeFsAggregate({
   entries,
   openingBalanceLines,
@@ -95,14 +119,11 @@ export function computeFsAggregate({
   const liabilityNetByName = new Map<string, number>();
   const equityNetByName = new Map<string, number>();
 
-  const accountType = new Map<string, string>();
-
   // 家事按分は materialize 済みの按分振替仕訳（buildBusinessRateTransferEntry）として
   // entries に含まれる前提のため、ここでは生明細をそのまま集計する。
   for (const e of entries) {
     for (const line of getEntryLines(e)) {
       const amount = parseAmount(line.amount);
-      accountType.set(line.accountName, line.accountType);
       const sign = line.side === "debit" ? 1 : -1;
 
       if (line.accountType === "revenue") {
@@ -156,6 +177,7 @@ export function computeFsAggregate({
     liabilityNetByName,
   );
   const equityClosingByName = closingMap(equityOpeningByName, equityNetByName);
+  reclassifyContraryBalances(assetClosingByName, liabilityClosingByName);
 
   const revenueTotal = sumValues(revenueByName);
   const costOfSalesTotal = sumValues(costOfSalesByName);
@@ -175,14 +197,30 @@ export function computeFsAggregate({
   const provisionSubtotal = familyEmployeeSalary + badDebtProvision;
 
   const ALLOWANCE_FOR_DOUBTFUL = "貸倒引当金";
-  const allowanceOpening =
-    liabilityOpeningByName.get(ALLOWANCE_FOR_DOUBTFUL) ?? 0;
-  const allowanceNet = -(assetNetByName.get(ALLOWANCE_FOR_DOUBTFUL) ?? 0);
-  const allowanceClosing = allowanceOpening + allowanceNet;
+  const allowanceOpeningBalance =
+    (liabilityOpeningByName.get(ALLOWANCE_FOR_DOUBTFUL) ?? 0) -
+    (assetOpeningByName.get(ALLOWANCE_FOR_DOUBTFUL) ?? 0);
+  const allowanceClosingBalance =
+    (liabilityClosingByName.get(ALLOWANCE_FOR_DOUBTFUL) ?? 0) -
+    (assetClosingByName.get(ALLOWANCE_FOR_DOUBTFUL) ?? 0);
   assetOpeningByName.delete(ALLOWANCE_FOR_DOUBTFUL);
   assetClosingByName.delete(ALLOWANCE_FOR_DOUBTFUL);
   liabilityOpeningByName.delete(ALLOWANCE_FOR_DOUBTFUL);
   liabilityClosingByName.delete(ALLOWANCE_FOR_DOUBTFUL);
+  const allowanceOpening = Math.max(0, allowanceOpeningBalance);
+  const allowanceClosing = Math.max(0, allowanceClosingBalance);
+  if (allowanceOpeningBalance < 0) {
+    assetOpeningByName.set(
+      ALLOWANCE_FOR_DOUBTFUL,
+      Math.abs(allowanceOpeningBalance),
+    );
+  }
+  if (allowanceClosingBalance < 0) {
+    assetClosingByName.set(
+      ALLOWANCE_FOR_DOUBTFUL,
+      Math.abs(allowanceClosingBalance),
+    );
+  }
 
   const expense = (label: string): number | null => {
     const v = expenseByName.get(label) ?? 0;
@@ -313,7 +351,7 @@ export function computeFsAggregate({
     lvBoth(liabilityOpeningByName, label, aliases) +
     lvBoth(equityOpeningByName, label, aliases);
 
-  const fmtBs = (v: number): number | null => (v <= 0 ? null : v);
+  const fmtBs = (v: number): number | null => (v === 0 ? null : v);
 
   const fmtVal = (v: number): number | null => (v === 0 ? null : v);
 
@@ -339,9 +377,22 @@ export function computeFsAggregate({
     "土地",
     "事業主貸",
   ]);
-  const extras = [...assetClosingByName.entries()].filter(
-    ([k, v]) => !handledAssets.has(k) && v !== 0,
-  );
+  const extraAssetNames = new Set([
+    ...assetOpeningByName.keys(),
+    ...assetClosingByName.keys(),
+  ]);
+  const extras = [...extraAssetNames]
+    .filter((name) => !handledAssets.has(name))
+    .map(
+      (name): [string, number] => [
+        name,
+        assetClosingByName.get(name) ?? 0,
+      ],
+    )
+    .filter(
+      ([name, closing]) =>
+        closing !== 0 || (assetOpeningByName.get(name) ?? 0) !== 0,
+    );
   const EXTRA_SLOT_COUNT = 6;
   const EXTRA_OVERFLOW_LABEL = "その他";
   const displayExtras: Array<{
@@ -370,6 +421,61 @@ export function computeFsAggregate({
     displayExtras[i] ? fmtBs(displayExtras[i]!.opening) : null;
   const extraClosing = (i: number): number | null =>
     displayExtras[i] ? fmtBs(displayExtras[i]!.closing) : null;
+
+  const handledLiabilitiesAndEquity = new Set([
+    "支払手形",
+    "買掛金",
+    "借入金",
+    "長期借入金",
+    "未払金",
+    "前受金",
+    "預り金",
+    ALLOWANCE_FOR_DOUBTFUL,
+    "事業主借",
+    "元入金",
+  ]);
+  const liabilityExtraNames = new Set([
+    ...liabilityOpeningByName.keys(),
+    ...liabilityClosingByName.keys(),
+    ...equityOpeningByName.keys(),
+    ...equityClosingByName.keys(),
+  ]);
+  const liabilityExtras = [...liabilityExtraNames]
+    .filter((name) => !handledLiabilitiesAndEquity.has(name))
+    .map((name) => ({
+      name,
+      opening:
+        (liabilityOpeningByName.get(name) ?? 0) +
+        (equityOpeningByName.get(name) ?? 0),
+      closing:
+        (liabilityClosingByName.get(name) ?? 0) +
+        (equityClosingByName.get(name) ?? 0),
+    }))
+    .filter((item) => item.opening !== 0 || item.closing !== 0);
+  const LIABILITY_EXTRA_SLOT_COUNT = 13;
+  const displayLiabilityExtras =
+    liabilityExtras.length <= LIABILITY_EXTRA_SLOT_COUNT
+      ? liabilityExtras
+      : [
+          ...liabilityExtras.slice(0, LIABILITY_EXTRA_SLOT_COUNT - 1),
+          {
+            name: "その他",
+            opening: liabilityExtras
+              .slice(LIABILITY_EXTRA_SLOT_COUNT - 1)
+              .reduce((sum, item) => sum + item.opening, 0),
+            closing: liabilityExtras
+              .slice(LIABILITY_EXTRA_SLOT_COUNT - 1)
+              .reduce((sum, item) => sum + item.closing, 0),
+          },
+        ];
+  const liabilityExtra = (
+    index: number,
+  ): [string, number | null, number | null] => {
+    const item = displayLiabilityExtras[index];
+    return item == null
+      ? ["", null, null]
+      : [item.name, fmtBs(item.opening), fmtBs(item.closing)];
+  };
 
   const openingAssetsTotal = sumValues(assetOpeningByName);
   const openingLiabsTotal =
@@ -453,43 +559,43 @@ export function computeFsAggregate({
       "有価証券",
       fmtBs(oav("有価証券")),
       fmtBs(av("有価証券")),
-      "",
-      null,
-      null,
+      ...liabilityExtra(0),
     ),
     r(
       "棚卸資産",
       fmtBs(oav("棚卸資産", "商品")),
       fmtBs(av("棚卸資産", "商品")),
-      "",
-      null,
-      null,
+      ...liabilityExtra(1),
     ),
     r(
       "前払金",
       fmtBs(oav("前払金", "前払費用")),
       fmtBs(av("前払金", "前払費用")),
-      "",
-      null,
-      null,
+      ...liabilityExtra(2),
     ),
-    r("貸付金", fmtBs(oav("貸付金")), fmtBs(av("貸付金")), "", null, null),
-    r("建物", fmtBs(oav("建物")), fmtBs(av("建物")), "", null, null),
+    r(
+      "貸付金",
+      fmtBs(oav("貸付金")),
+      fmtBs(av("貸付金")),
+      ...liabilityExtra(3),
+    ),
+    r(
+      "建物",
+      fmtBs(oav("建物")),
+      fmtBs(av("建物")),
+      ...liabilityExtra(4),
+    ),
     r(
       "建物附属設備",
       fmtBs(oav("建物附属設備")),
       fmtBs(av("建物附属設備")),
-      "",
-      null,
-      null,
+      ...liabilityExtra(5),
     ),
     r(
       "機械装置",
       fmtBs(oav("機械装置")),
       fmtBs(av("機械装置")),
-      "",
-      null,
-      null,
+      ...liabilityExtra(6),
     ),
     r(
       "車両運搬具",
@@ -503,15 +609,38 @@ export function computeFsAggregate({
       "工具器具備品",
       fmtBs(oav("工具器具備品")),
       fmtBs(av("工具器具備品")),
-      "",
-      null,
-      null,
+      ...liabilityExtra(7),
     ),
-    r("土地", fmtBs(oav("土地")), fmtBs(av("土地")), "", null, null),
-    r(extraName(0), extraOpening(0), extraClosing(0), "", null, null),
-    r(extraName(1), extraOpening(1), extraClosing(1), "", null, null),
-    r(extraName(2), extraOpening(2), extraClosing(2), "", null, null),
-    r(extraName(3), extraOpening(3), extraClosing(3), "", null, null),
+    r(
+      "土地",
+      fmtBs(oav("土地")),
+      fmtBs(av("土地")),
+      ...liabilityExtra(8),
+    ),
+    r(
+      extraName(0),
+      extraOpening(0),
+      extraClosing(0),
+      ...liabilityExtra(9),
+    ),
+    r(
+      extraName(1),
+      extraOpening(1),
+      extraClosing(1),
+      ...liabilityExtra(10),
+    ),
+    r(
+      extraName(2),
+      extraOpening(2),
+      extraClosing(2),
+      ...liabilityExtra(11),
+    ),
+    r(
+      extraName(3),
+      extraOpening(3),
+      extraClosing(3),
+      ...liabilityExtra(12),
+    ),
     r(
       extraName(4),
       extraOpening(4),

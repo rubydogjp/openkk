@@ -12,6 +12,12 @@ export function parseBusinessRate(value: string): number {
   return Math.max(0, Math.min(100, n)) / 100;
 }
 
+export function formatBusinessRatePercent(value: number): string {
+  if (!Number.isFinite(value)) return "100";
+  const percent = Math.max(0, Math.min(1, value)) * 100;
+  return String(Number(percent.toFixed(10)));
+}
+
 export function parseIsoLocalDate(value: string): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (match == null) return null;

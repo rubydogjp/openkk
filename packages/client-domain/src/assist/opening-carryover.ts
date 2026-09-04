@@ -15,6 +15,7 @@ export type OpeningCarryoverRecord = {
   taxCategory: string;
   businessCategory: string;
   businessRate: string;
+  businessRateRatio?: number;
   debitBookAccountId?: string;
   creditBookAccountId?: string;
 };
