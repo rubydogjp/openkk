@@ -6,7 +6,7 @@ import type {
 } from "@rubydogjp/openkk-client";
 import {
   parseAmount,
-  parseBusinessRate,
+  resolveEntryBusinessRate,
   DEFAULT_BOOK_ACCOUNTS,
   DEFAULT_BUSINESS_CATEGORIES,
   DEFAULT_TAX_CATEGORIES,
@@ -76,7 +76,7 @@ function entryRecordToApiRecord(
     date: record.date,
     description: record.description,
     localId: record.localId ?? "",
-    businessRate: parseBusinessRate(record.businessRate),
+    businessRate: resolveEntryBusinessRate(record),
     lines: getEntryLines(record).map(
       (line, index): EntryApiLine => ({
         id: `${record.id}-line-${index}`,
@@ -95,20 +95,41 @@ function entryRecordToApiRecord(
           )?.id ??
           line.accountName,
         amount: parseAmount(line.amount),
-        partnerName: record.partner,
-        taxCategoryId:
-          DEFAULT_TAX_CATEGORIES.find(
-            (category) => category.name === record.taxCategory,
-          )?.id ?? record.taxCategory,
-        businessCategoryId:
-          DEFAULT_BUSINESS_CATEGORIES.find(
-            (category) => category.name === record.businessCategory,
-          )?.id ?? record.businessCategory,
+        partnerName: line.partnerName ?? record.partner,
+        taxCategoryId: resolveDemoCategoryId(
+          line.taxCategoryId,
+          record.taxCategory,
+          DEFAULT_TAX_CATEGORIES,
+          "tax_out_of_scope",
+        ),
+        businessCategoryId: resolveDemoCategoryId(
+          line.businessCategoryId,
+          record.businessCategory,
+          DEFAULT_BUSINESS_CATEGORIES,
+          "biz_none",
+        ),
       }),
     ),
     createdAt: DEMO_SEED_TIMESTAMP,
     updatedAt: DEMO_SEED_TIMESTAMP,
   };
+}
+
+function resolveDemoCategoryId(
+  explicitId: string | undefined,
+  displayValue: string,
+  categories: ReadonlyArray<{ id: string; name: string }>,
+  blankFallbackId: string,
+): string {
+  const explicitValue = explicitId?.trim() ?? "";
+  const candidate = explicitValue === "" ? displayValue.trim() : explicitValue;
+  if (candidate === "") return blankFallbackId;
+  return (
+    categories.find(
+      (category) =>
+        category.id === candidate || category.name === candidate,
+    )?.id ?? candidate
+  );
 }
 
 function fixedAssetItemToApiRecord(
