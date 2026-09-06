@@ -11,22 +11,23 @@
 
 ```bash
 npm install
-npm test          # vitest
-npm run lint      # tsc --noEmit (全パッケージ)
+npm run check     # package build + tsc --noEmit + Vitest
+npm run check:full # 生成物検査 + 上記 + 3アプリbuild + Playwright
 ```
 
-リファレンスアプリ（`packages/openkk`）を起動:
+用途別のリファレンスアプリを起動:
 
 ```bash
-cd packages/openkk
-npm run dev       # dev モード — port 4303
-npm run dev:demo  # demo モード — port 4312
+npm run dev:vscode:openkk # 通常版（SQLite OPFS）— port 4322
+npm run dev:vscode:sim    # Sim版（memory DB）— port 4303
+npm run dev:vscode:demo   # デモ版（サンプルデータ・編集ロック）— port 4304
 ```
 
 E2E テスト:
 
 ```bash
-npx playwright test --config e2e/playwright.config.ts
+npm run test:e2e        # Sim版の操作シナリオ
+npm run test:e2e:export # 通常版の静的export smoke
 ```
 
 詳細は [`docs/`](./docs/) を参照してください。

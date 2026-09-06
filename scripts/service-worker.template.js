@@ -4,25 +4,7 @@ const CACHE_NAME = `${CACHE_PREFIX}${version}`;
 const MAX_PRECACHE_RESOURCE_COUNT = 250;
 const STATIC_ASSET_PATH_PATTERN =
   /\.(js|css|wasm|png|jpg|jpeg|svg|ico|ttf|woff2?|txt)$/;
-const APP_SHELL_ROUTES = [
-  "/",
-  "/steps",
-  "/steps/fiscal-period-settings",
-  "/steps/opening-bs",
-  "/steps/journalizing",
-  "/steps/journalizing/analytics",
-  "/steps/document-receive",
-  "/steps/closing",
-  "/steps/next-fiscal-period",
-  "/entries",
-  "/assist",
-  "/assist/fixed-assets",
-  "/assist/opening-carryover",
-  "/fiscal-periods",
-  "/fiscal-periods/new",
-  "/install",
-  "/debug"
-];
+const APP_SHELL_ROUTES = __OPENKK_APP_SHELL_ROUTES__;
 const PRECACHE_URLS = [
   ...APP_SHELL_ROUTES,
   ...APP_SHELL_ROUTES.map((route) =>

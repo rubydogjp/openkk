@@ -16,6 +16,7 @@
     "directory": "packages/openkk_sim"
   },
   "scripts": {
+    "prebuild": "node ../../scripts/gen-service-workers.mjs --bundle=openkk_sim",
     "dev": "next dev --port 4303",
     "dev:vscode": "next dev --hostname localhost --port 4303",
     "build": "next build",

@@ -16,6 +16,7 @@
     "directory": "packages/openkk_demo"
   },
   "scripts": {
+    "prebuild": "node ../../scripts/gen-service-workers.mjs --bundle=openkk_demo",
     "dev": "next dev --port 4304",
     "dev:vscode": "next dev --hostname localhost --port 4304",
     "build": "next build",

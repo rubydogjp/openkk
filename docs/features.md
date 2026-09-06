@@ -45,7 +45,7 @@
 | エクスポート | JSON / CSV | 期間内全仕訳を明細ID・税区分・事業区分・厳密な事業割合を保ったままダウンロード |
 | マージ | — | 既存仕訳と `localId` で突合し、新規のみ追加（既存と重複する `localId` は取込時に `ON CONFLICT DO NOTHING` でスキップ） |
 
-**実装パッケージ:** `client-domain` (`import-export.ts`), `server-ports` (`adapter.ts` の `importMany`)
+**実装パッケージ:** `client-domain` (`entries/import-export.ts`), `server-ports` (`sqlite/entry-store.ts` の `importMany`)
 
 ---
 
@@ -151,21 +151,17 @@
 
 ---
 
-## テストカバレッジ
+## テスト範囲
 
-| テストレイヤー | ファイル数 | テスト数 | 対象 |
-|---|---|---|---|
-| ユニット | 37 | 328 | ドメインロジック・DB・パーサー・ユースケース・UI ロジック |
-| DB ポート契約適合 | (上記に含む) | 78 | `OpenkkDbPort` 共有 conformance を memory/file-db 両実アダプタ＋遅延非同期コアで検証（`server-ports/src/db-port-conformance.ts`） |
-| パッケージ構造 | 1 | 14 | workspace 整合性 |
-| E2E (sim バンドル) | 6 | 16+ シナリオ | ブラウザ操作フルフロー（締めフローの帳票一貫性 `closing-business-rate.spec.ts` 含む） |
-| E2E (demo バンドル) | 1 | 5 (opt-in) | シードデータ・デモ表示 |
-| E2E (original embedded) | 1 | — | original 組み込みユーザー (`auth-prod.spec.ts`) |
-| E2E (export build) | 1 | — | 静的エクスポート smoke (`tests-export/`) |
+| テストレイヤー | 実行コマンド | 対象 |
+|---|---|---|
+| ユニット・構造 | `npm test` | ドメイン、DB、パーサー、ユースケース、UIロジック、workspace構造 |
+| DB ポート契約適合 | `npm test` | `OpenkkDbPort` 共有 conformance を memory/file-db 両アダプタと遅延非同期コアで検証 |
+| Sim 操作E2E | `npm run test:e2e` | port 4306 の専用Simサーバーで仕訳・固定資産・締め・翌期繰越を検証 |
+| 通常版export smoke | `npm run test:e2e:export` | 静的成果物、OPFS初期化、複数タブ制御を検証 |
+| 全検査 | `npm run check:full` | 生成物drift、全workspace、3アプリのproduction build、上記E2E |
 
-E2E は sim バンドル (`@rubydogjp/openkk-sim`) で起動したサーバー (port 4306) に対して実行する。
-demo バンドルのテストは `OPENKK_DEMO_URL` 環境変数が設定されている場合のみ実行される。
-DB アダプタを追加したら `runDbPortConformance` に通し、memory(sim/demo) と OPFS worker(original) の挙動一致を担保する。
+テスト件数は追加のたびに変わるため文書へ固定せず、各コマンドの実行結果を正とする。DB アダプタを追加したら `runDbPortConformance` に通し、memory（Sim/デモ）と OPFS worker（通常版）の挙動一致を担保する。
 
 ---
 

@@ -4,29 +4,48 @@ import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(here, "..");
-const packagesDir = path.join(root, "packages");
-const outFile = path.join(root, "docs", "dependency-graph.md");
+const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
+const rootDirectory = path.resolve(scriptDirectory, "..");
+const packagesDirectory = path.join(rootDirectory, "packages");
+const outputPath = path.join(rootDirectory, "docs", "dependency-graph.md");
+const checkOnly = process.argv.includes("--check");
 
-const pkgs = readdirSync(packagesDir, { withFileTypes: true })
-  .filter((e) => e.isDirectory())
-  .map((e) => {
-    const pkgJsonPath = path.join(packagesDir, e.name, "package.json");
-    const pkg = JSON.parse(readFileSync(pkgJsonPath, "utf8"));
-    const deps = Object.keys(pkg.dependencies ?? {}).filter(
-      (d) => d === "@rubydogjp/openkk" || d.startsWith("@rubydogjp/openkk-"),
+const packages = readdirSync(packagesDirectory, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => {
+    const packageJsonPath = path.join(
+      packagesDirectory,
+      entry.name,
+      "package.json",
     );
-    return { name: pkg.name, dir: e.name, deps };
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
+    if (typeof packageJson.name !== "string" || packageJson.name === "") {
+      throw new Error(`Package name is missing: packages/${entry.name}`);
+    }
+    const dependencies = Object.keys(packageJson.dependencies ?? {}).filter(
+      (dependency) =>
+        dependency === "@rubydogjp/openkk" ||
+        dependency.startsWith("@rubydogjp/openkk-"),
+    );
+    return { name: packageJson.name, dependencies };
   })
-  .sort((a, b) => a.name.localeCompare(b.name));
+  .sort((left, right) => left.name.localeCompare(right.name));
 
 const LAYERS = [
   {
     id: "app",
     label: "App",
     note: "リファレンスアプリ。consumer が自前アプリに差し替える",
-    match: (name) => name === "@rubydogjp/openkk",
+    match: (name) =>
+      name === "@rubydogjp/openkk" ||
+      name === "@rubydogjp/openkk-sim" ||
+      name === "@rubydogjp/openkk-demo",
+  },
+  {
+    id: "app_support",
+    label: "App Support",
+    note: "3アプリで共有する bundle 非依存の runtime composition",
+    match: (name) => name === "@rubydogjp/openkk-frontend",
   },
   {
     id: "client_adapters",
@@ -66,29 +85,53 @@ const LAYERS = [
       name === "@rubydogjp/openkk-server" ||
       name.startsWith("@rubydogjp/openkk-server-"),
   },
-  {
-    id: "other",
-    label: "Other",
-    note: "未分類",
-    match: () => true,
-  },
 ];
 
 function shortName(name) {
   if (name === "@rubydogjp/openkk") return "openkk";
+  if (name === "@rubydogjp/openkk-sim") return "openkk-sim";
+  if (name === "@rubydogjp/openkk-demo") return "openkk-demo";
   return name.replace(/^@rubydogjp\/openkk-/, "");
 }
 
-function layerOf(name) {
-  for (const l of LAYERS) {
-    if (l.match(name)) return l.id;
+function resolveLayerId(name) {
+  for (const layer of LAYERS) {
+    if (layer.match(name)) return layer.id;
   }
-  return "other";
+  return undefined;
 }
 
-const byLayer = {};
-for (const l of LAYERS) byLayer[l.id] = [];
-for (const p of pkgs) byLayer[layerOf(p.name)].push(p);
+validatePackages();
+
+function validatePackages() {
+  const packageNames = new Set();
+  for (const workspacePackage of packages) {
+    if (packageNames.has(workspacePackage.name)) {
+      throw new Error(`Duplicate package name: ${workspacePackage.name}`);
+    }
+    packageNames.add(workspacePackage.name);
+  }
+  for (const workspacePackage of packages) {
+    const missingDependencies = workspacePackage.dependencies.filter(
+      (dependency) => !packageNames.has(dependency),
+    );
+    if (missingDependencies.length > 0) {
+      const dependencyNames = missingDependencies.join(", ");
+      throw new Error(
+        `Unknown internal dependencies in ${workspacePackage.name}: ${dependencyNames}`,
+      );
+    }
+    if (resolveLayerId(workspacePackage.name) == null) {
+      throw new Error(`Package layer is not defined: ${workspacePackage.name}`);
+    }
+  }
+}
+
+const packagesByLayer = {};
+for (const layer of LAYERS) packagesByLayer[layer.id] = [];
+for (const workspacePackage of packages) {
+  packagesByLayer[resolveLayerId(workspacePackage.name)].push(workspacePackage);
+}
 
 function nodeId(name) {
   return name.replace(/^@/, "").replace(/[/-]/g, "_");
@@ -98,50 +141,68 @@ const lines = [];
 lines.push("```mermaid");
 lines.push("graph LR");
 
-for (const l of LAYERS) {
-  const items = byLayer[l.id];
+for (const layer of LAYERS) {
+  const items = packagesByLayer[layer.id];
   if (items.length === 0) continue;
-  lines.push(`  subgraph ${l.id}["${l.label}"]`);
-  for (const p of items) {
-    lines.push(`    ${nodeId(p.name)}["${shortName(p.name)}"]`);
+  lines.push(`  subgraph ${layer.id}["${layer.label}"]`);
+  for (const workspacePackage of items) {
+    lines.push(
+      `    ${nodeId(workspacePackage.name)}["${shortName(workspacePackage.name)}"]`,
+    );
   }
   lines.push("  end");
   lines.push("");
 }
 
-for (const p of pkgs) {
-  for (const d of p.deps) {
-    lines.push(`  ${nodeId(p.name)} --> ${nodeId(d)}`);
+for (const workspacePackage of packages) {
+  for (const dependency of workspacePackage.dependencies) {
+    lines.push(
+      `  ${nodeId(workspacePackage.name)} --> ${nodeId(dependency)}`,
+    );
   }
 }
 lines.push("```");
 
 const mermaidBlock = lines.join("\n");
 
-const dependedBy = new Map();
-for (const p of pkgs) dependedBy.set(p.name, []);
-for (const p of pkgs) {
-  for (const d of p.deps) {
-    if (dependedBy.has(d)) dependedBy.get(d).push(p.name);
+const dependentsByPackageName = new Map();
+for (const workspacePackage of packages) {
+  dependentsByPackageName.set(workspacePackage.name, []);
+}
+for (const workspacePackage of packages) {
+  for (const dependency of workspacePackage.dependencies) {
+    if (dependentsByPackageName.has(dependency)) {
+      dependentsByPackageName.get(dependency).push(workspacePackage.name);
+    }
   }
 }
 
 const tableLines = [];
 tableLines.push("| Package | Group | Depends on | Depended by |");
 tableLines.push("|---|---|---|---|");
-for (const p of pkgs) {
-  const layer = layerOf(p.name);
-  const depsCell = p.deps.length === 0 ? "—" : p.deps.map((d) => `\`${d}\``).join(", ");
-  const dependedCell =
-    dependedBy.get(p.name).length === 0
+for (const workspacePackage of packages) {
+  const layer = resolveLayerId(workspacePackage.name);
+  const dependenciesCell =
+    workspacePackage.dependencies.length === 0
       ? "—"
-      : dependedBy.get(p.name).map((d) => `\`${d}\``).join(", ");
-  tableLines.push(`| \`${p.name}\` | ${layer} | ${depsCell} | ${dependedCell} |`);
+      : workspacePackage.dependencies
+          .map((dependency) => `\`${dependency}\``)
+          .join(", ");
+  const dependents = dependentsByPackageName.get(workspacePackage.name);
+  const dependedCell =
+    dependents.length === 0
+      ? "—"
+      : dependents.map((dependent) => `\`${dependent}\``).join(", ");
+  tableLines.push(
+    `| \`${workspacePackage.name}\` | ${layer} | ${dependenciesCell} | ${dependedCell} |`,
+  );
 }
 const tableBlock = tableLines.join("\n");
 
-const layerDescLines = LAYERS.filter((l) => byLayer[l.id].length > 0 && l.id !== "other")
-  .map((l) => `| **${l.label}** | ${l.note} |`)
+const layerDescLines = LAYERS.filter(
+  (layer) => packagesByLayer[layer.id].length > 0,
+)
+  .map((layer) => `| **${layer.label}** | ${layer.note} |`)
   .join("\n");
 
 const content = `# オープン会計 dependency graph
@@ -164,6 +225,7 @@ ${layerDescLines}
 
 > **Consumer app が差し替える範囲**
 > - **App** グループ → 丸ごと差し替える (自前アプリ)
+> - **App Support** → 共通 runtime composition を流用するか自前の配線へ差し替える
 > - **Client Adapters** の \`embedded-backend-adapter\` → 自社 HTTP adapter に差し替える
 > - **Client** グループ → そのまま流用 (OSS の恩恵)
 > - **Embedded Backend / Server Adapters / Server** → 使わない (バックエンドは Cloud Run 等)
@@ -191,14 +253,28 @@ npm run gen-deps
 \`\`\`
 `;
 
-writeFileSync(outFile, content);
-console.log(`Generated: ${path.relative(process.cwd(), outFile)}`);
-console.log(`  ${pkgs.length} packages scanned`);
-console.log(`  ${pkgs.reduce((n, p) => n + p.deps.length, 0)} dep edges`);
+if (checkOnly) {
+  if (readFileSync(outputPath, "utf8") !== content) {
+    throw new Error("Generated dependency graph is stale");
+  }
+  process.exit(0);
+}
+
+writeFileSync(outputPath, content);
+console.log(`Generated: ${path.relative(process.cwd(), outputPath)}`);
+console.log(`  ${packages.length} packages scanned`);
+const dependencyCount = packages.reduce(
+  (count, workspacePackage) => count + workspacePackage.dependencies.length,
+  0,
+);
+console.log(`  ${dependencyCount} dep edges`);
 console.log("");
 console.log("Groups:");
-for (const l of LAYERS) {
-  const items = byLayer[l.id];
+for (const layer of LAYERS) {
+  const items = packagesByLayer[layer.id];
   if (items.length === 0) continue;
-  console.log(`  [${l.label}] ${items.map((p) => shortName(p.name)).join(", ")}`);
+  const packageNames = items
+    .map((workspacePackage) => shortName(workspacePackage.name))
+    .join(", ");
+  console.log(`  [${layer.label}] ${packageNames}`);
 }

@@ -16,11 +16,12 @@ const workerUrls = [
 ];
 
 describe("download service worker", () => {
-  it("keeps all bundle variants on the same worker implementation", () => {
+  it("precaches debug routes only for the Sim bundle", () => {
     const sources = workerUrls.map((url) => readFileSync(url, "utf8"));
 
-    expect(sources[1]).toBe(sources[0]);
-    expect(sources[2]).toBe(sources[0]);
+    expect(sources[0]).not.toContain('"/debug"');
+    expect(sources[1]).toContain('"/debug"');
+    expect(sources[2]).not.toContain('"/debug"');
   });
 
   it("uses a pathname cache fallback for offline navigation with a query", async () => {

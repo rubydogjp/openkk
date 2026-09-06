@@ -20,8 +20,7 @@ const APP_SHELL_ROUTES = [
   "/assist/opening-carryover",
   "/fiscal-periods",
   "/fiscal-periods/new",
-  "/install",
-  "/debug",
+  "/install"
 ];
 const PRECACHE_URLS = [
   ...APP_SHELL_ROUTES,

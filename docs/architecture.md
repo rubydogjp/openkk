@@ -4,7 +4,7 @@
 
 ## 全体構造
 
-16 パッケージを「client」「server」「adapters」「composition roots」の 4 グループに分類する。
+19 workspace を「client」「server」「adapters」「composition roots」に分類する。
 依存グラフ: [`dependency-graph.md`](./dependency-graph.md)
 API 契約: [`api-contract.md`](./api-contract.md)
 SQLite スキーマ: [`database-schema.md`](./database-schema.md)
@@ -29,7 +29,10 @@ packages/
 ├── print-adapter        PrintPort 実装 — ブラウザ印刷
 │
 ├── embedded-backend     in-process backend composition root
-└── openkk               Next.js リファレンスアプリ（dev / demo / prod）
+├── frontend             3アプリ共通の provider・composition 配線
+├── openkk               通常版 Next.js アプリ（SQLite OPFS）
+├── openkk_sim           Sim版 Next.js アプリ（memory DB・固定時計・debug）
+└── openkk_demo          デモ版 Next.js アプリ（seed済みmemory DB・編集ロック）
 ```
 
 ## 設計原則
@@ -61,7 +64,7 @@ server side:   api → usecases → ports → domain
 
 ### 4. Composition Roots は薄く
 
-`embedded-backend` と `openkk` はあくまで参照実装。独自アプリは自前の composition root でアダプタを組み合わせる。
+`embedded-backend`、`frontend`、3つのアプリ workspace は参照実装。独自アプリは自前の composition root でアダプタを組み合わせる。
 
 ## 認証について
 
@@ -82,7 +85,7 @@ server side:   api → usecases → ports → domain
 
 ## DB スキーマとマイグレーション
 
-DB操作契約は `db-adapter.ts`、DB境界型は `persistence-types.ts`、SQLite固有のDDL・migration・adapterは `sqlite/` に分離する。テーブル構造は [`database-schema.md`](./database-schema.md) を参照。
+DB操作契約は `db-adapter.ts`、DB境界型は `persistence-types.ts` に置く。SQLite固有処理は `sqlite/` 配下で `fiscal-period-store.ts`、`entry-store.ts`、`fixed-asset-store.ts`、`closing-store.ts`、`opening-store.ts`、`seed-store.ts` に分け、`adapter.ts` は組み立てだけを担当する。テーブル構造は [`database-schema.md`](./database-schema.md) を参照。
 
 `file-db-adapter`・`memory-db-adapter` は共通SQLiteアダプタをラップし、起動時に `runMigrations()` を呼ぶ。DB実装を差し替える場合は `OpenkkDbPort` を実装し、保存モデルとDDLはその実装内で管理する。
 
@@ -92,7 +95,7 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 
 ## PWA とオフラインキャッシュ
 
-Download版のService Workerは、静的エクスポートの主要ルートと発見した同一オリジンの静的アセットをインストール時に事前保存する。ドキュメントとmanifestはnetwork-first、静的アセットはcache-first、別オリジンとGET以外のリクエストはキャッシュ対象外とする。
+Download版のService Workerは、静的エクスポートの主要ルートと発見した同一オリジンの静的アセットをインストール時に事前保存する。正本は `scripts/service-worker.template.js` に置き、`gen-service-workers.mjs` が各アプリの `public/sw.js` を生成する。通常版・デモ版はdebugルートを事前保存せず、Sim版だけが保存する。ドキュメントとmanifestはnetwork-first、静的アセットはcache-first、別オリジンとGET以外のリクエストはキャッシュ対象外とする。
 
 事前保存が一部でも失敗した新しいWorkerはインストールを完了させず、直前の完全なオフラインシェルを維持する。実行時のキャッシュ保存失敗は取得済みレスポンスを妨げず、5xxまたはネットワーク障害時だけ既存キャッシュへフォールバックする。4xxは現在の応答としてそのまま返す。
 
@@ -106,8 +109,8 @@ Download版のService Workerは、静的エクスポートの主要ルートと�
 |---|---|---|
 | ユニット | vitest | ドメインロジック・パーサー・DB adapter |
 | DB ポート契約適合 | vitest | `OpenkkDbPort` 共有 conformance（`server-ports/src/db-port-conformance.ts`）を memory/file-db 両実アダプタ＋遅延非同期コアに通し、dev(memory)↔prod(OPFS worker) の挙動一致を保証 |
-| E2E | Playwright | ブラウザ操作フルフロー（dev モード）。締めフローでは仮帳票＝確定帳票＝概要図を実画面で検証 |
+| E2E | Playwright | Sim版のブラウザ操作フルフローと、通常版の静的export smoke。締めフローでは仮帳票＝確定帳票＝概要図を実画面で検証 |
 | パッケージ構造 | vitest | workspace 整合性チェック |
 
-E2E はリファレンスアプリ（port 4306）を `dev:e2e` で起動した状態で実行する。
+`npm run test:e2e` は Sim版を専用 port 4306 で起動し、既存プロセスを再利用せず実行する。`npm run test:e2e:export` は通常版を静的exportして検査する。生成物・全workspace・3アプリ・両E2Eをまとめた検査は `npm run check:full` で実行できる。
 新しい `OpenkkDbPort` 実装を追加したら `runDbPortConformance` に通すこと。

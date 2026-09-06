@@ -25,12 +25,20 @@
   "scripts": {
     "prepare": "npm run build:packages",
     "check": "npm run build:packages && npm run lint && npm test",
+    "check:generated": "npm run check:master-data && npm run check:service-workers && npm run check:dependency-graph",
+    "check:full": "npm run audit:production && npm run check:generated && npm run check && npm run build:apps && npm run test:e2e:export:built && npm run test:e2e",
+    "audit:production": "npm audit --omit=dev --audit-level=high",
     "build:packages": "npm run build -w @rubydogjp/openkk-client-domain -w @rubydogjp/openkk-server-domain -w @rubydogjp/openkk-client-ports -w @rubydogjp/openkk-server-ports -w @rubydogjp/openkk-client-usecases -w @rubydogjp/openkk-server-usecases -w @rubydogjp/openkk-client-ui -w @rubydogjp/openkk-server-api -w @rubydogjp/openkk-client -w @rubydogjp/openkk-server -w @rubydogjp/openkk-print-adapter -w @rubydogjp/openkk-file-db-adapter -w @rubydogjp/openkk-memory-db-adapter -w @rubydogjp/openkk-embedded-backend -w @rubydogjp/openkk-embedded-backend-adapter -w @rubydogjp/openkk-frontend",
+    "build:apps": "npm run build -w @rubydogjp/openkk -w @rubydogjp/openkk-sim -w @rubydogjp/openkk-demo",
     "lint": "npm run lint --workspaces --if-present",
     "test": "vitest run",
     "test:watch": "vitest",
     "gen-deps": "node scripts/gen-dep-graph.mjs",
+    "check:dependency-graph": "node scripts/gen-dep-graph.mjs --check",
+    "gen-service-workers": "node scripts/gen-service-workers.mjs",
+    "check:service-workers": "node scripts/gen-service-workers.mjs --check",
     "gen-master-data": "node scripts/gen-master-data.mjs",
+    "check:master-data": "node scripts/gen-master-data.mjs --check",
     "gen-theme-docs": "node scripts/gen-theme-docs.mjs",
     "version:set": "node scripts/set-version.mjs",
     "setup-trusted-publishing": "node scripts/setup-trusted-publishing.mjs",
@@ -39,7 +47,8 @@
     "dev:vscode:demo": "npm run dev:vscode -w @rubydogjp/openkk-demo",
     "test:e2e": "playwright test --config=e2e/playwright.config.ts",
     "test:e2e:export": "npm run test:e2e:export:original",
-    "test:e2e:export:original": "npm run build -w @rubydogjp/openkk && playwright test --config=e2e/playwright.export.config.ts"
+    "test:e2e:export:original": "npm run build -w @rubydogjp/openkk && npm run test:e2e:export:built",
+    "test:e2e:export:built": "playwright test --config=e2e/playwright.export.config.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
