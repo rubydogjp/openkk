@@ -186,6 +186,61 @@ describe("materializeVirtualEntryRows", () => {
     expect(credit).toBe(240_000);
   });
 
+  it("keeps per-line partner and categories instead of the merged display text", () => {
+    const entries = buildClosingVirtualEntries({
+      fiscalPeriodId: "fp-2026",
+      periodStartDate: "2026-01-01",
+      periodEndDate: "2026-12-31",
+      entries: [],
+      assets: [],
+      carryovers: [
+        carryover({
+          partner: "得意先A",
+          lines: [
+            {
+              id: "l1",
+              side: "debit",
+              accountName: "売掛金",
+              accountType: "asset",
+              amount: "50,000",
+              bookAccountId: "acct_accounts_receivable",
+              partnerName: "得意先A",
+              taxCategoryId: "tax_out_of_scope",
+              taxCategoryName: "対象外",
+              businessCategoryId: "biz_none",
+            },
+            {
+              id: "l2",
+              side: "credit",
+              accountName: "売上",
+              accountType: "revenue",
+              amount: "50,000",
+              bookAccountId: "acct_sales",
+              partnerName: "得意先B",
+              taxCategoryId: "tax_sales_10",
+              taxCategoryName: "課税売上 10%",
+              businessCategoryId: "biz_none",
+            },
+          ],
+        }),
+      ],
+    });
+
+    const lines = getEntryLines(entries[0]!);
+    expect(lines.map((line) => line.partnerName)).toEqual([
+      "得意先A",
+      "得意先B",
+    ]);
+    expect(lines.map((line) => line.taxCategoryId)).toEqual([
+      "tax_out_of_scope",
+      "tax_sales_10",
+    ]);
+    expect(lines.map((line) => line.businessCategoryId)).toEqual([
+      "biz_none",
+      "biz_none",
+    ]);
+  });
+
   it("preserves the exact fixed-asset business rate when materializing", () => {
     const rows = buildVirtualFixedAssetRows({
       fiscalPeriodId: "fp-2026",

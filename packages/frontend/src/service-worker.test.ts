@@ -193,6 +193,59 @@ describe("download service worker", () => {
     );
   });
 
+  it("installs even when asset discovery guesses a URL that does not exist", async () => {
+    const flightPayloadWithEscapedChunkPath =
+      'self.__next_f.push([1,"2:I[34666,[\\"/_next/static/chunks/app.js\\"]]"])';
+    const put = vi.fn();
+    const { precacheAppShell } = loadWorker({
+      fetch: vi.fn(async (request: Request) => {
+        const { pathname } = new URL(request.url);
+        if (pathname === "/_next/static/chunks/app.js/") {
+          return new Response("not found", { status: 404 });
+        }
+        return new Response(
+          `<script>${flightPayloadWithEscapedChunkPath}</script>`,
+          { status: 200, headers: { "Content-Type": "text/html" } },
+        );
+      }) as unknown as typeof fetch,
+      caches: {
+        open: vi.fn(async () => ({ put, match: vi.fn() })),
+        match: vi.fn(),
+      },
+    });
+
+    await expect(precacheAppShell()).resolves.toBeUndefined();
+    const requested = put.mock.calls.map(
+      (call) => new URL((call[0] as Request).url).pathname,
+    );
+    expect(requested).not.toContain("/_next/static/chunks/app.js/");
+    expect(requested).toContain("/");
+  });
+
+  it("skips discovery candidates that are template literals or escaped strings", async () => {
+    const put = vi.fn();
+    const requested: string[] = [];
+    const { precacheAppShell } = loadWorker({
+      fetch: vi.fn(async (request: Request) => {
+        const { pathname } = new URL(request.url);
+        requested.push(pathname);
+        return new Response(
+          '<script>"/_next/static/chunks/${chunkId}.js"</script>',
+          { status: 200, headers: { "Content-Type": "text/html" } },
+        );
+      }) as unknown as typeof fetch,
+      caches: {
+        open: vi.fn(async () => ({ put, match: vi.fn() })),
+        match: vi.fn(),
+      },
+    });
+
+    await expect(precacheAppShell()).resolves.toBeUndefined();
+    expect(
+      requested.filter((pathname) => pathname.includes("$")),
+    ).toEqual([]);
+  });
+
   it("deletes only old OpenKK app-shell caches", async () => {
     const remove = vi.fn(async () => true);
     const { cleanupOldCaches } = loadWorker({

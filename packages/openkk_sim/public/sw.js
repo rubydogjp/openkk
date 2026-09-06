@@ -73,25 +73,34 @@ function isNetworkFirstRequest(request) {
 
 async function precacheAppShell() {
   const cache = await caches.open(CACHE_NAME);
-  const pendingPathnames = [...PRECACHE_URLS];
-  const discoveredPathnames = new Set(pendingPathnames);
+  const pendingResources = PRECACHE_URLS.map((pathname) => ({
+    pathname,
+    isAppShell: true,
+  }));
+  const queuedPathnames = new Set(PRECACHE_URLS);
   const fetchedPathnames = new Set();
-  const failedPathnames = new Set();
+  const unreachableAppShellPathnames = new Set();
+  const markUnreachable = (resource) => {
+    if (resource.isAppShell) {
+      unreachableAppShellPathnames.add(resource.pathname);
+    }
+  };
 
   while (
-    pendingPathnames.length > 0 &&
+    pendingResources.length > 0 &&
     fetchedPathnames.size < MAX_PRECACHE_RESOURCE_COUNT
   ) {
-    const pathname = pendingPathnames.shift();
-    fetchedPathnames.add(pathname);
+    const resource = pendingResources.shift();
+    fetchedPathnames.add(resource.pathname);
 
-    const request = new Request(new URL(pathname, self.location.origin), {
-      cache: "reload",
-    });
+    const request = new Request(
+      new URL(resource.pathname, self.location.origin),
+      { cache: "reload" },
+    );
     try {
       const response = await fetch(request);
       if (!response.ok) {
-        failedPathnames.add(pathname);
+        markUnreachable(resource);
         continue;
       }
       await cache.put(request, response.clone());
@@ -99,22 +108,22 @@ async function precacheAppShell() {
       if (isDiscoverableText(response)) {
         const text = await response.clone().text();
         for (const asset of discoverSameOriginAssets(text, request.url)) {
-          if (
-            !discoveredPathnames.has(asset) &&
-            !fetchedPathnames.has(asset)
-          ) {
-            discoveredPathnames.add(asset);
-            pendingPathnames.push(asset);
-          }
+          if (queuedPathnames.has(asset)) continue;
+          queuedPathnames.add(asset);
+          pendingResources.push({ pathname: asset, isAppShell: false });
         }
       }
     } catch {
-      failedPathnames.add(pathname);
+      markUnreachable(resource);
     }
   }
 
-  if (failedPathnames.size > 0 || pendingPathnames.length > 0) {
-    throw new Error("OpenKK app shell precache is incomplete");
+  for (const resource of pendingResources) markUnreachable(resource);
+
+  if (unreachableAppShellPathnames.size > 0) {
+    throw new Error(
+      `OpenKK app shell precache is incomplete: ${[...unreachableAppShellPathnames].join(", ")}`,
+    );
   }
 }
 
@@ -167,9 +176,19 @@ function discoverSameOriginAssets(text, baseUrl) {
   return assets;
 }
 
+function isSourceCodeFragment(value) {
+  return value.includes("\\") || value.includes("${");
+}
+
 function tryAddAsset(assets, value, baseUrl) {
   if (value == null || value.startsWith("data:")) return;
-  const url = new URL(value, baseUrl);
+  if (isSourceCodeFragment(value)) return;
+  let url;
+  try {
+    url = new URL(value, baseUrl);
+  } catch {
+    return;
+  }
   if (url.origin !== self.location.origin) return;
   if (!isPrecacheAsset(url.pathname)) return;
   assets.add(url.pathname);

@@ -527,6 +527,9 @@ export function materializeVirtualEntryRows(input: {
           accountType: row.debitType,
           amount: row.debitAmount,
           bookAccountId: row.debitBookAccountId,
+          partnerName: row.debitPartnerName,
+          taxCategoryId: row.debitTaxCategoryId,
+          businessCategoryId: row.debitBusinessCategoryId,
         });
       }
       if (row.credit.trim() !== "" && parseAmount(row.creditAmount) > 0) {
@@ -536,6 +539,9 @@ export function materializeVirtualEntryRows(input: {
           accountType: row.creditType,
           amount: row.creditAmount,
           bookAccountId: row.creditBookAccountId,
+          partnerName: row.creditPartnerName,
+          taxCategoryId: row.creditTaxCategoryId,
+          businessCategoryId: row.creditBusinessCategoryId,
         });
       }
       return out;
