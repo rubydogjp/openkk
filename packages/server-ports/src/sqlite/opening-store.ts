@@ -3,19 +3,17 @@ import type {
   FiscalPeriodOpeningDbRecord,
 } from "../persistence-types.js";
 import { isoToMs, msToIso, validateOpeningDbRecord } from "./persistence-codec.js";
+import type { SqlDb } from "./sql-db.js";
 
-type OpeningSqlDb = {
-  exec(
-    arg:
-      | string
-      | {
-          sql: string;
-          bind?: unknown[];
-          returnValue?: string;
-          rowMode?: string;
-        },
-  ): Promise<unknown>;
-};
+export function requireOpening<Opening>(
+  opening: Opening | null | undefined,
+  fiscalPeriodId: string,
+): Opening {
+  if (opening == null) {
+    throw new Error(`opening not found for fiscal period: ${fiscalPeriodId}`);
+  }
+  return opening;
+}
 
 export function defaultOpening(
   userId: string,
@@ -35,14 +33,14 @@ export function defaultOpening(
 }
 
 export async function loadOpeningsByUser(
-  db: OpeningSqlDb,
+  db: SqlDb,
   userId: string,
 ): Promise<Map<string, FiscalPeriodOpeningDbRecord>> {
   return loadOpenings(db, "fp.user_id = ?", userId);
 }
 
 export async function loadOpeningByFiscalPeriod(
-  db: OpeningSqlDb,
+  db: SqlDb,
   fiscalPeriodId: string,
 ): Promise<FiscalPeriodOpeningDbRecord | null> {
   const openings = await loadOpenings(
@@ -54,7 +52,7 @@ export async function loadOpeningByFiscalPeriod(
 }
 
 export async function replaceOpening(
-  db: OpeningSqlDb,
+  db: SqlDb,
   opening: FiscalPeriodOpeningDbRecord,
   now: number,
 ): Promise<void> {
@@ -115,7 +113,7 @@ export async function replaceOpening(
 }
 
 async function loadOpenings(
-  db: OpeningSqlDb,
+  db: SqlDb,
   where: "fp.user_id = ?" | "o.fiscal_period_id = ?",
   value: string,
 ): Promise<Map<string, FiscalPeriodOpeningDbRecord>> {

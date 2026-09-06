@@ -1,0 +1,204 @@
+import { serverNotFoundError } from "@rubydogjp/openkk-server-domain";
+
+import type { FixedAssetsDb } from "../db-adapter.js";
+import type { FixedAssetDbRecord } from "../persistence-types.js";
+import { assertDbFiscalPeriodAllows } from "./fiscal-period-guard.js";
+import {
+  msToIso,
+  parseFiscalPeriodDbRecord,
+  parseFixedAssetDbRecord,
+  serializeFixedAssetDbRecord,
+} from "./persistence-codec.js";
+import {
+  assertDbFixedAssetRecord,
+  assertDbPeriodOwnership,
+} from "./record-validation.js";
+import { newId, nowMs } from "./runtime.js";
+import type { SqlDb } from "./sql-db.js";
+import { runInTransaction } from "./transaction.js";
+
+export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
+  return {
+    async getAllByFiscalPeriod(fiscalPeriodId) {
+      const rows = (await db.exec({
+        sql: `SELECT fa.data, fp.user_id, fa.created_at, fa.updated_at, fp.data
+          FROM fixed_assets fa
+          JOIN fiscal_periods fp ON fp.id = fa.fiscal_period_id
+          WHERE fa.fiscal_period_id = ? ORDER BY fa.created_at ASC, fa.id ASC`,
+        bind: [fiscalPeriodId],
+        returnValue: "resultRows",
+        rowMode: "array",
+      })) as Array<[string, string, number, number, string]>;
+      return rows.map(
+        ([data, userId, createdAt, updatedAt, periodData]) => {
+          const asset: FixedAssetDbRecord = {
+            ...parseFixedAssetDbRecord(data),
+            userId,
+            createdAt: msToIso(createdAt),
+            updatedAt: msToIso(updatedAt),
+          };
+          const period = {
+            ...parseFiscalPeriodDbRecord(periodData),
+            userId,
+          };
+          assertDbFixedAssetRecord(asset, period);
+          return asset;
+        },
+      );
+    },
+    async getById(id) {
+      const rows = (await db.exec({
+        sql: `SELECT fa.data, fp.user_id, fa.created_at, fa.updated_at, fp.data
+          FROM fixed_assets fa
+          JOIN fiscal_periods fp ON fp.id = fa.fiscal_period_id
+          WHERE fa.id = ?`,
+        bind: [id],
+        returnValue: "resultRows",
+        rowMode: "array",
+      })) as Array<[string, string, number, number, string]>;
+      const row = rows[0];
+      if (row == null) return null;
+      const asset: FixedAssetDbRecord = {
+        ...parseFixedAssetDbRecord(row[0]),
+        userId: row[1],
+        createdAt: msToIso(row[2]),
+        updatedAt: msToIso(row[3]),
+      };
+      const period = {
+        ...parseFiscalPeriodDbRecord(row[4]),
+        userId: row[1],
+      };
+      assertDbFixedAssetRecord(asset, period);
+      return asset;
+    },
+    async create(userId, fiscalPeriodId, input) {
+      const id = newId("fa");
+      const now = nowMs();
+      const timestamp = msToIso(now);
+      const record: FixedAssetDbRecord = {
+        id,
+        userId,
+        fiscalPeriodId,
+        name: input.name,
+        acquisitionDate: input.acquisitionDate,
+        acquisitionCost: input.acquisitionCost,
+        usefulLife: input.usefulLife,
+        depreciationMethod: input.depreciationMethod,
+        businessRate: input.businessRate,
+        status: "active",
+        disposalDate: "",
+        disposalPrice: 0,
+        bookAccountId: input.bookAccountId,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+      await runInTransaction(db, async () => {
+        const period = await assertDbFiscalPeriodAllows(
+          db,
+          fiscalPeriodId,
+          ["pre_opening", "journalizing"],
+          "create fixed asset",
+        );
+        assertDbPeriodOwnership(userId, period);
+        assertDbFixedAssetRecord(record, period);
+        await db.exec({
+          sql: `INSERT INTO fixed_assets(id, fiscal_period_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
+          bind: [
+            id,
+            fiscalPeriodId,
+            serializeFixedAssetDbRecord(record),
+            now,
+            now,
+          ],
+        });
+      });
+      return record;
+    },
+    async update(id, patch) {
+      let updated: FixedAssetDbRecord | null = null;
+      await runInTransaction(db, async () => {
+        const rows = (await db.exec({
+          sql: `SELECT fa.data, fp.user_id, fa.created_at
+            FROM fixed_assets fa
+            JOIN fiscal_periods fp ON fp.id = fa.fiscal_period_id
+            WHERE fa.id = ?`,
+          bind: [id],
+          returnValue: "resultRows",
+          rowMode: "array",
+        })) as Array<[string, string, number]>;
+        const row = rows[0];
+        if (row == null)
+          throw serverNotFoundError(`fixed asset not found: ${id}`);
+        const now = nowMs();
+        const existing: FixedAssetDbRecord = {
+          ...parseFixedAssetDbRecord(row[0]),
+          userId: row[1],
+          createdAt: msToIso(row[2]),
+          updatedAt: msToIso(now),
+        };
+        const period = await assertDbFiscalPeriodAllows(
+          db,
+          existing.fiscalPeriodId,
+          ["journalizing"],
+          "update fixed asset",
+        );
+        updated = {
+          ...existing,
+          ...(patch.name !== undefined ? { name: patch.name } : {}),
+          ...(patch.acquisitionDate !== undefined
+            ? { acquisitionDate: patch.acquisitionDate }
+            : {}),
+          ...(patch.acquisitionCost !== undefined
+            ? { acquisitionCost: patch.acquisitionCost }
+            : {}),
+          ...(patch.usefulLife !== undefined
+            ? { usefulLife: patch.usefulLife }
+            : {}),
+          ...(patch.depreciationMethod !== undefined
+            ? { depreciationMethod: patch.depreciationMethod }
+            : {}),
+          ...(patch.businessRate !== undefined
+            ? { businessRate: patch.businessRate }
+            : {}),
+          ...(patch.status !== undefined ? { status: patch.status } : {}),
+          ...(patch.disposalDate !== undefined
+            ? { disposalDate: patch.disposalDate }
+            : {}),
+          ...(patch.disposalPrice !== undefined
+            ? { disposalPrice: patch.disposalPrice }
+            : {}),
+          ...(patch.bookAccountId !== undefined
+            ? { bookAccountId: patch.bookAccountId }
+            : {}),
+        };
+        assertDbFixedAssetRecord(updated, period);
+        await db.exec({
+          sql: `UPDATE fixed_assets SET data = ?, updated_at = ? WHERE id = ?`,
+          bind: [serializeFixedAssetDbRecord(updated), now, id],
+        });
+      });
+      return updated!;
+    },
+    async delete(id) {
+      await runInTransaction(db, async () => {
+        const rows = (await db.exec({
+          sql: `SELECT fiscal_period_id FROM fixed_assets WHERE id = ?`,
+          bind: [id],
+          returnValue: "resultRows",
+          rowMode: "array",
+        })) as Array<[string]>;
+        if (rows[0] == null) return;
+        await assertDbFiscalPeriodAllows(
+          db,
+          rows[0][0],
+          ["journalizing"],
+          "delete fixed asset",
+        );
+        await db.exec({
+          sql: `DELETE FROM fixed_assets WHERE id = ?`,
+          bind: [id],
+        });
+      });
+    },
+  };
+}

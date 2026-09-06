@@ -1,4 +1,5 @@
 import { SCHEMA_MIGRATIONS, SCHEMA_VERSION } from "./schema.js";
+import { transactionRollbackError } from "./transaction.js";
 
 export type MigrationDb = {
   selectValue(sql: string): unknown;
@@ -27,11 +28,17 @@ export function runMigrations(db: MigrationDb): void {
       });
       db.exec("COMMIT");
     } catch (error) {
-      db.exec("ROLLBACK");
+      let cause = error;
+      try {
+        db.exec("ROLLBACK");
+      } catch (rollbackError) {
+        cause = transactionRollbackError(error, rollbackError);
+      }
       throw new Error(
         `[openkk-browser-db] migration to version ${migration.version} failed: ${
           error instanceof Error ? error.message : String(error)
         }`,
+        { cause },
       );
     }
   }

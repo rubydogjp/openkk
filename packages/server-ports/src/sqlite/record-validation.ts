@@ -361,20 +361,18 @@ export function assertDbStoredEntryRecord(
   period: FiscalPeriodDbRecord,
 ): void {
   if (
+    typeof record.id !== "string" ||
+    typeof record.userId !== "string" ||
+    typeof record.fiscalPeriodId !== "string" ||
     record.id.trim() === "" ||
     record.userId.trim() === "" ||
     record.fiscalPeriodId.trim() === "" ||
     record.userId !== period.userId ||
     record.fiscalPeriodId !== period.id
   ) {
-    throw new Error(`Stored entry identity is invalid: ${record.id}`);
-  }
-  const lineIds = new Set<string>();
-  for (const line of record.lines) {
-    if (line.id.trim() === "" || lineIds.has(line.id)) {
-      throw new Error(`Stored entry line identity is invalid: ${record.id}`);
-    }
-    lineIds.add(line.id);
+    throw serverValidationError(
+      `Stored entry identity is invalid: ${String(record.id)}`,
+    );
   }
   const { localId, ...storedInputWithoutLocalId } = record;
   assertDbEntryInput(
@@ -382,6 +380,40 @@ export function assertDbStoredEntryRecord(
     period,
     "Stored entry",
   );
+  const lineIds = new Set<string>();
+  for (const line of record.lines) {
+    if (
+      typeof line.id !== "string" ||
+      line.id.trim() === "" ||
+      lineIds.has(line.id)
+    ) {
+      throw serverValidationError(
+        `Stored entry line identity is invalid: ${record.id}`,
+      );
+    }
+    lineIds.add(line.id);
+  }
+}
+
+export function assertDbStoredFixedAssetRecord(
+  asset: FixedAssetDbRecord,
+  period: FiscalPeriodDbRecord,
+): void {
+  if (
+    typeof asset.id !== "string" ||
+    typeof asset.userId !== "string" ||
+    typeof asset.fiscalPeriodId !== "string" ||
+    asset.id.trim() === "" ||
+    asset.userId.trim() === "" ||
+    asset.fiscalPeriodId.trim() === "" ||
+    asset.userId !== period.userId ||
+    asset.fiscalPeriodId !== period.id
+  ) {
+    throw serverValidationError(
+      `Stored fixed asset identity is invalid: ${String(asset.id)}`,
+    );
+  }
+  assertDbFixedAssetRecord(asset, period);
 }
 
 export function assertDbClosingGeneratedSizeLimits(

@@ -272,11 +272,19 @@ describe("openkk workspace structure", () => {
       path.join(packagesDir, "server-ports/src/sqlite/adapter.ts"),
       "utf8",
     );
+    const fiscalPeriodStore = fs.readFileSync(
+      path.join(
+        packagesDir,
+        "server-ports/src/sqlite/fiscal-period-store.ts",
+      ),
+      "utf8",
+    );
 
     expect(schema).toMatch(/json_remove\(data, '\$\.opening'/);
     expect(schema).toContain("json_type(data, '$.opening') IS NULL");
-    expect(adapter).toContain("loadOpeningByFiscalPeriod");
-    expect(adapter).toContain("replaceOpening");
+    expect(adapter).toContain("createFiscalPeriodsDb");
+    expect(fiscalPeriodStore).toContain("loadOpeningByFiscalPeriod");
+    expect(fiscalPeriodStore).toContain("replaceOpening");
   });
 
   it("keeps entry lines normalized in SQLite", () => {
@@ -284,15 +292,15 @@ describe("openkk workspace structure", () => {
       path.join(packagesDir, "server-ports/src/sqlite/schema.ts"),
       "utf8",
     );
-    const adapter = fs.readFileSync(
-      path.join(packagesDir, "server-ports/src/sqlite/adapter.ts"),
+    const entryStore = fs.readFileSync(
+      path.join(packagesDir, "server-ports/src/sqlite/entry-store.ts"),
       "utf8",
     );
 
     expect(schema).toContain("CREATE TABLE entry_lines");
     expect(schema).not.toContain("json_type(data, '$.lines')");
-    expect(adapter).toContain("LEFT JOIN entry_lines");
-    expect(adapter).toContain("insertEntryLines");
+    expect(entryStore).toContain("LEFT JOIN entry_lines");
+    expect(entryStore).toContain("insertEntryLines");
   });
 
   it("keeps hard-coded data names aligned with their purpose", () => {

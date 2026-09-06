@@ -32,6 +32,7 @@ function createFakeDb(initial: Partial<FakeMeta> = {}): {
   state: FakeMeta;
   execLog: Array<string | { sql: string; bind?: unknown[] }>;
   setExecError: (err: Error | null) => void;
+  setRollbackError: (err: Error | null) => void;
 } {
   const state: FakeMeta = {
     metaTableExists: initial.metaTableExists ?? false,
@@ -39,6 +40,7 @@ function createFakeDb(initial: Partial<FakeMeta> = {}): {
   };
   const execLog: Array<string | { sql: string; bind?: unknown[] }> = [];
   let pendingError: Error | null = null;
+  let rollbackError: Error | null = null;
 
   const db: MigrationDb = {
     selectValue(sql) {
@@ -53,6 +55,9 @@ function createFakeDb(initial: Partial<FakeMeta> = {}): {
     exec(arg: string | { sql: string; bind?: unknown[] }) {
       execLog.push(arg);
       const sql = typeof arg === "string" ? arg : arg.sql;
+      if (sql === "ROLLBACK" && rollbackError != null) {
+        throw rollbackError;
+      }
       if (pendingError != null && sql !== "BEGIN" && sql !== "ROLLBACK") {
         throw pendingError;
       }
@@ -74,6 +79,9 @@ function createFakeDb(initial: Partial<FakeMeta> = {}): {
     execLog,
     setExecError(err) {
       pendingError = err;
+    },
+    setRollbackError(err) {
+      rollbackError = err;
     },
   };
 }
@@ -119,8 +127,33 @@ describe("runMigrations", () => {
     expect(state.schemaVersion).toBeUndefined();
   });
 
-  it("reads schema_version=0 when meta table is missing", () => {
+  it("retains the migration failure when rollback also fails", () => {
+    const { db, setExecError, setRollbackError } = createFakeDb({
+      metaTableExists: false,
+    });
+    const migrationError = new Error("migration write failed");
+    const rollbackError = new Error("rollback failed");
+    setExecError(migrationError);
+    setRollbackError(rollbackError);
 
+    let thrown: unknown;
+    try {
+      runMigrations(db);
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(Error);
+    const combined = (thrown as Error).cause;
+    expect(combined).toBeInstanceOf(AggregateError);
+    expect((combined as AggregateError).cause).toBe(migrationError);
+    expect((combined as AggregateError).errors).toEqual([
+      migrationError,
+      rollbackError,
+    ]);
+  });
+
+  it("reads schema_version=0 when meta table is missing", () => {
     const { db, state } = createFakeDb({ metaTableExists: false });
     runMigrations(db);
     expect(state.schemaVersion).toBe(SCHEMA_VERSION);

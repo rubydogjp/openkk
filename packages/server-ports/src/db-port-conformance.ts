@@ -422,8 +422,8 @@ export function runDbPortConformance(
         fiscalPeriods: [{ userId: "user-1", record: sqlPhasePeriod }],
         entries: [],
         fixedAssets: [],
-        preClosings: [],
-        closings: [],
+        preClosings: [{ fiscalPeriodId: "fp-archive", year: 2026 }],
+        closings: [{ fiscalPeriodId: "fp-archive", year: 2026 }],
       });
 
       const archived = await phaseDb.fiscalPeriods.archive("fp-archive");
@@ -1195,21 +1195,13 @@ export function runDbPortConformance(
       expect(await db.preClosings.get(period.id, 2026)).toEqual({});
     });
 
-    it("does not finalize or cancel pre-closing when its persisted marker is missing", async () => {
+    it("rejects a seeded phase whose persisted markers are missing", async () => {
       const seed = seedWithPeriods("fp-missing-marker");
       seed.fiscalPeriods[0]!.record.phase = "pre_closing";
-      const db = await ctx.makeSeededAdapter(seed);
 
-      await expect(
-        db.closings.run("fp-missing-marker", 2026, []),
-      ).rejects.toThrow(/pre_closings marker is missing/);
-      await expect(
-        db.preClosings.cancel("fp-missing-marker", 2026),
-      ).rejects.toThrow(/pre_closings marker is missing/);
-      expect(
-        (await db.fiscalPeriods.getById("fp-missing-marker"))?.phase,
-      ).toBe("pre_closing");
-      expect(await db.closings.get("fp-missing-marker", 2026)).toBeNull();
+      await expect(ctx.makeSeededAdapter(seed)).rejects.toThrow(
+        /inconsistent with phase pre_closing/,
+      );
     });
 
     it("commits generated entries and final closing in one transition", async () => {
@@ -1364,7 +1356,7 @@ export function runDbPortConformance(
         ],
         entries: [],
         fixedAssets: [],
-        preClosings: [{ fiscalPeriodId: "fp-seed", year: 2026 }],
+        preClosings: [],
         closings: [],
       };
       const db = await ctx.makeSeededAdapter(seed);
@@ -1372,7 +1364,7 @@ export function runDbPortConformance(
       expect(
         (await db.fiscalPeriods.getAllByUser("user-1")).map((fp) => fp.id),
       ).toEqual(["fp-seed"]);
-      expect(await db.preClosings.get("fp-seed", 2026)).toEqual({});
+      expect(await db.preClosings.get("fp-seed", 2026)).toBeNull();
     });
 
     it("rejects invalid seeded child data before exposing the adapter", async () => {
@@ -1397,18 +1389,120 @@ export function runDbPortConformance(
       );
     });
 
-    it("isolates closing rows by fiscal period and year", async () => {
-      const seed = seedWithPeriods("fp-1", "fp-2");
-      seed.preClosings = [{ fiscalPeriodId: "fp-1", year: 2026 }];
-      seed.closings = [
-        { fiscalPeriodId: "fp-1", year: 2027 },
-        { fiscalPeriodId: "fp-2", year: 2026 },
+    it("rejects a malformed seeded entry identity as validation failure", async () => {
+      const seed = seedWithPeriods("fp-malformed-entry");
+      seed.entries = [
+        {
+          id: undefined as unknown as string,
+          userId: "user-1",
+          fiscalPeriodId: "fp-malformed-entry",
+          date: "2026-04-01",
+          description: "malformed identity",
+          localId: "malformed-identity",
+          businessRate: 1,
+          lines: [
+            { id: "line-1", ...testEntryLine },
+            { id: "line-2", ...testCreditEntryLine },
+          ],
+          createdAt: "1970-01-01T00:00:00.000Z",
+          updatedAt: "1970-01-01T00:00:00.000Z",
+        },
       ];
+
+      await expect(ctx.makeSeededAdapter(seed)).rejects.toMatchObject({
+        name: "AppError",
+        statusCode: 400,
+      });
+    });
+
+    it("rejects missing parents, ownership mismatches, and overlapping active seed periods", async () => {
+      const missingParent = seedWithPeriods("fp-valid");
+      missingParent.entries = [
+        {
+          id: "entry-orphan",
+          userId: "user-1",
+          fiscalPeriodId: "fp-missing",
+          date: "2026-04-01",
+          description: "orphan",
+          localId: "orphan",
+          businessRate: 1,
+          lines: [
+            { id: "line-1", ...testEntryLine },
+            { id: "line-2", ...testCreditEntryLine },
+          ],
+          createdAt: "1970-01-01T00:00:00.000Z",
+          updatedAt: "1970-01-01T00:00:00.000Z",
+        },
+      ];
+      await expect(ctx.makeSeededAdapter(missingParent)).rejects.toThrow(
+        /Seed fiscal period not found/,
+      );
+
+      const wrongOwner = seedWithPeriods("fp-wrong-owner");
+      wrongOwner.fiscalPeriods[0]!.userId = "user-2";
+      await expect(ctx.makeSeededAdapter(wrongOwner)).rejects.toThrow(
+        /ownership is inconsistent/,
+      );
+
+      await expect(
+        ctx.makeSeededAdapter(seedWithPeriods("fp-overlap-1", "fp-overlap-2")),
+      ).rejects.toThrow(/overlaps active fiscal period/);
+    });
+
+    it("rejects out-of-period children and invalid closing marker years", async () => {
+      const invalidDate = seedWithPeriods("fp-invalid-date");
+      invalidDate.entries = [
+        {
+          id: "entry-invalid-date",
+          userId: "user-1",
+          fiscalPeriodId: "fp-invalid-date",
+          date: "2027-01-01",
+          description: "outside period",
+          localId: "outside-period",
+          businessRate: 1,
+          lines: [
+            { id: "line-1", ...testEntryLine },
+            { id: "line-2", ...testCreditEntryLine },
+          ],
+          createdAt: "1970-01-01T00:00:00.000Z",
+          updatedAt: "1970-01-01T00:00:00.000Z",
+        },
+      ];
+      await expect(ctx.makeSeededAdapter(invalidDate)).rejects.toThrow(
+        /must be within fiscal period/,
+      );
+
+      const invalidYear = seedWithPeriods("fp-invalid-year");
+      invalidYear.fiscalPeriods[0]!.record.phase = "pre_closing";
+      invalidYear.preClosings = [
+        { fiscalPeriodId: "fp-invalid-year", year: 2025 },
+      ];
+      await expect(ctx.makeSeededAdapter(invalidYear)).rejects.toThrow(
+        /must match fiscal period end year 2026/,
+      );
+    });
+
+    it("loads valid closing rows for multiple non-overlapping periods", async () => {
+      const seed = seedWithPeriods("fp-1", "fp-2");
+      seed.fiscalPeriods[0]!.record.phase = "pre_closing";
+      seed.fiscalPeriods[1]!.record = {
+        ...seed.fiscalPeriods[1]!.record,
+        startDate: "2027-01-01",
+        endDate: "2027-12-31",
+        phase: "post_closing",
+        documentsReceivedCompleted: true,
+      };
+      seed.preClosings = [
+        { fiscalPeriodId: "fp-1", year: 2026 },
+        { fiscalPeriodId: "fp-2", year: 2027 },
+      ];
+      seed.closings = [{ fiscalPeriodId: "fp-2", year: 2027 }];
       const db = await ctx.makeSeededAdapter(seed);
 
       expect(await db.preClosings.get("fp-1", 2026)).toEqual({});
-      expect(await db.closings.get("fp-1", 2027)).toEqual({});
-      expect(await db.closings.get("fp-2", 2026)).toEqual({});
+      expect(await db.closings.get("fp-1", 2026)).toBeNull();
+      expect(await db.preClosings.get("fp-2", 2027)).toEqual({});
+      expect(await db.closings.get("fp-2", 2027)).toEqual({});
     });
   });
 }

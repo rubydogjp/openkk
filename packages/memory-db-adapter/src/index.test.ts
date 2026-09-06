@@ -6,10 +6,13 @@ describe("createMemoryDbAdapter", () => {
   it("shares safe initialization across concurrent adapter creation", async () => {
     const originalWarn = console.warn;
 
-    const [first, second] = await Promise.all([
+    const adapters = Promise.all([
       createMemoryDbAdapter(),
       createMemoryDbAdapter(),
     ]);
+    expect(console.warn).toBe(originalWarn);
+
+    const [first, second] = await adapters;
 
     expect(first).not.toBe(second);
     expect(console.warn).toBe(originalWarn);
