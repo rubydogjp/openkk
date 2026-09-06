@@ -7,7 +7,6 @@ import {
   buildFiscalPeriodArchiveFilename,
   buildFiscalPeriodArchivePayload,
   buildNextFiscalPeriodSuggestion,
-  buildOpeningBalanceLinesFromClosingBsRows,
   buildOpeningCarryoverJournalsFromReversibleEntries,
   computeFsAggregate,
   createFiscalPeriodArchiveZip,
@@ -205,9 +204,7 @@ export function NextFiscalPeriodBody({
             currentFiscalPeriod.opening?.openingBalanceLines ?? [],
           entries,
         });
-        const openingBalanceLines = buildOpeningBalanceLinesFromClosingBsRows(
-          aggregate.bsRows,
-        );
+        const openingBalanceLines = aggregate.nextPeriodOpeningBalanceLines;
         const openingJournals = carries.transfer
           ? buildOpeningCarryoverJournalsFromReversibleEntries({
               entries,

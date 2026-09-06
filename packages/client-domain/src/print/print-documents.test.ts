@@ -120,6 +120,57 @@ describe("print documents", () => {
     expect(ledgerHtml).toContain("42,000");
   });
 
+  it("renders line-specific metadata in journal and ledger documents", () => {
+    const compound = entry({
+      partner: "誤ったヘッダー取引先",
+      taxCategory: "誤ったヘッダー税区分",
+      businessCategory: "誤ったヘッダー事業区分",
+      lines: [
+        {
+          side: "debit",
+          accountName: "通信費",
+          accountType: "expense",
+          amount: "60",
+          partnerName: "通信会社A",
+          taxCategoryName: "課税仕入 10%",
+          businessCategoryName: "第5種",
+        },
+        {
+          side: "debit",
+          accountName: "支払手数料",
+          accountType: "expense",
+          amount: "40",
+          partnerName: "銀行B",
+          taxCategoryName: "対象外",
+          businessCategoryName: "対象外",
+        },
+        {
+          side: "credit",
+          accountName: "普通預金",
+          accountType: "asset",
+          amount: "100",
+          partnerName: "決済会社C",
+          taxCategoryName: "非課税",
+          businessCategoryName: "第2種",
+        },
+      ],
+    });
+
+    const journalHtml = buildJournalDocument("2026年分", [compound]);
+    expect(journalHtml).toContain("借: 通信会社A / 貸: 決済会社C");
+    expect(journalHtml).toContain("借: 課税仕入 10% / 貸: 非課税");
+    expect(journalHtml).toContain("取引先: 銀行B");
+    expect(journalHtml).toContain("事業区分: 対象外");
+
+    const ledgerHtml = buildGeneralLedgerDocument("2026年分", [compound], []);
+    expect(ledgerHtml).toContain("取引先: 通信会社A");
+    expect(ledgerHtml).toContain("取引先: 銀行B");
+    expect(ledgerHtml).toContain("取引先: 決済会社C");
+    expect(ledgerHtml).toContain("税区分: 課税仕入 10%");
+    expect(ledgerHtml).toContain("事業区分: 第2種");
+    expect(ledgerHtml).not.toContain("誤ったヘッダー取引先");
+  });
+
   it("creates separate ledgers for same-name accounts with different IDs", () => {
     const html = buildGeneralLedgerDocument(
       "2026年分",

@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildOpeningJournalLines,
   fixedAssetDraftToPatch,
   groupAccountIdsByName,
   listFixedAssetsForPeriod,
+  mapOpeningJournalToRecord,
   nextOpeningCarryoverId,
   replaceLoadedFixedAssets,
   resolveBookAccountId,
+  resolveUpdatedBookAccountId,
   upsertFixedAsset,
 } from "./assist-state-helpers.js";
 import type {
@@ -212,6 +215,199 @@ describe("resolveBookAccountId", () => {
         accountTypeById,
       }),
     ).toBe("expense_bonus");
+  });
+});
+
+describe("resolveUpdatedBookAccountId", () => {
+  const master = {
+    accountTypeById: {
+      asset_current: "asset",
+      asset_fixed: "asset",
+      asset_equipment: "asset",
+      expense_equipment: "expense",
+    } as const,
+    accountIdsByName: groupAccountIdsByName([
+      { id: "asset_current", name: "繰延税金資産" },
+      { id: "asset_fixed", name: "繰延税金資産" },
+      { id: "asset_equipment", name: "工具器具備品" },
+      { id: "expense_equipment", name: "工具器具備品" },
+    ]),
+  };
+
+  it("resolves a changed account name instead of retaining the old id", () => {
+    expect(
+      resolveUpdatedBookAccountId(
+        { accountId: "asset_current", accountName: "繰延税金資産" },
+        "工具器具備品",
+        "asset",
+        master,
+      ),
+    ).toBe("asset_equipment");
+  });
+
+  it("retains an unchanged id when same-name accounts are ambiguous", () => {
+    expect(
+      resolveUpdatedBookAccountId(
+        { accountId: "asset_fixed", accountName: "繰延税金資産" },
+        "繰延税金資産",
+        "asset",
+        master,
+      ),
+    ).toBe("asset_fixed");
+  });
+
+  it("does not resolve a changed name to an account of another type", () => {
+    expect(
+      resolveUpdatedBookAccountId(
+        { accountId: "asset_current", accountName: "繰延税金資産" },
+        "工具器具備品",
+        "expense",
+        master,
+      ),
+    ).toBe("expense_equipment");
+  });
+});
+
+describe("compound opening journals", () => {
+  const accountNameById = {
+    asset_cash: "現金",
+    expense_rent: "地代家賃",
+    expense_fee: "支払手数料",
+  };
+  const accountTypeById = {
+    asset_cash: "asset",
+    expense_rent: "expense",
+    expense_fee: "expense",
+  } as const;
+  const accountIdsByName = groupAccountIdsByName(
+    Object.entries(accountNameById).map(([id, name]) => ({ id, name })),
+  );
+  const journal = {
+    id: "opening-1",
+    date: "2026-01-01",
+    description: "複合再振替",
+    businessRate: 1,
+    lines: [
+      {
+        id: "line-rent",
+        side: "debit" as const,
+        bookAccountId: "expense_rent",
+        amount: 80_000,
+        partnerName: "貸主",
+        taxCategoryId: "tax_10",
+        businessCategoryId: "biz_service",
+      },
+      {
+        id: "line-fee",
+        side: "debit" as const,
+        bookAccountId: "expense_fee",
+        amount: 20_000,
+        partnerName: "銀行",
+        taxCategoryId: "tax_10",
+        businessCategoryId: "biz_none",
+      },
+      {
+        id: "line-cash",
+        side: "credit" as const,
+        bookAccountId: "asset_cash",
+        amount: 100_000,
+        partnerName: "",
+        taxCategoryId: "tax_out_of_scope",
+        businessCategoryId: "biz_none",
+      },
+    ],
+  };
+
+  it("maps every persisted line into the editable record", () => {
+    const record = mapOpeningJournalToRecord(
+      journal,
+      "fp-1",
+      accountNameById,
+      accountTypeById,
+      { tax_10: "課税 10%", tax_out_of_scope: "対象外" },
+      { biz_service: "サービス", biz_none: "対象外" },
+    );
+
+    expect(record.lines).toHaveLength(3);
+    expect(record.lines).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "line-fee",
+          accountName: "支払手数料",
+          partnerName: "銀行",
+          businessCategoryId: "biz_none",
+        }),
+      ]),
+    );
+  });
+
+  it("preserves line ids and line-specific metadata when saved", () => {
+    const draft = mapOpeningJournalToRecord(
+      journal,
+      "fp-1",
+      accountNameById,
+      accountTypeById,
+      { tax_10: "課税 10%", tax_out_of_scope: "対象外" },
+      { biz_service: "サービス", biz_none: "対象外" },
+    );
+    const rebuilt = buildOpeningJournalLines("opening-1", draft, {
+      accountIdsByName,
+      accountTypeById,
+      taxCategoryIdByValue: {
+        tax_10: "tax_10",
+        tax_out_of_scope: "tax_out_of_scope",
+      },
+      businessCategoryIdByValue: {
+        biz_service: "biz_service",
+        biz_none: "biz_none",
+      },
+    });
+
+    expect(rebuilt).toEqual(journal.lines);
+  });
+
+  it("allocates unused ids for rows added after an earlier row was removed", () => {
+    const draft = mapOpeningJournalToRecord(
+      journal,
+      "fp-1",
+      accountNameById,
+      accountTypeById,
+      { tax_10: "課税 10%", tax_out_of_scope: "対象外" },
+      { biz_service: "サービス", biz_none: "対象外" },
+    );
+    const originalLines = draft.lines;
+    const [rentLine, feeLine, cashLine] = originalLines ?? [];
+    if (rentLine == null || feeLine == null || cashLine == null) {
+      throw new Error("mapped lines are missing");
+    }
+    draft.lines = [
+      { ...rentLine, id: "opening-1-d" },
+      { ...feeLine, id: "opening-1-d2" },
+      { ...cashLine, id: "opening-1-c" },
+      { ...feeLine, id: "", amount: "20,000" },
+      { ...cashLine, id: "", amount: "20,000" },
+    ];
+
+    const rebuilt = buildOpeningJournalLines("opening-1", draft, {
+      accountIdsByName,
+      accountTypeById,
+      taxCategoryIdByValue: {
+        tax_10: "tax_10",
+        tax_out_of_scope: "tax_out_of_scope",
+      },
+      businessCategoryIdByValue: {
+        biz_service: "biz_service",
+        biz_none: "biz_none",
+      },
+    });
+
+    expect(rebuilt?.map((line) => line.id)).toEqual([
+      "opening-1-d",
+      "opening-1-d2",
+      "opening-1-c",
+      "opening-1-d3",
+      "opening-1-c2",
+    ]);
   });
 });
 

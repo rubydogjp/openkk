@@ -1,4 +1,4 @@
-import type { OpenkkConfig } from "@rubydogjp/openkk-client";
+import { createSystemClock, type OpenkkConfig } from "@rubydogjp/openkk-client";
 import { parseOpenkkEnv } from "@rubydogjp/openkk-frontend";
 
 const BUNDLE = "original";
@@ -7,7 +7,7 @@ const env = parseOpenkkEnv(process.env.NEXT_PUBLIC_OPENKK_ENV);
 const userId = "openkk-original-user";
 
 export const openkkConfig: OpenkkConfig = {
-  today: new Date(),
+  clock: createSystemClock(),
   env,
   bundleLabel: "無印版",
   isMockMode: false,

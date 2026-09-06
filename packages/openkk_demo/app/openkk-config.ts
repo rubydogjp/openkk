@@ -1,4 +1,4 @@
-import type { OpenkkConfig } from "@rubydogjp/openkk-client";
+import { createFixedClock, type OpenkkConfig } from "@rubydogjp/openkk-client";
 import { parseOpenkkEnv } from "@rubydogjp/openkk-frontend";
 
 import { demoEditingPolicy, demoFiscalPeriodPolicy } from "../demo/demo-bundle";
@@ -10,7 +10,7 @@ const userId = "openkk-demo-user";
 const mockToday = new Date(2026, 8, 5);
 
 export const openkkConfig: OpenkkConfig = {
-  today: new Date(mockToday),
+  clock: createFixedClock(mockToday),
   env,
   bundleLabel: "デモ版",
   isMockMode: true,

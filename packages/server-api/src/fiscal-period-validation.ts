@@ -13,9 +13,11 @@ import {
   serverValidationError,
 } from "@rubydogjp/openkk-server-domain";
 import type {
+  EntryApiRecord,
   FiscalPeriodApiRecord,
   FiscalPeriodCreateInput,
   FiscalPeriodPatchInput,
+  FixedAssetApiRecord,
 } from "@rubydogjp/openkk-server-ports";
 import {
   assertNonBlankString,
@@ -147,6 +149,55 @@ export function assertNoOverlappingFiscalPeriod(
     throw serverConflictError(
       `Fiscal period ${input.startDate} to ${input.endDate} overlaps active fiscal period ${overlap.id} (${overlap.startDate} to ${overlap.endDate})`,
       "既存の会計期間と日付が重複しています",
+    );
+  }
+}
+
+export function assertFiscalPeriodContainsExistingData(
+  period: Pick<FiscalPeriodApiRecord, "startDate" | "endDate">,
+  entries: ReadonlyArray<Pick<EntryApiRecord, "id" | "date">>,
+  fixedAssets: ReadonlyArray<
+    Pick<
+      FixedAssetApiRecord,
+      "id" | "acquisitionDate" | "disposalDate" | "status"
+    >
+  >,
+): void {
+  const entryOutsidePeriod = entries.find(
+    (entry) => entry.date < period.startDate || entry.date > period.endDate,
+  );
+  if (entryOutsidePeriod != null) {
+    throw serverValidationError(
+      `Entry ${entryOutsidePeriod.id} date ${entryOutsidePeriod.date} ` +
+        `must be within fiscal period ${period.startDate} to ${period.endDate}`,
+      "保存済みの仕訳を含む範囲に会計期間を設定してください",
+    );
+  }
+
+  const acquisitionAfterPeriod = fixedAssets.find(
+    (asset) => asset.acquisitionDate > period.endDate,
+  );
+  if (acquisitionAfterPeriod != null) {
+    throw serverValidationError(
+      `Fixed asset ${acquisitionAfterPeriod.id} acquisition date ` +
+        `${acquisitionAfterPeriod.acquisitionDate} must not be after ` +
+        `fiscal period end ${period.endDate}`,
+      "保存済みの固定資産取得日を含む終了日にしてください",
+    );
+  }
+
+  const disposalOutsidePeriod = fixedAssets.find(
+    (asset) =>
+      (asset.status === "sold" || asset.status === "disposed") &&
+      (asset.disposalDate < period.startDate ||
+        asset.disposalDate > period.endDate),
+  );
+  if (disposalOutsidePeriod != null) {
+    throw serverValidationError(
+      `Fixed asset ${disposalOutsidePeriod.id} disposal date ` +
+        `${disposalOutsidePeriod.disposalDate} must be within fiscal period ` +
+        `${period.startDate} to ${period.endDate}`,
+      "保存済みの固定資産処分日を含む範囲に会計期間を設定してください",
     );
   }
 }

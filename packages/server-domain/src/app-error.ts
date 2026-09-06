@@ -12,12 +12,13 @@ export class AppError extends Error implements AppErrorLike {
   readonly statusCode: number | null;
 
   constructor(params: AppErrorLike) {
-    super(params.messageForDeveloper);
+    const normalized = normalizeAppErrorLike(params);
+    super(normalized.messageForDeveloper);
     this.name = "AppError";
-    this.messageForDeveloper = params.messageForDeveloper;
-    this.messageForUser = params.messageForUser;
-    this.originalMessage = params.originalMessage;
-    this.statusCode = params.statusCode;
+    this.messageForDeveloper = normalized.messageForDeveloper;
+    this.messageForUser = normalized.messageForUser;
+    this.originalMessage = normalized.originalMessage;
+    this.statusCode = normalized.statusCode;
   }
 
   static from(error: unknown, options: Partial<AppErrorLike> = {}): AppError {
@@ -93,25 +94,54 @@ export function serverConflictError(
 }
 
 function stringifyOriginalMessage(error: unknown): string | null {
-  if (error == null) return null;
-  if (typeof error === "string") return error.length === 0 ? null : error;
-  if (error instanceof Error) return error.message || error.toString();
   try {
-    return JSON.stringify(error);
-  } catch {
+    if (error == null) return null;
+    if (typeof error === "string") return error.length === 0 ? null : error;
+    if (error instanceof Error) return error.message || error.toString();
+    if (Array.isArray(error) || isObject(error)) return JSON.stringify(error);
     return String(error);
+  } catch {
+    return "<unprintable>";
   }
 }
 
+function normalizeAppErrorLike(value: AppErrorLike): AppErrorLike {
+  const candidate: Partial<AppErrorLike> = isObject(value) ? value : {};
+  return {
+    messageForDeveloper:
+      typeof candidate.messageForDeveloper === "string"
+        ? candidate.messageForDeveloper
+        : "Server AppError: invalid developer message",
+    messageForUser:
+      typeof candidate.messageForUser === "string"
+        ? candidate.messageForUser
+        : "サーバー処理でエラーが発生しました",
+    originalMessage:
+      typeof candidate.originalMessage === "string" ||
+      candidate.originalMessage === null
+        ? candidate.originalMessage
+        : null,
+    statusCode: validStatusCode(candidate.statusCode)
+      ? candidate.statusCode
+      : null,
+  };
+}
+
+function validStatusCode(value: unknown): value is number | null {
+  return value === null || (typeof value === "number" && Number.isFinite(value));
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 function isAppErrorLike(value: unknown): value is AppErrorLike {
-  if (typeof value !== "object" || value == null) return false;
-  const candidate = value as Record<string, unknown>;
+  if (!isObject(value)) return false;
   return (
-    typeof candidate.messageForDeveloper === "string" &&
-    typeof candidate.messageForUser === "string" &&
-    (typeof candidate.originalMessage === "string" ||
-      candidate.originalMessage === null) &&
-    (typeof candidate.statusCode === "number" ||
-      candidate.statusCode === null)
+    typeof value.messageForDeveloper === "string" &&
+    typeof value.messageForUser === "string" &&
+    (typeof value.originalMessage === "string" ||
+      value.originalMessage === null) &&
+    validStatusCode(value.statusCode)
   );
 }

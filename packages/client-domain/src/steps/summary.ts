@@ -1,4 +1,4 @@
-import { parseAmount, parseBusinessRate } from "../shared/parse-utils.js";
+import { parseAmount } from "../shared/parse-utils.js";
 import {
   applyBusinessRateToLines,
   type EntryLine,

@@ -1,4 +1,4 @@
-import type { OpenkkConfig } from "@rubydogjp/openkk-client";
+import { createFixedClock, type OpenkkConfig } from "@rubydogjp/openkk-client";
 import { parseOpenkkEnv } from "@rubydogjp/openkk-frontend";
 
 const BUNDLE = "sim";
@@ -8,7 +8,7 @@ const userId = "openkk-sim-user";
 const mockToday = new Date(2026, 8, 5);
 
 export const openkkConfig: OpenkkConfig = {
-  today: new Date(mockToday),
+  clock: createFixedClock(mockToday),
   env,
   bundleLabel: "Sim版",
   isMockMode: true,

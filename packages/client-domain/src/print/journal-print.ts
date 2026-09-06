@@ -1,11 +1,13 @@
 import {
   entryToVisualPairs,
   getEntryLines,
+  resolveEntryPairMetadata,
   type EntryLine,
   type EntryRecord,
 } from "../entries/entry-record.js";
 import { parseAmount } from "../shared/parse-utils.js";
 import { buildPrintDocument, escapeHtml as esc } from "./print-shell.js";
+import { formatEntryMetadata } from "./entry-metadata.js";
 
 function parseNum(str: string): number {
   return parseAmount(str);
@@ -93,6 +95,9 @@ export function buildJournalBody(
           .flatMap(({ entry, pairs, pairOffset }) =>
             pairs.map((pair, index) => {
               const isFirstPair = pairOffset + index === 0;
+              const metadata = formatEntryMetadata(
+                resolveEntryPairMetadata(entry, pair),
+              );
               return `<tr>
   <td style="${TD}">${isFirstPair ? esc(fmtDate(entry.date)) : ""}</td>
   <td style="${TD}">${esc(lineAccountName(pair.debit))}</td>
@@ -102,7 +107,7 @@ export function buildJournalBody(
   <td style="${TD}"></td>
   <td style="${TD};text-align:right">${esc(lineAmount(pair.credit))}</td>
   <td style="${TD}">${isFirstPair ? esc(entry.description) : ""}</td>
-  <td style="${TD}">${isFirstPair ? esc(entry.partner) : ""}</td>
+  <td style="${TD}">${esc(metadata)}</td>
 </tr>`;
             }),
           )
@@ -129,7 +134,7 @@ export function buildJournalBody(
       <th colspan="3" style="${TH}">借方</th>
       <th colspan="3" style="${TH}">貸方</th>
       <th rowspan="2" style="${TH}">摘要</th>
-      <th rowspan="2" style="${TH}">取引先</th>
+      <th rowspan="2" style="${TH}">取引先・区分</th>
     </tr>
     <tr>
       <th style="${TH}">勘定科目</th><th style="${TH}">補助科目</th><th style="${TH}">金額</th>

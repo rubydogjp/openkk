@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   entryRecordToImportPayload,
   optionalEntryLocalId,
+  resolveBookAccountId,
 } from "./import-mapping.js";
 import {
   earliestEntryDate,
@@ -245,6 +246,37 @@ describe("entryRecordToImportPayload", () => {
         businessCategoryId: "biz_service",
       }),
     ]);
+  });
+});
+
+describe("resolveBookAccountId", () => {
+  const duplicateAccounts: Pick<
+    MasterBookAccount,
+    "id" | "name" | "accountType"
+  >[] = [
+    { id: "deferred-current", name: "繰延税金資産", accountType: "asset" },
+    { id: "deferred-fixed", name: "繰延税金資産", accountType: "asset" },
+  ];
+
+  it("uses a valid explicit id for same-name accounts", () => {
+    expect(
+      resolveBookAccountId({
+        explicitId: "deferred-fixed",
+        accountName: "繰延税金資産",
+        accountType: "asset",
+        accounts: duplicateAccounts,
+      }),
+    ).toBe("deferred-fixed");
+  });
+
+  it("rejects an ambiguous name-only fallback", () => {
+    expect(
+      resolveBookAccountId({
+        accountName: "繰延税金資産",
+        accountType: "asset",
+        accounts: duplicateAccounts,
+      }),
+    ).toBeNull();
   });
 });
 

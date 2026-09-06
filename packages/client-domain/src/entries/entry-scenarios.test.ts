@@ -57,6 +57,56 @@ describe("entry scenario rows", () => {
     });
   });
 
+  it("uses each visual pair's line metadata", () => {
+    const rows = recordToPreviewRows(
+      entry({
+        partner: "ヘッダー取引先",
+        taxCategory: "ヘッダー税区分",
+        businessCategory: "ヘッダー事業区分",
+        lines: [
+          {
+            side: "debit",
+            accountName: "消耗品費",
+            accountType: "expense",
+            amount: "60",
+            partnerName: "仕入先A",
+            taxCategoryName: "課税仕入 10%",
+            businessCategoryName: "第5種",
+          },
+          {
+            side: "debit",
+            accountName: "支払手数料",
+            accountType: "expense",
+            amount: "40",
+            partnerName: "銀行B",
+            taxCategoryName: "対象外",
+            businessCategoryName: "対象外",
+          },
+          {
+            side: "credit",
+            accountName: "普通預金",
+            accountType: "asset",
+            amount: "100",
+            partnerName: "銀行B",
+            taxCategoryName: "対象外",
+            businessCategoryName: "対象外",
+          },
+        ],
+      }),
+    );
+
+    expect(rows[0]).toMatchObject({
+      partner: "借: 仕入先A / 貸: 銀行B",
+      taxCategory: "借: 課税仕入 10% / 貸: 対象外",
+      businessCategory: "借: 第5種 / 貸: 対象外",
+    });
+    expect(rows[1]).toMatchObject({
+      partner: "銀行B",
+      taxCategory: "対象外",
+      businessCategory: "対象外",
+    });
+  });
+
   it("books depreciation for active assets with month proration at period end", () => {
     const rows = buildVirtualFixedAssetRows({
       fiscalPeriodId: "fp-2026",

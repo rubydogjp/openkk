@@ -30,6 +30,7 @@ export * from "./steps/year-month.js";
 export * from "./steps/next-fiscal-period.js";
 
 export * from "./print/financial-statements-print.js";
+export * from "./print/entry-metadata.js";
 export * from "./print/fs-data.js";
 export * from "./print/general-ledger-print.js";
 export * from "./print/journal-print.js";

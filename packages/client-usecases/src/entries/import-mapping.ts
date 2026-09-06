@@ -25,10 +25,6 @@ export function optionalEntryLocalId(
   return localId != null && localId.trim() !== "" ? localId : undefined;
 }
 
-/**
- * 勘定科目を ID で解決する。明示 ID → 名称+型 → 名称 の順でフォールバックし、
- * 見つからなければ null を返す。
- */
 export function resolveBookAccountId(input: {
   explicitId?: string | null;
   accountName: string;
@@ -41,16 +37,12 @@ export function resolveBookAccountId(input: {
     );
     if (byId != null) return byId.id;
   }
-  const byNameAndType = input.accounts.find(
+  const matches = input.accounts.filter(
     (account) =>
       account.name === input.accountName &&
       (input.accountType == null || account.accountType === input.accountType),
   );
-  if (byNameAndType != null) return byNameAndType.id;
-  const found = input.accounts.find(
-    (account) => account.name === input.accountName,
-  );
-  return found?.id ?? null;
+  return matches.length === 1 ? matches[0]!.id : null;
 }
 
 export function resolveTaxCategoryId(
@@ -87,10 +79,6 @@ export function resolveBusinessCategoryId(
   );
 }
 
-/**
- * 仕訳レコードを取込み用ペイロードへ変換する。
- * 取込み（CSV/JSON/デモseed）とサーバ送信で同じ解決規約を使うための単一実装。
- */
 export function entryRecordToImportPayload(
   entry: EntryRecord,
   master: ImportMaster,

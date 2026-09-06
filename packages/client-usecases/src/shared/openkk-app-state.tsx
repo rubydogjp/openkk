@@ -408,6 +408,7 @@ export function OpenkkAppStateProvider(props: {
         });
       },
       async discardFiscalPeriod(fiscalPeriodId) {
+        assertEditingUnlocked(config, "appState.discardFiscalPeriod");
         const operationVersion = authOperationGuard.current.capture();
         await fiscalPeriodMutationQueue.current.run(async () => {
           authOperationGuard.current.assertCurrent(operationVersion);

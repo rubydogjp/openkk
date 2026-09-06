@@ -41,4 +41,27 @@ describe("server AppError", () => {
       }),
     ).toThrow(/invalid AppError JSON/);
   });
+
+  it("normalizes malformed constructor fields", () => {
+    const error = new AppError({
+      messageForDeveloper: undefined,
+      messageForUser: undefined,
+      originalMessage: undefined,
+      statusCode: Number.NaN,
+    } as unknown as ConstructorParameters<typeof AppError>[0]);
+
+    expect(error.toJson()).toEqual({
+      messageForDeveloper: "Server AppError: invalid developer message",
+      messageForUser: "サーバー処理でエラーが発生しました",
+      originalMessage: null,
+      statusCode: null,
+    });
+  });
+
+  it("wraps circular objects without throwing a second error", () => {
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+
+    expect(AppError.from(circular).originalMessage).toBe("<unprintable>");
+  });
 });

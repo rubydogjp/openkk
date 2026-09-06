@@ -1,10 +1,12 @@
 import {
   getEntryLines,
+  resolveEntryLineMetadata,
   type EntryLine,
   type EntryRecord,
 } from "../entries/entry-record.js";
 import { parseAmount } from "../shared/parse-utils.js";
 import { buildPrintDocument, escapeHtml as esc } from "./print-shell.js";
+import { formatEntryMetadata } from "./entry-metadata.js";
 
 type AccountType =
   | "asset"
@@ -77,7 +79,7 @@ type LedgerLine = {
   date: string;
   counterAccount: string;
   memo: string;
-  partner: string;
+  metadata: string;
   debitAmt: number;
   creditAmt: number;
   balance: number;
@@ -137,7 +139,7 @@ function buildLedger(
         date: e.date,
         counterAccount: counterAccountsForLine(e, line),
         memo: e.description,
-        partner: e.partner,
+        metadata: formatEntryMetadata(resolveEntryLineMetadata(e, line)),
         debitAmt: amt,
         creditAmt: 0,
         balance,
@@ -149,7 +151,7 @@ function buildLedger(
         date: e.date,
         counterAccount: counterAccountsForLine(e, line),
         memo: e.description,
-        partner: e.partner,
+        metadata: formatEntryMetadata(resolveEntryLineMetadata(e, line)),
         debitAmt: 0,
         creditAmt: amt,
         balance,
@@ -312,7 +314,7 @@ export function buildGeneralLedgerBody(
   <td rowspan="2" style="${TD};vertical-align:middle;text-align:center">${esc(fmtDate(line.date))}</td>
   <td style="${TD}">${esc(line.counterAccount)}</td>
   <td style="${TD}">${esc(line.memo)}</td>
-  <td colspan="3" style="${TD}">${esc(line.partner)}</td>
+  <td colspan="3" style="${TD}">${esc(line.metadata)}</td>
 </tr>
 <tr>
   <td style="${TD}"></td>
@@ -363,7 +365,7 @@ export function buildGeneralLedgerBody(
       <th rowspan="2" style="${TH}">取引日</th>
       <th style="${TH}">相手勘定科目</th>
       <th style="${TH}">摘要</th>
-      <th colspan="3" style="${TH}">取引先</th>
+      <th colspan="3" style="${TH}">取引先・区分</th>
     </tr>
     <tr>
       <th style="${TH}">相手補助科目</th>

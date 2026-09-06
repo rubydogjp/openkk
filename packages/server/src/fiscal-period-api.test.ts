@@ -134,6 +134,87 @@ describe("openkk server fiscal period API", () => {
     );
   });
 
+  it("rejects a period range patch that excludes a saved entry", async () => {
+    const period = fiscalPeriod({
+      id: "fp-user-1",
+      userId: "user-1",
+      phase: "pre_opening",
+      settingsCompleted: false,
+    });
+    const db = createFiscalPeriodDb([period], {
+      entries: [
+        entry({
+          id: "entry-imported",
+          fiscalPeriodId: period.id,
+          date: "2026-01-15",
+        }),
+      ],
+    });
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(
+      server.fiscalPeriod.patch(period.id, { startDate: "2026-02-01" }),
+    ).rejects.toThrow(/Entry entry-imported date .* must be within fiscal period/);
+    expect((await db.fiscalPeriods.getById(period.id))?.startDate).toBe(
+      "2026-01-01",
+    );
+  });
+
+  it("rejects a period range patch that excludes fixed asset dates", async () => {
+    const period = fiscalPeriod({
+      id: "fp-user-1",
+      userId: "user-1",
+      phase: "pre_opening",
+      settingsCompleted: false,
+    });
+    const assets = [
+      fixedAsset({
+        id: "asset-acquired",
+        fiscalPeriodId: period.id,
+        acquisitionDate: "2026-11-01",
+      }),
+      fixedAsset({
+        id: "asset-sold",
+        fiscalPeriodId: period.id,
+        acquisitionDate: "2025-01-01",
+        status: "sold",
+        disposalDate: "2026-02-01",
+      }),
+    ];
+    const db = createFiscalPeriodDb([period], { fixedAssets: assets });
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(
+      server.fiscalPeriod.patch(period.id, { endDate: "2026-10-31" }),
+    ).rejects.toThrow(/asset-acquired acquisition date/);
+    await expect(
+      server.fiscalPeriod.patch(period.id, { startDate: "2026-03-01" }),
+    ).rejects.toThrow(/asset-sold disposal date/);
+  });
+
+  it("allows a period start after an existing fixed asset acquisition date", async () => {
+    const period = fiscalPeriod({
+      id: "fp-user-1",
+      userId: "user-1",
+      phase: "pre_opening",
+      settingsCompleted: false,
+    });
+    const db = createFiscalPeriodDb([period], {
+      fixedAssets: [
+        fixedAsset({
+          id: "asset-from-prior-year",
+          fiscalPeriodId: period.id,
+          acquisitionDate: "2025-06-01",
+        }),
+      ],
+    });
+    const server = createOpenkkServer(db, { userId: "user-1" });
+
+    await expect(
+      server.fiscalPeriod.patch(period.id, { startDate: "2026-02-01" }),
+    ).resolves.toMatchObject({ startDate: "2026-02-01" });
+  });
+
   it("rejects null lifecycle fields and mismatched opening ownership", async () => {
     const db = createFiscalPeriodDb([
       fiscalPeriod({
@@ -683,8 +764,14 @@ async function captureAsyncError(fn: () => Promise<unknown>): Promise<unknown> {
 
 function createFiscalPeriodDb(
   seed: StoredFiscalPeriodApiRecord[],
+  childSeed: {
+    entries?: EntryApiRecord[];
+    fixedAssets?: FixedAssetApiRecord[];
+  } = {},
 ): OpenkkDbPort {
   const fiscalPeriods = new Map(seed.map((period) => [period.id, period]));
+  const entries = childSeed.entries ?? [];
+  const fixedAssets = childSeed.fixedAssets ?? [];
   return {
     fiscalPeriods: {
       async getAllByUser(userId) {
@@ -769,8 +856,10 @@ function createFiscalPeriodDb(
       },
     },
     entries: {
-      async getAll() {
-        return [];
+      async getAll(fiscalPeriodId) {
+        return entries.filter(
+          (record) => record.fiscalPeriodId === fiscalPeriodId,
+        );
       },
       async getById() {
         return null;
@@ -806,8 +895,10 @@ function createFiscalPeriodDb(
       },
     },
     fixedAssets: {
-      async getAllByFiscalPeriod() {
-        return [];
+      async getAllByFiscalPeriod(fiscalPeriodId) {
+        return fixedAssets.filter(
+          (record) => record.fiscalPeriodId === fiscalPeriodId,
+        );
       },
       async getById() {
         return null;

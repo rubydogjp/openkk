@@ -66,6 +66,7 @@ export function mapOpeningJournalToRecord(
     description: string;
     businessRate: number;
     lines: Array<{
+      id: string;
       side: "debit" | "credit";
       bookAccountId: string;
       amount: number;
@@ -82,6 +83,23 @@ export function mapOpeningJournalToRecord(
 ): OpeningCarryoverRecord {
   const debit = journal.lines.find((line) => line.side === "debit");
   const credit = journal.lines.find((line) => line.side === "credit");
+  const lines = journal.lines.map((line) => ({
+    id: line.id,
+    side: line.side,
+    accountName:
+      accountNameById[line.bookAccountId] ?? line.bookAccountId,
+    accountType: accountTypeById[line.bookAccountId] ?? "asset",
+    amount: formatAmount(line.amount),
+    bookAccountId: line.bookAccountId,
+    partnerName: line.partnerName,
+    taxCategoryId: line.taxCategoryId,
+    taxCategoryName:
+      taxCategoryNameById[line.taxCategoryId] ?? line.taxCategoryId,
+    businessCategoryId: line.businessCategoryId,
+    businessCategoryName:
+      businessCategoryNameById[line.businessCategoryId] ??
+      line.businessCategoryId,
+  }));
   return {
     id: journal.id,
     fiscalPeriodId,
@@ -114,7 +132,96 @@ export function mapOpeningJournalToRecord(
     businessRateRatio: journal.businessRate ?? 1,
     debitBookAccountId: debit?.bookAccountId,
     creditBookAccountId: credit?.bookAccountId,
+    lines,
   };
+}
+
+export function buildOpeningJournalLines(
+  journalId: string,
+  draft: OpeningCarryoverDraft,
+  master: {
+    accountIdsByName: Record<string, string[]>;
+    accountTypeById: Record<string, EntryAccountVisualType>;
+    taxCategoryIdByValue: Record<string, string>;
+    businessCategoryIdByValue: Record<string, string>;
+  },
+): Array<{
+  id: string;
+  side: "debit" | "credit";
+  bookAccountId: string;
+  amount: number;
+  partnerName: string;
+  taxCategoryId: string;
+  businessCategoryId: string;
+}> | null {
+  const draftLines =
+    draft.lines ??
+    [
+      {
+        id: "",
+        side: "debit" as const,
+        accountName: draft.debit,
+        accountType: draft.debitType,
+        amount: draft.debitAmount,
+        bookAccountId: draft.debitBookAccountId,
+      },
+      {
+        id: "",
+        side: "credit" as const,
+        accountName: draft.credit,
+        accountType: draft.creditType,
+        amount: draft.creditAmount,
+        bookAccountId: draft.creditBookAccountId,
+      },
+    ];
+  const usedLineIds = new Set(
+    draftLines.flatMap((line) =>
+      typeof line.id === "string" && line.id.trim() !== "" ? [line.id] : [],
+    ),
+  );
+  const nextLineSequence = { debit: 1, credit: 1 };
+  const allocateLineId = (side: "debit" | "credit") => {
+    let id: string;
+    do {
+      const sequence = nextLineSequence[side]++;
+      const suffix = `${side === "debit" ? "d" : "c"}${
+        sequence === 1 ? "" : sequence
+      }`;
+      id = `${journalId}-${suffix}`;
+    } while (usedLineIds.has(id));
+    usedLineIds.add(id);
+    return id;
+  };
+  const result = [];
+  for (const line of draftLines) {
+    const bookAccountId = resolveBookAccountId(
+      line.bookAccountId,
+      line.accountName,
+      line.accountType,
+      master,
+    );
+    if (bookAccountId == null) return null;
+    const existingLineId =
+      typeof line.id === "string" && line.id.trim() !== "" ? line.id : null;
+    result.push({
+      id: existingLineId ?? allocateLineId(line.side),
+      side: line.side,
+      bookAccountId,
+      amount: parseAmount(line.amount),
+      partnerName: line.partnerName ?? draft.partner,
+      taxCategoryId: resolveCategoryId(
+        line.taxCategoryId ?? draft.taxCategory,
+        master.taxCategoryIdByValue,
+        "tax_out_of_scope",
+      ),
+      businessCategoryId: resolveCategoryId(
+        line.businessCategoryId ?? draft.businessCategory,
+        master.businessCategoryIdByValue,
+        "biz_none",
+      ),
+    });
+  }
+  return result;
 }
 
 export function resolveBookAccountId(
@@ -137,6 +244,25 @@ export function resolveBookAccountId(
     (id) => master.accountTypeById[id] === accountType,
   );
   return matches.length === 1 ? matches[0] : null;
+}
+
+export function resolveUpdatedBookAccountId(
+  current: { accountId?: string; accountName?: string } | null,
+  draftAccountName: string,
+  accountType: EntryAccountVisualType,
+  master: {
+    accountIdsByName: Record<string, string[]>;
+    accountTypeById: Record<string, EntryAccountVisualType>;
+  },
+): string | null {
+  const unchangedAccountId =
+    current?.accountName === draftAccountName ? current.accountId : undefined;
+  return resolveBookAccountId(
+    unchangedAccountId,
+    draftAccountName,
+    accountType,
+    master,
+  );
 }
 
 export function groupAccountIdsByName(

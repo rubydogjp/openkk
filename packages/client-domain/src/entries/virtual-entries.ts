@@ -43,35 +43,43 @@ export function buildVirtualOpeningCarryoverRows(input: {
         record.fiscalPeriodId === input.fiscalPeriodId &&
         record.date.startsWith(input.yearMonth),
     )
-    .map((record) => ({
-      recordId: `virtual-opening-carryover-${record.id}`,
-      lineIndex: 0,
-      lineCount: 1,
-      isFirstOfRecord: true,
-      date: `${record.date.slice(5, 7)}/${record.date.slice(8, 10)}`,
-      weekday: "",
-      debit: record.debit,
-      debitType: record.debitType,
-      debitAmount: record.debitAmount,
-      debitBookAccountId: record.debitBookAccountId,
-      credit: record.credit,
-      creditType: record.creditType,
-      creditAmount: record.creditAmount,
-      creditBookAccountId: record.creditBookAccountId,
-      description: record.description,
-      partner: record.partner,
-      businessRate: record.businessRate,
-      businessRateRatio: record.businessRateRatio,
-      taxCategory: record.taxCategory,
-      businessCategory: record.businessCategory,
-      virtual: {
-        id: `opening-carryover-${record.id}`,
-        kind: "opening_carryover",
-        sourceId: record.id,
-        label: "再振替",
-        assistHref: `/assist/opening-carryover?carryover=${record.id}`,
-      },
-    }));
+    .flatMap((record) => {
+      const lines =
+        record.lines ??
+        [
+          {
+            id: `${record.id}-d`,
+            side: "debit" as const,
+            accountName: record.debit,
+            accountType: record.debitType,
+            amount: record.debitAmount,
+            bookAccountId: record.debitBookAccountId,
+          },
+          {
+            id: `${record.id}-c`,
+            side: "credit" as const,
+            accountName: record.credit,
+            accountType: record.creditType,
+            amount: record.creditAmount,
+            bookAccountId: record.creditBookAccountId,
+          },
+        ];
+      return recordToPreviewRows({
+        ...record,
+        weekday: "",
+        lines,
+      }).map((row) => ({
+        ...row,
+        recordId: `virtual-opening-carryover-${record.id}`,
+        virtual: {
+          id: `opening-carryover-${record.id}`,
+          kind: "opening_carryover" as const,
+          sourceId: record.id,
+          label: "再振替",
+          assistHref: `/assist/opening-carryover?carryover=${record.id}`,
+        },
+      }));
+    });
 }
 
 type FixedAssetTruth = {

@@ -16,8 +16,10 @@ import { useOpenkkConfig } from "../shared/openkk-config-context.js";
 import { assertEditingUnlocked } from "../shared/editing-policy.js";
 import { isSelectedFiscalPeriodDataPurged } from "../shared/archive-data-policy.js";
 import { AsyncStateVersion } from "../shared/async-state-version.js";
+import { KeyedAsyncMutationQueue } from "../shared/async-mutation-queue.js";
 import {
   buildCategoryIdByValue,
+  buildOpeningJournalLines,
   fixedAssetDraftToPatch,
   groupAccountIdsByName,
   listFixedAssetsForPeriod,
@@ -27,8 +29,8 @@ import {
   openingDraftBusinessRate,
   replaceLoadedFixedAssets,
   resolveBookAccountId,
-  resolveCategoryId,
   resolveFixedAssetDraftBusinessRate,
+  resolveUpdatedBookAccountId,
   upsertFixedAsset,
 } from "./assist-state-helpers.js";
 import {
@@ -108,7 +110,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
   const [reloadNonce, setReloadNonce] = useState(0);
   const selectedFiscalPeriodId = useRef(appState.currentFiscalPeriodId);
   const periodVersions = useRef(new AsyncStateVersion<string>());
-  const assetMutationVersions = useRef(new AsyncStateVersion<string>());
+  const assetMutationQueue = useRef(new KeyedAsyncMutationQueue<string>());
   selectedFiscalPeriodId.current = appState.currentFiscalPeriodId;
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (period) => period.id === appState.currentFiscalPeriodId,
@@ -302,11 +304,10 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         const fiscalPeriodId =
           current?.fiscalPeriodId ?? appState.currentFiscalPeriodId ?? "";
         if (fiscalPeriodId.length === 0) return false;
-        periodVersions.current.invalidate(fiscalPeriodId);
-        const mutationVersion = assetMutationVersions.current.invalidate(assetId);
-        // ユーザーが科目名を変更した場合は draft 側を優先して解決する。
-        const accountId = resolveBookAccountId(
-          current?.accountId,
+        const accountId = resolveUpdatedBookAccountId(
+          current == null
+            ? null
+            : { accountId: current.accountId, accountName: current.account },
           draft.account,
           "asset",
           {
@@ -322,33 +323,32 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
             statusCode: null,
           });
         }
-        // 簿価・進捗・残期間は計算で導出するため保存しない。保存するのは
-        // 償却計算の元になる「真実」の値（取得価額・取得日・耐用年数・事業割合）のみ。
-        try {
-          const patched = await backendApi.fixedAssets.patch(
-            fiscalPeriodId,
-            assetId,
-            fixedAssetDraftToPatch(draft, accountId),
-          );
+        return await assetMutationQueue.current.run(assetId, async () => {
           appState.assertAuthOperationCurrent(authOperationVersion);
-          if (
-            selectedFiscalPeriodId.current === fiscalPeriodId &&
-            assetMutationVersions.current.isCurrent(assetId, mutationVersion)
-          ) {
-            const mapped = mapFixedAssetToPreview(
-              patched,
-              bookAccountNameById[patched.bookAccountId],
-              fixedAssetPreviewAsOf,
-              currentFiscalPeriodEndDate,
-            );
-            setFixedAssets((currentList) =>
-              upsertFixedAsset(currentList, mapped),
-            );
-          }
-          return true;
-        } finally {
           periodVersions.current.invalidate(fiscalPeriodId);
-        }
+          try {
+            const patched = await backendApi.fixedAssets.patch(
+              fiscalPeriodId,
+              assetId,
+              fixedAssetDraftToPatch(draft, accountId),
+            );
+            appState.assertAuthOperationCurrent(authOperationVersion);
+            if (selectedFiscalPeriodId.current === fiscalPeriodId) {
+              const mapped = mapFixedAssetToPreview(
+                patched,
+                bookAccountNameById[patched.bookAccountId],
+                fixedAssetPreviewAsOf,
+                currentFiscalPeriodEndDate,
+              );
+              setFixedAssets((currentList) =>
+                upsertFixedAsset(currentList, mapped),
+              );
+            }
+            return true;
+          } finally {
+            periodVersions.current.invalidate(fiscalPeriodId);
+          }
+        });
       },
       listOpeningCarryovers(fiscalPeriodId) {
         const period = appState.fiscalPeriods.find(
@@ -397,87 +397,34 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         );
         const opening = period?.opening;
         if (period == null || opening == null) return null;
-        const debitAccountId =
-          resolveBookAccountId(
-            draft.debitBookAccountId,
-            draft.debit,
-            draft.debitType,
-            {
-              accountIdsByName: bookAccountIdsByName,
-              accountTypeById: bookAccountTypeById,
-            },
-          ) ?? "";
-        const creditAccountId =
-          resolveBookAccountId(
-            draft.creditBookAccountId,
-            draft.credit,
-            draft.creditType,
-            {
-              accountIdsByName: bookAccountIdsByName,
-              accountTypeById: bookAccountTypeById,
-            },
-          ) ?? "";
-        if (debitAccountId === "" || creditAccountId === "") {
-          throw new AppError({
-            messageForDeveloper:
-              "assist.addOpeningCarryover: account resolution failed",
-            messageForUser:
-              "勘定科目が取得できないため再振替仕訳を作成できませんでした",
-            originalMessage: null,
-            statusCode: null,
-          });
-        }
         let nextId: string | null = null;
         const updated = await appState.updateFiscalPeriod(
           fiscalPeriodId,
           (currentPeriod) => {
             const currentOpening = currentPeriod.opening;
             if (currentOpening == null) return null;
-            nextId = nextOpeningCarryoverId(
+            const generatedId = nextOpeningCarryoverId(
               fiscalPeriodId,
               currentOpening.openingJournals ?? [],
             );
+            nextId = generatedId;
+            const lines = buildOpeningJournalLines(generatedId, draft, {
+              accountIdsByName: bookAccountIdsByName,
+              accountTypeById: bookAccountTypeById,
+              taxCategoryIdByValue,
+              businessCategoryIdByValue,
+            });
+            if (lines == null) {
+              throw openingCarryoverAccountResolutionError(
+                "assist.addOpeningCarryover",
+              );
+            }
             const newJournal = {
-              id: nextId,
+              id: generatedId,
               date: draft.date,
               description: draft.description,
               businessRate: openingDraftBusinessRate(draft),
-              lines: [
-                {
-                  id: `${nextId}-d`,
-                  side: "debit" as const,
-                  bookAccountId: debitAccountId,
-                  amount: parseAmount(draft.debitAmount),
-                  partnerName: draft.partner,
-                  taxCategoryId: resolveCategoryId(
-                    draft.taxCategory,
-                    taxCategoryIdByValue,
-                    "tax_out_of_scope",
-                  ),
-                  businessCategoryId: resolveCategoryId(
-                    draft.businessCategory,
-                    businessCategoryIdByValue,
-                    "biz_none",
-                  ),
-                },
-                {
-                  id: `${nextId}-c`,
-                  side: "credit" as const,
-                  bookAccountId: creditAccountId,
-                  amount: parseAmount(draft.creditAmount),
-                  partnerName: draft.partner,
-                  taxCategoryId: resolveCategoryId(
-                    draft.taxCategory,
-                    taxCategoryIdByValue,
-                    "tax_out_of_scope",
-                  ),
-                  businessCategoryId: resolveCategoryId(
-                    draft.businessCategory,
-                    businessCategoryIdByValue,
-                    "biz_none",
-                  ),
-                },
-              ],
+              lines,
             };
             return {
               opening: {
@@ -501,35 +448,6 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         );
         const opening = period?.opening;
         if (period == null || opening == null) return false;
-        const debitAccountId =
-          resolveBookAccountId(
-            draft.debitBookAccountId,
-            draft.debit,
-            draft.debitType,
-            {
-              accountIdsByName: bookAccountIdsByName,
-              accountTypeById: bookAccountTypeById,
-            },
-          ) ?? "";
-        const creditAccountId =
-          resolveBookAccountId(
-            draft.creditBookAccountId,
-            draft.credit,
-            draft.creditType,
-            {
-              accountIdsByName: bookAccountIdsByName,
-              accountTypeById: bookAccountTypeById,
-            },
-          ) ?? "";
-        if (debitAccountId === "" || creditAccountId === "") {
-          throw new AppError({
-            messageForDeveloper:
-              "assist.updateOpeningCarryover: account resolution failed",
-            messageForUser: "勘定科目が解決できないため保存できませんでした",
-            originalMessage: null,
-            statusCode: null,
-          });
-        }
         return await appState.updateFiscalPeriod(
           fiscalPeriodId,
           (currentPeriod) => {
@@ -540,51 +458,23 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
               (journal) => journal.id === carryoverId,
             );
             if (target == null) return null;
+            const lines = buildOpeningJournalLines(target.id, draft, {
+              accountIdsByName: bookAccountIdsByName,
+              accountTypeById: bookAccountTypeById,
+              taxCategoryIdByValue,
+              businessCategoryIdByValue,
+            });
+            if (lines == null) {
+              throw openingCarryoverAccountResolutionError(
+                "assist.updateOpeningCarryover",
+              );
+            }
             const nextJournal = {
               ...target,
               date: draft.date,
               description: draft.description,
               businessRate: openingDraftBusinessRate(draft),
-              lines: [
-                {
-                  id:
-                    target.lines.find((line) => line.side === "debit")?.id ??
-                    `${target.id}-d`,
-                  side: "debit" as const,
-                  bookAccountId: debitAccountId,
-                  amount: parseAmount(draft.debitAmount),
-                  partnerName: draft.partner,
-                  taxCategoryId: resolveCategoryId(
-                    draft.taxCategory,
-                    taxCategoryIdByValue,
-                    "tax_out_of_scope",
-                  ),
-                  businessCategoryId: resolveCategoryId(
-                    draft.businessCategory,
-                    businessCategoryIdByValue,
-                    "biz_none",
-                  ),
-                },
-                {
-                  id:
-                    target.lines.find((line) => line.side === "credit")?.id ??
-                    `${target.id}-c`,
-                  side: "credit" as const,
-                  bookAccountId: creditAccountId,
-                  amount: parseAmount(draft.creditAmount),
-                  partnerName: draft.partner,
-                  taxCategoryId: resolveCategoryId(
-                    draft.taxCategory,
-                    taxCategoryIdByValue,
-                    "tax_out_of_scope",
-                  ),
-                  businessCategoryId: resolveCategoryId(
-                    draft.businessCategory,
-                    businessCategoryIdByValue,
-                    "biz_none",
-                  ),
-                },
-              ],
+              lines,
             };
             return {
               opening: {
@@ -605,23 +495,22 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         const fiscalPeriodId =
           current?.fiscalPeriodId ?? appState.currentFiscalPeriodId ?? "";
         if (fiscalPeriodId.length === 0) return false;
-        periodVersions.current.invalidate(fiscalPeriodId);
-        const mutationVersion = assetMutationVersions.current.invalidate(assetId);
-        try {
-          await backendApi.fixedAssets.remove(fiscalPeriodId, assetId);
+        return await assetMutationQueue.current.run(assetId, async () => {
           appState.assertAuthOperationCurrent(authOperationVersion);
-          if (
-            selectedFiscalPeriodId.current === fiscalPeriodId &&
-            assetMutationVersions.current.isCurrent(assetId, mutationVersion)
-          ) {
-            setFixedAssets((currentList) =>
-              currentList.filter((asset) => asset.id !== assetId),
-            );
-          }
-          return true;
-        } finally {
           periodVersions.current.invalidate(fiscalPeriodId);
-        }
+          try {
+            await backendApi.fixedAssets.remove(fiscalPeriodId, assetId);
+            appState.assertAuthOperationCurrent(authOperationVersion);
+            if (selectedFiscalPeriodId.current === fiscalPeriodId) {
+              setFixedAssets((currentList) =>
+                currentList.filter((asset) => asset.id !== assetId),
+              );
+            }
+            return true;
+          } finally {
+            periodVersions.current.invalidate(fiscalPeriodId);
+          }
+        });
       },
       async deleteOpeningCarryover(carryoverId) {
         assertEditingUnlocked(config, "assist.deleteOpeningCarryover");
@@ -678,6 +567,15 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
       {props.children}
     </AssistContext.Provider>
   );
+}
+
+function openingCarryoverAccountResolutionError(operation: string): AppError {
+  return new AppError({
+    messageForDeveloper: `${operation}: account resolution failed`,
+    messageForUser: "勘定科目が解決できないため保存できませんでした",
+    originalMessage: null,
+    statusCode: null,
+  });
 }
 
 export {

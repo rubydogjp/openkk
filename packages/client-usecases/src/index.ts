@@ -9,5 +9,6 @@ export * from "./shared/openkk-app-state.js";
 export * from "./shared/closing-state.js";
 
 export * from "./entries/entries-state.js";
+export * from "./entries/account-options.js";
 export * from "./assist/assist-state.js";
 export * from "./print/print-state.js";

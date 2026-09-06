@@ -18,12 +18,13 @@ export class AppError extends Error implements AppErrorLike {
   readonly statusCode: number | null;
 
   constructor(params: AppErrorLike) {
-    super(params.messageForDeveloper);
+    const normalized = normalizeAppErrorLike(params);
+    super(normalized.messageForDeveloper);
     this.name = "AppError";
-    this.messageForDeveloper = params.messageForDeveloper;
-    this.messageForUser = params.messageForUser;
-    this.originalMessage = params.originalMessage;
-    this.statusCode = params.statusCode;
+    this.messageForDeveloper = normalized.messageForDeveloper;
+    this.messageForUser = normalized.messageForUser;
+    this.originalMessage = normalized.originalMessage;
+    this.statusCode = normalized.statusCode;
   }
 
   static from(error: unknown, options: AppErrorFromOptions = {}): AppError {
@@ -72,18 +73,20 @@ export class AppError extends Error implements AppErrorLike {
   copyWith(params: Partial<AppErrorLike>): AppError {
     return new AppError({
       messageForDeveloper:
-        "messageForDeveloper" in params
-          ? params.messageForDeveloper!
+        typeof params.messageForDeveloper === "string"
+          ? params.messageForDeveloper
           : this.messageForDeveloper,
       messageForUser:
-        "messageForUser" in params
-          ? params.messageForUser!
+        typeof params.messageForUser === "string"
+          ? params.messageForUser
           : this.messageForUser,
       originalMessage:
-        "originalMessage" in params
-          ? params.originalMessage!
+        typeof params.originalMessage === "string" ||
+        params.originalMessage === null
+          ? params.originalMessage
           : this.originalMessage,
-      statusCode: "statusCode" in params ? params.statusCode! : this.statusCode,
+      statusCode:
+        validStatusCode(params.statusCode) ? params.statusCode : this.statusCode,
     });
   }
 
@@ -97,7 +100,7 @@ export function jsonToAppError(json: Record<string, unknown>): AppError {
     return AppError.fromJson(json);
   } catch (error) {
     return new AppError({
-      messageForDeveloper: `jsonToAppError.error jsonMap: ${JSON.stringify(json)}`,
+      messageForDeveloper: `jsonToAppError.error jsonMap: ${safeDiagnosticText(json)}`,
       messageForUser: "エラー情報の解析に失敗しました",
       originalMessage: stringifyOriginalMessage(error),
       statusCode: null,
@@ -105,35 +108,65 @@ export function jsonToAppError(json: Record<string, unknown>): AppError {
   }
 }
 
-function stringifyOriginalMessage(error: unknown): string | null {
-  if (error == null) return null;
-  if (typeof error === "string") {
-    return error.length === 0 ? null : error;
-  }
-  if (error instanceof Error) {
-    return error.message || error.toString();
-  }
-  if (Array.isArray(error) || isPlainObject(error)) {
-    try {
-      return JSON.stringify(error);
-    } catch {
-      return String(error);
-    }
-  }
-  return String(error);
+function normalizeAppErrorLike(value: AppErrorLike): AppErrorLike {
+  const candidate: Partial<AppErrorLike> = isObject(value) ? value : {};
+  return {
+    messageForDeveloper:
+      typeof candidate.messageForDeveloper === "string"
+        ? candidate.messageForDeveloper
+        : "AppError: invalid developer message",
+    messageForUser:
+      typeof candidate.messageForUser === "string"
+        ? candidate.messageForUser
+        : "エラーが発生しました",
+    originalMessage:
+      typeof candidate.originalMessage === "string" ||
+      candidate.originalMessage === null
+        ? candidate.originalMessage
+        : null,
+    statusCode: validStatusCode(candidate.statusCode)
+      ? candidate.statusCode
+      : null,
+  };
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
+function validStatusCode(value: unknown): value is number | null {
+  return value === null || (typeof value === "number" && Number.isFinite(value));
+}
+
+function safeDiagnosticText(value: unknown): string {
+  return stringifyOriginalMessage(value) ?? "null";
+}
+
+function stringifyOriginalMessage(error: unknown): string | null {
+  try {
+    if (error == null) return null;
+    if (typeof error === "string") {
+      return error.length === 0 ? null : error;
+    }
+    if (error instanceof Error) {
+      return error.message || error.toString();
+    }
+    if (Array.isArray(error) || isObject(error)) {
+      return JSON.stringify(error);
+    }
+    return String(error);
+  } catch {
+    return "<unprintable>";
+  }
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
 function isAppErrorLike(value: unknown): value is AppErrorLike {
-  if (!isPlainObject(value)) return false;
+  if (!isObject(value)) return false;
   return (
     typeof value.messageForDeveloper === "string" &&
     typeof value.messageForUser === "string" &&
     (typeof value.originalMessage === "string" ||
       value.originalMessage === null) &&
-    (typeof value.statusCode === "number" || value.statusCode === null)
+    validStatusCode(value.statusCode)
   );
 }

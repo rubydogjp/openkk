@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildBootstrapFiscalPeriods } from "./bootstrap-data.js";
-import type { OpenkkConfig } from "./openkk-config.js";
+import { createFixedClock, type OpenkkConfig } from "./openkk-config.js";
 
 describe("buildBootstrapFiscalPeriods", () => {
   it("uses canonical master ids in opening journals", () => {
@@ -21,7 +21,7 @@ describe("buildBootstrapFiscalPeriods", () => {
 
 function config(): OpenkkConfig {
   return {
-    today: new Date("2026-06-01T00:00:00Z"),
+    clock: createFixedClock(new Date("2026-06-01T00:00:00Z")),
     env: "dev",
     bundleLabel: "test",
     isMockMode: true,

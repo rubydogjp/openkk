@@ -5,6 +5,7 @@ import type {
 import { parseAmount, parseBusinessRate } from "../shared/parse-utils.js";
 
 export type EntryLine = {
+  id?: string;
   side: "debit" | "credit";
   accountName: string;
   accountType: EntryAccountVisualType;
@@ -12,8 +13,61 @@ export type EntryLine = {
   bookAccountId?: string;
   partnerName?: string;
   taxCategoryId?: string;
+  taxCategoryName?: string;
   businessCategoryId?: string;
+  businessCategoryName?: string;
 };
+
+export type EntryLineMetadata = {
+  partner: string;
+  taxCategory: string;
+  businessCategory: string;
+};
+
+export function resolveEntryLineMetadata(
+  record: Pick<EntryRecord, "partner" | "taxCategory" | "businessCategory">,
+  line: EntryLine,
+): EntryLineMetadata {
+  return {
+    partner: line.partnerName ?? record.partner,
+    taxCategory:
+      line.taxCategoryName ?? line.taxCategoryId ?? record.taxCategory,
+    businessCategory:
+      line.businessCategoryName ??
+      line.businessCategoryId ??
+      record.businessCategory,
+  };
+}
+
+export function resolveEntryPairMetadata(
+  record: Pick<EntryRecord, "partner" | "taxCategory" | "businessCategory">,
+  pair: { debit: EntryLine | null; credit: EntryLine | null },
+): EntryLineMetadata {
+  const debit =
+    pair.debit == null ? null : resolveEntryLineMetadata(record, pair.debit);
+  const credit =
+    pair.credit == null ? null : resolveEntryLineMetadata(record, pair.credit);
+  return {
+    partner: combinePairedMetadata(debit?.partner, credit?.partner),
+    taxCategory: combinePairedMetadata(
+      debit?.taxCategory,
+      credit?.taxCategory,
+    ),
+    businessCategory: combinePairedMetadata(
+      debit?.businessCategory,
+      credit?.businessCategory,
+    ),
+  };
+}
+
+function combinePairedMetadata(
+  debit: string | undefined,
+  credit: string | undefined,
+): string {
+  if (debit == null) return credit ?? "";
+  if (credit == null || debit === credit) return debit;
+  return `借: ${debit || "—"} / 貸: ${credit || "—"}`;
+}
 
 const OWNER_WITHDRAWAL_ACCOUNT = "事業主貸"; // 費用の個人分（資産・借方）
 const OWNER_DEPOSIT_ACCOUNT = "事業主借"; // 収益の個人分（負債・貸方）
@@ -271,28 +325,31 @@ export function entryToVisualPairs(record: EntryRecord): Array<{
 export function recordToPreviewRows(record: EntryRecord): EntryPreviewRow[] {
   const pairs = entryToVisualPairs(record);
   const dateLabel = `${record.date.slice(5, 7)}/${record.date.slice(8, 10)}`;
-  return pairs.map((pair, index) => ({
-    recordId: record.id,
-    lineIndex: index,
-    lineCount: pairs.length,
-    isFirstOfRecord: index === 0,
-    date: dateLabel,
-    weekday: record.weekday,
-    debit: pair.debit?.accountName ?? "",
-    debitType: pair.debit?.accountType ?? "asset",
-    debitAmount: pair.debit?.amount ?? "",
-    debitBookAccountId: pair.debit?.bookAccountId,
-    credit: pair.credit?.accountName ?? "",
-    creditType: pair.credit?.accountType ?? "asset",
-    creditAmount: pair.credit?.amount ?? "",
-    creditBookAccountId: pair.credit?.bookAccountId,
-    description: record.description,
-    partner: record.partner,
-    businessRate: record.businessRate,
-    businessRateRatio: record.businessRateRatio,
-    taxCategory: record.taxCategory,
-    businessCategory: record.businessCategory,
-  }));
+  return pairs.map((pair, index) => {
+    const metadata = resolveEntryPairMetadata(record, pair);
+    return {
+      recordId: record.id,
+      lineIndex: index,
+      lineCount: pairs.length,
+      isFirstOfRecord: index === 0,
+      date: dateLabel,
+      weekday: record.weekday,
+      debit: pair.debit?.accountName ?? "",
+      debitType: pair.debit?.accountType ?? "asset",
+      debitAmount: pair.debit?.amount ?? "",
+      debitBookAccountId: pair.debit?.bookAccountId,
+      credit: pair.credit?.accountName ?? "",
+      creditType: pair.credit?.accountType ?? "asset",
+      creditAmount: pair.credit?.amount ?? "",
+      creditBookAccountId: pair.credit?.bookAccountId,
+      description: record.description,
+      partner: metadata.partner,
+      businessRate: record.businessRate,
+      businessRateRatio: record.businessRateRatio,
+      taxCategory: metadata.taxCategory,
+      businessCategory: metadata.businessCategory,
+    };
+  });
 }
 
 export function recordToPreviewRow(record: EntryRecord): EntryPreviewRow {

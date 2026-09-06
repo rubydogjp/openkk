@@ -16,6 +16,7 @@ import {
   assertEntryInput,
   assertEntryMasterReferences,
   assertFiscalPeriodCreateInput,
+  assertFiscalPeriodContainsExistingData,
   assertFiscalPeriodPatchAllowed,
   assertFiscalPeriodPatchInput,
   assertFiscalPeriodReadyForPreClosing,
@@ -231,14 +232,23 @@ export function createOpenkkServerApi(
         assertFiscalPeriodPatchAllowed(current, patch);
         assertFiscalPeriodPatchInput(current, patch);
         if (patch.startDate != null || patch.endDate != null) {
+          const effectivePeriod = {
+            startDate: patch.startDate ?? current.startDate,
+            endDate: patch.endDate ?? current.endDate,
+          };
+          const [periods, entries, fixedAssets] = await Promise.all([
+            usecases.fiscalPeriod.getAll(uid),
+            usecases.entries.getAll(uid, id),
+            usecases.fixedAssets.getAll(uid, id),
+          ]);
           assertNoOverlappingFiscalPeriod(
-            {
-              startDate: patch.startDate ?? current.startDate,
-              endDate: patch.endDate ?? current.endDate,
-            },
-            (await usecases.fiscalPeriod.getAll(uid)).filter(
-              (period) => period.id !== id,
-            ),
+            effectivePeriod,
+            periods.filter((period) => period.id !== id),
+          );
+          assertFiscalPeriodContainsExistingData(
+            effectivePeriod,
+            entries,
+            fixedAssets,
           );
         }
         return usecases.fiscalPeriod.update(uid, id, patch);

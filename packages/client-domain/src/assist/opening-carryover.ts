@@ -1,4 +1,7 @@
+import type { EntryLine } from "../entries/entry-record.js";
 import type { EntryAccountVisualType } from "../entries/entries-types.js";
+
+export type OpeningCarryoverLine = EntryLine & { id: string };
 
 export type OpeningCarryoverRecord = {
   id: string;
@@ -18,6 +21,7 @@ export type OpeningCarryoverRecord = {
   businessRateRatio?: number;
   debitBookAccountId?: string;
   creditBookAccountId?: string;
+  lines?: OpeningCarryoverLine[];
 };
 
 export type OpeningCarryoverDraft = Omit<

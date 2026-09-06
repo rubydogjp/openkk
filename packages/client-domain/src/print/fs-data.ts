@@ -26,44 +26,49 @@ export type FsAggregate = {
   amounts: Record<number, number | null>;
   bsRows: FsBsRow[];
   expenseWriteIns: FsExpenseWriteIn[];
+  nextPeriodOpeningBalanceLines: OpeningBalanceLine[];
   summary: FsSummary;
 };
 
 export type OpeningBalanceLine = { accountId: string; amount: number };
 
-export function buildOpeningBalanceLinesFromClosingBsRows(
-  bsRows: ReadonlyArray<FsBsRow>,
+type ClosingBalance = {
+  side: "asset" | "liability";
+  accountName: string;
+  amount: number;
+};
+
+function buildNextPeriodOpeningBalanceLines(
+  closingBalances: Iterable<ClosingBalance>,
 ): OpeningBalanceLine[] {
   const amounts = new Map<string, number>();
   const fold = (accountId: string, amount: number) => {
     amounts.set(accountId, (amounts.get(accountId) ?? 0) + amount);
   };
 
-  const addLine = (prefix: "a" | "l", label: string, amount: number | null) => {
-    if (label === "" || label === "合計" || amount == null) return;
-    if (label === "事業主貸") {
+  for (const { side, accountName, amount } of closingBalances) {
+    if (accountName === "事業主貸") {
       fold("l:元入金", -amount);
-      return;
+      continue;
     }
     if (
-      label === "事業主借" ||
-      label === "元入金" ||
-      label === "青色申告特別控除前の所得金額"
+      accountName === "事業主借" ||
+      accountName === "元入金" ||
+      accountName === "青色申告特別控除前の所得金額"
     ) {
       fold("l:元入金", amount);
-      return;
+      continue;
     }
-    if (amount === 0) return;
+    if (amount === 0) continue;
+    const prefix = side === "asset" ? "a" : "l";
     if (amount > 0) {
-      fold(`${prefix}:${label}`, amount);
+      fold(`${prefix}:${accountName}`, amount);
     } else {
-      fold(`${prefix === "a" ? "l" : "a"}:${label}`, Math.abs(amount));
+      fold(
+        `${prefix === "a" ? "l" : "a"}:${accountName}`,
+        Math.abs(amount),
+      );
     }
-  };
-
-  for (const row of bsRows) {
-    addLine("a", row.assetLabel, row.assetClosing);
-    addLine("l", row.liabilityLabel, row.liabilityClosing);
   }
 
   const carriedCapital = amounts.get("l:元入金") ?? 0;
@@ -490,6 +495,34 @@ export function computeFsAggregate({
     profit +
     allowanceClosing;
 
+  const nextPeriodOpeningBalanceLines = buildNextPeriodOpeningBalanceLines([
+    ...[...assetClosingByName].map(([accountName, amount]) => ({
+      side: "asset" as const,
+      accountName,
+      amount,
+    })),
+    ...[...liabilityClosingByName].map(([accountName, amount]) => ({
+      side: "liability" as const,
+      accountName,
+      amount,
+    })),
+    ...[...equityClosingByName].map(([accountName, amount]) => ({
+      side: "liability" as const,
+      accountName,
+      amount,
+    })),
+    {
+      side: "liability",
+      accountName: ALLOWANCE_FOR_DOUBTFUL,
+      amount: allowanceClosing,
+    },
+    {
+      side: "liability",
+      accountName: "青色申告特別控除前の所得金額",
+      amount: profit,
+    },
+  ]);
+
   const r = (
     al: string,
     ao: number | null,
@@ -684,5 +717,11 @@ export function computeFsAggregate({
     equity: sumValues(equityClosingByName) + profit,
   };
 
-  return { amounts, bsRows, expenseWriteIns, summary };
+  return {
+    amounts,
+    bsRows,
+    expenseWriteIns,
+    nextPeriodOpeningBalanceLines,
+    summary,
+  };
 }
