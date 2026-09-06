@@ -49,6 +49,38 @@ test.describe("opening carryover (再振替)", () => {
     await expect(page.getByText("編集前の再振替")).not.toBeVisible();
   });
 
+  test("preserves every line of a compound carryover when reopened", async ({
+    page,
+  }) => {
+    await page.getByRole("button", { name: "追加" }).click();
+    const createDrawer = page.getByRole("dialog", { name: "仕訳の新規作成" });
+    await createDrawer.getByLabel("摘要").fill("複合再振替の往復検証");
+    await createDrawer
+      .getByRole("button", { name: "複合仕訳を追加" })
+      .click();
+
+    const createAmounts = createDrawer.locator(".bk-amount-input");
+    await expect(createAmounts).toHaveCount(4);
+    await createAmounts.nth(0).fill("30000");
+    await createAmounts.nth(1).fill("10000");
+    await createAmounts.nth(2).fill("20000");
+    await createAmounts.nth(3).fill("40000");
+    await clickButton(page, "作成");
+    await expect(createDrawer).not.toBeVisible({ timeout: 5_000 });
+
+    await page
+      .getByRole("button", { name: /複合再振替の往復検証/ })
+      .first()
+      .click();
+    const editDrawer = page.getByRole("dialog", { name: "仕訳の編集" });
+    const editAmounts = editDrawer.locator(".bk-amount-input");
+    await expect(editAmounts).toHaveCount(4);
+    await expect(editAmounts.nth(0)).toHaveValue("30,000");
+    await expect(editAmounts.nth(1)).toHaveValue("10,000");
+    await expect(editAmounts.nth(2)).toHaveValue("20,000");
+    await expect(editAmounts.nth(3)).toHaveValue("40,000");
+  });
+
   test("deletes a carryover record and it disappears from the list", async ({
     page,
   }) => {

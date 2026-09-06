@@ -6,6 +6,9 @@ import { AmountInput } from "../shared/amount-field.js";
 import { useConfirmDialog } from "../shared/confirm-dialog.js";
 import { LockButton } from "../shared/lock-icon.js";
 import { ExclusiveActionLock } from "../shared/exclusive-action-lock.js";
+import { useModalLifecycle } from "../shared/dismissible-layer.js";
+import { debugAppError } from "../shared/app-error-text.js";
+import { safeUserErrorMessage } from "../shared/safe-error-message.js";
 import {
   fontSize,
   fontWeight,
@@ -87,15 +90,15 @@ export function FixedAssetEditDrawer({
       }),
     };
   }, [
-      draft.acquisitionDate,
-      draft.acquisitionCost,
-      draft.disposalDate,
-      draft.status,
-      draft.usefulLife,
-      periodEndDate,
-      periodStartDate,
-      previewAsOf,
-    ]);
+    draft.acquisitionDate,
+    draft.acquisitionCost,
+    draft.disposalDate,
+    draft.status,
+    draft.usefulLife,
+    periodEndDate,
+    periodStartDate,
+    previewAsOf,
+  ]);
   const validationError = validateFixedAssetDraft({
     draft,
     periodStartDate,
@@ -109,13 +112,9 @@ export function FixedAssetEditDrawer({
     setErrorText(null);
   }, [asset.id]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !mutationLock.current.isLocked) onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  const drawerRef = useModalLifecycle<HTMLElement>(() => {
+    if (!mutationLock.current.isLocked) onClose();
+  });
 
   const handleSave = async () => {
     if (!canSave) {
@@ -130,8 +129,9 @@ export function FixedAssetEditDrawer({
       const ok = await onSave(draft);
       if (!ok) setErrorText("保存に失敗しました");
       else onClose();
-    } catch (e) {
-      setErrorText(e instanceof Error ? e.message : "保存に失敗しました");
+    } catch (error) {
+      debugAppError(error);
+      setErrorText(safeUserErrorMessage(error, "保存に失敗しました"));
     } finally {
       setSaving(false);
       release();
@@ -155,8 +155,9 @@ export function FixedAssetEditDrawer({
       try {
         const ok = await onDelete();
         if (!ok) setErrorText("削除に失敗しました");
-      } catch (e) {
-        setErrorText(e instanceof Error ? e.message : "削除に失敗しました");
+      } catch (error) {
+        debugAppError(error);
+        setErrorText(safeUserErrorMessage(error, "削除に失敗しました"));
       } finally {
         setDeleting(false);
       }
@@ -184,8 +185,11 @@ export function FixedAssetEditDrawer({
       />
 
       <aside
+        ref={drawerRef}
         role="dialog"
+        aria-modal="true"
         aria-label={mode === "create" ? "固定資産の追加" : "固定資産の編集"}
+        tabIndex={-1}
         style={{
           position: "fixed",
           top: 0,

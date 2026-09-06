@@ -1,17 +1,17 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import { fontFamily, fontSize, fontWeight, palette } from "./design-tokens.js";
+import {
+  resolveEquityBlock,
+  resolveProfitBlock,
+  type DiagramResultBlock,
+} from "./pl-bs-diagram-model.js";
 
-const PANEL_H = 180;
-const GAP = 3;
-const BORDER = 1;
-const R = 10;
-
-function formatDiagramYen(value: number): string {
-  const abs = Math.abs(Math.round(value));
-  const formatted = new Intl.NumberFormat("ja-JP").format(abs);
-  return value < 0 ? `-¥${formatted}` : `¥${formatted}`;
-}
+const PANEL_HEIGHT = 180;
+const BLOCK_GAP = 3;
+const CORNER_RADIUS = 10;
 
 type PLData = {
   revenue: number;
@@ -25,6 +25,14 @@ type BSData = {
   equity: number;
 };
 
+type DiagramBlock = {
+  label: string;
+  amount: number;
+  icon: string;
+  foreground: string;
+  background: string;
+};
+
 export function PlBsDiagramSection(props: { pl: PLData; bs?: BSData }) {
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
@@ -35,207 +43,230 @@ export function PlBsDiagramSection(props: { pl: PLData; bs?: BSData }) {
 }
 
 function PLPanel({ pl }: { pl: PLData }) {
-  const { revenue, expenses, profit } = pl;
-  const hasSeparate = profit > 0;
-
-  const halfH = Math.floor((PANEL_H - GAP) / 2);
-  const expenseH = hasSeparate ? halfH : PANEL_H;
-  const profitH = hasSeparate ? PANEL_H - GAP - halfH : 0;
+  const result = resolveProfitBlock(pl.profit);
+  const expenses = block(
+    "費用",
+    pl.expenses,
+    "/icons/expense.svg",
+    palette.accountExpense,
+    palette.accountExpenseBg,
+  );
+  const revenue = block(
+    "収益",
+    pl.revenue,
+    "/icons/revenue.svg",
+    palette.accountRevenue,
+    palette.accountRevenueBg,
+  );
+  const resultBlock = financialResultBlock(result, "/icons/profit.svg");
 
   return (
-    <div style={{ flex: "1 1 220px", minWidth: 220 }}>
-      <div style={{ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: palette.textSoft, marginBottom: 6 }}>
-        損益計算書 (PL)
-      </div>
-      <div style={{ display: "flex", gap: GAP, height: PANEL_H }}>
-
-        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-          <div
-            style={{
-              height: expenseH,
-              background: palette.accountExpenseBg,
-              border: `${BORDER}px solid ${palette.accountExpense}`,
-              borderRadius: hasSeparate ? `${R}px 0 0 0` : `${R}px 0 0 ${R}px`,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 3,
-              padding: "6px 8px",
-              boxSizing: "border-box",
-            }}
-          >
-            <DiagramLabel icon="/icons/expense.svg" color={palette.accountExpense} label="費用" />
-            <span style={{ fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: palette.accountExpense, fontFamily: fontFamily.mono }}>
-              {formatDiagramYen(expenses)}
-            </span>
-          </div>
-          {hasSeparate ? (
-            <>
-              <div style={{ height: GAP }} />
-              <div
-                style={{
-                  height: profitH,
-                  background: palette.accountProfitBg,
-                  border: `${BORDER}px solid ${palette.accountProfit}`,
-                  borderRadius: `0 0 0 ${R}px`,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 3,
-                  padding: "6px 8px",
-                  boxSizing: "border-box",
-                }}
-              >
-                <DiagramLabel icon="/icons/profit.svg" color={palette.accountProfit} label="利益" />
-                <span style={{ fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: palette.accountProfit, fontFamily: fontFamily.mono }}>
-                  {formatDiagramYen(profit)}
-                </span>
-              </div>
-            </>
-          ) : null}
-        </div>
-
-        <div
-          style={{
-            flex: 1,
-            height: PANEL_H,
-            background: palette.accountRevenueBg,
-            border: `${BORDER}px solid ${palette.accountRevenue}`,
-            borderRadius: `0 ${R}px ${R}px 0`,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 3,
-            padding: "6px 8px",
-            boxSizing: "border-box",
-          }}
-        >
-          <DiagramLabel icon="/icons/revenue.svg" color={palette.accountRevenue} label="収益" />
-          <span style={{ fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: palette.accountRevenue, fontFamily: fontFamily.mono }}>
-            {formatDiagramYen(revenue)}
-          </span>
-        </div>
-      </div>
-    </div>
+    <DiagramPanel title="損益計算書 (PL)">
+      <DiagramColumn
+        side="left"
+        blocks={result.side === "left" ? [expenses, resultBlock] : [expenses]}
+      />
+      <DiagramColumn
+        side="right"
+        blocks={result.side === "right" ? [revenue, resultBlock] : [revenue]}
+      />
+    </DiagramPanel>
   );
 }
 
 function BSPanel({ bs }: { bs: BSData }) {
-  const { assets, liabilities, equity } = bs;
-  const hasSeparate = equity > 0;
-
-  const halfH = Math.floor((PANEL_H - GAP) / 2);
-  const liabilityH = hasSeparate ? halfH : PANEL_H;
-  const equityH = hasSeparate ? PANEL_H - GAP - halfH : 0;
+  const result = resolveEquityBlock(bs.equity);
+  const assets = block(
+    "資産",
+    bs.assets,
+    "/icons/assets.svg",
+    palette.accountAsset,
+    palette.accountAssetBg,
+  );
+  const liabilities = block(
+    "負債",
+    bs.liabilities,
+    "/icons/liabilities.svg",
+    palette.accountLiability,
+    palette.accountLiabilityBg,
+  );
+  const resultBlock = financialResultBlock(result, "/icons/net-assets.svg");
 
   return (
+    <DiagramPanel title="貸借対照表 (BS)">
+      <DiagramColumn
+        side="left"
+        blocks={result.side === "left" ? [assets, resultBlock] : [assets]}
+      />
+      <DiagramColumn
+        side="right"
+        blocks={
+          result.side === "right" ? [liabilities, resultBlock] : [liabilities]
+        }
+      />
+    </DiagramPanel>
+  );
+}
+
+function DiagramPanel(props: { title: string; children: ReactNode }) {
+  return (
     <div style={{ flex: "1 1 220px", minWidth: 220 }}>
-      <div style={{ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: palette.textSoft, marginBottom: 6 }}>
-        貸借対照表 (BS)
+      <div
+        style={{
+          fontSize: fontSize.xs,
+          fontWeight: fontWeight.semibold,
+          color: palette.textSoft,
+          marginBottom: 6,
+        }}
+      >
+        {props.title}
       </div>
-      <div style={{ display: "flex", gap: GAP, height: PANEL_H }}>
-
-        <div
-          style={{
-            flex: 1,
-            height: PANEL_H,
-            background: palette.accountAssetBg,
-            border: `${BORDER}px solid ${palette.accountAsset}`,
-            borderRadius: `${R}px 0 0 ${R}px`,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 3,
-            padding: "6px 8px",
-            boxSizing: "border-box",
-          }}
-        >
-          <DiagramLabel icon="/icons/assets.svg" color={palette.accountAsset} label="資産" />
-          <span style={{ fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: palette.accountAsset, fontFamily: fontFamily.mono }}>
-            {formatDiagramYen(assets)}
-          </span>
-        </div>
-
-        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-          <div
-            style={{
-              height: liabilityH,
-              background: palette.accountLiabilityBg,
-              border: `${BORDER}px solid ${palette.accountLiability}`,
-              borderRadius: hasSeparate ? `0 ${R}px 0 0` : `0 ${R}px ${R}px 0`,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 3,
-              padding: "6px 8px",
-              boxSizing: "border-box",
-            }}
-          >
-            <DiagramLabel icon="/icons/liabilities.svg" color={palette.accountLiability} label="負債" />
-            <span style={{ fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: palette.accountLiability, fontFamily: fontFamily.mono }}>
-              {formatDiagramYen(liabilities)}
-            </span>
-          </div>
-          {hasSeparate ? (
-            <>
-              <div style={{ height: GAP }} />
-              <div
-                style={{
-                  height: equityH,
-                  background: palette.accountEquityBg,
-                  border: `${BORDER}px solid ${palette.accountEquity}`,
-                  borderRadius: `0 0 ${R}px 0`,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 3,
-                  padding: "6px 8px",
-                  boxSizing: "border-box",
-                }}
-              >
-                <DiagramLabel icon="/icons/net-assets.svg" color={palette.accountEquity} label="純資産" />
-                <span style={{ fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: palette.accountEquity, fontFamily: fontFamily.mono }}>
-                  {formatDiagramYen(equity)}
-                </span>
-              </div>
-            </>
-          ) : null}
-        </div>
+      <div style={{ display: "flex", gap: BLOCK_GAP, height: PANEL_HEIGHT }}>
+        {props.children}
       </div>
     </div>
   );
 }
 
-function DiagramLabel({ icon, color, label }: { icon: string; color: string; label: string }) {
+function DiagramColumn(props: {
+  side: "left" | "right";
+  blocks: DiagramBlock[];
+}) {
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4, fontSize: fontSize.xs, fontWeight: fontWeight.bold, color }}>
-      <AccountIcon icon={icon} color={color} size={14} />
-      <span>{label}</span>
+    <div
+      style={{
+        flex: 1,
+        minWidth: 0,
+        display: "flex",
+        flexDirection: "column",
+        gap: BLOCK_GAP,
+      }}
+    >
+      {props.blocks.map((item, index) => (
+        <DiagramBlockView
+          key={item.label}
+          block={item}
+          side={props.side}
+          index={index}
+          count={props.blocks.length}
+        />
+      ))}
+    </div>
+  );
+}
+
+function DiagramBlockView(props: {
+  block: DiagramBlock;
+  side: "left" | "right";
+  index: number;
+  count: number;
+}) {
+  const isFirst = props.index === 0;
+  const isLast = props.index === props.count - 1;
+  const topLeft = props.side === "left" && isFirst ? CORNER_RADIUS : 0;
+  const topRight = props.side === "right" && isFirst ? CORNER_RADIUS : 0;
+  const bottomRight = props.side === "right" && isLast ? CORNER_RADIUS : 0;
+  const bottomLeft = props.side === "left" && isLast ? CORNER_RADIUS : 0;
+  return (
+    <div
+      style={{
+        flex: 1,
+        minHeight: 0,
+        background: props.block.background,
+        border: `1px solid ${props.block.foreground}`,
+        borderRadius: `${topLeft}px ${topRight}px ${bottomRight}px ${bottomLeft}px`,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 3,
+        padding: "6px 8px",
+        boxSizing: "border-box",
+      }}
+    >
+      <DiagramLabel
+        icon={props.block.icon}
+        color={props.block.foreground}
+        label={props.block.label}
+      />
+      <span
+        style={{
+          fontSize: fontSize.sm,
+          fontWeight: fontWeight.bold,
+          color: props.block.foreground,
+          fontFamily: fontFamily.mono,
+        }}
+      >
+        {formatDiagramYen(props.block.amount)}
+      </span>
+    </div>
+  );
+}
+
+function financialResultBlock(
+  result: DiagramResultBlock,
+  icon: string,
+): DiagramBlock {
+  const negative = result.tone === "negative";
+  return block(
+    result.label,
+    result.amount,
+    icon,
+    negative ? palette.danger : palette.accountProfit,
+    negative ? palette.dangerBg : palette.accountProfitBg,
+  );
+}
+
+function block(
+  label: string,
+  amount: number,
+  icon: string,
+  foreground: string,
+  background: string,
+): DiagramBlock {
+  return { label, amount, icon, foreground, background };
+}
+
+function formatDiagramYen(value: number): string {
+  const absolute = Math.abs(Math.round(value));
+  const formatted = new Intl.NumberFormat("ja-JP").format(absolute);
+  return value < 0 ? `-¥${formatted}` : `¥${formatted}`;
+}
+
+function DiagramLabel(props: { icon: string; color: string; label: string }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 4,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+        color: props.color,
+      }}
+    >
+      <AccountIcon icon={props.icon} color={props.color} size={14} />
+      <span>{props.label}</span>
     </span>
   );
 }
 
-function AccountIcon({ icon, color, size }: { icon: string; color: string; size: number }) {
+function AccountIcon(props: { icon: string; color: string; size: number }) {
   return (
     <span
       aria-hidden="true"
       style={{
-        width: size,
-        height: size,
+        width: props.size,
+        height: props.size,
         display: "block",
         flexShrink: 0,
-        backgroundColor: color,
-        maskImage: `url('${icon}')`,
+        backgroundColor: props.color,
+        maskImage: `url('${props.icon}')`,
         maskPosition: "center",
         maskRepeat: "no-repeat",
         maskSize: "contain",
-        WebkitMaskImage: `url('${icon}')`,
+        WebkitMaskImage: `url('${props.icon}')`,
         WebkitMaskPosition: "center",
         WebkitMaskRepeat: "no-repeat",
         WebkitMaskSize: "contain",

@@ -34,10 +34,21 @@ test.describe("file import", () => {
   test("imports entries from a JSON file and shows import count", async ({
     page,
   }) => {
-    await page.getByRole("button", { name: "ファイル" }).click();
-    await page
-      .locator('input[type="file"][accept*=".json"]')
-      .setInputFiles(JSON_FIXTURE);
+    const fileButton = page.getByRole("button", { name: "ファイル" });
+    await fileButton.focus();
+    await page.keyboard.press("Enter");
+    const importItem = page.getByRole("menuitem", {
+      name: "JSON ファイルから",
+    });
+    await expect(importItem).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(fileButton).toBeFocused();
+
+    await page.keyboard.press("Enter");
+    const fileChooserPromise = page.waitForEvent("filechooser");
+    await importItem.press("Enter");
+    const fileChooser = await fileChooserPromise;
+    await fileChooser.setFiles(JSON_FIXTURE);
 
     await expect(page.getByText(/取り込みました\(取込 13 件/)).toBeVisible({
       timeout: 10_000,
@@ -47,14 +58,12 @@ test.describe("file import", () => {
   test("skips duplicate entries on re-import and reports skip count", async ({
     page,
   }) => {
-    // first import
     await page.getByRole("button", { name: "ファイル" }).click();
     await page
       .locator('input[type="file"][accept*=".csv"]')
       .setInputFiles(CSV_FIXTURE);
     await expect(page.getByText(/取り込みました\(取込 3 件/)).toBeVisible();
 
-    // second import of the same file → all rows are duplicates
     await page.getByRole("button", { name: "ファイル" }).click();
     await page
       .locator('input[type="file"][accept*=".csv"]')
@@ -67,17 +76,13 @@ test.describe("file import", () => {
   test("exports entries as CSV and shows export confirmation", async ({
     page,
   }) => {
-    // import some entries first
     await page.getByRole("button", { name: "ファイル" }).click();
     await page
       .locator('input[type="file"][accept*=".csv"]')
       .setInputFiles(CSV_FIXTURE);
     await expect(page.getByText(/取り込みました/)).toBeVisible();
 
-    // export as CSV
     await page.getByRole("button", { name: "ファイル" }).click();
-    // click the CSV export menu item (not the file input, nor imported entry
-    // rows whose descriptions also contain "CSV")
     await page.getByRole("menuitem", { name: "CSV でダウンロード" }).click();
     await expect(page.getByText(/_journal\.csv を出力しました/)).toBeVisible({
       timeout: 5_000,

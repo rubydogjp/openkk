@@ -30,14 +30,29 @@ import { normalizePathname } from "../shared/pathname.js";
 import "../shared/pwa-install.js";
 import { DataLoadErrorBanner } from "./data-load-error-banner.js";
 import { AppErrorText } from "../shared/app-error-text.js";
+import {
+  useDismissibleLayer,
+  usePopoverLifecycle,
+} from "../shared/dismissible-layer.js";
 import { ExclusiveActionLock } from "../shared/exclusive-action-lock.js";
+import { openExternalUrl } from "../shared/external-navigation.js";
 import { MaintenanceScreen } from "./maintenance-content.js";
 import { ArchivedFiscalPeriodScreen } from "../routes/steps/archived-fiscal-period-screen.js";
 import { FiscalPeriodsContent } from "./fiscal-periods-content.js";
 import { SignInContent } from "./sign-in-content.js";
 import {
+  AssistIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  ExternalLinkIcon,
+  JournalIcon,
+  LoginIcon,
+  LogoutIcon,
+  PersonIcon,
+  StepsIcon,
+} from "./shell-icons.js";
+import {
   ARCHIVED_WORKSPACE_PATH,
-  FISCAL_PERIOD_CREATE_PATH,
   FISCAL_PERIOD_PICKER_PATH,
   resolveShellContentMode,
   shouldRedirectArchivedWorkspace,
@@ -197,14 +212,27 @@ function ShellChrome({
   const hasSession = contentMode !== "sign-in";
 
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const { containerRef: accountMenuContainerRef, popupRef: menuRef } =
+    usePopoverLifecycle<HTMLDivElement, HTMLDivElement>({
+      open: menuOpen,
+      onDismiss: () => setMenuOpen(false),
+    });
 
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
-  const workspaceMenuRef = useRef<HTMLDivElement>(null);
-  const workspaceTriggerRef = useRef<HTMLButtonElement>(null);
+  const {
+    containerRef: workspaceMenuContainerRef,
+    popupRef: workspaceMenuRef,
+  } = usePopoverLifecycle<HTMLDivElement, HTMLDivElement>({
+    open: workspaceOpen,
+    onDismiss: () => setWorkspaceOpen(false),
+  });
 
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const sidebarRef = useDismissibleLayer<HTMLElement>({
+    open: drawerOpen,
+    onDismiss: () => setDrawerOpen(false),
+    trapFocus: true,
+  });
   const [authActionError, setAuthActionError] = useState<unknown>(null);
   const [authActionPending, setAuthActionPending] = useState(false);
   const authActionLock = useRef(new ExclusiveActionLock());
@@ -212,34 +240,6 @@ function ShellChrome({
   useEffect(() => {
     setDrawerOpen(false);
   }, [pathname]);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    function onDown(e: MouseEvent) {
-      if (
-        menuRef.current?.contains(e.target as Node) ||
-        triggerRef.current?.contains(e.target as Node)
-      )
-        return;
-      setMenuOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [menuOpen]);
-
-  useEffect(() => {
-    if (!workspaceOpen) return;
-    function onDown(e: MouseEvent) {
-      if (
-        workspaceMenuRef.current?.contains(e.target as Node) ||
-        workspaceTriggerRef.current?.contains(e.target as Node)
-      )
-        return;
-      setWorkspaceOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [workspaceOpen]);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -254,11 +254,6 @@ function ShellChrome({
   const displayName = session?.user.displayName ?? "";
   const email = session != null ? userEmail(session.user) : "";
   const canSignOut = session != null && userCanSignOut(session.user);
-
-  function navigate(href: string) {
-    setMenuOpen(false);
-    router.push(href);
-  }
 
   async function handleSignInClick() {
     const release = authActionLock.current.tryAcquire();
@@ -371,6 +366,7 @@ function ShellChrome({
       {drawerOpen ? (
         <div
           className="bk-shell-backdrop"
+          aria-hidden="true"
           onClick={() => setDrawerOpen(false)}
         />
       ) : null}
@@ -385,6 +381,11 @@ function ShellChrome({
         }}
       >
         <aside
+          ref={sidebarRef}
+          role={drawerOpen ? "dialog" : undefined}
+          aria-modal={drawerOpen ? "true" : undefined}
+          aria-label={drawerOpen ? "ナビゲーションメニュー" : undefined}
+          tabIndex={drawerOpen ? -1 : undefined}
           className={
             drawerOpen
               ? "bk-shell-sidebar bk-shell-sidebar--open"
@@ -444,9 +445,11 @@ function ShellChrome({
             </div>
           </div>
 
-          <div style={{ padding: "0 8px 8px", position: "relative" }}>
+          <div
+            ref={workspaceMenuContainerRef}
+            style={{ padding: "0 8px 8px", position: "relative" }}
+          >
             <button
-              ref={workspaceTriggerRef}
               type="button"
               className="bk-ws-trigger"
               disabled={!workspaceEnabled}
@@ -493,6 +496,7 @@ function ShellChrome({
               <div
                 ref={workspaceMenuRef}
                 role="menu"
+                tabIndex={-1}
                 style={{
                   position: "absolute",
                   left: 8,
@@ -673,13 +677,14 @@ function ShellChrome({
 
           <div style={{ flex: 1 }} />
 
-          <div style={{ padding: 8, position: "relative" }}>
+          <div
+            ref={accountMenuContainerRef}
+            style={{ padding: 8, position: "relative" }}
+          >
             {hasSession && brandConfig.marketingSiteUrl != null ? (
               <button
                 type="button"
-                onClick={() =>
-                  window.open(brandConfig.marketingSiteUrl, "_blank")
-                }
+                onClick={() => openExternalUrl(brandConfig.marketingSiteUrl!)}
                 style={{
                   width: "100%",
                   display: "flex",
@@ -704,9 +709,9 @@ function ShellChrome({
             {hasSession ? (
               <>
                 <button
-                  ref={triggerRef}
                   type="button"
                   aria-label="アカウントメニュー"
+                  aria-haspopup="menu"
                   aria-expanded={menuOpen}
                   className="bk-user-trigger"
                   onClick={() => setMenuOpen((v) => !v)}
@@ -780,6 +785,8 @@ function ShellChrome({
                 {menuOpen && (
                   <div
                     ref={menuRef}
+                    role="menu"
+                    tabIndex={-1}
                     style={{
                       position: "absolute",
                       left: 8,
@@ -859,7 +866,7 @@ function ShellChrome({
                     <div style={{ padding: "6px 0" }}>
                       <MenuButton
                         icon={
-                          <PersonOutlineIcon
+                          <PersonIcon
                             size={18}
                             color={PALETTE.menuIconDisabled}
                           />
@@ -889,7 +896,7 @@ function ShellChrome({
                           labelColor={PALETTE.menuLink}
                           onClick={() => {
                             setMenuOpen(false);
-                            window.open(brandConfig.productSiteUrl, "_blank");
+                            openExternalUrl(brandConfig.productSiteUrl!);
                           }}
                         />
                       )}
@@ -990,6 +997,7 @@ function MenuButton(props: {
   return (
     <button
       type="button"
+      role="menuitem"
       disabled={props.disabled}
       onClick={props.onClick}
       className="bk-menu-item"
@@ -1016,228 +1024,5 @@ function MenuButton(props: {
         {props.label}
       </span>
     </button>
-  );
-}
-
-function StepsIcon({ size, color }: { size: number; color: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="9" stroke={color} strokeWidth="1.6" />
-      <path
-        d="M8 12l3 3 5-5"
-        stroke={color}
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function JournalIcon({ size, color }: { size: number; color: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <rect
-        x="4"
-        y="3"
-        width="16"
-        height="18"
-        rx="2"
-        stroke={color}
-        strokeWidth="1.6"
-      />
-      <line
-        x1="8"
-        y1="8"
-        x2="16"
-        y2="8"
-        stroke={color}
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-      <line
-        x1="8"
-        y1="12"
-        x2="16"
-        y2="12"
-        stroke={color}
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-      <line
-        x1="8"
-        y1="16"
-        x2="13"
-        y2="16"
-        stroke={color}
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function AssistIcon({ size, color }: { size: number; color: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        width: size,
-        height: size,
-        display: "block",
-        backgroundColor: color,
-        maskImage: "url('/icons/assist.svg')",
-        maskPosition: "center",
-        maskRepeat: "no-repeat",
-        maskSize: "contain",
-        WebkitMaskImage: "url('/icons/assist.svg')",
-        WebkitMaskPosition: "center",
-        WebkitMaskRepeat: "no-repeat",
-        WebkitMaskSize: "contain",
-      }}
-    />
-  );
-}
-
-function PersonIcon({ size, color }: { size: number; color: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="8" r="3.5" stroke={color} strokeWidth="1.5" />
-      <path
-        d="M4 20c0-4 3.6-7 8-7s8 3 8 7"
-        stroke={color}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function PersonOutlineIcon({ size, color }: { size: number; color: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="8" r="3.5" stroke={color} strokeWidth="1.5" />
-      <path
-        d="M4 20c0-4 3.6-7 8-7s8 3 8 7"
-        stroke={color}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function LogoutIcon({ size, color }: { size: number; color: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <path
-        d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"
-        stroke={color}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-      <polyline
-        points="16 17 21 12 16 7"
-        stroke={color}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <line
-        x1="21"
-        y1="12"
-        x2="9"
-        y2="12"
-        stroke={color}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function LoginIcon({ size, color }: { size: number; color: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <path
-        d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"
-        stroke={color}
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-      <polyline
-        points="10 17 15 12 10 7"
-        stroke={color}
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <line
-        x1="15"
-        y1="12"
-        x2="3"
-        y2="12"
-        stroke={color}
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function ExternalLinkIcon({ size, color }: { size: number; color: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <path
-        d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"
-        stroke={color}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-      <polyline
-        points="15 3 21 3 21 9"
-        stroke={color}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <line
-        x1="10"
-        y1="14"
-        x2="21"
-        y2="3"
-        stroke={color}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function ChevronDownIcon({ size, color }: { size: number; color: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <polyline
-        points="6 9 12 15 18 9"
-        stroke={color}
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function CheckIcon({ size, color }: { size: number; color: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <polyline
-        points="5 12 10 17 19 7"
-        stroke={color}
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }

@@ -1,20 +1,14 @@
 "use client";
 
-import {
-  Fragment,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-  type ReactNode,
-} from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 
 import { StepFormRow } from "../steps/step-ui.js";
 import { AmountInput } from "../shared/amount-field.js";
 import { DatePickerButton } from "../shared/date-picker.js";
 import { ExclusiveActionLock } from "../shared/exclusive-action-lock.js";
+import { useModalLifecycle } from "../shared/dismissible-layer.js";
 import { debugAppError } from "../shared/app-error-text.js";
+import { safeUserErrorMessage } from "../shared/safe-error-message.js";
 import {
   fontSize,
   fontWeight,
@@ -23,7 +17,6 @@ import {
   rings,
   shadows,
   sizes,
-  typography,
 } from "../shared/design-tokens.js";
 import {
   resolveBookAccountByName,
@@ -32,6 +25,29 @@ import {
   type QuickGuideTemplate,
 } from "@rubydogjp/openkk-client-domain";
 import { QuickGuidePanel, QuickGuideTriggerButton } from "./quick-guide-panel.js";
+import {
+  entryFormDraftToEntryDraft,
+  entryRecordToFormDraft,
+  mergeOptions,
+  type EntryFormDraft,
+  type EntryLinePair,
+} from "./entry-edit-model.js";
+import {
+  AccountPicker,
+  ActionRowButton,
+  BalanceIndicator,
+  CardDivider,
+  CloseIcon,
+  DeleteConfirmDialog,
+  SuggestionInput,
+  TextFieldInput,
+  StackedField,
+  ValidationCard,
+  deleteEntryButtonStyle,
+  entryDrawerColors,
+  primaryButtonStyle,
+  secondaryButtonStyle,
+} from "./entry-edit-controls.js";
 import type {
   EntryDraft,
   EntryMasterAccountOption,
@@ -39,79 +55,15 @@ import type {
   EntrySuggestions,
 } from "@rubydogjp/openkk-client-usecases";
 import {
-  AppError,
-  parseAmount,
-  getEntryLines,
   MAX_JOURNAL_ENTRY_LINES,
+  parseAmount,
   type EntryRecord,
-  type EntryLine,
 } from "@rubydogjp/openkk-client-domain";
-import type { EntryAccountVisualType } from "@rubydogjp/openkk-client-domain";
 import {
   validateEntryAmounts,
   validateEntryDate,
   validateEntryLineCount,
 } from "./entry-edit-validation.js";
-
-const C = {
-  text: palette.text,
-  soft: palette.textSoft,
-  muted: palette.textMuted,
-  labelText: palette.textLabel,
-
-  border: palette.borderStrong,
-
-  panelBg: palette.surface,
-  bg: palette.surface,
-  blue: palette.brand,
-  red: palette.danger,
-  green: palette.success,
-};
-
-const ACC_PALETTE: Record<
-  EntryAccountVisualType,
-  { bg: string; fg: string; border: string }
-> = {
-  asset: {
-    bg: palette.accountAssetBg,
-    fg: palette.accountAsset,
-    border: palette.accountAssetBorder,
-  },
-  liability: {
-    bg: palette.accountLiabilityBg,
-    fg: palette.accountLiability,
-    border: palette.accountLiabilityBorder,
-  },
-  equity: {
-    bg: palette.accountEquityBg,
-    fg: palette.accountEquity,
-    border: palette.accountEquityBorder,
-  },
-  revenue: {
-    bg: palette.accountRevenueBg,
-    fg: palette.accountRevenue,
-    border: palette.accountRevenueBorder,
-  },
-  cost_of_sales: {
-    bg: palette.accountExpenseBg,
-    fg: palette.accountExpense,
-    border: palette.accountExpenseBorder,
-  },
-  expense: {
-    bg: palette.accountExpenseBg,
-    fg: palette.accountExpense,
-    border: palette.accountExpenseBorder,
-  },
-};
-
-const ACC_TYPE_LABEL: Record<EntryAccountVisualType, string> = {
-  asset: "資産",
-  liability: "負債",
-  equity: "純資産",
-  revenue: "収益",
-  cost_of_sales: "売上原価",
-  expense: "費用",
-};
 
 const BIZ_RATE_PRESETS = [
   "100",
@@ -134,7 +86,6 @@ export function EntryEditDrawer(props: {
   businessCategoryOptions: EntryMasterCategoryOption[];
   suggestions: EntrySuggestions;
   mode?: "create" | "edit";
-  allowCompound?: boolean;
   minDate?: string;
   maxDate?: string;
   onSave: (draft: EntryDraft) => Promise<void> | void;
@@ -142,14 +93,13 @@ export function EntryEditDrawer(props: {
   onClose: () => void;
 }) {
   const mode = props.mode ?? "edit";
-  const allowCompound = props.allowCompound ?? true;
-  const rowPairIdSequence = useRef(0);
-  const nextRowPairId = () => {
-    rowPairIdSequence.current += 1;
-    return `row-${rowPairIdSequence.current}`;
+  const linePairIdSequence = useRef(0);
+  const nextLinePairId = () => {
+    linePairIdSequence.current += 1;
+    return `row-${linePairIdSequence.current}`;
   };
-  const [draft, setDraft] = useState<RowPairDraft>(() =>
-    recordToRowPairDraft(props.entry, nextRowPairId),
+  const [draft, setDraft] = useState<EntryFormDraft>(() =>
+    entryRecordToFormDraft(props.entry, nextLinePairId),
   );
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -161,23 +111,18 @@ export function EntryEditDrawer(props: {
   const [guideStack, setGuideStack] = useState<QuickGuidePage[]>([]);
 
   useEffect(() => {
-    setDraft(recordToRowPairDraft(props.entry, nextRowPairId));
+    setDraft(entryRecordToFormDraft(props.entry, nextLinePairId));
     setConfirmingDelete(false);
     setTriedSave(false);
     setErrorText(null);
     setGuideStack([]);
   }, [props.entry.id]);
 
-  const { onClose } = props;
-  useEffect(() => {
-    function handle(event: KeyboardEvent) {
-      if (event.key === "Escape" && !mutationLock.current.isLocked) onClose();
-    }
-    document.addEventListener("keydown", handle);
-    return () => document.removeEventListener("keydown", handle);
-  }, [onClose]);
+  const drawerRef = useModalLifecycle<HTMLElement>(() => {
+    if (!mutationLock.current.isLocked) props.onClose();
+  });
 
-  const update = (patch: Partial<RowPairDraft>) =>
+  const update = (patch: Partial<EntryFormDraft>) =>
     setDraft((current) => ({ ...current, ...patch }));
 
   const updatePartner = (value: string) =>
@@ -213,7 +158,7 @@ export function EntryEditDrawer(props: {
       })),
     }));
 
-  const updateRow = (index: number, patch: Partial<RowPair>) => {
+  const updateRow = (index: number, patch: Partial<EntryLinePair>) => {
     setDraft((current) => ({
       ...current,
       pairs: current.pairs.map((row, i) =>
@@ -234,7 +179,7 @@ export function EntryEditDrawer(props: {
       pairs: [
         ...current.pairs,
         {
-          id: nextRowPairId(),
+          id: nextLinePairId(),
           debitAccountId: defDebit?.id,
           debitAccountName: defDebit?.name ?? "",
           debitAccountType: defDebit?.accountType ?? "expense",
@@ -283,8 +228,8 @@ export function EntryEditDrawer(props: {
       return;
     }
     setDraft((current) => {
-      const newPair: RowPair = {
-        id: nextRowPairId(),
+      const newPair: EntryLinePair = {
+        id: nextLinePairId(),
         debitAccountId: debit.id,
         debitAccountName: debit.name,
         debitAccountType: debit.accountType,
@@ -417,13 +362,10 @@ export function EntryEditDrawer(props: {
     setSaving(true);
     setErrorText(null);
     try {
-      await props.onSave(rowPairDraftToEntryDraft(draft, props.accountOptions));
+      await props.onSave(entryFormDraftToEntryDraft(draft, props.accountOptions));
     } catch (error) {
-      const appError = AppError.from(error, {
-        fallbackUserMessage: "保存に失敗しました",
-      });
       debugAppError(error);
-      setErrorText(appError.messageForUser);
+      setErrorText(safeUserErrorMessage(error, "保存に失敗しました"));
     } finally {
       setSaving(false);
       release();
@@ -440,11 +382,8 @@ export function EntryEditDrawer(props: {
     try {
       await props.onDelete();
     } catch (error) {
-      const appError = AppError.from(error, {
-        fallbackUserMessage: "削除に失敗しました",
-      });
       debugAppError(error);
-      setErrorText(appError.messageForUser);
+      setErrorText(safeUserErrorMessage(error, "削除に失敗しました"));
     } finally {
       setDeleting(false);
       release();
@@ -475,8 +414,11 @@ export function EntryEditDrawer(props: {
         }}
       />
       <aside
+        ref={drawerRef}
         role="dialog"
+        aria-modal="true"
         aria-label={mode === "create" ? "仕訳の新規作成" : "仕訳の編集"}
+        tabIndex={-1}
         className="bk-entry-drawer"
         style={{
           position: "fixed",
@@ -485,9 +427,9 @@ export function EntryEditDrawer(props: {
           bottom: 0,
           width: sizes.drawer.width,
           maxWidth: "100vw",
-          background: C.panelBg,
+          background: entryDrawerColors.panelBg,
           boxShadow: shadows.drawer,
-          borderLeft: `1px solid ${C.border}`,
+          borderLeft: `1px solid ${entryDrawerColors.border}`,
           zIndex: 50,
           display: "flex",
           flexDirection: "column",
@@ -501,7 +443,10 @@ export function EntryEditDrawer(props: {
             to { transform: translateX(0); }
           }
           .bk-d-input { box-shadow: ${shadows.inputInset}; }
-          .bk-d-input:focus { border-color: ${C.blue} !important; box-shadow: ${rings.brandFocus}, ${shadows.inputInset}; }
+          .bk-d-input:focus {
+            border-color: ${entryDrawerColors.blue} !important;
+            box-shadow: ${rings.brandFocus}, ${shadows.inputInset};
+          }
           .bk-d-menu-item { transition: background 80ms ease; }
           .bk-d-menu-item:hover { background: #F1F5F9; }
         `}</style>
@@ -510,8 +455,8 @@ export function EntryEditDrawer(props: {
           style={{
             height: 52,
             padding: "0 20px",
-            background: C.bg,
-            borderBottom: `1px solid ${C.border}`,
+            background: entryDrawerColors.bg,
+            borderBottom: `1px solid ${entryDrawerColors.border}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -523,7 +468,7 @@ export function EntryEditDrawer(props: {
             style={{
               fontSize: fontSize.lg,
               fontWeight: fontWeight.bold,
-              color: C.text,
+              color: entryDrawerColors.text,
             }}
           >
             {mode === "create" ? "仕訳の新規作成" : "仕訳の編集"}
@@ -540,7 +485,7 @@ export function EntryEditDrawer(props: {
               background: "transparent",
               cursor: saving || deleting ? "default" : "pointer",
               opacity: saving || deleting ? 0.5 : 1,
-              color: C.soft,
+              color: entryDrawerColors.soft,
               borderRadius: radii.sm,
               display: "flex",
               alignItems: "center",
@@ -593,7 +538,7 @@ export function EntryEditDrawer(props: {
 
               <div
                 style={{
-                  background: C.bg,
+                  background: entryDrawerColors.bg,
                   border: `1px solid ${palette.borderEmphasis}`,
                   borderRadius: 12,
                   flexShrink: 0,
@@ -619,8 +564,9 @@ export function EntryEditDrawer(props: {
                         }}
                       >
                         <StackedField label="借方科目">
-                          <AccountChip
+                          <AccountPicker
                             ariaLabel="借方科目"
+                            selectedId={row.debitAccountId}
                             value={row.debitAccountName}
                             accountType={row.debitAccountType}
                             onChange={(option) =>
@@ -635,8 +581,9 @@ export function EntryEditDrawer(props: {
                           />
                         </StackedField>
                         <StackedField label="貸方科目">
-                          <AccountChip
+                          <AccountPicker
                             ariaLabel="貸方科目"
+                            selectedId={row.creditAccountId}
                             value={row.creditAccountName}
                             accountType={row.creditAccountType}
                             onChange={(option) =>
@@ -687,32 +634,28 @@ export function EntryEditDrawer(props: {
                 ))}
                 <CardDivider />
 
-                {allowCompound ? (
-                  <div
-                    style={{
-                      padding: 18,
-                      display: "flex",
-                      justifyContent: "flex-end",
-                    }}
-                  >
-                    <ActionRowButton
-                      variant="add"
-                      ariaLabel="複合仕訳を追加"
-                      label="複合仕訳を追加"
-                      enabled={
-                        draft.pairs.length < MAX_JOURNAL_ENTRY_LINES / 2
-                      }
-                      onClick={addRow}
-                    />
-                  </div>
-                ) : null}
+                <div
+                  style={{
+                    padding: 18,
+                    display: "flex",
+                    justifyContent: "flex-end",
+                  }}
+                >
+                  <ActionRowButton
+                    variant="add"
+                    ariaLabel="複合仕訳を追加"
+                    label="複合仕訳を追加"
+                    enabled={draft.pairs.length < MAX_JOURNAL_ENTRY_LINES / 2}
+                    onClick={addRow}
+                  />
+                </div>
               </div>
 
               <StepFormRow
                 label="摘要"
                 control={
                   <div style={{ width: 320, maxWidth: "100%" }}>
-                    <PlainInput
+                    <TextFieldInput
                       ariaLabel="摘要"
                       value={draft.description}
                       onChange={(value) => update({ description: value })}
@@ -724,7 +667,7 @@ export function EntryEditDrawer(props: {
                 label="取引先"
                 control={
                   <div style={{ width: 200, maxWidth: "100%" }}>
-                    <FreeformChip
+                    <SuggestionInput
                       value={draft.partner}
                       onChange={updatePartner}
                       options={mergeOptions([], props.suggestions.partner)}
@@ -737,7 +680,7 @@ export function EntryEditDrawer(props: {
                 label="事業割合 (%)"
                 control={
                   <div style={{ width: 120 }}>
-                    <FreeformChip
+                    <SuggestionInput
                       value={draft.businessRate}
                       onChange={(next) => {
                         const n = parseInt(next, 10);
@@ -764,7 +707,7 @@ export function EntryEditDrawer(props: {
                 label="課税区分"
                 control={
                   <div style={{ width: 120 }}>
-                    <FreeformChip
+                    <SuggestionInput
                       value={draft.taxCategory}
                       onChange={updateTaxCategory}
                       options={mergeOptions(
@@ -780,7 +723,7 @@ export function EntryEditDrawer(props: {
                 label="事業区分"
                 control={
                   <div style={{ width: 120 }}>
-                    <FreeformChip
+                    <SuggestionInput
                       value={draft.businessCategory}
                       onChange={updateBusinessCategory}
                       options={mergeOptions(
@@ -799,8 +742,8 @@ export function EntryEditDrawer(props: {
         <footer
           style={{
             padding: footerMessages.length > 0 ? "12px 20px 16px" : "16px 20px",
-            borderTop: `1px solid ${C.border}`,
-            background: C.bg,
+            borderTop: `1px solid ${entryDrawerColors.border}`,
+            background: entryDrawerColors.bg,
             display: "flex",
             flexDirection: "column",
             gap: 12,
@@ -873,1088 +816,4 @@ export function EntryEditDrawer(props: {
       </aside>
     </>
   );
-}
-
-function CardDivider() {
-  return <div style={{ height: 1, background: palette.borderSubtle }} />;
-}
-
-function StackedField({
-  label,
-  width,
-  children,
-}: {
-  label: string;
-  width?: number;
-  children: ReactNode;
-}) {
-  return (
-    <label
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        width: width ?? "100%",
-        maxWidth: "100%",
-      }}
-    >
-      <span
-        style={{
-          marginBottom: 8,
-          fontSize: fontSize.base,
-          fontWeight: fontWeight.semibold,
-          color: C.labelText,
-          letterSpacing: "0.01em",
-        }}
-      >
-        {label}
-      </span>
-      {children}
-    </label>
-  );
-}
-
-function AccountChip({
-  value,
-  accountType,
-  onChange,
-  options,
-  fullWidth = false,
-  ariaLabel,
-}: {
-  value: string;
-  accountType: EntryAccountVisualType;
-  onChange: (option: EntryMasterAccountOption) => void;
-  options: EntryMasterAccountOption[];
-
-  fullWidth?: boolean;
-  ariaLabel?: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const ref = useOutsideClose(open, () => setOpen(false));
-
-  const grouped = useMemo(
-    () => groupAccounts(options, query),
-    [options, query],
-  );
-  const palette = ACC_PALETTE[accountType];
-  const bg = value === "" ? C.bg : palette.bg;
-  const fg = value === "" ? C.muted : palette.fg;
-  const border = value === "" ? C.border : palette.fg;
-
-  return (
-    <div
-      ref={ref}
-      style={{ position: "relative", width: fullWidth ? "100%" : undefined }}
-    >
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-label={ariaLabel}
-        style={{
-          height: sizes.account.tableHeight,
-          width: fullWidth ? "100%" : sizes.account.tableWidth,
-          boxSizing: "border-box",
-          border: `1px solid ${border}`,
-          borderRadius: radii.sm,
-          background: bg,
-          padding: "0 11px",
-          fontSize: fontSize.base,
-          color: fg,
-          fontWeight: fontWeight.bold,
-          textAlign: "left",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        {value === "" ? null : (
-          <AccountTypeIcon type={accountType} color={palette.fg} size={16} />
-        )}
-        <span
-          style={{
-            minWidth: 0,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {value === "" ? "勘定科目を選択" : value}
-        </span>
-      </button>
-      {open ? (
-        <div style={popupStyle}>
-          <div style={{ padding: 8, borderBottom: `1px solid ${C.border}` }}>
-            <input
-              autoFocus
-              className="bk-d-input"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="勘定科目を検索"
-              style={{
-                width: "100%",
-                boxSizing: "border-box",
-                height: 30,
-                padding: "0 10px",
-                border: `1px solid ${C.border}`,
-                borderRadius: 6,
-                fontSize: fontSize.sm,
-                outline: "none",
-              }}
-            />
-          </div>
-          <div style={{ maxHeight: 320, overflow: "auto", padding: "4px 0" }}>
-            {grouped.length === 0 ? (
-              <EmptyHint>該当する科目がありません</EmptyHint>
-            ) : (
-              grouped.map((group) => (
-                <div key={group.type}>
-                  <SectionLabel>{ACC_TYPE_LABEL[group.type]}</SectionLabel>
-                  {group.accounts.map((account) => (
-                    <button
-                      key={account.id}
-                      type="button"
-                      className="bk-d-menu-item"
-                      onClick={() => {
-                        onChange(account);
-                        setOpen(false);
-                        setQuery("");
-                      }}
-                      style={menuItemStyle}
-                    >
-                      <span
-                        aria-hidden
-                        style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: 999,
-                          background: ACC_PALETTE[account.accountType].fg,
-                          flexShrink: 0,
-                        }}
-                      />
-                      <span
-                        style={{
-                          fontWeight:
-                            account.name === value
-                              ? fontWeight.bold
-                              : fontWeight.medium,
-                        }}
-                      >
-                        {account.name}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function AccountTypeIcon(props: {
-  type: EntryAccountVisualType;
-  color: string;
-  size: number;
-}) {
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        width: props.size,
-        height: props.size,
-        display: "block",
-        flexShrink: 0,
-        backgroundColor: props.color,
-        maskImage: `url('${accountIconPath(props.type)}')`,
-        maskPosition: "center",
-        maskRepeat: "no-repeat",
-        maskSize: "contain",
-        WebkitMaskImage: `url('${accountIconPath(props.type)}')`,
-        WebkitMaskPosition: "center",
-        WebkitMaskRepeat: "no-repeat",
-        WebkitMaskSize: "contain",
-      }}
-    />
-  );
-}
-
-function accountIconPath(type: EntryAccountVisualType): string {
-  switch (type) {
-    case "asset":
-      return "/icons/assets.svg";
-    case "liability":
-      return "/icons/liabilities.svg";
-    case "equity":
-      return "/icons/net-assets.svg";
-    case "revenue":
-      return "/icons/revenue.svg";
-    case "cost_of_sales":
-    case "expense":
-      return "/icons/expense.svg";
-  }
-}
-
-function groupAccounts(
-  options: EntryMasterAccountOption[],
-  query: string,
-): Array<{
-  type: EntryAccountVisualType;
-  accounts: EntryMasterAccountOption[];
-}> {
-  const order: EntryAccountVisualType[] = [
-    "asset",
-    "liability",
-    "equity",
-    "revenue",
-    "cost_of_sales",
-    "expense",
-  ];
-  const lower = query.trim().toLowerCase();
-  const filtered =
-    lower === ""
-      ? options
-      : options.filter((option) => option.name.toLowerCase().includes(lower));
-  return order
-    .map((type) => ({
-      type,
-      accounts: filtered.filter((option) => option.accountType === type),
-    }))
-    .filter((group) => group.accounts.length > 0);
-}
-
-function FreeformChip({
-  value,
-  onChange,
-  options,
-  placeholder,
-  align = "left",
-  numeric = false,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  options: string[];
-  placeholder?: string;
-  align?: "left" | "right";
-  numeric?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState(value);
-  const ref = useOutsideClose(open, () => setOpen(false));
-
-  useEffect(() => {
-    setQuery(value);
-  }, [value]);
-
-  const filtered = useMemo(() => {
-    const trimmed = query.trim().toLowerCase();
-    if (trimmed === "") return options;
-    return options.filter((option) => option.toLowerCase().includes(trimmed));
-  }, [options, query]);
-
-  const commit = (next: string) => {
-    onChange(next);
-    setOpen(false);
-  };
-
-  return (
-    <div ref={ref} style={{ position: "relative" }}>
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        style={{
-          height: 30,
-          width: "100%",
-          boxSizing: "border-box",
-          border: `1px solid ${value === "" ? C.border : C.blue}`,
-          borderRadius: 999,
-          background: C.bg,
-          padding: "0 10px",
-          fontSize: fontSize.sm,
-          color: value === "" ? C.muted : C.blue,
-          fontWeight: fontWeight.regular,
-          textAlign: align,
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: align === "right" ? "flex-end" : "flex-start",
-          fontVariantNumeric: numeric ? "tabular-nums" : undefined,
-        }}
-      >
-        <span
-          style={{
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            width: "100%",
-            textAlign: align,
-          }}
-        >
-          {value === "" ? (placeholder ?? "選択") : value}
-        </span>
-      </button>
-      {open ? (
-        <div style={popupStyle}>
-          <div
-            style={{
-              padding: 8,
-              borderBottom: `1px solid ${C.border}`,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            <input
-              autoFocus
-              className="bk-d-input"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  commit(query.trim());
-                }
-              }}
-              inputMode={numeric ? "numeric" : undefined}
-              placeholder={placeholder ?? "入力 / 検索"}
-              style={{
-                flex: 1,
-                height: 30,
-                padding: "0 10px",
-                border: `1px solid ${C.border}`,
-                borderRadius: 6,
-                fontSize: fontSize.sm,
-                outline: "none",
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => commit(query.trim())}
-              aria-label="この値で確定"
-              style={{
-                width: 30,
-                height: 30,
-                borderRadius: 6,
-                border: "none",
-                background: C.green,
-                color: "#FFFFFF",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <CheckIcon />
-            </button>
-          </div>
-          <div style={{ maxHeight: 260, overflow: "auto", padding: "4px 0" }}>
-            {filtered.length === 0 ? (
-              <EmptyHint>
-                候補はありません。
-                <br />
-                入力した値をそのまま保存できます。
-              </EmptyHint>
-            ) : (
-              filtered.map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  className="bk-d-menu-item"
-                  onClick={() => commit(option)}
-                  style={{
-                    ...menuItemStyle,
-                    fontWeight:
-                      option === value ? fontWeight.bold : fontWeight.medium,
-                  }}
-                >
-                  {option}
-                </button>
-              ))
-            )}
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function PlainInput({
-  value,
-  onChange,
-  ariaLabel,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  ariaLabel?: string;
-}) {
-  return (
-    <input
-      className="bk-d-input"
-      aria-label={ariaLabel}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      style={{
-        height: sizes.field.height,
-        width: "100%",
-        boxSizing: "border-box",
-        border: `1px solid ${C.border}`,
-        borderRadius: radii.sm,
-        background: C.bg,
-        padding: `0 ${sizes.field.paddingX}`,
-        ...typography.input,
-        color: C.text,
-        outline: "none",
-      }}
-    />
-  );
-}
-
-function BalanceIndicator({
-  debitAmt,
-  creditAmt,
-}: {
-  debitAmt: number;
-  creditAmt: number;
-}) {
-  if (debitAmt === 0 && creditAmt === 0) {
-    return (
-      <div
-        style={{
-          fontSize: fontSize.sm,
-          color: C.muted,
-          fontWeight: fontWeight.semibold,
-        }}
-      >
-        金額を入力してください
-      </div>
-    );
-  }
-  if (debitAmt === creditAmt) {
-    return (
-      <div
-        style={{
-          fontSize: fontSize.sm,
-          color: C.green,
-          fontWeight: fontWeight.bold,
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-        }}
-      >
-        <CheckIcon /> 貸借一致 ¥{debitAmt.toLocaleString()}
-      </div>
-    );
-  }
-  return (
-    <div
-      style={{
-        fontSize: fontSize.sm,
-        color: C.red,
-        fontWeight: fontWeight.bold,
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-      }}
-    >
-      <WarnIcon /> 差額 ¥{Math.abs(debitAmt - creditAmt).toLocaleString()}
-    </div>
-  );
-}
-
-function ValidationCard({
-  messages,
-  compact = false,
-}: {
-  messages: string[];
-  compact?: boolean;
-}) {
-  return (
-    <div
-      role="alert"
-      style={{
-        width: "100%",
-        boxSizing: "border-box",
-        borderRadius: compact ? radii.sm : 12,
-        border: `1px solid ${C.red}2E`,
-        background: `${C.red}0D`,
-        padding: compact ? "10px 12px" : "14px 16px",
-        display: "flex",
-        flexDirection: "column",
-        gap: compact ? 4 : 8,
-      }}
-    >
-      <div
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 8,
-          fontSize: compact ? fontSize.sm : fontSize.base,
-          fontWeight: fontWeight.bold,
-          color: C.red,
-        }}
-      >
-        <WarnIcon /> 入力内容を確認してください
-      </div>
-      {messages.map((message, index) => (
-        <div
-          key={index}
-          style={{
-            paddingLeft: 22,
-            fontSize: fontSize.sm,
-            color: C.text,
-            lineHeight: compact ? 1.45 : 1.6,
-          }}
-        >
-          ・{message}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function DeleteConfirmDialog(props: {
-  deleting: boolean;
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
-  return (
-    <div
-      role="presentation"
-      onClick={props.onCancel}
-      style={{
-        position: "absolute",
-        inset: 0,
-        zIndex: 2,
-        background: "rgba(15, 23, 42, 0.24)",
-        display: "grid",
-        placeItems: "center",
-        padding: 20,
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="仕訳の削除確認"
-        onClick={(event) => event.stopPropagation()}
-        style={{
-          width: "100%",
-          maxWidth: 340,
-          borderRadius: radii.md,
-          border: `1px solid ${palette.borderStrong}`,
-          background: palette.surface,
-          boxShadow: shadows.popup,
-          padding: 18,
-        }}
-      >
-        <div
-          style={{
-            fontSize: fontSize.lg,
-            fontWeight: fontWeight.bold,
-            color: C.text,
-          }}
-        >
-          仕訳を削除しますか
-        </div>
-        <div
-          style={{
-            marginTop: 8,
-            fontSize: fontSize.sm,
-            lineHeight: 1.7,
-            color: C.soft,
-          }}
-        >
-          この操作は取り消せません。
-        </div>
-        <div
-          style={{
-            marginTop: 18,
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: 10,
-          }}
-        >
-          <button
-            type="button"
-            onClick={props.onCancel}
-            disabled={props.deleting}
-            style={{
-              ...secondaryButtonStyle,
-              opacity: props.deleting ? 0.5 : 1,
-              cursor: props.deleting ? "default" : "pointer",
-            }}
-          >
-            キャンセル
-          </button>
-          <button
-            type="button"
-            onClick={props.onConfirm}
-            disabled={props.deleting}
-            style={{
-              ...deleteEntryButtonStyle,
-              background: C.red,
-              color: palette.surface,
-              opacity: props.deleting ? 0.5 : 1,
-              cursor: props.deleting ? "default" : "pointer",
-            }}
-          >
-            {props.deleting ? "削除中…" : "削除"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function useOutsideClose(open: boolean, onClose: () => void) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(event: MouseEvent) {
-      if (!ref.current?.contains(event.target as Node)) onClose();
-    }
-    function handleEsc(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
-    }
-    document.addEventListener("mousedown", handleClick);
-    document.addEventListener("keydown", handleEsc);
-    return () => {
-      document.removeEventListener("mousedown", handleClick);
-      document.removeEventListener("keydown", handleEsc);
-    };
-  }, [open, onClose]);
-  return ref;
-}
-
-function SectionLabel({ children }: { children: ReactNode }) {
-  return (
-    <div
-      style={{
-        padding: "6px 14px 4px",
-        fontSize: fontSize.xs,
-        fontWeight: fontWeight.bold,
-        letterSpacing: "0.06em",
-        color: C.muted,
-        textTransform: "uppercase",
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function EmptyHint({ children }: { children: ReactNode }) {
-  return (
-    <div
-      style={{
-        padding: "12px 14px",
-        fontSize: fontSize.sm,
-        color: C.muted,
-        textAlign: "center",
-        lineHeight: 1.6,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-const menuItemStyle: CSSProperties = {
-  width: "100%",
-  textAlign: "left",
-  background: "transparent",
-  border: "none",
-  padding: "8px 14px",
-  fontSize: fontSize.base,
-  color: C.text,
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "center",
-  gap: 10,
-};
-
-const popupStyle: CSSProperties = {
-  position: "absolute",
-  top: 40,
-  left: 0,
-  right: 0,
-  zIndex: 60,
-  minWidth: 220,
-  background: C.bg,
-  border: `1px solid ${C.border}`,
-  borderRadius: radii.md,
-  boxShadow: shadows.popup,
-  overflow: "hidden",
-};
-
-const secondaryButtonStyle: CSSProperties = {
-  height: sizes.button.formHeight,
-  minWidth: sizes.button.formSecondaryMinWidth,
-  padding: "0 16px",
-  borderRadius: radii.sm,
-  border: `1px solid ${C.border}`,
-  background: C.bg,
-  color: C.text,
-  ...typography.control,
-  cursor: "pointer",
-};
-
-const primaryButtonStyle: CSSProperties = {
-  height: sizes.button.formHeight,
-  minWidth: sizes.button.formPrimaryMinWidth,
-  padding: "0 18px",
-  borderRadius: radii.sm,
-  border: "none",
-  background: C.blue,
-  color: "#FFFFFF",
-  ...typography.control,
-  fontWeight: fontWeight.bold,
-  boxShadow: shadows.primaryButton,
-};
-
-const deleteEntryButtonStyle: CSSProperties = {
-  height: sizes.button.formHeight,
-  minWidth: sizes.button.formSecondaryMinWidth,
-  padding: "0 16px",
-  borderRadius: radii.sm,
-  border: `1px solid ${palette.dangerBorder}`,
-  background: palette.surface,
-  color: C.red,
-  ...typography.control,
-  fontWeight: fontWeight.bold,
-};
-
-function ActionRowButton({
-  variant,
-  ariaLabel,
-  label,
-  enabled,
-  onClick,
-}: {
-  variant: "add" | "delete";
-  ariaLabel: string;
-  label?: string;
-  enabled: boolean;
-  onClick: () => void;
-}) {
-  const baseColor = variant === "add" ? palette.success : C.red;
-  const color = enabled ? baseColor : C.muted;
-  const hasLabel = label != null && label !== "";
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!enabled}
-      aria-label={ariaLabel}
-      title={ariaLabel}
-      style={{
-        background: "transparent",
-        border: "none",
-        padding: 0,
-        cursor: enabled ? "pointer" : "default",
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 8,
-      }}
-    >
-      <span
-        aria-hidden
-        style={{
-          width: 28,
-          height: 28,
-          borderRadius: 999,
-          border: `1.5px solid ${color}`,
-          background: C.bg,
-          color,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}
-      >
-        {variant === "add" ? <PlusIcon /> : <MinusIcon />}
-      </span>
-      {hasLabel ? (
-        <span
-          style={{
-            fontSize: fontSize.base,
-            fontWeight: fontWeight.semibold,
-            color,
-          }}
-        >
-          {label}
-        </span>
-      ) : null}
-    </button>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-      <polyline
-        points="5 12 10 17 19 7"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function CloseIcon() {
-  return (
-    <svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-      <line
-        x1="6"
-        y1="6"
-        x2="18"
-        y2="18"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-      />
-      <line
-        x1="18"
-        y1="6"
-        x2="6"
-        y2="18"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function WarnIcon() {
-  return (
-    <svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-      <path
-        d="M12 3l10 18H2L12 3z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <line
-        x1="12"
-        y1="10"
-        x2="12"
-        y2="14"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <circle cx="12" cy="17" r="1" fill="currentColor" />
-    </svg>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg width={12} height={12} viewBox="0 0 24 24" fill="none">
-      <line
-        x1="12"
-        y1="5"
-        x2="12"
-        y2="19"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-      />
-      <line
-        x1="5"
-        y1="12"
-        x2="19"
-        y2="12"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function MinusIcon() {
-  return (
-    <svg width={12} height={12} viewBox="0 0 24 24" fill="none">
-      <line
-        x1="5"
-        y1="12"
-        x2="19"
-        y2="12"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-type RowPair = {
-  id: string;
-  debitAccountId?: string;
-  debitAccountName: string;
-  debitAccountType: EntryAccountVisualType;
-  debitAmount: string;
-  creditAccountId?: string;
-  creditAccountName: string;
-  creditAccountType: EntryAccountVisualType;
-  creditAmount: string;
-  debitPartnerName: string | null;
-  debitTaxCategoryId: string | null;
-  debitBusinessCategoryId: string | null;
-  creditPartnerName: string | null;
-  creditTaxCategoryId: string | null;
-  creditBusinessCategoryId: string | null;
-};
-
-type RowPairDraft = {
-  date: string;
-  description: string;
-  partner: string;
-  businessRate: string;
-  businessRateRatio?: number;
-  taxCategory: string;
-  businessCategory: string;
-  pairs: RowPair[];
-};
-
-function recordToRowPairDraft(
-  record: EntryRecord,
-  nextRowPairId: () => string,
-): RowPairDraft {
-  const lines = getEntryLines(record);
-  const debits = lines.filter((line) => line.side === "debit");
-  const credits = lines.filter((line) => line.side === "credit");
-  const rowCount = Math.max(debits.length, credits.length, 1);
-  const pairs: RowPair[] = [];
-  for (let i = 0; i < rowCount; i += 1) {
-    const debit = debits[i] ?? null;
-    const credit = credits[i] ?? null;
-    pairs.push({
-      id: nextRowPairId(),
-      debitAccountId: debit?.bookAccountId,
-      debitAccountName: debit?.accountName ?? "",
-      debitAccountType: debit?.accountType ?? "expense",
-      debitAmount: debit?.amount ?? "",
-      debitPartnerName: debit?.partnerName ?? null,
-      debitTaxCategoryId: debit?.taxCategoryId ?? null,
-      debitBusinessCategoryId: debit?.businessCategoryId ?? null,
-      creditAccountId: credit?.bookAccountId,
-      creditAccountName: credit?.accountName ?? "",
-      creditAccountType: credit?.accountType ?? "asset",
-      creditAmount: credit?.amount ?? "",
-      creditPartnerName: credit?.partnerName ?? null,
-      creditTaxCategoryId: credit?.taxCategoryId ?? null,
-      creditBusinessCategoryId: credit?.businessCategoryId ?? null,
-    });
-  }
-  return {
-    date: record.date,
-    description: record.description,
-    partner: record.partner,
-    businessRate: record.businessRate,
-    businessRateRatio: record.businessRateRatio,
-    taxCategory: record.taxCategory,
-    businessCategory: record.businessCategory,
-    pairs,
-  };
-}
-
-function rowPairDraftToEntryDraft(
-  draft: RowPairDraft,
-  accounts: EntryMasterAccountOption[],
-): EntryDraft {
-  const lines: EntryLine[] = [];
-  for (const pair of draft.pairs) {
-    if (
-      pair.debitAccountName.trim().length > 0 &&
-      parseAmount(pair.debitAmount) > 0
-    ) {
-      const matched =
-        accounts.find((a) => a.id === pair.debitAccountId) ??
-        accounts.find(
-          (a) =>
-            a.name === pair.debitAccountName &&
-            a.accountType === pair.debitAccountType,
-        ) ??
-        accounts.find((a) => a.name === pair.debitAccountName);
-      lines.push({
-        side: "debit",
-        accountName: pair.debitAccountName,
-        accountType: pair.debitAccountType,
-        amount: pair.debitAmount,
-        bookAccountId: matched?.id,
-        ...(pair.debitPartnerName == null
-          ? {}
-          : { partnerName: pair.debitPartnerName }),
-        ...(pair.debitTaxCategoryId == null
-          ? {}
-          : { taxCategoryId: pair.debitTaxCategoryId }),
-        ...(pair.debitBusinessCategoryId == null
-          ? {}
-          : { businessCategoryId: pair.debitBusinessCategoryId }),
-      });
-    }
-    if (
-      pair.creditAccountName.trim().length > 0 &&
-      parseAmount(pair.creditAmount) > 0
-    ) {
-      const matched =
-        accounts.find((a) => a.id === pair.creditAccountId) ??
-        accounts.find(
-          (a) =>
-            a.name === pair.creditAccountName &&
-            a.accountType === pair.creditAccountType,
-        ) ??
-        accounts.find((a) => a.name === pair.creditAccountName);
-      lines.push({
-        side: "credit",
-        accountName: pair.creditAccountName,
-        accountType: pair.creditAccountType,
-        amount: pair.creditAmount,
-        bookAccountId: matched?.id,
-        ...(pair.creditPartnerName == null
-          ? {}
-          : { partnerName: pair.creditPartnerName }),
-        ...(pair.creditTaxCategoryId == null
-          ? {}
-          : { taxCategoryId: pair.creditTaxCategoryId }),
-        ...(pair.creditBusinessCategoryId == null
-          ? {}
-          : { businessCategoryId: pair.creditBusinessCategoryId }),
-      });
-    }
-  }
-  return {
-    date: draft.date,
-    description: draft.description,
-    partner: draft.partner,
-    businessRate: draft.businessRate,
-    businessRateRatio: draft.businessRateRatio,
-    taxCategory: draft.taxCategory,
-    businessCategory: draft.businessCategory,
-    lines,
-  };
-}
-
-function mergeOptions(
-  primary: Iterable<string>,
-  secondary: Iterable<string>,
-): string[] {
-  const out: string[] = [];
-  const seen = new Set<string>();
-  for (const raw of [...primary, ...secondary]) {
-    const trimmed = (raw ?? "").trim();
-    if (trimmed.length === 0 || seen.has(trimmed)) continue;
-    seen.add(trimmed);
-    out.push(trimmed);
-  }
-  return out;
 }

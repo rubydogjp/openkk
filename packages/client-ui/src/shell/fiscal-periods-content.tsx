@@ -18,6 +18,8 @@ import {
 import { AppErrorText } from "../shared/app-error-text.js";
 import { LockButton } from "../shared/lock-icon.js";
 import { ExclusiveActionLock } from "../shared/exclusive-action-lock.js";
+import { usePopoverLifecycle } from "../shared/dismissible-layer.js";
+import { formatCalendarDate } from "../shared/calendar-date.js";
 import {
   fontSize,
   fontWeight,
@@ -46,6 +48,11 @@ export function FiscalPeriodsContent() {
   const [isImportingArchive, setIsImportingArchive] = useState(false);
   const [screenError, setScreenError] = useState<unknown>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const { containerRef: fileMenuContainerRef, popupRef: fileMenuRef } =
+    usePopoverLifecycle<HTMLDivElement, HTMLDivElement>({
+      open: fileMenuOpen,
+      onDismiss: () => setFileMenuOpen(false),
+    });
 
   const handleArchiveFile = async (file: File) => {
     const release = archiveImportLock.current.tryAcquire();
@@ -123,7 +130,7 @@ export function FiscalPeriodsContent() {
           }}
         >
           {allowArchiveImport ? (
-            <div style={{ position: "relative" }}>
+            <div ref={fileMenuContainerRef} style={{ position: "relative" }}>
               {editingLocked ? (
                 <LockButton label="ファイル" />
               ) : (
@@ -131,6 +138,8 @@ export function FiscalPeriodsContent() {
                   type="button"
                   onClick={() => setFileMenuOpen((value) => !value)}
                   disabled={isImportingArchive}
+                  aria-haspopup="menu"
+                  aria-expanded={fileMenuOpen}
                   style={{
                     height: 34,
                     padding: "0 14px",
@@ -149,6 +158,9 @@ export function FiscalPeriodsContent() {
               )}
               {fileMenuOpen ? (
                 <div
+                  ref={fileMenuRef}
+                  role="menu"
+                  tabIndex={-1}
                   style={{
                     position: "absolute",
                     top: 40,
@@ -164,6 +176,7 @@ export function FiscalPeriodsContent() {
                 >
                   <button
                     type="button"
+                    role="menuitem"
                     onClick={() => {
                       setFileMenuOpen(false);
                       fileInputRef.current?.click();
@@ -464,9 +477,7 @@ function FiscalPeriodRow({
 }
 
 function formatArchivedAt(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  return date.toISOString().slice(0, 10);
+  return formatCalendarDate(iso);
 }
 
 function FiscalPeriodsEmptyState() {

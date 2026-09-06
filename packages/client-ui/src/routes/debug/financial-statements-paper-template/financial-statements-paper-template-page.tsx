@@ -30,7 +30,6 @@ export function FinancialStatementsPaperTemplatePage() {
   return (
     <PreviewScaffold
       title="財務諸表 (テンプレート + 例の値)"
-      orientation="landscape"
       notice="このページはテンプレート + 固定の例の値の表示確認用です。実際の期間データは使用しません。"
       bodyHtml={bodyHtml}
       fpName={FINANCIAL_STATEMENTS_EXAMPLE_FP_NAME}

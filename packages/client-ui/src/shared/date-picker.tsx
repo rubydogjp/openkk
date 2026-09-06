@@ -1,10 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useRef, useState } from "react";
 
 import { parseIsoLocalDate } from "@rubydogjp/openkk-client-domain";
 
-import { fontSize, fontWeight, palette, radii, sizes, spacing, typography } from "./design-tokens.js";
+import {
+  fontSize,
+  fontWeight,
+  palette,
+  radii,
+  sizes,
+  spacing,
+  typography,
+} from "./design-tokens.js";
+import { useModalLifecycle } from "./dismissible-layer.js";
 
 const WEEKDAY_JP = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -103,6 +112,12 @@ function DatePickerDialog(props: {
   onConfirm: (value: string) => void;
   onCancel: () => void;
 }) {
+  const titleId = useId();
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useModalLifecycle<HTMLDivElement>(
+    props.onCancel,
+    cancelButtonRef,
+  );
   const minDate = props.minDate == null ? null : parseIsoDate(props.minDate);
   const maxDate = props.maxDate == null ? null : parseIsoDate(props.maxDate);
   const initial = clampDateToBounds(
@@ -140,12 +155,20 @@ function DatePickerDialog(props: {
     (viewYear === maxDate.getFullYear() && viewMonth < maxDate.getMonth());
 
   const prevMonth = () => {
-    if (viewMonth === 0) { setViewYear((y) => y - 1); setViewMonth(11); }
-    else setViewMonth((m) => m - 1);
+    if (viewMonth === 0) {
+      setViewYear((year) => year - 1);
+      setViewMonth(11);
+    } else {
+      setViewMonth((month) => month - 1);
+    }
   };
   const nextMonth = () => {
-    if (viewMonth === 11) { setViewYear((y) => y + 1); setViewMonth(0); }
-    else setViewMonth((m) => m + 1);
+    if (viewMonth === 11) {
+      setViewYear((year) => year + 1);
+      setViewMonth(0);
+    } else {
+      setViewMonth((month) => month + 1);
+    }
   };
 
   return (
@@ -159,9 +182,16 @@ function DatePickerDialog(props: {
         justifyContent: "center",
         zIndex: 1000,
       }}
-      onClick={(e) => { if (e.target === e.currentTarget) props.onCancel(); }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) props.onCancel();
+      }}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
         style={{
           background: palette.surface,
           borderRadius: 24,
@@ -188,7 +218,16 @@ function DatePickerDialog(props: {
             <CalendarIcon size={26} color={palette.surface} />
           </div>
           <div>
-            <div style={{ fontSize: typography.sectionTitle.fontSize, fontWeight: fontWeight.bold, color: palette.text }}>日付を選択</div>
+            <div
+              id={titleId}
+              style={{
+                fontSize: typography.sectionTitle.fontSize,
+                fontWeight: fontWeight.bold,
+                color: palette.text,
+              }}
+            >
+              日付を選択
+            </div>
             <div style={{ fontSize: fontSize.base, color: palette.textSoft, marginTop: 2 }}>
               {formatDateButtonLabel(toIsoDate(selected))}
             </div>
@@ -225,7 +264,13 @@ function DatePickerDialog(props: {
             >
               ‹
             </button>
-            <span style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold, color: palette.text }}>
+            <span
+              style={{
+                fontSize: fontSize.md,
+                fontWeight: fontWeight.bold,
+                color: palette.text,
+              }}
+            >
               {viewYear}年{viewMonth + 1}月
             </span>
             <button
@@ -306,7 +351,12 @@ function DatePickerDialog(props: {
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-          <button type="button" onClick={props.onCancel} style={cancelBtnStyle}>
+          <button
+            ref={cancelButtonRef}
+            type="button"
+            onClick={props.onCancel}
+            style={cancelBtnStyle}
+          >
             キャンセル
           </button>
           <button

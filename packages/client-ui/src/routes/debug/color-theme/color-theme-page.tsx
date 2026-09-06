@@ -1235,10 +1235,6 @@ function AccountIcon({
   );
 }
 
-function CurrentAudit() {
-  return null;
-}
-
 function BackLink() {
   return (
     <Link
@@ -1325,34 +1321,6 @@ function accountContainerGroupStyle(): React.CSSProperties {
     border: `1px solid ${appPalette.borderSubtle}`,
     background: appPalette.surfaceTint,
   };
-}
-
-function Chip({
-  label,
-  bg,
-  fg,
-  border,
-}: {
-  label: string;
-  bg: string;
-  fg: string;
-  border: string;
-}) {
-  return (
-    <span
-      style={{
-        padding: "6px 10px",
-        borderRadius: 999,
-        background: bg,
-        color: fg,
-        border: `1px solid ${border}`,
-        fontSize: fontSize.sm,
-        fontWeight: fontWeight.bold,
-      }}
-    >
-      {label}
-    </span>
-  );
 }
 
 function Message({

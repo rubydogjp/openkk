@@ -287,7 +287,7 @@ export function OpeningBsBody({
             <HeaderCell align="right">金額</HeaderCell>
           </div>
 
-          {BS_ROWS.map((row, index) => {
+          {BS_ROWS.map((_, index) => {
             const assetSlot = assetSlots[index];
             const liabilitySlot = liabilitySlots[index];
             if (!assetSlot || !liabilitySlot) return null;

@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 
 import { ConfirmDialogResolver } from "./confirm-dialog-resolver.js";
+import { useModalLifecycle } from "./dismissible-layer.js";
 import { fontSize, fontWeight, palette, radii, shadows, sizes, typography } from "./design-tokens.js";
 
 export type ConfirmDialogTone = "confirm" | "warning" | "danger" | "success";
@@ -59,45 +60,11 @@ function ConfirmDialogView(
   const IconComp = t.Icon;
   const titleId = useId();
   const bodyId = useId();
-  const dialogRef = useRef<HTMLDivElement>(null);
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    const previouslyFocused =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null;
-    cancelButtonRef.current?.focus();
-    return () => previouslyFocused?.focus();
-  }, []);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onCancel();
-        return;
-      }
-      if (e.key !== "Tab") return;
-      const focusable = Array.from(
-        dialogRef.current?.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ) ?? [],
-      );
-      const first = focusable[0];
-      const last = focusable.at(-1);
-      if (first == null || last == null) return;
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onCancel]);
+  const dialogRef = useModalLifecycle<HTMLDivElement>(
+    onCancel,
+    cancelButtonRef,
+  );
 
   return (
     <>
@@ -131,6 +98,7 @@ function ConfirmDialogView(
           aria-modal="true"
           aria-labelledby={titleId}
           aria-describedby={body.length > 0 ? bodyId : undefined}
+          tabIndex={-1}
           style={{
             width: "100%",
             maxWidth: 480,

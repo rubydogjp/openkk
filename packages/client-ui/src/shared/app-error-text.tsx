@@ -3,6 +3,7 @@
 import { type CSSProperties, useEffect } from "react";
 
 import { AppError } from "@rubydogjp/openkk-client-domain";
+import { safeUserErrorMessage } from "./safe-error-message.js";
 
 export type AppErrorTextProps = {
   error: unknown;
@@ -11,9 +12,10 @@ export type AppErrorTextProps = {
 };
 
 export function AppErrorText(props: AppErrorTextProps) {
-  const appError = AppError.from(props.error, {
-    fallbackUserMessage: props.fallbackUserMessage,
-  });
+  const message = safeUserErrorMessage(
+    props.error,
+    props.fallbackUserMessage,
+  );
 
   useEffect(() => {
     debugAppError(props.error);
@@ -29,7 +31,7 @@ export function AppErrorText(props: AppErrorTextProps) {
         ...props.style,
       }}
     >
-      {appError.messageForUser}
+      {message}
     </p>
   );
 }

@@ -15,13 +15,13 @@ test.describe("entry CRUD", () => {
   test("manually creates an entry and it appears in the list", async ({
     page,
   }) => {
-    await page.getByRole("button", { name: "追加" }).click();
+    await page
+      .getByRole("button", { name: "最初の仕訳を作成" })
+      .click();
 
     const drawer = page.getByRole("dialog", { name: "仕訳の新規作成" });
     await expect(drawer).toBeVisible();
 
-    // 日付・勘定科目はボタン/ピッカー UI のため既定値を使う（このスモークでは
-    // 取引が一覧に出ることを確認する。科目選択 UI の操作は別テストの責務）。
     await drawer.getByLabel("摘要").fill("手動入力テスト売上");
     await drawer.locator(".bk-amount-input").first().fill("50000");
     await drawer.locator(".bk-amount-input").last().fill("50000");
@@ -60,13 +60,11 @@ test.describe("entry CRUD", () => {
   test("edits an entry and the change is reflected in the list", async ({
     page,
   }) => {
-    // create an entry first
     await createEntryViaDrawer(page, {
       description: "編集前の摘要",
       amount: "10000",
     });
 
-    // click the row to open edit drawer
     await page.getByRole("button", { name: /編集前の摘要/ }).first().click();
     const drawer = page.getByRole("dialog", { name: "仕訳の編集" });
     await expect(drawer).toBeVisible();
@@ -91,7 +89,6 @@ test.describe("entry CRUD", () => {
     const drawer = page.getByRole("dialog", { name: "仕訳の編集" });
     await expect(drawer).toBeVisible();
 
-    // exact: true で footer の「削除」のみを対象に（行削除「この行を削除」と区別）
     await drawer.getByRole("button", { name: "削除", exact: true }).click();
     const confirmDialog = page.getByRole("dialog", { name: "仕訳の削除確認" });
     await expect(confirmDialog).toBeVisible();
@@ -100,6 +97,80 @@ test.describe("entry CRUD", () => {
     await expect(page.getByText("削除対象の仕訳")).not.toBeVisible({
       timeout: 5_000,
     });
+  });
+
+  test("keeps focus and Escape within the topmost dialog", async ({ page }) => {
+    await createEntryViaDrawer(page, {
+      description: "モーダル操作対象",
+      amount: "3000",
+    });
+    await page.getByRole("button", { name: /モーダル操作対象/ }).click();
+    const drawer = page.getByRole("dialog", { name: "仕訳の編集" });
+    const dateButton = drawer.getByRole("button", { name: "日付" });
+
+    await dateButton.click();
+    const dateDialog = page.getByRole("dialog", { name: "日付を選択" });
+    await expect(dateDialog).toBeVisible();
+    await expect(
+      dateDialog.getByRole("button", { name: "キャンセル" }),
+    ).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(dateDialog).not.toBeVisible();
+    await expect(drawer).toBeVisible();
+    await expect(dateButton).toBeFocused();
+
+    await dateButton.click();
+    await expect(dateDialog).toBeVisible();
+    await dateDialog.locator("..").click({ position: { x: 4, y: 4 } });
+    await expect(dateDialog).not.toBeVisible();
+    await expect(dateButton).toBeFocused();
+
+    const deleteButton = drawer.getByRole("button", {
+      name: "削除",
+      exact: true,
+    });
+    await deleteButton.click();
+    const deleteDialog = page.getByRole("dialog", {
+      name: "仕訳の削除確認",
+    });
+    const cancelButton = deleteDialog.getByRole("button", {
+      name: "キャンセル",
+    });
+    const confirmButton = deleteDialog.getByRole("button", {
+      name: "削除",
+      exact: true,
+    });
+    await expect(cancelButton).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect(confirmButton).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(cancelButton).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(deleteDialog).not.toBeVisible();
+    await expect(drawer).toBeVisible();
+    await expect(deleteButton).toBeFocused();
+  });
+
+  test("restores focus when shell menus close with Escape", async ({ page }) => {
+    const fiscalPeriodButton = page.getByRole("button", {
+      name: /仕訳CRUD検証/,
+    });
+    await fiscalPeriodButton.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("menu")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(fiscalPeriodButton).toHaveAttribute("aria-expanded", "false");
+    await expect(fiscalPeriodButton).toBeFocused();
+
+    const accountButton = page.getByRole("button", {
+      name: "アカウントメニュー",
+    });
+    await accountButton.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("menu")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(accountButton).toHaveAttribute("aria-expanded", "false");
+    await expect(accountButton).toBeFocused();
   });
 });
 
@@ -114,7 +185,6 @@ async function createEntryViaDrawer(
   const drawer = page.getByRole("dialog", { name: "仕訳の新規作成" });
   await expect(drawer).toBeVisible();
 
-  // 日付・勘定科目は既定値を使う（ボタン/ピッカー UI のため）。
   await drawer.getByLabel("摘要").fill(opts.description);
   await drawer.locator(".bk-amount-input").first().fill(opts.amount);
   await drawer.locator(".bk-amount-input").last().fill(opts.amount);

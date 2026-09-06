@@ -29,7 +29,6 @@ export function GeneralLedgerPaperTemplatePage() {
   return (
     <PreviewScaffold
       title="総勘定元帳 (テンプレート + 例の値)"
-      orientation="portrait"
       notice="このページはテンプレート + 固定の例の値の表示確認用です。実際の期間データは使用しません。"
       bodyHtml={bodyHtml}
       fpName={GENERAL_LEDGER_EXAMPLE_FP_NAME}

@@ -9,6 +9,7 @@ import {
   type EntryRecord,
   buildPeriodLockMessage,
   resolveEditingPolicy,
+  type OpeningCarryoverDraft,
   type OpeningCarryoverRecord,
 } from "@rubydogjp/openkk-client-domain";
 import {
@@ -199,7 +200,6 @@ export function OpeningCarryoverPage() {
           taxCategoryOptions={entriesState.taxCategoryOptions}
           businessCategoryOptions={entriesState.businessCategoryOptions}
           suggestions={entriesState.listSuggestions(fiscalPeriodId)}
-          allowCompound={false}
           onClose={closeDrawer}
           onSave={async (draft) => {
             const carryoverDraft = entryDraftToCarryoverDraft(
@@ -355,6 +355,24 @@ function LockGlyph() {
 }
 
 function carryoverToEntryRecord(record: OpeningCarryoverRecord): EntryRecord {
+  const lines =
+    record.lines ??
+    [
+      {
+        side: "debit" as const,
+        accountName: record.debit,
+        accountType: record.debitType,
+        amount: record.debitAmount,
+        bookAccountId: record.debitBookAccountId,
+      },
+      {
+        side: "credit" as const,
+        accountName: record.credit,
+        accountType: record.creditType,
+        amount: record.creditAmount,
+        bookAccountId: record.creditBookAccountId,
+      },
+    ];
   return {
     id: record.id,
     fiscalPeriodId: record.fiscalPeriodId,
@@ -374,31 +392,17 @@ function carryoverToEntryRecord(record: OpeningCarryoverRecord): EntryRecord {
     businessCategory: record.businessCategory,
     debitBookAccountId: record.debitBookAccountId,
     creditBookAccountId: record.creditBookAccountId,
-    lines: [
-      {
-        side: "debit",
-        accountName: record.debit,
-        accountType: record.debitType,
-        amount: record.debitAmount,
-        bookAccountId: record.debitBookAccountId,
-      },
-      {
-        side: "credit",
-        accountName: record.credit,
-        accountType: record.creditType,
-        amount: record.creditAmount,
-        bookAccountId: record.creditBookAccountId,
-      },
-    ],
+    lines,
   };
 }
 
 function entryDraftToCarryoverDraft(
   fallback: OpeningCarryoverRecord,
   draft: EntryDraft,
-) {
+): OpeningCarryoverDraft {
   const debit = draft.lines.find((line) => line.side === "debit");
   const credit = draft.lines.find((line) => line.side === "credit");
+  const lines = draft.lines.map((line) => ({ ...line, id: line.id ?? "" }));
   return {
     date: draft.date,
     description: draft.description,
@@ -415,5 +419,6 @@ function entryDraftToCarryoverDraft(
     businessCategory: draft.businessCategory,
     businessRate: draft.businessRate,
     businessRateRatio: draft.businessRateRatio,
+    lines,
   };
 }

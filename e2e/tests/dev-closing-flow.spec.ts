@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { clickButton, expectStep, waitUntilSettled } from "../helpers";
 
 const YEAR_ENTRIES_FIXTURE = "e2e/fixtures/dev-closing-entries.json";
 
@@ -28,13 +29,9 @@ test.describe("openkk closing flow", () => {
     await clickButton(page, "仮締めを実行");
     await clickButton(page, "実行する");
     await clickButton(page, "実行する");
-    // 仮締め後は完了トレンドチャートが ResizeObserver 再レイアウトで「次の手順へ」を
-    // 動かし続け、stability 判定が通らないことがある。記録終了の表示でボタンの存在を
-    // 確認したうえで、移動中でも確実に押せるよう force クリックする。
     await expect(page.getByText("記録終了")).toBeVisible();
-    await page
-      .getByRole("button", { name: "次の手順へ" })
-      .click({ force: true });
+    await waitUntilSettled(page);
+    await page.getByRole("button", { name: "次の手順へ" }).click();
 
     await expectStep(page, "本締め");
     await expect(page.getByText("仮_仕訳帳.pdf")).toBeVisible();
@@ -131,14 +128,12 @@ test.describe("openkk closing flow", () => {
     ).toBeVisible();
     await page.getByRole("button", { name: "ファイル" }).click();
     await page
-      .getByRole("button", { name: "圧縮済みのファイルを選択" })
+      .getByRole("menuitem", { name: "圧縮済みのファイルを選択" })
       .click();
     await page
       .locator('input[type="file"][accept*=".zip"]')
       .setInputFiles(archivePath!);
 
-    // 圧縮ファイルを取り込むと、後から解凍する経路が無いため、その場で展開して
-    // 編集可能な（active）期間として復元する。読み取り専用のアーカイブ画面には入らない。
     await expectStep(page, "次の期間へ");
     await expect(page.getByRole("button", { name: "圧縮保存" })).toBeVisible();
     await expect(
@@ -177,10 +172,22 @@ async function createDevFiscalPeriodFromZero(page: Page) {
 }
 
 async function openFiscalPeriodList(page: Page) {
-  await page
+  await waitUntilSettled(page);
+  const archivedPeriodListButton = page.getByRole("button", {
+    name: "期間一覧へ",
+  });
+  if (await archivedPeriodListButton.isVisible().catch(() => false)) {
+    await archivedPeriodListButton.click();
+    await expect(
+      page.getByRole("heading", { name: "期間の選択" }),
+    ).toBeVisible();
+    return;
+  }
+  const periodMenuButton = page
     .getByRole("button", { name: /年分|期間 未選択/ })
-    .first()
-    .click();
+    .first();
+  await periodMenuButton.click();
+  await expect(periodMenuButton).toHaveAttribute("aria-expanded", "true");
   await page.getByRole("menuitem", { name: "リストを開く" }).click();
   await expect(page.getByRole("heading", { name: "期間の選択" })).toBeVisible();
 }
@@ -257,12 +264,6 @@ async function expectAccountingScenarioRows(page: Page) {
   ).toBeVisible();
 }
 
-async function expectStep(page: Page, title: string) {
-  await expect(page.getByRole("heading", { name: title })).toBeVisible({
-    timeout: 15_000,
-  });
-}
-
 async function expectArchivedScreen(page: Page) {
   await expect(page.getByText("圧縮保存済み").first()).toBeVisible();
   await expect(
@@ -271,13 +272,4 @@ async function expectArchivedScreen(page: Page) {
     }),
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: "仕訳" })).not.toBeVisible();
-}
-
-async function clickButton(page: Page, name: string) {
-  const dialog = page.locator(".bk-dialog-card");
-  if (await dialog.isVisible().catch(() => false)) {
-    await dialog.getByRole("button", { name }).click();
-    return;
-  }
-  await page.getByRole("button", { name }).last().click();
 }
