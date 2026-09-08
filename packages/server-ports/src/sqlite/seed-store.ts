@@ -27,7 +27,7 @@ export type DbSnapshot = {
   fiscalPeriods: Array<{ userId: string; record: FiscalPeriodDbRecord }>;
   entries: EntryDbRecord[];
   fixedAssets: FixedAssetDbRecord[];
-  preClosings?: Array<{ fiscalPeriodId: string; year: number }>;
+  preClosings: Array<{ fiscalPeriodId: string; year: number }> | null;
   closings: Array<{ fiscalPeriodId: string; year: number }>;
 };
 

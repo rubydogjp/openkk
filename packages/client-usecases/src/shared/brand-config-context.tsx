@@ -3,7 +3,7 @@
 import { createContext, useContext, type ReactNode } from "react";
 import type { BrandConfig } from "@rubydogjp/openkk-client-domain";
 
-const BrandConfigContext = createContext<BrandConfig>({});
+const BrandConfigContext = createContext<BrandConfig>({ marketingSiteUrl: null, productSiteUrl: null, accountIconUrl: null });
 
 export function BrandConfigProvider(props: {
   config: BrandConfig;

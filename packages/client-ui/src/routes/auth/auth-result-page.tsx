@@ -41,6 +41,7 @@ export function AuthResultPage() {
           AppError.from(error, {
             fallbackUserMessage: "サインインの完了に失敗しました",
             fallbackDeveloperMessage: "auth-result: completeSignIn failed",
+            statusCode: null,
           }),
         );
       }
@@ -90,7 +91,7 @@ export function AuthResultPage() {
         </p>
         {screenError != null ? (
           <div style={{ marginTop: 16 }}>
-            <AppErrorText error={screenError} />
+            <AppErrorText error={screenError} style={null} fallbackUserMessage={null} />
           </div>
         ) : null}
       </section>

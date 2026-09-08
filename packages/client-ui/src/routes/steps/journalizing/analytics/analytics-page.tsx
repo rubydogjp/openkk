@@ -261,6 +261,7 @@ export function JournalizingAnalyticsPage() {
                             expenses: tile.expenses,
                             profit: tile.profit,
                           }}
+                          bs={null}
                         />
                       </div>
                     </>

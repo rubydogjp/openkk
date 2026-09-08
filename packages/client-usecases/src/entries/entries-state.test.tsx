@@ -38,7 +38,7 @@ const businesses: Pick<MasterBusinessCategory, "id" | "name">[] = [
 ];
 
 function entry(overrides: Partial<EntryRecord> = {}): EntryRecord {
-  return {
+  const base: EntryRecord = {
     id: "entry-1",
     fiscalPeriodId: "fp-1",
     date: "2026-09-05",
@@ -54,15 +54,24 @@ function entry(overrides: Partial<EntryRecord> = {}): EntryRecord {
     businessRate: "100",
     taxCategory: "課税 10%",
     businessCategory: "第5種（サービス業等）",
-    ...overrides,
+    lines: null,
+    businessRateRatio: null,
+    localId: null,
+    debitBookAccountId: null,
+    creditBookAccountId: null,
+    debitTaxCategoryId: null,
+    creditTaxCategoryId: null,
+    debitBusinessCategoryId: null,
+    creditBusinessCategoryId: null,
   };
+  return Object.assign(base, overrides);
 }
 
 describe("entryRecordToImportPayload", () => {
-  it("omits an empty backend localId from update/import payloads", () => {
-    expect(optionalEntryLocalId("")).toBeUndefined();
-    expect(optionalEntryLocalId("   ")).toBeUndefined();
-    expect(optionalEntryLocalId(undefined)).toBeUndefined();
+  it("nulls out an empty backend localId in update/import payloads", () => {
+    expect(optionalEntryLocalId("")).toBeNull();
+    expect(optionalEntryLocalId("   ")).toBeNull();
+    expect(optionalEntryLocalId(null)).toBeNull();
     expect(optionalEntryLocalId("entry-key")).toBe("entry-key");
 
     const payload = entryRecordToImportPayload(entry({ localId: "" }), {
@@ -71,7 +80,7 @@ describe("entryRecordToImportPayload", () => {
       businesses,
     });
 
-    expect(payload.localId).toBeUndefined();
+    expect(payload.localId).toBeNull();
   });
 
   it("maps a blank tax category to out-of-scope taxation", () => {
@@ -112,6 +121,12 @@ describe("entryRecordToImportPayload", () => {
           accountType: "cost_of_sales",
           amount: "168,000",
           bookAccountId: "acct_cost_of_sales_商品仕入高",
+          id: null,
+          partnerName: null,
+          taxCategoryId: null,
+          taxCategoryName: null,
+          businessCategoryId: null,
+          businessCategoryName: null,
         },
         {
           side: "debit",
@@ -119,6 +134,12 @@ describe("entryRecordToImportPayload", () => {
           accountType: "expense",
           amount: "42,000",
           bookAccountId: "acct_expense_荷造運賃",
+          id: null,
+          partnerName: null,
+          taxCategoryId: null,
+          taxCategoryName: null,
+          businessCategoryId: null,
+          businessCategoryName: null,
         },
         {
           side: "credit",
@@ -126,8 +147,21 @@ describe("entryRecordToImportPayload", () => {
           accountType: "liability",
           amount: "210,000",
           bookAccountId: "acct_accrued_expense",
+          id: null,
+          partnerName: null,
+          taxCategoryId: null,
+          taxCategoryName: null,
+          businessCategoryId: null,
+          businessCategoryName: null,
         },
       ],
+      businessRateRatio: null,
+      debitBookAccountId: null,
+      creditBookAccountId: null,
+      debitTaxCategoryId: null,
+      creditTaxCategoryId: null,
+      debitBusinessCategoryId: null,
+      creditBusinessCategoryId: null,
     };
 
     const payload = entryRecordToImportPayload(entry, {
@@ -184,6 +218,12 @@ describe("entryRecordToImportPayload", () => {
       localId: "rate-1",
       debitBookAccountId: "acct_cost_of_sales_商品仕入高",
       creditBookAccountId: "acct_accrued_expense",
+      lines: null,
+      businessRateRatio: null,
+      debitTaxCategoryId: null,
+      creditTaxCategoryId: null,
+      debitBusinessCategoryId: null,
+      creditBusinessCategoryId: null,
     };
 
     const payload = entryRecordToImportPayload(entry, {
@@ -221,6 +261,9 @@ describe("entryRecordToImportPayload", () => {
             partnerName: "line partner",
             taxCategoryId: "tax_8",
             businessCategoryId: "biz_retail",
+            id: null,
+            taxCategoryName: null,
+            businessCategoryName: null,
           },
           {
             side: "credit",
@@ -228,6 +271,12 @@ describe("entryRecordToImportPayload", () => {
             accountType: "liability",
             amount: "10,000",
             bookAccountId: "acct_accrued_expense",
+            id: null,
+            partnerName: null,
+            taxCategoryId: null,
+            taxCategoryName: null,
+            businessCategoryId: null,
+            businessCategoryName: null,
           },
         ],
       }),
@@ -275,6 +324,7 @@ describe("resolveBookAccountId", () => {
         accountName: "繰延税金資産",
         accountType: "asset",
         accounts: duplicateAccounts,
+        explicitId: null,
       }),
     ).toBeNull();
   });

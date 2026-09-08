@@ -21,6 +21,7 @@ export function FinancialStatementsPaperTemplatePage() {
       fpName: FINANCIAL_STATEMENTS_EXAMPLE_FP_NAME,
       amounts: FINANCIAL_STATEMENTS_EXAMPLE_AMOUNTS,
       bsRows: FINANCIAL_STATEMENTS_EXAMPLE_BS_ROWS,
+      expenseWriteIns: null,
     }),
     [],
   );

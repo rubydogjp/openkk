@@ -8,14 +8,14 @@ export { type DbSnapshot } from "@rubydogjp/openkk-server-ports";
 
 export type FileDbAdapterOptions = {
   vfsName: string;
-  dbFileName?: string;
+  dbFileName: string | null;
 };
 
 type WorkerResponse = {
   id: number;
   ok: boolean;
-  result?: unknown;
-  error?: string;
+  result: unknown | null;
+  error: string | null;
 };
 
 function createWorkerSqlDb(
@@ -86,7 +86,7 @@ let cachedAdapterKey: string | null = null;
 
 export function createFileDbAdapter(
   options: FileDbAdapterOptions,
-  seed?: DbSnapshot,
+  seed: DbSnapshot | null,
 ): Promise<OpenkkDbPort> {
   const dbFileName = options.dbFileName ?? "openkk.sqlite3";
   const adapterKey = `${options.vfsName}\n${dbFileName}`;

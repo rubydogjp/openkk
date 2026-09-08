@@ -33,7 +33,7 @@ type DiagramBlock = {
   background: string;
 };
 
-export function PlBsDiagramSection(props: { pl: PLData; bs?: BSData }) {
+export function PlBsDiagramSection(props: { pl: PLData; bs: BSData | null }) {
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
       <PLPanel pl={props.pl} />

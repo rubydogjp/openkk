@@ -77,6 +77,7 @@ export function FiscalPeriodsContent() {
           fallbackUserMessage: "圧縮済みファイルの展開に失敗しました",
           fallbackDeveloperMessage:
             "fiscal-periods: import archived fiscal period failed",
+          statusCode: null,
         }),
       );
       setStatusMessage(null);
@@ -132,7 +133,7 @@ export function FiscalPeriodsContent() {
           {allowArchiveImport ? (
             <div ref={fileMenuContainerRef} style={{ position: "relative" }}>
               {editingLocked ? (
-                <LockButton label="ファイル" />
+                <LockButton label="ファイル" style={null} />
               ) : (
                 <button
                   type="button"
@@ -212,7 +213,7 @@ export function FiscalPeriodsContent() {
             </div>
           ) : null}
           {editingLocked ? (
-            <LockButton label="追加" />
+            <LockButton label="追加" style={null} />
           ) : (
             <AddPeriodButton
               onClick={() => router.push("/fiscal-periods/new")}
@@ -241,7 +242,7 @@ export function FiscalPeriodsContent() {
         ) : null}
         {screenError != null ? (
           <div style={{ marginTop: 12 }}>
-            <AppErrorText error={screenError} />
+            <AppErrorText error={screenError} style={null} fallbackUserMessage={null} />
           </div>
         ) : null}
       </div>
@@ -477,7 +478,7 @@ function FiscalPeriodRow({
 }
 
 function formatArchivedAt(iso: string): string {
-  return formatCalendarDate(iso);
+  return formatCalendarDate(iso, null);
 }
 
 function FiscalPeriodsEmptyState() {

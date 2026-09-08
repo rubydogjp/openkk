@@ -5,7 +5,7 @@ import { assertEditingUnlocked } from "./editing-policy.js";
 
 describe("assertEditingUnlocked", () => {
   it("allows mutations when editing is not locked", () => {
-    expect(() => assertEditingUnlocked({}, "entries.create")).not.toThrow();
+    expect(() => assertEditingUnlocked({ editingPolicy: null }, "entries.create")).not.toThrow();
   });
 
   it("rejects mutations with the configured notice when locked", () => {

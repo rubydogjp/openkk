@@ -57,7 +57,7 @@ export function subscribeInstallChange(callback: () => void): () => void {
 
 export async function requestAppInstall(input: {
   prompt: InstallPromptEvent | null;
-  install?: () => Promise<unknown>;
+  install: (() => Promise<unknown>) | null;
 }): Promise<"installed" | "dismissed" | "unsupported"> {
   if (input.prompt != null) {
     try {

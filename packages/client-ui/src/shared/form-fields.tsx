@@ -63,15 +63,15 @@ export function FormTextInput({
   value: string;
   onChange: (value: string) => void;
   readOnly?: boolean;
-  width?: number;
-  placeholder?: string;
+  width: number | null;
+  placeholder: string | null;
 }) {
   return (
     <input
       className={inputClassName}
       value={value}
       readOnly={readOnly}
-      placeholder={placeholder}
+      placeholder={placeholder ?? undefined}
       onChange={(event) => onChange(event.target.value)}
       style={{
         height: sizes.field.height,
@@ -96,7 +96,7 @@ export function FormReadOnlyValue({
   width,
 }: {
   children: ReactNode;
-  width?: number;
+  width: number | null;
 }) {
   return (
     <div
@@ -139,13 +139,13 @@ export function FormDatePair({
       {readOnly ? (
         <ReadOnlyDate value={start} />
       ) : (
-        <DatePickerButton value={start} onChange={onChangeStart} />
+        <DatePickerButton value={start} onChange={onChangeStart} ariaLabel={null} minDate={null} maxDate={null} />
       )}
       <span style={{ color: palette.textLabel, ...typography.control }}>〜</span>
       {readOnly ? (
         <ReadOnlyDate value={end} />
       ) : (
-        <DatePickerButton value={end} onChange={onChangeEnd} />
+        <DatePickerButton value={end} onChange={onChangeEnd} ariaLabel={null} minDate={null} maxDate={null} />
       )}
     </div>
   );
@@ -241,13 +241,13 @@ export function FormPrimaryButton({
   icon,
 }: {
   children: ReactNode;
-  onClick?: () => void;
+  onClick: (() => void) | null;
   disabled?: boolean;
   type?: "button" | "submit";
 
-  variant?: "primary" | "success";
+  variant: "primary" | "success" | null;
 
-  icon?: ReactNode;
+  icon: ReactNode | null;
 }) {
   const bg = variant === "success" ? palette.success : palette.brand;
   const shadow =
@@ -257,7 +257,7 @@ export function FormPrimaryButton({
   return (
     <button
       type={type}
-      onClick={onClick}
+      onClick={onClick ?? undefined}
       disabled={disabled}
       style={{
         ...baseButtonStyle,
@@ -286,14 +286,14 @@ export function FormSecondaryButton({
   type = "button",
 }: {
   children: ReactNode;
-  onClick?: () => void;
+  onClick: (() => void) | null;
   disabled?: boolean;
   type?: "button" | "submit";
 }) {
   return (
     <button
       type={type}
-      onClick={onClick}
+      onClick={onClick ?? undefined}
       disabled={disabled}
       style={{
         ...baseButtonStyle,

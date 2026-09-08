@@ -7,7 +7,7 @@ import { fontSize, fontWeight, palette } from "../shared/design-tokens.js";
 export function ClosingExplainerAnimation({
   onCompleted,
 }: {
-  onCompleted?: () => void;
+  onCompleted: (() => void) | null;
 }) {
   const DURATION = 8000;
   const [width, setWidth] = useState(0);

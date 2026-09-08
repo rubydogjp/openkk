@@ -41,7 +41,7 @@ export function assertEntryInput(
       "この仕訳識別子は本締め用に予約されています",
     );
   }
-  if (input.localId !== undefined) {
+  if (input.localId != null) {
     if (typeof input.localId !== "string") {
       throw serverValidationError("Entry localId must be a string");
     }
@@ -61,7 +61,7 @@ export function assertEntryInput(
     assertString(line.partnerName, "Entry line partner");
     assertNonNegativeSafeInteger(line.amount, "Entry line amount");
   }
-  assertEntryLinesBalanced(input.lines, "Entry");
+  assertEntryLinesBalanced(input.lines, "Entry",{ allowZero: false },);
 }
 
 export function assertEntryMasterReferences(input: EntryUpsertInput): void {

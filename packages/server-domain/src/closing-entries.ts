@@ -12,7 +12,7 @@ export type ClosingEntryLine = {
 export type ClosingEntry = {
   date: string;
   description: string;
-  localId?: string;
+  localId: string | null;
   businessRate: number;
   lines: ClosingEntryLine[];
 };

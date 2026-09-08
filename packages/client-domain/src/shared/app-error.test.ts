@@ -11,7 +11,13 @@ describe("AppError", () => {
       statusCode: 400,
     });
 
-    expect(AppError.from(original)).toBe(original);
+    expect(AppError.from(original,
+      {
+        fallbackUserMessage: null,
+        fallbackDeveloperMessage: null,
+        statusCode: null,
+      }
+    )).toBe(original);
   });
 
   it("preserves structurally compatible AppError-like objects", () => {
@@ -26,6 +32,8 @@ describe("AppError", () => {
 
     const appError = AppError.from(serverSideError, {
       fallbackUserMessage: "fallback",
+      fallbackDeveloperMessage: null,
+      statusCode: null,
     });
 
     expect(appError).toBeInstanceOf(AppError);

@@ -73,7 +73,7 @@ type OpenkkAppState = {
       startDate: string;
       endDate: string;
     },
-    options?: { select?: boolean },
+    options: { select: boolean } | null,
   ) => Promise<string | null>;
   importArchivedFiscalPeriod: (
     payload: FiscalPeriodArchivePayload,
@@ -115,7 +115,7 @@ export type FiscalPeriodSeedProvider = (ctx: {
 
 export function OpenkkAppStateProvider(props: {
   children: ReactNode;
-  seedFiscalPeriod?: FiscalPeriodSeedProvider;
+  seedFiscalPeriod: FiscalPeriodSeedProvider | null;
 }) {
   const config = useOpenkkConfig();
   const backendApi = useBackendApi();
@@ -565,7 +565,7 @@ function mapRemoteFiscalPeriod(period: FiscalPeriodApiRecord): FiscalPeriod {
     updatedAt: period.updatedAt,
     opening:
       period.opening == null
-        ? undefined
+        ? null
         : {
             id: period.opening.id,
             userId: period.opening.userId,

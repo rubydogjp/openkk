@@ -20,15 +20,15 @@ export type ImportMaster = {
 };
 
 export function optionalEntryLocalId(
-  localId: string | null | undefined,
-): string | undefined {
-  return localId != null && localId.trim() !== "" ? localId : undefined;
+  localId: string | null,
+): string | null {
+  return localId != null && localId.trim() !== "" ? localId : null;
 }
 
 export function resolveBookAccountId(input: {
-  explicitId?: string | null;
+  explicitId: string | null;
   accountName: string;
-  accountType?: EntryAccountVisualType;
+  accountType: EntryAccountVisualType | null;
   accounts: Pick<MasterBookAccount, "id" | "name" | "accountType">[];
 }): string | null {
   if (input.explicitId != null && input.explicitId.length > 0) {
@@ -85,7 +85,7 @@ export function entryRecordToImportPayload(
 ): {
   date: string;
   description: string;
-  localId?: string;
+  localId: string | null;
   businessRate: number;
   lines: EntryApiLineInput[];
 } {

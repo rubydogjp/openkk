@@ -1,7 +1,7 @@
 export interface BrandConfig {
-  marketingSiteUrl?: string;
+  marketingSiteUrl: string | null;
 
-  productSiteUrl?: string;
+  productSiteUrl: string | null;
 
-  accountIconUrl?: string;
+  accountIconUrl: string | null;
 }

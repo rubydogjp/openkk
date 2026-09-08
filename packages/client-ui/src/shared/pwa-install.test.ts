@@ -12,7 +12,7 @@ describe("requestAppInstall", () => {
       userChoice: Promise.resolve({ outcome: "accepted" as const }),
     } as unknown as InstallPromptEvent;
 
-    await expect(requestAppInstall({ prompt })).resolves.toBe("installed");
+    await expect(requestAppInstall({ prompt, install: null })).resolves.toBe("installed");
     expect(prompt.prompt).toHaveBeenCalledOnce();
   });
 
@@ -22,7 +22,7 @@ describe("requestAppInstall", () => {
       userChoice: Promise.resolve({ outcome: "dismissed" as const }),
     } as unknown as InstallPromptEvent;
 
-    await expect(requestAppInstall({ prompt })).resolves.toBe("dismissed");
+    await expect(requestAppInstall({ prompt, install: null })).resolves.toBe("dismissed");
   });
 
   it("contains prompt and experimental API failures", async () => {
@@ -33,7 +33,7 @@ describe("requestAppInstall", () => {
       userChoice: new Promise(() => undefined),
     } as unknown as InstallPromptEvent;
 
-    await expect(requestAppInstall({ prompt })).resolves.toBe("unsupported");
+    await expect(requestAppInstall({ prompt, install: null })).resolves.toBe("unsupported");
     await expect(
       requestAppInstall({
         prompt: null,

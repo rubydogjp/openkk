@@ -63,7 +63,7 @@ export function StackedField({
   children,
 }: {
   label: string;
-  width?: number;
+  width: number | null;
   children: ReactNode;
 }) {
   return (
@@ -100,14 +100,14 @@ export function AccountPicker({
   fullWidth = false,
   ariaLabel,
 }: {
-  selectedId?: string;
+  selectedId: string | null;
   value: string;
   accountType: EntryAccountVisualType;
   onChange: (option: EntryMasterAccountOption) => void;
   options: EntryMasterAccountOption[];
 
   fullWidth?: boolean;
-  ariaLabel?: string;
+  ariaLabel: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -139,7 +139,7 @@ export function AccountPicker({
         onClick={() => setOpen((current) => !current)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={ariaLabel}
+        aria-label={ariaLabel ?? undefined}
         style={{
           height: sizes.account.tableHeight,
           width: fullWidth ? "100%" : sizes.account.tableWidth,
@@ -295,9 +295,9 @@ export function SuggestionInput({
   value: string;
   onChange: (value: string) => void;
   options: string[];
-  placeholder?: string;
+  placeholder: string | null;
   align?: "left" | "right";
-  inputMode?: "numeric" | "decimal";
+  inputMode: "numeric" | "decimal" | null;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(value);
@@ -386,7 +386,7 @@ export function SuggestionInput({
                   commit(query.trim());
                 }
               }}
-              inputMode={inputMode}
+              inputMode={inputMode ?? undefined}
               placeholder={placeholder ?? "入力 / 検索"}
               style={{
                 flex: 1,
@@ -456,12 +456,12 @@ export function TextFieldInput({
 }: {
   value: string;
   onChange: (value: string) => void;
-  ariaLabel?: string;
+  ariaLabel: string | null;
 }) {
   return (
     <input
       className="bk-d-input"
-      aria-label={ariaLabel}
+      aria-label={ariaLabel ?? undefined}
       value={value}
       onChange={(event) => onChange(event.target.value)}
       style={{
@@ -794,7 +794,7 @@ export function ActionRowButton({
 }: {
   variant: "add" | "delete";
   ariaLabel: string;
-  label?: string;
+  label: string | null;
   enabled: boolean;
   onClick: () => void;
 }) {

@@ -34,7 +34,7 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
     const entry = await api.entries.create("fp-1", {
       date: "2026-04-01",
       description: "sale",
-      localId: undefined,
+      localId: null,
       businessRate: 1,
       lines: [
         {
@@ -58,7 +58,7 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
 
     expect(entry.id).toBe("entry-1");
     expect(capturedInput).not.toBeNull();
-    expect(Object.hasOwn(capturedInput!, "localId")).toBe(false);
+    expect(capturedInput).toMatchObject({ localId: null });
   });
 
   it("unwraps HTTP response bodies for the backend port", async () => {
@@ -80,6 +80,8 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
               opening: null,
               createdAt: "1970-01-01T00:00:00.000Z",
               updatedAt: "1970-01-01T00:00:00.000Z",
+              archiveDataAvailable: null,
+              archivedAt: null,
             },
           ];
         },
@@ -111,6 +113,7 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
         messageForUser: "圧縮保存済みの会計期間は変更できません",
         originalMessage: null,
         statusCode: 409,
+        code: null,
       },
     );
   });
@@ -131,6 +134,7 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
       messageForUser: "サーバー処理でエラーが発生しました",
       originalMessage: null,
       statusCode: 500,
+      code: null,
     });
   });
 
@@ -154,6 +158,7 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
       messageForUser: "会計期間を読み込めませんでした",
       originalMessage: null,
       statusCode: 500,
+      code: null,
     });
   });
 });
@@ -173,7 +178,13 @@ function embeddedServer(
     auth: {
       startSession: async () => ({ authUrl: "embedded://auth" }),
       completeSession: async () => ({ completionCode: "code" }),
-      redeemCompletionCode: async () => ({ userId: "user-1" }),
+      redeemCompletionCode: async () => ({
+        userId: "user-1",
+        displayName: null,
+        email: null,
+        iconUrl: null,
+        authProvider: null,
+      }),
       signOut: async () => undefined,
       ...overrides.auth,
     },

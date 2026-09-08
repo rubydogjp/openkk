@@ -11,6 +11,6 @@ describe("formatCalendarDate", () => {
   });
 
   it("retains invalid input for diagnosis", () => {
-    expect(formatCalendarDate("invalid")).toBe("invalid");
+    expect(formatCalendarDate("invalid", null)).toBe("invalid");
   });
 });

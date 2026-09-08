@@ -457,6 +457,7 @@ function serverErrorToEmbeddedHttpResponse(error: unknown): OpenkkHttpResponse {
         messageForUser: error.messageForUser,
         originalMessage: error.originalMessage,
         statusCode: status,
+        code: null,
       } satisfies OpenkkApiErrorDto,
     };
   }

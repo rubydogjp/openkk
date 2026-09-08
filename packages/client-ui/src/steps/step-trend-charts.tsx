@@ -23,7 +23,7 @@ type TrendChartMode = "current" | "completed" | "not-started";
 
 export function Step3TrendChart(props: {
   points: StepTrendPoint[];
-  detailsHref?: string;
+  detailsHref: string | null;
 }) {
   return (
     <TrendChart
@@ -37,11 +37,11 @@ export function Step3TrendChart(props: {
 export function JournalizingCompletedTrendChart(props: {
   points: StepTrendPoint[];
 }) {
-  return <TrendChart points={props.points} mode="completed" />;
+  return <TrendChart points={props.points} mode="completed" detailsHref={null} />;
 }
 
 export function JournalizingNotStartedTrendChart(props: {
-  points?: StepTrendPoint[];
+  points: StepTrendPoint[] | null;
 }) {
   const points =
     props.points != null && props.points.length > 0
@@ -53,13 +53,13 @@ export function JournalizingNotStartedTrendChart(props: {
           profit: 0,
           isCurrent: false,
         }));
-  return <TrendChart points={points} mode="not-started" />;
+  return <TrendChart points={points} mode="not-started" detailsHref={null} />;
 }
 
 function TrendChart(props: {
   points: StepTrendPoint[];
   mode: TrendChartMode;
-  detailsHref?: string;
+  detailsHref: string | null;
 }) {
   const scale =
     props.mode === "not-started"
@@ -253,8 +253,8 @@ function TrendLegend() {
           flex: 1,
         }}
       >
-        <LegendChip label="収益" color={palette.success} />
-        <LegendChip label="費用" color={palette.brand} />
+        <LegendChip label="収益" color={palette.success} line={null} />
+        <LegendChip label="費用" color={palette.brand} line={null} />
         <LegendChip label="利益・損失" color={profitColor} line />
       </div>
     </div>
@@ -470,7 +470,7 @@ function TrendDetailsLink(props: { href: string }) {
 function LegendChip(props: {
   label: string;
   color: string;
-  line?: boolean;
+  line: boolean | null;
 }) {
   const markerStyle = props.line
     ? { width: 12, height: 2 }

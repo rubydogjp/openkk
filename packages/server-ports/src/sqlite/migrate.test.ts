@@ -8,7 +8,7 @@ import {
 } from "./schema.js";
 
 describe("SQLite schema", () => {
-  it("keeps the unreleased normalized schema at version 4", () => {
+  it("keeps the normalized schema at version 4", () => {
     expect(SCHEMA_VERSION).toBe(4);
   });
 

@@ -45,47 +45,47 @@ export function assertFixedAssetCreateInput(
 
 export function assertFixedAssetPatchInput(input: FixedAssetPatchInput): void {
   assertObject(input, "Fixed asset patch");
-  if (input.name !== undefined) {
+  if (input.name != null) {
     assertNonBlankString(input.name, "Fixed asset name");
   }
-  if (input.bookAccountId !== undefined) {
+  if (input.bookAccountId != null) {
     assertNonBlankString(input.bookAccountId, "Fixed asset book account");
   }
   if (
-    input.depreciationMethod !== undefined &&
+    input.depreciationMethod != null &&
     input.depreciationMethod !== "straight_line"
   ) {
     throw serverValidationError("Fixed asset depreciation method is invalid");
   }
   if (
-    input.status !== undefined &&
+    input.status != null &&
     !FIXED_ASSET_STATUSES.includes(input.status)
   ) {
     throw serverValidationError("Fixed asset status is invalid");
   }
-  if (input.acquisitionDate !== undefined) {
+  if (input.acquisitionDate != null) {
     assertString(input.acquisitionDate, "Fixed asset acquisition date");
     assertIsoDate(input.acquisitionDate, "Fixed asset acquisition date");
   }
-  if (input.disposalDate !== undefined) {
+  if (input.disposalDate != null) {
     assertString(input.disposalDate, "Fixed asset disposal date");
     if (input.disposalDate !== "") {
       assertIsoDate(input.disposalDate, "Fixed asset disposal date");
     }
   }
-  if (input.acquisitionCost !== undefined) {
+  if (input.acquisitionCost != null) {
     assertPositiveInteger(
       input.acquisitionCost,
       "Fixed asset acquisition cost",
     );
   }
-  if (input.usefulLife !== undefined) {
+  if (input.usefulLife != null) {
     assertFixedAssetUsefulLife(input.usefulLife);
   }
-  if (input.businessRate !== undefined) {
+  if (input.businessRate != null) {
     assertUnitRate(input.businessRate, "Fixed asset business rate");
   }
-  if (input.disposalPrice !== undefined) {
+  if (input.disposalPrice != null) {
     assertNonNegativeSafeInteger(
       input.disposalPrice,
       "Fixed asset disposal price",

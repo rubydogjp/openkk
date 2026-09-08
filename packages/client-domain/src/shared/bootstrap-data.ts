@@ -158,6 +158,7 @@ function buildBootstrapFiscalPeriod2026(
         ? buildBootstrapOpeningJournals("fp-2026")
         : [],
     },
+    archivedAt: null,
   };
 }
 

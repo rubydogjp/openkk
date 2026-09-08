@@ -41,7 +41,7 @@ export function AmountInput({
 }: {
   value: string;
   onChange: (raw: string) => void;
-  ariaLabel?: string;
+  ariaLabel: string | null;
 }) {
   const [focused, setFocused] = useState(false);
   const display = focused ? value.replace(/,/g, "") : formatGrouped(value);
@@ -50,7 +50,7 @@ export function AmountInput({
       className="bk-amount-input"
       type="text"
       inputMode="numeric"
-      aria-label={ariaLabel}
+      aria-label={ariaLabel ?? undefined}
       value={display}
       onFocus={() => setFocused(true)}
       onBlur={() => {

@@ -22,4 +22,7 @@ export const openkkConfig: OpenkkConfig = {
   initialMockFiscalPeriodId: null,
   sessionStorageKey: `openkk.${BUNDLE}.session.user_id`,
   fiscalPeriodStorageKey: `openkk.${BUNDLE}.fiscal_period_id`,
+  fiscalPeriodPolicy: null,
+  editingPolicy: null,
+  debugRoutesEnabled: false,
 };

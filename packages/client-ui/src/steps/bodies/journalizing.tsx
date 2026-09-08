@@ -38,9 +38,9 @@ export function JournalizingBody({
   onBusyChange,
   trendPoints,
 }: {
-  onSwitchToStep?: (no: number) => void;
-  onBusyChange?: (busy: boolean) => void;
-  trendPoints?: StepTrendPoint[];
+  onSwitchToStep: ((no: number) => void) | null;
+  onBusyChange: ((busy: boolean) => void) | null;
+  trendPoints: StepTrendPoint[] | null;
 }) {
   const router = useRouter();
   const config = useOpenkkConfig();
@@ -111,6 +111,7 @@ export function JournalizingBody({
           "編集はロックされますが、確認してから解除することができます。",
         ],
         confirmLabel: "実行する",
+        cancelLabel: null,
       });
       if (!confirmed) return;
       if (
@@ -128,6 +129,7 @@ export function JournalizingBody({
             "内容を確認したうえで、そのまま進める場合のみ実行してください。",
           ],
           confirmLabel: "実行する",
+          cancelLabel: null,
         });
         if (!forceConfirmed) return;
       }
@@ -142,6 +144,7 @@ export function JournalizingBody({
           AppError.from(error, {
             fallbackUserMessage: "仮締めの更新に失敗しました",
             fallbackDeveloperMessage: "steps/journalizing: pre-closing failed",
+            statusCode: null,
           }),
         );
       }
@@ -167,7 +170,7 @@ export function JournalizingBody({
               justifyContent: "flex-end",
             }}
           >
-            <StepPrimaryButton onClick={() => onSwitchToStep?.(4)}>
+            <StepPrimaryButton onClick={() => onSwitchToStep?.(4)} variant={null} icon={null}>
               次の手順へ
             </StepPrimaryButton>
           </div>
@@ -186,7 +189,7 @@ export function JournalizingBody({
                 marginTop: 4,
               }}
             >
-              <StepPrimaryButton onClick={() => router.push("/entries")}>
+              <StepPrimaryButton onClick={() => router.push("/entries")} variant={null} icon={null}>
                 仕訳タブへ移動
               </StepPrimaryButton>
             </div>
@@ -223,11 +226,12 @@ export function JournalizingBody({
               ) : null}
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
                 {editingLocked ? (
-                  <LockButton label="仮締めを実行" />
+                  <LockButton label="仮締めを実行" style={null} />
                 ) : (
                   <StepPrimaryButton
                     onClick={handleRunPreClosing}
                     variant="success"
+                    icon={null}
                   >
                     仮締めを実行
                   </StepPrimaryButton>
@@ -240,7 +244,7 @@ export function JournalizingBody({
 
       {screenError != null ? (
         <div style={{ marginTop: 16 }}>
-          <AppErrorText error={screenError} />
+          <AppErrorText error={screenError} style={null} fallbackUserMessage={null} />
         </div>
       ) : null}
     </>

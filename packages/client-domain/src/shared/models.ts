@@ -21,7 +21,7 @@ export type FiscalPeriod = {
   phase: FiscalPeriodPhase;
   archiveStatus: FiscalPeriodArchiveStatus;
   archiveDataAvailable: boolean;
-  archivedAt?: string | null;
+  archivedAt: string | null;
   settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
@@ -29,31 +29,39 @@ export type FiscalPeriod = {
   openingCreditTotal: number;
   createdAt: string;
   updatedAt: string;
-  opening?: {
-    id: string;
-    userId: string;
-    fiscalPeriodId: string;
-    createdAt: string;
-    updatedAt: string;
-    openingBalanceLines: Array<{
-      id: string;
-      accountId: string;
-      amount: number;
-    }>;
-    openingJournals: Array<{
-      id: string;
-      date: string;
-      description: string;
-      businessRate: number;
-      lines: Array<{
-        id: string;
-        side: "debit" | "credit";
-        bookAccountId: string;
-        amount: number;
-        partnerName: string;
-        taxCategoryId: string;
-        businessCategoryId: string;
-      }>;
-    }>;
-  };
+  opening: FiscalPeriodOpening | null;
+};
+
+export type FiscalPeriodOpeningBalanceLine = {
+  id: string;
+  accountId: string;
+  amount: number;
+};
+
+export type FiscalPeriodOpeningJournalLine = {
+  id: string;
+  side: "debit" | "credit";
+  bookAccountId: string;
+  amount: number;
+  partnerName: string;
+  taxCategoryId: string;
+  businessCategoryId: string;
+};
+
+export type FiscalPeriodOpeningJournal = {
+  id: string;
+  date: string;
+  description: string;
+  businessRate: number;
+  lines: FiscalPeriodOpeningJournalLine[];
+};
+
+export type FiscalPeriodOpening = {
+  id: string;
+  userId: string;
+  fiscalPeriodId: string;
+  createdAt: string;
+  updatedAt: string;
+  openingBalanceLines: FiscalPeriodOpeningBalanceLine[];
+  openingJournals: FiscalPeriodOpeningJournal[];
 };

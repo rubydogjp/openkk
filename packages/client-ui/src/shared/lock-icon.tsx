@@ -36,7 +36,7 @@ export function LockButton({
   style,
 }: {
   label?: string;
-  style?: CSSProperties;
+  style: CSSProperties | null;
 }) {
   return (
     <button

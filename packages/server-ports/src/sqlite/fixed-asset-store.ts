@@ -144,30 +144,30 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
         );
         updated = {
           ...existing,
-          ...(patch.name !== undefined ? { name: patch.name } : {}),
-          ...(patch.acquisitionDate !== undefined
+          ...(patch.name != null ? { name: patch.name } : {}),
+          ...(patch.acquisitionDate != null
             ? { acquisitionDate: patch.acquisitionDate }
             : {}),
-          ...(patch.acquisitionCost !== undefined
+          ...(patch.acquisitionCost != null
             ? { acquisitionCost: patch.acquisitionCost }
             : {}),
-          ...(patch.usefulLife !== undefined
+          ...(patch.usefulLife != null
             ? { usefulLife: patch.usefulLife }
             : {}),
-          ...(patch.depreciationMethod !== undefined
+          ...(patch.depreciationMethod != null
             ? { depreciationMethod: patch.depreciationMethod }
             : {}),
-          ...(patch.businessRate !== undefined
+          ...(patch.businessRate != null
             ? { businessRate: patch.businessRate }
             : {}),
-          ...(patch.status !== undefined ? { status: patch.status } : {}),
-          ...(patch.disposalDate !== undefined
+          ...(patch.status != null ? { status: patch.status } : {}),
+          ...(patch.disposalDate != null
             ? { disposalDate: patch.disposalDate }
             : {}),
-          ...(patch.disposalPrice !== undefined
+          ...(patch.disposalPrice != null
             ? { disposalPrice: patch.disposalPrice }
             : {}),
-          ...(patch.bookAccountId !== undefined
+          ...(patch.bookAccountId != null
             ? { bookAccountId: patch.bookAccountId }
             : {}),
         };

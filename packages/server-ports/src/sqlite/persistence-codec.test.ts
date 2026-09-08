@@ -65,6 +65,8 @@ describe("SQLite persistence codecs", () => {
         openingBalanceLines: [],
         openingJournals: [],
       },
+      archiveDataAvailable: null,
+      archivedAt: null,
     });
     const parsed = JSON.parse(json);
     expect(parsed).not.toHaveProperty("opening");

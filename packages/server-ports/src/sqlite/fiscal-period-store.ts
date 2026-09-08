@@ -97,6 +97,8 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         opening: defaultOpening(userId, id, now),
         createdAt: timestamp,
         updatedAt: timestamp,
+        archiveDataAvailable: null,
+        archivedAt: null,
       };
       assertDbOpeningForPeriod(record.opening!, record);
       const serializedRecord = serializeFiscalPeriodDbRecord(record);
@@ -105,6 +107,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
           userId,
           startDate: record.startDate,
           endDate: record.endDate,
+          excludeFiscalPeriodId: null,
         });
         await db.exec({
           sql: `INSERT INTO fiscal_periods(id, user_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
@@ -145,6 +148,8 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         opening,
         createdAt: timestamp,
         updatedAt: timestamp,
+        archiveDataAvailable: null,
+        archivedAt: null,
       };
       assertDbOpeningForPeriod(opening, record);
       assertDbImportedClosingState(
@@ -158,6 +163,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
           userId,
           startDate: record.startDate,
           endDate: record.endDate,
+          excludeFiscalPeriodId: null,
         });
         await db.exec({
           sql: `INSERT INTO fiscal_periods(id, user_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
@@ -299,18 +305,16 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         }
         updated = {
           ...existing,
-          ...(patch.name !== undefined ? { name: patch.name } : {}),
-          ...(patch.startDate !== undefined
-            ? { startDate: patch.startDate }
-            : {}),
-          ...(patch.endDate !== undefined ? { endDate: patch.endDate } : {}),
-          ...(patch.settingsCompleted !== undefined
+          ...(patch.name != null ? { name: patch.name } : {}),
+          ...(patch.startDate != null ? { startDate: patch.startDate } : {}),
+          ...(patch.endDate != null ? { endDate: patch.endDate } : {}),
+          ...(patch.settingsCompleted != null
             ? { settingsCompleted: patch.settingsCompleted }
             : {}),
-          ...(patch.openingBalancesCompleted !== undefined
+          ...(patch.openingBalancesCompleted != null
             ? { openingBalancesCompleted: patch.openingBalancesCompleted }
             : {}),
-          ...(patch.documentsReceivedCompleted !== undefined
+          ...(patch.documentsReceivedCompleted != null
             ? { documentsReceivedCompleted: patch.documentsReceivedCompleted }
             : {}),
           ...(patch.settingsCompleted === true &&
@@ -450,7 +454,7 @@ async function assertNoOverlappingActiveFiscalPeriod(
     userId: string;
     startDate: string;
     endDate: string;
-    excludeFiscalPeriodId?: string;
+    excludeFiscalPeriodId: string | null;
   },
 ): Promise<void> {
   const rows = (await db.exec({

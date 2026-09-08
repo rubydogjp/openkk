@@ -18,10 +18,10 @@ export type OpeningCarryoverRecord = {
   taxCategory: string;
   businessCategory: string;
   businessRate: string;
-  businessRateRatio?: number;
-  debitBookAccountId?: string;
-  creditBookAccountId?: string;
-  lines?: OpeningCarryoverLine[];
+  businessRateRatio: number | null;
+  debitBookAccountId: string | null;
+  creditBookAccountId: string | null;
+  lines: OpeningCarryoverLine[] | null;
 };
 
 export type OpeningCarryoverDraft = Omit<

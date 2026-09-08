@@ -61,7 +61,7 @@ export type EntryDraft = {
   description: string;
   partner: string;
   businessRate: string;
-  businessRateRatio?: number;
+  businessRateRatio: number | null;
   taxCategory: string;
   businessCategory: string;
   lines: EntryLine[];
@@ -292,6 +292,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
             description: draft.description,
             businessRate: resolveEntryBusinessRate(draft),
             lines,
+            localId: null,
           });
           appState.assertAuthOperationCurrent(authOperationVersion);
           const mapped = mapRemoteEntryToRecord({
@@ -539,7 +540,7 @@ function mapRemoteEntryToRecord(input: {
   taxes: MasterTaxCategory[];
   businesses: MasterBusinessCategory[];
 }): EntryRecord {
-  const lines: EntryLine[] = input.entry.lines.map((line) => ({
+  const lines: EntryLine[] = input.entry.lines.map((line): EntryLine => ({
     side: line.side,
     accountName: mapBookAccountName(line.bookAccountId, input.accounts),
     accountType: mapAccountType(line.bookAccountId, input.accounts, "asset"),
@@ -553,6 +554,7 @@ function mapRemoteEntryToRecord(input: {
       line.businessCategoryId,
       input.businesses,
     ),
+    id: null,
   }));
   const debitLine = lines.find((line) => line.side === "debit") ?? null;
   const creditLine = lines.find((line) => line.side === "credit") ?? null;
@@ -591,22 +593,24 @@ function mapRemoteEntryToRecord(input: {
     businessRateRatio: input.entry.businessRate ?? 1,
     taxCategory: headerTax,
     businessCategory: headerBiz,
-    localId: input.entry.localId,
-    debitBookAccountId: debitLine?.bookAccountId,
-    creditBookAccountId: creditLine?.bookAccountId,
-    debitTaxCategoryId: input.entry.lines.find((l) => l.side === "debit")
-      ?.taxCategoryId,
-    creditTaxCategoryId: input.entry.lines.find((l) => l.side === "credit")
-      ?.taxCategoryId,
-    debitBusinessCategoryId: input.entry.lines.find((l) => l.side === "debit")
-      ?.businessCategoryId,
-    creditBusinessCategoryId: input.entry.lines.find((l) => l.side === "credit")
-      ?.businessCategoryId,
+    localId: input.entry.localId ?? null,
+    debitBookAccountId: debitLine?.bookAccountId ?? null,
+    creditBookAccountId: creditLine?.bookAccountId ?? null,
+    debitTaxCategoryId:
+      input.entry.lines.find((l) => l.side === "debit")?.taxCategoryId ?? null,
+    creditTaxCategoryId:
+      input.entry.lines.find((l) => l.side === "credit")?.taxCategoryId ?? null,
+    debitBusinessCategoryId:
+      input.entry.lines.find((l) => l.side === "debit")?.businessCategoryId ??
+      null,
+    creditBusinessCategoryId:
+      input.entry.lines.find((l) => l.side === "credit")?.businessCategoryId ??
+      null,
   };
 }
 
 function mapBookAccountName(
-  id: string | undefined,
+  id: string | null,
   accounts: MasterBookAccount[],
 ): string {
   if (id == null || id.length === 0) return "";
@@ -635,7 +639,7 @@ function mapBusinessName(
 }
 
 function mapAccountType(
-  id: string | undefined,
+  id: string | null,
   accounts: MasterBookAccount[],
   fallback: EntryRecord["debitType"],
 ): EntryRecord["debitType"] {

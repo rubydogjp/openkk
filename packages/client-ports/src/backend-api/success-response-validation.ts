@@ -28,10 +28,10 @@ export function isValidSuccessBody(
       return (
         isObject(body) &&
         isNonBlankString(body.userId) &&
-        isOptionalString(body.displayName) &&
-        isOptionalString(body.email) &&
-        isOptionalNullableSafeHttpUrl(body.iconUrl) &&
-        isOptionalString(body.authProvider)
+        isNullableString(body.displayName) &&
+        isNullableString(body.email) &&
+        isNullableSafeHttpUrl(body.iconUrl) &&
+        isNullableString(body.authProvider)
       );
     case "preClosingGet":
       return (
@@ -123,8 +123,8 @@ function isFiscalPeriod(value: unknown): boolean {
         String(value.phase),
       ) &&
       ["active", "archived"].includes(String(value.archiveStatus)) &&
-      isOptionalBoolean(value.archiveDataAvailable) &&
-      isOptionalNullableIsoTimestamp(value.archivedAt) &&
+      isNullableBoolean(value.archiveDataAvailable) &&
+      isNullableIsoTimestamp(value.archivedAt) &&
       typeof value.settingsCompleted === "boolean" &&
       typeof value.openingBalancesCompleted === "boolean" &&
       typeof value.documentsReceivedCompleted === "boolean"
@@ -154,8 +154,8 @@ function isFiscalPeriod(value: unknown): boolean {
 }
 
 type ValidOpening = Record<string, unknown> & {
-  openingBalanceLines?: Array<Record<string, unknown>>;
-  openingJournals?: Array<Record<string, unknown>>;
+  openingBalanceLines: Array<Record<string, unknown>> | null;
+  openingJournals: Array<Record<string, unknown>> | null;
 };
 
 function isOpening(
@@ -432,20 +432,20 @@ function isSafeHttpUrl(value: unknown): value is string {
   }
 }
 
-function isOptionalString(value: unknown): boolean {
-  return value === undefined || isString(value);
+function isNullableString(value: unknown): boolean {
+  return value == null || isString(value);
 }
 
-function isOptionalNullableSafeHttpUrl(value: unknown): boolean {
-  return value === undefined || value === null || isSafeHttpUrl(value);
+function isNullableSafeHttpUrl(value: unknown): boolean {
+  return value == null || isSafeHttpUrl(value);
 }
 
-function isOptionalNullableIsoTimestamp(value: unknown): boolean {
-  return value === undefined || value === null || isIsoTimestamp(value);
+function isNullableIsoTimestamp(value: unknown): boolean {
+  return value == null || isIsoTimestamp(value);
 }
 
-function isOptionalBoolean(value: unknown): boolean {
-  return value === undefined || typeof value === "boolean";
+function isNullableBoolean(value: unknown): boolean {
+  return value == null || typeof value === "boolean";
 }
 
 function isFiniteNumber(value: unknown): value is number {

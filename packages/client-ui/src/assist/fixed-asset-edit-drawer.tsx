@@ -55,7 +55,7 @@ export function FixedAssetEditDrawer({
   editingLocked: boolean;
   onClose: () => void;
   onSave: (draft: FixedAssetDraft) => Promise<boolean>;
-  onDelete?: () => Promise<boolean>;
+  onDelete: (() => Promise<boolean>) | null;
 }) {
   const [draft, setDraft] = useState<FixedAssetDraft>(() =>
     fixedAssetToDraft(asset),
@@ -73,7 +73,7 @@ export function FixedAssetEditDrawer({
     const asOf = resolveFixedAssetDraftPreviewDate(
       previewAsOf,
       draft.status,
-      draft.disposalDate,
+      draft.disposalDate ?? undefined,
       parseIsoLocalDate(periodEndDate) ?? previewAsOf,
     );
     return {
@@ -114,7 +114,7 @@ export function FixedAssetEditDrawer({
 
   const drawerRef = useModalLifecycle<HTMLElement>(() => {
     if (!mutationLock.current.isLocked) onClose();
-  });
+  }, null);
 
   const handleSave = async () => {
     if (!canSave) {
@@ -148,6 +148,7 @@ export function FixedAssetEditDrawer({
         title: "固定資産を削除する",
         body: ["この固定資産を削除します。"],
         confirmLabel: "削除する",
+        cancelLabel: null,
       });
       if (!confirmed) return;
       setDeleting(true);
@@ -249,12 +250,16 @@ export function FixedAssetEditDrawer({
             <FormTextInput
               value={draft.name}
               onChange={(v) => setDraft({ ...draft, name: v })}
+              width={null}
+              placeholder={null}
             />
           </Field>
           <Field label="勘定科目">
             <FormTextInput
               value={draft.account}
               onChange={(v) => setDraft({ ...draft, account: v })}
+              width={null}
+              placeholder={null}
             />
           </Field>
           <Field label="取得日">
@@ -262,12 +267,14 @@ export function FixedAssetEditDrawer({
               value={draft.acquisitionDate}
               max={periodEndDate}
               onChange={(v) => setDraft({ ...draft, acquisitionDate: v })}
+              min={null}
             />
           </Field>
           <Field label="取得価額">
             <AmountInput
               value={draft.acquisitionCost}
               onChange={(v) => setDraft({ ...draft, acquisitionCost: v })}
+              ariaLabel={null}
             />
           </Field>
           <Field label="耐用年数 (年)">
@@ -283,7 +290,7 @@ export function FixedAssetEditDrawer({
                 setDraft({
                   ...draft,
                   businessRatePercent: v,
-                  businessRateRatio: undefined,
+                  businessRateRatio: null,
                 })
               }
             />
@@ -311,6 +318,7 @@ export function FixedAssetEditDrawer({
               <AmountInput
                 value={draft.disposalPrice ?? ""}
                 onChange={(v) => setDraft({ ...draft, disposalPrice: v })}
+                ariaLabel={null}
               />
             </Field>
           ) : null}
@@ -380,11 +388,13 @@ export function FixedAssetEditDrawer({
               キャンセル
             </FormSecondaryButton>
             {editingLocked ? (
-              <LockButton label="保存" />
+              <LockButton label="保存" style={null} />
             ) : (
               <FormPrimaryButton
                 onClick={handleSave}
                 disabled={saving || deleting}
+                variant={null}
+                icon={null}
               >
                 {saving ? "保存中…" : "保存"}
               </FormPrimaryButton>
@@ -462,16 +472,16 @@ function DateInput({
   onChange,
 }: {
   value: string;
-  min?: string;
-  max?: string;
+  min: string | null;
+  max: string | null;
   onChange: (value: string) => void;
 }) {
   return (
     <input
       type="date"
       value={value}
-      min={min}
-      max={max}
+      min={min ?? undefined}
+      max={max ?? undefined}
       onChange={(event) => onChange(event.target.value)}
       style={{ ...controlStyle, width: "100%" }}
     />

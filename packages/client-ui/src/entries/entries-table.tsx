@@ -55,13 +55,13 @@ const rightAlignedColumns = new Set([2, 4]);
 export function EntriesTable(props: {
   rows: EntryPreviewRow[];
 
-  onOpenEntry?: (row: EntryPreviewRow, index: number) => void;
-  onAddEntry?: () => void;
-  readOnly?: boolean;
+  onOpenEntry: ((row: EntryPreviewRow, index: number) => void) | null;
+  onAddEntry: (() => void) | null;
+  readOnly: boolean | null;
 
-  activeRecordId?: string | null;
-  fillHeight?: boolean;
-  headerTone?: EntriesHeaderTone;
+  activeRecordId: string | null;
+  fillHeight: boolean | null;
+  headerTone: EntriesHeaderTone | null;
 }) {
   const onOpen = props.onOpenEntry;
   const isEmpty = props.rows.length === 0;
@@ -201,7 +201,7 @@ export function EntriesTable(props: {
                     }}
                   >
                     {isRepeat ? (
-                      <RepeatPlaceholderCell />
+                      <RepeatPlaceholderCell align={null} />
                     ) : row.virtual != null ? (
                       <VirtualEntryDateCell label={row.virtual.label} />
                     ) : (
@@ -216,7 +216,7 @@ export function EntriesTable(props: {
                         type={row.debitType}
                       />
                     ) : (
-                      <EmptyLineCell />
+                      <EmptyLineCell align={null} />
                     )}
                     {row.debitAmount.trim().length > 0 ? (
                       <TableAmountCell>{row.debitAmount}</TableAmountCell>
@@ -229,7 +229,7 @@ export function EntriesTable(props: {
                         type={row.creditType}
                       />
                     ) : (
-                      <EmptyLineCell />
+                      <EmptyLineCell align={null} />
                     )}
                     {row.creditAmount.trim().length > 0 ? (
                       <TableAmountCell>{row.creditAmount}</TableAmountCell>
@@ -253,9 +253,9 @@ export function EntriesTable(props: {
                       </div>
                     )}
                     {isRepeat ? (
-                      <RepeatPlaceholderCell />
+                      <RepeatPlaceholderCell align={null} />
                     ) : (
-                      <TableTagCell text={row.partner} />
+                      <TableTagCell text={row.partner} align={null} emptyText={null} />
                     )}
                     {isRepeat ? (
                       <RepeatPlaceholderCell align="right" />
@@ -267,14 +267,14 @@ export function EntriesTable(props: {
                       />
                     )}
                     {isRepeat ? (
-                      <RepeatPlaceholderCell />
+                      <RepeatPlaceholderCell align={null} />
                     ) : (
-                      <TableTagCell text={row.taxCategory} />
+                      <TableTagCell text={row.taxCategory} align={null} emptyText={null} />
                     )}
                     {isRepeat ? (
-                      <RepeatPlaceholderCell />
+                      <RepeatPlaceholderCell align={null} />
                     ) : (
-                      <TableTagCell text={row.businessCategory} />
+                      <TableTagCell text={row.businessCategory} align={null} emptyText={null} />
                     )}
                   </div>
                 );
@@ -321,7 +321,7 @@ function resolveEntriesHeaderTone(tone: EntriesHeaderTone): {
   }
 }
 
-function EntriesEmptyState(props: { onAddEntry?: () => void }) {
+function EntriesEmptyState(props: { onAddEntry: (() => void) | null }) {
   return (
     <div
       style={{
@@ -466,7 +466,11 @@ function ChevronSmall({ direction }: { direction: "prev" | "next" }) {
   );
 }
 
-function RepeatPlaceholderCell({ align }: { align?: "left" | "right" }) {
+function RepeatPlaceholderCell({
+  align,
+}: {
+  align: "left" | "right" | null;
+}) {
   return (
     <div
       style={{
@@ -481,7 +485,7 @@ function RepeatPlaceholderCell({ align }: { align?: "left" | "right" }) {
   );
 }
 
-function EmptyLineCell({ align }: { align?: "right" }) {
+function EmptyLineCell({ align }: { align: "right" | null }) {
   return (
     <div
       style={{
@@ -660,9 +664,9 @@ function TableAmountCell(props: { children: ReactNode }) {
 
 function TableTagCell(props: {
   text: string;
-  align?: "left" | "right";
+  align: "left" | "right" | null;
 
-  emptyText?: string;
+  emptyText: string | null;
 }) {
   return (
     <div style={{ padding: "0 8px" }}>
@@ -677,8 +681,8 @@ function TableTagCell(props: {
 
 function TagChip(props: {
   text: string;
-  align?: "left" | "right";
-  emptyText?: string;
+  align: "left" | "right" | null;
+  emptyText: string | null;
 }) {
   const value = props.text == null ? "" : String(props.text);
   const isEmpty = value.trim() === "";

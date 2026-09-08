@@ -125,6 +125,7 @@ describe("openkk server closing flow", () => {
             businessCategoryId: "biz_none",
           },
         ],
+        localId: null,
       }),
     ]);
 
@@ -362,6 +363,7 @@ function createMemoryDb(
           id: "entry-1",
           fiscalPeriodId,
           ...input,
+          localId: input.localId ?? "",
           lines: entryLinesWithIds(input.lines),
         });
       },
@@ -370,6 +372,7 @@ function createMemoryDb(
           id,
           fiscalPeriodId: "fp-1",
           ...input,
+          localId: input.localId ?? "",
           lines: entryLinesWithIds(input.lines),
         });
       },
@@ -384,6 +387,7 @@ function createMemoryDb(
             id: `entry-${index + 1}`,
             fiscalPeriodId,
             ...input,
+            localId: input.localId ?? "",
             lines: entryLinesWithIds(input.lines),
           }),
         );
@@ -404,7 +408,7 @@ function createMemoryDb(
         return fixedAsset({ id: "asset-1", fiscalPeriodId, ...input });
       },
       async update(id: string, patch: FixedAssetPatchInput) {
-        return fixedAsset({ id, fiscalPeriodId: "fp-1", ...patch });
+        return fixedAsset({ id, fiscalPeriodId: "fp-1", ...changedFields(patch) });
       },
       async delete() {},
     },
@@ -452,7 +456,7 @@ const TEST_TIMESTAMP = "1970-01-01T00:00:00.000Z";
 function fiscalPeriod(
   overrides: Partial<FiscalPeriodApiRecord>,
 ): FiscalPeriodApiRecord {
-  const period: FiscalPeriodApiRecord = {
+  const period: FiscalPeriodApiRecord = Object.assign({
     id: "fp-1",
     userId: "user-1",
     name: "2026年分",
@@ -466,8 +470,7 @@ function fiscalPeriod(
     opening: null,
     createdAt: TEST_TIMESTAMP,
     updatedAt: TEST_TIMESTAMP,
-    ...overrides,
-  };
+  } as FiscalPeriodApiRecord, overrides);
   return {
     ...period,
     opening:
@@ -486,7 +489,7 @@ function fiscalPeriod(
 }
 
 function entry(overrides: Partial<EntryApiRecord>): EntryApiRecord {
-  return {
+  const base: EntryApiRecord = {
     id: "entry-1",
     userId: "user-1",
     fiscalPeriodId: "fp-1",
@@ -497,8 +500,8 @@ function entry(overrides: Partial<EntryApiRecord>): EntryApiRecord {
     lines: [],
     createdAt: TEST_TIMESTAMP,
     updatedAt: TEST_TIMESTAMP,
-    ...overrides,
   };
+  return Object.assign(base, overrides);
 }
 
 function entryLinesWithIds(
@@ -537,7 +540,7 @@ function validClosingEntry(localId: string): EntryUpsertInput {
 function fixedAsset(
   overrides: Partial<FixedAssetApiRecord>,
 ): FixedAssetApiRecord {
-  return {
+  const base: FixedAssetApiRecord = {
     id: "asset-1",
     userId: "user-1",
     fiscalPeriodId: "fp-1",
@@ -553,6 +556,14 @@ function fixedAsset(
     bookAccountId: "",
     createdAt: TEST_TIMESTAMP,
     updatedAt: TEST_TIMESTAMP,
-    ...overrides,
   };
+  return Object.assign(base, overrides);
+}
+
+function changedFields<T extends object>(patch: T): {
+  [K in keyof T]?: Exclude<T[K], null>;
+} {
+  return Object.fromEntries(
+    Object.entries(patch).filter(([, value]) => value !== null),
+  ) as { [K in keyof T]?: Exclude<T[K], null> };
 }

@@ -790,6 +790,7 @@ describe("openkkHttpTransportError", () => {
     expect(openkkHttpTransportError(new Error("network offline"))).toEqual({
       messageForDeveloper:
         "OpenKK HTTP transport failed before receiving a response",
+      code: null,
       messageForUser: "サーバーに接続できませんでした",
       originalMessage: "network offline",
       statusCode: null,

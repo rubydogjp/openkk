@@ -71,18 +71,39 @@ describe("summary contributions", () => {
           accountName: "仕入",
           accountType: "cost_of_sales",
           amount: "168,000",
+          id: null,
+          bookAccountId: null,
+          partnerName: null,
+          taxCategoryId: null,
+          taxCategoryName: null,
+          businessCategoryId: null,
+          businessCategoryName: null,
         },
         {
           side: "debit",
           accountName: "荷造運賃",
           accountType: "expense",
           amount: "42,000",
+          id: null,
+          bookAccountId: null,
+          partnerName: null,
+          taxCategoryId: null,
+          taxCategoryName: null,
+          businessCategoryId: null,
+          businessCategoryName: null,
         },
         {
           side: "credit",
           accountName: "未払金",
           accountType: "liability",
           amount: "210,000",
+          id: null,
+          bookAccountId: null,
+          partnerName: null,
+          taxCategoryId: null,
+          taxCategoryName: null,
+          businessCategoryId: null,
+          businessCategoryName: null,
         },
       ],
     });
@@ -144,18 +165,20 @@ describe("summary contributions", () => {
 });
 
 function entry(overrides: Partial<EntrySummaryRow>): EntrySummaryRow {
-  return {
+  const base: EntrySummaryRow = {
     businessRate: "",
     debitType: "asset",
     debitAmount: "0",
     creditType: "asset",
     creditAmount: "0",
-    ...overrides,
+    businessRateRatio: null,
+    lines: null,
   };
+  return Object.assign(base, overrides);
 }
 
 function record(overrides: Partial<EntryRecord>): EntryRecord {
-  return {
+  const base: EntryRecord = {
     id: "entry-1",
     fiscalPeriodId: "fp-2026",
     date: "2026-03-01",
@@ -171,6 +194,15 @@ function record(overrides: Partial<EntryRecord>): EntryRecord {
     businessRate: "",
     taxCategory: "対象外",
     businessCategory: "",
-    ...overrides,
+    lines: null,
+    businessRateRatio: null,
+    localId: null,
+    debitBookAccountId: null,
+    creditBookAccountId: null,
+    debitTaxCategoryId: null,
+    creditTaxCategoryId: null,
+    debitBusinessCategoryId: null,
+    creditBusinessCategoryId: null,
   };
+  return Object.assign(base, overrides);
 }

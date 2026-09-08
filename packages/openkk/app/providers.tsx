@@ -11,7 +11,7 @@ import { createFileDbAdapter } from "@rubydogjp/openkk-file-db-adapter";
 
 import { openkkConfig } from "./openkk-config";
 
-const brandConfig: BrandConfig = {};
+const brandConfig: BrandConfig = { marketingSiteUrl: null, productSiteUrl: null, accountIconUrl: null };
 
 const runtime: OpenkkBundleRuntime = {
   config: openkkConfig,
@@ -19,6 +19,7 @@ const runtime: OpenkkBundleRuntime = {
   calloutSlots: {},
   createBackendApi: createFileBackendApi,
   registerServiceWorker: true,
+  seedFiscalPeriod: null,
 };
 
 export function Providers(props: { children: React.ReactNode }) {
@@ -28,10 +29,10 @@ export function Providers(props: { children: React.ReactNode }) {
 }
 
 async function createFileBackendApi(): Promise<OpenkkBackendPort> {
-  const db = await createFileDbAdapter({
-    vfsName: "openkk",
-    dbFileName: "openkk.sqlite3",
-  });
+  const db = await createFileDbAdapter(
+    { vfsName: "openkk", dbFileName: "openkk.sqlite3" },
+    null,
+  );
   const server = createOpenkkEmbeddedBackend(db, {
     userId: openkkConfig.mockUserId,
   });

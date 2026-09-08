@@ -9,7 +9,7 @@ export type PreviewScaffoldProps = {
   notice: string;
   bodyHtml: string;
   onPrint: () => void;
-  fpName?: string | null;
+  fpName: string | null;
 };
 
 export function PreviewScaffold({

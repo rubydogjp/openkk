@@ -135,7 +135,7 @@ export function normalizeArchiveImportInput(
   );
   const normalizedOpening =
     sourceOpening == null
-      ? undefined
+      ? null
       : normalizeArchivedOpening(
           sourceOpening,
           userId,
@@ -426,7 +426,7 @@ function normalizeArchivedEntry(
       ),
     };
   });
-  assertEntryLinesBalanced(lines, "archive entry");
+  assertEntryLinesBalanced(lines, "archive entry", { allowZero: false });
   return { date, description, localId, businessRate, lines };
 }
 
@@ -441,7 +441,7 @@ function normalizeArchivedFixedAsset(
     sourceFiscalPeriodId,
     "archive fixedAsset.fiscalPeriodId",
   );
-  const patchInput: FixedAssetPatchInput = {};
+  const patchInput: FixedAssetPatchInput = { name: null, acquisitionDate: null, acquisitionCost: null, usefulLife: null, depreciationMethod: null, businessRate: null, status: null, disposalDate: null, disposalPrice: null, bookAccountId: null };
   const acquisitionDate = requireIsoDate(
     value.acquisitionDate,
     "archive fixedAsset.acquisitionDate",
@@ -692,12 +692,12 @@ function assertArchiveLifecycle(input: {
   settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
-  opening?: {
+  opening: {
     openingJournals: Array<{
       description: string;
       lines: Array<{ side: "debit" | "credit"; amount: number }>;
     }>;
-  };
+  } | null;
   closingKeys: Set<string>;
 }) {
   if (input.documentsReceivedCompleted && input.phase !== "post_closing") {
@@ -720,6 +720,7 @@ function assertArchiveLifecycle(input: {
       assertEntryLinesBalanced(
         journal.lines,
         "archive completed openingJournal",
+        { allowZero: false },
       );
     }
   }
@@ -790,20 +791,18 @@ function legacyOptionalId(
 function archivedEntryLocalId(
   value: unknown,
   archivedEntryId: unknown,
-): string | undefined {
+): string | null {
   if (value != null) {
     if (typeof value !== "string") {
       throw serverValidationError("archive entry.localId must be a string");
     }
     if (value.trim() !== "") return value;
   }
-  if (archivedEntryId == null) return undefined;
+  if (archivedEntryId == null) return null;
   if (typeof archivedEntryId !== "string") {
     throw serverValidationError("archive entry.id must be a string");
   }
-  return archivedEntryId.trim() === ""
-    ? undefined
-    : `archive:${archivedEntryId}`;
+  return archivedEntryId.trim() === "" ? null : `archive:${archivedEntryId}`;
 }
 
 function normalizeFixedAssetStatus(

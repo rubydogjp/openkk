@@ -8,12 +8,12 @@ export { parseAmount, parseBusinessRate } from "../shared/parse-utils.js";
 
 export type EntrySummaryRow = {
   businessRate: string;
-  businessRateRatio?: number;
+  businessRateRatio: number | null;
   debitType: string;
   debitAmount: string;
   creditType: string;
   creditAmount: string;
-  lines?: EntryLine[];
+  lines: EntryLine[] | null;
 };
 
 function summaryRowLines(record: EntrySummaryRow): EntryLine[] {
@@ -24,12 +24,26 @@ function summaryRowLines(record: EntrySummaryRow): EntryLine[] {
       accountName: "",
       accountType: record.debitType as EntryAccountVisualType,
       amount: record.debitAmount,
+      id: null,
+      bookAccountId: null,
+      partnerName: null,
+      taxCategoryId: null,
+      taxCategoryName: null,
+      businessCategoryId: null,
+      businessCategoryName: null,
     },
     {
       side: "credit",
       accountName: "",
       accountType: record.creditType as EntryAccountVisualType,
       amount: record.creditAmount,
+      id: null,
+      bookAccountId: null,
+      partnerName: null,
+      taxCategoryId: null,
+      taxCategoryName: null,
+      businessCategoryId: null,
+      businessCategoryName: null,
     },
   ];
 }

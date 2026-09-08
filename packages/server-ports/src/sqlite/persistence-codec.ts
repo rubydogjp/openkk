@@ -39,13 +39,13 @@ export function parseFiscalPeriodDbRecord(json: string): FiscalPeriodDbRecord {
     requiredBoolean(value, "settingsCompleted");
     requiredBoolean(value, "openingBalancesCompleted");
     requiredBoolean(value, "documentsReceivedCompleted");
-    if (value.archiveDataAvailable !== undefined) {
+    if (value.archiveDataAvailable != null) {
       requiredBoolean(value, "archiveDataAvailable");
     }
-    if (value.archivedAt !== undefined && value.archivedAt !== null) {
+    if (value.archivedAt != null) {
       isoTimestamp(value, "archivedAt");
     }
-    if (value.opening !== undefined && value.opening !== null) {
+    if (value.opening != null) {
       validateOpening(objectValue(value, "opening"));
     }
     assertDateRange(
@@ -118,8 +118,8 @@ function validateOpening(value: Record<string, unknown>): void {
   requiredNonBlankString(value, "fiscalPeriodId");
   isoTimestamp(value, "createdAt");
   isoTimestamp(value, "updatedAt");
-  const openingBalanceLines = optionalArray(value, "openingBalanceLines") ?? [];
-  const openingJournals = optionalArray(value, "openingJournals") ?? [];
+  const openingBalanceLines = nullableArray(value, "openingBalanceLines") ?? [];
+  const openingJournals = nullableArray(value, "openingJournals") ?? [];
   assertOpeningCollectionSizeLimits(openingBalanceLines, openingJournals);
   openingBalanceLines.forEach((item) => {
     const line = asObject(item, "opening balance line");
@@ -189,7 +189,7 @@ function assertOpeningCollectionSizeLimits(
     ) {
       continue;
     }
-    const lines = (journal as { lines?: unknown }).lines;
+    const lines = (journal as { lines: unknown }).lines;
     if (!Array.isArray(lines)) continue;
     totalLineCount += lines.length;
     if (
@@ -360,9 +360,9 @@ function arrayValue(value: Record<string, unknown>, key: string): unknown[] {
   return value[key];
 }
 
-function optionalArray(
+function nullableArray(
   value: Record<string, unknown>,
   key: string,
-): unknown[] | undefined {
-  return value[key] === undefined ? undefined : arrayValue(value, key);
+): unknown[] | null {
+  return value[key] == null ? null : arrayValue(value, key);
 }

@@ -6,9 +6,9 @@ export type AppErrorLike = {
 };
 
 export type AppErrorFromOptions = {
-  fallbackUserMessage?: string;
-  fallbackDeveloperMessage?: string;
-  statusCode?: number | null;
+  fallbackUserMessage: string | null;
+  fallbackDeveloperMessage: string | null;
+  statusCode: number | null;
 };
 
 export class AppError extends Error implements AppErrorLike {
@@ -27,7 +27,7 @@ export class AppError extends Error implements AppErrorLike {
     this.statusCode = normalized.statusCode;
   }
 
-  static from(error: unknown, options: AppErrorFromOptions = {}): AppError {
+  static from(error: unknown, options: AppErrorFromOptions): AppError {
     if (error instanceof AppError) {
       return error;
     }

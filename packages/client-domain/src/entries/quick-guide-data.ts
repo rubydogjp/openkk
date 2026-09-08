@@ -20,17 +20,17 @@ export type QuickGuidePage =
 export type QuickGuideTemplate = {
   debitAccountName: string;
   creditAccountName: string;
-  description?: string;
-  businessRatePercent?: number;
+  description: string | null;
+  businessRatePercent: number | null;
 };
 
 export type QuickGuideOption = {
   title: string;
-  subtitle?: string;
-  nextPage?: QuickGuidePage;
-  template?: QuickGuideTemplate;
+  subtitle: string | null;
+  nextPage: QuickGuidePage | null;
+  template: QuickGuideTemplate | null;
 
-  close?: boolean;
+  close: boolean | null;
 };
 
 export function guideTitle(page: QuickGuidePage): string {
@@ -101,27 +101,36 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
           title: "入金",
           subtitle: "売上、プライベート口座からの入金など",
           nextPage: "incoming",
+          template: null,
+          close: null,
         },
         {
           title: "出金",
           subtitle: "経費、プライベート口座への出金など",
           nextPage: "outgoing",
+          template: null,
+          close: null,
         },
         {
           title: "資金移動",
           subtitle: "現金と預金の交換、自己資金の出し入れ",
           nextPage: "transfer",
+          template: null,
+          close: null,
         },
       ];
 
     case "incoming":
       return [
-        { title: "報酬が確定した・請求書を送った", nextPage: "salesAccrual" },
+        { title: "報酬が確定した・請求書を送った", nextPage: "salesAccrual", subtitle: null, template: null, close: null },
         {
           title: "入金待ちだった報酬が口座に振り込まれた",
           nextPage: "receivableCollection",
+          subtitle: null,
+          template: null,
+          close: null,
         },
-        { title: "その他の入金", nextPage: "otherIncoming" },
+        { title: "その他の入金", nextPage: "otherIncoming", subtitle: null, template: null, close: null },
       ];
 
     case "outgoing":
@@ -129,20 +138,32 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
         {
           title: "請求書を受け取った・カードで費用を支払った",
           nextPage: "expensePayable",
+          subtitle: null,
+          template: null,
+          close: null,
         },
         {
           title: "費用をその場で事業サイフから現金払いした",
           nextPage: "expenseImmediateCash",
+          subtitle: null,
+          template: null,
+          close: null,
         },
         {
           title: "費用をその場でプライベートサイフから支払った",
           nextPage: "expenseOwnerBorrow",
+          subtitle: null,
+          template: null,
+          close: null,
         },
         {
           title: "カード利用分が口座から引き落とされた",
           nextPage: "liabilityRepayment",
+          subtitle: null,
+          template: null,
+          close: null,
         },
-        { title: "その他の出金", close: true },
+        { title: "その他の出金", close: true, subtitle: null, nextPage: null, template: null },
       ];
 
     case "transfer":
@@ -150,18 +171,30 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
         {
           title: "事業口座から事業財布へ現金を引き出した",
           nextPage: "bankToCash",
+          subtitle: null,
+          template: null,
+          close: null,
         },
         {
           title: "事業財布から事業口座へ現金を預け入れた",
           nextPage: "cashToBank",
+          subtitle: null,
+          template: null,
+          close: null,
         },
         {
           title: "事業口座からプライベート資金を引き出した",
           nextPage: "ownerWithdrawal",
+          subtitle: null,
+          template: null,
+          close: null,
         },
         {
           title: "プライベート資金から事業用口座に入金した",
           nextPage: "ownerDeposit",
+          subtitle: null,
+          template: null,
+          close: null,
         },
       ];
 
@@ -174,7 +207,10 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             debitAccountName: "売掛金",
             creditAccountName: "売上",
             description: "売上の発生",
+            businessRatePercent: null,
           },
+          nextPage: null,
+          close: null,
         },
         {
           title: "即日入金",
@@ -183,9 +219,12 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             debitAccountName: "普通預金",
             creditAccountName: "売上",
             description: "売上の入金",
+            businessRatePercent: null,
           },
+          nextPage: null,
+          close: null,
         },
-        { title: "その他の売上", nextPage: "otherSales" },
+        { title: "その他の売上", nextPage: "otherSales", subtitle: null, template: null, close: null },
       ];
 
     case "receivableCollection":
@@ -197,9 +236,12 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             debitAccountName: "普通預金",
             creditAccountName: "売掛金",
             description: "売掛金の回収",
+            businessRatePercent: null,
           },
+          nextPage: null,
+          close: null,
         },
-        { title: "その他の回収", nextPage: "otherReceivableCollection" },
+        { title: "その他の回収", nextPage: "otherReceivableCollection", subtitle: null, template: null, close: null },
       ];
 
     case "ownerDeposit":
@@ -211,7 +253,10 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             debitAccountName: "普通預金",
             creditAccountName: "事業主借",
             description: "自己資金の入金",
+            businessRatePercent: null,
           },
+          nextPage: null,
+          close: null,
         },
       ];
 
@@ -231,7 +276,10 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             debitAccountName: "未払金",
             creditAccountName: "普通預金",
             description: "カード利用分の引き落とし",
+            businessRatePercent: null,
           },
+          nextPage: null,
+          close: null,
         },
       ];
 
@@ -244,7 +292,10 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             debitAccountName: "事業主貸",
             creditAccountName: "普通預金",
             description: "自己資金の出金",
+            businessRatePercent: null,
           },
+          nextPage: null,
+          close: null,
         },
       ];
 
@@ -257,7 +308,10 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             debitAccountName: "普通預金",
             creditAccountName: "現金",
             description: "現金を預金へ交換",
+            businessRatePercent: null,
           },
+          nextPage: null,
+          close: null,
         },
       ];
 
@@ -270,7 +324,10 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             debitAccountName: "現金",
             creditAccountName: "普通預金",
             description: "預金を現金へ交換",
+            businessRatePercent: null,
           },
+          nextPage: null,
+          close: null,
         },
       ];
 
@@ -283,7 +340,10 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             debitAccountName: "普通預金",
             creditAccountName: "雑収入",
             description: "雑収入の入金",
+            businessRatePercent: null,
           },
+          nextPage: null,
+          close: null,
         },
         {
           title: "雑収入を現金で受け取った",
@@ -292,7 +352,10 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             debitAccountName: "現金",
             creditAccountName: "雑収入",
             description: "雑収入の受取",
+            businessRatePercent: null,
           },
+          nextPage: null,
+          close: null,
         },
         {
           title: "前受金として受け取った",
@@ -301,9 +364,12 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             debitAccountName: "普通預金",
             creditAccountName: "前受金",
             description: "前受金の入金",
+            businessRatePercent: null,
           },
+          nextPage: null,
+          close: null,
         },
-        { title: "科目を自分で選ぶ", close: true },
+        { title: "科目を自分で選ぶ", close: true, subtitle: null, nextPage: null, template: null },
       ];
 
     case "otherSales":
@@ -315,7 +381,10 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             debitAccountName: "未収入金",
             creditAccountName: "売上",
             description: "売上の発生",
+            businessRatePercent: null,
           },
+          nextPage: null,
+          close: null,
         },
         {
           title: "現金で売上を受け取った",
@@ -324,9 +393,12 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             debitAccountName: "現金",
             creditAccountName: "売上",
             description: "売上の受取",
+            businessRatePercent: null,
           },
+          nextPage: null,
+          close: null,
         },
-        { title: "科目を自分で選ぶ", close: true },
+        { title: "科目を自分で選ぶ", close: true, subtitle: null, nextPage: null, template: null },
       ];
 
     case "otherReceivableCollection":
@@ -338,7 +410,10 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             debitAccountName: "現金",
             creditAccountName: "売掛金",
             description: "売掛金の現金回収",
+            businessRatePercent: null,
           },
+          nextPage: null,
+          close: null,
         },
         {
           title: "未収入金を口座で回収した",
@@ -347,7 +422,10 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             debitAccountName: "普通預金",
             creditAccountName: "未収入金",
             description: "未収入金の回収",
+            businessRatePercent: null,
           },
+          nextPage: null,
+          close: null,
         },
         {
           title: "未収入金を現金で回収した",
@@ -356,9 +434,12 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             debitAccountName: "現金",
             creditAccountName: "未収入金",
             description: "未収入金の現金回収",
+            businessRatePercent: null,
           },
+          nextPage: null,
+          close: null,
         },
-        { title: "科目を自分で選ぶ", close: true },
+        { title: "科目を自分で選ぶ", close: true, subtitle: null, nextPage: null, template: null },
       ];
   }
 }
@@ -377,6 +458,8 @@ function expenseOptions(
         description: `${prefix}: 家賃・月額コワーキング`,
         businessRatePercent: 100,
       },
+      nextPage: null,
+      close: null,
     },
     {
       title: "電気・ガス・水道料金",
@@ -387,6 +470,8 @@ function expenseOptions(
         description: `${prefix}: 電気・ガス・水道料金`,
         businessRatePercent: 100,
       },
+      nextPage: null,
+      close: null,
     },
     {
       title: "インターネット料金",
@@ -397,6 +482,8 @@ function expenseOptions(
         description: `${prefix}: インターネット料金`,
         businessRatePercent: 100,
       },
+      nextPage: null,
+      close: null,
     },
     {
       title: "移動・宿泊",
@@ -405,7 +492,10 @@ function expenseOptions(
         debitAccountName: "旅費交通費",
         creditAccountName: creditAccount,
         description: `${prefix}: 移動・宿泊`,
+        businessRatePercent: null,
       },
+      nextPage: null,
+      close: null,
     },
     {
       title: "会食・お土産",
@@ -414,7 +504,10 @@ function expenseOptions(
         debitAccountName: "接待交際費",
         creditAccountName: creditAccount,
         description: `${prefix}: 会食・お土産`,
+        businessRatePercent: null,
       },
+      nextPage: null,
+      close: null,
     },
     {
       title: "面談・会議室代",
@@ -423,7 +516,10 @@ function expenseOptions(
         debitAccountName: "会議費",
         creditAccountName: creditAccount,
         description: `${prefix}: 面談・会議室代`,
+        businessRatePercent: null,
       },
+      nextPage: null,
+      close: null,
     },
     {
       title: "文房具・事務用品・消耗品",
@@ -432,7 +528,10 @@ function expenseOptions(
         debitAccountName: "消耗品費",
         creditAccountName: creditAccount,
         description: `${prefix}: 文房具・事務用品・消耗品`,
+        businessRatePercent: null,
       },
+      nextPage: null,
+      close: null,
     },
     {
       title: "広告・宣伝",
@@ -441,7 +540,10 @@ function expenseOptions(
         debitAccountName: "広告宣伝費",
         creditAccountName: creditAccount,
         description: `${prefix}: 広告・宣伝`,
+        businessRatePercent: null,
       },
+      nextPage: null,
+      close: null,
     },
     {
       title: "配送・送料",
@@ -450,7 +552,10 @@ function expenseOptions(
         debitAccountName: "荷造運賃",
         creditAccountName: creditAccount,
         description: `${prefix}: 配送・送料`,
+        businessRatePercent: null,
       },
+      nextPage: null,
+      close: null,
     },
     {
       title: "手数料",
@@ -459,7 +564,10 @@ function expenseOptions(
         debitAccountName: "支払手数料",
         creditAccountName: creditAccount,
         description: `${prefix}: 手数料`,
+        businessRatePercent: null,
       },
+      nextPage: null,
+      close: null,
     },
     {
       title: "税金・証明書",
@@ -468,7 +576,10 @@ function expenseOptions(
         debitAccountName: "租税公課",
         creditAccountName: creditAccount,
         description: `${prefix}: 税金・証明書`,
+        businessRatePercent: null,
       },
+      nextPage: null,
+      close: null,
     },
     {
       title: "本・資料",
@@ -477,7 +588,10 @@ function expenseOptions(
         debitAccountName: "新聞図書費",
         creditAccountName: creditAccount,
         description: `${prefix}: 本・資料`,
+        businessRatePercent: null,
       },
+      nextPage: null,
+      close: null,
     },
     {
       title: "修理・保守",
@@ -486,7 +600,10 @@ function expenseOptions(
         debitAccountName: "修繕費",
         creditAccountName: creditAccount,
         description: `${prefix}: 修理・保守`,
+        businessRatePercent: null,
       },
+      nextPage: null,
+      close: null,
     },
     {
       title: "福利厚生",
@@ -495,7 +612,10 @@ function expenseOptions(
         debitAccountName: "福利厚生費",
         creditAccountName: creditAccount,
         description: `${prefix}: 福利厚生`,
+        businessRatePercent: null,
       },
+      nextPage: null,
+      close: null,
     },
     {
       title: "その他・雑費",
@@ -504,9 +624,12 @@ function expenseOptions(
         debitAccountName: "雑費",
         creditAccountName: creditAccount,
         description: `${prefix}: その他・雑費`,
+        businessRatePercent: null,
       },
+      nextPage: null,
+      close: null,
     },
-    { title: "科目を自分で選ぶ", close: true },
+    { title: "科目を自分で選ぶ", close: true, subtitle: null, nextPage: null, template: null },
   ];
 }
 
@@ -551,7 +674,7 @@ export function normalizeAccountName(name: string): string {
  * 完全一致を優先し、無ければ部分一致でフォールバックする。
  */
 export function resolveBookAccountByName<
-  T extends { name: string; accountType?: string | null },
+  T extends { name: string; accountType: string | null },
 >(name: string, accounts: readonly T[]): T | null {
   const aliases = ACCOUNT_ALIASES[name] ?? [name];
   const prefer = (matches: T[]): T | undefined =>

@@ -19,6 +19,7 @@ import {
   useOpenkkEntries,
   type EntryDraft,
 } from "@rubydogjp/openkk-client-usecases";
+import type { EntryLine } from "@rubydogjp/openkk-client-domain";
 import { EntriesTable } from "../../../entries/entries-ui.js";
 import { EntryEditDrawer } from "../../../entries/entry-edit-drawer.js";
 import { AssistBreadcrumb } from "../../../assist/assist-breadcrumb.js";
@@ -177,12 +178,13 @@ export function OpeningCarryoverPage() {
             }
             onOpenEntry={
               isReadOnlyPeriod || editingLocked
-                ? undefined
+                ? null
                 : (row) => {
                     if (row.recordId == null) return;
                     navigateWithCarryoverParam(row.recordId);
                   }
             }
+            onAddEntry={null}
           />
         )}
       </div>
@@ -194,8 +196,8 @@ export function OpeningCarryoverPage() {
           key={`${newCarryoverDraft == null ? "edit" : "create"}:${drawerEntry.id}`}
           mode={newCarryoverDraft == null ? "edit" : "create"}
           entry={drawerEntry}
-          minDate={currentFiscalPeriod?.startDate}
-          maxDate={currentFiscalPeriod?.endDate}
+          minDate={currentFiscalPeriod?.startDate ?? null}
+          maxDate={currentFiscalPeriod?.endDate ?? null}
           accountOptions={entriesState.accountOptions}
           taxCategoryOptions={entriesState.taxCategoryOptions}
           businessCategoryOptions={entriesState.businessCategoryOptions}
@@ -245,7 +247,7 @@ export function OpeningCarryoverPage() {
                     });
                   }
                 }
-              : undefined
+              : null
           }
         />
       ) : null}
@@ -355,22 +357,34 @@ function LockGlyph() {
 }
 
 function carryoverToEntryRecord(record: OpeningCarryoverRecord): EntryRecord {
-  const lines =
+  const lines: EntryLine[] =
     record.lines ??
     [
       {
+        id: null,
         side: "debit" as const,
         accountName: record.debit,
         accountType: record.debitType,
         amount: record.debitAmount,
         bookAccountId: record.debitBookAccountId,
+        partnerName: null,
+        taxCategoryId: null,
+        taxCategoryName: null,
+        businessCategoryId: null,
+        businessCategoryName: null,
       },
       {
+        id: null,
         side: "credit" as const,
         accountName: record.credit,
         accountType: record.creditType,
         amount: record.creditAmount,
         bookAccountId: record.creditBookAccountId,
+        partnerName: null,
+        taxCategoryId: null,
+        taxCategoryName: null,
+        businessCategoryId: null,
+        businessCategoryName: null,
       },
     ];
   return {
@@ -393,6 +407,11 @@ function carryoverToEntryRecord(record: OpeningCarryoverRecord): EntryRecord {
     debitBookAccountId: record.debitBookAccountId,
     creditBookAccountId: record.creditBookAccountId,
     lines,
+    localId: null,
+    debitTaxCategoryId: null,
+    creditTaxCategoryId: null,
+    debitBusinessCategoryId: null,
+    creditBusinessCategoryId: null,
   };
 }
 

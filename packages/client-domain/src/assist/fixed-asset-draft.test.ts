@@ -90,6 +90,9 @@ describe("computeFixedAssetDraftPeriodDepreciation", () => {
           usefulLife: 5,
           businessRatePercent: 100,
           status: "償却中",
+          businessRateRatio: null,
+          disposalDate: null,
+          disposalPrice: null,
         },
         periodStartDate: "2026-01-01",
         asOf: new Date(2026, 11, 31),
@@ -99,16 +102,21 @@ describe("computeFixedAssetDraftPeriodDepreciation", () => {
 });
 
 describe("validateFixedAssetDraft", () => {
-  const draft = (patch: Partial<FixedAssetDraft> = {}): FixedAssetDraft => ({
-    name: "業務用PC",
-    account: "工具器具備品",
-    acquisitionDate: "2026-04-01",
-    acquisitionCost: "180000",
-    usefulLife: 4,
-    businessRatePercent: 100,
-    status: "償却中",
-    ...patch,
-  });
+  const draft = (patch: Partial<FixedAssetDraft> = {}): FixedAssetDraft => {
+    const base: FixedAssetDraft = {
+      name: "業務用PC",
+      account: "工具器具備品",
+      acquisitionDate: "2026-04-01",
+      acquisitionCost: "180000",
+      usefulLife: 4,
+      businessRatePercent: 100,
+      status: "償却中",
+      businessRateRatio: null,
+      disposalDate: null,
+      disposalPrice: null,
+    };
+    return Object.assign(base, patch);
+  };
   const validate = (value: FixedAssetDraft, currentBookValue = 100) =>
     validateFixedAssetDraft({
       draft: value,

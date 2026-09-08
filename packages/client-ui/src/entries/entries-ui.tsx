@@ -148,17 +148,17 @@ export function EntriesScreen(props: {
   canGoNext: boolean;
   onPrev: () => void;
   onNext: () => void;
-  isPlaceholderData?: boolean;
-  readOnly?: boolean;
-  onAddEntry?: () => void;
-  onImportFile?: (kind: EntryFileKind, file: File) => void;
-  onExport?: (kind: EntryFileKind) => void;
+  isPlaceholderData: boolean | null;
+  readOnly: boolean | null;
+  onAddEntry: (() => void) | null;
+  onImportFile: ((kind: EntryFileKind, file: File) => void) | null;
+  onExport: ((kind: EntryFileKind) => void) | null;
 
-  onOpenEntry?: (row: EntryPreviewRow, index: number) => void;
+  onOpenEntry: ((row: EntryPreviewRow, index: number) => void) | null;
 
-  activeRecordId?: string | null;
-  statusMessage?: EntryStatusMessage | null;
-  lockedMessage?: {
+  activeRecordId: string | null;
+  statusMessage: EntryStatusMessage | null;
+  lockedMessage: {
     title: string;
     description: string;
   } | null;
@@ -274,10 +274,11 @@ export function EntriesScreen(props: {
           <EntriesTable
             rows={props.rows}
             onOpenEntry={props.onOpenEntry}
-            onAddEntry={isReadOnly ? undefined : props.onAddEntry}
+            onAddEntry={isReadOnly ? null : props.onAddEntry}
             readOnly={isReadOnly}
             activeRecordId={isReadOnly ? null : props.activeRecordId}
             fillHeight
+            headerTone={null}
           />
         </div>
       </div>
@@ -287,7 +288,7 @@ export function EntriesScreen(props: {
 
 export function VirtualEntryDrawer(props: {
   row: EntryPreviewRow;
-  rows?: EntryPreviewRow[];
+  rows: EntryPreviewRow[] | null;
   onClose: () => void;
   onOpenAssist: (href: string) => void;
 }) {
@@ -296,6 +297,9 @@ export function VirtualEntryDrawer(props: {
     open: virtual != null,
     onDismiss: props.onClose,
     trapFocus: true,
+    initialFocusRef: null,
+    focusOnOpen: null,
+    restoreFocus: null,
   });
   if (virtual == null) return null;
   const rows =
@@ -715,7 +719,7 @@ export function EntriesPreviewSurface(props: { rows: EntryPreviewRow[] }) {
               transformOrigin: "top left",
             }}
           >
-            <EntriesTable rows={props.rows} />
+            <EntriesTable rows={props.rows} onOpenEntry={null} onAddEntry={null} readOnly={null} activeRecordId={null} fillHeight={null} headerTone={null} />
           </div>
         </div>
       </div>

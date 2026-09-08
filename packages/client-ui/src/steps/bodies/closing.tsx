@@ -44,8 +44,8 @@ export function ClosingBody({
   onSwitchToStep,
   onBusyChange,
 }: {
-  onSwitchToStep?: (no: number) => void;
-  onBusyChange?: (busy: boolean) => void;
+  onSwitchToStep: ((no: number) => void) | null;
+  onBusyChange: ((busy: boolean) => void) | null;
 }) {
   const appState = useOpenkkAppState();
   const config = useOpenkkConfig();
@@ -116,6 +116,7 @@ export function ClosingBody({
           "1つ前の手順に戻り、ロックを解除して再び編集できるようにします。",
         ],
         confirmLabel: "取り消す",
+        cancelLabel: null,
       });
       if (!confirmed) return;
       try {
@@ -128,6 +129,7 @@ export function ClosingBody({
             fallbackUserMessage: "仮締めの取り消しに失敗しました",
             fallbackDeveloperMessage:
               "steps/closing: cancel pre-closing failed",
+            statusCode: null,
           }),
         );
       }
@@ -148,6 +150,7 @@ export function ClosingBody({
           "仮書類を十分にプレビューし、間違いがないことをチェックした上で実行してください。",
         ],
         confirmLabel: "実行する",
+        cancelLabel: null,
       });
       if (!confirmed) return;
 
@@ -173,6 +176,7 @@ export function ClosingBody({
           AppError.from(error, {
             fallbackUserMessage: "本締めに失敗しました",
             fallbackDeveloperMessage: "steps/closing: finalize failed",
+            statusCode: null,
           }),
         );
       }
@@ -224,9 +228,9 @@ export function ClosingBody({
             <DocumentFileList
               actionLabel="確認する"
               items={[
-                { label: "仮_仕訳帳.pdf", onClick: printJournal },
-                { label: "仮_総勘定元帳.pdf", onClick: printGeneralLedger },
-                { label: "仮_財務諸表.pdf", onClick: printFinancialStatements },
+                { label: "仮_仕訳帳.pdf", onClick: printJournal, description: null, active: null },
+                { label: "仮_総勘定元帳.pdf", onClick: printGeneralLedger, description: null, active: null },
+                { label: "仮_財務諸表.pdf", onClick: printFinancialStatements, description: null, active: null },
               ]}
             />
           </section>
@@ -263,7 +267,7 @@ export function ClosingBody({
                 justifyContent: "flex-end",
               }}
             >
-              <StepPrimaryButton onClick={() => onSwitchToStep?.(5)}>
+              <StepPrimaryButton onClick={() => onSwitchToStep?.(5)} variant={null} icon={null}>
                 次の手順へ
               </StepPrimaryButton>
             </div>
@@ -283,7 +287,7 @@ export function ClosingBody({
                 description="書類に問題が見つかった場合、仮締めを取り消します。ロックは解除され、仕訳データを再編集できるようになります。"
                 action={
                   editingLocked ? (
-                    <LockButton label="取り消す" />
+                    <LockButton label="取り消す" style={null} />
                   ) : (
                     <StepSecondaryButton onClick={handleCancelPreClosing}>
                       取り消す
@@ -297,11 +301,12 @@ export function ClosingBody({
                 description="書類に問題がなかった場合、本締めを実行します。仕訳データは確定され、編集ができなくなります。"
                 action={
                   editingLocked ? (
-                    <LockButton label="本締めを実行" />
+                    <LockButton label="本締めを実行" style={null} />
                   ) : (
                     <StepPrimaryButton
                       onClick={handleFinalize}
                       variant="success"
+                      icon={null}
                     >
                       本締めを実行
                     </StepPrimaryButton>
@@ -315,7 +320,7 @@ export function ClosingBody({
 
       {screenError != null ? (
         <div style={{ marginTop: 16 }}>
-          <AppErrorText error={screenError} />
+          <AppErrorText error={screenError} style={null} fallbackUserMessage={null} />
         </div>
       ) : null}
     </>

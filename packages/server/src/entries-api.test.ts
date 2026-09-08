@@ -545,6 +545,7 @@ function createEntryDb(
           id: `entry-${entries.size + 1}`,
           fiscalPeriodId,
           ...input,
+          localId: input.localId ?? "",
           lines: entryLinesWithIds(input.lines),
         });
         entries.set(record.id, record);
@@ -556,6 +557,7 @@ function createEntryDb(
         const updated = entry({
           ...current,
           ...input,
+          localId: input.localId ?? "",
           lines: entryLinesWithIds(input.lines),
         });
         entries.set(id, updated);
@@ -574,6 +576,7 @@ function createEntryDb(
             id: `entry-${index + 1}`,
             fiscalPeriodId,
             ...input,
+            localId: input.localId ?? "",
             lines: entryLinesWithIds(input.lines),
           }),
         );
@@ -594,7 +597,7 @@ function createEntryDb(
         return fixedAsset({ id: "asset-1", fiscalPeriodId, ...input });
       },
       async update(id: string, patch: FixedAssetPatchInput) {
-        return fixedAsset({ id, fiscalPeriodId: "fp-1", ...patch });
+        return fixedAsset({ id, fiscalPeriodId: "fp-1", ...changedFields(patch) });
       },
       async delete() {},
     },
@@ -642,7 +645,7 @@ function entryLinesWithIds(
 function validEntryInput(
   overrides: Partial<EntryUpsertInput> = {},
 ): EntryUpsertInput {
-  return {
+  const base: EntryUpsertInput = {
     date: "2026-04-01",
     description: "valid entry",
     localId: "valid-entry",
@@ -665,14 +668,14 @@ function validEntryInput(
         businessCategoryId: "biz_none",
       },
     ],
-    ...overrides,
   };
+  return Object.assign(base, overrides);
 }
 
 function fiscalPeriod(
   overrides: Partial<FiscalPeriodApiRecord>,
 ): FiscalPeriodApiRecord {
-  return {
+  const base: FiscalPeriodApiRecord = {
     id: "fp-1",
     userId: "user-1",
     name: "2026年分",
@@ -686,12 +689,14 @@ function fiscalPeriod(
     opening: null,
     createdAt: TEST_TIMESTAMP,
     updatedAt: TEST_TIMESTAMP,
-    ...overrides,
+    archiveDataAvailable: null,
+    archivedAt: null,
   };
+  return Object.assign(base, overrides);
 }
 
 function entry(overrides: Partial<EntryApiRecord>): EntryApiRecord {
-  return {
+  const base: EntryApiRecord = {
     id: "entry-1",
     userId: "user-1",
     fiscalPeriodId: "fp-1",
@@ -702,14 +707,14 @@ function entry(overrides: Partial<EntryApiRecord>): EntryApiRecord {
     lines: [],
     createdAt: TEST_TIMESTAMP,
     updatedAt: TEST_TIMESTAMP,
-    ...overrides,
   };
+  return Object.assign(base, overrides);
 }
 
 function fixedAsset(
   overrides: Partial<FixedAssetApiRecord>,
 ): FixedAssetApiRecord {
-  return {
+  const base: FixedAssetApiRecord = {
     id: "asset-1",
     userId: "user-1",
     fiscalPeriodId: "fp-1",
@@ -725,6 +730,14 @@ function fixedAsset(
     bookAccountId: "",
     createdAt: TEST_TIMESTAMP,
     updatedAt: TEST_TIMESTAMP,
-    ...overrides,
   };
+  return Object.assign(base, overrides);
+}
+
+function changedFields<T extends object>(patch: T): {
+  [K in keyof T]?: Exclude<T[K], null>;
+} {
+  return Object.fromEntries(
+    Object.entries(patch).filter(([, value]) => value !== null),
+  ) as { [K in keyof T]?: Exclude<T[K], null> };
 }

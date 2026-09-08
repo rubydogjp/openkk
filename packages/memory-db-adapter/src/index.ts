@@ -27,7 +27,7 @@ function initializeSqliteWasm() {
 }
 
 export async function createMemoryDbAdapter(
-  seed?: MemoryDbSnapshot,
+  seed: MemoryDbSnapshot | null,
 ): Promise<OpenkkDbPort> {
   const sqlite3 = await initializeSqliteWasm();
   const db = new sqlite3.oo1.DB(":memory:");

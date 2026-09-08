@@ -11,7 +11,7 @@ import { createMemoryDbAdapter } from "@rubydogjp/openkk-memory-db-adapter";
 
 import { openkkConfig } from "./openkk-config";
 
-const brandConfig: BrandConfig = {};
+const brandConfig: BrandConfig = { marketingSiteUrl: null, productSiteUrl: null, accountIconUrl: null };
 
 const runtime: OpenkkBundleRuntime = {
   config: openkkConfig,
@@ -19,6 +19,7 @@ const runtime: OpenkkBundleRuntime = {
   calloutSlots: {},
   createBackendApi: createMemoryBackendApi,
   registerServiceWorker: false,
+  seedFiscalPeriod: null,
 };
 
 export function Providers(props: { children: React.ReactNode }) {
@@ -28,7 +29,7 @@ export function Providers(props: { children: React.ReactNode }) {
 }
 
 async function createMemoryBackendApi(): Promise<OpenkkBackendPort> {
-  const db = await createMemoryDbAdapter();
+  const db = await createMemoryDbAdapter(null);
   const server = createOpenkkEmbeddedBackend(db, {
     userId: openkkConfig.mockUserId,
   });

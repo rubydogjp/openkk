@@ -302,7 +302,7 @@ export function StepFormRow({
 }: {
   label: string;
   control: ReactNode;
-  hint?: ReactNode;
+  hint: ReactNode | null;
   divider?: boolean;
 }) {
   return (
@@ -362,8 +362,8 @@ export function StepPrimaryButton({
   onClick: () => void;
   children: ReactNode;
   disabled?: boolean;
-  variant?: "primary" | "success";
-  icon?: ReactNode;
+  variant: "primary" | "success" | null;
+  icon: ReactNode | null;
 }) {
   const bg = variant === "success" ? palette.success : palette.brand;
   const shadow =

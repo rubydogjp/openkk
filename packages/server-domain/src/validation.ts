@@ -87,7 +87,7 @@ export function assertUnitRate(value: number, label: string): void {
 export function assertEntryLinesBalanced(
   lines: ReadonlyArray<{ side: "debit" | "credit"; amount: number }>,
   label: string,
-  options: { allowZero?: boolean } = {},
+  options: { allowZero: boolean },
 ): void {
   if (lines.length > MAX_ENTRY_LINES) {
     throw serverValidationError(

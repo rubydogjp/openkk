@@ -6,8 +6,8 @@ import {
 
 export function validateEntryDate(
   date: string,
-  minDate?: string,
-  maxDate?: string,
+  minDate: string | null,
+  maxDate: string | null,
 ): string | null {
   if (parseIsoLocalDate(date) == null) {
     return "正しい日付を選択してください。";

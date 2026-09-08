@@ -2,7 +2,7 @@ import type { FsBsRow, FsExpenseWriteIn } from "./fs-data.js";
 import { buildPrintDocument, escapeHtml as esc } from "./print-shell.js";
 
 function writeInLabelOverrides(
-  writeIns: ReadonlyArray<FsExpenseWriteIn> | undefined,
+  writeIns: ReadonlyArray<FsExpenseWriteIn> | null,
 ): Record<number, string> {
   const overrides: Record<number, string> = {};
   (writeIns ?? []).slice(0, 4).forEach((writeIn, slot) => {
@@ -32,7 +32,12 @@ const BS_AMOUNT_W = 85;
 const BS_ROW_H = 25;
 const BS_HEADER_H = 29;
 
-type PLRow = { label: string; note?: string; index: number; height: number };
+type PLRow = {
+  label: string;
+  note: string | null;
+  index: number;
+  height: number;
+};
 type PLGroup = { title: string; rows: PLRow[] };
 
 const LEFT_GROUPS: PLGroup[] = [
@@ -43,10 +48,10 @@ const LEFT_GROUPS: PLGroup[] = [
   {
     title: "売上原価",
     rows: [
-      { label: "期首商品棚卸高", index: 2, height: 32 },
-      { label: "仕入金額", index: 3, height: 29 },
+      { label: "期首商品棚卸高", index: 2, height: 32, note: null },
+      { label: "仕入金額", index: 3, height: 29, note: null },
       { label: "小計", note: "(2+3)", index: 4, height: 29 },
-      { label: "期末商品棚卸高", index: 5, height: 32 },
+      { label: "期末商品棚卸高", index: 5, height: 32, note: null },
       { label: "差引原価", note: "(4-5)", index: 6, height: 29 },
     ],
   },
@@ -57,15 +62,15 @@ const LEFT_GROUPS: PLGroup[] = [
   {
     title: "経費",
     rows: [
-      { label: "租税公課", index: 8, height: 24 },
-      { label: "荷造運賃", index: 9, height: 24 },
-      { label: "水道光熱費", index: 10, height: 24 },
-      { label: "旅費交通費", index: 11, height: 24 },
-      { label: "通信費", index: 12, height: 24 },
-      { label: "広告宣伝費", index: 13, height: 24 },
-      { label: "接待交際費", index: 14, height: 24 },
-      { label: "損害保険料", index: 15, height: 24 },
-      { label: "修繕費", index: 16, height: 24 },
+      { label: "租税公課", index: 8, height: 24, note: null },
+      { label: "荷造運賃", index: 9, height: 24, note: null },
+      { label: "水道光熱費", index: 10, height: 24, note: null },
+      { label: "旅費交通費", index: 11, height: 24, note: null },
+      { label: "通信費", index: 12, height: 24, note: null },
+      { label: "広告宣伝費", index: 13, height: 24, note: null },
+      { label: "接待交際費", index: 14, height: 24, note: null },
+      { label: "損害保険料", index: 15, height: 24, note: null },
+      { label: "修繕費", index: 16, height: 24, note: null },
     ],
   },
 ];
@@ -74,22 +79,22 @@ const CENTER_GROUPS: PLGroup[] = [
   {
     title: "経費",
     rows: [
-      { label: "消耗品費", index: 17, height: 24 },
-      { label: "減価償却費", index: 18, height: 24 },
-      { label: "福利厚生費", index: 19, height: 24 },
-      { label: "給料賃金", index: 20, height: 24 },
-      { label: "外注工賃", index: 21, height: 24 },
-      { label: "利子割引料", index: 22, height: 24 },
-      { label: "地代家賃", index: 23, height: 24 },
-      { label: "貸倒金", index: 24, height: 24 },
-      { label: "研修費", index: 25, height: 24 },
-      { label: "会議費", index: 26, height: 24 },
-      { label: "", index: 27, height: 24 },
-      { label: "", index: 28, height: 24 },
-      { label: "", index: 29, height: 24 },
-      { label: "", index: 30, height: 24 },
-      { label: "雑費", index: 31, height: 24 },
-      { label: "計", index: 32, height: 24 },
+      { label: "消耗品費", index: 17, height: 24, note: null },
+      { label: "減価償却費", index: 18, height: 24, note: null },
+      { label: "福利厚生費", index: 19, height: 24, note: null },
+      { label: "給料賃金", index: 20, height: 24, note: null },
+      { label: "外注工賃", index: 21, height: 24, note: null },
+      { label: "利子割引料", index: 22, height: 24, note: null },
+      { label: "地代家賃", index: 23, height: 24, note: null },
+      { label: "貸倒金", index: 24, height: 24, note: null },
+      { label: "研修費", index: 25, height: 24, note: null },
+      { label: "会議費", index: 26, height: 24, note: null },
+      { label: "", index: 27, height: 24, note: null },
+      { label: "", index: 28, height: 24, note: null },
+      { label: "", index: 29, height: 24, note: null },
+      { label: "", index: 30, height: 24, note: null },
+      { label: "雑費", index: 31, height: 24, note: null },
+      { label: "計", index: 32, height: 24, note: null },
     ],
   },
   {
@@ -102,20 +107,20 @@ const RIGHT_GROUPS: PLGroup[] = [
   {
     title: "繰戻額等",
     rows: [
-      { label: "貸倒引当金", index: 34, height: 27 },
-      { label: "", index: 35, height: 27 },
-      { label: "", index: 36, height: 27 },
-      { label: "計", index: 37, height: 27 },
+      { label: "貸倒引当金", index: 34, height: 27, note: null },
+      { label: "", index: 35, height: 27, note: null },
+      { label: "", index: 36, height: 27, note: null },
+      { label: "計", index: 37, height: 27, note: null },
     ],
   },
   {
     title: "繰入額等",
     rows: [
-      { label: "専従者給与", index: 38, height: 27 },
-      { label: "貸倒引当金", index: 39, height: 27 },
-      { label: "", index: 40, height: 27 },
-      { label: "", index: 41, height: 27 },
-      { label: "計", index: 42, height: 24 },
+      { label: "専従者給与", index: 38, height: 27, note: null },
+      { label: "貸倒引当金", index: 39, height: 27, note: null },
+      { label: "", index: 40, height: 27, note: null },
+      { label: "", index: 41, height: 27, note: null },
+      { label: "計", index: 42, height: 24, note: null },
     ],
   },
   {
@@ -228,7 +233,7 @@ export type FinancialStatementsArgs = {
   fpName: string;
   amounts: Record<number, number | null>;
   bsRows: ReadonlyArray<FsBsRow>;
-  expenseWriteIns?: ReadonlyArray<FsExpenseWriteIn>;
+  expenseWriteIns: ReadonlyArray<FsExpenseWriteIn> | null;
 };
 
 const FS_PAGE_W = 1123;

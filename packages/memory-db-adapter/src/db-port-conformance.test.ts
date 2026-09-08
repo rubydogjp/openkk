@@ -11,12 +11,12 @@ import { createMemoryDbAdapter } from "./index.js";
 import { runDbPortConformance } from "../../server-ports/src/db-port-conformance.js";
 
 runDbPortConformance("memory-db-adapter (sync transport)", {
-  makeAdapter: () => createMemoryDbAdapter(),
+  makeAdapter: () => createMemoryDbAdapter(null),
   makeSeededAdapter: (seed) => createMemoryDbAdapter(seed),
 });
 
 async function createDeferredSqlTransportAdapter(
-  seed?: DbSnapshot,
+  seed: DbSnapshot | null,
 ): Promise<OpenkkDbPort> {
   const sqlite3 = await sqlite3InitModule({
     print: () => undefined,
@@ -33,6 +33,6 @@ async function createDeferredSqlTransportAdapter(
 }
 
 runDbPortConformance("sqlite core (deferred async transport)", {
-  makeAdapter: () => createDeferredSqlTransportAdapter(),
+  makeAdapter: () => createDeferredSqlTransportAdapter(null),
   makeSeededAdapter: (seed) => createDeferredSqlTransportAdapter(seed),
 });

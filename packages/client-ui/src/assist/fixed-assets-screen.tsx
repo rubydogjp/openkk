@@ -20,12 +20,12 @@ const fixedAssetColors = {
 
 export function FixedAssetsScreen(props: {
   items: FixedAssetPreviewItem[];
-  readOnly?: boolean;
-  onAdd?: () => void;
-  onOpenItem?: (itemId: string) => void;
-  contentMaxWidth?: number;
+  readOnly: boolean | null;
+  onAdd: (() => void) | null;
+  onOpenItem: ((itemId: string) => void) | null;
+  contentMaxWidth: number | null;
 
-  addButtonSlot?: ReactNode;
+  addButtonSlot: ReactNode | null;
 }) {
   const isReadOnly = props.readOnly === true;
   return (
@@ -78,7 +78,7 @@ export function FixedAssetsScreen(props: {
         <FixedAssetsTable
           items={props.items}
           readOnly={isReadOnly}
-          onOpenItem={isReadOnly ? undefined : props.onOpenItem}
+          onOpenItem={isReadOnly ? null : props.onOpenItem}
           fillHeight
         />
       </div>
@@ -88,9 +88,9 @@ export function FixedAssetsScreen(props: {
 
 function FixedAssetsTable(props: {
   items: FixedAssetPreviewItem[];
-  readOnly?: boolean;
-  onOpenItem?: (itemId: string) => void;
-  fillHeight?: boolean;
+  readOnly: boolean | null;
+  onOpenItem: ((itemId: string) => void) | null;
+  fillHeight: boolean | null;
 }) {
   const isEmpty = props.items.length === 0;
   const fillHeight = props.fillHeight ?? false;
@@ -263,12 +263,12 @@ function EmptyFixedAssetIcon() {
   );
 }
 
-function AddAssetButton({ onClick }: { onClick?: () => void }) {
+function AddAssetButton({ onClick }: { onClick: (() => void) | null }) {
   const disabled = onClick == null;
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={onClick ?? undefined}
       disabled={disabled}
       style={{
         height: sizes.button.compactHeight,
@@ -403,7 +403,7 @@ export function FixedAssetsPreviewSurface(props: {
 
 function FixedAssetRow(props: {
   asset: FixedAssetPreviewItem;
-  onOpen?: (itemId: string) => void;
+  onOpen: ((itemId: string) => void) | null;
   showDivider: boolean;
 }) {
   const clickable = props.onOpen != null;

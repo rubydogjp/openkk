@@ -43,7 +43,7 @@ export function hasActiveFiscalPeriodOverlap(
     endDate: string;
     archiveStatus: string;
   }>,
-  excludedPeriodId?: string,
+  excludedPeriodId: string | null,
 ): boolean {
   return periods.some(
     (period) =>

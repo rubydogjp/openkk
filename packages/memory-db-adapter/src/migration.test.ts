@@ -192,7 +192,7 @@ describe("SQLite v1 to v4 migration", () => {
     ).toBe("custom-business");
     const sync = db as unknown as { exec(arg: unknown): unknown };
     const sqlDb: SqlDb = { exec: async (arg) => sync.exec(arg) };
-    const adapter = await createSqliteDbAdapter(sqlDb);
+    const adapter = await createSqliteDbAdapter(sqlDb, null);
     await expect(adapter.fiscalPeriods.getById("fp-1")).resolves.toMatchObject({
       id: "fp-1",
       phase: "pre_closing",

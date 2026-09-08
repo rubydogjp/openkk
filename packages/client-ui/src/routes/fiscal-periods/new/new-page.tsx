@@ -71,6 +71,7 @@ export function CreateFiscalPeriodPage() {
     hasActiveFiscalPeriodOverlap(
       { startDate, endDate },
       appState.fiscalPeriods,
+      null,
     );
   const maxActivePeriods =
     resolveFiscalPeriodPolicy(openkkConfig).maxActivePeriods;
@@ -92,11 +93,10 @@ export function CreateFiscalPeriodPage() {
     if (release == null) return;
     setIsCreating(true);
     try {
-      const createdId = await appState.createFiscalPeriod({
-        name,
-        startDate,
-        endDate,
-      });
+      const createdId = await appState.createFiscalPeriod(
+        { name, startDate, endDate },
+        null,
+      );
       if (createdId == null) return;
       setScreenError(null);
       router.push("/steps");
@@ -106,6 +106,7 @@ export function CreateFiscalPeriodPage() {
           fallbackUserMessage: "期間の作成に失敗しました",
           fallbackDeveloperMessage:
             "fiscal-periods/new: createFiscalPeriod failed",
+          statusCode: null,
         }),
       );
     } finally {
@@ -157,6 +158,7 @@ export function CreateFiscalPeriodPage() {
                 placeholder="例: 2026年分"
               />
             }
+            hint={null}
           />
           <StepFormRow
             label="期間"
@@ -184,7 +186,7 @@ export function CreateFiscalPeriodPage() {
                 ? "有効な会計期間の上限に達しているため、新しい期間は作成できません。"
                 : editingLocked
                   ? "この環境ではデータの編集がロックされています。"
-                : undefined
+                : null
             }
           />
         </StepMetaCard>
@@ -206,9 +208,9 @@ export function CreateFiscalPeriodPage() {
             キャンセル
           </FormSecondaryButton>
           {atPeriodLimit || editingLocked ? (
-            <LockButton label="作成する" />
+            <LockButton label="作成する" style={null} />
           ) : (
-            <FormPrimaryButton onClick={handleCreate} disabled={!canSubmit}>
+            <FormPrimaryButton onClick={handleCreate} disabled={!canSubmit} variant={null} icon={null}>
               {isCreating ? "作成中…" : "作成する"}
             </FormPrimaryButton>
           )}
@@ -216,7 +218,7 @@ export function CreateFiscalPeriodPage() {
 
         {screenError != null ? (
           <div style={{ marginTop: 16 }}>
-            <AppErrorText error={screenError} />
+            <AppErrorText error={screenError} style={null} fallbackUserMessage={null} />
           </div>
         ) : null}
       </div>

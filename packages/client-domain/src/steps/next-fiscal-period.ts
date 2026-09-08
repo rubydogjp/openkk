@@ -220,7 +220,7 @@ function toOpeningJournalLine(
 }
 
 function resolveCategoryId(input: {
-  explicitId?: string;
+  explicitId: string | null;
   displayValue: string;
   categories: Array<{ id: string; name: string }>;
   blankFallbackId: string;

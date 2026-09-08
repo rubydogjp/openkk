@@ -10,7 +10,7 @@ export interface OpenkkBundleRuntime {
   config: OpenkkConfig;
   brandConfig: BrandConfig;
   calloutSlots: OpenkkCalloutSlots;
-  seedFiscalPeriod?: FiscalPeriodSeedProvider;
+  seedFiscalPeriod: FiscalPeriodSeedProvider | null;
   createBackendApi: () => Promise<OpenkkBackendPort>;
   registerServiceWorker: boolean;
 }

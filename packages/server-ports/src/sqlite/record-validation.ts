@@ -112,7 +112,9 @@ export function assertDbOpeningForPeriod(
         "期首仕訳の摘要を入力してください",
       );
     }
-    assertEntryLinesBalanced(journal.lines, "Opening journal");
+    assertEntryLinesBalanced(journal.lines, "Opening journal", {
+      allowZero: false,
+    });
   }
 
   let assetTotal = 0;
@@ -169,7 +171,7 @@ export function assertDbEntryInput(
     );
   }
   if (
-    input.localId !== undefined &&
+    input.localId != null &&
     (typeof input.localId !== "string" || input.localId.trim() === "")
   ) {
     throw serverValidationError(`${label} localId must be a non-blank string`);
@@ -201,7 +203,7 @@ export function assertDbEntryInput(
       throw serverValidationError(`${label} line text fields are invalid`);
     }
   }
-  assertEntryLinesBalanced(input.lines, label);
+  assertEntryLinesBalanced(input.lines, label, { allowZero: false });
 }
 
 export function assertDbFixedAssetRecord(
@@ -356,9 +358,8 @@ export function assertDbStoredEntryRecord(
       `Stored entry identity is invalid: ${String(record.id)}`,
     );
   }
-  const { localId, ...storedInputWithoutLocalId } = record;
   assertDbEntryInput(
-    localId === "" ? storedInputWithoutLocalId : record,
+    record.localId === "" ? { ...record, localId: null } : record,
     period,
     "Stored entry",
   );

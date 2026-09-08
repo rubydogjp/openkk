@@ -872,11 +872,17 @@ function createFiscalPeriodDb(
         return entry({
           fiscalPeriodId,
           ...input,
+          localId: input.localId ?? "",
           lines: entryLinesWithIds(input.lines),
         });
       },
       async update(id: string, input: EntryUpsertInput) {
-        return entry({ id, ...input, lines: entryLinesWithIds(input.lines) });
+        return entry({
+          id,
+          ...input,
+          localId: input.localId ?? "",
+          lines: entryLinesWithIds(input.lines),
+        });
       },
       async delete() {},
       async importMany(
@@ -889,6 +895,7 @@ function createFiscalPeriodDb(
             id: `entry-${index + 1}`,
             fiscalPeriodId,
             ...input,
+            localId: input.localId ?? "",
             lines: entryLinesWithIds(input.lines),
           }),
         );
@@ -911,7 +918,7 @@ function createFiscalPeriodDb(
         return fixedAsset({ fiscalPeriodId, ...input });
       },
       async update(id: string, patch: FixedAssetPatchInput) {
-        return fixedAsset({ id, ...patch });
+        return fixedAsset({ id, ...changedFields(patch) });
       },
       async delete() {},
     },
@@ -959,7 +966,7 @@ function entryLinesWithIds(
 function fiscalPeriod(
   overrides: Partial<StoredFiscalPeriodApiRecord>,
 ): StoredFiscalPeriodApiRecord {
-  return {
+  const base: StoredFiscalPeriodApiRecord = {
     id: "fp-1",
     userId: "user-1",
     name: "2026年分",
@@ -973,21 +980,23 @@ function fiscalPeriod(
     opening: null,
     createdAt: TEST_TIMESTAMP,
     updatedAt: TEST_TIMESTAMP,
-    ...overrides,
+    archiveDataAvailable: null,
+    archivedAt: null,
   };
+  return Object.assign(base, overrides);
 }
 
 type OpeningPatch = NonNullable<FiscalPeriodPatchInput["opening"]>;
 
 function openingPatch(overrides: Partial<OpeningPatch>): OpeningPatch {
-  return {
+  const base: OpeningPatch = {
     id: "op-fp-user-1",
     userId: "user-1",
     fiscalPeriodId: "fp-user-1",
     openingBalanceLines: [],
     openingJournals: [],
-    ...overrides,
   };
+  return Object.assign(base, overrides);
 }
 
 function openingJournal(
@@ -1019,7 +1028,7 @@ function openingLine(
 }
 
 function entry(overrides: Partial<EntryApiRecord>): EntryApiRecord {
-  return {
+  const base: EntryApiRecord = {
     id: "entry-1",
     userId: "user-1",
     fiscalPeriodId: "fp-1",
@@ -1030,14 +1039,14 @@ function entry(overrides: Partial<EntryApiRecord>): EntryApiRecord {
     lines: [],
     createdAt: TEST_TIMESTAMP,
     updatedAt: TEST_TIMESTAMP,
-    ...overrides,
   };
+  return Object.assign(base, overrides);
 }
 
 function fixedAsset(
   overrides: Partial<FixedAssetApiRecord>,
 ): FixedAssetApiRecord {
-  return {
+  const base: FixedAssetApiRecord = {
     id: "asset-1",
     userId: "user-1",
     fiscalPeriodId: "fp-1",
@@ -1053,6 +1062,14 @@ function fixedAsset(
     bookAccountId: "",
     createdAt: TEST_TIMESTAMP,
     updatedAt: TEST_TIMESTAMP,
-    ...overrides,
   };
+  return Object.assign(base, overrides);
+}
+
+function changedFields<T extends object>(patch: T): {
+  [K in keyof T]?: Exclude<T[K], null>;
+} {
+  return Object.fromEntries(
+    Object.entries(patch).filter(([, value]) => value !== null),
+  ) as { [K in keyof T]?: Exclude<T[K], null> };
 }

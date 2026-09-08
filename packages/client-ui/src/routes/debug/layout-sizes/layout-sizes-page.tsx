@@ -662,7 +662,7 @@ export function LayoutSizesPage() {
         >
           <div style={gridStyle}>
             {touchReferences.map((item) => (
-              <Card key={item.name}>
+              <Card key={item.name} style={null}>
                 <div style={{ ...typography.sectionTitle }}>{item.name}</div>
                 <div
                   style={{
@@ -712,7 +712,7 @@ export function LayoutSizesPage() {
           title="Button Variations"
           lead="テキスト・アイコン・下向きマークの組み合わせを、現状よく使う高さで並べます。"
         >
-          <Card>
+          <Card style={null}>
             <div
               style={{
                 display: "flex",
@@ -801,7 +801,7 @@ export function LayoutSizesPage() {
           title="Proposed Button System"
           lead="ボタンの中身が増えても高さと padding のルールが崩れないようにします。"
         >
-          <Card>
+          <Card style={null}>
             <div style={{ display: "grid", gap: spacing.s16 }}>
               <TokenGrid tokens={proposedButtonTokens} />
               <div
@@ -880,13 +880,13 @@ export function LayoutSizesPage() {
           title="Document Receive Pattern"
           lead="steps/document-receive / closing で使う採用済みの書類受け取りリスト。外枠付き白カード + 行区切り + 黒ドキュメントアイコン + token 化された compact button。"
         >
-          <Card>
+          <Card style={null}>
             <div style={{ maxWidth: 640 }}>
               <DocumentFileList
                 items={[
-                  { label: "仕訳帳.pdf" },
-                  { label: "総勘定元帳.pdf" },
-                  { label: "財務諸表.pdf" },
+                  { label: "仕訳帳.pdf", description: null, active: null, onClick: null },
+                  { label: "総勘定元帳.pdf", description: null, active: null, onClick: null },
+                  { label: "財務諸表.pdf", description: null, active: null, onClick: null },
                 ]}
               />
             </div>
@@ -897,7 +897,7 @@ export function LayoutSizesPage() {
           title="Proposed Shell Layout"
           lead="画面全体のサイズ感を大きめに再現します。sidebar 216px、mobile topbar 48px、data content 1360px の関係を確認します。"
         >
-          <Card>
+          <Card style={null}>
             <div style={{ display: "grid", gap: spacing.s20 }}>
               <div style={desktopShellPreviewStyle}>
                 <aside style={previewSidebarStyle}>
@@ -1109,7 +1109,7 @@ export function LayoutSizesPage() {
           title="Proposed Form Layout"
           lead="入力フォーム関連を大きめに再現します。40px field、label gap 8px、help gap 12px、stack gap 28px を基準にします。"
         >
-          <Card>
+          <Card style={null}>
             <div
               style={{
                 display: "grid",
@@ -1187,8 +1187,8 @@ export function LayoutSizesPage() {
                       gap: spacing.s16,
                     }}
                   >
-                    <FormPreviewField label="取引日" value="2026-05-21" />
-                    <FormPreviewField label="金額" value="88,000" />
+                    <FormPreviewField label="取引日" value="2026-05-21" help={null} />
+                    <FormPreviewField label="金額" value="88,000" help={null} />
                     <p
                       style={{
                         margin: `${spacing.s12} 0 0`,
@@ -1210,7 +1210,7 @@ export function LayoutSizesPage() {
           title="Proposed Application Sample"
           lead="理想寸法を仮適用した場合の見え方。entries 行は現状維持寄り、周辺フォームだけ整理しています。"
         >
-          <Card>
+          <Card style={null}>
             <div
               style={{
                 display: "grid",
@@ -1355,7 +1355,7 @@ export function LayoutSizesPage() {
           title="Size Samples"
           lead="実アプリに近い面・フォーム・テーブル・chip を、現在寸法のまま再現します。"
         >
-          <Card>
+          <Card style={null}>
             <div
               style={{
                 display: "grid",
@@ -1479,7 +1479,7 @@ export function LayoutSizesPage() {
           title="Design Decisions Draft"
           lead="今回の設計案です。まだ適用せず、次の段階で採用可否を判断します。"
         >
-          <Card>
+          <Card style={null}>
             <ul
               style={{
                 margin: 0,
@@ -1563,7 +1563,7 @@ function Card({
   style,
 }: {
   children: ReactNode;
-  style?: CSSProperties;
+  style: CSSProperties | null;
 }) {
   return (
     <div
@@ -1669,7 +1669,7 @@ function TokenGrid({ tokens }: { tokens: ProposedToken[] }) {
       }}
     >
       {tokens.map((token) => (
-        <Card key={token.name}>
+        <Card key={token.name} style={null}>
           <div style={{ ...typography.sectionTitle }}>{token.name}</div>
           <code
             style={{
@@ -1809,7 +1809,7 @@ function FormPreviewField({
 }: {
   label: string;
   value: string;
-  help?: string;
+  help: string | null;
 }) {
   return (
     <label style={{ display: "grid", gap: spacing.s8 }}>

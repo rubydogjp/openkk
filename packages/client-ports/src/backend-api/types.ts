@@ -3,7 +3,7 @@ export type OpenkkApiErrorDto = {
   messageForUser: string;
   originalMessage: string | null;
   statusCode: number | null;
-  code?: string | null;
+  code: string | null;
 };
 
 export const MAINTENANCE_MODE_ERROR_CODE = "maintenance_mode_enabled";
@@ -21,10 +21,10 @@ export type CompleteAuthSessionResponse = { completionCode: string };
 export type RedeemCompletionCodeRequest = { completionCode: string };
 export type CreateTokenResponse = {
   userId: string;
-  displayName?: string;
-  email?: string;
-  iconUrl?: string | null;
-  authProvider?: string;
+  displayName: string | null;
+  email: string | null;
+  iconUrl: string | null;
+  authProvider: string | null;
 };
 export type RedeemCompletionCodeResponse = CreateTokenResponse;
 export type AuthSignOutRequest = OpenkkEmptyRequest;
@@ -63,9 +63,43 @@ export type EntryApiRecord = {
 export type EntryUpsertInput = {
   date: string;
   description: string;
-  localId?: string;
+  localId: string | null;
   businessRate: number;
   lines: EntryApiLineInput[];
+};
+
+export type OpeningBalanceLineApiRecord = {
+  id: string;
+  accountId: string;
+  amount: number;
+};
+
+export type OpeningJournalLineApiRecord = {
+  id: string;
+  side: "debit" | "credit";
+  bookAccountId: string;
+  amount: number;
+  partnerName: string;
+  taxCategoryId: string;
+  businessCategoryId: string;
+};
+
+export type OpeningJournalApiRecord = {
+  id: string;
+  date: string;
+  description: string;
+  businessRate: number;
+  lines: OpeningJournalLineApiRecord[];
+};
+
+export type OpeningApiRecord = {
+  id: string;
+  userId: string;
+  fiscalPeriodId: string;
+  createdAt: string;
+  updatedAt: string;
+  openingBalanceLines: OpeningBalanceLineApiRecord[];
+  openingJournals: OpeningJournalApiRecord[];
 };
 
 export type FiscalPeriodApiRecord = {
@@ -76,38 +110,12 @@ export type FiscalPeriodApiRecord = {
   endDate: string;
   phase: "pre_opening" | "journalizing" | "pre_closing" | "post_closing";
   archiveStatus: "active" | "archived";
-  archiveDataAvailable?: boolean;
-  archivedAt?: string | null;
+  archiveDataAvailable: boolean | null;
+  archivedAt: string | null;
   settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
-  opening?: {
-    id: string;
-    userId: string;
-    fiscalPeriodId: string;
-    createdAt: string;
-    updatedAt: string;
-    openingBalanceLines?: Array<{
-      id: string;
-      accountId: string;
-      amount: number;
-    }>;
-    openingJournals?: Array<{
-      id: string;
-      date: string;
-      description: string;
-      businessRate: number;
-      lines: Array<{
-        id: string;
-        side: "debit" | "credit";
-        bookAccountId: string;
-        amount: number;
-        partnerName: string;
-        taxCategoryId: string;
-        businessCategoryId: string;
-      }>;
-    }>;
-  } | null;
+  opening: OpeningApiRecord | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -125,31 +133,7 @@ export type FiscalPeriodPatchInput = Partial<{
   settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
-  opening: {
-    id: string;
-    userId: string;
-    fiscalPeriodId: string;
-    openingBalanceLines: Array<{
-      id: string;
-      accountId: string;
-      amount: number;
-    }>;
-    openingJournals: Array<{
-      id: string;
-      date: string;
-      description: string;
-      businessRate: number;
-      lines: Array<{
-        id: string;
-        side: "debit" | "credit";
-        bookAccountId: string;
-        amount: number;
-        partnerName: string;
-        taxCategoryId: string;
-        businessCategoryId: string;
-      }>;
-    }>;
-  };
+  opening: Omit<OpeningApiRecord, "createdAt" | "updatedAt">;
 }>;
 
 export type FiscalPeriodArchiveImportInput = {
@@ -189,16 +173,16 @@ export type FixedAssetCreateInput = {
 };
 
 export type FixedAssetPatchInput = {
-  name?: string;
-  acquisitionDate?: string;
-  acquisitionCost?: number;
-  usefulLife?: number;
-  depreciationMethod?: "straight_line";
-  businessRate?: number;
-  status?: "active" | "sold" | "disposed" | "retired";
-  disposalDate?: string;
-  disposalPrice?: number;
-  bookAccountId?: string;
+  name: string | null;
+  acquisitionDate: string | null;
+  acquisitionCost: number | null;
+  usefulLife: number | null;
+  depreciationMethod: "straight_line" | null;
+  businessRate: number | null;
+  status: "active" | "sold" | "disposed" | "retired" | null;
+  disposalDate: string | null;
+  disposalPrice: number | null;
+  bookAccountId: string | null;
 };
 
 export type MasterBookAccountNormalBalanceSide = "debit" | "credit";

@@ -12,19 +12,19 @@ import type {
 
 export type EntryLinePair = {
   id: string;
-  debitLineId?: string;
-  debitAccountId?: string;
+  debitLineId: string | null;
+  debitAccountId: string | null;
   debitAccountName: string;
   debitAccountType: EntryAccountVisualType;
   debitAmount: string;
-  creditAccountId?: string;
+  creditAccountId: string | null;
   creditAccountName: string;
   creditAccountType: EntryAccountVisualType;
   creditAmount: string;
   debitPartnerName: string | null;
   debitTaxCategoryId: string | null;
   debitBusinessCategoryId: string | null;
-  creditLineId?: string;
+  creditLineId: string | null;
   creditPartnerName: string | null;
   creditTaxCategoryId: string | null;
   creditBusinessCategoryId: string | null;
@@ -35,7 +35,7 @@ export type EntryFormDraft = {
   description: string;
   partner: string;
   businessRate: string;
-  businessRateRatio?: number;
+  businessRateRatio: number | null;
   taxCategory: string;
   businessCategory: string;
   pairs: EntryLinePair[];
@@ -102,21 +102,17 @@ export function entryFormDraftToEntryDraft(
         accounts,
       );
       lines.push({
-        ...(pair.debitLineId == null ? {} : { id: pair.debitLineId }),
+        id: pair.debitLineId,
         side: "debit",
         accountName: pair.debitAccountName,
         accountType: pair.debitAccountType,
         amount: pair.debitAmount,
-        bookAccountId: matched?.id,
-        ...(pair.debitPartnerName == null
-          ? {}
-          : { partnerName: pair.debitPartnerName }),
-        ...(pair.debitTaxCategoryId == null
-          ? {}
-          : { taxCategoryId: pair.debitTaxCategoryId }),
-        ...(pair.debitBusinessCategoryId == null
-          ? {}
-          : { businessCategoryId: pair.debitBusinessCategoryId }),
+        bookAccountId: matched?.id ?? null,
+        partnerName: pair.debitPartnerName,
+        taxCategoryId: pair.debitTaxCategoryId,
+        taxCategoryName: null,
+        businessCategoryId: pair.debitBusinessCategoryId,
+        businessCategoryName: null,
       });
     }
     if (
@@ -130,21 +126,17 @@ export function entryFormDraftToEntryDraft(
         accounts,
       );
       lines.push({
-        ...(pair.creditLineId == null ? {} : { id: pair.creditLineId }),
+        id: pair.creditLineId,
         side: "credit",
         accountName: pair.creditAccountName,
         accountType: pair.creditAccountType,
         amount: pair.creditAmount,
-        bookAccountId: matched?.id,
-        ...(pair.creditPartnerName == null
-          ? {}
-          : { partnerName: pair.creditPartnerName }),
-        ...(pair.creditTaxCategoryId == null
-          ? {}
-          : { taxCategoryId: pair.creditTaxCategoryId }),
-        ...(pair.creditBusinessCategoryId == null
-          ? {}
-          : { businessCategoryId: pair.creditBusinessCategoryId }),
+        bookAccountId: matched?.id ?? null,
+        partnerName: pair.creditPartnerName,
+        taxCategoryId: pair.creditTaxCategoryId,
+        taxCategoryName: null,
+        businessCategoryId: pair.creditBusinessCategoryId,
+        businessCategoryName: null,
       });
     }
   }
@@ -161,7 +153,7 @@ export function entryFormDraftToEntryDraft(
 }
 
 function resolveDraftAccount(
-  accountId: string | undefined,
+  accountId: string | null,
   accountName: string,
   accountType: EntryAccountVisualType,
   accounts: EntryMasterAccountOption[],

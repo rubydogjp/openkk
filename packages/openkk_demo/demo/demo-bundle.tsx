@@ -19,6 +19,8 @@ export const demoEditingPolicy: OpenkkEditingPolicy = {
 export const demoFiscalPeriodPolicy: FiscalPeriodPolicy = {
   maxActivePeriods: 1,
   archiveRetention: "persistent",
+  ephemeralArchiveWarning: null,
+  allowArchiveImport: true,
 };
 
 export const demoBrandConfig: BrandConfig = {

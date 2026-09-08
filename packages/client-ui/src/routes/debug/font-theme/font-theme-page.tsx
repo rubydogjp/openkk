@@ -257,7 +257,7 @@ export function FontThemePage() {
         >
           <div style={gridStyle}>
             {familyTokens.map((token) => (
-              <Card key={token.name}>
+              <Card key={token.name} style={null}>
                 <div style={{ ...typography.sectionTitle }}>{token.name}</div>
                 <code style={codeStyle}>{token.value}</code>
                 <p
@@ -306,7 +306,7 @@ export function FontThemePage() {
         >
           <div style={gridStyle}>
             {weightTokens.map((token) => (
-              <Card key={token.name}>
+              <Card key={token.name} style={null}>
                 <div
                   style={{
                     fontSize: typography.pageTitle.fontSize,
@@ -353,7 +353,7 @@ export function FontThemePage() {
           title="Self Review"
           lead="一つずつ見直して、削った token と残した理由を明記します。"
         >
-          <Card>
+          <Card style={null}>
             <ul
               style={{
                 margin: 0,
@@ -406,7 +406,7 @@ function Card({
   style,
 }: {
   children: ReactNode;
-  style?: CSSProperties;
+  style: CSSProperties | null;
 }) {
   return (
     <div
@@ -459,7 +459,7 @@ function TypeRow({ token }: { token: TypeToken }) {
 
 function DocsSample() {
   return (
-    <Card>
+    <Card style={null}>
       <div
         style={{
           ...typography.meta,
@@ -520,7 +520,7 @@ function DocsSample() {
 
 function FormAndTableSample() {
   return (
-    <Card>
+    <Card style={null}>
       <div
         style={{
           display: "grid",

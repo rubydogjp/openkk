@@ -144,7 +144,7 @@ describe("listFixedAssetsForPeriod", () => {
   it("keeps the unfiltered form for the current fixed-assets screen", () => {
     const assets = [previewAsset()];
 
-    expect(listFixedAssetsForPeriod(assets)).toBe(assets);
+    expect(listFixedAssetsForPeriod(assets, null)).toBe(assets);
   });
 });
 
@@ -195,7 +195,7 @@ describe("resolveBookAccountId", () => {
 
   it("resolves duplicate display names by account type", () => {
     expect(
-      resolveBookAccountId(undefined, "賞与", "expense", {
+      resolveBookAccountId(null, "賞与", "expense", {
         accountIdsByName,
         accountTypeById,
       }),
@@ -412,7 +412,7 @@ describe("compound opening journals", () => {
 });
 
 function draft(overrides: Partial<FixedAssetDraft> = {}): FixedAssetDraft {
-  return {
+  const base: FixedAssetDraft = {
     name: "業務用PC",
     account: "工具器具備品",
     acquisitionDate: "2026-04-01",
@@ -420,14 +420,17 @@ function draft(overrides: Partial<FixedAssetDraft> = {}): FixedAssetDraft {
     usefulLife: 4,
     businessRatePercent: 80,
     status: "償却中",
-    ...overrides,
+    businessRateRatio: null,
+    disposalDate: null,
+    disposalPrice: null,
   };
+  return Object.assign(base, overrides);
 }
 
 function previewAsset(
   overrides: Partial<FixedAssetPreviewItem> = {},
 ): FixedAssetPreviewItem {
-  return {
+  const base: FixedAssetPreviewItem = {
     id: "asset-1",
     fiscalPeriodId: "fp-1",
     name: "業務用PC",
@@ -438,6 +441,14 @@ function previewAsset(
     current: "300,000",
     purchase: "300,000",
     status: "償却中",
-    ...overrides,
+    accountId: null,
+    depreciationAmount: null,
+    acquisitionDate: null,
+    acquisitionCost: null,
+    usefulLife: null,
+    businessRate: null,
+    disposalDate: null,
+    disposalPrice: null,
   };
+  return Object.assign(base, overrides);
 }

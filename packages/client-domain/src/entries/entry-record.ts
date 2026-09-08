@@ -5,17 +5,17 @@ import type {
 import { parseAmount, parseBusinessRate } from "../shared/parse-utils.js";
 
 export type EntryLine = {
-  id?: string;
+  id: string | null;
   side: "debit" | "credit";
   accountName: string;
   accountType: EntryAccountVisualType;
   amount: string;
-  bookAccountId?: string;
-  partnerName?: string;
-  taxCategoryId?: string;
-  taxCategoryName?: string;
-  businessCategoryId?: string;
-  businessCategoryName?: string;
+  bookAccountId: string | null;
+  partnerName: string | null;
+  taxCategoryId: string | null;
+  taxCategoryName: string | null;
+  businessCategoryId: string | null;
+  businessCategoryName: string | null;
 };
 
 export type EntryLineMetadata = {
@@ -119,6 +119,12 @@ export function applyBusinessRateToLines(
         bookAccountId: toDeposit
           ? OWNER_DEPOSIT_ACCOUNT_ID
           : OWNER_WITHDRAWAL_ACCOUNT_ID,
+        id: null,
+        partnerName: null,
+        taxCategoryId: null,
+        taxCategoryName: null,
+        businessCategoryId: null,
+        businessCategoryName: null,
       });
     }
   }
@@ -137,7 +143,7 @@ export function getBusinessAdjustedEntryLines(
 
 export function resolveEntryBusinessRate(record: {
   businessRate: string;
-  businessRateRatio?: number;
+  businessRateRatio: number | null;
 }): number {
   const exact = record.businessRateRatio;
   return exact != null && Number.isFinite(exact) && exact >= 0 && exact <= 1
@@ -147,7 +153,7 @@ export function resolveEntryBusinessRate(record: {
 
 export const BUSINESS_RATE_TRANSFER_LOCAL_ID = "virtual:business-rate-transfer";
 
-export function excludeBusinessRateTransfer<T extends { localId?: string }>(
+export function excludeBusinessRateTransfer<T extends { localId: string | null }>(
   entries: T[],
 ): T[] {
   return entries.filter(
@@ -165,7 +171,7 @@ export function buildBusinessRateTransferEntry(input: {
     {
       accountName: string;
       accountType: EntryAccountVisualType;
-      bookAccountId?: string;
+      bookAccountId: string | null;
       signed: number;
     }
   >();
@@ -215,6 +221,12 @@ export function buildBusinessRateTransferEntry(input: {
       accountType,
       amount: formatYen(Math.abs(amount)),
       bookAccountId,
+      id: null,
+      partnerName: null,
+      taxCategoryId: null,
+      taxCategoryName: null,
+      businessCategoryId: null,
+      businessCategoryName: null,
     };
     (amount > 0 ? debits : credits).push(line);
   }
@@ -243,6 +255,12 @@ export function buildBusinessRateTransferEntry(input: {
     taxCategory: "対象外",
     businessCategory: "",
     localId: BUSINESS_RATE_TRANSFER_LOCAL_ID,
+    debitBookAccountId: null,
+    creditBookAccountId: null,
+    debitTaxCategoryId: null,
+    creditTaxCategoryId: null,
+    debitBusinessCategoryId: null,
+    creditBusinessCategoryId: null,
   };
 }
 
@@ -252,7 +270,7 @@ export type EntryRecord = {
   date: string;
   weekday: string;
 
-  lines?: EntryLine[];
+  lines: EntryLine[] | null;
 
   debit: string;
   debitType: EntryPreviewRow["debitType"];
@@ -263,16 +281,16 @@ export type EntryRecord = {
   description: string;
   partner: string;
   businessRate: string;
-  businessRateRatio?: number;
+  businessRateRatio: number | null;
   taxCategory: string;
   businessCategory: string;
-  localId?: string;
-  debitBookAccountId?: string;
-  creditBookAccountId?: string;
-  debitTaxCategoryId?: string;
-  creditTaxCategoryId?: string;
-  debitBusinessCategoryId?: string;
-  creditBusinessCategoryId?: string;
+  localId: string | null;
+  debitBookAccountId: string | null;
+  creditBookAccountId: string | null;
+  debitTaxCategoryId: string | null;
+  creditTaxCategoryId: string | null;
+  debitBusinessCategoryId: string | null;
+  creditBusinessCategoryId: string | null;
 };
 
 export function getEntryLines(record: EntryRecord): EntryLine[] {
@@ -289,6 +307,9 @@ export function getEntryLines(record: EntryRecord): EntryLine[] {
       partnerName: record.partner,
       taxCategoryId: record.debitTaxCategoryId,
       businessCategoryId: record.debitBusinessCategoryId,
+      id: null,
+      taxCategoryName: null,
+      businessCategoryName: null,
     },
     {
       side: "credit",
@@ -299,6 +320,9 @@ export function getEntryLines(record: EntryRecord): EntryLine[] {
       partnerName: record.partner,
       taxCategoryId: record.creditTaxCategoryId,
       businessCategoryId: record.creditBusinessCategoryId,
+      id: null,
+      taxCategoryName: null,
+      businessCategoryName: null,
     },
   ];
 }
@@ -325,7 +349,7 @@ export function entryToVisualPairs(record: EntryRecord): Array<{
 export function recordToPreviewRows(record: EntryRecord): EntryPreviewRow[] {
   const pairs = entryToVisualPairs(record);
   const dateLabel = `${record.date.slice(5, 7)}/${record.date.slice(8, 10)}`;
-  return pairs.map((pair, index) => {
+  return pairs.map((pair, index): EntryPreviewRow => {
     const metadata = resolveEntryPairMetadata(record, pair);
     return {
       recordId: record.id,
@@ -337,23 +361,24 @@ export function recordToPreviewRows(record: EntryRecord): EntryPreviewRow[] {
       debit: pair.debit?.accountName ?? "",
       debitType: pair.debit?.accountType ?? "asset",
       debitAmount: pair.debit?.amount ?? "",
-      debitBookAccountId: pair.debit?.bookAccountId,
-      debitPartnerName: pair.debit?.partnerName,
-      debitTaxCategoryId: pair.debit?.taxCategoryId,
-      debitBusinessCategoryId: pair.debit?.businessCategoryId,
+      debitBookAccountId: pair.debit?.bookAccountId ?? null,
+      debitPartnerName: pair.debit?.partnerName ?? null,
+      debitTaxCategoryId: pair.debit?.taxCategoryId ?? null,
+      debitBusinessCategoryId: pair.debit?.businessCategoryId ?? null,
       credit: pair.credit?.accountName ?? "",
       creditType: pair.credit?.accountType ?? "asset",
       creditAmount: pair.credit?.amount ?? "",
-      creditBookAccountId: pair.credit?.bookAccountId,
-      creditPartnerName: pair.credit?.partnerName,
-      creditTaxCategoryId: pair.credit?.taxCategoryId,
-      creditBusinessCategoryId: pair.credit?.businessCategoryId,
+      creditBookAccountId: pair.credit?.bookAccountId ?? null,
+      creditPartnerName: pair.credit?.partnerName ?? null,
+      creditTaxCategoryId: pair.credit?.taxCategoryId ?? null,
+      creditBusinessCategoryId: pair.credit?.businessCategoryId ?? null,
       description: record.description,
       partner: metadata.partner,
       businessRate: record.businessRate,
       businessRateRatio: record.businessRateRatio,
       taxCategory: metadata.taxCategory,
       businessCategory: metadata.businessCategory,
+      virtual: null,
     };
   });
 }

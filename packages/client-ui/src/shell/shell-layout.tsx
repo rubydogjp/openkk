@@ -232,6 +232,9 @@ function ShellChrome({
     open: drawerOpen,
     onDismiss: () => setDrawerOpen(false),
     trapFocus: true,
+    initialFocusRef: null,
+    focusOnOpen: null,
+    restoreFocus: null,
   });
   const [authActionError, setAuthActionError] = useState<unknown>(null);
   const [authActionPending, setAuthActionPending] = useState(false);
@@ -276,6 +279,7 @@ function ShellChrome({
         AppError.from(error, {
           fallbackUserMessage: "サインインを開始できませんでした",
           fallbackDeveloperMessage: "shell: startSignIn failed",
+          statusCode: null,
         }),
       );
     } finally {
@@ -301,6 +305,7 @@ function ShellChrome({
             "この端末ではサインアウトしましたが、サーバーへの通知に失敗しました",
           fallbackDeveloperMessage:
             "shell: remote signOut failed after clearing local session",
+          statusCode: null,
         }),
       );
     } finally {
@@ -898,6 +903,7 @@ function ShellChrome({
                             setMenuOpen(false);
                             openExternalUrl(brandConfig.productSiteUrl!);
                           }}
+                          disabled={null}
                         />
                       )}
                       <MenuButton
@@ -976,7 +982,7 @@ function ShellChrome({
                 borderBottom: `1px solid ${palette.dangerBorder}`,
               }}
             >
-              <AppErrorText error={authActionError} />
+              <AppErrorText error={authActionError} style={null} fallbackUserMessage={null} />
             </div>
           ) : null}
           <DataLoadErrorBanner />
@@ -991,14 +997,14 @@ function MenuButton(props: {
   icon: ReactNode;
   label: string;
   labelColor: string;
-  disabled?: boolean;
+  disabled: boolean | null;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       role="menuitem"
-      disabled={props.disabled}
+      disabled={props.disabled ?? undefined}
       onClick={props.onClick}
       className="bk-menu-item"
       style={{

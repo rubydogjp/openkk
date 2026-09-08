@@ -28,18 +28,39 @@ describe("entry scenario rows", () => {
           accountName: "消耗品費",
           accountType: "expense",
           amount: "10,000",
+          id: null,
+          bookAccountId: null,
+          partnerName: null,
+          taxCategoryId: null,
+          taxCategoryName: null,
+          businessCategoryId: null,
+          businessCategoryName: null,
         },
         {
           side: "debit",
           accountName: "通信費",
           accountType: "expense",
           amount: "5,000",
+          id: null,
+          bookAccountId: null,
+          partnerName: null,
+          taxCategoryId: null,
+          taxCategoryName: null,
+          businessCategoryId: null,
+          businessCategoryName: null,
         },
         {
           side: "credit",
           accountName: "普通預金",
           accountType: "asset",
           amount: "15,000",
+          id: null,
+          bookAccountId: null,
+          partnerName: null,
+          taxCategoryId: null,
+          taxCategoryName: null,
+          businessCategoryId: null,
+          businessCategoryName: null,
         },
       ],
     });
@@ -72,6 +93,10 @@ describe("entry scenario rows", () => {
             partnerName: "仕入先A",
             taxCategoryName: "課税仕入 10%",
             businessCategoryName: "第5種",
+            id: null,
+            bookAccountId: null,
+            taxCategoryId: null,
+            businessCategoryId: null,
           },
           {
             side: "debit",
@@ -81,6 +106,10 @@ describe("entry scenario rows", () => {
             partnerName: "銀行B",
             taxCategoryName: "対象外",
             businessCategoryName: "対象外",
+            id: null,
+            bookAccountId: null,
+            taxCategoryId: null,
+            businessCategoryId: null,
           },
           {
             side: "credit",
@@ -90,6 +119,10 @@ describe("entry scenario rows", () => {
             partnerName: "銀行B",
             taxCategoryName: "対象外",
             businessCategoryName: "対象外",
+            id: null,
+            bookAccountId: null,
+            taxCategoryId: null,
+            businessCategoryId: null,
           },
         ],
       }),
@@ -376,12 +409,26 @@ describe("entry scenario rows", () => {
             accountName: "未払金",
             accountType: "liability",
             amount: "210,000",
+            id: null,
+            bookAccountId: null,
+            partnerName: null,
+            taxCategoryId: null,
+            taxCategoryName: null,
+            businessCategoryId: null,
+            businessCategoryName: null,
           },
           {
             side: "credit",
             accountName: "仕入金額",
             accountType: "cost_of_sales",
             amount: "210,000",
+            id: null,
+            bookAccountId: null,
+            partnerName: null,
+            taxCategoryId: null,
+            taxCategoryName: null,
+            businessCategoryId: null,
+            businessCategoryName: null,
           },
         ],
       }),
@@ -390,14 +437,15 @@ describe("entry scenario rows", () => {
 });
 
 /** 分析・トレンドと同じく、全行を収益/費用に集計した PL を返す。 */
-function plTotals(rows: EntrySummaryRow[]): {
+function plTotals(rows: ReadonlyArray<Omit<EntrySummaryRow, "lines">>): {
   revenue: number;
   expenses: number;
   profit: number;
 } {
   let revenue = 0;
   let expenses = 0;
-  for (const row of rows) {
+  for (const source of rows) {
+    const row: EntrySummaryRow = { ...source, lines: null };
     const rate = parseBusinessRate(row.businessRate);
     revenue += computeRevenueContribution(row, rate);
     expenses += computeExpenseContribution(row, rate);
@@ -408,7 +456,8 @@ function plTotals(rows: EntrySummaryRow[]): {
 function fixedAsset(
   overrides: Partial<FixedAssetPreviewItem> & { id: string },
 ): FixedAssetPreviewItem {
-  return {
+  const base: FixedAssetPreviewItem = {
+    id: overrides.id,
     name: "資産",
     account: "工具器具備品",
     period: "",
@@ -418,12 +467,20 @@ function fixedAsset(
     purchase: "0",
     status: "償却中",
     fiscalPeriodId: "fp-2026",
-    ...overrides,
+    accountId: null,
+    depreciationAmount: null,
+    acquisitionDate: null,
+    acquisitionCost: null,
+    usefulLife: null,
+    businessRate: null,
+    disposalDate: null,
+    disposalPrice: null,
   };
+  return Object.assign(base, overrides);
 }
 
 function entry(overrides: Partial<EntryRecord>): EntryRecord {
-  return {
+  const base: EntryRecord = {
     id: "scenario-entry",
     fiscalPeriodId: "fp-2026",
     date: "2026-09-05",
@@ -439,14 +496,23 @@ function entry(overrides: Partial<EntryRecord>): EntryRecord {
     businessRate: "",
     taxCategory: "課税 10%",
     businessCategory: "",
-    ...overrides,
+    lines: null,
+    businessRateRatio: null,
+    localId: null,
+    debitBookAccountId: null,
+    creditBookAccountId: null,
+    debitTaxCategoryId: null,
+    creditTaxCategoryId: null,
+    debitBusinessCategoryId: null,
+    creditBusinessCategoryId: null,
   };
+  return Object.assign(base, overrides);
 }
 
 function openingCarryover(
   overrides: Partial<OpeningCarryoverRecord>,
 ): OpeningCarryoverRecord {
-  return {
+  const base: OpeningCarryoverRecord = {
     id: "carryover",
     fiscalPeriodId: "fp-2027",
     date: "2027-01-01",
@@ -461,8 +527,12 @@ function openingCarryover(
     taxCategory: "対象外",
     businessCategory: "",
     businessRate: "",
-    ...overrides,
+    businessRateRatio: null,
+    debitBookAccountId: null,
+    creditBookAccountId: null,
+    lines: null,
   };
+  return Object.assign(base, overrides);
 }
 
 function totalBySide(

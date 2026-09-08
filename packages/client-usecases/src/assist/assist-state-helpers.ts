@@ -32,7 +32,7 @@ export function upsertFixedAsset(
 
 export function listFixedAssetsForPeriod(
   assets: FixedAssetPreviewItem[],
-  fiscalPeriodId?: string,
+  fiscalPeriodId: string | null,
 ): FixedAssetPreviewItem[] {
   if (fiscalPeriodId == null) return assets;
   return assets.filter((asset) => asset.fiscalPeriodId === fiscalPeriodId);
@@ -130,8 +130,8 @@ export function mapOpeningJournalToRecord(
       "対象外",
     businessRate: formatBusinessRatePercent(journal.businessRate ?? 1),
     businessRateRatio: journal.businessRate ?? 1,
-    debitBookAccountId: debit?.bookAccountId,
-    creditBookAccountId: credit?.bookAccountId,
+    debitBookAccountId: debit?.bookAccountId ?? null,
+    creditBookAccountId: credit?.bookAccountId ?? null,
     lines,
   };
 }
@@ -164,6 +164,11 @@ export function buildOpeningJournalLines(
         accountType: draft.debitType,
         amount: draft.debitAmount,
         bookAccountId: draft.debitBookAccountId,
+        partnerName: null,
+        taxCategoryId: null,
+        taxCategoryName: null,
+        businessCategoryId: null,
+        businessCategoryName: null,
       },
       {
         id: "",
@@ -172,6 +177,11 @@ export function buildOpeningJournalLines(
         accountType: draft.creditType,
         amount: draft.creditAmount,
         bookAccountId: draft.creditBookAccountId,
+        partnerName: null,
+        taxCategoryId: null,
+        taxCategoryName: null,
+        businessCategoryId: null,
+        businessCategoryName: null,
       },
     ];
   const usedLineIds = new Set(
@@ -225,7 +235,7 @@ export function buildOpeningJournalLines(
 }
 
 export function resolveBookAccountId(
-  explicitId: string | undefined,
+  explicitId: string | null,
   name: string,
   accountType: EntryAccountVisualType,
   master: {
@@ -247,7 +257,7 @@ export function resolveBookAccountId(
 }
 
 export function resolveUpdatedBookAccountId(
-  current: { accountId?: string; accountName?: string } | null,
+  current: { accountId: string | null; accountName: string | null } | null,
   draftAccountName: string,
   accountType: EntryAccountVisualType,
   master: {
@@ -256,7 +266,7 @@ export function resolveUpdatedBookAccountId(
   },
 ): string | null {
   const unchangedAccountId =
-    current?.accountName === draftAccountName ? current.accountId : undefined;
+    current?.accountName === draftAccountName ? current.accountId : null;
   return resolveBookAccountId(
     unchangedAccountId,
     draftAccountName,
@@ -296,9 +306,9 @@ export function resolveCategoryId(
 
 export function mapFixedAssetToPreview(
   asset: FixedAssetApiRecord,
-  accountName: string | undefined,
+  accountName: string | null,
   today: Date,
-  fiscalPeriodEndDate: string | undefined,
+  fiscalPeriodEndDate: string | null,
 ): FixedAssetPreviewItem {
   const isClosed = asset.status !== "active";
   const asOf =
@@ -330,10 +340,10 @@ export function mapFixedAssetToPreview(
     acquisitionCost: asset.acquisitionCost,
     usefulLife: asset.usefulLife,
     businessRate: asset.businessRate,
-    disposalDate: asset.disposalDate || undefined,
+    disposalDate: asset.disposalDate || null,
     disposalPrice: asset.disposalPrice
       ? formatYen(asset.disposalPrice)
-      : undefined,
+      : null,
   };
 }
 
@@ -354,6 +364,7 @@ export function fixedAssetDraftToPatch(
     disposalPrice:
       draft.status === "売却済" ? parseAmount(draft.disposalPrice ?? "0") : 0,
     bookAccountId,
+    depreciationMethod: null,
   };
 }
 

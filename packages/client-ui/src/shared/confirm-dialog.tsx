@@ -12,8 +12,8 @@ export type ConfirmDialogOptions = {
   tone: ConfirmDialogTone;
   title: string;
   body: string[];
-  confirmLabel?: string;
-  cancelLabel?: string;
+  confirmLabel: string | null;
+  cancelLabel: string | null;
 };
 
 const toneMap = {

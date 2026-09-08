@@ -34,7 +34,7 @@ import {
 export function FiscalPeriodSettingsBody({
   onSwitchToStep,
 }: {
-  onSwitchToStep?: (stepNo: number) => void;
+  onSwitchToStep: ((stepNo: number) => void) | null;
 }) {
   const appState = useOpenkkAppState();
   const config = useOpenkkConfig();
@@ -127,6 +127,7 @@ export function FiscalPeriodSettingsBody({
         "内容に間違いがないことを確認した上で開始してください。",
       ],
       confirmLabel: "開始する",
+      cancelLabel: null,
     });
     if (!confirmed) {
       release();
@@ -151,6 +152,7 @@ export function FiscalPeriodSettingsBody({
           fallbackUserMessage: "期間の更新に失敗しました",
           fallbackDeveloperMessage:
             "steps/fiscal-period-settings: updateFiscalPeriod failed",
+          statusCode: null,
         }),
       );
     } finally {
@@ -181,6 +183,7 @@ export function FiscalPeriodSettingsBody({
               placeholder="例: 2026年分"
             />
           }
+          hint={null}
         />
         <StepFormRow
           label="期間"
@@ -206,7 +209,7 @@ export function FiscalPeriodSettingsBody({
           hint={
             lockMessage == null
               ? "開始するまでの間、名称と期間を変更できます。"
-              : undefined
+              : null
           }
         />
         <StepFormRow
@@ -225,7 +228,7 @@ export function FiscalPeriodSettingsBody({
             justifyContent: "flex-end",
           }}
         >
-          <StepPrimaryButton onClick={() => onSwitchToStep?.(2)}>
+          <StepPrimaryButton onClick={() => onSwitchToStep?.(2)} variant={null} icon={null}>
             次の手順へ
           </StepPrimaryButton>
         </div>
@@ -250,7 +253,7 @@ export function FiscalPeriodSettingsBody({
 
       {screenError != null ? (
         <div style={{ marginTop: 16 }}>
-          <AppErrorText error={screenError} />
+          <AppErrorText error={screenError} style={null} fallbackUserMessage={null} />
         </div>
       ) : null}
     </>

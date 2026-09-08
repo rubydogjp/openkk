@@ -13,10 +13,10 @@ type PaletteToken = {
   value: string;
   purpose: string;
   examples: string[];
-  preview?: "surface" | "border" | "button" | "message" | "text";
-  fg?: string;
-  bg?: string;
-  border?: string;
+  preview: "surface" | "border" | "button" | "message" | "text" | null;
+  fg: string | null;
+  bg: string | null;
+  border: string | null;
 };
 
 type AppPalette = {
@@ -147,6 +147,8 @@ const paletteTokens: PaletteToken[] = [
     examples: ["/entries の作業面", "詳細 drawer 背景", "一覧ページの余白"],
     preview: "surface",
     border: appPalette.borderSubtle,
+    fg: null,
+    bg: null,
   },
   {
     group: "Canvas / Surface",
@@ -156,6 +158,8 @@ const paletteTokens: PaletteToken[] = [
     examples: ["テーブル行", "入力フィールド", "dropdown menu"],
     preview: "surface",
     border: appPalette.borderSubtle,
+    fg: null,
+    bg: null,
   },
   {
     group: "Canvas / Surface",
@@ -165,6 +169,8 @@ const paletteTokens: PaletteToken[] = [
     examples: ["フォームグループ", "hover row", "readonly 周辺"],
     preview: "surface",
     border: appPalette.borderSubtle,
+    fg: null,
+    bg: null,
   },
   {
     group: "Canvas / Surface",
@@ -174,6 +180,8 @@ const paletteTokens: PaletteToken[] = [
     examples: ["仕訳一覧ヘッダー", "空テーブル面", "セクション見出し帯"],
     preview: "surface",
     border: appPalette.borderControl,
+    fg: null,
+    bg: null,
   },
   {
     group: "Border",
@@ -184,6 +192,7 @@ const paletteTokens: PaletteToken[] = [
     preview: "border",
     bg: appPalette.surface,
     border: appPalette.borderSubtle,
+    fg: null,
   },
   {
     group: "Border",
@@ -194,6 +203,7 @@ const paletteTokens: PaletteToken[] = [
     preview: "border",
     bg: appPalette.surfaceTint,
     border: appPalette.borderControl,
+    fg: null,
   },
   {
     group: "Border",
@@ -204,6 +214,7 @@ const paletteTokens: PaletteToken[] = [
     preview: "border",
     bg: appPalette.page,
     border: appPalette.borderStrong,
+    fg: null,
   },
   {
     group: "Text",
@@ -213,6 +224,8 @@ const paletteTokens: PaletteToken[] = [
     examples: ["ページ見出し", "金額", "仕訳行の主情報"],
     preview: "text",
     fg: appPalette.textPrimary,
+    bg: null,
+    border: null,
   },
   {
     group: "Text",
@@ -222,6 +235,8 @@ const paletteTokens: PaletteToken[] = [
     examples: ["カード説明", "補足テキスト", "サブタイトル"],
     preview: "text",
     fg: appPalette.textSecondary,
+    bg: null,
+    border: null,
   },
   {
     group: "Text",
@@ -231,6 +246,8 @@ const paletteTokens: PaletteToken[] = [
     examples: ["フィールドラベル", "テーブルヘッダー文字", "日付 meta"],
     preview: "text",
     fg: appPalette.textLabel,
+    bg: null,
+    border: null,
   },
   {
     group: "Text",
@@ -240,6 +257,8 @@ const paletteTokens: PaletteToken[] = [
     examples: ["placeholder", "無効メニュー", "未選択表示"],
     preview: "text",
     fg: appPalette.textMuted,
+    bg: null,
+    border: null,
   },
   {
     group: "Brand",
@@ -250,6 +269,7 @@ const paletteTokens: PaletteToken[] = [
     preview: "surface",
     fg: appPalette.brandPaper,
     border: appPalette.brandInk,
+    bg: null,
   },
   {
     group: "Action",
@@ -260,6 +280,7 @@ const paletteTokens: PaletteToken[] = [
     preview: "button",
     fg: appPalette.brandPaper,
     border: appPalette.action,
+    bg: null,
   },
   {
     group: "Action",
@@ -270,6 +291,7 @@ const paletteTokens: PaletteToken[] = [
     preview: "message",
     fg: appPalette.action,
     border: appPalette.actionBorder,
+    bg: null,
   },
   {
     group: "Action",
@@ -280,6 +302,7 @@ const paletteTokens: PaletteToken[] = [
     preview: "border",
     bg: appPalette.actionBackground,
     border: appPalette.actionBorder,
+    fg: null,
   },
   {
     group: "Decision",
@@ -290,6 +313,7 @@ const paletteTokens: PaletteToken[] = [
     preview: "button",
     fg: appPalette.brandPaper,
     border: appPalette.decision,
+    bg: null,
   },
   {
     group: "Success",
@@ -300,6 +324,7 @@ const paletteTokens: PaletteToken[] = [
     preview: "button",
     fg: appPalette.brandPaper,
     border: appPalette.success,
+    bg: null,
   },
   {
     group: "Success",
@@ -310,6 +335,7 @@ const paletteTokens: PaletteToken[] = [
     preview: "message",
     fg: appPalette.success,
     border: appPalette.successBorder,
+    bg: null,
   },
   {
     group: "Warning",
@@ -320,6 +346,7 @@ const paletteTokens: PaletteToken[] = [
     preview: "button",
     fg: appPalette.brandPaper,
     border: appPalette.warning,
+    bg: null,
   },
   {
     group: "Warning",
@@ -330,6 +357,7 @@ const paletteTokens: PaletteToken[] = [
     preview: "message",
     fg: appPalette.warning,
     border: appPalette.warningBorder,
+    bg: null,
   },
   {
     group: "Danger",
@@ -340,6 +368,7 @@ const paletteTokens: PaletteToken[] = [
     preview: "button",
     fg: appPalette.brandPaper,
     border: appPalette.danger,
+    bg: null,
   },
   {
     group: "Danger",
@@ -350,6 +379,7 @@ const paletteTokens: PaletteToken[] = [
     preview: "message",
     fg: appPalette.danger,
     border: appPalette.dangerBorder,
+    bg: null,
   },
   {
     group: "Account Visual",
@@ -360,6 +390,7 @@ const paletteTokens: PaletteToken[] = [
     preview: "message",
     fg: appPalette.accountAsset,
     border: appPalette.accountAssetBorder,
+    bg: null,
   },
   {
     group: "Account Visual",
@@ -370,6 +401,7 @@ const paletteTokens: PaletteToken[] = [
     preview: "message",
     fg: appPalette.accountLiability,
     border: appPalette.accountLiabilityBorder,
+    bg: null,
   },
   {
     group: "Account Visual",
@@ -380,6 +412,7 @@ const paletteTokens: PaletteToken[] = [
     preview: "message",
     fg: appPalette.accountEquity,
     border: appPalette.accountEquityBorder,
+    bg: null,
   },
   {
     group: "Account Visual",
@@ -390,6 +423,7 @@ const paletteTokens: PaletteToken[] = [
     preview: "message",
     fg: appPalette.accountRevenue,
     border: appPalette.accountRevenueBorder,
+    bg: null,
   },
   {
     group: "Account Visual",
@@ -400,6 +434,7 @@ const paletteTokens: PaletteToken[] = [
     preview: "message",
     fg: appPalette.accountExpense,
     border: appPalette.accountExpenseBorder,
+    bg: null,
   },
   {
     group: "Account Visual",
@@ -410,6 +445,7 @@ const paletteTokens: PaletteToken[] = [
     preview: "message",
     fg: appPalette.accountProfit,
     border: appPalette.accountProfitBorder,
+    bg: null,
   },
   {
     group: "Account Visual",
@@ -420,6 +456,7 @@ const paletteTokens: PaletteToken[] = [
     preview: "message",
     fg: appPalette.accountLoss,
     border: appPalette.accountLossBorder,
+    bg: null,
   },
 ];
 

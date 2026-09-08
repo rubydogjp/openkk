@@ -36,8 +36,8 @@ export type FiscalPeriodOpeningDbRecord = {
   fiscalPeriodId: string;
   createdAt: string;
   updatedAt: string;
-  openingBalanceLines?: OpeningBalanceLineDbRecord[];
-  openingJournals?: OpeningJournalDbRecord[];
+  openingBalanceLines: OpeningBalanceLineDbRecord[];
+  openingJournals: OpeningJournalDbRecord[];
 };
 
 export type FiscalPeriodDbRecord = {
@@ -48,12 +48,12 @@ export type FiscalPeriodDbRecord = {
   endDate: string;
   phase: FiscalPeriodDbPhase;
   archiveStatus: FiscalPeriodDbArchiveStatus;
-  archiveDataAvailable?: boolean;
-  archivedAt?: string | null;
+  archiveDataAvailable: boolean | null;
+  archivedAt: string | null;
   settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
-  opening?: FiscalPeriodOpeningDbRecord | null;
+  opening: FiscalPeriodOpeningDbRecord | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -104,7 +104,7 @@ export type EntryDbRecord = {
 export type EntryDbUpsertInput = {
   date: string;
   description: string;
-  localId?: string;
+  localId: string | null;
   businessRate: number;
   lines: EntryDbLineInput[];
 };
@@ -139,12 +139,12 @@ export type FixedAssetDbCreateInput = {
   bookAccountId: string;
 };
 
-export type FixedAssetDbPatchInput = Partial<
-  Omit<
-    FixedAssetDbRecord,
+export type FixedAssetDbPatchInput = {
+  [K in Exclude<
+    keyof FixedAssetDbRecord,
     "id" | "userId" | "fiscalPeriodId" | "createdAt" | "updatedAt"
-  >
->;
+  >]: FixedAssetDbRecord[K] | null;
+};
 
 export type PreClosingDbRecord = Record<string, never>;
 export type ClosingDbRecord = Record<string, never>;
@@ -204,12 +204,12 @@ export type FiscalPeriodArchiveDbImportInput = {
     settingsCompleted: boolean;
     openingBalancesCompleted: boolean;
     documentsReceivedCompleted: boolean;
-    opening?: FiscalPeriodDbPatchInput["opening"];
+    opening: FiscalPeriodDbPatchInput["opening"] | null;
   };
   entries: EntryDbUpsertInput[];
   fixedAssets: Array<{
     createInput: FixedAssetDbCreateInput;
-    patchInput?: FixedAssetDbPatchInput;
+    patchInput: FixedAssetDbPatchInput | null;
   }>;
   preClosings: Array<{ year: number }>;
   closings: Array<{ year: number }>;

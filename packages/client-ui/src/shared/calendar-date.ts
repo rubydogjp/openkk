@@ -1,6 +1,6 @@
 export function formatCalendarDate(
   isoTimestamp: string,
-  timeZone?: string,
+  timeZone: string | null,
 ): string {
   const date = new Date(isoTimestamp);
   if (Number.isNaN(date.getTime())) return isoTimestamp;
@@ -8,7 +8,7 @@ export function formatCalendarDate(
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-    timeZone,
+    ...(timeZone == null ? {} : { timeZone }),
   }).formatToParts(date);
   const value = (type: "year" | "month" | "day") =>
     parts.find((part) => part.type === type)?.value ?? "";

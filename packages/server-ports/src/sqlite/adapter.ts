@@ -12,7 +12,7 @@ export type { DbSnapshot } from "./seed-store.js";
 
 export async function createSqliteDbAdapter(
   db: SqlDb,
-  seed?: DbSnapshot,
+  seed: DbSnapshot | null,
 ): Promise<OpenkkDbPort> {
   await db.exec("PRAGMA foreign_keys = ON");
   if (seed != null) await seedStores(db, seed);

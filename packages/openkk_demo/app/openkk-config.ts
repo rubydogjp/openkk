@@ -27,4 +27,5 @@ export const openkkConfig: OpenkkConfig = {
   fiscalPeriodStorageKey: `openkk.${BUNDLE}.fiscal_period_id`,
   fiscalPeriodPolicy: demoFiscalPeriodPolicy,
   editingPolicy: demoEditingPolicy,
+  debugRoutesEnabled: false,
 };

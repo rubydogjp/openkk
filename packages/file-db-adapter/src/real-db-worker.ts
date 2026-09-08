@@ -47,6 +47,10 @@ export class RealDbWorker {
         if (message.type === "init") {
           this.onmessage?.({
             data: { id: message.id, ok: true },
+            source: null,
+            currentTarget: null,
+            srcElement: null,
+            target: null,
           } as MessageEvent);
           return;
         }
@@ -60,6 +64,10 @@ export class RealDbWorker {
             ok: true,
             result: wantsRows ? result : undefined,
           },
+          source: null,
+          currentTarget: null,
+          srcElement: null,
+          target: null,
         } as MessageEvent);
       } catch (error) {
         this.onmessage?.({
@@ -68,6 +76,10 @@ export class RealDbWorker {
             ok: false,
             error: error instanceof Error ? error.message : String(error),
           },
+          source: null,
+          currentTarget: null,
+          srcElement: null,
+          target: null,
         } as MessageEvent);
       }
     })();

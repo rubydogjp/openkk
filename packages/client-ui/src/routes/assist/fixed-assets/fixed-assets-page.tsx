@@ -94,7 +94,7 @@ export function FixedAssetsPage() {
         readOnly={isReadOnlyPeriod}
         onAdd={
           editingLocked || isReadOnlyPeriod
-            ? undefined
+            ? null
             : () => {
                 navigateWithAssetParam(null);
                 setNewAssetDraft(
@@ -108,14 +108,15 @@ export function FixedAssetsPage() {
         }
         onOpenItem={
           isReadOnlyPeriod || editingLocked
-            ? undefined
+            ? null
             : (itemId) => navigateWithAssetParam(itemId)
         }
         addButtonSlot={
           !isReadOnlyPeriod && editingLocked ? (
-            <LockButton label="追加" />
-          ) : undefined
+            <LockButton label="追加" style={null} />
+          ) : null
         }
+        contentMaxWidth={null}
       />
       {drawerAsset != null && !isReadOnlyPeriod && !editingLocked ? (
         <FixedAssetEditDrawer
@@ -156,6 +157,7 @@ export function FixedAssetsPage() {
             }
             return false;
           }}
+          onDelete={null}
         />
       ) : null}
     </>
@@ -182,5 +184,10 @@ function buildNewFixedAssetDraft(
     acquisitionDate,
     usefulLife: 3,
     businessRate: 1,
+    accountId: null,
+    depreciationAmount: null,
+    acquisitionCost: null,
+    disposalDate: null,
+    disposalPrice: null,
   };
 }

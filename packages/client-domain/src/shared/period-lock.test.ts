@@ -4,7 +4,7 @@ import { buildPeriodLockMessage, isJournalizingActive } from "./period-lock.js";
 import type { FiscalPeriod } from "./models.js";
 
 function period(overrides: Partial<FiscalPeriod> = {}): FiscalPeriod {
-  return {
+  const base: FiscalPeriod = {
     id: "fp-1",
     userId: "user-1",
     name: "2026年分",
@@ -20,8 +20,10 @@ function period(overrides: Partial<FiscalPeriod> = {}): FiscalPeriod {
     openingCreditTotal: 0,
     createdAt: "1970-01-01T00:00:00.000Z",
     updatedAt: "1970-01-01T00:00:00.000Z",
-    ...overrides,
+    archivedAt: null,
+    opening: null,
   };
+  return Object.assign(base, overrides);
 }
 
 describe("isJournalizingActive", () => {

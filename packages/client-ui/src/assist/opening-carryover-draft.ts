@@ -37,7 +37,9 @@ export function buildNewOpeningCarryoverDraft(
     taxCategory: "対象外",
     businessCategory: "対象外",
     businessRate: "100",
-    debitBookAccountId: debit?.id,
-    creditBookAccountId: credit?.id,
+    debitBookAccountId: debit?.id ?? null,
+    creditBookAccountId: credit?.id ?? null,
+    businessRateRatio: null,
+    lines: null,
   };
 }

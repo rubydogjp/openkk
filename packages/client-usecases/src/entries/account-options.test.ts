@@ -50,7 +50,7 @@ describe("buildEntryMasterAccountOptions", () => {
 function account(
   overrides: Partial<MasterBookAccount>,
 ): MasterBookAccount {
-  return {
+  const base: MasterBookAccount = {
     id: "allowance",
     name: "貸倒引当金",
     description: "",
@@ -61,6 +61,6 @@ function account(
     sortOrder: 1,
     createdAt: "1970-01-01T00:00:00.000Z",
     updatedAt: "1970-01-01T00:00:00.000Z",
-    ...overrides,
   };
+  return Object.assign(base, overrides);
 }

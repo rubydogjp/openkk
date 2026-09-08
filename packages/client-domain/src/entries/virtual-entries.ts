@@ -54,6 +54,11 @@ export function buildVirtualOpeningCarryoverRows(input: {
             accountType: record.debitType,
             amount: record.debitAmount,
             bookAccountId: record.debitBookAccountId,
+            partnerName: null,
+            taxCategoryId: null,
+            taxCategoryName: null,
+            businessCategoryId: null,
+            businessCategoryName: null,
           },
           {
             id: `${record.id}-c`,
@@ -62,12 +67,22 @@ export function buildVirtualOpeningCarryoverRows(input: {
             accountType: record.creditType,
             amount: record.creditAmount,
             bookAccountId: record.creditBookAccountId,
+            partnerName: null,
+            taxCategoryId: null,
+            taxCategoryName: null,
+            businessCategoryId: null,
+            businessCategoryName: null,
           },
         ];
       return recordToPreviewRows({
         ...record,
         weekday: "",
         lines,
+        localId: null,
+        debitTaxCategoryId: null,
+        creditTaxCategoryId: null,
+        debitBusinessCategoryId: null,
+        creditBusinessCategoryId: null,
       }).map((row) => ({
         ...row,
         recordId: `virtual-opening-carryover-${record.id}`,
@@ -330,7 +345,7 @@ function formatAmount(value: number): string {
 type VirtualPair = {
   accountName: string;
   accountType: EntryAccountVisualType;
-  bookAccountId?: string;
+  bookAccountId: string | null;
   amount: number;
 };
 
@@ -339,14 +354,14 @@ function buildVirtualRowsFromPairs(input: {
   date: string;
   description: string;
   businessRate: string;
-  businessRateRatio?: number;
+  businessRateRatio: number | null;
   virtual: EntryPreviewRow["virtual"];
   debits: VirtualPair[];
   credits: VirtualPair[];
 }): EntryPreviewRow[] {
   const rowCount = Math.max(input.debits.length, input.credits.length);
   if (rowCount === 0) return [];
-  return Array.from({ length: rowCount }, (_, index) => {
+  return Array.from({ length: rowCount }, (_, index): EntryPreviewRow => {
     const debit = input.debits[index] ?? null;
     const credit = input.credits[index] ?? null;
     return {
@@ -371,6 +386,12 @@ function buildVirtualRowsFromPairs(input: {
       taxCategory: "対象外",
       businessCategory: "",
       virtual: input.virtual,
+      debitPartnerName: null,
+      debitTaxCategoryId: null,
+      debitBusinessCategoryId: null,
+      creditPartnerName: null,
+      creditTaxCategoryId: null,
+      creditBusinessCategoryId: null,
     };
   });
 }
@@ -488,7 +509,7 @@ export function buildVirtualBusinessRateTransferRows(input: {
     carryovers: input.carryovers,
   }).find((entry) => entry.localId === BUSINESS_RATE_TRANSFER_LOCAL_ID);
   if (transfer == null || !transfer.date.startsWith(input.yearMonth)) return [];
-  return recordToPreviewRows(transfer).map((row) => ({
+  return recordToPreviewRows(transfer).map((row): EntryPreviewRow => ({
     ...row,
     recordId: BUSINESS_RATE_TRANSFER_ROW_ID,
     virtual: {
@@ -496,6 +517,7 @@ export function buildVirtualBusinessRateTransferRows(input: {
       kind: "business_rate_transfer",
       sourceId: transfer.id,
       label: "家事按分",
+      assistHref: null,
     },
   }));
 }
@@ -513,7 +535,7 @@ export function materializeVirtualEntryRows(input: {
     grouped.set(row.recordId, current);
   }
 
-  return Array.from(grouped.entries()).map(([recordId, rows]) => {
+  return Array.from(grouped.entries()).map(([recordId, rows]): EntryRecord => {
     const sorted = [...rows].sort(
       (left, right) => (left.lineIndex ?? 0) - (right.lineIndex ?? 0),
     );
@@ -530,6 +552,9 @@ export function materializeVirtualEntryRows(input: {
           partnerName: row.debitPartnerName,
           taxCategoryId: row.debitTaxCategoryId,
           businessCategoryId: row.debitBusinessCategoryId,
+          id: null,
+          taxCategoryName: null,
+          businessCategoryName: null,
         });
       }
       if (row.credit.trim() !== "" && parseAmount(row.creditAmount) > 0) {
@@ -542,6 +567,9 @@ export function materializeVirtualEntryRows(input: {
           partnerName: row.creditPartnerName,
           taxCategoryId: row.creditTaxCategoryId,
           businessCategoryId: row.creditBusinessCategoryId,
+          id: null,
+          taxCategoryName: null,
+          businessCategoryName: null,
         });
       }
       return out;
@@ -568,6 +596,12 @@ export function materializeVirtualEntryRows(input: {
       taxCategory: first.taxCategory,
       businessCategory: first.businessCategory,
       localId: `virtual:${recordId}`,
+      debitBookAccountId: null,
+      creditBookAccountId: null,
+      debitTaxCategoryId: null,
+      creditTaxCategoryId: null,
+      debitBusinessCategoryId: null,
+      creditBusinessCategoryId: null,
     };
   });
 }

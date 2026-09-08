@@ -48,6 +48,7 @@ export function SignInContent() {
         AppError.from(error, {
           fallbackUserMessage: "サインインに失敗しました",
           fallbackDeveloperMessage: "shell: startAuthSession failed",
+          statusCode: null,
         }),
       );
     } finally {
@@ -139,7 +140,7 @@ export function SignInContent() {
         </button>
         {screenError != null ? (
           <div style={{ marginTop: 12 }}>
-            <AppErrorText error={screenError} />
+            <AppErrorText error={screenError} style={null} fallbackUserMessage={null} />
           </div>
         ) : null}
       </section>

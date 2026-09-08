@@ -7,14 +7,14 @@ import { safeUserErrorMessage } from "./safe-error-message.js";
 
 export type AppErrorTextProps = {
   error: unknown;
-  style?: CSSProperties;
-  fallbackUserMessage?: string;
+  style: CSSProperties | null;
+  fallbackUserMessage: string | null;
 };
 
 export function AppErrorText(props: AppErrorTextProps) {
   const message = safeUserErrorMessage(
     props.error,
-    props.fallbackUserMessage,
+    props.fallbackUserMessage ?? undefined,
   );
 
   useEffect(() => {
@@ -37,7 +37,11 @@ export function AppErrorText(props: AppErrorTextProps) {
 }
 
 export function debugAppError(error: unknown): void {
-  const appError = AppError.from(error);
+  const appError = AppError.from(error, {
+    fallbackUserMessage: null,
+    fallbackDeveloperMessage: null,
+    statusCode: null,
+  });
   console.error("AppError", {
     messageForDeveloper: appError.messageForDeveloper,
     originalMessage: appError.originalMessage,

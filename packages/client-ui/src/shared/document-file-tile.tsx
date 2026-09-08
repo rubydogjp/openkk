@@ -6,9 +6,9 @@ import { palette, radii, sizes, spacing, typography } from "./design-tokens.js";
 
 export type DocumentFileItem = {
   label: string;
-  description?: string;
-  active?: boolean;
-  onClick?: () => void;
+  description: string | null;
+  active: boolean | null;
+  onClick: (() => void) | null;
 };
 
 export function DocumentFileList({
@@ -34,8 +34,8 @@ export function DocumentFileList({
 
 export function DocumentFileTile(
   props: DocumentFileItem & {
-    actionLabel?: string;
-    showDivider?: boolean;
+    actionLabel: string | null;
+    showDivider: boolean | null;
   },
 ) {
   const isActive = props.active ?? true;
@@ -75,7 +75,7 @@ export function DocumentFileTile(
       </span>
       <button
         type="button"
-        onClick={props.onClick}
+        onClick={props.onClick ?? undefined}
         disabled={!isClickable}
         style={{
           ...actionButtonStyle,

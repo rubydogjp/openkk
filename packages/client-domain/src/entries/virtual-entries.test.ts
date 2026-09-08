@@ -16,7 +16,7 @@ import {
 function depreciatingAsset(
   overrides: Partial<FixedAssetPreviewItem> = {},
 ): FixedAssetPreviewItem {
-  return {
+  const base: FixedAssetPreviewItem = {
     id: "fa-1",
     name: "業務用PC",
     account: "工具器具備品",
@@ -29,14 +29,20 @@ function depreciatingAsset(
     acquisitionDate: "2025-01-01",
     acquisitionCost: 1_200_000,
     usefulLife: 5,
-    ...overrides,
+    fiscalPeriodId: null,
+    accountId: null,
+    depreciationAmount: null,
+    businessRate: null,
+    disposalDate: null,
+    disposalPrice: null,
   };
+  return Object.assign(base, overrides);
 }
 
 function carryover(
   overrides: Partial<OpeningCarryoverRecord> = {},
 ): OpeningCarryoverRecord {
-  return {
+  const base: OpeningCarryoverRecord = {
     id: "oc-1",
     fiscalPeriodId: "fp-2026",
     date: "2026-01-01",
@@ -51,8 +57,12 @@ function carryover(
     taxCategory: "対象外",
     businessCategory: "",
     businessRate: "",
-    ...overrides,
+    businessRateRatio: null,
+    debitBookAccountId: null,
+    creditBookAccountId: null,
+    lines: null,
   };
+  return Object.assign(base, overrides);
 }
 
 describe("buildVirtualFixedAssetRows", () => {
@@ -208,6 +218,7 @@ describe("materializeVirtualEntryRows", () => {
               taxCategoryId: "tax_out_of_scope",
               taxCategoryName: "対象外",
               businessCategoryId: "biz_none",
+              businessCategoryName: null,
             },
             {
               id: "l2",
@@ -220,6 +231,7 @@ describe("materializeVirtualEntryRows", () => {
               taxCategoryId: "tax_sales_10",
               taxCategoryName: "課税売上 10%",
               businessCategoryId: "biz_none",
+              businessCategoryName: null,
             },
           ],
         }),
@@ -299,6 +311,15 @@ describe("buildClosingVirtualEntries / 家事按分の振替", () => {
     businessRate,
     taxCategory: "課税 10%",
     businessCategory: "",
+    lines: null,
+    businessRateRatio: null,
+    localId: null,
+    debitBookAccountId: null,
+    creditBookAccountId: null,
+    debitTaxCategoryId: null,
+    creditTaxCategoryId: null,
+    debitBusinessCategoryId: null,
+    creditBusinessCategoryId: null,
   });
 
   it("emits one balanced period-end transfer moving the personal portion to 事業主貸", () => {
@@ -323,6 +344,12 @@ describe("buildClosingVirtualEntries / 家事按分の振替", () => {
         accountType: "asset",
         amount: "10,500",
         bookAccountId: "acct_proprietor_withdrawal",
+        id: null,
+        partnerName: null,
+        taxCategoryId: null,
+        taxCategoryName: null,
+        businessCategoryId: null,
+        businessCategoryName: null,
       },
     ]);
     expect(lines.filter((line) => line.side === "credit")).toEqual([
@@ -331,6 +358,13 @@ describe("buildClosingVirtualEntries / 家事按分の振替", () => {
         accountName: "地代家賃",
         accountType: "expense",
         amount: "10,500",
+        id: null,
+        bookAccountId: null,
+        partnerName: null,
+        taxCategoryId: null,
+        taxCategoryName: null,
+        businessCategoryId: null,
+        businessCategoryName: null,
       },
     ]);
   });
@@ -409,6 +443,12 @@ describe("buildClosingVirtualEntries / 家事按分の振替", () => {
           accountType: input.accountType,
           amount: input.amount,
           bookAccountId: input.bookAccountId,
+          id: null,
+          partnerName: null,
+          taxCategoryId: null,
+          taxCategoryName: null,
+          businessCategoryId: null,
+          businessCategoryName: null,
         },
         {
           side: "credit",
@@ -416,6 +456,12 @@ describe("buildClosingVirtualEntries / 家事按分の振替", () => {
           accountType: "asset",
           amount: input.amount,
           bookAccountId: "acct_bank",
+          id: null,
+          partnerName: null,
+          taxCategoryId: null,
+          taxCategoryName: null,
+          businessCategoryId: null,
+          businessCategoryName: null,
         },
       ],
     });
@@ -474,6 +520,15 @@ describe("buildVirtualBusinessRateTransferRows", () => {
     businessRate: "50",
     taxCategory: "課税 10%",
     businessCategory: "",
+    lines: null,
+    businessRateRatio: null,
+    localId: null,
+    debitBookAccountId: null,
+    creditBookAccountId: null,
+    debitTaxCategoryId: null,
+    creditTaxCategoryId: null,
+    debitBusinessCategoryId: null,
+    creditBusinessCategoryId: null,
   };
 
   it("shows a 家事按分 badge row in the period-end month", () => {
@@ -575,6 +630,15 @@ describe("buildAnalyticsEntries", () => {
           businessRate: "50",
           taxCategory: "対象外",
           businessCategory: "対象外",
+          lines: null,
+          businessRateRatio: null,
+          localId: null,
+          debitBookAccountId: null,
+          creditBookAccountId: null,
+          debitTaxCategoryId: null,
+          creditTaxCategoryId: null,
+          debitBusinessCategoryId: null,
+          creditBusinessCategoryId: null,
         },
       ],
       assets: [depreciatingAsset()],

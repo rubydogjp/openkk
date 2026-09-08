@@ -21,10 +21,10 @@ export {
 } from "./journal-import-policy.js";
 
 type JournalJsonEntry = {
-  id?: string;
-  localId?: string;
+  id: string | null;
+  localId: string | null;
   date: string;
-  weekday?: string;
+  weekday: string | null;
   debit: string;
   debitType: EntryRecord["debitType"];
   debitAmount: string;
@@ -34,10 +34,10 @@ type JournalJsonEntry = {
   description: string;
   partner: string;
   businessRate: string;
-  businessRateRatio?: number;
+  businessRateRatio: number | null;
   taxCategory: string;
   businessCategory: string;
-  lines?: EntryLine[];
+  lines: EntryLine[] | null;
 };
 
 export const OPENKK_JOURNAL_SCHEMA = "openkk-journal-v1";
@@ -52,7 +52,7 @@ export function exportEntriesAsJson(entries: EntryRecord[]) {
             ? entry.id
             : entry.localId,
         date: entry.date,
-        weekday: entry.weekday,
+        weekday: entry.weekday ?? null,
         debit: entry.debit,
         debitType: entry.debitType,
         debitAmount: entry.debitAmount,
@@ -62,7 +62,7 @@ export function exportEntriesAsJson(entries: EntryRecord[]) {
         description: entry.description,
         partner: entry.partner,
         businessRate: entry.businessRate,
-        businessRateRatio: entry.businessRateRatio,
+        businessRateRatio: entry.businessRateRatio ?? null,
         taxCategory: entry.taxCategory,
         businessCategory: entry.businessCategory,
         lines: getEntryLines(entry).map((line) => ({ ...line })),
@@ -111,7 +111,7 @@ export function importEntriesFromJson(input: {
       rowNo,
       localId,
       date: stringValue(entry.date),
-      weekday: entry.weekday,
+      weekday: entry.weekday ?? null,
       debit: stringValue(entry.debit),
       debitType: stringValue(entry.debitType) as EntryRecord["debitType"],
       debitAmount: stringValue(entry.debitAmount),
@@ -121,7 +121,7 @@ export function importEntriesFromJson(input: {
       description: stringValue(entry.description),
       partner: stringValue(entry.partner),
       businessRate: stringValue(entry.businessRate),
-      businessRateRatio: entry.businessRateRatio,
+      businessRateRatio: entry.businessRateRatio ?? null,
       taxCategory: stringValue(entry.taxCategory),
       businessCategory: stringValue(entry.businessCategory),
       lines: validateJsonLines(entry.lines, rowNo),
@@ -282,8 +282,8 @@ export function decodeJournalImportBytes(bytes: Uint8Array): string {
 function parseCsvLinesCell(
   raw: string,
   rowNo: number,
-): EntryLine[] | undefined {
-  if (raw.trim() === "") return undefined;
+): EntryLine[] | null {
+  if (raw.trim() === "") return null;
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -300,9 +300,9 @@ function normalizeEntry(input: {
   fiscalPeriodId: string;
   id: string;
   rowNo: number;
-  localId?: string;
+  localId: string | null;
   date: string;
-  weekday?: string;
+  weekday: string | null;
   debit: string;
   debitType: EntryRecord["debitType"];
   debitAmount: string;
@@ -312,10 +312,10 @@ function normalizeEntry(input: {
   description: string;
   partner: string;
   businessRate: string;
-  businessRateRatio?: unknown;
+  businessRateRatio: unknown | null;
   taxCategory: string;
   businessCategory: string;
-  lines?: EntryLine[];
+  lines: EntryLine[] | null;
 }): EntryRecord {
   if (parseIsoLocalDate(input.date) == null) {
     throw importFileRowError(
@@ -353,6 +353,12 @@ function normalizeEntry(input: {
     taxCategory: input.taxCategory || "対象外",
     businessCategory: input.businessCategory || "対象外",
     lines: normalizeLines(input.lines, input.rowNo),
+    debitBookAccountId: null,
+    creditBookAccountId: null,
+    debitTaxCategoryId: null,
+    creditTaxCategoryId: null,
+    debitBusinessCategoryId: null,
+    creditBusinessCategoryId: null,
   };
   assertNormalizedEntry(result, input.rowNo);
   return result;
@@ -361,8 +367,8 @@ function normalizeEntry(input: {
 function normalizeBusinessRateRatio(
   value: unknown,
   rowNo: number,
-): number | undefined {
-  if (value == null || value === "") return undefined;
+): number | null {
+  if (value == null || value === "") return null;
   const rate =
     typeof value === "number"
       ? value
@@ -379,12 +385,12 @@ function normalizeBusinessRateRatio(
 }
 
 function normalizeLines(
-  lines: EntryLine[] | undefined,
+  lines: EntryLine[] | null,
   rowNo: number,
-): EntryLine[] | undefined {
-  if (lines == null || lines.length === 0) return undefined;
+): EntryLine[] | null {
+  if (lines == null || lines.length === 0) return null;
   assertJournalEntryLineCount(lines.length);
-  return lines.map((line, index) => {
+  return lines.map((line, index): EntryLine => {
     if (!isRecord(line)) {
       throw importFileRowError(
         `row ${rowNo}: line ${index + 1} must be an object`,
@@ -421,17 +427,21 @@ function normalizeLines(
         rowNo,
         `line ${index + 1} amount`,
       ),
-      ...(bookAccountId !== "" ? { bookAccountId } : {}),
-      ...(partnerName !== "" ? { partnerName } : {}),
-      ...(taxCategoryId !== "" ? { taxCategoryId } : {}),
-      ...(businessCategoryId !== "" ? { businessCategoryId } : {}),
+      id: null,
+      bookAccountId: bookAccountId === "" ? null : bookAccountId,
+      partnerName: partnerName === "" ? null : partnerName,
+      taxCategoryId: taxCategoryId === "" ? null : taxCategoryId,
+      taxCategoryName: null,
+      businessCategoryId:
+        businessCategoryId === "" ? null : businessCategoryId,
+      businessCategoryName: null,
     };
   });
 }
 
 function normalizeType(
   value: string,
-  rowNo?: number,
+  rowNo: number | null,
   label = "account type",
 ): EntryRecord["debitType"] {
   if (
@@ -451,7 +461,11 @@ function normalizeType(
   );
 }
 
-function normalizeAmount(value: string, rowNo?: number, label = "amount") {
+function normalizeAmount(
+  value: string,
+  rowNo: number | null,
+  label = "amount",
+) {
   const n = Number(String(value).replaceAll(",", "").trim());
   if (!Number.isSafeInteger(n) || n < 0) {
     throw importFileRowError(
@@ -615,8 +629,8 @@ function parseCsv(text: string) {
 function validateJsonLines(
   value: unknown,
   rowNo: number,
-): EntryLine[] | undefined {
-  if (value === undefined) return undefined;
+): EntryLine[] | null {
+  if (value == null) return null;
   if (!Array.isArray(value)) {
     throw importFileRowError(`row ${rowNo}: lines must be an array`, rowNo);
   }
@@ -720,10 +734,7 @@ function stripBom(text: string): string {
   return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
 }
 
-function parseEntriesJson(text: string): {
-  schema?: unknown;
-  entries?: unknown;
-} {
+function parseEntriesJson(text: string): Record<string, unknown> {
   try {
     const parsed: unknown = JSON.parse(stripBom(text));
     if (!isRecord(parsed)) {

@@ -647,7 +647,18 @@ describe("normalizeArchiveImportInput", () => {
 
     const normalized = normalizeArchiveImportInput(input, "user-1");
 
-    expect(normalized.fixedAssets[0]?.patchInput).toEqual({});
+    expect(normalized.fixedAssets[0]?.patchInput).toEqual({
+      name: null,
+      acquisitionDate: null,
+      acquisitionCost: null,
+      usefulLife: null,
+      depreciationMethod: null,
+      businessRate: null,
+      status: null,
+      disposalDate: null,
+      disposalPrice: null,
+      bookAccountId: null,
+    });
   });
 
   it("rejects fixed asset useful lives beyond the supported calculation range", () => {

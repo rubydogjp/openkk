@@ -7,8 +7,8 @@ describe("createMemoryDbAdapter", () => {
     const originalWarn = console.warn;
 
     const adapters = Promise.all([
-      createMemoryDbAdapter(),
-      createMemoryDbAdapter(),
+      createMemoryDbAdapter(null),
+      createMemoryDbAdapter(null),
     ]);
     expect(console.warn).toBe(originalWarn);
 

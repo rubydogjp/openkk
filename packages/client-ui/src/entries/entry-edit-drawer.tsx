@@ -86,11 +86,11 @@ export function EntryEditDrawer(props: {
   taxCategoryOptions: EntryMasterCategoryOption[];
   businessCategoryOptions: EntryMasterCategoryOption[];
   suggestions: EntrySuggestions;
-  mode?: "create" | "edit";
-  minDate?: string;
-  maxDate?: string;
+  mode: "create" | "edit" | null;
+  minDate: string | null;
+  maxDate: string | null;
   onSave: (draft: EntryDraft) => Promise<void> | void;
-  onDelete?: () => Promise<void> | void;
+  onDelete: (() => Promise<void> | void) | null;
   onClose: () => void;
 }) {
   const mode = props.mode ?? "edit";
@@ -121,7 +121,7 @@ export function EntryEditDrawer(props: {
 
   const drawerRef = useModalLifecycle<HTMLElement>(() => {
     if (!mutationLock.current.isLocked) props.onClose();
-  });
+  }, null);
 
   const update = (patch: Partial<EntryFormDraft>) =>
     setDraft((current) => ({ ...current, ...patch }));
@@ -195,6 +195,8 @@ export function EntryEditDrawer(props: {
           creditPartnerName: null,
           creditTaxCategoryId: null,
           creditBusinessCategoryId: null,
+          debitLineId: null,
+          creditLineId: null,
         },
       ],
     }));
@@ -245,6 +247,8 @@ export function EntryEditDrawer(props: {
         creditPartnerName: null,
         creditTaxCategoryId: null,
         creditBusinessCategoryId: null,
+        debitLineId: null,
+        creditLineId: null,
       };
       const shouldSetDescription =
         template.description != null &&
@@ -264,7 +268,7 @@ export function EntryEditDrawer(props: {
         businessRateRatio:
           template.businessRatePercent == null
             ? current.businessRateRatio
-            : undefined,
+            : null,
         pairs: [newPair],
       };
     });
@@ -541,6 +545,7 @@ export function EntryEditDrawer(props: {
                     onChange={(value) => update({ date: value })}
                   />
                 }
+                hint={null}
               />
 
               <div
@@ -570,7 +575,7 @@ export function EntryEditDrawer(props: {
                           rowGap: 12,
                         }}
                       >
-                        <StackedField label="借方科目">
+                        <StackedField label="借方科目" width={null}>
                           <AccountPicker
                             ariaLabel="借方科目"
                             selectedId={row.debitAccountId}
@@ -587,7 +592,7 @@ export function EntryEditDrawer(props: {
                             fullWidth
                           />
                         </StackedField>
-                        <StackedField label="貸方科目">
+                        <StackedField label="貸方科目" width={null}>
                           <AccountPicker
                             ariaLabel="貸方科目"
                             selectedId={row.creditAccountId}
@@ -604,20 +609,22 @@ export function EntryEditDrawer(props: {
                             fullWidth
                           />
                         </StackedField>
-                        <StackedField label="借方金額">
+                        <StackedField label="借方金額" width={null}>
                           <AmountInput
                             value={row.debitAmount}
                             onChange={(value) =>
                               updateRow(index, { debitAmount: value })
                             }
+                            ariaLabel={null}
                           />
                         </StackedField>
-                        <StackedField label="貸方金額">
+                        <StackedField label="貸方金額" width={null}>
                           <AmountInput
                             value={row.creditAmount}
                             onChange={(value) =>
                               updateRow(index, { creditAmount: value })
                             }
+                            ariaLabel={null}
                           />
                         </StackedField>
                       </div>
@@ -634,6 +641,7 @@ export function EntryEditDrawer(props: {
                           ariaLabel="この行を削除"
                           enabled={draft.pairs.length > 1}
                           onClick={() => removeRow(index)}
+                          label={null}
                         />
                       </div>
                     </div>
@@ -669,6 +677,7 @@ export function EntryEditDrawer(props: {
                     />
                   </div>
                 }
+                hint={null}
               />
               <StepFormRow
                 label="取引先"
@@ -679,9 +688,11 @@ export function EntryEditDrawer(props: {
                       onChange={updatePartner}
                       options={mergeOptions([], props.suggestions.partner)}
                       placeholder="取引先を入力"
+                      inputMode={null}
                     />
                   </div>
                 }
+                hint={null}
               />
               <StepFormRow
                 label="事業割合 (%)"
@@ -692,7 +703,7 @@ export function EntryEditDrawer(props: {
                       onChange={(next) =>
                         update({
                           businessRate: next.trim(),
-                          businessRateRatio: undefined,
+                          businessRateRatio: null,
                         })
                       }
                       options={BIZ_RATE_PRESETS}
@@ -702,6 +713,7 @@ export function EntryEditDrawer(props: {
                     />
                   </div>
                 }
+                hint={null}
               />
               <StepFormRow
                 label="課税区分"
@@ -715,9 +727,11 @@ export function EntryEditDrawer(props: {
                         props.suggestions.taxCategory,
                       )}
                       placeholder="未選択"
+                      inputMode={null}
                     />
                   </div>
                 }
+                hint={null}
               />
               <StepFormRow
                 label="事業区分"
@@ -731,9 +745,11 @@ export function EntryEditDrawer(props: {
                         props.suggestions.businessCategory,
                       )}
                       placeholder="未選択"
+                      inputMode={null}
                     />
                   </div>
                 }
+                hint={null}
               />
             </>
           )}

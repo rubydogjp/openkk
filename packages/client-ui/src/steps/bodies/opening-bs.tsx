@@ -54,7 +54,7 @@ const ORDINARY_DEPOSIT_ACCOUNT_ID_INCLUDED_IN_OTHER_DEPOSITS = "a:普通預金";
 export function OpeningBsBody({
   onSwitchToStep,
 }: {
-  onSwitchToStep?: (no: number) => void;
+  onSwitchToStep: ((no: number) => void) | null;
 }) {
   const config = useOpenkkConfig();
   const appState = useOpenkkAppState();
@@ -201,6 +201,7 @@ export function OpeningBsBody({
           fallbackUserMessage: "期首のBSの更新に失敗しました",
           fallbackDeveloperMessage:
             "steps/opening-bs: updateFiscalPeriod failed",
+          statusCode: null,
         }),
       );
     } finally {
@@ -281,9 +282,9 @@ export function OpeningBsBody({
               borderBottom: `1px solid ${palette.borderSubtle}`,
             }}
           >
-            <HeaderCell>資産の部</HeaderCell>
+            <HeaderCell align={null}>資産の部</HeaderCell>
             <HeaderCell align="right">金額</HeaderCell>
-            <HeaderCell>負債・純資産の部</HeaderCell>
+            <HeaderCell align={null}>負債・純資産の部</HeaderCell>
             <HeaderCell align="right">金額</HeaderCell>
           </div>
 
@@ -377,9 +378,9 @@ export function OpeningBsBody({
               前の手順へ
             </StepSecondaryButton>
           ) : editingLocked && !isCompleted ? (
-            <LockButton label="保存して次へ" />
+            <LockButton label="保存して次へ" style={null} />
           ) : !isEditing ? (
-            <StepPrimaryButton onClick={() => onSwitchToStep?.(3)}>
+            <StepPrimaryButton onClick={() => onSwitchToStep?.(3)} variant={null} icon={null}>
               次の手順へ
             </StepPrimaryButton>
           ) : (
@@ -387,6 +388,7 @@ export function OpeningBsBody({
               onClick={handleSave}
               disabled={isSaving || !balancesMatch}
               variant="success"
+              icon={null}
             >
               {isSaving
                 ? "保存中…"
@@ -397,7 +399,7 @@ export function OpeningBsBody({
           )}
         </div>
 
-        {screenError != null ? <AppErrorText error={screenError} /> : null}
+        {screenError != null ? <AppErrorText error={screenError} style={null} fallbackUserMessage={null} /> : null}
       </div>
     </>
   );
@@ -486,7 +488,7 @@ function HeaderCell({
   align,
 }: {
   children: ReactNode;
-  align?: "left" | "right";
+  align: "left" | "right" | null;
 }) {
   if (align === "right") {
     return (

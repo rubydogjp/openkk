@@ -25,6 +25,7 @@ export function resolveOpenkkHttpResponse<Key extends OpenkkHttpEndpointKey>(
         messageForUser: "バックエンドから不正な応答を受信しました",
         originalMessage: summarizeResponseBody(response.body),
         statusCode: response.status,
+        code: null,
       } satisfies OpenkkApiErrorDto;
     }
     return response.body as OpenkkHttpEndpointSpecs[Key]["response"];
@@ -45,6 +46,7 @@ export function resolveOpenkkHttpResponse<Key extends OpenkkHttpEndpointKey>(
           : "リクエストを処理できませんでした",
       originalMessage: summarizeResponseBody(response.body),
       statusCode: response.status,
+      code: null,
     } satisfies OpenkkApiErrorDto;
   }
 
@@ -53,6 +55,7 @@ export function resolveOpenkkHttpResponse<Key extends OpenkkHttpEndpointKey>(
     messageForUser: "バックエンドから不正な応答を受信しました",
     originalMessage: summarizeResponseBody(response.body),
     statusCode: Number.isInteger(response.status) ? response.status : null,
+    code: null,
   } satisfies OpenkkApiErrorDto;
 }
 
@@ -64,6 +67,7 @@ export function openkkHttpTransportError(error: unknown): OpenkkApiErrorDto {
     messageForUser: "サーバーに接続できませんでした",
     originalMessage: stringifyUnknown(error),
     statusCode: null,
+    code: null,
   };
 }
 

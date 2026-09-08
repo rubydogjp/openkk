@@ -8,23 +8,26 @@ export type FiscalPeriodArchiveRetention = "persistent" | "ephemeral";
 export type FiscalPeriodPolicy = {
   maxActivePeriods: number | null;
   archiveRetention: FiscalPeriodArchiveRetention;
-  ephemeralArchiveWarning?: {
-    title?: string;
-    body?: string;
-    confirmLabel?: string;
-  };
-  allowArchiveImport?: boolean;
+  ephemeralArchiveWarning: EphemeralArchiveWarning | null;
+  allowArchiveImport: boolean;
+};
+
+export type EphemeralArchiveWarning = {
+  title: string;
+  body: string;
+  confirmLabel: string;
 };
 
 export const DEFAULT_FISCAL_PERIOD_POLICY: FiscalPeriodPolicy = {
   maxActivePeriods: null,
   archiveRetention: "persistent",
+  ephemeralArchiveWarning: null,
   allowArchiveImport: true,
 };
 
 export type OpenkkEditingPolicy = {
-  locked?: boolean;
-  lockedNotice?: string;
+  locked: boolean;
+  lockedNotice: string | null;
 };
 
 export interface OpenkkClock {
@@ -44,9 +47,9 @@ export interface OpenkkConfig {
   initialMockFiscalPeriodId: string | null;
   sessionStorageKey: string;
   fiscalPeriodStorageKey: string;
-  fiscalPeriodPolicy?: FiscalPeriodPolicy;
-  editingPolicy?: OpenkkEditingPolicy;
-  debugRoutesEnabled?: boolean;
+  fiscalPeriodPolicy: FiscalPeriodPolicy | null;
+  editingPolicy: OpenkkEditingPolicy | null;
+  debugRoutesEnabled: boolean;
 }
 
 export function createSystemClock(
@@ -68,10 +71,10 @@ export function createFixedClock(today: Date): OpenkkClock {
 
 export function resolveEditingPolicy(
   config: Pick<OpenkkConfig, "editingPolicy">,
-): { locked: boolean; lockedNotice?: string } {
+): OpenkkEditingPolicy {
   return {
     locked: config.editingPolicy?.locked ?? false,
-    lockedNotice: config.editingPolicy?.lockedNotice,
+    lockedNotice: config.editingPolicy?.lockedNotice ?? null,
   };
 }
 

@@ -47,9 +47,9 @@ export function isoDateToWeekday(isoDate: string): string {
 export function DatePickerButton(props: {
   value: string;
   onChange: (value: string) => void;
-  ariaLabel?: string;
-  minDate?: string;
-  maxDate?: string;
+  ariaLabel: string | null;
+  minDate: string | null;
+  maxDate: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const label = formatDateButtonLabel(props.value);
@@ -59,7 +59,7 @@ export function DatePickerButton(props: {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label={props.ariaLabel}
+        aria-label={props.ariaLabel ?? undefined}
         style={{
           height: sizes.field.height,
           padding: `0 ${sizes.field.paddingX}`,
@@ -107,8 +107,8 @@ export function DatePickerButton(props: {
 
 function DatePickerDialog(props: {
   value: string;
-  minDate?: string;
-  maxDate?: string;
+  minDate: string | null;
+  maxDate: string | null;
   onConfirm: (value: string) => void;
   onCancel: () => void;
 }) {

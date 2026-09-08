@@ -33,6 +33,7 @@ export function buildOpenkkDemoSeed(config: OpenkkConfig): MemoryDbSnapshot {
       fixedAssetItemToApiRecord(item, fiscalPeriod.id, config.mockUserId),
     ),
     closings: [],
+    preClosings: null,
   };
 }
 
@@ -61,6 +62,8 @@ function buildDemoSeedFiscalPeriod(
     },
     createdAt: DEMO_SEED_TIMESTAMP,
     updatedAt: DEMO_SEED_TIMESTAMP,
+    archiveDataAvailable: null,
+    archivedAt: null,
   };
 }
 
@@ -97,13 +100,13 @@ function entryRecordToApiRecord(
         amount: parseAmount(line.amount),
         partnerName: line.partnerName ?? record.partner,
         taxCategoryId: resolveDemoCategoryId(
-          line.taxCategoryId,
+          line.taxCategoryId ?? undefined,
           record.taxCategory,
           DEFAULT_TAX_CATEGORIES,
           "tax_out_of_scope",
         ),
         businessCategoryId: resolveDemoCategoryId(
-          line.businessCategoryId,
+          line.businessCategoryId ?? undefined,
           record.businessCategory,
           DEFAULT_BUSINESS_CATEGORIES,
           "biz_none",

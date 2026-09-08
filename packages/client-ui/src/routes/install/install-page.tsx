@@ -23,8 +23,8 @@ import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 const INSTALL_AVAILABILITY_TIMEOUT_MS = 2500;
 
 type NavigatorWithExperimentalInstall = Navigator & {
-  install?: () => Promise<unknown>;
-  standalone?: boolean;
+  install: (() => Promise<unknown>) | null;
+  standalone: boolean | null;
 };
 
 type Phase =
@@ -93,7 +93,7 @@ export function InstallPage() {
         install:
           prompt == null && typeof nav.install === "function"
             ? () => nav.install!()
-            : undefined,
+            : null,
       });
       setPhase(outcome);
     } finally {

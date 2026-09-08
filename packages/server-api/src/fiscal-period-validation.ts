@@ -112,12 +112,13 @@ export function assertFiscalPeriodReadyForPreClosing(period: FiscalPeriodApiReco
     );
   }
   for (const journal of period.opening.openingJournals ?? []) {
-    assertEntryLinesBalanced(journal.lines, "Opening journal");
+    assertEntryLinesBalanced(journal.lines, "Opening journal",{ allowZero: false },);
     assertEntryMasterReferences({
       date: journal.date,
       description: journal.description,
       businessRate: journal.businessRate,
       lines: journal.lines,
+      localId: null,
     });
   }
 }
@@ -241,13 +242,13 @@ export function assertFiscalPeriodPatchInput(
   patch: FiscalPeriodPatchInput,
 ) {
   assertObject(patch, "Fiscal period patch");
-  if (patch.name !== undefined) {
+  if (patch.name != null) {
     assertNonBlankString(patch.name, "Fiscal period name");
   }
-  if (patch.startDate !== undefined) {
+  if (patch.startDate != null) {
     assertString(patch.startDate, "Fiscal period start date");
   }
-  if (patch.endDate !== undefined) {
+  if (patch.endDate != null) {
     assertString(patch.endDate, "Fiscal period end date");
   }
   assertOptionalBoolean(
@@ -263,14 +264,14 @@ export function assertFiscalPeriodPatchInput(
     "Fiscal period documentsReceivedCompleted",
   );
   const startDate =
-    patch.startDate === undefined ? current.startDate : patch.startDate;
-  const endDate = patch.endDate === undefined ? current.endDate : patch.endDate;
+    patch.startDate == null ? current.startDate : patch.startDate;
+  const endDate = patch.endDate == null ? current.endDate : patch.endDate;
   assertDateRange(startDate, endDate, "Fiscal period");
   const openingWillBeCompleted =
     patch.openingBalancesCompleted ?? current.openingBalancesCompleted;
 
   const opening = patch.opening;
-  if (opening !== undefined) {
+  if (opening != null) {
     if (
       typeof opening !== "object" ||
       opening == null ||
@@ -367,6 +368,7 @@ export function assertFiscalPeriodPatchInput(
         description: journal.description,
         businessRate: journal.businessRate,
         lines: journal.lines,
+        localId: null,
       });
     }
   }
@@ -392,7 +394,7 @@ export function assertFiscalPeriodPatchInput(
     assertOpeningBalancesBalanced(effectiveOpening.openingBalanceLines ?? []);
     for (const journal of effectiveOpening.openingJournals ?? []) {
       assertNonBlankString(journal.description, "Opening journal description");
-      assertEntryLinesBalanced(journal.lines, "Opening journal");
+      assertEntryLinesBalanced(journal.lines, "Opening journal",{ allowZero: false },);
     }
   }
 }
@@ -422,7 +424,7 @@ function assertOpeningDataSizeLimits(opening: {
     ) {
       continue;
     }
-    const lines = (journal as { lines?: unknown }).lines;
+    const lines = (journal as { lines: unknown }).lines;
     if (!Array.isArray(lines)) continue;
     totalLineCount += lines.length;
     if (
@@ -446,7 +448,7 @@ function assertUniqueIds(
     if (typeof item !== "object" || item == null || Array.isArray(item)) {
       throw serverValidationError(`${label} must contain objects`);
     }
-    const id = (item as { id?: unknown }).id;
+    const id = (item as { id: unknown }).id;
     assertNonBlankString(id, `${label} item id`);
     if (ids.has(id as string)) {
       throw serverValidationError(

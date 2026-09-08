@@ -65,6 +65,7 @@ describe("hasActiveFiscalPeriodOverlap", () => {
       hasActiveFiscalPeriodOverlap(
         { startDate: "2026-12-31", endDate: "2027-12-30" },
         periods,
+        null,
       ),
     ).toBe(true);
   });
@@ -74,6 +75,7 @@ describe("hasActiveFiscalPeriodOverlap", () => {
       hasActiveFiscalPeriodOverlap(
         { startDate: "2025-01-01", endDate: "2025-12-31" },
         periods,
+        null,
       ),
     ).toBe(false);
     expect(

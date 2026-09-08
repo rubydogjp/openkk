@@ -74,6 +74,8 @@ export function runDbPortConformance(
           endDate: "2026-12-31",
           phase: "journalizing",
           archiveStatus: "active",
+          archiveDataAvailable: null,
+          archivedAt: null,
           settingsCompleted: true,
           openingBalancesCompleted: true,
           documentsReceivedCompleted: false,
@@ -448,6 +450,7 @@ export function runDbPortConformance(
         description: "entry",
         businessRate: 1,
         lines: [testEntryLine, testCreditEntryLine],
+        localId: null,
       });
       await db.fixedAssets.create("user-1", period.id, {
         name: "Camera",
@@ -493,6 +496,7 @@ export function runDbPortConformance(
         description: "entry",
         businessRate: 1,
         lines: [testEntryLine, testCreditEntryLine],
+        localId: null,
       });
       await db.fixedAssets.create("user-1", period.id, {
         name: "Camera",
@@ -575,6 +579,13 @@ export function runDbPortConformance(
               status: "sold",
               disposalDate: "2026-12-01",
               disposalPrice: 50000,
+              bookAccountId: null,
+              businessRate: null,
+              name: null,
+              acquisitionDate: null,
+              acquisitionCost: null,
+              usefulLife: null,
+              depreciationMethod: null,
             },
           },
         ],
@@ -625,6 +636,7 @@ export function runDbPortConformance(
             description: "outside period",
             businessRate: 1,
             lines: [testEntryLine, testCreditEntryLine],
+            localId: null,
           },
         ],
         fixedAssets: [],
@@ -665,6 +677,7 @@ export function runDbPortConformance(
           settingsCompleted: true,
           openingBalancesCompleted: false,
           documentsReceivedCompleted: false,
+          opening: null,
         },
         entries: [],
         fixedAssets: [],
@@ -693,6 +706,7 @@ export function runDbPortConformance(
             { length: MAX_ENTRY_IMPORT_LINES / MAX_ENTRY_LINES + 1 },
             (_, index) => ({
               ...entry,
+              localId: null,
               description: `entry ${index}`,
               lines: repeatedLines,
             }),
@@ -712,6 +726,7 @@ export function runDbPortConformance(
           description: "orphan",
           businessRate: 1,
           lines: [testEntryLine, testCreditEntryLine],
+          localId: null,
         }),
       ).rejects.toThrow(/FOREIGN KEY constraint failed/);
     });
@@ -723,6 +738,7 @@ export function runDbPortConformance(
         date: "2026-04-01",
         description: "invalid entry",
         businessRate: 1,
+        localId: null,
       };
 
       await expect(
@@ -773,6 +789,7 @@ export function runDbPortConformance(
             { ...testEntryLine, bookAccountId: "unknown-account" },
             testCreditEntryLine,
           ],
+          localId: null,
         }),
       ).rejects.toThrow(/references unknown/);
 
@@ -795,6 +812,7 @@ export function runDbPortConformance(
           },
           testCreditEntryLine,
         ],
+        localId: null,
       });
 
       expect(created.lines[0]).toMatchObject({
@@ -814,6 +832,7 @@ export function runDbPortConformance(
           description: "wrong owner",
           businessRate: 1,
           lines: [testEntryLine, testCreditEntryLine],
+          localId: null,
         }),
       ).rejects.toThrow(/fiscal period not found/);
       expect(await db.entries.getAll(period.id)).toEqual([]);
@@ -843,6 +862,7 @@ export function runDbPortConformance(
         description: "other fp",
         businessRate: 1,
         lines: [testEntryLine, testCreditEntryLine],
+        localId: null,
       });
 
       expect(original.id).toMatch(/^entry_/);
@@ -858,6 +878,7 @@ export function runDbPortConformance(
           { ...testEntryLine, amount: 2000 },
           { ...testCreditEntryLine, amount: 2000 },
         ],
+        localId: null,
       });
       expect(updated.id).toBe(original.id);
       expect(updated.description).toBe("after");
@@ -875,6 +896,7 @@ export function runDbPortConformance(
         description: "without external id",
         businessRate: 1,
         lines: [testEntryLine, testCreditEntryLine],
+        localId: null,
       });
 
       expect((await db.entries.getById(created.id))?.localId).toBe("");
@@ -884,6 +906,7 @@ export function runDbPortConformance(
         description: "updated without external id",
         businessRate: 1,
         lines: [testEntryLine, testCreditEntryLine],
+        localId: null,
       });
       expect(updated.localId).toBe("");
       expect(updated.description).toBe("updated without external id");
@@ -901,12 +924,14 @@ export function runDbPortConformance(
           description: "first",
           businessRate: 1,
           lines: [testEntryLine, testCreditEntryLine],
+          localId: null,
         },
         {
           date: "2026-04-02",
           description: "second",
           businessRate: 1,
           lines: [testEntryLine, testCreditEntryLine],
+          localId: null,
         },
       ]);
 
@@ -927,12 +952,14 @@ export function runDbPortConformance(
             description: "valid",
             businessRate: 1,
             lines: [testEntryLine, testCreditEntryLine],
+            localId: null,
           },
           {
             date: "2026-04-02",
             description: "invalid",
             businessRate: 1,
             lines: [testEntryLine],
+            localId: null,
           },
         ]),
       ).rejects.toThrow(/positive debit and credit lines/);
@@ -954,6 +981,7 @@ export function runDbPortConformance(
           description: `many lines ${index}`,
           businessRate: 1,
           lines: repeatedLines,
+          localId: null,
         }),
       );
 
@@ -1053,12 +1081,14 @@ export function runDbPortConformance(
           description: "x",
           businessRate: 1,
           lines: [testEntryLine, testCreditEntryLine],
+          localId: null,
         },
         {
           date: "2026-04-01",
           description: "y",
           businessRate: 1,
           lines: [testEntryLine, testCreditEntryLine],
+          localId: null,
         },
       ]);
       expect(created).toHaveLength(2);
@@ -1123,6 +1153,12 @@ export function runDbPortConformance(
         status: "disposed",
         disposalDate: "2026-12-31",
         disposalPrice: 0,
+        bookAccountId: null,
+        name: null,
+        acquisitionDate: null,
+        acquisitionCost: null,
+        usefulLife: null,
+        depreciationMethod: null,
       });
       expect(updated).toMatchObject({
         businessRate: 0.7,
@@ -1171,6 +1207,13 @@ export function runDbPortConformance(
           status: "disposed",
           disposalDate: "2026-12-31",
           disposalPrice: 20000,
+          bookAccountId: null,
+          businessRate: null,
+          name: null,
+          acquisitionDate: null,
+          acquisitionCost: null,
+          usefulLife: null,
+          depreciationMethod: null,
         }),
       ).rejects.toThrow(/must not have a disposal price/);
       expect(await db.fixedAssets.getById(asset.id)).toMatchObject({
@@ -1370,6 +1413,8 @@ export function runDbPortConformance(
               opening: null,
               createdAt: "1970-01-01T00:00:00.000Z",
               updatedAt: "1970-01-01T00:00:00.000Z",
+              archiveDataAvailable: null,
+              archivedAt: null,
             },
           },
         ],

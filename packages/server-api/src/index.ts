@@ -69,7 +69,13 @@ export function createOpenkkServerApi(
       redeemCompletionCode: async (code) => {
         assertNonBlankString(code, "Auth completion code");
         await usecases.auth.redeemCompletionCode(code);
-        return { userId: uid };
+        return {
+          userId: uid,
+          displayName: null,
+          email: null,
+          iconUrl: null,
+          authProvider: null,
+        };
       },
       signOut: () => usecases.auth.signOut(),
     },

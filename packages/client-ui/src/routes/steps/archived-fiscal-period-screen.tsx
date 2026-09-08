@@ -86,6 +86,7 @@ export function ArchivedFiscalPeriodScreen({
         AppError.from(error, {
           fallbackUserMessage: "圧縮済みファイルの作成に失敗しました",
           fallbackDeveloperMessage: "steps/archived: download archive failed",
+          statusCode: null,
         }),
       );
     } finally {
@@ -176,6 +177,8 @@ export function ArchivedFiscalPeriodScreen({
               appState.clearFiscalPeriod();
               router.push("/fiscal-periods");
             }}
+            variant={null}
+            icon={null}
           >
             期間一覧へ
           </StepPrimaryButton>
@@ -184,6 +187,7 @@ export function ArchivedFiscalPeriodScreen({
               onClick={handleDownload}
               disabled={isDownloading}
               variant="success"
+              icon={null}
             >
               {isDownloading ? "作成中" : "圧縮済みファイルをダウンロード"}
             </StepPrimaryButton>
@@ -192,7 +196,7 @@ export function ArchivedFiscalPeriodScreen({
 
         {screenError != null ? (
           <div style={{ marginTop: 16 }}>
-            <AppErrorText error={screenError} />
+            <AppErrorText error={screenError} style={null} fallbackUserMessage={null} />
           </div>
         ) : null}
       </div>

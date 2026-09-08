@@ -360,6 +360,7 @@ export function EntriesPage() {
         text: AppError.from(error, {
           fallbackUserMessage: "取り込みに失敗しました",
           fallbackDeveloperMessage: "entries: import file failed",
+          statusCode: null,
         }).messageForUser,
       });
     } finally {
@@ -426,7 +427,7 @@ export function EntriesPage() {
                   ),
                 );
               }
-            : undefined
+            : null
         }
         onOpenEntry={
           lockedMessage == null && !editingLocked
@@ -440,10 +441,11 @@ export function EntriesPage() {
                 if (row.recordId == null) return;
                 openDrawer(row.recordId);
               }
-            : undefined
+            : null
         }
-        onImportFile={canImport && !isImporting ? handleImportFile : undefined}
-        onExport={fiscalPeriodId !== "" ? handleExport : undefined}
+        onImportFile={canImport && !isImporting ? handleImportFile : null}
+        onExport={fiscalPeriodId !== "" ? handleExport : null}
+        isPlaceholderData={null}
       />
       {drawerEntry != null &&
       newEntryDraft == null &&
@@ -453,8 +455,8 @@ export function EntriesPage() {
         <EntryEditDrawer
           key={`edit:${drawerEntry.id}`}
           entry={drawerEntry}
-          minDate={currentFiscalPeriod?.startDate}
-          maxDate={currentFiscalPeriod?.endDate}
+          minDate={currentFiscalPeriod?.startDate ?? null}
+          maxDate={currentFiscalPeriod?.endDate ?? null}
           accountOptions={entriesState.accountOptions}
           taxCategoryOptions={entriesState.taxCategoryOptions}
           businessCategoryOptions={entriesState.businessCategoryOptions}
@@ -488,6 +490,7 @@ export function EntriesPage() {
               });
             }
           }}
+          mode={null}
         />
       ) : null}
       {newEntryDraft != null &&
@@ -498,8 +501,8 @@ export function EntriesPage() {
           key={`create:${newEntryDraft.id}`}
           mode="create"
           entry={newEntryDraft}
-          minDate={currentFiscalPeriod?.startDate}
-          maxDate={currentFiscalPeriod?.endDate}
+          minDate={currentFiscalPeriod?.startDate ?? null}
+          maxDate={currentFiscalPeriod?.endDate ?? null}
           accountOptions={entriesState.accountOptions}
           taxCategoryOptions={entriesState.taxCategoryOptions}
           businessCategoryOptions={entriesState.businessCategoryOptions}
@@ -523,6 +526,7 @@ export function EntriesPage() {
               });
             }
           }}
+          onDelete={null}
         />
       ) : null}
       {drawerVirtualEntry != null && lockedMessage == null ? (
@@ -607,6 +611,12 @@ function buildNewEntryDraftRecord(
         accountType: debit?.accountType ?? "expense",
         amount: "",
         bookAccountId: debit?.id,
+        id: null,
+        partnerName: null,
+        taxCategoryId: null,
+        taxCategoryName: null,
+        businessCategoryId: null,
+        businessCategoryName: null,
       },
       {
         side: "credit",
@@ -614,6 +624,12 @@ function buildNewEntryDraftRecord(
         accountType: credit?.accountType ?? "asset",
         amount: "",
         bookAccountId: credit?.id,
+        id: null,
+        partnerName: null,
+        taxCategoryId: null,
+        taxCategoryName: null,
+        businessCategoryId: null,
+        businessCategoryName: null,
       },
     ],
     debit: debit?.name ?? "",
@@ -627,6 +643,14 @@ function buildNewEntryDraftRecord(
     businessRate: "",
     taxCategory: "対象外",
     businessCategory: "",
+    businessRateRatio: null,
+    localId: null,
+    debitBookAccountId: null,
+    creditBookAccountId: null,
+    debitTaxCategoryId: null,
+    creditTaxCategoryId: null,
+    debitBusinessCategoryId: null,
+    creditBusinessCategoryId: null,
   };
 }
 

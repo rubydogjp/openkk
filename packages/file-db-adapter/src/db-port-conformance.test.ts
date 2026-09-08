@@ -5,12 +5,15 @@ import { runDbPortConformance } from "../../server-ports/src/db-port-conformance
 import { RealDbWorker } from "./real-db-worker.js";
 
 async function createWorkerTransportAdapter(
-  seed?: DbSnapshot,
+  seed: DbSnapshot | null,
 ): Promise<OpenkkDbPort> {
   vi.resetModules();
   vi.stubGlobal("Worker", RealDbWorker);
   const { createFileDbAdapter } = await import("./index.js");
-  return createFileDbAdapter({ vfsName: "opfs-conformance" }, seed);
+  return createFileDbAdapter(
+    { vfsName: "opfs-conformance", dbFileName: null },
+    seed,
+  );
 }
 
 afterEach(() => {
@@ -19,6 +22,6 @@ afterEach(() => {
 });
 
 runDbPortConformance("file-db-adapter (worker transport)", {
-  makeAdapter: () => createWorkerTransportAdapter(),
+  makeAdapter: () => createWorkerTransportAdapter(null),
   makeSeededAdapter: (seed) => createWorkerTransportAdapter(seed),
 });

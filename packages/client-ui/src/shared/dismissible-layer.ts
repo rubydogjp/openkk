@@ -14,12 +14,12 @@ const focusableSelector = [
 const activeLayerStack: symbol[] = [];
 
 export function useDismissibleLayer<ElementType extends HTMLElement>(options: {
-  open?: boolean;
+  open: boolean | null;
   onDismiss: () => void;
-  initialFocusRef?: RefObject<HTMLElement | null>;
-  focusOnOpen?: boolean;
-  restoreFocus?: boolean;
-  trapFocus?: boolean;
+  initialFocusRef: RefObject<HTMLElement | null> | null;
+  focusOnOpen: boolean | null;
+  restoreFocus: boolean | null;
+  trapFocus: boolean | null;
 }): RefObject<ElementType | null> {
   const layerRef = useRef<ElementType>(null);
   const layerId = useRef(Symbol("dismissible-layer"));
@@ -112,6 +112,10 @@ export function usePopoverLifecycle<
   const popupRef = useDismissibleLayer<PopupType>({
     open: options.open,
     onDismiss: options.onDismiss,
+    initialFocusRef: null,
+    focusOnOpen: null,
+    restoreFocus: null,
+    trapFocus: null,
   });
 
   useEffect(() => {
@@ -130,11 +134,14 @@ export function usePopoverLifecycle<
 
 export function useModalLifecycle<ElementType extends HTMLElement>(
   onDismiss: () => void,
-  initialFocusRef?: RefObject<HTMLElement | null>,
+  initialFocusRef: RefObject<HTMLElement | null> | null,
 ): RefObject<ElementType | null> {
   return useDismissibleLayer<ElementType>({
     onDismiss,
     initialFocusRef,
     trapFocus: true,
+    open: null,
+    focusOnOpen: null,
+    restoreFocus: null,
   });
 }

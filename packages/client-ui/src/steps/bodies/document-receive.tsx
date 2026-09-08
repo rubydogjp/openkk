@@ -27,8 +27,8 @@ import {
 export function DocumentReceiveBody({
   onSwitchToStep,
 }: {
-  onSwitchToStep?: (no: number) => void;
-} = {}) {
+  onSwitchToStep: ((no: number) => void) | null;
+} = { onSwitchToStep: null }) {
   const appState = useOpenkkAppState();
   const config = useOpenkkConfig();
   const editingLocked = resolveEditingPolicy(config).locked;
@@ -68,6 +68,7 @@ export function DocumentReceiveBody({
           fallbackUserMessage: "書類受領の更新に失敗しました",
           fallbackDeveloperMessage:
             "steps/document-receive: updateFiscalPeriod failed",
+          statusCode: null,
         }),
       );
     } finally {
@@ -94,17 +95,20 @@ export function DocumentReceiveBody({
             {
               label: "仕訳帳.pdf",
               active: canComplete,
-              onClick: canComplete ? printJournal : undefined,
+              onClick: canComplete ? printJournal : null,
+              description: null,
             },
             {
               label: "総勘定元帳.pdf",
               active: canComplete,
-              onClick: canComplete ? printGeneralLedger : undefined,
+              onClick: canComplete ? printGeneralLedger : null,
+              description: null,
             },
             {
               label: "財務諸表.pdf",
               active: canComplete,
-              onClick: canComplete ? printFinancialStatements : undefined,
+              onClick: canComplete ? printFinancialStatements : null,
+              description: null,
             },
           ]}
         />
@@ -130,16 +134,17 @@ export function DocumentReceiveBody({
             }}
           >
             {isDone ? (
-              <StepPrimaryButton onClick={() => onSwitchToStep?.(6)}>
+              <StepPrimaryButton onClick={() => onSwitchToStep?.(6)} variant={null} icon={null}>
                 次の手順へ
               </StepPrimaryButton>
             ) : editingLocked ? (
-              <LockButton label="全て受け取りました" />
+              <LockButton label="全て受け取りました" style={null} />
             ) : (
               <StepPrimaryButton
                 onClick={handleComplete}
                 disabled={isCompleting}
                 variant="success"
+                icon={null}
               >
                 {isCompleting ? "更新中…" : "全て受け取りました"}
               </StepPrimaryButton>
@@ -150,7 +155,7 @@ export function DocumentReceiveBody({
 
       {screenError != null ? (
         <div style={{ marginTop: 16 }}>
-          <AppErrorText error={screenError} />
+          <AppErrorText error={screenError} style={null} fallbackUserMessage={null} />
         </div>
       ) : null}
     </>

@@ -63,7 +63,7 @@ const DEFAULT_CARRIES: Record<string, boolean> = {
 export function NextFiscalPeriodBody({
   onSwitchToStep,
 }: {
-  onSwitchToStep?: (no: number) => void;
+  onSwitchToStep: ((no: number) => void) | null;
 }) {
   const config = useOpenkkConfig();
   const nextPeriodFooter = useOpenkkCallout("stepNextFiscalPeriodFooter");
@@ -146,6 +146,7 @@ export function NextFiscalPeriodBody({
     hasActiveFiscalPeriodOverlap(
       { startDate, endDate },
       appState.fiscalPeriods,
+      null,
     );
   const canCreateNext =
     canEnterPage &&
@@ -291,6 +292,7 @@ export function NextFiscalPeriodBody({
           fallbackUserMessage: "次の期間の作成に失敗しました",
           fallbackDeveloperMessage:
             "steps/next-fiscal-period: createFiscalPeriod failed",
+          statusCode: null,
         }),
       );
     } finally {
@@ -360,6 +362,7 @@ export function NextFiscalPeriodBody({
           fallbackUserMessage: "圧縮保存に失敗しました",
           fallbackDeveloperMessage:
             "steps/next-fiscal-period: archiveFiscalPeriod failed",
+          statusCode: null,
         }),
       );
     } finally {
@@ -400,6 +403,7 @@ export function NextFiscalPeriodBody({
                 placeholder="例: 2027年分"
               />
             }
+            hint={null}
           />
           <StepFormRow
             label="期間"
@@ -426,6 +430,7 @@ export function NextFiscalPeriodBody({
                 ) : null}
               </>
             }
+            hint={null}
           />
         </StepMetaCard>
       </section>
@@ -461,6 +466,7 @@ export function NextFiscalPeriodBody({
                 ))}
               </div>
             }
+            hint={null}
           />
         </StepMetaCard>
         {canEnterPage ? (
@@ -504,6 +510,7 @@ export function NextFiscalPeriodBody({
                     }}
                     disabled={!canCreateNext}
                     variant="success"
+                    icon={null}
                   >
                     {isCreating ? "作成中" : ephemeralWarning.confirmLabel}
                   </StepPrimaryButton>
@@ -518,7 +525,7 @@ export function NextFiscalPeriodBody({
                 }}
               >
                 {editingLocked ? (
-                  <LockButton label="次期を作成" />
+                  <LockButton label="次期を作成" style={null} />
                 ) : (
                   <StepPrimaryButton
                     onClick={() => {
@@ -528,6 +535,7 @@ export function NextFiscalPeriodBody({
                     }}
                     disabled={!canCreateNext}
                     variant="success"
+                    icon={null}
                   >
                     {isCreating ? "作成中" : "次期を作成"}
                   </StepPrimaryButton>
@@ -588,12 +596,13 @@ export function NextFiscalPeriodBody({
             </span>
           ) : null}
           {editingLocked ? (
-            <LockButton label="圧縮保存" />
+            <LockButton label="圧縮保存" style={null} />
           ) : (
             <StepPrimaryButton
               onClick={handleArchive}
               disabled={!canArchive}
               variant="success"
+              icon={null}
             >
               {currentFiscalPeriod.archiveStatus === "archived"
                 ? "圧縮保存済み"
@@ -607,7 +616,7 @@ export function NextFiscalPeriodBody({
 
       {screenError != null ? (
         <div style={{ marginTop: 16 }}>
-          <AppErrorText error={screenError} />
+          <AppErrorText error={screenError} style={null} fallbackUserMessage={null} />
         </div>
       ) : null}
     </>

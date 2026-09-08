@@ -15,8 +15,8 @@ import { usePopoverLifecycle } from "../shared/dismissible-layer.js";
 export type EntryFileKind = "json" | "csv";
 
 export function EntryFileActionsButton(props: {
-  onImportFile?: (kind: EntryFileKind, file: File) => void;
-  onExport?: (kind: EntryFileKind) => void;
+  onImportFile: ((kind: EntryFileKind, file: File) => void) | null;
+  onExport: ((kind: EntryFileKind) => void) | null;
 }) {
   const [open, setOpen] = useState(false);
   const { containerRef, popupRef: menuRef } = usePopoverLifecycle<

@@ -50,7 +50,7 @@ import type {
 } from "@rubydogjp/openkk-client-domain";
 
 type AssistState = {
-  listFixedAssets: (fiscalPeriodId?: string) => FixedAssetPreviewItem[];
+  listFixedAssets: (fiscalPeriodId: string | null) => FixedAssetPreviewItem[];
   getFixedAsset: (assetId: string) => FixedAssetPreviewItem | null;
   addFixedAsset: (draft: FixedAssetDraft) => Promise<string | null>;
   updateFixedAsset: (
@@ -205,9 +205,9 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
             remote.map((asset) =>
               mapFixedAssetToPreview(
                 asset,
-                bookAccountNameById[asset.bookAccountId],
+                bookAccountNameById[asset.bookAccountId] ?? null,
                 fixedAssetPreviewAsOf,
-                currentFiscalPeriodEndDate,
+                currentFiscalPeriodEndDate ?? null,
               ),
             ),
           ),
@@ -255,7 +255,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         }
         periodVersions.current.invalidate(fiscalPeriodId);
         const accountId = resolveBookAccountId(
-          undefined,
+          null,
           draft.account,
           "asset",
           {
@@ -285,9 +285,9 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
           if (selectedFiscalPeriodId.current === fiscalPeriodId) {
             const mapped = mapFixedAssetToPreview(
               created,
-              bookAccountNameById[created.bookAccountId],
+              bookAccountNameById[created.bookAccountId] ?? null,
               fixedAssetPreviewAsOf,
-              currentFiscalPeriodEndDate,
+              currentFiscalPeriodEndDate ?? null,
             );
             setFixedAssets((current) => upsertFixedAsset(current, mapped));
           }
@@ -336,9 +336,9 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
             if (selectedFiscalPeriodId.current === fiscalPeriodId) {
               const mapped = mapFixedAssetToPreview(
                 patched,
-                bookAccountNameById[patched.bookAccountId],
+                bookAccountNameById[patched.bookAccountId] ?? null,
                 fixedAssetPreviewAsOf,
-                currentFiscalPeriodEndDate,
+                currentFiscalPeriodEndDate ?? null,
               );
               setFixedAssets((currentList) =>
                 upsertFixedAsset(currentList, mapped),

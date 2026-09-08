@@ -32,5 +32,8 @@ function config(): OpenkkConfig {
     initialMockFiscalPeriodId: "fp-2026",
     sessionStorageKey: "session",
     fiscalPeriodStorageKey: "period",
+    fiscalPeriodPolicy: null,
+    editingPolicy: null,
+    debugRoutesEnabled: false,
   };
 }
