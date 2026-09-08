@@ -7,10 +7,6 @@ const packagesDir = path.join(rootDir, "packages");
 
 const OPTIONAL_DECLARATION = /(^|[ ({,;])[A-Za-z_][A-Za-z0-9_]*\?:/;
 
-/**
- * 外部 API の呼び出し形（sqlite-wasm / worker message / React DOM）を写した型と、
- * 「未指定 = 既定値」を表すテストの上書きファクトリだけが省略可能を許される。
- */
 const EXTERNAL_SHAPE_FILES = new Set([
   "client-ui/src/shared/design-tokens.ts",
   "file-db-adapter/src/index.test.ts",

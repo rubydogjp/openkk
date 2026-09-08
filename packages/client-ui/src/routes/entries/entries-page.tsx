@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import {
   AppError,
-  assertJournalImportSize,
+  assertEntryImportSize,
   buildVirtualBusinessRateTransferRows,
   buildVirtualFixedAssetRows,
   buildVirtualOpeningCarryoverRows,
@@ -324,7 +324,7 @@ export function EntriesPage() {
     if (release == null) return;
     setIsImporting(true);
     try {
-      assertJournalImportSize(file.size);
+      assertEntryImportSize(file.size);
       const text = decodeJournalImportBytes(
         new Uint8Array(await file.arrayBuffer()),
       );

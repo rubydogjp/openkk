@@ -4,6 +4,16 @@ export const MAX_ENTRY_IMPORT_ITEMS = 10_000;
 export const MAX_ENTRY_IMPORT_LINES = 100_000;
 export const MAX_ENTRY_LINES = 1_000;
 export const MAX_FIXED_ASSET_USEFUL_LIFE_YEARS = 100;
+export const MAX_TEXT_FIELD_LENGTH = 400;
+
+export function assertTextFieldLength(value: string, label: string): void {
+  if (value.length > MAX_TEXT_FIELD_LENGTH) {
+    throw serverValidationError(
+      `${label} exceeds the ${MAX_TEXT_FIELD_LENGTH.toLocaleString("en-US")} character limit`,
+      `入力できる文字数は${MAX_TEXT_FIELD_LENGTH.toLocaleString()}文字までです`,
+    );
+  }
+}
 
 export function parseIsoDate(value: string): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
@@ -41,17 +51,6 @@ export function assertDateRange(
   if (start.getTime() > end.getTime()) {
     throw serverValidationError(
       `${label} start date must be on or before end date`,
-    );
-  }
-}
-
-export function assertNonNegativeFiniteNumber(
-  value: number,
-  label: string,
-): void {
-  if (!Number.isFinite(value) || value < 0) {
-    throw serverValidationError(
-      `${label} must be a non-negative finite number`,
     );
   }
 }

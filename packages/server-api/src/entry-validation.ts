@@ -61,7 +61,7 @@ export function assertEntryInput(
     assertString(line.partnerName, "Entry line partner");
     assertNonNegativeSafeInteger(line.amount, "Entry line amount");
   }
-  assertEntryLinesBalanced(input.lines, "Entry",{ allowZero: false },);
+  assertEntryLinesBalanced(input.lines, "Entry", { allowZero: false });
 }
 
 export function assertEntryMasterReferences(input: EntryUpsertInput): void {
@@ -72,13 +72,7 @@ export function assertEntryMasterReferences(input: EntryUpsertInput): void {
         "存在しない勘定科目が指定されています",
       );
     }
-    if (typeof line.taxCategoryId !== "string") {
-      throw serverValidationError("Entry line tax category must be a string");
-    }
-    if (typeof line.businessCategoryId !== "string") {
-      throw serverValidationError(
-        "Entry line business category must be a string",
-      );
-    }
+    assertString(line.taxCategoryId, "Entry line tax category");
+    assertString(line.businessCategoryId, "Entry line business category");
   }
 }

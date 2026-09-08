@@ -2,6 +2,7 @@
 
 import type { CSSProperties, ReactNode } from "react";
 
+import { MAX_TEXT_FIELD_LENGTH } from "@rubydogjp/openkk-client-domain";
 import { fontWeight, palette, radii, rings, shadows, sizes, spacing, typography } from "./design-tokens.js";
 import { DatePickerButton, formatDateButtonLabel } from "./date-picker.js";
 
@@ -71,6 +72,7 @@ export function FormTextInput({
       className={inputClassName}
       value={value}
       readOnly={readOnly}
+      maxLength={MAX_TEXT_FIELD_LENGTH}
       placeholder={placeholder ?? undefined}
       onChange={(event) => onChange(event.target.value)}
       style={{

@@ -6,10 +6,10 @@ export * from "./shared/models.js";
 export * from "./shared/bootstrap-data.js";
 export * from "./shared/period-lock.js";
 export * from "./shared/parse-utils.js";
+export * from "./shared/text-limits.js";
 
 export * from "./entries/entries-types.js";
 export * from "./entries/import-export.js";
-export * from "./entries/example-entries.js";
 export * from "./entries/entry-record.js";
 export * from "./entries/default-master-data.js";
 export * from "./entries/quick-guide-data.js";

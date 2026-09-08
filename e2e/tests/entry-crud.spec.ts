@@ -23,8 +23,8 @@ test.describe("entry CRUD", () => {
     await expect(drawer).toBeVisible();
 
     await drawer.getByLabel("摘要").fill("手動入力テスト売上");
-    await drawer.locator(".bk-amount-input").first().fill("50000");
-    await drawer.locator(".bk-amount-input").last().fill("50000");
+    await drawer.getByLabel("借方金額").first().fill("50000");
+    await drawer.getByLabel("貸方金額").last().fill("50000");
 
     await clickButton(page, "作成");
     await expect(drawer).not.toBeVisible({ timeout: 5_000 });
@@ -48,8 +48,8 @@ test.describe("entry CRUD", () => {
     await expect(drawer.getByLabel("借方科目")).toContainText("普通預金");
     await expect(drawer.getByLabel("貸方科目")).toContainText("前受金");
 
-    await drawer.locator(".bk-amount-input").first().fill("120000");
-    await drawer.locator(".bk-amount-input").last().fill("120000");
+    await drawer.getByLabel("借方金額").first().fill("120000");
+    await drawer.getByLabel("貸方金額").last().fill("120000");
     await clickButton(page, "作成");
 
     await expect(drawer).not.toBeVisible({ timeout: 5_000 });
@@ -84,8 +84,8 @@ test.describe("entry CRUD", () => {
 
     const drawer = page.getByRole("dialog", { name: "仕訳の新規作成" });
     await drawer.getByLabel("摘要").fill("任意区分と小数割合");
-    await drawer.locator(".bk-amount-input").first().fill("12000");
-    await drawer.locator(".bk-amount-input").last().fill("12000");
+    await drawer.getByLabel("借方金額").first().fill("12000");
+    await drawer.getByLabel("貸方金額").last().fill("12000");
 
     await setSuggestionValue(drawer, "事業割合 (%)", "abc");
     await clickButton(page, "作成");
@@ -224,19 +224,15 @@ async function createEntryViaDrawer(
   await expect(drawer).toBeVisible();
 
   await drawer.getByLabel("摘要").fill(opts.description);
-  await drawer.locator(".bk-amount-input").first().fill(opts.amount);
-  await drawer.locator(".bk-amount-input").last().fill(opts.amount);
+  await drawer.getByLabel("借方金額").first().fill(opts.amount);
+  await drawer.getByLabel("貸方金額").last().fill(opts.amount);
 
   await clickButton(page, "作成");
   await expect(drawer).not.toBeVisible({ timeout: 5_000 });
 }
 
-function suggestionRow(drawer: Locator, label: string) {
-  return drawer.locator(".bk-step-row").filter({ hasText: label });
-}
-
 function suggestionButton(drawer: Locator, label: string) {
-  return suggestionRow(drawer, label).getByRole("button").first();
+  return drawer.getByRole("button", { name: label, exact: true });
 }
 
 async function setSuggestionValue(
@@ -244,8 +240,8 @@ async function setSuggestionValue(
   label: string,
   value: string,
 ) {
-  const row = suggestionRow(drawer, label);
-  await row.getByRole("button").first().click();
-  await row.getByRole("dialog").getByRole("textbox").fill(value);
-  await row.getByRole("button", { name: "この値で確定" }).click();
+  await suggestionButton(drawer, label).click();
+  const popup = drawer.getByRole("dialog", { name: label, exact: true });
+  await popup.getByRole("textbox").fill(value);
+  await popup.getByRole("button", { name: "この値で確定" }).click();
 }

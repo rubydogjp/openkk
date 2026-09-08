@@ -131,16 +131,6 @@ export function applyBusinessRateToLines(
   return [...result, ...adjustments.values()];
 }
 
-/** EntryRecord を取得し、家事按分を反映した実効明細に変換する。 */
-export function getBusinessAdjustedEntryLines(
-  record: EntryRecord,
-): EntryLine[] {
-  return applyBusinessRateToLines(
-    getEntryLines(record),
-    resolveEntryBusinessRate(record),
-  );
-}
-
 export function resolveEntryBusinessRate(record: {
   businessRate: string;
   businessRateRatio: number | null;
@@ -149,6 +139,12 @@ export function resolveEntryBusinessRate(record: {
   return exact != null && Number.isFinite(exact) && exact >= 0 && exact <= 1
     ? exact
     : parseBusinessRate(record.businessRate);
+}
+
+export function entryLineAccountKey(line: EntryLine): string {
+  return line.bookAccountId == null || line.bookAccountId === ""
+    ? `name:${line.accountType}:${line.accountName}`
+    : `id:${line.bookAccountId}`;
 }
 
 export const BUSINESS_RATE_TRANSFER_LOCAL_ID = "virtual:business-rate-transfer";
@@ -179,10 +175,7 @@ export function buildBusinessRateTransferEntry(input: {
     for (const line of lines) {
       const signed =
         (line.side === "debit" ? 1 : -1) * parseAmount(line.amount) * factor;
-      const key =
-        line.bookAccountId == null || line.bookAccountId === ""
-          ? `legacy:${line.accountType}:${line.accountName}`
-          : `id:${line.bookAccountId}`;
+      const key = entryLineAccountKey(line);
       const current = delta.get(key);
       if (current == null) {
         delta.set(key, {
@@ -383,7 +376,3 @@ export function recordToPreviewRows(record: EntryRecord): EntryPreviewRow[] {
   });
 }
 
-export function recordToPreviewRow(record: EntryRecord): EntryPreviewRow {
-  const rows = recordToPreviewRows(record);
-  return rows[0]!;
-}

@@ -5,6 +5,7 @@ import {
   MAX_ENTRY_IMPORT_ITEMS,
   MAX_ENTRY_IMPORT_LINES,
   MAX_ENTRY_LINES,
+  MAX_TEXT_FIELD_LENGTH,
 } from "@rubydogjp/openkk-server-domain";
 import type {
   ClosingApiRecord,
@@ -268,6 +269,48 @@ describe("openkk server entries API", () => {
     ).rejects.toThrow(/must be within fiscal period 2026-01-01 to 2026-12-31/);
 
     expect(await server.entries.getAll("fp-1")).toEqual([]);
+  });
+
+  it("rejects text fields beyond the shared character limit", async () => {
+    const db = createEntryDb();
+    const server = createOpenkkServer(db, { userId: "user-1" });
+    const tooLong = "あ".repeat(MAX_TEXT_FIELD_LENGTH + 1);
+
+    await expect(
+      server.entries.create("fp-1", validEntryInput({ description: tooLong })),
+    ).rejects.toThrow(/character limit/);
+    await expect(
+      server.entries.create(
+        "fp-1",
+        validEntryInput({
+          lines: validEntryInput().lines.map((line) => ({
+            ...line,
+            partnerName: tooLong,
+          })),
+        }),
+      ),
+    ).rejects.toThrow(/character limit/);
+    await expect(
+      server.entries.create(
+        "fp-1",
+        validEntryInput({
+          lines: validEntryInput().lines.map((line) => ({
+            ...line,
+            taxCategoryId: tooLong,
+          })),
+        }),
+      ),
+    ).rejects.toThrow(/character limit/);
+
+    expect(
+      (await server.entries.create(
+        "fp-1",
+        validEntryInput({
+          localId: "at-the-limit",
+          description: "あ".repeat(MAX_TEXT_FIELD_LENGTH),
+        }),
+      )).description,
+    ).toHaveLength(MAX_TEXT_FIELD_LENGTH);
   });
 
   it("rejects unknown book accounts and preserves custom categories", async () => {

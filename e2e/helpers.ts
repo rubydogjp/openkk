@@ -46,7 +46,7 @@ export async function waitUntilSettled(page: Page) {
 export async function clickButton(page: Page, name: string) {
   await waitUntilSettled(page);
 
-  const dialog = page.locator(".bk-dialog-card");
+  const dialog = page.getByRole("alertdialog");
   if (await dialog.isVisible().catch(() => false)) {
     await dialog.getByRole("button", { name }).click();
     return;

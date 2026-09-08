@@ -55,7 +55,7 @@ import type {
   EntrySuggestions,
 } from "@rubydogjp/openkk-client-usecases";
 import {
-  MAX_JOURNAL_ENTRY_LINES,
+  MAX_ENTRY_LINES,
   parseAmount,
   type EntryRecord,
 } from "@rubydogjp/openkk-client-domain";
@@ -660,7 +660,7 @@ export function EntryEditDrawer(props: {
                     variant="add"
                     ariaLabel="複合仕訳を追加"
                     label="複合仕訳を追加"
-                    enabled={draft.pairs.length < MAX_JOURNAL_ENTRY_LINES / 2}
+                    enabled={draft.pairs.length < MAX_ENTRY_LINES / 2}
                     onClick={addRow}
                   />
                 </div>
@@ -687,6 +687,7 @@ export function EntryEditDrawer(props: {
                       value={draft.partner}
                       onChange={updatePartner}
                       options={mergeOptions([], props.suggestions.partner)}
+                      ariaLabel="取引先"
                       placeholder="取引先を入力"
                       inputMode={null}
                     />
@@ -707,6 +708,7 @@ export function EntryEditDrawer(props: {
                         })
                       }
                       options={BIZ_RATE_PRESETS}
+                      ariaLabel="事業割合 (%)"
                       placeholder="100"
                       align="right"
                       inputMode="decimal"
@@ -726,6 +728,7 @@ export function EntryEditDrawer(props: {
                         props.taxCategoryOptions.map((o) => o.name),
                         props.suggestions.taxCategory,
                       )}
+                      ariaLabel="課税区分"
                       placeholder="未選択"
                       inputMode={null}
                     />
@@ -744,6 +747,7 @@ export function EntryEditDrawer(props: {
                         props.businessCategoryOptions.map((o) => o.name),
                         props.suggestions.businessCategory,
                       )}
+                      ariaLabel="事業区分"
                       placeholder="未選択"
                       inputMode={null}
                     />

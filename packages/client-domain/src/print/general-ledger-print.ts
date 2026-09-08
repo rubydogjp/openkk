@@ -1,4 +1,5 @@
 import {
+  entryLineAccountKey,
   getEntryLines,
   resolveEntryLineMetadata,
   type EntryLine,
@@ -101,12 +102,6 @@ type AccountIdentity = {
   type: AccountType;
 };
 
-function accountKey(line: EntryLine): string {
-  return line.bookAccountId == null || line.bookAccountId === ""
-    ? `legacy:${line.accountType}:${line.accountName}`
-    : `id:${line.bookAccountId}`;
-}
-
 function buildLedger(
   account: AccountIdentity,
   allEntries: EntryRecord[],
@@ -115,7 +110,7 @@ function buildLedger(
   const relevant = allEntries
     .flatMap((entry) =>
       getEntryLines(entry)
-        .filter((line) => accountKey(line) === account.key)
+        .filter((line) => entryLineAccountKey(line) === account.key)
         .map((line) => ({ entry, line })),
     )
     .sort((a, b) => a.entry.date.localeCompare(b.entry.date));
@@ -186,7 +181,7 @@ export function buildGeneralLedgerBody(
   const seen = new Set<string>();
   for (const e of [...entries].sort((a, b) => a.date.localeCompare(b.date))) {
     for (const line of getEntryLines(e)) {
-      const key = accountKey(line);
+      const key = entryLineAccountKey(line);
       if (!seen.has(key)) {
         seen.add(key);
         encounterOrder.push({

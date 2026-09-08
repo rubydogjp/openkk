@@ -10,25 +10,31 @@
 | Errors | `@rubydogjp/openkk-*-domain` | `AppError`, `AppErrorLike` |
 
 `client-*` and `server-*` keep separate type definitions on purpose.
+制限値も両側に持ち、名前を揃える。値の一致は `test/shared-limits.test.ts` が固定する。
+
+## テキスト項目の上限
+
+自由入力は `MAX_TEXT_FIELD_LENGTH`（400文字）まで。`assertNonBlankString` /
+`assertString` を通る全項目が対象。緩めるのは容易、厳しくするのは難しいため厳しめに取る。
+
+強制するのは入力境界（server-api とアーカイブ取込）だけ。永続化境界の検証は
+読み取りでも通るため、そこに置くと上限超えの既存データが読めなくなる。
 
 ## 値の省略
 
-`undefined` は使わない。省略可能プロパティ (`foo?: T`) を作らず `foo: T | null` とし、
-呼び出し側が `null` を明示的に渡す。値の有無が「ある / null / 未指定」の3状態に
-分かれると判定の分岐が増え、到達しないフォールバック経路が溜まるため。
-
+省略可能プロパティ (`foo?: T`) を作らず `foo: T | null` とし、呼び出し側が `null` を
+明示的に渡す。「ある / null / 未指定」の3状態は判定の分岐を増やす。
 配列は `T[]` を必須にする（「未指定」と「空」を区別しない）。
 
-例外は3つだけ。`test/explicit-null.test.ts` が許可リストとして正本を持つ。
+例外は3つ。許可リストの正本は `test/explicit-null.test.ts`。
 
 | 例外 | 理由 |
 |---|---|
-| 外部 API の呼び出し形を写した型 | sqlite-wasm の `exec`、worker message、React DOM props は先方の契約が `undefined` |
-| 既定値つきの表示用 prop | `disabled = false` のように destructuring で既定値を与える場合、内部では値が確定していて分岐が増えない |
-| テストの上書きファクトリ | `Partial<T>` の「未指定 = 既定値」表現 |
+| 外部 API の呼び出し形を写した型 | 先方の契約が `undefined`（sqlite-wasm `exec`、worker message、React DOM props） |
+| 既定値つきの表示用 prop | `disabled = false` は内部で値が確定し分岐が増えない |
+| テストの上書きファクトリ | `Partial<T>` の「未指定 = 既定値」 |
 
-PATCH 入力 (`FiscalPeriodPatchInput` 等) の `Partial<>` は例外ではなく仕様。
-「未指定 = 変更しない」を表すため、`T | null` では代替できない。
+PATCH 入力の `Partial<>` は例外ではなく仕様。「未指定 = 変更しない」は `T | null` で表せない。
 
 ## Naming
 

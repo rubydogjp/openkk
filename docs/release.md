@@ -37,6 +37,10 @@ GitHub Secrets に登録するものは無い。
    → 本番依存監査 → `npm publish` を実行する。
    provenance は OIDC 経由の publish で自動的に付く。
 
+`scripts/verify-release.mjs` が publish 前に全パッケージをまとめて検証するのは、
+publish が1パッケージずつ進むため。provenance は `repository.url` の一致を要求するので、
+1つでも欠けていると数件 publish した後で落ち、バージョンが混在して公開される。
+
 内容だけ先に確認したい場合は `Release` workflow を手動実行する。
 `dry_run` が既定で有効なので、publish せずに配布物を確認できる。
 
@@ -79,6 +83,6 @@ npm run setup-trusted-publishing
 - `package.json` と `LICENSE` は npm の標準ファイルとして同梱される。
 - npm が常に同梱する各パッケージ直下の `LICENSE` は、rootの `LICENSE` と
   同一であることを公開前検証で確認する。
-- domain/ports/usecases/server/adapter パッケージはNodeから直接importできる。
-  `client-ui`・`frontend`・meta barrel の `client` は Next.js の client module へ
-  依存するため、Next.js等の対応バンドラ経由で利用する。
+- domain/ports/usecases/server/adapter はNodeから直接importできる。
+  `client-ui`・`frontend`・`client` は Next.js の client module に依存するため、
+  対応バンドラ経由で利用する。

@@ -666,8 +666,6 @@ export function normalizeAccountName(name: string): string {
 }
 
 /**
- * 簡単入力ガイドのテンプレート科目名を、マスター科目に解決する。
- *
  * 同名科目が複数ある場合（例: 「消耗品費」「通信費」「水道光熱費」等は
  * 製造原価(cost_of_sales)版と販管費(expense)版が併存する）、ガイドは
  * 個人事業主の販管費／収益向けのため cost_of_sales 版を避けて解決する。

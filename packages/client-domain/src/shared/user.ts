@@ -1,5 +1,3 @@
-export type OpenkkUserKind = "embedded" | "custom";
-
 export type EmbeddedUser = {
   kind: "embedded";
   id: string;

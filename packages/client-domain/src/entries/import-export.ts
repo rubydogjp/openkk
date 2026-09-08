@@ -6,19 +6,19 @@ import {
 import { AppError } from "../shared/app-error.js";
 import { parseIsoLocalDate, weekdayJa } from "../shared/parse-utils.js";
 import {
-  assertJournalEntryLineCount,
-  assertJournalImportEntryCount,
-  assertJournalImportLineCount,
-  assertJournalImportSize,
-} from "./journal-import-policy.js";
+  assertEntryLineCount,
+  assertEntryImportItemCount,
+  assertEntryImportLineCount,
+  assertEntryImportSize,
+} from "./entry-limits.js";
 
 export {
-  assertJournalImportSize,
-  MAX_JOURNAL_ENTRY_LINES,
-  MAX_JOURNAL_IMPORT_ENTRIES,
-  MAX_JOURNAL_IMPORT_LINES,
-  MAX_JOURNAL_IMPORT_SIZE,
-} from "./journal-import-policy.js";
+  assertEntryImportSize,
+  MAX_ENTRY_LINES,
+  MAX_ENTRY_IMPORT_ITEMS,
+  MAX_ENTRY_IMPORT_LINES,
+  MAX_ENTRY_IMPORT_SIZE,
+} from "./entry-limits.js";
 
 type JournalJsonEntry = {
   id: string | null;
@@ -77,7 +77,7 @@ export function importEntriesFromJson(input: {
   text: string;
   fiscalPeriodId: string;
 }): EntryRecord[] {
-  assertJournalImportSize(input.text.length);
+  assertEntryImportSize(input.text.length);
   const parsed = parseEntriesJson(input.text);
   if (
     parsed.schema != null &&
@@ -91,7 +91,7 @@ export function importEntriesFromJson(input: {
   if (!Array.isArray(parsed.entries)) {
     throw importFileFormatError("entries array not found");
   }
-  assertJournalImportEntryCount(parsed.entries.length);
+  assertEntryImportItemCount(parsed.entries.length);
   const seenLocalIds = new Set<string>();
   let importLineCount = 0;
   return parsed.entries.map((raw, index) => {
@@ -127,7 +127,7 @@ export function importEntriesFromJson(input: {
       lines: validateJsonLines(entry.lines, rowNo),
     });
     importLineCount += normalized.lines?.length ?? 2;
-    assertJournalImportLineCount(importLineCount);
+    assertEntryImportLineCount(importLineCount);
     return normalized;
   });
 }
@@ -206,7 +206,7 @@ export function importEntriesFromCsv(input: {
   text: string;
   fiscalPeriodId: string;
 }): EntryRecord[] {
-  assertJournalImportSize(input.text.length);
+  assertEntryImportSize(input.text.length);
   const rows = parseCsv(stripBom(input.text));
   const header = rows[0] ?? [];
   const indexMap = Object.fromEntries(
@@ -223,7 +223,7 @@ export function importEntriesFromCsv(input: {
     );
   }
   if (rows.length < 2) return [];
-  assertJournalImportEntryCount(rows.length - 1);
+  assertEntryImportItemCount(rows.length - 1);
 
   const seenLocalIds = new Set<string>();
   let importLineCount = 0;
@@ -259,13 +259,13 @@ export function importEntriesFromCsv(input: {
       lines: parseCsvLinesCell(read("lines"), rowNo),
     });
     importLineCount += normalized.lines?.length ?? 2;
-    assertJournalImportLineCount(importLineCount);
+    assertEntryImportLineCount(importLineCount);
     return normalized;
   });
 }
 
 export function decodeJournalImportBytes(bytes: Uint8Array): string {
-  assertJournalImportSize(bytes.byteLength);
+  assertEntryImportSize(bytes.byteLength);
   try {
     return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
   } catch (error) {
@@ -389,7 +389,7 @@ function normalizeLines(
   rowNo: number,
 ): EntryLine[] | null {
   if (lines == null || lines.length === 0) return null;
-  assertJournalEntryLineCount(lines.length);
+  assertEntryLineCount(lines.length);
   return lines.map((line, index): EntryLine => {
     if (!isRecord(line)) {
       throw importFileRowError(

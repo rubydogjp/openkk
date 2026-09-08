@@ -9,7 +9,10 @@ import {
   type ReactNode,
 } from "react";
 
-import type { EntryAccountVisualType } from "@rubydogjp/openkk-client-domain";
+import {
+  MAX_TEXT_FIELD_LENGTH,
+  type EntryAccountVisualType,
+} from "@rubydogjp/openkk-client-domain";
 import type { EntryMasterAccountOption } from "@rubydogjp/openkk-client-usecases";
 import {
   fontSize,
@@ -289,6 +292,7 @@ export function SuggestionInput({
   onChange,
   options,
   placeholder,
+  ariaLabel,
   align = "left",
   inputMode,
 }: {
@@ -296,6 +300,7 @@ export function SuggestionInput({
   onChange: (value: string) => void;
   options: string[];
   placeholder: string | null;
+  ariaLabel: string | null;
   align?: "left" | "right";
   inputMode: "numeric" | "decimal" | null;
 }) {
@@ -328,6 +333,7 @@ export function SuggestionInput({
         onClick={() => setOpen((current) => !current)}
         aria-haspopup="dialog"
         aria-expanded={open}
+        aria-label={ariaLabel ?? undefined}
         style={{
           height: 30,
           width: "100%",
@@ -363,7 +369,7 @@ export function SuggestionInput({
         <div
           ref={popupRef}
           role="dialog"
-          aria-label={placeholder ?? "候補を選択"}
+          aria-label={ariaLabel ?? placeholder ?? "候補を選択"}
           tabIndex={-1}
           style={popupStyle}
         >
@@ -379,6 +385,7 @@ export function SuggestionInput({
             <input
               className="bk-d-input"
               value={query}
+              maxLength={MAX_TEXT_FIELD_LENGTH}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -463,6 +470,7 @@ export function TextFieldInput({
       className="bk-d-input"
       aria-label={ariaLabel ?? undefined}
       value={value}
+      maxLength={MAX_TEXT_FIELD_LENGTH}
       onChange={(event) => onChange(event.target.value)}
       style={{
         height: sizes.field.height,

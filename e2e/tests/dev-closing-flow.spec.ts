@@ -206,7 +206,7 @@ async function fillOpeningAmount(
   inputIndex: number,
   value: string,
 ) {
-  await page.locator(".bk-amount-input").nth(inputIndex).fill(value);
+  await page.getByLabel(/金額$/).nth(inputIndex).fill(value);
 }
 
 async function createFixedAssetDuringScenario(page: Page) {

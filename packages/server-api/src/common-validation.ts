@@ -1,9 +1,13 @@
-import { serverValidationError } from "@rubydogjp/openkk-server-domain";
+import {
+  assertTextFieldLength,
+  serverValidationError,
+} from "@rubydogjp/openkk-server-domain";
 
 export function assertNonBlankString(value: unknown, label: string): void {
   if (typeof value !== "string" || value.trim() === "") {
     throw serverValidationError(`${label} is required`);
   }
+  assertTextFieldLength(value, label);
 }
 
 export function assertString(
@@ -13,6 +17,7 @@ export function assertString(
   if (typeof value !== "string") {
     throw serverValidationError(`${label} must be a string`);
   }
+  assertTextFieldLength(value, label);
 }
 
 export function assertOptionalBoolean(value: unknown, label: string): void {

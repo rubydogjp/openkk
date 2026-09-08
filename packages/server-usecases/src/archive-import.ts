@@ -1,6 +1,7 @@
 import {
   assertDateRange,
   assertEntryLinesBalanced,
+  assertTextFieldLength,
   assertOpeningBalanceAccountId,
   assertUniqueAccountIds,
   computeFixedAssetBookValue,
@@ -908,5 +909,6 @@ function optionalString(value: unknown, label: string): string {
   if (typeof value !== "string") {
     throw serverValidationError(`${label} must be a string`);
   }
+  assertTextFieldLength(value, label);
   return value;
 }

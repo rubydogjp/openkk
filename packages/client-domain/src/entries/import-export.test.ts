@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { AppError } from "../shared/app-error.js";
 import {
-  assertJournalImportSize,
+  assertEntryImportSize,
   decodeJournalImportBytes,
   exportEntriesAsJson,
   exportEntriesAsCsv,
@@ -10,14 +10,14 @@ import {
   importEntriesFromCsv,
 } from "./import-export.js";
 import {
-  assertJournalImportEntryCount,
-  assertJournalImportLineCount,
-  assertJournalEntryLineCount,
-  MAX_JOURNAL_IMPORT_ENTRIES,
-  MAX_JOURNAL_IMPORT_LINES,
-  MAX_JOURNAL_ENTRY_LINES,
-  MAX_JOURNAL_IMPORT_SIZE,
-} from "./journal-import-policy.js";
+  assertEntryImportItemCount,
+  assertEntryImportLineCount,
+  assertEntryLineCount,
+  MAX_ENTRY_IMPORT_ITEMS,
+  MAX_ENTRY_IMPORT_LINES,
+  MAX_ENTRY_LINES,
+  MAX_ENTRY_IMPORT_SIZE,
+} from "./entry-limits.js";
 import type { EntryRecord } from "./entry-record.js";
 
 function entry(overrides: Partial<EntryRecord> = {}): EntryRecord {
@@ -52,9 +52,9 @@ function entry(overrides: Partial<EntryRecord> = {}): EntryRecord {
 
 describe("journal import limits", () => {
   it("rejects oversized files before reading or parsing their contents", () => {
-    expect(() => assertJournalImportSize(MAX_JOURNAL_IMPORT_SIZE)).not.toThrow();
+    expect(() => assertEntryImportSize(MAX_ENTRY_IMPORT_SIZE)).not.toThrow();
     expect(() =>
-      assertJournalImportSize(MAX_JOURNAL_IMPORT_SIZE + 1),
+      assertEntryImportSize(MAX_ENTRY_IMPORT_SIZE + 1),
     ).toThrow(/size limit/);
   });
 
@@ -66,28 +66,28 @@ describe("journal import limits", () => {
 
   it("rejects oversized batches before normalizing every row", () => {
     expect(() =>
-      assertJournalImportEntryCount(MAX_JOURNAL_IMPORT_ENTRIES),
+      assertEntryImportItemCount(MAX_ENTRY_IMPORT_ITEMS),
     ).not.toThrow();
     expect(() =>
-      assertJournalImportEntryCount(MAX_JOURNAL_IMPORT_ENTRIES + 1),
+      assertEntryImportItemCount(MAX_ENTRY_IMPORT_ITEMS + 1),
     ).toThrow(/too many entries/);
   });
 
   it("rejects an oversized compound entry before normalizing every line", () => {
     expect(() =>
-      assertJournalEntryLineCount(MAX_JOURNAL_ENTRY_LINES),
+      assertEntryLineCount(MAX_ENTRY_LINES),
     ).not.toThrow();
     expect(() =>
-      assertJournalEntryLineCount(MAX_JOURNAL_ENTRY_LINES + 1),
+      assertEntryLineCount(MAX_ENTRY_LINES + 1),
     ).toThrow(/too many lines/);
   });
 
   it("rejects an oversized total across otherwise bounded entries", () => {
     expect(() =>
-      assertJournalImportLineCount(MAX_JOURNAL_IMPORT_LINES),
+      assertEntryImportLineCount(MAX_ENTRY_IMPORT_LINES),
     ).not.toThrow();
     expect(() =>
-      assertJournalImportLineCount(MAX_JOURNAL_IMPORT_LINES + 1),
+      assertEntryImportLineCount(MAX_ENTRY_IMPORT_LINES + 1),
     ).toThrow(/too many lines/);
   });
 });

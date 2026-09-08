@@ -1,5 +1,5 @@
 import {
-  MAX_JOURNAL_ENTRY_LINES,
+  MAX_ENTRY_LINES,
   parseAmount,
   parseIsoLocalDate,
 } from "@rubydogjp/openkk-client-domain";
@@ -62,8 +62,8 @@ export function validateEntryLineCount(count: number): string | null {
   if (!Number.isSafeInteger(count) || count < 0) {
     return "仕訳明細の件数を確認できませんでした。";
   }
-  if (count > MAX_JOURNAL_ENTRY_LINES) {
-    return `1件の仕訳に登録できる明細は${MAX_JOURNAL_ENTRY_LINES.toLocaleString()}件までです。`;
+  if (count > MAX_ENTRY_LINES) {
+    return `1件の仕訳に登録できる明細は${MAX_ENTRY_LINES.toLocaleString()}件までです。`;
   }
   return null;
 }

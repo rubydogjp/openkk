@@ -24,8 +24,8 @@ test.describe("opening carryover (再振替)", () => {
     // 追加時に既定の勘定科目・日付が入った再振替が生成される。日付・科目は
     // ボタン/ピッカー UI のため既定値を使い、摘要と金額だけ編集する。
     await drawer.getByLabel("摘要").fill("再振替テスト: 未払費用");
-    await drawer.locator(".bk-amount-input").first().fill("30000");
-    await drawer.locator(".bk-amount-input").last().fill("30000");
+    await drawer.getByLabel("借方金額").first().fill("30000");
+    await drawer.getByLabel("貸方金額").last().fill("30000");
     await clickButton(page, "作成");
 
     await expect(drawer).not.toBeVisible({ timeout: 5_000 });
@@ -59,12 +59,14 @@ test.describe("opening carryover (再振替)", () => {
       .getByRole("button", { name: "複合仕訳を追加" })
       .click();
 
-    const createAmounts = createDrawer.locator(".bk-amount-input");
-    await expect(createAmounts).toHaveCount(4);
-    await createAmounts.nth(0).fill("30000");
-    await createAmounts.nth(1).fill("10000");
-    await createAmounts.nth(2).fill("20000");
-    await createAmounts.nth(3).fill("40000");
+    const createAmountsDebit = createDrawer.getByLabel("借方金額");
+    const createAmountsCredit = createDrawer.getByLabel("貸方金額");
+    await expect(createAmountsDebit).toHaveCount(2);
+    await expect(createAmountsCredit).toHaveCount(2);
+    await createAmountsDebit.nth(0).fill("30000");
+    await createAmountsCredit.nth(0).fill("10000");
+    await createAmountsDebit.nth(1).fill("20000");
+    await createAmountsCredit.nth(1).fill("40000");
     await clickButton(page, "作成");
     await expect(createDrawer).not.toBeVisible({ timeout: 5_000 });
 
@@ -73,12 +75,14 @@ test.describe("opening carryover (再振替)", () => {
       .first()
       .click();
     const editDrawer = page.getByRole("dialog", { name: "仕訳の編集" });
-    const editAmounts = editDrawer.locator(".bk-amount-input");
-    await expect(editAmounts).toHaveCount(4);
-    await expect(editAmounts.nth(0)).toHaveValue("30,000");
-    await expect(editAmounts.nth(1)).toHaveValue("10,000");
-    await expect(editAmounts.nth(2)).toHaveValue("20,000");
-    await expect(editAmounts.nth(3)).toHaveValue("40,000");
+    const editAmountsDebit = editDrawer.getByLabel("借方金額");
+    const editAmountsCredit = editDrawer.getByLabel("貸方金額");
+    await expect(editAmountsDebit).toHaveCount(2);
+    await expect(editAmountsCredit).toHaveCount(2);
+    await expect(editAmountsDebit.nth(0)).toHaveValue("30,000");
+    await expect(editAmountsCredit.nth(0)).toHaveValue("10,000");
+    await expect(editAmountsDebit.nth(1)).toHaveValue("20,000");
+    await expect(editAmountsCredit.nth(1)).toHaveValue("40,000");
   });
 
   test("deletes a carryover record and it disappears from the list", async ({
@@ -138,8 +142,8 @@ async function addCarryover(page: Page, description: string, amount: string) {
   await expect(drawer).toBeVisible();
   // 日付・勘定科目は既定値を使う（ボタン/ピッカー UI のため）。
   await drawer.getByLabel("摘要").fill(description);
-  await drawer.locator(".bk-amount-input").first().fill(amount);
-  await drawer.locator(".bk-amount-input").last().fill(amount);
+  await drawer.getByLabel("借方金額").first().fill(amount);
+  await drawer.getByLabel("貸方金額").last().fill(amount);
   await clickButton(page, "作成");
   await expect(drawer).not.toBeVisible({ timeout: 5_000 });
 }

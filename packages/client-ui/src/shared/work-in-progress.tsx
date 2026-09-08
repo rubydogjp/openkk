@@ -68,11 +68,7 @@ export function useWorkInProgress(): WorkInProgressValue {
   return value;
 }
 
-/**
- * `busy` の真偽をそのまま申告する。
- *
- * 既に `onBusyChange` のような真偽で持っている画面から使う。
- */
+/** 既に `onBusyChange` のような真偽で状態を持っている画面から使う。 */
 export function useReportWorkInProgress(busy: boolean): void {
   const { beginWork } = useWorkInProgress();
 

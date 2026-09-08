@@ -1,14 +1,10 @@
 import {
   MAX_FIXED_ASSET_USEFUL_LIFE_YEARS,
-  MAX_JOURNAL_ENTRY_LINES,
-  MAX_JOURNAL_IMPORT_ENTRIES,
-  MAX_JOURNAL_IMPORT_LINES,
+  MAX_ENTRY_LINES,
+  MAX_ENTRY_IMPORT_ITEMS,
+  MAX_ENTRY_IMPORT_LINES,
 } from "@rubydogjp/openkk-client-domain";
 import type { OpenkkHttpEndpointKey } from "./types.js";
-
-const MAX_ENTRY_LINES = MAX_JOURNAL_ENTRY_LINES;
-const MAX_IMPORT_ITEMS = MAX_JOURNAL_IMPORT_ENTRIES;
-const MAX_IMPORT_LINES = MAX_JOURNAL_IMPORT_LINES;
 
 export function isValidSuccessBody(
   key: OpenkkHttpEndpointKey,
@@ -178,8 +174,8 @@ function isOpening(
   if (
     !Array.isArray(balanceLines) ||
     !Array.isArray(journals) ||
-    balanceLines.length > MAX_IMPORT_ITEMS ||
-    journals.length > MAX_IMPORT_ITEMS
+    balanceLines.length > MAX_ENTRY_IMPORT_ITEMS ||
+    journals.length > MAX_ENTRY_IMPORT_ITEMS
   ) {
     return false;
   }
@@ -189,7 +185,7 @@ function isOpening(
     totalJournalLines += journal.lines.length;
     if (
       !Number.isSafeInteger(totalJournalLines) ||
-      totalJournalLines > MAX_IMPORT_LINES
+      totalJournalLines > MAX_ENTRY_IMPORT_LINES
     ) {
       return false;
     }
