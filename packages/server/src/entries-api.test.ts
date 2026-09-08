@@ -270,7 +270,7 @@ describe("openkk server entries API", () => {
     expect(await server.entries.getAll("fp-1")).toEqual([]);
   });
 
-  it("rejects unknown master-data references", async () => {
+  it("rejects unknown book accounts and preserves custom categories", async () => {
     const db = createEntryDb();
     const server = createOpenkkServer(db, { userId: "user-1" });
 
@@ -285,28 +285,25 @@ describe("openkk server entries API", () => {
         }),
       ),
     ).rejects.toThrow(/Unknown book account/);
-    await expect(
-      server.entries.create(
-        "fp-1",
-        validEntryInput({
-          lines: validEntryInput().lines.map((line) => ({
-            ...line,
-            taxCategoryId: "unknown-tax",
-          })),
+    const created = await server.entries.create(
+      "fp-1",
+      validEntryInput({
+        localId: "custom-categories",
+        lines: validEntryInput().lines.map((line) => ({
+          ...line,
+          taxCategoryId: "custom-tax",
+          businessCategoryId: "custom-business",
+        })),
+      }),
+    );
+    expect(created.lines).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          taxCategoryId: "custom-tax",
+          businessCategoryId: "custom-business",
         }),
-      ),
-    ).rejects.toThrow(/Unknown tax category/);
-    await expect(
-      server.entries.create(
-        "fp-1",
-        validEntryInput({
-          lines: validEntryInput().lines.map((line) => ({
-            ...line,
-            businessCategoryId: "unknown-business",
-          })),
-        }),
-      ),
-    ).rejects.toThrow(/Unknown business category/);
+      ]),
+    );
   });
 
   it("reserves generated localIds for the atomic closing operation", async () => {

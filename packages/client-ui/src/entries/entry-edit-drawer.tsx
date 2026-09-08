@@ -61,6 +61,7 @@ import {
 } from "@rubydogjp/openkk-client-domain";
 import {
   validateEntryAmounts,
+  validateBusinessRate,
   validateEntryDate,
   validateEntryLineCount,
 } from "./entry-edit-validation.js";
@@ -332,6 +333,12 @@ export function EntryEditDrawer(props: {
   );
   if (amountValidationMessage != null)
     validationMessages.push(amountValidationMessage);
+  const businessRateValidationMessage = validateBusinessRate(
+    draft.businessRate,
+  );
+  if (businessRateValidationMessage != null) {
+    validationMessages.push(businessRateValidationMessage);
+  }
   const entryLineCount = draft.pairs.reduce(
     (count, row) =>
       count +
@@ -682,23 +689,16 @@ export function EntryEditDrawer(props: {
                   <div style={{ width: 120 }}>
                     <SuggestionInput
                       value={draft.businessRate}
-                      onChange={(next) => {
-                        const n = parseInt(next, 10);
-                        if (Number.isNaN(n))
-                          update({
-                            businessRate: next.trim(),
-                            businessRateRatio: undefined,
-                          });
-                        else
-                          update({
-                            businessRate: String(Math.max(0, Math.min(100, n))),
-                            businessRateRatio: undefined,
-                          });
-                      }}
+                      onChange={(next) =>
+                        update({
+                          businessRate: next.trim(),
+                          businessRateRatio: undefined,
+                        })
+                      }
                       options={BIZ_RATE_PRESETS}
                       placeholder="100"
                       align="right"
-                      numeric
+                      inputMode="decimal"
                     />
                   </div>
                 }

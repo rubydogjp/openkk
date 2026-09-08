@@ -26,7 +26,7 @@
     "typescript": "^5.8.3"
   },
   "description": "オープン会計 client-side use cases — React Context Providers and hooks that orchestrate client-ports adapters",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "author": "rbdog <rbdog@rubydog.jp>",
   "homepage": "https://github.com/rubydogjp/openkk#readme",
   "bugs": {

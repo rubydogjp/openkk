@@ -604,6 +604,20 @@ describe("normalizeArchiveImportInput", () => {
     });
   });
 
+  it("preserves custom category values from archives", () => {
+    const input = validArchiveInput();
+    const lines = input.entries[0]!.lines as Array<Record<string, unknown>>;
+    lines[0]!.taxCategoryId = "custom-tax";
+    lines[0]!.businessCategoryId = "custom-business";
+
+    const normalized = normalizeArchiveImportInput(input, "user-1");
+
+    expect(normalized.entries[0]?.lines[0]).toMatchObject({
+      taxCategoryId: "custom-tax",
+      businessCategoryId: "custom-business",
+    });
+  });
+
   it("validates master references even when a legacy entry has no identifier", () => {
     const input = validArchiveInput();
     delete input.entries[0]!.id;

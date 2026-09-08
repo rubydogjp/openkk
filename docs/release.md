@@ -33,7 +33,8 @@ GitHub Secrets に登録するものは無い。
    git push origin main v26.1.9
    ```
 
-4. `Release` workflow がタグ一致の検証 → build → lint → test → `npm publish` を実行する。
+4. `Release` workflow がタグ一致の検証 → 生成物検証 → build → lint → unit/E2E test
+   → 本番依存監査 → `npm publish` を実行する。
    provenance は OIDC 経由の publish で自動的に付く。
 
 内容だけ先に確認したい場合は `Release` workflow を手動実行する。
@@ -73,7 +74,11 @@ npm run setup-trusted-publishing
 
 ## 配布物について
 
-- `files: ["dist"]` なので `dist` だけが含まれる。`dist` は git 管理外で、
-  `npm ci` 時に root の `prepare` (`build:packages`) が生成する。
-- 出力は拡張子なしの import を含むため、解決はバンドラに依存する。
-  Next.js からの利用は確認済みだが、Node から直接 import することはできない。
+- 公開対象のソースは `files: ["dist"]` で `dist` に限定する。`dist` は git 管理外で、
+  `npm ci` 時に root の `prepare` (`build:packages`) が旧出力を削除してから生成する。
+- `package.json` と `LICENSE` は npm の標準ファイルとして同梱される。
+- npm が常に同梱する各パッケージ直下の `LICENSE` は、rootの `LICENSE` と
+  同一であることを公開前検証で確認する。
+- domain/ports/usecases/server/adapter パッケージはNodeから直接importできる。
+  `client-ui`・`frontend`・meta barrel の `client` は Next.js の client module へ
+  依存するため、Next.js等の対応バンドラ経由で利用する。

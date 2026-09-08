@@ -24,7 +24,7 @@
     "typescript": "^5.8.3"
   },
   "description": "オープン会計 server-side meta package — bundles server layers and provides createOpenkkServer(db, config)",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "author": "rbdog <rbdog@rubydog.jp>",
   "homepage": "https://github.com/rubydogjp/openkk#readme",
   "bugs": {

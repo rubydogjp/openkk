@@ -7,8 +7,6 @@ import {
   DEFAULT_BUSINESS_CATEGORIES,
   DEFAULT_TAX_CATEGORIES,
   getDefaultBookAccount,
-  isDefaultBusinessCategoryId,
-  isDefaultTaxCategoryId,
   MAX_ENTRY_IMPORT_ITEMS,
   MAX_ENTRY_IMPORT_LINES,
   MAX_FIXED_ASSET_USEFUL_LIFE_YEARS,
@@ -614,10 +612,7 @@ function normalizeCategoryId(
   const category = categories.find(
     (candidate) => candidate.id === text || candidate.name === text,
   );
-  if (category == null) {
-    throw serverValidationError(`${label} is unknown: ${text}`);
-  }
-  return category.id;
+  return category?.id ?? text;
 }
 
 function assertUniqueIds(
@@ -656,22 +651,6 @@ function assertArchivedEntryMasterReferences(input: {
     if (getDefaultBookAccount(line.bookAccountId) == null) {
       throw serverValidationError(
         `archive line references unknown bookAccountId: ${line.bookAccountId}`,
-      );
-    }
-    if (
-      line.taxCategoryId !== "" &&
-      !isDefaultTaxCategoryId(line.taxCategoryId)
-    ) {
-      throw serverValidationError(
-        `archive line references unknown taxCategoryId: ${line.taxCategoryId}`,
-      );
-    }
-    if (
-      line.businessCategoryId !== "" &&
-      !isDefaultBusinessCategoryId(line.businessCategoryId)
-    ) {
-      throw serverValidationError(
-        `archive line references unknown businessCategoryId: ${line.businessCategoryId}`,
       );
     }
   }

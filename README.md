@@ -36,4 +36,4 @@ API 契約: [`docs/api-contract.md`](./docs/api-contract.md)
 
 ## ライセンス
 
-[Apache License 2.0](./LICENSE) — Copyright 2026 Rubydog
+[MIT License](./LICENSE) — Copyright 2026 Rubydog

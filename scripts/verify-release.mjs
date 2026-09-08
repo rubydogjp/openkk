@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
@@ -12,12 +12,11 @@ const tag = process.argv[2] ?? process.env.RELEASE_TAG ?? "";
 const expected = tag.replace(/^v/, "");
 
 const rootPkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
+const rootLicense = readFileSync(path.join(root, "LICENSE"), "utf8");
 const repoUrl = (rootPkg.repository?.url ?? "")
   .replace(/^git\+/, "")
   .replace(/\.git$/, "");
 
-// provenance の検証は repository.url がリポジトリと一致することを要求する。
-// 欠けていると 15 件 publish したあとで落ちる、といった部分リリースになる。
 const REQUIRED = [
   "description",
   "license",
@@ -46,6 +45,16 @@ for (const entry of readdirSync(packagesDir, { withFileTypes: true })) {
 
   for (const field of REQUIRED) {
     if (!pkg[field]) problems.push(`${pkg.name}: ${field} がありません`);
+  }
+
+  const packageLicensePath = path.join(packagesDir, entry.name, "LICENSE");
+  if (pkg.license !== rootPkg.license) {
+    problems.push(`${pkg.name}: license が root package と一致しません`);
+  }
+  if (!existsSync(packageLicensePath)) {
+    problems.push(`${pkg.name}: LICENSE がありません`);
+  } else if (readFileSync(packageLicensePath, "utf8") !== rootLicense) {
+    problems.push(`${pkg.name}: LICENSE が root LICENSE と一致しません`);
   }
 
   const url = (pkg.repository?.url ?? "").replace(/^git\+/, "").replace(/\.git$/, "");

@@ -46,6 +46,18 @@ export function validateEntryAmounts(
   return null;
 }
 
+export function validateBusinessRate(value: string): string | null {
+  const trimmed = value.trim();
+  if (trimmed === "") return null;
+  if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(trimmed)) {
+    return businessRateMessage;
+  }
+  const rate = Number(trimmed);
+  return Number.isFinite(rate) && rate >= 0 && rate <= 100
+    ? null
+    : businessRateMessage;
+}
+
 export function validateEntryLineCount(count: number): string | null {
   if (!Number.isSafeInteger(count) || count < 0) {
     return "仕訳明細の件数を確認できませんでした。";
@@ -58,3 +70,5 @@ export function validateEntryLineCount(count: number): string | null {
 
 const unsafeAmountMessage =
   "仕訳金額または合計が大きすぎるため、安全に計算できる金額へ修正してください。";
+const businessRateMessage =
+  "事業割合は0から100までの数値で入力してください。";

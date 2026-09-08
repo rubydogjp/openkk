@@ -21,7 +21,7 @@
     "typescript": "^5.8.3"
   },
   "description": "オープン会計 PrintPort implementation that renders documents into a hidden iframe in the browser DOM",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "author": "rbdog <rbdog@rubydog.jp>",
   "homepage": "https://github.com/rubydogjp/openkk#readme",
   "bugs": {

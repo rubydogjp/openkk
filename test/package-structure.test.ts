@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const rootDir = path.resolve(import.meta.dirname, "..");
 const packagesDir = path.join(rootDir, "packages");
+const rootLicense = fs.readFileSync(path.join(rootDir, "LICENSE"), "utf8");
 
 const APP_DIRS = new Set(["openkk", "openkk_sim", "openkk_demo"]);
 const rootPackageJson = readJson(path.join(rootDir, "package.json"));
@@ -45,7 +46,11 @@ describe("openkk workspace structure", () => {
         import: "./dist/index.js",
       });
       expect(record.packageJson.files).toEqual(["dist"]);
+      expect(record.packageJson.license).toBe(rootPackageJson.license);
       expect(record.packageJson.publishConfig).toEqual({ access: "public" });
+      expect(fs.readFileSync(path.join(record.dir, "LICENSE"), "utf8")).toBe(
+        rootLicense,
+      );
       expect(record.packageJson.scripts.lint).toBe(
         "tsc -p tsconfig.json --noEmit",
       );

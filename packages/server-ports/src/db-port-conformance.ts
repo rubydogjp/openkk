@@ -760,29 +760,48 @@ export function runDbPortConformance(
       expect(await db.entries.getAll(period.id)).toEqual([]);
     });
 
-    it("rejects unknown entry-line master references at the persistence boundary", async () => {
+    it("rejects unknown book-account references at the persistence boundary", async () => {
       const db = await makeDb();
       const period = await createTestFiscalPeriod(db);
-      const base = {
-        date: "2026-04-01",
-        description: "invalid master reference",
-        businessRate: 1,
-      };
 
-      for (const line of [
-        { ...testEntryLine, bookAccountId: "unknown-account" },
-        { ...testEntryLine, taxCategoryId: "unknown-tax" },
-        { ...testEntryLine, businessCategoryId: "unknown-business" },
-      ]) {
-        await expect(
-          db.entries.create("user-1", period.id, {
-            ...base,
-            lines: [line, testCreditEntryLine],
-          }),
-        ).rejects.toThrow(/references unknown/);
-      }
+      await expect(
+        db.entries.create("user-1", period.id, {
+          date: "2026-04-01",
+          description: "invalid account reference",
+          businessRate: 1,
+          lines: [
+            { ...testEntryLine, bookAccountId: "unknown-account" },
+            testCreditEntryLine,
+          ],
+        }),
+      ).rejects.toThrow(/references unknown/);
 
       expect(await db.entries.getAll(period.id)).toEqual([]);
+    });
+
+    it("round-trips custom entry-line categories", async () => {
+      const db = await makeDb();
+      const period = await createTestFiscalPeriod(db);
+
+      const created = await db.entries.create("user-1", period.id, {
+        date: "2026-04-01",
+        description: "custom categories",
+        businessRate: 1,
+        lines: [
+          {
+            ...testEntryLine,
+            taxCategoryId: "custom-tax",
+            businessCategoryId: "custom-business",
+          },
+          testCreditEntryLine,
+        ],
+      });
+
+      expect(created.lines[0]).toMatchObject({
+        taxCategoryId: "custom-tax",
+        businessCategoryId: "custom-business",
+      });
+      await expect(db.entries.getAll(period.id)).resolves.toEqual([created]);
     });
 
     it("rejects a child write whose user does not own the fiscal period", async () => {

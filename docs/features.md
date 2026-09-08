@@ -29,7 +29,7 @@
 | 月次ナビゲーション | 月単位でページネーションして表示 |
 | 仕訳の編集 | 行クリックでドロワーを開き各フィールドを変更 |
 | 仕訳の削除 | ドロワー内の削除ボタン → 確認ダイアログで実行 |
-| 事業按分率 | `businessRate` フィールドで家事按分を指定 (0–100%)。本締め時に全 P/L 明細（収益・費用・売上原価）の個人負担分を**期末の単一の振替仕訳**にまとめて materialize する (`buildBusinessRateTransferEntry`)：費用・原価は事業主貸、収益は事業主借へ振替。これにより仕訳帳・総勘定元帳・財務諸表が同じ按分後の数字で突合する。期中の分析・月次トレンドは `summary.ts` がインライン按分でリアルタイム表示する (`applyBusinessRateToLines`) |
+| 事業按分率 | `businessRate` フィールドで家事按分を指定 (0–100%、小数可)。本締め時に全 P/L 明細（収益・費用・売上原価）の個人負担分を**期末の単一の振替仕訳**にまとめて materialize する (`buildBusinessRateTransferEntry`)：費用・原価は事業主貸、収益は事業主借へ振替。これにより仕訳帳・総勘定元帳・財務諸表が同じ按分後の数字で突合する。期中の分析・月次トレンドは `summary.ts` がインライン按分でリアルタイム表示する (`applyBusinessRateToLines`) |
 | 簡単入力ガイド | テンプレートから借方・貸方科目を自動補完するウィザード |
 
 **実装パッケージ:** `client-domain` (`EntryRecord`, ロジック), `client-usecases` (`OpenkkEntriesProvider`), `client-ui` (`EntryEditDrawer`), `server-usecases`, `server-ports` (`EntriesApi`)
@@ -146,6 +146,10 @@
 | 勘定科目 | `DEFAULT_BOOK_ACCOUNTS` | 資産・負債・純資産・収益・費用の主要科目 219 件（専従者給与を含む） |
 | 税区分 | `DEFAULT_TAX_CATEGORIES` | 課税 10% / 軽減税率 8% / 免税 / 非課税 / 対象外（5件） |
 | 事業区分 | `DEFAULT_BUSINESS_CATEGORIES` | 第1〜第6種・対象外 (みなし仕入率区分、7件) |
+
+勘定科目は既定マスターに存在する ID のみを受け付ける。税区分・事業区分は既定の ID・名称を
+既定 ID へ正規化した上で、既定に無い値も入力どおり保存する（利用者定義の区分を許可する）。
+既定名のまま保存されていた既存データは SQLite schema v4 で既定 ID へ移行する。
 
 **実装パッケージ:** `client-domain` (`default-master-data.ts`), `server-domain` (`master-data.ts`)
 

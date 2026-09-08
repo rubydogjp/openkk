@@ -6,8 +6,6 @@ import {
   assertUnitRate,
   computeFixedAssetBookValue,
   getDefaultBookAccount,
-  isDefaultBusinessCategoryId,
-  isDefaultTaxCategoryId,
   MAX_ENTRY_IMPORT_ITEMS,
   MAX_ENTRY_IMPORT_LINES,
   MAX_FIXED_ASSET_USEFUL_LIFE_YEARS,
@@ -201,22 +199,6 @@ export function assertDbEntryInput(
       typeof line.businessCategoryId !== "string"
     ) {
       throw serverValidationError(`${label} line text fields are invalid`);
-    }
-    if (
-      line.taxCategoryId !== "" &&
-      !isDefaultTaxCategoryId(line.taxCategoryId)
-    ) {
-      throw serverValidationError(
-        `${label} line references unknown tax category: ${line.taxCategoryId}`,
-      );
-    }
-    if (
-      line.businessCategoryId !== "" &&
-      !isDefaultBusinessCategoryId(line.businessCategoryId)
-    ) {
-      throw serverValidationError(
-        `${label} line references unknown business category: ${line.businessCategoryId}`,
-      );
     }
   }
   assertEntryLinesBalanced(input.lines, label);

@@ -1,10 +1,27 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  validateBusinessRate,
   validateEntryAmounts,
   validateEntryDate,
   validateEntryLineCount,
 } from "./entry-edit-validation.js";
+
+describe("validateBusinessRate", () => {
+  it("accepts the default blank value, boundaries, and decimals", () => {
+    expect(validateBusinessRate("")).toBeNull();
+    expect(validateBusinessRate("0")).toBeNull();
+    expect(validateBusinessRate("33.5")).toBeNull();
+    expect(validateBusinessRate("100")).toBeNull();
+  });
+
+  it("rejects non-decimal and out-of-range values", () => {
+    expect(validateBusinessRate("abc")).toMatch(/0から100/);
+    expect(validateBusinessRate("1e2")).toMatch(/0から100/);
+    expect(validateBusinessRate("-1")).toMatch(/0から100/);
+    expect(validateBusinessRate("100.1")).toMatch(/0から100/);
+  });
+});
 
 describe("validateEntryDate", () => {
   it("accepts both inclusive fiscal-period boundaries", () => {

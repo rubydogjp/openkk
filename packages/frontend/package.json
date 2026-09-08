@@ -30,7 +30,7 @@
     "typescript": "^5.8.3"
   },
   "description": "オープン会計 frontend ランタイム共通基盤 — bundle 非依存の Providers 配線・env パース・Next 設定を 3 バンドルアプリ(openkk/openkk_sim/openkk_demo)で共有する。",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "author": "rbdog <rbdog@rubydog.jp>",
   "homepage": "https://github.com/rubydogjp/openkk#readme",
   "bugs": {

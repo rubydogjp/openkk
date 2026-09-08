@@ -290,14 +290,14 @@ export function SuggestionInput({
   options,
   placeholder,
   align = "left",
-  numeric = false,
+  inputMode,
 }: {
   value: string;
   onChange: (value: string) => void;
   options: string[];
   placeholder?: string;
   align?: "left" | "right";
-  numeric?: boolean;
+  inputMode?: "numeric" | "decimal";
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(value);
@@ -344,7 +344,7 @@ export function SuggestionInput({
           display: "flex",
           alignItems: "center",
           justifyContent: align === "right" ? "flex-end" : "flex-start",
-          fontVariantNumeric: numeric ? "tabular-nums" : undefined,
+          fontVariantNumeric: inputMode == null ? undefined : "tabular-nums",
         }}
       >
         <span
@@ -386,7 +386,7 @@ export function SuggestionInput({
                   commit(query.trim());
                 }
               }}
-              inputMode={numeric ? "numeric" : undefined}
+              inputMode={inputMode}
               placeholder={placeholder ?? "入力 / 検索"}
               style={{
                 flex: 1,

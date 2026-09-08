@@ -25,7 +25,7 @@
     "access": "public"
   },
   "description": "オープン会計 OpenkkDbPort implementation backed by SQLite Wasm in-memory database",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "author": "rbdog <rbdog@rubydog.jp>",
   "homepage": "https://github.com/rubydogjp/openkk#readme",
   "bugs": {

@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "description": "オープン会計 runnable Next.js app: open-source double-entry bookkeeping for sole proprietors.",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "author": "rbdog <rbdog@rubydog.jp>",
   "homepage": "https://github.com/rubydogjp/openkk#readme",
   "bugs": {

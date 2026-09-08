@@ -5,8 +5,6 @@ import {
   assertUnitRate,
   CLOSING_GENERATED_LOCAL_ID_PREFIX,
   getDefaultBookAccount,
-  isDefaultBusinessCategoryId,
-  isDefaultTaxCategoryId,
   serverValidationError,
 } from "@rubydogjp/openkk-server-domain";
 import type {
@@ -77,27 +75,9 @@ export function assertEntryMasterReferences(input: EntryUpsertInput): void {
     if (typeof line.taxCategoryId !== "string") {
       throw serverValidationError("Entry line tax category must be a string");
     }
-    if (
-      line.taxCategoryId.trim() !== "" &&
-      !isDefaultTaxCategoryId(line.taxCategoryId)
-    ) {
-      throw serverValidationError(
-        `Unknown tax category: ${line.taxCategoryId}`,
-        "存在しない税区分が指定されています",
-      );
-    }
     if (typeof line.businessCategoryId !== "string") {
       throw serverValidationError(
         "Entry line business category must be a string",
-      );
-    }
-    if (
-      line.businessCategoryId.trim() !== "" &&
-      !isDefaultBusinessCategoryId(line.businessCategoryId)
-    ) {
-      throw serverValidationError(
-        `Unknown business category: ${line.businessCategoryId}`,
-        "存在しない事業区分が指定されています",
       );
     }
   }

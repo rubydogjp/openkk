@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import {
   advanceToJournalizing,
   clickButton,
@@ -75,6 +75,44 @@ test.describe("entry CRUD", () => {
 
     await expect(page.getByText("編集後の摘要")).toBeVisible();
     await expect(page.getByText("編集前の摘要")).not.toBeVisible();
+  });
+
+  test("validates a decimal business rate and preserves custom categories", async ({
+    page,
+  }) => {
+    await page.getByRole("button", { name: "追加" }).click();
+
+    const drawer = page.getByRole("dialog", { name: "仕訳の新規作成" });
+    await drawer.getByLabel("摘要").fill("任意区分と小数割合");
+    await drawer.locator(".bk-amount-input").first().fill("12000");
+    await drawer.locator(".bk-amount-input").last().fill("12000");
+
+    await setSuggestionValue(drawer, "事業割合 (%)", "abc");
+    await clickButton(page, "作成");
+    await expect(drawer).toContainText(
+      "事業割合は0から100までの数値で入力してください。",
+    );
+
+    await setSuggestionValue(drawer, "事業割合 (%)", "33.5");
+    await setSuggestionValue(drawer, "課税区分", "独自課税区分");
+    await setSuggestionValue(drawer, "事業区分", "独自事業区分");
+    await clickButton(page, "作成");
+    await expect(drawer).not.toBeVisible({ timeout: 5_000 });
+
+    await page
+      .getByRole("button", { name: /任意区分と小数割合/ })
+      .first()
+      .click();
+    const reopened = page.getByRole("dialog", { name: "仕訳の編集" });
+    await expect(suggestionButton(reopened, "事業割合 (%)")).toHaveText(
+      "33.5",
+    );
+    await expect(suggestionButton(reopened, "課税区分")).toHaveText(
+      "独自課税区分",
+    );
+    await expect(suggestionButton(reopened, "事業区分")).toHaveText(
+      "独自事業区分",
+    );
   });
 
   test("deletes an entry and it disappears from the list", async ({ page }) => {
@@ -191,4 +229,23 @@ async function createEntryViaDrawer(
 
   await clickButton(page, "作成");
   await expect(drawer).not.toBeVisible({ timeout: 5_000 });
+}
+
+function suggestionRow(drawer: Locator, label: string) {
+  return drawer.locator(".bk-step-row").filter({ hasText: label });
+}
+
+function suggestionButton(drawer: Locator, label: string) {
+  return suggestionRow(drawer, label).getByRole("button").first();
+}
+
+async function setSuggestionValue(
+  drawer: Locator,
+  label: string,
+  value: string,
+) {
+  const row = suggestionRow(drawer, label);
+  await row.getByRole("button").first().click();
+  await row.getByRole("dialog").getByRole("textbox").fill(value);
+  await row.getByRole("button", { name: "この値で確定" }).click();
 }

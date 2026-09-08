@@ -402,10 +402,60 @@ ALTER TABLE entry_lines_v3 RENAME TO entry_lines;
 `.trim(),
 };
 
+const MIGRATION_V4: SchemaMigration = {
+  version: 4,
+  sql: `
+UPDATE entry_lines
+SET tax_category_id = CASE tax_category_id
+  WHEN '課税 10%' THEN 'tax_10'
+  WHEN '軽減税率 8%' THEN 'tax_8'
+  WHEN '免税' THEN 'tax_exempt'
+  WHEN '非課税' THEN 'tax_non_taxable'
+  WHEN '対象外' THEN 'tax_out_of_scope'
+  ELSE tax_category_id
+END;
+
+UPDATE entry_lines
+SET business_category_id = CASE business_category_id
+  WHEN '第1種（卸売業）' THEN 'biz_1'
+  WHEN '第2種（小売業等）' THEN 'biz_2'
+  WHEN '第3種（製造業等）' THEN 'biz_3'
+  WHEN '第4種（その他）' THEN 'biz_4'
+  WHEN '第5種（サービス業等）' THEN 'biz_5'
+  WHEN '第6種（不動産業）' THEN 'biz_6'
+  WHEN '対象外' THEN 'biz_none'
+  ELSE business_category_id
+END;
+
+UPDATE opening_journal_lines
+SET tax_category_id = CASE tax_category_id
+  WHEN '課税 10%' THEN 'tax_10'
+  WHEN '軽減税率 8%' THEN 'tax_8'
+  WHEN '免税' THEN 'tax_exempt'
+  WHEN '非課税' THEN 'tax_non_taxable'
+  WHEN '対象外' THEN 'tax_out_of_scope'
+  ELSE tax_category_id
+END;
+
+UPDATE opening_journal_lines
+SET business_category_id = CASE business_category_id
+  WHEN '第1種（卸売業）' THEN 'biz_1'
+  WHEN '第2種（小売業等）' THEN 'biz_2'
+  WHEN '第3種（製造業等）' THEN 'biz_3'
+  WHEN '第4種（その他）' THEN 'biz_4'
+  WHEN '第5種（サービス業等）' THEN 'biz_5'
+  WHEN '第6種（不動産業）' THEN 'biz_6'
+  WHEN '対象外' THEN 'biz_none'
+  ELSE business_category_id
+END;
+`.trim(),
+};
+
 export const SCHEMA_MIGRATIONS: SchemaMigration[] = [
   MIGRATION_V1,
   MIGRATION_V2,
   MIGRATION_V3,
+  MIGRATION_V4,
 ];
 
 export const SCHEMA_VERSION =

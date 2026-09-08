@@ -21,7 +21,7 @@ async function createVersion1Db() {
   return db;
 }
 
-describe("SQLite v1 to v2 migration", () => {
+describe("SQLite v1 to v4 migration", () => {
   it("adds constraints and preserves valid records", async () => {
     const db = await createVersion1Db();
     const period = {
@@ -55,8 +55,8 @@ describe("SQLite v1 to v2 migration", () => {
                 bookAccountId: "acct_cash",
                 amount: 1000,
                 partnerName: "",
-                taxCategoryName: "tax_out_of_scope",
-                businessCategoryName: "biz_none",
+                taxCategoryName: "対象外",
+                businessCategoryName: "対象外",
               },
               {
                 id: "journal-line-2",
@@ -64,8 +64,8 @@ describe("SQLite v1 to v2 migration", () => {
                 bookAccountId: "acct_sales",
                 amount: 1000,
                 partnerName: "",
-                taxCategoryName: "tax_out_of_scope",
-                businessCategoryName: "biz_none",
+                taxCategoryName: "custom-tax",
+                businessCategoryName: "custom-business",
               },
             ],
           },
@@ -85,16 +85,16 @@ describe("SQLite v1 to v2 migration", () => {
           bookAccountId: "acct_cash",
           amount: 1000,
           partnerName: "",
-          taxCategoryName: "tax_out_of_scope",
-          businessCategoryName: "biz_none",
+          taxCategoryName: "対象外",
+          businessCategoryName: "対象外",
         },
         {
           side: "credit",
           bookAccountId: "acct_sales",
           amount: 1000,
           partnerName: "",
-          taxCategoryName: "tax_out_of_scope",
-          businessCategoryName: "biz_none",
+          taxCategoryName: "custom-tax",
+          businessCategoryName: "custom-business",
         },
       ],
     };
@@ -172,14 +172,24 @@ describe("SQLite v1 to v2 migration", () => {
     ).toBe(2);
     expect(
       db.selectValue(
-        `SELECT tax_category_id FROM entry_lines WHERE entry_id='entry-1'`,
+        `SELECT tax_category_id FROM entry_lines WHERE entry_id='entry-1' AND position=0`,
       ),
     ).toBe("tax_out_of_scope");
     expect(
       db.selectValue(
-        `SELECT tax_category_id FROM opening_journal_lines WHERE opening_id='opening-1'`,
+        `SELECT tax_category_id FROM opening_journal_lines WHERE opening_id='opening-1' AND position=0`,
       ),
     ).toBe("tax_out_of_scope");
+    expect(
+      db.selectValue(
+        `SELECT tax_category_id FROM entry_lines WHERE entry_id='entry-1' AND position=1`,
+      ),
+    ).toBe("custom-tax");
+    expect(
+      db.selectValue(
+        `SELECT business_category_id FROM opening_journal_lines WHERE opening_id='opening-1' AND position=1`,
+      ),
+    ).toBe("custom-business");
     const sync = db as unknown as { exec(arg: unknown): unknown };
     const sqlDb: SqlDb = { exec: async (arg) => sync.exec(arg) };
     const adapter = await createSqliteDbAdapter(sqlDb);

@@ -23,7 +23,7 @@
     "typescript": "^5.8.3"
   },
   "description": "オープン会計 server-side API factory — assembles server-usecases into an OpenkkServerPort",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "author": "rbdog <rbdog@rubydog.jp>",
   "homepage": "https://github.com/rubydogjp/openkk#readme",
   "bugs": {
