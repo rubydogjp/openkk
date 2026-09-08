@@ -10,9 +10,6 @@ import {
   type ReactNode,
 } from "react";
 
-/**
- * 「いま処理が動いているか」をアプリ全体で 1 つに集める。
- */
 type WorkInProgressValue = {
   busy: boolean;
   /** 処理の開始を申告する。戻り値を呼ぶと終了を申告したことになる。 */
@@ -30,7 +27,6 @@ export function WorkInProgressProvider({ children }: { children: ReactNode }) {
     setCount((current) => current + 1);
     let ended = false;
     return () => {
-      // 二重に終了を申告しても数がずれないようにする
       if (ended) return;
       ended = true;
       setCount((current) => Math.max(0, current - 1));

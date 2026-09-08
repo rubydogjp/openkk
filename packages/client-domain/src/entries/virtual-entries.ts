@@ -306,7 +306,6 @@ function buildRetirementRows(input: {
   disposalDate: string;
   bookValue: number;
 }): EntryPreviewRow[] {
-  // 簿価が残っている場合のみ、残存簿価を固定資産除却損として計上する。
   if (input.bookValue <= 0) return [];
   return buildVirtualRowsFromPairs({
     recordId: `virtual-fixed-asset-retire-${input.asset.id}`,

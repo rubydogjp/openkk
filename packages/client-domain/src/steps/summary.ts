@@ -48,8 +48,10 @@ function summaryRowLines(record: EntrySummaryRow): EntryLine[] {
   ];
 }
 
-/** 家事按分（個人分を事業主貸/借へ振替）を反映した実効明細。 */
-function adjustedLines(record: EntrySummaryRow, rate: number): EntryLine[] {
+function businessRateAdjustedLines(
+  record: EntrySummaryRow,
+  rate: number,
+): EntryLine[] {
   return applyBusinessRateToLines(summaryRowLines(record), rate);
 }
 
@@ -58,7 +60,7 @@ export function computeRevenueContribution(
   rate: number,
 ): number {
   let value = 0;
-  for (const line of adjustedLines(record, rate)) {
+  for (const line of businessRateAdjustedLines(record, rate)) {
     if (line.accountType !== "revenue") continue;
     const amount = parseAmount(line.amount);
     value += line.side === "credit" ? amount : -amount;
@@ -71,7 +73,7 @@ export function computeExpenseContribution(
   rate: number,
 ): number {
   let value = 0;
-  for (const line of adjustedLines(record, rate)) {
+  for (const line of businessRateAdjustedLines(record, rate)) {
     if (
       line.accountType !== "expense" &&
       line.accountType !== "cost_of_sales"
@@ -92,7 +94,6 @@ export type OpeningBalanceSummary = {
 
 export const OPENING_EQUITY_LABELS = new Set<string>(["事業主借", "元入金"]);
 
-/** 期首残高ラインを資産 / 負債 / 資本に集計する。 */
 export function summarizeOpeningBalances(
   lines: Array<{ accountId: string; amount: number }>,
 ): OpeningBalanceSummary {

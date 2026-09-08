@@ -267,8 +267,7 @@ export function runDbPortConformance(
       const updated = await db.fiscalPeriods.update(period.id, { opening });
 
       // updatedAt advances on write; createdAt stays immutable, and the persisted
-      // record must match what update() returned (regression: replaceOpening used
-      // to reset created_at on every patch).
+      // record must match what update() returned.
       expect(updated.opening).toEqual({
         ...opening,
         updatedAt: updated.opening!.updatedAt,
