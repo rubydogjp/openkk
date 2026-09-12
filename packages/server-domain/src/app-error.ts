@@ -3,6 +3,13 @@ export type AppErrorLike = {
   messageForUser: string;
   originalMessage: string | null;
   statusCode: number | null;
+  code: string | null;
+};
+
+export type AppErrorFromOptions = {
+  fallbackUserMessage: string | null;
+  fallbackDeveloperMessage: string | null;
+  statusCode: number | null;
 };
 
 export class AppError extends Error implements AppErrorLike {
@@ -10,6 +17,7 @@ export class AppError extends Error implements AppErrorLike {
   readonly messageForUser: string;
   readonly originalMessage: string | null;
   readonly statusCode: number | null;
+  readonly code: string | null;
 
   constructor(params: AppErrorLike) {
     const normalized = normalizeAppErrorLike(params);
@@ -19,22 +27,23 @@ export class AppError extends Error implements AppErrorLike {
     this.messageForUser = normalized.messageForUser;
     this.originalMessage = normalized.originalMessage;
     this.statusCode = normalized.statusCode;
+    this.code = normalized.code;
   }
 
-  static from(error: unknown, options: Partial<AppErrorLike> = {}): AppError {
+  static from(error: unknown, options: AppErrorFromOptions): AppError {
     if (error instanceof AppError) return error;
     if (isAppErrorLike(error)) {
       return new AppError(error);
     }
     return new AppError({
       messageForDeveloper:
-        options.messageForDeveloper ??
+        options.fallbackDeveloperMessage ??
         "Server AppError.from: non-AppError was wrapped",
       messageForUser:
-        options.messageForUser ?? "サーバー処理でエラーが発生しました",
-      originalMessage:
-        options.originalMessage ?? stringifyOriginalMessage(error),
+        options.fallbackUserMessage ?? "サーバー処理でエラーが発生しました",
+      originalMessage: stringifyOriginalMessage(error),
       statusCode: options.statusCode ?? null,
+      code: null,
     });
   }
 
@@ -47,6 +56,7 @@ export class AppError extends Error implements AppErrorLike {
       messageForUser: json.messageForUser,
       originalMessage: json.originalMessage,
       statusCode: json.statusCode,
+      code: json.code,
     });
   }
 
@@ -56,19 +66,21 @@ export class AppError extends Error implements AppErrorLike {
       messageForUser: this.messageForUser,
       originalMessage: this.originalMessage,
       statusCode: this.statusCode,
+      code: this.code,
     };
   }
 }
 
 export function serverValidationError(
   messageForDeveloper: string,
-  messageForUser = "入力内容を確認してください",
+  messageForUser: string | null,
 ): AppError {
   return new AppError({
     messageForDeveloper,
-    messageForUser,
+    messageForUser: messageForUser ?? "入力内容を確認してください",
     originalMessage: null,
     statusCode: 400,
+    code: null,
   });
 }
 
@@ -78,6 +90,7 @@ export function serverNotFoundError(messageForDeveloper: string): AppError {
     messageForUser: "指定されたデータが見つかりませんでした",
     originalMessage: null,
     statusCode: 404,
+    code: null,
   });
 }
 
@@ -90,6 +103,7 @@ export function serverConflictError(
     messageForUser,
     originalMessage: null,
     statusCode: 409,
+    code: null,
   });
 }
 
@@ -106,7 +120,7 @@ function stringifyOriginalMessage(error: unknown): string | null {
 }
 
 function normalizeAppErrorLike(value: AppErrorLike): AppErrorLike {
-  const candidate: Partial<AppErrorLike> = isObject(value) ? value : {};
+  const candidate: Record<string, unknown> = isObject(value) ? value : {};
   return {
     messageForDeveloper:
       typeof candidate.messageForDeveloper === "string"
@@ -124,6 +138,7 @@ function normalizeAppErrorLike(value: AppErrorLike): AppErrorLike {
     statusCode: validStatusCode(candidate.statusCode)
       ? candidate.statusCode
       : null,
+    code: typeof candidate.code === "string" ? candidate.code : null,
   };
 }
 
@@ -142,6 +157,7 @@ function isAppErrorLike(value: unknown): value is AppErrorLike {
     typeof value.messageForUser === "string" &&
     (typeof value.originalMessage === "string" ||
       value.originalMessage === null) &&
-    validStatusCode(value.statusCode)
+    validStatusCode(value.statusCode) &&
+    (value.code === null || typeof value.code === "string")
   );
 }

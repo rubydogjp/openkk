@@ -11,9 +11,10 @@ import {
 import {
   buildPeriodLockMessage,
   capFixedAssetPreviewDate,
+  fixedAssetToDraft,
   formatIsoLocalDate,
   resolveEditingPolicy,
-  type FixedAssetPreviewItem,
+  type FixedAssetDraft,
 } from "@rubydogjp/openkk-client-domain";
 import { ClosedPeriodLock } from "../../../shared/closed-period-lock.js";
 import { LockButton } from "../../../shared/lock-icon.js";
@@ -28,37 +29,32 @@ export function FixedAssetsPage() {
   const openkkConfig = useOpenkkConfig();
   const editingLocked = resolveEditingPolicy(openkkConfig).locked;
   const [newAssetDraft, setNewAssetDraft] =
-    useState<FixedAssetPreviewItem | null>(null);
+    useState<FixedAssetDraft | null>(null);
 
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (p) => p.id === appState.currentFiscalPeriodId,
   );
-  const fiscalPeriodId = appState.currentFiscalPeriodId ?? "";
-  const lockMessage = buildPeriodLockMessage(currentFiscalPeriod);
+  const lockMessage = buildPeriodLockMessage(currentFiscalPeriod ?? null, null);
   const isReadOnlyPeriod =
     currentFiscalPeriod?.phase === "post_closing" ||
     currentFiscalPeriod?.phase === "pre_closing";
   const screenLockMessage = isReadOnlyPeriod ? null : lockMessage;
   const fixedAssetPreviewAsOf = capFixedAssetPreviewDate(
     openkkConfig.today,
-    currentFiscalPeriod?.endDate,
+    currentFiscalPeriod?.endDate ?? null,
   );
 
   const drawerAssetId = searchParams.get("asset");
   const candidateDrawerAsset =
     drawerAssetId == null ? null : assistState.getFixedAsset(drawerAssetId);
   const drawerAsset =
-    candidateDrawerAsset?.fiscalPeriodId === fiscalPeriodId
+    candidateDrawerAsset?.fiscalPeriodId === currentFiscalPeriod?.id
       ? candidateDrawerAsset
       : null;
 
   useEffect(() => {
-    setNewAssetDraft((current) =>
-      current == null || current.fiscalPeriodId === fiscalPeriodId
-        ? current
-        : null,
-    );
-  }, [fiscalPeriodId]);
+    setNewAssetDraft(null);
+  }, [currentFiscalPeriod?.id]);
 
   const navigateWithAssetParam = useCallback(
     (assetId: string | null) => {
@@ -86,11 +82,12 @@ export function FixedAssetsPage() {
       />
     );
   }
+  if (currentFiscalPeriod == null) return null;
 
   return (
     <>
       <FixedAssetsScreen
-        items={assistState.listFixedAssets(fiscalPeriodId)}
+        items={assistState.listFixedAssets(currentFiscalPeriod.id)}
         readOnly={isReadOnlyPeriod}
         onAdd={
           editingLocked || isReadOnlyPeriod
@@ -99,8 +96,7 @@ export function FixedAssetsPage() {
                 navigateWithAssetParam(null);
                 setNewAssetDraft(
                   buildNewFixedAssetDraft(
-                    fiscalPeriodId,
-                    currentFiscalPeriod?.startDate ?? null,
+                    currentFiscalPeriod.startDate,
                     openkkConfig.today,
                   ),
                 );
@@ -121,9 +117,10 @@ export function FixedAssetsPage() {
       {drawerAsset != null && !isReadOnlyPeriod && !editingLocked ? (
         <FixedAssetEditDrawer
           key={`edit:${drawerAsset.id}`}
-          asset={drawerAsset}
-          periodStartDate={currentFiscalPeriod?.startDate ?? ""}
-          periodEndDate={currentFiscalPeriod?.endDate ?? ""}
+          mode="edit"
+          initialDraft={fixedAssetToDraft(drawerAsset)}
+          periodStartDate={currentFiscalPeriod.startDate}
+          periodEndDate={currentFiscalPeriod.endDate}
           previewAsOf={fixedAssetPreviewAsOf}
           editingLocked={editingLocked}
           onClose={() => navigateWithAssetParam(null)}
@@ -141,11 +138,11 @@ export function FixedAssetsPage() {
       ) : null}
       {newAssetDraft != null && !isReadOnlyPeriod && !editingLocked ? (
         <FixedAssetEditDrawer
-          key={`create:${newAssetDraft.id}`}
+          key="create"
           mode="create"
-          asset={newAssetDraft}
-          periodStartDate={currentFiscalPeriod?.startDate ?? ""}
-          periodEndDate={currentFiscalPeriod?.endDate ?? ""}
+          initialDraft={newAssetDraft}
+          periodStartDate={currentFiscalPeriod.startDate}
+          periodEndDate={currentFiscalPeriod.endDate}
           previewAsOf={fixedAssetPreviewAsOf}
           editingLocked={editingLocked}
           onClose={() => setNewAssetDraft(null)}
@@ -165,28 +162,19 @@ export function FixedAssetsPage() {
 }
 
 function buildNewFixedAssetDraft(
-  fiscalPeriodId: string,
   periodStartDate: string | null,
   today: Date,
-): FixedAssetPreviewItem {
+): FixedAssetDraft {
   const acquisitionDate = periodStartDate ?? formatIsoLocalDate(today);
   return {
-    id: "__new_fixed_asset__",
-    fiscalPeriodId,
     name: "",
     account: "工具器具備品",
-    period: "",
-    remaining: "",
-    progress: 0,
-    current: "0",
-    purchase: "",
+    acquisitionCost: "",
     status: "償却中",
     acquisitionDate,
     usefulLife: 3,
+    businessRatePercent: 100,
     businessRate: 1,
-    accountId: null,
-    depreciationAmount: null,
-    acquisitionCost: null,
     disposalDate: null,
     disposalPrice: null,
   };

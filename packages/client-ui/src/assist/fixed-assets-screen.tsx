@@ -2,32 +2,22 @@
 
 import type { ReactNode } from "react";
 
-import type { FixedAssetPreviewItem } from "@rubydogjp/openkk-client-domain";
+import type { FixedAsset } from "@rubydogjp/openkk-client-domain";
 import { AmountText } from "../shared/amount-field.js";
-import { fontSize, fontWeight, palette, radii, sizes, spacing, typography } from "../shared/design-tokens.js";
+import { fontSize, fontWeight, palette, radii, sizes, spacing } from "../shared/design-tokens.js";
 import { StepCallout } from "../steps/step-ui.js";
 import { AssistBreadcrumb } from "./assist-breadcrumb.js";
 
-const fixedAssetColors = {
-  blue: palette.action,
-  lightBlue: palette.actionBg,
-  border: palette.borderStrong,
-  cardBg: palette.surface,
-  scaffoldBg: palette.formGroupBg,
-  text: palette.text,
-  softText: palette.textSoft,
-};
-
 export function FixedAssetsScreen(props: {
-  items: FixedAssetPreviewItem[];
-  readOnly: boolean | null;
+  items: FixedAsset[];
+  readOnly: boolean;
   onAdd: (() => void) | null;
   onOpenItem: ((itemId: string) => void) | null;
   contentMaxWidth: number | null;
 
   addButtonSlot: ReactNode | null;
 }) {
-  const isReadOnly = props.readOnly === true;
+  const isReadOnly = props.readOnly;
   return (
 
     <section
@@ -87,14 +77,14 @@ export function FixedAssetsScreen(props: {
 }
 
 function FixedAssetsTable(props: {
-  items: FixedAssetPreviewItem[];
-  readOnly: boolean | null;
+  items: FixedAsset[];
+  readOnly: boolean;
   onOpenItem: ((itemId: string) => void) | null;
-  fillHeight: boolean | null;
+  fillHeight: boolean;
 }) {
   const isEmpty = props.items.length === 0;
-  const fillHeight = props.fillHeight ?? false;
-  const isReadOnly = props.readOnly === true;
+  const { fillHeight } = props;
+  const isReadOnly = props.readOnly;
   return (
     <div
       style={{
@@ -171,7 +161,7 @@ function FixedAssetsTable(props: {
   );
 }
 
-function FixedAssetsEmptyState({ readOnly = false }: { readOnly?: boolean }) {
+function FixedAssetsEmptyState({ readOnly }: { readOnly: boolean }) {
   return (
     <div
       style={{
@@ -367,42 +357,8 @@ function PlusGlyph() {
   );
 }
 
-export function FixedAssetsPreviewSurface(props: {
-  items: FixedAssetPreviewItem[];
-}) {
-  return (
-    <div
-      style={{
-        position: "relative",
-        height: "100%",
-        padding: "18px 20px 92px",
-        overflow: "hidden",
-      }}
-    >
-      <div style={{ display: "grid", justifyItems: "center", gap: 16 }}>
-        <div
-          style={{
-            width: 1040,
-            fontSize: typography.dialogTitle.fontSize,
-            fontWeight: fontWeight.bold,
-            color: fixedAssetColors.text,
-          }}
-        >
-          固定資産
-        </div>
-        {props.items.map((asset) => (
-          <FixedAssetSectionCard key={asset.id}>
-            <FixedAssetCardBody asset={asset} />
-          </FixedAssetSectionCard>
-        ))}
-      </div>
-      <FloatingAddButton />
-    </div>
-  );
-}
-
 function FixedAssetRow(props: {
-  asset: FixedAssetPreviewItem;
+  asset: FixedAsset;
   onOpen: ((itemId: string) => void) | null;
   showDivider: boolean;
 }) {
@@ -430,23 +386,7 @@ function FixedAssetRow(props: {
   );
 }
 
-function FixedAssetSectionCard(props: { children: ReactNode }) {
-  return (
-    <div
-      style={{
-        width: 1040,
-        borderRadius: 18,
-        border: `1.5px solid ${fixedAssetColors.border}`,
-        background: fixedAssetColors.cardBg,
-        padding: "18px 18px 20px",
-      }}
-    >
-      {props.children}
-    </div>
-  );
-}
-
-function FixedAssetCardBody(props: { asset: FixedAssetPreviewItem }) {
+function FixedAssetCardBody(props: { asset: FixedAsset }) {
   const asset = props.asset;
   return (
     <div>
@@ -476,9 +416,11 @@ function FixedAssetCardBody(props: { asset: FixedAssetPreviewItem }) {
           fontSize: fontSize.sm,
         }}
       >
-        <span>{asset.account}</span>
-        <span>{asset.period}</span>
-        <span style={{ marginLeft: "auto" }}>{asset.remaining}</span>
+        <span>{asset.accountName}</span>
+        <span>{asset.depreciationStartLabel}</span>
+        <span style={{ marginLeft: "auto" }}>
+          {asset.remainingDepreciationLabel}
+        </span>
       </div>
 
       <div
@@ -495,7 +437,7 @@ function FixedAssetCardBody(props: { asset: FixedAssetPreviewItem }) {
           style={{
             position: "absolute",
             inset: 0,
-            width: `${asset.progress * 100}%`,
+            width: `${asset.depreciationProgress * 100}%`,
             background: palette.brandTint,
           }}
         />
@@ -503,7 +445,7 @@ function FixedAssetCardBody(props: { asset: FixedAssetPreviewItem }) {
           style={{
             position: "absolute",
             inset: 0,
-            width: `${asset.progress * 55}%`,
+            width: `${asset.depreciationProgress * 55}%`,
             background: palette.borderSubtle,
           }}
         />
@@ -540,7 +482,10 @@ function FixedAssetCardBody(props: { asset: FixedAssetPreviewItem }) {
           }}
         >
           購入額
-          <AmountText>{asset.purchase}</AmountText>円
+          <AmountText bold={false} muted={false}>
+            {asset.acquisitionCost.toLocaleString("ja-JP")}
+          </AmountText>
+          円
         </span>
         <span
           style={{
@@ -552,7 +497,10 @@ function FixedAssetCardBody(props: { asset: FixedAssetPreviewItem }) {
           }}
         >
           現在の価値
-          <AmountText bold>{asset.current}</AmountText>円
+          <AmountText bold muted={false}>
+            {asset.currentBookValue.toLocaleString("ja-JP")}
+          </AmountText>
+          円
         </span>
       </div>
     </div>
@@ -576,30 +524,6 @@ function StatusChip(props: { label: string }) {
       }}
     >
       {props.label}
-    </div>
-  );
-}
-
-function FloatingAddButton() {
-  return (
-    <div
-      style={{
-        position: "absolute",
-        right: 28,
-        bottom: 24,
-        width: 58,
-        height: 58,
-        borderRadius: 999,
-        background: "#ffffff",
-        border: `1px solid ${fixedAssetColors.border}`,
-        display: "grid",
-        placeItems: "center",
-        color: fixedAssetColors.blue,
-        fontSize: typography.pageTitle.fontSize,
-        boxShadow: "0 8px 24px rgba(15,23,42,0.08)",
-      }}
-    >
-      +
     </div>
   );
 }

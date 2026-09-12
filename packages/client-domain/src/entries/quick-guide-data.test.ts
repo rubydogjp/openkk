@@ -4,7 +4,7 @@ import { DEFAULT_BOOK_ACCOUNTS } from "./default-master-data.js";
 import {
   guideOptions,
   guideTitle,
-  resolveBookAccountByName,
+  resolveGuideBookAccount,
   type QuickGuidePage,
 } from "./quick-guide-data.js";
 
@@ -46,7 +46,7 @@ describe("quick guide data", () => {
       "雑費",
     ];
     for (const name of expenseNames) {
-      const resolved = resolveBookAccountByName(name, DEFAULT_BOOK_ACCOUNTS);
+      const resolved = resolveGuideBookAccount(name, DEFAULT_BOOK_ACCOUNTS);
       expect(resolved?.name).toBe(name);
       expect(resolved?.accountType).toBe("expense");
     }
@@ -68,5 +68,5 @@ function collectReachablePages(): QuickGuidePage[] {
 }
 
 function resolveAccountName(name: string) {
-  return resolveBookAccountByName(name, DEFAULT_BOOK_ACCOUNTS);
+  return resolveGuideBookAccount(name, DEFAULT_BOOK_ACCOUNTS);
 }

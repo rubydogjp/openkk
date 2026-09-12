@@ -1,4 +1,6 @@
-import type { OpenkkDbPort } from "../db-adapter.js";
+import type {
+  OpenkkDbPort,
+} from "@rubydogjp/openkk-server-ports";
 
 export function serializeOpenkkDbPortOperations(
   port: OpenkkDbPort,
@@ -30,8 +32,8 @@ class SerializedOperationQueue {
   run<T>(operation: () => Promise<T>): Promise<T> {
     const result = this.tail.then(operation, operation);
     this.tail = result.then(
-      () => undefined,
-      () => undefined,
+      () => {},
+      () => {},
     );
     return result;
   }

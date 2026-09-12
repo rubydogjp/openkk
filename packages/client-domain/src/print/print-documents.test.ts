@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  entryRecord,
+  type EntryRecordOverrides,
+} from "../../test-support/entry-record.js";
 import type { EntryRecord } from "../entries/entry-record.js";
 import { buildFinancialStatementsDocument } from "./financial-statements-print.js";
 import { computeFsAggregate } from "./fs-data.js";
@@ -422,32 +426,15 @@ describe("print documents", () => {
   });
 });
 
-function entry(overrides: Partial<EntryRecord>): EntryRecord {
-  const base: EntryRecord = {
-    id: "entry-1",
-    fiscalPeriodId: "fp-1",
+function entry(overrides: EntryRecordOverrides): EntryRecord {
+  return entryRecord(overrides, {
     date: "2026-01-15",
-    weekday: "木",
-    debit: "普通預金",
-    debitType: "asset",
     debitAmount: "100,000",
     credit: "売上",
     creditType: "revenue",
     creditAmount: "100,000",
     description: "売上",
     partner: "取引先",
-    businessRate: "",
     taxCategory: "課税売上",
-    businessCategory: "",
-    lines: null,
-    businessRateRatio: null,
-    localId: null,
-    debitBookAccountId: null,
-    creditBookAccountId: null,
-    debitTaxCategoryId: null,
-    creditTaxCategoryId: null,
-    debitBusinessCategoryId: null,
-    creditBusinessCategoryId: null,
-  };
-  return Object.assign(base, overrides);
+  });
 }

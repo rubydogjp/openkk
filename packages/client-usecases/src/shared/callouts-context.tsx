@@ -6,9 +6,12 @@ export type OpenkkCalloutSlot =
   | "stepJournalizingPreClosingHint"
   | "stepNextFiscalPeriodFooter";
 
-export type OpenkkCalloutSlots = Partial<Record<OpenkkCalloutSlot, ReactNode>>;
+export type OpenkkCalloutSlots = Record<OpenkkCalloutSlot, ReactNode | null>;
 
-const OpenkkCalloutsContext = createContext<OpenkkCalloutSlots>({});
+const OpenkkCalloutsContext = createContext<OpenkkCalloutSlots>({
+  stepJournalizingPreClosingHint: null,
+  stepNextFiscalPeriodFooter: null,
+});
 
 export function OpenkkCalloutsProvider(props: {
   slots: OpenkkCalloutSlots;
@@ -23,5 +26,5 @@ export function OpenkkCalloutsProvider(props: {
 
 export function useOpenkkCallout(slot: OpenkkCalloutSlot): ReactNode {
   const slots = useContext(OpenkkCalloutsContext);
-  return slots[slot] ?? null;
+  return slots[slot];
 }

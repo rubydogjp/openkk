@@ -19,10 +19,13 @@ import type {
   EntryDbUpsertInput,
   FiscalPeriodArchiveDbImportInput,
   FiscalPeriodDbPatchInput,
-  FiscalPeriodDbRecord,
   FiscalPeriodOpeningDbRecord,
   FixedAssetDbRecord,
-} from "../persistence-types.js";
+} from "@rubydogjp/openkk-server-ports";
+import type {
+  FiscalPeriodDataColumn,
+  FiscalPeriodDbRow,
+} from "./table-types.js";
 import { validateOpeningDbRecord } from "./persistence-codec.js";
 
 export function assertDbArchiveImportSizeLimits(
@@ -34,21 +37,24 @@ export function assertDbArchiveImportSizeLimits(
     !Array.isArray(input.preClosings) ||
     !Array.isArray(input.closings)
   ) {
-    throw serverValidationError("Archived import collections must be arrays");
+    throw serverValidationError("Archived import collections must be arrays", null);
   }
   if (input.entries.length > MAX_ENTRY_IMPORT_ITEMS) {
     throw serverValidationError(
       `Archived entries exceed the ${MAX_ENTRY_IMPORT_ITEMS.toLocaleString("en-US")} item limit`,
+      null,
     );
   }
   if (input.fixedAssets.length > MAX_ENTRY_IMPORT_ITEMS) {
     throw serverValidationError(
       `Archived fixed assets exceed the ${MAX_ENTRY_IMPORT_ITEMS.toLocaleString("en-US")} item limit`,
+      null,
     );
   }
   if (input.preClosings.length > 1 || input.closings.length > 1) {
     throw serverValidationError(
       "Archived closing collections must contain at most one record each",
+      null,
     );
   }
   let totalLineCount = 0;
@@ -76,6 +82,7 @@ function addArchiveLineCount(total: number, count: number): number {
   if (!Number.isSafeInteger(next) || next > MAX_ENTRY_IMPORT_LINES) {
     throw serverValidationError(
       `Archived journal lines exceed the ${MAX_ENTRY_IMPORT_LINES.toLocaleString("en-US")} line limit`,
+      null,
     );
   }
   return next;
@@ -83,7 +90,7 @@ function addArchiveLineCount(total: number, count: number): number {
 
 export function assertDbOpeningForPeriod(
   opening: FiscalPeriodOpeningDbRecord,
-  period: FiscalPeriodDbRecord,
+  period: FiscalPeriodDbRow,
 ): void {
   validateOpeningDbRecord(opening);
   if (
@@ -95,7 +102,7 @@ export function assertDbOpeningForPeriod(
       "期首データの会計期間情報が一致しません",
     );
   }
-  for (const journal of opening.openingJournals ?? []) {
+  for (const journal of opening.openingJournals) {
     if (journal.date < period.startDate || journal.date > period.endDate) {
       throw serverValidationError(
         `Opening journal date ${journal.date} must be within fiscal period ${period.startDate} to ${period.endDate}`,
@@ -105,7 +112,7 @@ export function assertDbOpeningForPeriod(
   }
   if (!period.openingBalancesCompleted) return;
 
-  for (const journal of opening.openingJournals ?? []) {
+  for (const journal of opening.openingJournals) {
     if (journal.description.trim() === "") {
       throw serverValidationError(
         "Completed opening journal description is required",
@@ -119,7 +126,7 @@ export function assertDbOpeningForPeriod(
 
   let assetTotal = 0;
   let liabilityAndEquityTotal = 0;
-  for (const line of opening.openingBalanceLines ?? []) {
+  for (const line of opening.openingBalanceLines) {
     if (line.accountId.startsWith("a:")) {
       assetTotal += line.amount;
     } else {
@@ -145,7 +152,7 @@ export function assertDbOpeningForPeriod(
 
 export function assertDbPeriodOwnership(
   userId: string,
-  period: FiscalPeriodDbRecord | null,
+  period: FiscalPeriodDbRow | null,
 ): void {
   if (period != null && period.userId !== userId) {
     throw serverNotFoundError(`fiscal period not found: ${period.id}`);
@@ -154,11 +161,11 @@ export function assertDbPeriodOwnership(
 
 export function assertDbEntryInput(
   input: EntryDbUpsertInput,
-  period: FiscalPeriodDbRecord | null,
+  period: FiscalPeriodDataColumn | null,
   label: string,
 ): void {
   if (typeof input.description !== "string" || input.description.trim() === "") {
-    throw serverValidationError(`${label} description is required`);
+    throw serverValidationError(`${label} description is required`, null);
   }
   assertIsoDate(input.date, `${label} date`);
   if (
@@ -174,25 +181,26 @@ export function assertDbEntryInput(
     input.localId != null &&
     (typeof input.localId !== "string" || input.localId.trim() === "")
   ) {
-    throw serverValidationError(`${label} localId must be a non-blank string`);
+    throw serverValidationError(`${label} localId must be a non-blank string`, null);
   }
   assertUnitRate(input.businessRate, `${label} business rate`);
   if (!Array.isArray(input.lines)) {
-    throw serverValidationError(`${label} lines must be an array`);
+    throw serverValidationError(`${label} lines must be an array`, null);
   }
   for (const line of input.lines) {
     if (line == null || typeof line !== "object") {
-      throw serverValidationError(`${label} line must be an object`);
+      throw serverValidationError(`${label} line must be an object`, null);
     }
     if (
       typeof line.bookAccountId !== "string" ||
       line.bookAccountId.trim() === ""
     ) {
-      throw serverValidationError(`${label} line book account is required`);
+      throw serverValidationError(`${label} line book account is required`, null);
     }
     if (getDefaultBookAccount(line.bookAccountId) == null) {
       throw serverValidationError(
         `${label} line references unknown book account: ${line.bookAccountId}`,
+        null,
       );
     }
     if (
@@ -200,7 +208,7 @@ export function assertDbEntryInput(
       typeof line.taxCategoryId !== "string" ||
       typeof line.businessCategoryId !== "string"
     ) {
-      throw serverValidationError(`${label} line text fields are invalid`);
+      throw serverValidationError(`${label} line text fields are invalid`, null);
     }
   }
   assertEntryLinesBalanced(input.lines, label, { allowZero: false });
@@ -208,10 +216,10 @@ export function assertDbEntryInput(
 
 export function assertDbFixedAssetRecord(
   asset: FixedAssetDbRecord,
-  period: FiscalPeriodDbRecord | null,
+  period: FiscalPeriodDataColumn | null,
 ): void {
   if (typeof asset.name !== "string" || asset.name.trim() === "") {
-    throw serverValidationError("Fixed asset name is required");
+    throw serverValidationError("Fixed asset name is required", null);
   }
   assertIsoDate(asset.acquisitionDate, "Fixed asset acquisition date");
   assertPositiveInteger(asset.acquisitionCost, "Fixed asset acquisition cost");
@@ -219,11 +227,12 @@ export function assertDbFixedAssetRecord(
   if (asset.usefulLife > MAX_FIXED_ASSET_USEFUL_LIFE_YEARS) {
     throw serverValidationError(
       `Fixed asset useful life must not exceed ${MAX_FIXED_ASSET_USEFUL_LIFE_YEARS} years`,
+      null,
     );
   }
   assertUnitRate(asset.businessRate, "Fixed asset business rate");
   if (asset.depreciationMethod !== "straight_line") {
-    throw serverValidationError("Fixed asset depreciation method is invalid");
+    throw serverValidationError("Fixed asset depreciation method is invalid", null);
   }
   const account = getDefaultBookAccount(asset.bookAccountId);
   if (
@@ -233,29 +242,34 @@ export function assertDbFixedAssetRecord(
   ) {
     throw serverValidationError(
       `Fixed asset book account must reference a fixed-asset account: ${asset.bookAccountId}`,
+      null,
     );
   }
   if (period != null && asset.acquisitionDate > period.endDate) {
     throw serverValidationError(
       `Fixed asset acquisition date ${asset.acquisitionDate} must not be after fiscal period end ${period.endDate}`,
+      null,
     );
   }
   const isDisposalStatus = asset.status === "sold" || asset.status === "disposed";
-  if (isDisposalStatus && asset.disposalDate === "") {
+  if (isDisposalStatus && asset.disposalDate == null) {
     throw serverValidationError(
       `Fixed asset with status ${asset.status} requires a disposal date`,
+      null,
     );
   }
-  if (!isDisposalStatus && asset.disposalDate !== "") {
+  if (!isDisposalStatus && asset.disposalDate != null) {
     throw serverValidationError(
       `Fixed asset with status ${asset.status} must not have a disposal date`,
+      null,
     );
   }
-  if (asset.disposalDate !== "") {
+  if (asset.disposalDate != null) {
     assertIsoDate(asset.disposalDate, "Fixed asset disposal date");
     if (asset.disposalDate < asset.acquisitionDate) {
       throw serverValidationError(
         "Fixed asset disposal date must not be before acquisition date",
+        null,
       );
     }
     if (
@@ -265,13 +279,25 @@ export function assertDbFixedAssetRecord(
     ) {
       throw serverValidationError(
         `Fixed asset disposal date ${asset.disposalDate} must be within fiscal period ${period.startDate} to ${period.endDate}`,
+        null,
       );
     }
   }
-  assertNonNegativeSafeInteger(asset.disposalPrice, "Fixed asset disposal price");
-  if (asset.status !== "sold" && asset.disposalPrice !== 0) {
+  if (asset.status === "sold") {
+    if (asset.disposalPrice == null) {
+      throw serverValidationError(
+        "Fixed asset with status sold requires a disposal price",
+        null,
+      );
+    }
+    assertNonNegativeSafeInteger(
+      asset.disposalPrice,
+      "Fixed asset disposal price",
+    );
+  } else if (asset.disposalPrice != null) {
     throw serverValidationError(
       `Fixed asset with status ${asset.status} must not have a disposal price`,
+      null,
     );
   }
   if (
@@ -286,12 +312,13 @@ export function assertDbFixedAssetRecord(
   ) {
     throw serverValidationError(
       "Fixed asset cannot be retired before it reaches memorandum value",
+      null,
     );
   }
 }
 
 export function assertDbFiscalPeriodPatchAllowed(
-  period: FiscalPeriodDbRecord,
+  period: FiscalPeriodDataColumn,
   patch: FiscalPeriodDbPatchInput,
 ): void {
   if (period.archiveStatus === "archived") {
@@ -310,7 +337,7 @@ export function assertDbFiscalPeriodPatchAllowed(
     );
   }
   const allowedKeysByPhase: Record<
-    FiscalPeriodDbRecord["phase"],
+    FiscalPeriodDataColumn["phase"],
     ReadonlySet<string>
   > = {
     pre_opening: new Set([
@@ -342,7 +369,7 @@ export function assertDbFiscalPeriodPatchAllowed(
 
 export function assertDbStoredEntryRecord(
   record: EntryDbRecord,
-  period: FiscalPeriodDbRecord,
+  period: FiscalPeriodDbRow,
 ): void {
   if (
     typeof record.id !== "string" ||
@@ -356,13 +383,10 @@ export function assertDbStoredEntryRecord(
   ) {
     throw serverValidationError(
       `Stored entry identity is invalid: ${String(record.id)}`,
+      null,
     );
   }
-  assertDbEntryInput(
-    record.localId === "" ? { ...record, localId: null } : record,
-    period,
-    "Stored entry",
-  );
+  assertDbEntryInput(record, period, "Stored entry");
   const lineIds = new Set<string>();
   for (const line of record.lines) {
     if (
@@ -372,6 +396,7 @@ export function assertDbStoredEntryRecord(
     ) {
       throw serverValidationError(
         `Stored entry line identity is invalid: ${record.id}`,
+        null,
       );
     }
     lineIds.add(line.id);
@@ -380,7 +405,7 @@ export function assertDbStoredEntryRecord(
 
 export function assertDbStoredFixedAssetRecord(
   asset: FixedAssetDbRecord,
-  period: FiscalPeriodDbRecord,
+  period: FiscalPeriodDbRow,
 ): void {
   if (
     typeof asset.id !== "string" ||
@@ -394,6 +419,7 @@ export function assertDbStoredFixedAssetRecord(
   ) {
     throw serverValidationError(
       `Stored fixed asset identity is invalid: ${String(asset.id)}`,
+      null,
     );
   }
   assertDbFixedAssetRecord(asset, period);
@@ -403,11 +429,12 @@ export function assertDbClosingGeneratedSizeLimits(
   entries: EntryDbUpsertInput[],
 ): void {
   if (!Array.isArray(entries)) {
-    throw serverValidationError("Closing entries must be an array");
+    throw serverValidationError("Closing entries must be an array", null);
   }
   if (entries.length > MAX_ENTRY_IMPORT_ITEMS) {
     throw serverValidationError(
       `Closing entries exceed the ${MAX_ENTRY_IMPORT_ITEMS.toLocaleString("en-US")} item limit`,
+      null,
     );
   }
   let totalLineCount = 0;
@@ -420,13 +447,14 @@ export function assertDbClosingGeneratedSizeLimits(
     ) {
       throw serverValidationError(
         `Closing entries exceed the ${MAX_ENTRY_IMPORT_LINES.toLocaleString("en-US")} line limit`,
+        null,
       );
     }
   }
 }
 
 export function assertDbClosingYear(
-  period: FiscalPeriodDbRecord,
+  period: FiscalPeriodDataColumn,
   year: number,
 ): void {
   assertPositiveInteger(year, "Closing year");
@@ -440,7 +468,7 @@ export function assertDbClosingYear(
 }
 
 export function assertDbImportedClosingState(
-  period: FiscalPeriodDbRecord,
+  period: FiscalPeriodDataColumn,
   preClosings: ReadonlyArray<{ year: number }>,
   closings: ReadonlyArray<{ year: number }>,
 ): void {
@@ -452,7 +480,7 @@ export function assertDbImportedClosingState(
     for (const row of rows) {
       assertDbClosingYear(period, row.year);
       if (years.has(row.year)) {
-        throw serverValidationError(`${label} contains a duplicate year`);
+        throw serverValidationError(`${label} contains a duplicate year`, null);
       }
       years.add(row.year);
     }
@@ -471,6 +499,7 @@ export function assertDbImportedClosingState(
   if (!isConsistent) {
     throw serverValidationError(
       `Imported closing records are inconsistent with phase ${period.phase}`,
+      null,
     );
   }
 }

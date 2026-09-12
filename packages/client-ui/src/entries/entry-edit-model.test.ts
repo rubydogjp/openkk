@@ -3,8 +3,9 @@ import { describe, expect, it } from "vitest";
 import type { EntryRecord } from "@rubydogjp/openkk-client-domain";
 
 import {
-  entryFormDraftToEntryDraft,
-  entryRecordToFormDraft,
+  entryFormStateToEntryDraft,
+  entryRecordToDraft,
+  entryToFormState,
 } from "./entry-edit-model.js";
 
 describe("entry edit model", () => {
@@ -14,17 +15,8 @@ describe("entry edit model", () => {
       fiscalPeriodId: "fp-1",
       date: "2026-01-01",
       weekday: "木",
-      debit: "地代家賃",
-      debitType: "expense",
-      debitAmount: "80,000",
-      credit: "現金",
-      creditType: "asset",
-      creditAmount: "80,000",
       description: "複合再振替",
-      partner: "",
-      businessRate: "100%",
-      taxCategory: "対象外",
-      businessCategory: "対象外",
+      businessRate: 1,
       lines: [
         {
           id: "line-rent",
@@ -79,22 +71,15 @@ describe("entry edit model", () => {
           businessCategoryName: null,
         },
       ],
-      businessRateRatio: null,
       localId: null,
-      debitBookAccountId: null,
-      creditBookAccountId: null,
-      debitTaxCategoryId: null,
-      creditTaxCategoryId: null,
-      debitBusinessCategoryId: null,
-      creditBusinessCategoryId: null,
     };
     let pairSequence = 0;
-    const formDraft = entryRecordToFormDraft(
-      record,
+    const formState = entryToFormState(
+      entryRecordToDraft(record),
       () => `pair-${++pairSequence}`,
     );
-    const edited = entryFormDraftToEntryDraft(
-      { ...formDraft, pairs: formDraft.pairs.slice(1) },
+    const edited = entryFormStateToEntryDraft(
+      { ...formState, pairs: formState.pairs.slice(1) },
       [
         {
           id: "expense-rent",

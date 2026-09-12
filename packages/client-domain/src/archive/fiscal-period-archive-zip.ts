@@ -314,6 +314,7 @@ function corruptedArchiveFileError(messageForDeveloper: string): AppError {
       "圧縮済みファイルが破損している可能性があります。別のファイルを選択してください。",
     originalMessage: null,
     statusCode: null,
+    code: null,
   });
 }
 
@@ -324,6 +325,7 @@ function unsupportedArchiveFileError(messageForDeveloper: string): AppError {
       "対応していない形式のファイルです。オープン会計で作成した圧縮済みファイルを選択してください。",
     originalMessage: null,
     statusCode: null,
+    code: null,
   });
 }
 
@@ -336,6 +338,7 @@ export function invalidArchiveContentError(
       "圧縮済みファイルの内容を確認できませんでした。作成元の会計期間データからもう一度圧縮保存してください。",
     originalMessage: null,
     statusCode: null,
+    code: null,
   });
 }
 

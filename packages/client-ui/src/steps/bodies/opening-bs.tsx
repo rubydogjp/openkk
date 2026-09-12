@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AppError,
   resolveEditingPolicy,
-  type EntryAccountVisualType,
+  type BookAccountType,
 } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text.js";
 import {
@@ -178,7 +178,7 @@ export function OpeningBsBody({
         (latestPeriod) => {
           const latestOpening = latestPeriod.opening ?? {
             id: `op-${currentFiscalPeriod.id}`,
-            userId: appState.session?.user.id ?? "",
+            userId: currentFiscalPeriod.userId,
             fiscalPeriodId: currentFiscalPeriod.id,
             openingJournals: [],
           };
@@ -374,13 +374,21 @@ export function OpeningBsBody({
           }}
         >
           {isNotStarted ? (
-            <StepSecondaryButton onClick={() => onSwitchToStep?.(1)}>
+            <StepSecondaryButton
+              onClick={() => onSwitchToStep?.(1)}
+              disabled={false}
+            >
               前の手順へ
             </StepSecondaryButton>
           ) : editingLocked && !isCompleted ? (
             <LockButton label="保存して次へ" style={null} />
           ) : !isEditing ? (
-            <StepPrimaryButton onClick={() => onSwitchToStep?.(3)} variant={null} icon={null}>
+            <StepPrimaryButton
+              onClick={() => onSwitchToStep?.(3)}
+              disabled={false}
+              variant={null}
+              icon={null}
+            >
               次の手順へ
             </StepPrimaryButton>
           ) : (
@@ -471,7 +479,7 @@ function SavedCommentSection({
               gap: spacing.s8,
             }}
           >
-            {editingLocked ? <LockIcon size={18} /> : null}
+            {editingLocked ? <LockIcon size={18} opacity={null} /> : null}
             <span>編集する</span>
           </button>
         </div>
@@ -535,7 +543,7 @@ function ChipCell({
   type,
 }: {
   label: string;
-  type: EntryAccountVisualType;
+  type: BookAccountType;
 }) {
   if (label === "") {
     return <div />;
@@ -607,7 +615,9 @@ function TotalAmountCell({ children }: { children: ReactNode }) {
       style={{ paddingLeft: 12, display: "flex", justifyContent: "flex-start" }}
     >
       <div style={{ width: AMOUNT_INPUT_W, textAlign: "right" }}>
-        <AmountText bold>{children}</AmountText>
+        <AmountText bold muted={false}>
+          {children}
+        </AmountText>
       </div>
     </div>
   );

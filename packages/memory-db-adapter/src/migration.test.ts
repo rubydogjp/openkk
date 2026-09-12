@@ -5,7 +5,7 @@ import {
   SCHEMA_MIGRATIONS,
   SCHEMA_VERSION,
   type SqlDb,
-} from "@rubydogjp/openkk-server-ports";
+} from "@rubydogjp/openkk-sqlite-adapter";
 import { describe, expect, it } from "vitest";
 
 async function createVersion1Db() {
@@ -98,6 +98,25 @@ describe("SQLite v1 to v4 migration", () => {
         },
       ],
     };
+    const entryWithoutLocalId = {
+      ...entry,
+      id: "entry-without-local-id",
+      localId: "",
+    };
+    const fixedAsset = {
+      id: "asset-1",
+      fiscalPeriodId: period.id,
+      name: "PC",
+      acquisitionDate: "2026-01-01",
+      acquisitionCost: 100_000,
+      usefulLife: 4,
+      depreciationMethod: "straight_line",
+      businessRate: 1,
+      status: "active",
+      disposalDate: "",
+      disposalPrice: 0,
+      bookAccountId: "acct_equipment",
+    };
     db.exec({
       sql: `INSERT INTO fiscal_periods VALUES(?, ?, ?, 1, 1)`,
       bind: [period.id, "user-1", JSON.stringify(period)],
@@ -105,6 +124,23 @@ describe("SQLite v1 to v4 migration", () => {
     db.exec({
       sql: `INSERT INTO entries VALUES(?, ?, ?, ?, 1, 1)`,
       bind: [entry.id, period.id, entry.date, JSON.stringify(entry)],
+    });
+    db.exec({
+      sql: `INSERT INTO entries VALUES(?, ?, ?, ?, 1, 1)`,
+      bind: [
+        entryWithoutLocalId.id,
+        period.id,
+        entryWithoutLocalId.date,
+        JSON.stringify(entryWithoutLocalId),
+      ],
+    });
+    db.exec({
+      sql: `INSERT INTO fixed_assets VALUES(?, ?, ?, 1, 1)`,
+      bind: [
+        fixedAsset.id,
+        period.id,
+        JSON.stringify(fixedAsset),
+      ],
     });
     db.exec({
       sql: `INSERT INTO closings VALUES(?, ?, ?)`,
@@ -124,6 +160,12 @@ describe("SQLite v1 to v4 migration", () => {
     ).toBe("source-1");
     expect(
       db.selectValue(
+        `SELECT local_id FROM entries WHERE id='entry-without-local-id'`,
+      ),
+    ).toBeNull();
+    expect(db.selectValue(`SELECT COUNT(*) FROM entry_lines`)).toBe(4);
+    expect(
+      db.selectValue(
         `SELECT json_type(data, '$.opening') FROM fiscal_periods WHERE id='fp-1'`,
       ),
     ).toBeNull();
@@ -137,6 +179,11 @@ describe("SQLite v1 to v4 migration", () => {
         `SELECT json_extract(data, '$.archiveStatus') FROM fiscal_periods WHERE id='fp-1'`,
       ),
     ).toBe("active");
+    expect(
+      db.selectValue(
+        `SELECT json_extract(data, '$.archiveDataAvailable') FROM fiscal_periods WHERE id='fp-1'`,
+      ),
+    ).toBe(1);
     expect(
       db.selectValue(
         `SELECT COUNT(*) FROM pre_closings WHERE fiscal_period_id='fp-1'`,
@@ -172,6 +219,21 @@ describe("SQLite v1 to v4 migration", () => {
     ).toBe(2);
     expect(
       db.selectValue(
+        `SELECT json_type(data, '$.disposalDate') FROM fixed_assets WHERE id='asset-1'`,
+      ),
+    ).toBe("null");
+    expect(
+      db.selectValue(
+        `SELECT json_type(data, '$.archivedAt') FROM fiscal_periods WHERE id='fp-1'`,
+      ),
+    ).toBe("null");
+    expect(
+      db.selectValue(
+        `SELECT json_type(data, '$.disposalPrice') FROM fixed_assets WHERE id='asset-1'`,
+      ),
+    ).toBe("null");
+    expect(
+      db.selectValue(
         `SELECT tax_category_id FROM entry_lines WHERE entry_id='entry-1' AND position=0`,
       ),
     ).toBe("tax_out_of_scope");
@@ -199,7 +261,12 @@ describe("SQLite v1 to v4 migration", () => {
       openingBalancesCompleted: true,
       documentsReceivedCompleted: false,
     });
-    await expect(adapter.entries.getAll("fp-1")).resolves.toHaveLength(1);
+    const migratedEntries = await adapter.entries.getAll("fp-1");
+    expect(migratedEntries).toHaveLength(2);
+    expect(
+      migratedEntries.find((item) => item.id === "entry-without-local-id")
+        ?.localId,
+    ).toBeNull();
     const queryPlan = db.exec({
       sql: `EXPLAIN QUERY PLAN
         SELECT id FROM entries

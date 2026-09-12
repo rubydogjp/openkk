@@ -4,8 +4,8 @@ export class AsyncMutationQueue {
   run<T>(operation: () => Promise<T>): Promise<T> {
     const result = this.tail.then(operation, operation);
     this.tail = result.then(
-      () => undefined,
-      () => undefined,
+      () => {},
+      () => {},
     );
     return result;
   }
@@ -18,8 +18,8 @@ export class KeyedAsyncMutationQueue<Key> {
     const previous = this.tails.get(key) ?? Promise.resolve();
     const result = previous.then(operation, operation);
     const tail = result.then(
-      () => undefined,
-      () => undefined,
+      () => {},
+      () => {},
     );
     this.tails.set(key, tail);
     void tail.then(() => {

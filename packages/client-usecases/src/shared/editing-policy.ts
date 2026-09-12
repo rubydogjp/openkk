@@ -17,5 +17,6 @@ export function assertEditingUnlocked(
       policy.lockedNotice ?? "この環境ではデータの編集がロックされています",
     originalMessage: null,
     statusCode: null,
+    code: null,
   });
 }

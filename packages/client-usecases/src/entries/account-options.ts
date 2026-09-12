@@ -2,13 +2,13 @@ import type {
   MasterBookAccount,
   MasterBookAccountBalanceSheetSection,
 } from "@rubydogjp/openkk-client-ports";
-import type { EntryAccountVisualType } from "@rubydogjp/openkk-client-domain";
+import type { BookAccountType } from "@rubydogjp/openkk-client-domain";
 
 export type EntryMasterAccountOption = {
   id: string;
   name: string;
   selectionLabel: string;
-  accountType: EntryAccountVisualType;
+  accountType: BookAccountType;
   balanceSheetSection: MasterBookAccountBalanceSheetSection;
 };
 

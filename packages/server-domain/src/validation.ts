@@ -34,7 +34,7 @@ export function parseIsoDate(value: string): Date | null {
 
 export function assertIsoDate(value: string, label: string): void {
   if (parseIsoDate(value) == null) {
-    throw serverValidationError(`${label} is invalid`);
+    throw serverValidationError(`${label} is invalid`, null);
   }
 }
 
@@ -46,11 +46,12 @@ export function assertDateRange(
   const start = parseIsoDate(startDate);
   const end = parseIsoDate(endDate);
   if (start == null || end == null) {
-    throw serverValidationError(`${label} dates are invalid`);
+    throw serverValidationError(`${label} dates are invalid`, null);
   }
   if (start.getTime() > end.getTime()) {
     throw serverValidationError(
       `${label} start date must be on or before end date`,
+      null,
     );
   }
 }
@@ -62,27 +63,23 @@ export function assertNonNegativeSafeInteger(
   if (!Number.isSafeInteger(value) || value < 0) {
     throw serverValidationError(
       `${label} must be a non-negative finite number and a safe integer`,
+      null,
     );
   }
 }
 
 export function assertPositiveInteger(value: number, label: string): void {
   if (!Number.isSafeInteger(value) || value < 1) {
-    throw serverValidationError(`${label} must be a positive integer`);
+    throw serverValidationError(`${label} must be a positive integer`, null);
   }
 }
 
 export function assertUnitRate(value: number, label: string): void {
   if (!Number.isFinite(value) || value < 0 || value > 1) {
-    throw serverValidationError(`${label} must be between 0 and 1`);
+    throw serverValidationError(`${label} must be between 0 and 1`, null);
   }
 }
 
-/**
- * 複式簿記の不変条件: 借方金額の合計と貸方金額の合計が一致すること。
- * 事業按分率は借貸の両側へ等しく作用するため、按分前の素の金額で判定する。
- * UI フォームだけでなく永続化境界（作成・更新・取込・アーカイブ取込）でも強制する。
- */
 export function assertEntryLinesBalanced(
   lines: ReadonlyArray<{ side: "debit" | "credit"; amount: number }>,
   label: string,
@@ -107,7 +104,7 @@ export function assertEntryLinesBalanced(
       hasCredit = true;
       creditTotal += line.amount;
     } else {
-      throw serverValidationError(`${label} line side is invalid`);
+      throw serverValidationError(`${label} line side is invalid`, null);
     }
     if (
       !Number.isSafeInteger(debitTotal) ||

@@ -9,6 +9,7 @@ describe("server AppError", () => {
       messageForUser: "ユーザー向け",
       originalMessage: "raw failure",
       statusCode: 400,
+      code: null,
     });
 
     expect(AppError.fromJson(error.toJson()).toJson()).toEqual({
@@ -16,6 +17,7 @@ describe("server AppError", () => {
       messageForUser: "ユーザー向け",
       originalMessage: "raw failure",
       statusCode: 400,
+      code: null,
     });
   });
 
@@ -25,9 +27,14 @@ describe("server AppError", () => {
       messageForUser: "入力内容を確認してください",
       originalMessage: null,
       statusCode: 400,
+      code: null,
     };
 
-    const error = AppError.from(dto);
+    const error = AppError.from(dto, {
+      fallbackUserMessage: null,
+      fallbackDeveloperMessage: null,
+      statusCode: null,
+    });
 
     expect(error.toJson()).toEqual(dto);
   });
@@ -48,6 +55,7 @@ describe("server AppError", () => {
       messageForUser: undefined,
       originalMessage: undefined,
       statusCode: Number.NaN,
+      code: undefined,
     } as unknown as ConstructorParameters<typeof AppError>[0]);
 
     expect(error.toJson()).toEqual({
@@ -55,6 +63,7 @@ describe("server AppError", () => {
       messageForUser: "サーバー処理でエラーが発生しました",
       originalMessage: null,
       statusCode: null,
+      code: null,
     });
   });
 
@@ -62,6 +71,12 @@ describe("server AppError", () => {
     const circular: Record<string, unknown> = {};
     circular.self = circular;
 
-    expect(AppError.from(circular).originalMessage).toBe("<unprintable>");
+    expect(
+      AppError.from(circular, {
+        fallbackUserMessage: null,
+        fallbackDeveloperMessage: null,
+        statusCode: null,
+      }).originalMessage,
+    ).toBe("<unprintable>");
   });
 });

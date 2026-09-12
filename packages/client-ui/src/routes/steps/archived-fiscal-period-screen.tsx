@@ -139,6 +139,7 @@ export function ArchivedFiscalPeriodScreen({
           <StepMetaRow
             label="期間"
             value={`${fiscalPeriod.startDate} 〜 ${fiscalPeriod.endDate}`}
+            divider={false}
           />
           <StepMetaRow
             label="状態"
@@ -177,6 +178,7 @@ export function ArchivedFiscalPeriodScreen({
               appState.clearFiscalPeriod();
               router.push("/fiscal-periods");
             }}
+            disabled={false}
             variant={null}
             icon={null}
           >

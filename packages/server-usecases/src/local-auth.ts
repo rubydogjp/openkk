@@ -19,20 +19,20 @@ export function createLocalAuthUsecase() {
   return {
     async startSession(redirectUrl: string) {
       if (typeof redirectUrl !== "string" || redirectUrl.trim() === "") {
-        throw serverValidationError("auth redirect URL is required");
+        throw serverValidationError("auth redirect URL is required", null);
       }
       let target: URL;
       try {
         target = new URL(redirectUrl);
       } catch {
-        throw serverValidationError("auth redirect URL is invalid");
+        throw serverValidationError("auth redirect URL is invalid", null);
       }
       if (
         (target.protocol !== "http:" && target.protocol !== "https:") ||
         target.username !== "" ||
         target.password !== ""
       ) {
-        throw serverValidationError("auth redirect URL is not allowed");
+        throw serverValidationError("auth redirect URL is not allowed", null);
       }
       pruneExpired();
       const state = crypto.randomUUID();
@@ -53,12 +53,12 @@ export function createLocalAuthUsecase() {
         state.trim() === "" ||
         code.trim() === ""
       ) {
-        throw serverValidationError("auth state and code are required");
+        throw serverValidationError("auth state and code are required", null);
       }
       pruneExpired();
       const key = authorizationKey(state, code);
       if (!pendingAuthorizations.delete(key)) {
-        throw serverValidationError("auth state or code is invalid or expired");
+        throw serverValidationError("auth state or code is invalid or expired", null);
       }
       const completionCode = `${LOCAL_AUTH_COMPLETION_PREFIX}${crypto.randomUUID()}`;
       setBoundedPendingValue(
@@ -73,11 +73,11 @@ export function createLocalAuthUsecase() {
         typeof completionCode !== "string" ||
         completionCode.trim() === ""
       ) {
-        throw serverValidationError("auth completion code is required");
+        throw serverValidationError("auth completion code is required", null);
       }
       pruneExpired();
       if (!pendingCompletions.delete(completionCode)) {
-        throw serverValidationError("invalid or expired auth completion code");
+        throw serverValidationError("invalid or expired auth completion code", null);
       }
       return { userId: "local-auth-user" };
     },

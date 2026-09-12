@@ -1,14 +1,15 @@
-import type { OpenkkDbPort } from "../db-adapter.js";
+import type {
+  DbSnapshot,
+  OpenkkDbPort,
+} from "@rubydogjp/openkk-server-ports";
 import { createClosingsDb, createPreClosingsDb } from "./closing-store.js";
 import { createEntriesDb } from "./entry-store.js";
 import { createFiscalPeriodsDb } from "./fiscal-period-store.js";
 import { createFixedAssetsDb } from "./fixed-asset-store.js";
 import { createMasterDataDb } from "./master-data-store.js";
-import { seedStores, type DbSnapshot } from "./seed-store.js";
+import { seedStores } from "./seed-store.js";
 import { serializeOpenkkDbPortOperations } from "./serialized-port.js";
 import type { SqlDb } from "./sql-db.js";
-
-export type { DbSnapshot } from "./seed-store.js";
 
 export async function createSqliteDbAdapter(
   db: SqlDb,

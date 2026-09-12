@@ -5,7 +5,7 @@ import { demoEditingPolicy, demoFiscalPeriodPolicy } from "../demo/demo-bundle";
 
 const BUNDLE = "demo";
 
-const env = parseOpenkkEnv(process.env.NEXT_PUBLIC_OPENKK_ENV);
+const env = parseOpenkkEnv(process.env.NEXT_PUBLIC_OPENKK_ENV ?? null);
 const userId = "openkk-demo-user";
 const mockToday = new Date(2026, 8, 5);
 

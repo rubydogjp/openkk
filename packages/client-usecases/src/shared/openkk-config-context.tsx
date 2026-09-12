@@ -63,6 +63,7 @@ export function useOpenkkConfig(): RuntimeOpenkkConfig {
       messageForUser: "アプリの設定を読み込めませんでした",
       originalMessage: null,
       statusCode: null,
+      code: null,
     });
   }
   return value;

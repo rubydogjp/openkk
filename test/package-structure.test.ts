@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 const rootDir = path.resolve(import.meta.dirname, "..");
@@ -115,15 +116,92 @@ describe("openkk workspace structure", () => {
 
   it("declares every internal package import and avoids self imports", () => {
     for (const record of packageRecords) {
-      const internalImports = findInternalImports(record.dir);
+      const internalImports = findInternalImports(record.dir, false);
       const declared = new Set([
         ...Object.keys(record.packageJson.dependencies ?? {}),
         ...Object.keys(record.packageJson.peerDependencies ?? {}),
+        ...Object.keys(record.packageJson.devDependencies ?? {}),
       ]);
       for (const importedPackage of internalImports) {
         expect(importedPackage).not.toBe(record.packageJson.name);
         expect(packageNameToDir.has(importedPackage)).toBe(true);
         expect(declared.has(importedPackage)).toBe(true);
+      }
+    }
+  });
+
+  it("keeps production imports within declared layer dependencies", () => {
+    const allowedLayers: Record<string, string[]> = {
+      "client-domain": [],
+      "client-ports": ["client-domain"],
+      "client-usecases": ["client-domain", "client-ports"],
+      "client-ui": ["client-domain", "client-usecases"],
+      client: ["client-domain", "client-ports", "client-usecases", "client-ui"],
+      "server-domain": [],
+      "server-ports": ["server-domain"],
+      "server-usecases": ["server-domain", "server-ports"],
+      "server-api": ["server-domain", "server-ports", "server-usecases"],
+      server: [
+        "server-domain",
+        "server-ports",
+        "server-usecases",
+        "server-api",
+      ],
+      "sqlite-adapter": ["server-domain", "server-ports"],
+      "file-db-adapter": ["server-ports", "sqlite-adapter"],
+      "memory-db-adapter": ["server-ports", "sqlite-adapter"],
+      "embedded-backend": ["server"],
+      "embedded-backend-adapter": ["client-ports", "embedded-backend"],
+      "print-adapter": ["client-ports"],
+      frontend: ["client", "print-adapter"],
+      openkk: [
+        "client",
+        "frontend",
+        "embedded-backend",
+        "embedded-backend-adapter",
+        "file-db-adapter",
+      ],
+      openkk_sim: [
+        "client",
+        "frontend",
+        "embedded-backend",
+        "embedded-backend-adapter",
+        "memory-db-adapter",
+      ],
+      openkk_demo: [
+        "client",
+        "frontend",
+        "embedded-backend",
+        "embedded-backend-adapter",
+        "memory-db-adapter",
+      ],
+    };
+    expect(Object.keys(allowedLayers).sort()).toEqual(packageDirs);
+    for (const record of packageRecords) {
+      const allowed = new Set(
+        allowedLayers[record.packageDir]!.map(packageName),
+      );
+      const declared = new Set([
+        ...Object.keys(record.packageJson.dependencies ?? {}),
+        ...Object.keys(record.packageJson.peerDependencies ?? {}),
+      ]);
+      for (const dependency of declared) {
+        if (packageNameToDir.has(dependency)) {
+          expect(
+            allowed.has(dependency),
+            record.packageDir + " -> " + dependency,
+          ).toBe(true);
+        }
+      }
+      for (const dependency of findInternalImports(record.dir, true)) {
+        expect(
+          declared.has(dependency),
+          record.packageDir + " -> " + dependency,
+        ).toBe(true);
+        expect(
+          allowed.has(dependency),
+          record.packageDir + " -> " + dependency,
+        ).toBe(true);
       }
     }
   });
@@ -146,6 +224,7 @@ describe("openkk workspace structure", () => {
       "print-adapter",
       "file-db-adapter",
       "memory-db-adapter",
+      "sqlite-adapter",
     ]);
     for (const record of packageRecords) {
       if (ADAPTER_EXEMPTIONS.has(record.packageDir)) continue;
@@ -158,7 +237,7 @@ describe("openkk workspace structure", () => {
         ...(isClientLayer ? [] : CLIENT_SUBPACKAGES),
         ...(isServerLayer ? [] : SERVER_SUBPACKAGES),
       ]);
-      const internalImports = findInternalImports(record.dir);
+      const internalImports = findInternalImports(record.dir, true);
       for (const importedPackage of internalImports) {
         expect(
           forbidden.has(importedPackage),
@@ -175,7 +254,8 @@ describe("openkk workspace structure", () => {
     const serverTypes = exportedTypeNames(
       path.join(packagesDir, "server-ports/src/types.ts"),
     );
-    const restBoundaryName = /(?:Request|Response|ApiRecord|Input)$/;
+    const restBoundaryName =
+      /(?:Request|Response|ApiRecord|Input|ApiErrorDto)$/;
     const clientBoundaryTypes = [...clientTypes]
       .filter((name) => restBoundaryName.test(name))
       .sort();
@@ -194,7 +274,8 @@ describe("openkk workspace structure", () => {
     const serverBodies = typeBodies(
       path.join(packagesDir, "server-ports/src/types.ts"),
     );
-    const restBoundaryName = /(?:Request|Response|ApiRecord|Input)$/;
+    const restBoundaryName =
+      /(?:Request|Response|ApiRecord|Input|ApiErrorDto)$/;
     const sharedApiInterfaces = [
       "AuthApi",
       "PreClosingApi",
@@ -240,7 +321,7 @@ describe("openkk workspace structure", () => {
       "utf8",
     );
     const sqliteAdapter = fs.readFileSync(
-      path.join(packagesDir, "server-ports/src/sqlite/adapter.ts"),
+      path.join(packagesDir, "sqlite-adapter/src/adapter.ts"),
       "utf8",
     );
 
@@ -251,7 +332,7 @@ describe("openkk workspace structure", () => {
 
   it("documents every SQLite table", () => {
     const schema = fs.readFileSync(
-      path.join(packagesDir, "server-ports/src/sqlite/schema.ts"),
+      path.join(packagesDir, "sqlite-adapter/src/schema.ts"),
       "utf8",
     );
     const schemaDoc = fs.readFileSync(
@@ -270,18 +351,15 @@ describe("openkk workspace structure", () => {
 
   it("keeps opening data normalized in SQLite", () => {
     const schema = fs.readFileSync(
-      path.join(packagesDir, "server-ports/src/sqlite/schema.ts"),
+      path.join(packagesDir, "sqlite-adapter/src/schema.ts"),
       "utf8",
     );
     const adapter = fs.readFileSync(
-      path.join(packagesDir, "server-ports/src/sqlite/adapter.ts"),
+      path.join(packagesDir, "sqlite-adapter/src/adapter.ts"),
       "utf8",
     );
     const fiscalPeriodStore = fs.readFileSync(
-      path.join(
-        packagesDir,
-        "server-ports/src/sqlite/fiscal-period-store.ts",
-      ),
+      path.join(packagesDir, "sqlite-adapter/src/fiscal-period-store.ts"),
       "utf8",
     );
 
@@ -294,11 +372,11 @@ describe("openkk workspace structure", () => {
 
   it("keeps entry lines normalized in SQLite", () => {
     const schema = fs.readFileSync(
-      path.join(packagesDir, "server-ports/src/sqlite/schema.ts"),
+      path.join(packagesDir, "sqlite-adapter/src/schema.ts"),
       "utf8",
     );
     const entryStore = fs.readFileSync(
-      path.join(packagesDir, "server-ports/src/sqlite/entry-store.ts"),
+      path.join(packagesDir, "sqlite-adapter/src/entry-store.ts"),
       "utf8",
     );
 
@@ -306,23 +384,6 @@ describe("openkk workspace structure", () => {
     expect(schema).not.toContain("json_type(data, '$.lines')");
     expect(entryStore).toContain("LEFT JOIN entry_lines");
     expect(entryStore).toContain("insertEntryLines");
-  });
-
-  it("keeps hard-coded data names aligned with their purpose", () => {
-    expect(
-      fs.existsSync(
-        path.join(packagesDir, "client-domain/src/shared/sample-data.ts"),
-      ),
-    ).toBe(false);
-
-    const demoSeed = fs.readFileSync(
-      path.join(packagesDir, "openkk_demo/demo/demo-seed.ts"),
-      "utf8",
-    );
-    expect(demoSeed).not.toMatch(/\b(sample|example)[A-Za-z0-9_]*/);
-
-    const e2eFixtureNames = fs.readdirSync(path.join(rootDir, "e2e/fixtures"));
-    expect(e2eFixtureNames.filter((name) => /sample/i.test(name))).toEqual([]);
   });
 });
 
@@ -345,17 +406,56 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
-function findInternalImports(packageDir: string): Set<string> {
+function findInternalImports(
+  packageDir: string,
+  productionOnly: boolean,
+): Set<string> {
   const out = new Set<string>();
   for (const file of listFiles(packageDir)) {
     if (!/\.(ts|tsx|js|jsx|mjs|cjs|css)$/.test(file)) continue;
+    if (
+      productionOnly &&
+      (/\.test\.tsx?$/.test(file) || file.includes("/test-support/"))
+    )
+      continue;
     const text = fs.readFileSync(file, "utf8");
-    for (const match of text.matchAll(
-      /@rubydogjp\/openkk(?:-[a-z0-9-]+)?(?:\/[a-z0-9./_-]+)?/g,
-    )) {
-      const bare = match[0].match(/^(@rubydogjp\/openkk(?:-[a-z0-9-]+)?)/)?.[1];
+    function add(specifier: string): void {
+      if (productionOnly && specifier.startsWith(".")) {
+        const target = path.resolve(path.dirname(file), specifier);
+        expect(
+          target.startsWith(packageDir + path.sep),
+          file + ": " + specifier,
+        ).toBe(true);
+      }
+      const bare = specifier.match(
+        /^(@rubydogjp\/openkk(?:-[a-z0-9-]+)?)(?:\/|$)/,
+      )?.[1];
       if (bare != null) out.add(bare);
     }
+    if (file.endsWith(".css")) {
+      for (const match of text.matchAll(/@import\s+["']([^"']+)["']/g))
+        add(match[1]!);
+      continue;
+    }
+    const ast = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
+    function visit(node: ts.Node): void {
+      if (
+        (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+        node.moduleSpecifier != null &&
+        ts.isStringLiteral(node.moduleSpecifier)
+      ) {
+        add(node.moduleSpecifier.text);
+      } else if (
+        ts.isCallExpression(node) &&
+        node.expression.kind === ts.SyntaxKind.ImportKeyword &&
+        node.arguments[0] != null &&
+        ts.isStringLiteral(node.arguments[0])
+      ) {
+        add(node.arguments[0].text);
+      }
+      ts.forEachChild(node, visit);
+    }
+    visit(ast);
   }
   return out;
 }

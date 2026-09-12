@@ -1,14 +1,12 @@
-import type {
-  EntryAccountVisualType,
-  EntryPreviewRow,
-} from "./entries-types.js";
-import { parseAmount, parseBusinessRate } from "../shared/parse-utils.js";
+import type { BookAccountType } from "./book-account.js";
+import type { EntryPreviewRow } from "./entries-types.js";
+import { parseAmount } from "../shared/parse-utils.js";
 
 export type EntryLine = {
   id: string | null;
   side: "debit" | "credit";
   accountName: string;
-  accountType: EntryAccountVisualType;
+  accountType: BookAccountType;
   amount: string;
   bookAccountId: string | null;
   partnerName: string | null;
@@ -25,56 +23,54 @@ export type EntryLineMetadata = {
 };
 
 export function resolveEntryLineMetadata(
-  record: Pick<EntryRecord, "partner" | "taxCategory" | "businessCategory">,
   line: EntryLine,
 ): EntryLineMetadata {
   return {
-    partner: line.partnerName ?? record.partner,
-    taxCategory:
-      line.taxCategoryName ?? line.taxCategoryId ?? record.taxCategory,
+    partner: line.partnerName ?? "",
+    taxCategory: line.taxCategoryName ?? line.taxCategoryId ?? "",
     businessCategory:
-      line.businessCategoryName ??
-      line.businessCategoryId ??
-      record.businessCategory,
+      line.businessCategoryName ?? line.businessCategoryId ?? "",
   };
 }
 
 export function resolveEntryPairMetadata(
-  record: Pick<EntryRecord, "partner" | "taxCategory" | "businessCategory">,
   pair: { debit: EntryLine | null; credit: EntryLine | null },
 ): EntryLineMetadata {
   const debit =
-    pair.debit == null ? null : resolveEntryLineMetadata(record, pair.debit);
+    pair.debit == null ? null : resolveEntryLineMetadata(pair.debit);
   const credit =
-    pair.credit == null ? null : resolveEntryLineMetadata(record, pair.credit);
+    pair.credit == null ? null : resolveEntryLineMetadata(pair.credit);
   return {
-    partner: combinePairedMetadata(debit?.partner, credit?.partner),
+    partner: combinePairedMetadata(
+      debit == null ? null : debit.partner,
+      credit == null ? null : credit.partner,
+    ),
     taxCategory: combinePairedMetadata(
-      debit?.taxCategory,
-      credit?.taxCategory,
+      debit == null ? null : debit.taxCategory,
+      credit == null ? null : credit.taxCategory,
     ),
     businessCategory: combinePairedMetadata(
-      debit?.businessCategory,
-      credit?.businessCategory,
+      debit == null ? null : debit.businessCategory,
+      credit == null ? null : credit.businessCategory,
     ),
   };
 }
 
 function combinePairedMetadata(
-  debit: string | undefined,
-  credit: string | undefined,
+  debit: string | null,
+  credit: string | null,
 ): string {
   if (debit == null) return credit ?? "";
   if (credit == null || debit === credit) return debit;
   return `借: ${debit || "—"} / 貸: ${credit || "—"}`;
 }
 
-const OWNER_WITHDRAWAL_ACCOUNT = "事業主貸"; // 費用の個人分（資産・借方）
-const OWNER_DEPOSIT_ACCOUNT = "事業主借"; // 収益の個人分（負債・貸方）
-const OWNER_WITHDRAWAL_ACCOUNT_ID = "acct_proprietor_withdrawal";
-const OWNER_DEPOSIT_ACCOUNT_ID = "acct_proprietor_loan";
+const PERSONAL_EXPENSE_ACCOUNT = "事業主貸";
+const PERSONAL_REVENUE_ACCOUNT = "事業主借";
+const PERSONAL_EXPENSE_ACCOUNT_ID = "acct_proprietor_withdrawal";
+const PERSONAL_REVENUE_ACCOUNT_ID = "acct_proprietor_loan";
 
-function isProfitAndLossType(type: EntryAccountVisualType): boolean {
+function isProfitAndLossType(type: BookAccountType): boolean {
   return type === "revenue" || type === "expense" || type === "cost_of_sales";
 }
 
@@ -101,9 +97,9 @@ export function applyBusinessRateToLines(
     if (personal <= 0) continue;
     const toDeposit = line.accountType === "revenue";
     const accountName = toDeposit
-      ? OWNER_DEPOSIT_ACCOUNT
-      : OWNER_WITHDRAWAL_ACCOUNT;
-    const accountType: EntryAccountVisualType = toDeposit
+      ? PERSONAL_REVENUE_ACCOUNT
+      : PERSONAL_EXPENSE_ACCOUNT;
+    const accountType: BookAccountType = toDeposit
       ? "liability"
       : "asset";
     const key = `${accountName}|${line.side}`;
@@ -117,8 +113,8 @@ export function applyBusinessRateToLines(
         accountType,
         amount: formatYen(personal),
         bookAccountId: toDeposit
-          ? OWNER_DEPOSIT_ACCOUNT_ID
-          : OWNER_WITHDRAWAL_ACCOUNT_ID,
+          ? PERSONAL_REVENUE_ACCOUNT_ID
+          : PERSONAL_EXPENSE_ACCOUNT_ID,
         id: null,
         partnerName: null,
         taxCategoryId: null,
@@ -129,16 +125,6 @@ export function applyBusinessRateToLines(
     }
   }
   return [...result, ...adjustments.values()];
-}
-
-export function resolveEntryBusinessRate(record: {
-  businessRate: string;
-  businessRateRatio: number | null;
-}): number {
-  const exact = record.businessRateRatio;
-  return exact != null && Number.isFinite(exact) && exact >= 0 && exact <= 1
-    ? exact
-    : parseBusinessRate(record.businessRate);
 }
 
 export function entryLineAccountKey(line: EntryLine): string {
@@ -166,7 +152,7 @@ export function buildBusinessRateTransferEntry(input: {
     string,
     {
       accountName: string;
-      accountType: EntryAccountVisualType;
+      accountType: BookAccountType;
       bookAccountId: string | null;
       signed: number;
     }
@@ -191,9 +177,9 @@ export function buildBusinessRateTransferEntry(input: {
   };
 
   for (const record of input.entries) {
-    const rate = resolveEntryBusinessRate(record);
+    const rate = record.businessRate;
     if (rate >= 1) continue;
-    const raw = getEntryLines(record);
+    const raw = record.lines;
     accumulate(applyBusinessRateToLines(raw, rate), 1);
     accumulate(raw, -1);
   }
@@ -227,33 +213,15 @@ export function buildBusinessRateTransferEntry(input: {
   const lines = [...debits, ...credits];
   if (lines.length === 0) return null;
 
-  const debitLine = debits[0] ?? null;
-  const creditLine = credits[0] ?? null;
   return {
     id: `materialized-business-rate-transfer-${input.fiscalPeriodId}`,
     fiscalPeriodId: input.fiscalPeriodId,
     date: input.date,
     weekday: "",
     lines,
-    debit: debitLine?.accountName ?? "",
-    debitType: debitLine?.accountType ?? "asset",
-    debitAmount: debitLine?.amount ?? "",
-    credit: creditLine?.accountName ?? "",
-    creditType: creditLine?.accountType ?? "asset",
-    creditAmount: creditLine?.amount ?? "",
     description: "家事按分の振替",
-    partner: "",
-    businessRate: "",
-    businessRateRatio: 1,
-    taxCategory: "対象外",
-    businessCategory: "",
+    businessRate: 1,
     localId: BUSINESS_RATE_TRANSFER_LOCAL_ID,
-    debitBookAccountId: null,
-    creditBookAccountId: null,
-    debitTaxCategoryId: null,
-    creditTaxCategoryId: null,
-    debitBusinessCategoryId: null,
-    creditBusinessCategoryId: null,
   };
 }
 
@@ -263,68 +231,17 @@ export type EntryRecord = {
   date: string;
   weekday: string;
 
-  lines: EntryLine[] | null;
-
-  debit: string;
-  debitType: EntryPreviewRow["debitType"];
-  debitAmount: string;
-  credit: string;
-  creditType: EntryPreviewRow["creditType"];
-  creditAmount: string;
+  lines: EntryLine[];
   description: string;
-  partner: string;
-  businessRate: string;
-  businessRateRatio: number | null;
-  taxCategory: string;
-  businessCategory: string;
+  businessRate: number;
   localId: string | null;
-  debitBookAccountId: string | null;
-  creditBookAccountId: string | null;
-  debitTaxCategoryId: string | null;
-  creditTaxCategoryId: string | null;
-  debitBusinessCategoryId: string | null;
-  creditBusinessCategoryId: string | null;
 };
-
-export function getEntryLines(record: EntryRecord): EntryLine[] {
-  if (record.lines != null && record.lines.length > 0) {
-    return record.lines;
-  }
-  return [
-    {
-      side: "debit",
-      accountName: record.debit,
-      accountType: record.debitType,
-      amount: record.debitAmount,
-      bookAccountId: record.debitBookAccountId,
-      partnerName: record.partner,
-      taxCategoryId: record.debitTaxCategoryId,
-      businessCategoryId: record.debitBusinessCategoryId,
-      id: null,
-      taxCategoryName: null,
-      businessCategoryName: null,
-    },
-    {
-      side: "credit",
-      accountName: record.credit,
-      accountType: record.creditType,
-      amount: record.creditAmount,
-      bookAccountId: record.creditBookAccountId,
-      partnerName: record.partner,
-      taxCategoryId: record.creditTaxCategoryId,
-      businessCategoryId: record.creditBusinessCategoryId,
-      id: null,
-      taxCategoryName: null,
-      businessCategoryName: null,
-    },
-  ];
-}
 
 export function entryToVisualPairs(record: EntryRecord): Array<{
   debit: EntryLine | null;
   credit: EntryLine | null;
 }> {
-  const lines = getEntryLines(record);
+  const lines = record.lines;
   const debits = lines.filter((line) => line.side === "debit");
   const credits = lines.filter((line) => line.side === "credit");
   const rowCount = Math.max(debits.length, credits.length, 1);
@@ -343,7 +260,7 @@ export function recordToPreviewRows(record: EntryRecord): EntryPreviewRow[] {
   const pairs = entryToVisualPairs(record);
   const dateLabel = `${record.date.slice(5, 7)}/${record.date.slice(8, 10)}`;
   return pairs.map((pair, index): EntryPreviewRow => {
-    const metadata = resolveEntryPairMetadata(record, pair);
+    const metadata = resolveEntryPairMetadata(pair);
     return {
       recordId: record.id,
       lineIndex: index,
@@ -368,11 +285,9 @@ export function recordToPreviewRows(record: EntryRecord): EntryPreviewRow[] {
       description: record.description,
       partner: metadata.partner,
       businessRate: record.businessRate,
-      businessRateRatio: record.businessRateRatio,
       taxCategory: metadata.taxCategory,
       businessCategory: metadata.businessCategory,
       virtual: null,
     };
   });
 }
-

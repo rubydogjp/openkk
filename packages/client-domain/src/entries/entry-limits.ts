@@ -48,5 +48,6 @@ function importFileLimitError(messageForDeveloper: string): AppError {
       "取込ファイルが大きすぎます。ファイルを分割してからもう一度取り込んでください。",
     originalMessage: null,
     statusCode: null,
+    code: null,
   });
 }

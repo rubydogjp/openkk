@@ -29,7 +29,7 @@ import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 import {
   ActionChoiceCard,
   ActionGrid,
-  CheckIcon,
+  CheckCircleIcon,
   StepDivider,
   StepCallout,
   StepMetaCard,
@@ -62,7 +62,7 @@ export function ClosingBody({
     (period) => period.id === appState.currentFiscalPeriodId,
   );
   const { printJournal, printGeneralLedger, printFinancialStatements } =
-    useStepDocumentPrinters(currentFiscalPeriod);
+    useStepDocumentPrinters(currentFiscalPeriod ?? null);
 
   useEffect(() => {
     return () => onBusyChange?.(false);
@@ -194,12 +194,16 @@ export function ClosingBody({
           <StepCallout tone="warning">
             この手順はまだ進められません。
           </StepCallout>
-          <StepDivider />
+          <StepDivider marginY={null} />
         </>
       ) : null}
 
       <StepMetaCard>
-        <StepMetaRow label="期間の名称" value={currentFiscalPeriod.name} />
+        <StepMetaRow
+          label="期間の名称"
+          value={currentFiscalPeriod.name}
+          divider={false}
+        />
         <StepMetaRow
           label="期間"
           value={`${formatDateButtonLabel(currentFiscalPeriod.startDate)} 〜 ${formatDateButtonLabel(currentFiscalPeriod.endDate)}`}
@@ -214,7 +218,10 @@ export function ClosingBody({
             justifyContent: "flex-start",
           }}
         >
-          <StepSecondaryButton onClick={() => onSwitchToStep?.(3)}>
+          <StepSecondaryButton
+            onClick={() => onSwitchToStep?.(3)}
+            disabled={false}
+          >
             前の手順へ
           </StepSecondaryButton>
         </div>
@@ -222,15 +229,15 @@ export function ClosingBody({
 
       {canFinalize && !isBusy ? (
         <>
-          <StepDivider />
+          <StepDivider marginY={null} />
           <section>
             <StepSectionLabel>仮書類をチェック</StepSectionLabel>
             <DocumentFileList
               actionLabel="確認する"
               items={[
-                { label: "仮_仕訳帳.pdf", onClick: printJournal, description: null, active: null },
-                { label: "仮_総勘定元帳.pdf", onClick: printGeneralLedger, description: null, active: null },
-                { label: "仮_財務諸表.pdf", onClick: printFinancialStatements, description: null, active: null },
+                { label: "仮_仕訳帳.pdf", onClick: printJournal, description: null, active: true },
+                { label: "仮_総勘定元帳.pdf", onClick: printGeneralLedger, description: null, active: true },
+                { label: "仮_財務諸表.pdf", onClick: printFinancialStatements, description: null, active: true },
               ]}
             />
           </section>
@@ -239,7 +246,7 @@ export function ClosingBody({
 
       {showRunningAnimation ? (
         <>
-          <StepDivider />
+          <StepDivider marginY={null} />
           <section>
             <StepSectionLabel>実行中</StepSectionLabel>
 
@@ -255,7 +262,7 @@ export function ClosingBody({
 
       {isClosed && !showRunningAnimation && fsSummary != null ? (
         <>
-          <StepDivider />
+          <StepDivider marginY={null} />
           <section>
             <StepSectionLabel>財務諸表の概要</StepSectionLabel>
 
@@ -267,7 +274,12 @@ export function ClosingBody({
                 justifyContent: "flex-end",
               }}
             >
-              <StepPrimaryButton onClick={() => onSwitchToStep?.(5)} variant={null} icon={null}>
+              <StepPrimaryButton
+                onClick={() => onSwitchToStep?.(5)}
+                disabled={false}
+                variant={null}
+                icon={null}
+              >
                 次の手順へ
               </StepPrimaryButton>
             </div>
@@ -277,7 +289,7 @@ export function ClosingBody({
 
       {canFinalize && !isBusy ? (
         <>
-          <StepDivider />
+          <StepDivider marginY={null} />
           <section>
             <StepSectionLabel>選択</StepSectionLabel>
             <ActionGrid columns={2}>
@@ -289,14 +301,17 @@ export function ClosingBody({
                   editingLocked ? (
                     <LockButton label="取り消す" style={null} />
                   ) : (
-                    <StepSecondaryButton onClick={handleCancelPreClosing}>
+                    <StepSecondaryButton
+                      onClick={handleCancelPreClosing}
+                      disabled={false}
+                    >
                       取り消す
                     </StepSecondaryButton>
                   )
                 }
               />
               <ActionChoiceCard
-                icon={<CheckIcon color={palette.success} />}
+                icon={<CheckCircleIcon color={palette.success} />}
                 title="本締めを実行する"
                 description="書類に問題がなかった場合、本締めを実行します。仕訳データは確定され、編集ができなくなります。"
                 action={
@@ -305,6 +320,7 @@ export function ClosingBody({
                   ) : (
                     <StepPrimaryButton
                       onClick={handleFinalize}
+                      disabled={false}
                       variant="success"
                       icon={null}
                     >

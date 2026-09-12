@@ -883,10 +883,11 @@ export function LayoutSizesPage() {
           <Card style={null}>
             <div style={{ maxWidth: 640 }}>
               <DocumentFileList
+                actionLabel={null}
                 items={[
-                  { label: "仕訳帳.pdf", description: null, active: null, onClick: null },
-                  { label: "総勘定元帳.pdf", description: null, active: null, onClick: null },
-                  { label: "財務諸表.pdf", description: null, active: null, onClick: null },
+                  { label: "仕訳帳.pdf", description: null, active: true, onClick: null },
+                  { label: "総勘定元帳.pdf", description: null, active: true, onClick: null },
+                  { label: "財務諸表.pdf", description: null, active: true, onClick: null },
                 ]}
               />
             </div>

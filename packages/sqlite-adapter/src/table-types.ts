@@ -1,0 +1,51 @@
+import type {
+  FiscalPeriodDbArchiveStatus,
+  FiscalPeriodDbPhase,
+  FixedAssetDbStatus,
+} from "@rubydogjp/openkk-server-ports";
+
+export type FiscalPeriodDataColumn = {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  phase: FiscalPeriodDbPhase;
+  archiveStatus: FiscalPeriodDbArchiveStatus;
+  archiveDataAvailable: boolean;
+  archivedAt: string | null;
+  settingsCompleted: boolean;
+  openingBalancesCompleted: boolean;
+  documentsReceivedCompleted: boolean;
+};
+
+export type FiscalPeriodDbRow = {
+  id: string;
+  userId: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  phase: FiscalPeriodDbPhase;
+  archiveStatus: FiscalPeriodDbArchiveStatus;
+  archiveDataAvailable: boolean;
+  archivedAt: string | null;
+  settingsCompleted: boolean;
+  openingBalancesCompleted: boolean;
+  documentsReceivedCompleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type FixedAssetDataColumn = {
+  id: string;
+  fiscalPeriodId: string;
+  name: string;
+  acquisitionDate: string;
+  acquisitionCost: number;
+  usefulLife: number;
+  depreciationMethod: "straight_line";
+  businessRate: number;
+  status: FixedAssetDbStatus;
+  disposalDate: string | null;
+  disposalPrice: number | null;
+  bookAccountId: string;
+};

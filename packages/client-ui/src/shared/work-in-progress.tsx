@@ -10,15 +10,16 @@ import {
   type ReactNode,
 } from "react";
 
+type EndWork = () => void;
+
 type WorkInProgressValue = {
   busy: boolean;
-  /** 処理の開始を申告する。戻り値を呼ぶと終了を申告したことになる。 */
-  beginWork: () => () => void;
+  beginWork: () => EndWork;
 };
 
 const WorkInProgressContext = createContext<WorkInProgressValue | null>(null);
 
-export const busyAttributeName = "data-openkk-busy";
+const BUSY_ATTRIBUTE_NAME = "data-openkk-busy";
 
 export function WorkInProgressProvider({ children }: { children: ReactNode }) {
   const [count, setCount] = useState(0);
@@ -36,10 +37,9 @@ export function WorkInProgressProvider({ children }: { children: ReactNode }) {
   const busy = count > 0;
 
   useEffect(() => {
-    // 画面の外 (テストや自動操作) からも見えるように印を出す
-    document.documentElement.setAttribute(busyAttributeName, busy ? "1" : "0");
+    document.documentElement.setAttribute(BUSY_ATTRIBUTE_NAME, busy ? "1" : "0");
     return () => {
-      document.documentElement.removeAttribute(busyAttributeName);
+      document.documentElement.removeAttribute(BUSY_ATTRIBUTE_NAME);
     };
   }, [busy]);
 
@@ -58,13 +58,11 @@ export function WorkInProgressProvider({ children }: { children: ReactNode }) {
 export function useWorkInProgress(): WorkInProgressValue {
   const value = useContext(WorkInProgressContext);
   if (value == null) {
-    // Provider の外でも画面は動くべきなので、何もしない実装を返す
-    return { busy: false, beginWork: () => () => undefined };
+    return { busy: false, beginWork: () => () => {} };
   }
   return value;
 }
 
-/** 既に `onBusyChange` のような真偽で状態を持っている画面から使う。 */
 export function useReportWorkInProgress(busy: boolean): void {
   const { beginWork } = useWorkInProgress();
 

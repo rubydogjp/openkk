@@ -223,7 +223,7 @@ async function readFromCurrentCacheIfAvailable(request) {
     const cache = await caches.open(CACHE_NAME);
     return await cache.match(request, { ignoreSearch: true });
   } catch {
-    return undefined;
+    return null;
   }
 }
 
@@ -231,7 +231,7 @@ async function readFromAnyCacheIfAvailable(request) {
   try {
     return await caches.match(request, { ignoreSearch: true });
   } catch {
-    return undefined;
+    return null;
   }
 }
 

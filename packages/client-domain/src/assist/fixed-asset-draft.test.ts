@@ -41,7 +41,7 @@ describe("resolveFixedAssetDraftPreviewDate", () => {
     const periodEnd = new Date(2026, 11, 31);
 
     expect(
-      resolveFixedAssetDraftPreviewDate(periodEnd, "償却中", "2027-08-31"),
+      resolveFixedAssetDraftPreviewDate(periodEnd, "償却中", "2027-08-31", null),
     ).toBe(periodEnd);
   });
 
@@ -51,6 +51,7 @@ describe("resolveFixedAssetDraftPreviewDate", () => {
         new Date(2026, 11, 31),
         status,
         "2026-09-20",
+        null,
       );
       expect([
         result.getFullYear(),
@@ -64,7 +65,7 @@ describe("resolveFixedAssetDraftPreviewDate", () => {
     const periodEnd = new Date(2026, 11, 31);
 
     expect(
-      resolveFixedAssetDraftPreviewDate(periodEnd, "売却済", "2026-02-30"),
+      resolveFixedAssetDraftPreviewDate(periodEnd, "売却済", "2026-02-30", null),
     ).toBe(periodEnd);
   });
 
@@ -73,7 +74,7 @@ describe("resolveFixedAssetDraftPreviewDate", () => {
     const periodEnd = new Date(2026, 11, 31);
 
     expect(
-      resolveFixedAssetDraftPreviewDate(today, "完了", undefined, periodEnd),
+      resolveFixedAssetDraftPreviewDate(today, "完了", null, periodEnd),
     ).toBe(periodEnd);
   });
 });
@@ -90,7 +91,7 @@ describe("computeFixedAssetDraftPeriodDepreciation", () => {
           usefulLife: 5,
           businessRatePercent: 100,
           status: "償却中",
-          businessRateRatio: null,
+          businessRate: null,
           disposalDate: null,
           disposalPrice: null,
         },
@@ -111,7 +112,7 @@ describe("validateFixedAssetDraft", () => {
       usefulLife: 4,
       businessRatePercent: 100,
       status: "償却中",
-      businessRateRatio: null,
+      businessRate: null,
       disposalDate: null,
       disposalPrice: null,
     };
@@ -165,7 +166,7 @@ describe("validateFixedAssetDraft", () => {
   });
 
   it("accepts a zero-yen sale only when an explicit price was entered", () => {
-    const sale = {
+    const sale: Partial<FixedAssetDraft> = {
       status: "売却済",
       disposalDate: "2026-10-01",
     };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 
 import { AmountInput } from "../shared/amount-field.js";
 import { useConfirmDialog } from "../shared/confirm-dialog.js";
@@ -33,12 +33,12 @@ import {
   resolveFixedAssetDraftPreviewDate,
   validateFixedAssetDraft,
   type FixedAssetDraft,
-  type FixedAssetPreviewItem,
+  type FixedAssetStatus,
 } from "@rubydogjp/openkk-client-domain";
 
 export function FixedAssetEditDrawer({
-  mode = "edit",
-  asset,
+  mode,
+  initialDraft,
   periodStartDate,
   periodEndDate,
   previewAsOf,
@@ -47,8 +47,8 @@ export function FixedAssetEditDrawer({
   onSave,
   onDelete,
 }: {
-  mode?: "create" | "edit";
-  asset: FixedAssetPreviewItem;
+  mode: "create" | "edit";
+  initialDraft: FixedAssetDraft;
   periodStartDate: string;
   periodEndDate: string;
   previewAsOf: Date;
@@ -57,9 +57,7 @@ export function FixedAssetEditDrawer({
   onSave: (draft: FixedAssetDraft) => Promise<boolean>;
   onDelete: (() => Promise<boolean>) | null;
 }) {
-  const [draft, setDraft] = useState<FixedAssetDraft>(() =>
-    fixedAssetToDraft(asset),
-  );
+  const [draft, setDraft] = useState<FixedAssetDraft>(initialDraft);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
@@ -73,7 +71,7 @@ export function FixedAssetEditDrawer({
     const asOf = resolveFixedAssetDraftPreviewDate(
       previewAsOf,
       draft.status,
-      draft.disposalDate ?? undefined,
+      draft.disposalDate,
       parseIsoLocalDate(periodEndDate) ?? previewAsOf,
     );
     return {
@@ -106,11 +104,6 @@ export function FixedAssetEditDrawer({
     currentBookValue: calculatedPreview.currentBookValue,
   });
   const canSave = validationError == null;
-
-  useEffect(() => {
-    setDraft(fixedAssetToDraft(asset));
-    setErrorText(null);
-  }, [asset.id]);
 
   const drawerRef = useModalLifecycle<HTMLElement>(() => {
     if (!mutationLock.current.isLocked) onClose();
@@ -250,6 +243,7 @@ export function FixedAssetEditDrawer({
             <FormTextInput
               value={draft.name}
               onChange={(v) => setDraft({ ...draft, name: v })}
+              readOnly={false}
               width={null}
               placeholder={null}
             />
@@ -258,6 +252,7 @@ export function FixedAssetEditDrawer({
             <FormTextInput
               value={draft.account}
               onChange={(v) => setDraft({ ...draft, account: v })}
+              readOnly={false}
               width={null}
               placeholder={null}
             />
@@ -290,7 +285,7 @@ export function FixedAssetEditDrawer({
                 setDraft({
                   ...draft,
                   businessRatePercent: v,
-                  businessRateRatio: null,
+                  businessRate: null,
                 })
               }
             />
@@ -384,6 +379,7 @@ export function FixedAssetEditDrawer({
             <FormSecondaryButton
               onClick={requestClose}
               disabled={saving || deleting}
+              type={null}
             >
               キャンセル
             </FormSecondaryButton>
@@ -393,6 +389,7 @@ export function FixedAssetEditDrawer({
               <FormPrimaryButton
                 onClick={handleSave}
                 disabled={saving || deleting}
+                type={null}
                 variant={null}
                 icon={null}
               >
@@ -405,21 +402,6 @@ export function FixedAssetEditDrawer({
       {dialog}
     </>
   );
-}
-
-function fixedAssetToDraft(asset: FixedAssetPreviewItem): FixedAssetDraft {
-  return {
-    name: asset.name,
-    account: asset.account,
-    acquisitionDate: asset.acquisitionDate ?? "",
-    acquisitionCost: asset.purchase,
-    usefulLife: asset.usefulLife ?? 0,
-    businessRatePercent: (asset.businessRate ?? 1) * 100,
-    businessRateRatio: asset.businessRate ?? 1,
-    status: asset.status,
-    disposalDate: asset.disposalDate ?? "",
-    disposalPrice: asset.disposalPrice ?? "",
-  };
 }
 
 function laterIsoDate(left: string, right: string): string {
@@ -612,14 +594,21 @@ function StatusField({
   value,
   onChange,
 }: {
-  value: string;
-  onChange: (value: string) => void;
+  value: FixedAssetStatus;
+  onChange: (value: FixedAssetStatus) => void;
 }) {
-  const options = ["償却中", "完了", "売却済", "廃棄済"];
+  const options: FixedAssetStatus[] = [
+    "償却中",
+    "完了",
+    "売却済",
+    "廃棄済",
+  ];
   return (
     <select
       value={value}
-      onChange={(event) => onChange(event.target.value)}
+      onChange={(event) =>
+        onChange(event.target.value as FixedAssetStatus)
+      }
       style={{
         height: sizes.field.height,
         boxSizing: "border-box",

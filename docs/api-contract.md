@@ -9,32 +9,16 @@
 | Server storage | `@rubydogjp/openkk-server-ports` | `OpenkkDbPort`, `*DbRecord`, `*DbInput` |
 | Errors | `@rubydogjp/openkk-*-domain` | `AppError`, `AppErrorLike` |
 
-`client-*` and `server-*` keep separate type definitions on purpose.
-制限値も両側に持ち、名前を揃える。値の一致は `test/shared-limits.test.ts` が固定する。
+`client-*` and `server-*` define the contract independently.
 
 ## テキスト項目の上限
 
-自由入力は `MAX_TEXT_FIELD_LENGTH`（400文字）まで。`assertNonBlankString` /
-`assertString` を通る全項目が対象。緩めるのは容易、厳しくするのは難しいため厳しめに取る。
-
-強制するのは入力境界（server-api とアーカイブ取込）だけ。永続化境界の検証は
-読み取りでも通るため、そこに置くと上限超えの既存データが読めなくなる。
+名称、摘要、取引先、独自カテゴリなどの自由入力は400文字まで。ID、日付、認証値は対象外。
 
 ## 値の省略
 
-省略可能プロパティ (`foo?: T`) を作らず `foo: T | null` とし、呼び出し側が `null` を
-明示的に渡す。「ある / null / 未指定」の3状態は判定の分岐を増やす。
-配列は `T[]` を必須にする（「未指定」と「空」を区別しない）。
-
-例外は3つ。許可リストの正本は `test/explicit-null.test.ts`。
-
-| 例外 | 理由 |
-|---|---|
-| 外部 API の呼び出し形を写した型 | 先方の契約が `undefined`（sqlite-wasm `exec`、worker message、React DOM props） |
-| 既定値つきの表示用 prop | `disabled = false` は内部で値が確定し分岐が増えない |
-| テストの上書きファクトリ | `Partial<T>` の「未指定 = 既定値」 |
-
-PATCH 入力の `Partial<>` は例外ではなく仕様。「未指定 = 変更しない」は `T | null` で表せない。
+内部データのプロパティは必須とし、値がない場合は `null`、配列には空配列を使う。
+PATCH 入力だけは「未指定 = 変更しない」を表すため省略可能にする。
 
 ## Naming
 
@@ -65,6 +49,7 @@ type OpenkkApiErrorDto = {
   messageForUser: string;
   originalMessage: string | null;
   statusCode: number | null;
+  code: string | null;
 };
 ```
 
@@ -99,6 +84,7 @@ Archived fiscal periods are read-only. Mutations against them must fail with `Op
 | `businessRate` | `0..1` |
 | amount | non-negative number |
 | `usefulLife`, closing `year` | positive integer |
+| fixed-asset disposal fields | sold: date and price; disposed: date; otherwise `null` |
 
 `fiscalPeriod.archive` preserves `phase`, sets `archiveStatus` to `archived`, and stamps `archivedAt`.
 
@@ -115,10 +101,9 @@ Third-party backends declare a lifecycle policy via `OpenkkConfig.fiscalPeriodPo
 | `archiveRetention` | `"persistent"` | `"persistent"` keeps archived data forever. `"ephemeral"` purges archived data when advancing to the next period (stub remains). |
 | `ephemeralArchiveWarning` | — | Optional per-bundle override for the irreversible-advance warning text. |
 
-`FiscalPeriodApiRecord` carries two lifecycle fields (both optional on the wire, default
-`archiveDataAvailable: true` / `archivedAt: null`):
+`FiscalPeriodApiRecord` carries two required lifecycle fields:
 
-- `archiveDataAvailable` — `false` marks a purged stub: real data is gone, download/view is unavailable.
+- `archiveDataAvailable` — `true` while real data is available; `false` marks a purged stub.
 - `archivedAt` — ISO timestamp for listing and ordering archived periods.
 
 `fiscalPeriod.purgeArchivedData(id)` deletes an archived period's real data
@@ -129,9 +114,9 @@ must be committed **before** purge so the new period never depends on purged dat
 
 ## Archive Zip Format (stable public contract)
 
-The `openkk.fiscal-period-archive` zip (current `version: 1`) is a **stable, versioned
+The `openkk.fiscal-period-archive` zip (current `version: 2`) is a **stable, versioned
 public contract** so archives exported by any backend (e.g. a cloud host) re-import into
 plain OpenKK / the PWA. A zip contains `manifest.json`, `fiscal-period.json`,
 `entries.json`, `fixed-assets.json`, `closings.json` (stored, UTF-8, CRC32-checked).
 Build/read it via `createFiscalPeriodArchiveZip` / `readFiscalPeriodArchiveZip`.
-Breaking changes must bump `FISCAL_PERIOD_ARCHIVE_VERSION`; readers stay backward-compatible.
+Version 2 represents nullable fields as JSON `null`; imports also accept version 1.

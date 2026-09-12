@@ -13,7 +13,6 @@ import {
   computeExpenseContribution,
   computeRevenueContribution,
   buildAnalyticsEntries,
-  resolveEntryBusinessRate,
   buildYearMonthRange,
   compareYearMonth,
   parseYearMonth,
@@ -73,7 +72,7 @@ export function JournalizingAnalyticsPage() {
       let revenue = 0;
       let expenses = 0;
       for (const record of monthRecords) {
-        const rate = resolveEntryBusinessRate(record);
+        const rate = record.businessRate;
         revenue += computeRevenueContribution(record, rate);
         expenses += computeExpenseContribution(record, rate);
       }

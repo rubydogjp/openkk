@@ -12,7 +12,9 @@ describe("safeUserErrorMessage", () => {
           messageForUser: "入力を確認してください",
           originalMessage: null,
           statusCode: 400,
+          code: null,
         }),
+        null,
       ),
     ).toBe("入力を確認してください");
   });

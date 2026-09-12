@@ -1,10 +1,17 @@
 import {
-  getEntryLines,
+  entryToVisualPairs,
+  resolveEntryPairMetadata,
   type EntryLine,
   type EntryRecord,
 } from "./entry-record.js";
+import type { BookAccountType } from "./book-account.js";
 import { AppError } from "../shared/app-error.js";
-import { parseIsoLocalDate, weekdayJa } from "../shared/parse-utils.js";
+import {
+  formatBusinessRatePercent,
+  parseBusinessRate,
+  parseIsoLocalDate,
+  weekdayJa,
+} from "../shared/parse-utils.js";
 import {
   assertEntryLineCount,
   assertEntryImportItemCount,
@@ -20,53 +27,28 @@ export {
   MAX_ENTRY_IMPORT_SIZE,
 } from "./entry-limits.js";
 
-type JournalJsonEntry = {
-  id: string | null;
-  localId: string | null;
-  date: string;
-  weekday: string | null;
-  debit: string;
-  debitType: EntryRecord["debitType"];
-  debitAmount: string;
-  credit: string;
-  creditType: EntryRecord["creditType"];
-  creditAmount: string;
-  description: string;
-  partner: string;
-  businessRate: string;
-  businessRateRatio: number | null;
-  taxCategory: string;
-  businessCategory: string;
-  lines: EntryLine[] | null;
-};
-
 export const OPENKK_JOURNAL_SCHEMA = "openkk-journal-v1";
 
 export function exportEntriesAsJson(entries: EntryRecord[]) {
   return JSON.stringify(
     {
       schema: OPENKK_JOURNAL_SCHEMA,
-      entries: entries.map((entry) => ({
-        localId:
-          entry.localId == null || entry.localId.trim() === ""
-            ? entry.id
-            : entry.localId,
-        date: entry.date,
-        weekday: entry.weekday ?? null,
-        debit: entry.debit,
-        debitType: entry.debitType,
-        debitAmount: entry.debitAmount,
-        credit: entry.credit,
-        creditType: entry.creditType,
-        creditAmount: entry.creditAmount,
-        description: entry.description,
-        partner: entry.partner,
-        businessRate: entry.businessRate,
-        businessRateRatio: entry.businessRateRatio ?? null,
-        taxCategory: entry.taxCategory,
-        businessCategory: entry.businessCategory,
-        lines: getEntryLines(entry).map((line) => ({ ...line })),
-      })),
+      entries: entries.map((entry) => {
+        const fields = journalFields(entry);
+        return {
+          localId:
+            entry.localId == null || entry.localId.trim() === ""
+              ? entry.id
+              : entry.localId,
+          date: entry.date,
+          weekday: entry.weekday,
+          ...fields,
+          description: entry.description,
+          businessRate: formatBusinessRatePercent(entry.businessRate),
+          businessRateRatio: entry.businessRate,
+          lines: entry.lines.map((line) => ({ ...line })),
+        };
+      }),
     },
     null,
     2,
@@ -99,7 +81,7 @@ export function importEntriesFromJson(input: {
     if (!isRecord(raw)) {
       throw importFileRowError(`row ${rowNo}: entry must be an object`, rowNo);
     }
-    const entry = raw as Partial<JournalJsonEntry>;
+    const entry = raw;
     const localId = validateRequiredLocalId(
       typeof entry.localId === "string" ? entry.localId : "",
       rowNo,
@@ -111,12 +93,11 @@ export function importEntriesFromJson(input: {
       rowNo,
       localId,
       date: stringValue(entry.date),
-      weekday: entry.weekday ?? null,
       debit: stringValue(entry.debit),
-      debitType: stringValue(entry.debitType) as EntryRecord["debitType"],
+      debitType: stringValue(entry.debitType),
       debitAmount: stringValue(entry.debitAmount),
       credit: stringValue(entry.credit),
-      creditType: stringValue(entry.creditType) as EntryRecord["creditType"],
+      creditType: stringValue(entry.creditType),
       creditAmount: stringValue(entry.creditAmount),
       description: stringValue(entry.description),
       partner: stringValue(entry.partner),
@@ -126,7 +107,7 @@ export function importEntriesFromJson(input: {
       businessCategory: stringValue(entry.businessCategory),
       lines: validateJsonLines(entry.lines, rowNo),
     });
-    importLineCount += normalized.lines?.length ?? 2;
+    importLineCount += normalized.lines.length;
     assertEntryImportLineCount(importLineCount);
     return normalized;
   });
@@ -159,28 +140,45 @@ const csvHeaders = [
 
 const OPENKK_JOURNAL_CSV_SCHEMA = "openkk-journal-csv-v1";
 
+function journalFields(entry: EntryRecord) {
+  const pair = entryToVisualPairs(entry)[0] ?? {
+    debit: null,
+    credit: null,
+  };
+  return {
+    debit: pair.debit?.accountName ?? "",
+    debitType: pair.debit?.accountType ?? "asset",
+    debitAmount: pair.debit?.amount ?? "",
+    credit: pair.credit?.accountName ?? "",
+    creditType: pair.credit?.accountType ?? "asset",
+    creditAmount: pair.credit?.amount ?? "",
+    ...resolveEntryPairMetadata(pair),
+  };
+}
+
 export function exportEntriesAsCsv(entries: EntryRecord[]) {
   const lines = [csvHeaders.join(",")];
   for (const entry of entries) {
+    const fields = journalFields(entry);
     const rawValues = [
       entry.localId == null || entry.localId.trim() === ""
         ? entry.id
         : entry.localId,
       entry.date,
       entry.weekday,
-      entry.debit,
-      entry.debitType,
-      entry.debitAmount,
-      entry.credit,
-      entry.creditType,
-      entry.creditAmount,
+      fields.debit,
+      fields.debitType,
+      fields.debitAmount,
+      fields.credit,
+      fields.creditType,
+      fields.creditAmount,
       entry.description,
-      entry.partner,
-      entry.businessRate,
-      entry.businessRateRatio == null ? "" : String(entry.businessRateRatio),
-      entry.taxCategory,
-      entry.businessCategory,
-      JSON.stringify(getEntryLines(entry)),
+      fields.partner,
+      formatBusinessRatePercent(entry.businessRate),
+      String(entry.businessRate),
+      fields.taxCategory,
+      fields.businessCategory,
+      JSON.stringify(entry.lines),
     ];
     const escapedFields: Array<(typeof journalCsvDataHeaders)[number]> = [];
     const safeValues = rawValues.map((value, index) => {
@@ -243,12 +241,11 @@ export function importEntriesFromCsv(input: {
       rowNo,
       localId,
       date: read("date"),
-      weekday: read("weekday"),
       debit: read("debit"),
-      debitType: read("debitType") as EntryRecord["debitType"],
+      debitType: read("debitType"),
       debitAmount: read("debitAmount"),
       credit: read("credit"),
-      creditType: read("creditType") as EntryRecord["creditType"],
+      creditType: read("creditType"),
       creditAmount: read("creditAmount"),
       description: read("description"),
       partner: read("partner"),
@@ -258,7 +255,7 @@ export function importEntriesFromCsv(input: {
       businessCategory: read("businessCategory"),
       lines: parseCsvLinesCell(read("lines"), rowNo),
     });
-    importLineCount += normalized.lines?.length ?? 2;
+    importLineCount += normalized.lines.length;
     assertEntryImportLineCount(importLineCount);
     return normalized;
   });
@@ -275,6 +272,7 @@ export function decodeJournalImportBytes(bytes: Uint8Array): string {
         "取込ファイルの文字コードを確認できませんでした。UTF-8形式で保存してからもう一度取り込んでください。",
       originalMessage: error instanceof Error ? error.message : String(error),
       statusCode: null,
+      code: null,
     });
   }
 }
@@ -282,7 +280,7 @@ export function decodeJournalImportBytes(bytes: Uint8Array): string {
 function parseCsvLinesCell(
   raw: string,
   rowNo: number,
-): EntryLine[] | null {
+): unknown[] | null {
   if (raw.trim() === "") return null;
   let parsed: unknown;
   try {
@@ -293,7 +291,7 @@ function parseCsvLinesCell(
   if (!Array.isArray(parsed)) {
     throw importFileRowError(`row ${rowNo}: lines must be an array`, rowNo);
   }
-  return parsed as EntryLine[];
+  return parsed;
 }
 
 function normalizeEntry(input: {
@@ -302,20 +300,19 @@ function normalizeEntry(input: {
   rowNo: number;
   localId: string | null;
   date: string;
-  weekday: string | null;
   debit: string;
-  debitType: EntryRecord["debitType"];
+  debitType: string;
   debitAmount: string;
   credit: string;
-  creditType: EntryRecord["creditType"];
+  creditType: string;
   creditAmount: string;
   description: string;
   partner: string;
   businessRate: string;
-  businessRateRatio: unknown | null;
+  businessRateRatio: unknown;
   taxCategory: string;
   businessCategory: string;
-  lines: EntryLine[] | null;
+  lines: unknown[] | null;
 }): EntryRecord {
   if (parseIsoLocalDate(input.date) == null) {
     throw importFileRowError(
@@ -323,69 +320,97 @@ function normalizeEntry(input: {
       input.rowNo,
     );
   }
+  const partner = input.partner.trim();
+  const taxCategory = input.taxCategory.trim() || "対象外";
+  const businessCategory = input.businessCategory.trim() || "対象外";
+  const importedLines = normalizeLines(input.lines, input.rowNo);
+  const lines =
+    importedLines ??
+    [
+      pairInputToLine("debit", input),
+      pairInputToLine("credit", input),
+    ].map((line): EntryLine => ({
+      ...line,
+      partnerName: partner === "" ? null : partner,
+      taxCategoryName: taxCategory,
+      businessCategoryName: businessCategory,
+    }));
   const result: EntryRecord = {
     id: input.id,
     localId: input.localId,
     fiscalPeriodId: input.fiscalPeriodId,
     date: input.date,
     weekday: weekdayFromDate(input.date),
-    debit: input.debit.trim(),
-    debitType: normalizeType(input.debitType, input.rowNo, "debit type"),
-    debitAmount: normalizeAmount(
-      input.debitAmount,
-      input.rowNo,
-      "debit amount",
-    ),
-    credit: input.credit.trim(),
-    creditType: normalizeType(input.creditType, input.rowNo, "credit type"),
-    creditAmount: normalizeAmount(
-      input.creditAmount,
-      input.rowNo,
-      "credit amount",
-    ),
     description: input.description || "",
-    partner: input.partner || "",
-    businessRate: input.businessRate || "100",
-    businessRateRatio: normalizeBusinessRateRatio(
-      input.businessRateRatio,
-      input.rowNo,
-    ),
-    taxCategory: input.taxCategory || "対象外",
-    businessCategory: input.businessCategory || "対象外",
-    lines: normalizeLines(input.lines, input.rowNo),
-    debitBookAccountId: null,
-    creditBookAccountId: null,
-    debitTaxCategoryId: null,
-    creditTaxCategoryId: null,
-    debitBusinessCategoryId: null,
-    creditBusinessCategoryId: null,
+    businessRate: importedBusinessRate(input),
+    lines,
   };
   assertNormalizedEntry(result, input.rowNo);
   return result;
 }
 
-function normalizeBusinessRateRatio(
-  value: unknown,
-  rowNo: number,
-): number | null {
-  if (value == null || value === "") return null;
+function pairInputToLine(
+  side: "debit" | "credit",
+  input: {
+    rowNo: number;
+    debit: string;
+    debitType: string;
+    debitAmount: string;
+    credit: string;
+    creditType: string;
+    creditAmount: string;
+  },
+): EntryLine {
+  const debit = side === "debit";
+  return {
+    id: null,
+    side,
+    accountName: (debit ? input.debit : input.credit).trim(),
+    accountType: normalizeType(
+      debit ? input.debitType : input.creditType,
+      input.rowNo,
+      `${side} type`,
+    ),
+    amount: normalizeAmount(
+      debit ? input.debitAmount : input.creditAmount,
+      input.rowNo,
+      `${side} amount`,
+    ),
+    bookAccountId: null,
+    partnerName: null,
+    taxCategoryId: null,
+    taxCategoryName: null,
+    businessCategoryId: null,
+    businessCategoryName: null,
+  };
+}
+
+function importedBusinessRate(input: {
+  businessRate: string;
+  businessRateRatio: unknown;
+  rowNo: number;
+}): number {
+  const exact = input.businessRateRatio;
+  if (exact == null || exact === "") {
+    return parseBusinessRate(input.businessRate);
+  }
   const rate =
-    typeof value === "number"
-      ? value
-      : typeof value === "string"
-        ? Number(value.trim())
+    typeof exact === "number"
+      ? exact
+      : typeof exact === "string"
+        ? Number(exact.trim())
         : Number.NaN;
   if (!Number.isFinite(rate) || rate < 0 || rate > 1) {
     throw importFileRowError(
-      `row ${rowNo}: invalid exact business rate`,
-      rowNo,
+      `row ${input.rowNo}: invalid exact business rate`,
+      input.rowNo,
     );
   }
   return rate;
 }
 
 function normalizeLines(
-  lines: EntryLine[] | null,
+  lines: unknown[] | null,
   rowNo: number,
 ): EntryLine[] | null {
   if (lines == null || lines.length === 0) return null;
@@ -413,7 +438,11 @@ function normalizeLines(
     const bookAccountId = stringValue(line.bookAccountId).trim();
     const partnerName = stringValue(line.partnerName).trim();
     const taxCategoryId = stringValue(line.taxCategoryId).trim();
+    const taxCategoryName = stringValue(line.taxCategoryName).trim();
     const businessCategoryId = stringValue(line.businessCategoryId).trim();
+    const businessCategoryName = stringValue(
+      line.businessCategoryName,
+    ).trim();
     return {
       side: line.side,
       accountName,
@@ -431,10 +460,11 @@ function normalizeLines(
       bookAccountId: bookAccountId === "" ? null : bookAccountId,
       partnerName: partnerName === "" ? null : partnerName,
       taxCategoryId: taxCategoryId === "" ? null : taxCategoryId,
-      taxCategoryName: null,
+      taxCategoryName: taxCategoryName === "" ? null : taxCategoryName,
       businessCategoryId:
         businessCategoryId === "" ? null : businessCategoryId,
-      businessCategoryName: null,
+      businessCategoryName:
+        businessCategoryName === "" ? null : businessCategoryName,
     };
   });
 }
@@ -442,8 +472,8 @@ function normalizeLines(
 function normalizeType(
   value: string,
   rowNo: number | null,
-  label = "account type",
-): EntryRecord["debitType"] {
+  label: string,
+): BookAccountType {
   if (
     value === "asset" ||
     value === "liability" ||
@@ -464,7 +494,7 @@ function normalizeType(
 function normalizeAmount(
   value: string,
   rowNo: number | null,
-  label = "amount",
+  label: string,
 ) {
   const n = Number(String(value).replaceAll(",", "").trim());
   if (!Number.isSafeInteger(n) || n < 0) {
@@ -629,43 +659,26 @@ function parseCsv(text: string) {
 function validateJsonLines(
   value: unknown,
   rowNo: number,
-): EntryLine[] | null {
+): unknown[] | null {
   if (value == null) return null;
   if (!Array.isArray(value)) {
     throw importFileRowError(`row ${rowNo}: lines must be an array`, rowNo);
   }
-  return value as EntryLine[];
+  return value;
 }
 
 function assertNormalizedEntry(entry: EntryRecord, rowNo: number): void {
   if (entry.description.trim() === "") {
     throw importFileRowError(`row ${rowNo}: description is required`, rowNo);
   }
-  const lines =
-    entry.lines != null && entry.lines.length > 0
-      ? entry.lines
-      : [
-          {
-            side: "debit" as const,
-            accountName: entry.debit,
-            accountType: entry.debitType,
-            amount: entry.debitAmount,
-          },
-          {
-            side: "credit" as const,
-            accountName: entry.credit,
-            accountType: entry.creditType,
-            amount: entry.creditAmount,
-          },
-        ];
-  for (const line of lines) {
+  for (const line of entry.lines) {
     if (line.accountName.trim() === "") {
       throw importFileRowError(`row ${rowNo}: account is required`, rowNo);
     }
   }
   let debitTotal = 0;
   let creditTotal = 0;
-  for (const line of lines) {
+  for (const line of entry.lines) {
     const amount = numericAmount(line.amount);
     if (line.side === "debit") debitTotal += amount;
     else creditTotal += amount;
@@ -685,9 +698,8 @@ function assertNormalizedEntry(entry: EntryRecord, rowNo: number): void {
       rowNo,
     );
   }
-  const rateText = entry.businessRate.trim();
-  const rate = rateText === "" ? 100 : Number(rateText);
-  if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
+  const rate = entry.businessRate;
+  if (!Number.isFinite(rate) || rate < 0 || rate > 1) {
     throw importFileRowError(`row ${rowNo}: invalid business rate`, rowNo);
   }
 }
@@ -748,6 +760,7 @@ function parseEntriesJson(text: string): Record<string, unknown> {
         "JSONファイルの内容を確認できませんでした。ファイルの形式を確認してください。",
       originalMessage: error instanceof Error ? error.message : String(error),
       statusCode: null,
+      code: null,
     });
   }
 }
@@ -759,6 +772,7 @@ function importFileFormatError(messageForDeveloper: string): AppError {
       "取込ファイルの形式を確認できませんでした。オープン会計で書き出したCSVまたはJSONを選択してください。",
     originalMessage: null,
     statusCode: null,
+    code: null,
   });
 }
 
@@ -771,5 +785,6 @@ function importFileRowError(
     messageForUser: `${rowNo}行目の取引データを確認できませんでした。ファイルの内容を修正してからもう一度取り込んでください。`,
     originalMessage: null,
     statusCode: null,
+    code: null,
   });
 }

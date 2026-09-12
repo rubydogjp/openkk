@@ -57,7 +57,6 @@ export const demoCalloutSlots: OpenkkCalloutSlots = {
   ),
 };
 
-// 最初の会計期間に開始残高とサンプル仕訳を投入する。
 export const demoSeedFiscalPeriod: FiscalPeriodSeedProvider = ({
   fiscalPeriod,
   isFirst,

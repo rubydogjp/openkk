@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { OpenkkDbPort } from "../db-adapter.js";
+import type {
+  OpenkkDbPort,
+} from "@rubydogjp/openkk-server-ports";
 import { serializeOpenkkDbPortOperations } from "./serialized-port.js";
 
 describe("serializeOpenkkDbPortOperations", () => {

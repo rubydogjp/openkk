@@ -19,9 +19,9 @@ import {
   useOpenkkEntries,
   type EntryDraft,
 } from "@rubydogjp/openkk-client-usecases";
-import type { EntryLine } from "@rubydogjp/openkk-client-domain";
 import { EntriesTable } from "../../../entries/entries-ui.js";
 import { EntryEditDrawer } from "../../../entries/entry-edit-drawer.js";
+import { entryRecordToDraft } from "../../../entries/entry-edit-model.js";
 import { AssistBreadcrumb } from "../../../assist/assist-breadcrumb.js";
 import { buildNewOpeningCarryoverDraft } from "../../../assist/opening-carryover-draft.js";
 import { ClosedPeriodLock } from "../../../shared/closed-period-lock.js";
@@ -44,19 +44,19 @@ export function OpeningCarryoverPage() {
   const config = useOpenkkConfig();
   const editingLocked = resolveEditingPolicy(config).locked;
   const [newCarryoverDraft, setNewCarryoverDraft] =
-    useState<OpeningCarryoverRecord | null>(null);
-  const fiscalPeriodId = appState.currentFiscalPeriodId ?? "";
+    useState<OpeningCarryoverDraft | null>(null);
+  const fiscalPeriodId = appState.currentFiscalPeriodId;
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (period) => period.id === appState.currentFiscalPeriodId,
   );
-  const lockMessage = buildPeriodLockMessage(currentFiscalPeriod);
+  const lockMessage = buildPeriodLockMessage(currentFiscalPeriod ?? null, null);
   const isReadOnlyPeriod =
     currentFiscalPeriod?.phase === "post_closing" ||
     currentFiscalPeriod?.phase === "pre_closing";
   const screenLockMessage = isReadOnlyPeriod ? null : lockMessage;
   const records = useMemo(
     () =>
-      fiscalPeriodId === ""
+      fiscalPeriodId == null
         ? []
         : assistState.listOpeningCarryovers(fiscalPeriodId),
     [fiscalPeriodId, assistState],
@@ -71,12 +71,14 @@ export function OpeningCarryoverPage() {
   );
   const drawerCarryoverId = searchParams.get("carryover");
   const drawerCarryover =
-    newCarryoverDraft ??
-    (drawerCarryoverId == null
+    drawerCarryoverId == null
       ? null
-      : (records.find((record) => record.id === drawerCarryoverId) ?? null));
-  const drawerEntry =
-    drawerCarryover == null ? null : carryoverToEntryRecord(drawerCarryover);
+      : (records.find((record) => record.id === drawerCarryoverId) ?? null);
+  const drawerEntry: EntryDraft | null =
+    newCarryoverDraft ??
+    (drawerCarryover == null
+      ? null
+      : entryRecordToDraft(carryoverToEntryRecord(drawerCarryover)));
 
   const navigateWithCarryoverParam = (carryoverId: string | null) => {
     const next = new URLSearchParams(searchParams.toString());
@@ -95,11 +97,7 @@ export function OpeningCarryoverPage() {
   };
 
   useEffect(() => {
-    setNewCarryoverDraft((current) =>
-      current == null || current.fiscalPeriodId === fiscalPeriodId
-        ? current
-        : null,
-    );
+    setNewCarryoverDraft(null);
   }, [fiscalPeriodId]);
 
   const closeDrawer = () => {
@@ -108,12 +106,11 @@ export function OpeningCarryoverPage() {
   };
 
   const handleAdd = () => {
-    if (fiscalPeriodId === "") return;
+    if (fiscalPeriodId == null || currentFiscalPeriod == null) return;
     navigateWithCarryoverParam(null);
     setNewCarryoverDraft(
       buildNewOpeningCarryoverDraft(
-        fiscalPeriodId,
-        currentFiscalPeriod?.startDate ?? "",
+        currentFiscalPeriod.startDate,
         entriesState.accountOptions,
       ),
     );
@@ -155,7 +152,7 @@ export function OpeningCarryoverPage() {
             <LockedCarryoverButton
               label={isReadOnlyPeriod ? "記録終了" : "編集ロック"}
             />
-          ) : lockMessage == null && fiscalPeriodId !== "" ? (
+          ) : lockMessage == null && fiscalPeriodId != null ? (
             <AddCarryoverButton onClick={handleAdd} />
           ) : null}
         </div>
@@ -172,7 +169,10 @@ export function OpeningCarryoverPage() {
             headerTone="warning"
             readOnly={isReadOnlyPeriod || editingLocked}
             activeRecordId={
-              !isReadOnlyPeriod && !editingLocked && drawerCarryover != null
+              !isReadOnlyPeriod &&
+              !editingLocked &&
+              newCarryoverDraft == null &&
+              drawerCarryover != null
                 ? drawerCarryover.id
                 : null
             }
@@ -180,7 +180,6 @@ export function OpeningCarryoverPage() {
               isReadOnlyPeriod || editingLocked
                 ? null
                 : (row) => {
-                    if (row.recordId == null) return;
                     navigateWithCarryoverParam(row.recordId);
                   }
             }
@@ -188,12 +187,16 @@ export function OpeningCarryoverPage() {
           />
         )}
       </div>
-      {drawerEntry != null &&
-      drawerCarryover != null &&
+      {fiscalPeriodId != null &&
+      drawerEntry != null &&
       !isReadOnlyPeriod &&
       !editingLocked ? (
         <EntryEditDrawer
-          key={`${newCarryoverDraft == null ? "edit" : "create"}:${drawerEntry.id}`}
+          key={
+            newCarryoverDraft == null && drawerCarryover != null
+              ? `edit:${drawerCarryover.id}`
+              : "create"
+          }
           mode={newCarryoverDraft == null ? "edit" : "create"}
           entry={drawerEntry}
           minDate={currentFiscalPeriod?.startDate ?? null}
@@ -204,20 +207,19 @@ export function OpeningCarryoverPage() {
           suggestions={entriesState.listSuggestions(fiscalPeriodId)}
           onClose={closeDrawer}
           onSave={async (draft) => {
-            const carryoverDraft = entryDraftToCarryoverDraft(
-              drawerCarryover,
-              draft,
-            );
+            const carryoverDraft = entryDraftToCarryoverDraft(draft);
             const ok =
-              newCarryoverDraft == null
+              newCarryoverDraft == null && drawerCarryover != null
                 ? await assistState.updateOpeningCarryover(
                     drawerCarryover.id,
                     carryoverDraft,
                   )
-                : (await assistState.addOpeningCarryover(
-                    fiscalPeriodId,
-                    carryoverDraft,
-                  )) != null;
+                : newCarryoverDraft != null
+                  ? (await assistState.addOpeningCarryover(
+                      fiscalPeriodId,
+                      carryoverDraft,
+                    )) != null
+                  : false;
             if (ok) {
               closeDrawer();
             } else {
@@ -226,11 +228,12 @@ export function OpeningCarryoverPage() {
                 messageForUser: "再振替仕訳の保存に失敗しました",
                 originalMessage: null,
                 statusCode: null,
+                code: null,
               });
             }
           }}
           onDelete={
-            newCarryoverDraft == null
+            newCarryoverDraft == null && drawerCarryover != null
               ? async () => {
                   const ok = await assistState.deleteOpeningCarryover(
                     drawerCarryover.id,
@@ -244,6 +247,7 @@ export function OpeningCarryoverPage() {
                       messageForUser: "再振替仕訳の削除に失敗しました",
                       originalMessage: null,
                       statusCode: null,
+                      code: null,
                     });
                   }
                 }
@@ -357,87 +361,24 @@ function LockGlyph() {
 }
 
 function carryoverToEntryRecord(record: OpeningCarryoverRecord): EntryRecord {
-  const lines: EntryLine[] =
-    record.lines ??
-    [
-      {
-        id: null,
-        side: "debit" as const,
-        accountName: record.debit,
-        accountType: record.debitType,
-        amount: record.debitAmount,
-        bookAccountId: record.debitBookAccountId,
-        partnerName: null,
-        taxCategoryId: null,
-        taxCategoryName: null,
-        businessCategoryId: null,
-        businessCategoryName: null,
-      },
-      {
-        id: null,
-        side: "credit" as const,
-        accountName: record.credit,
-        accountType: record.creditType,
-        amount: record.creditAmount,
-        bookAccountId: record.creditBookAccountId,
-        partnerName: null,
-        taxCategoryId: null,
-        taxCategoryName: null,
-        businessCategoryId: null,
-        businessCategoryName: null,
-      },
-    ];
   return {
     id: record.id,
     fiscalPeriodId: record.fiscalPeriodId,
     date: record.date,
     weekday: isoDateToWeekday(record.date),
-    debit: record.debit,
-    debitType: record.debitType,
-    debitAmount: record.debitAmount,
-    credit: record.credit,
-    creditType: record.creditType,
-    creditAmount: record.creditAmount,
     description: record.description,
-    partner: record.partner,
     businessRate: record.businessRate,
-    businessRateRatio: record.businessRateRatio,
-    taxCategory: record.taxCategory,
-    businessCategory: record.businessCategory,
-    debitBookAccountId: record.debitBookAccountId,
-    creditBookAccountId: record.creditBookAccountId,
-    lines,
+    lines: record.lines,
     localId: null,
-    debitTaxCategoryId: null,
-    creditTaxCategoryId: null,
-    debitBusinessCategoryId: null,
-    creditBusinessCategoryId: null,
   };
 }
 
-function entryDraftToCarryoverDraft(
-  fallback: OpeningCarryoverRecord,
-  draft: EntryDraft,
-): OpeningCarryoverDraft {
-  const debit = draft.lines.find((line) => line.side === "debit");
-  const credit = draft.lines.find((line) => line.side === "credit");
-  const lines = draft.lines.map((line) => ({ ...line, id: line.id ?? "" }));
+function entryDraftToCarryoverDraft(draft: EntryDraft): OpeningCarryoverDraft {
   return {
     date: draft.date,
     description: draft.description,
-    debit: debit?.accountName ?? fallback.debit,
-    debitType: debit?.accountType ?? fallback.debitType,
-    debitAmount: debit?.amount ?? fallback.debitAmount,
-    debitBookAccountId: debit?.bookAccountId ?? fallback.debitBookAccountId,
-    credit: credit?.accountName ?? fallback.credit,
-    creditType: credit?.accountType ?? fallback.creditType,
-    creditAmount: credit?.amount ?? fallback.creditAmount,
-    creditBookAccountId: credit?.bookAccountId ?? fallback.creditBookAccountId,
-    partner: draft.partner,
-    taxCategory: draft.taxCategory,
-    businessCategory: draft.businessCategory,
+    businessRateInput: draft.businessRateInput,
     businessRate: draft.businessRate,
-    businessRateRatio: draft.businessRateRatio,
-    lines,
+    lines: draft.lines.map((line) => ({ ...line })),
   };
 }

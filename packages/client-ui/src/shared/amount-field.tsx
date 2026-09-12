@@ -13,12 +13,12 @@ const AMOUNT_FONT = {
 
 export function AmountText({
   children,
-  bold = false,
-  muted = false,
+  bold,
+  muted,
 }: {
   children: ReactNode;
-  bold?: boolean;
-  muted?: boolean;
+  bold: boolean;
+  muted: boolean;
 }) {
   return (
     <span
@@ -101,7 +101,7 @@ export function AmountReadOnlyField({ value }: { value: string }) {
 }
 
 export function formatGrouped(value: string): string {
-  const digitsOnly = (value ?? "").replace(/[^\d-]/g, "");
+  const digitsOnly = value.replace(/[^\d-]/g, "");
   if (digitsOnly === "" || digitsOnly === "-") return "";
   const n = parseInt(digitsOnly, 10);
   if (!Number.isFinite(n)) return "";

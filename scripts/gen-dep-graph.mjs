@@ -75,6 +75,7 @@ const LAYERS = [
     note: "`OpenkkDbPort` の実装群。クラウド利用時は不要",
     match: (name) =>
       name === "@rubydogjp/openkk-file-db-adapter" ||
+      name === "@rubydogjp/openkk-sqlite-adapter" ||
       name === "@rubydogjp/openkk-memory-db-adapter",
   },
   {
@@ -98,7 +99,7 @@ function resolveLayerId(name) {
   for (const layer of LAYERS) {
     if (layer.match(name)) return layer.id;
   }
-  return undefined;
+  return null;
 }
 
 validatePackages();

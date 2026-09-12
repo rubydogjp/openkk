@@ -75,7 +75,7 @@ export function JournalizingBody({
     return (
       <>
         <StepCallout tone="warning">この手順はまだ進められません。</StepCallout>
-        <StepDivider />
+        <StepDivider marginY={null} />
         <section>
           <StepSectionLabel>記録中</StepSectionLabel>
           <JournalizingNotStartedTrendChart points={trendPoints} />
@@ -87,7 +87,10 @@ export function JournalizingBody({
             justifyContent: "flex-start",
           }}
         >
-          <StepSecondaryButton onClick={() => onSwitchToStep?.(2)}>
+          <StepSecondaryButton
+            onClick={() => onSwitchToStep?.(2)}
+            disabled={false}
+          >
             前の手順へ
           </StepSecondaryButton>
         </div>
@@ -170,7 +173,12 @@ export function JournalizingBody({
               justifyContent: "flex-end",
             }}
           >
-            <StepPrimaryButton onClick={() => onSwitchToStep?.(4)} variant={null} icon={null}>
+            <StepPrimaryButton
+              onClick={() => onSwitchToStep?.(4)}
+              disabled={false}
+              variant={null}
+              icon={null}
+            >
               次の手順へ
             </StepPrimaryButton>
           </div>
@@ -189,7 +197,12 @@ export function JournalizingBody({
                 marginTop: 4,
               }}
             >
-              <StepPrimaryButton onClick={() => router.push("/entries")} variant={null} icon={null}>
+              <StepPrimaryButton
+                onClick={() => router.push("/entries")}
+                disabled={false}
+                variant={null}
+                icon={null}
+              >
                 仕訳タブへ移動
               </StepPrimaryButton>
             </div>
@@ -197,7 +210,7 @@ export function JournalizingBody({
 
           {trendPoints != null && trendPoints.length > 0 ? (
             <>
-              <StepDivider />
+              <StepDivider marginY={null} />
               <section>
                 <StepSectionLabel>記録中</StepSectionLabel>
                 <Step3TrendChart
@@ -208,7 +221,7 @@ export function JournalizingBody({
             </>
           ) : null}
 
-          <StepDivider />
+          <StepDivider marginY={null} />
           <section>
             <StepSectionLabel>記録を終了</StepSectionLabel>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -230,6 +243,7 @@ export function JournalizingBody({
                 ) : (
                   <StepPrimaryButton
                     onClick={handleRunPreClosing}
+                    disabled={false}
                     variant="success"
                     icon={null}
                   >

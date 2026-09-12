@@ -448,6 +448,131 @@ SET business_category_id = CASE business_category_id
   WHEN '対象外' THEN 'biz_none'
   ELSE business_category_id
 END;
+
+UPDATE fiscal_periods
+SET data = json_set(data, '$.archiveDataAvailable', json('true'))
+WHERE json_type(data, '$.archiveDataAvailable') IS NULL
+   OR json_type(data, '$.archiveDataAvailable') = 'null';
+
+UPDATE fiscal_periods
+SET data = json_set(data, '$.archivedAt', json('null'))
+WHERE json_type(data, '$.archivedAt') IS NULL;
+
+CREATE TABLE fixed_assets_v4 (
+  id               TEXT PRIMARY KEY,
+  fiscal_period_id TEXT NOT NULL REFERENCES fiscal_periods(id) ON DELETE CASCADE,
+  data             TEXT NOT NULL CHECK (
+    json_valid(data)
+    AND json_type(data, '$.id') IS 'text'
+    AND json_extract(data, '$.id') = id
+    AND json_type(data, '$.fiscalPeriodId') IS 'text'
+    AND json_extract(data, '$.fiscalPeriodId') = fiscal_period_id
+    AND json_type(data, '$.name') IS 'text'
+    AND json_type(data, '$.acquisitionDate') IS 'text'
+    AND (json_type(data, '$.acquisitionCost') IS 'integer' OR json_type(data, '$.acquisitionCost') IS 'real')
+    AND json_type(data, '$.usefulLife') IS 'integer'
+    AND json_type(data, '$.depreciationMethod') IS 'text'
+    AND json_extract(data, '$.depreciationMethod') = 'straight_line'
+    AND (json_type(data, '$.businessRate') IS 'integer' OR json_type(data, '$.businessRate') IS 'real')
+    AND json_type(data, '$.status') IS 'text'
+    AND json_extract(data, '$.status') IN ('active', 'sold', 'disposed', 'retired')
+    AND json_type(data, '$.bookAccountId') IS 'text'
+    AND (
+      (json_extract(data, '$.status') = 'sold'
+        AND json_type(data, '$.disposalDate') IS 'text'
+        AND (json_type(data, '$.disposalPrice') IS 'integer' OR json_type(data, '$.disposalPrice') IS 'real'))
+      OR (json_extract(data, '$.status') = 'disposed'
+        AND json_type(data, '$.disposalDate') IS 'text'
+        AND json_type(data, '$.disposalPrice') IS 'null')
+      OR (json_extract(data, '$.status') IN ('active', 'retired')
+        AND json_type(data, '$.disposalDate') IS 'null'
+        AND json_type(data, '$.disposalPrice') IS 'null')
+    )
+  ),
+  created_at       INTEGER NOT NULL,
+  updated_at       INTEGER NOT NULL
+);
+INSERT INTO fixed_assets_v4
+SELECT id, fiscal_period_id,
+  CASE
+    WHEN json_extract(normalized_data, '$.status') <> 'sold'
+      AND json_extract(normalized_data, '$.disposalPrice') = 0
+      THEN json_set(normalized_data, '$.disposalPrice', NULL)
+    ELSE normalized_data
+  END,
+  created_at, updated_at
+FROM (
+  SELECT id, fiscal_period_id,
+    CASE
+      WHEN json_extract(data, '$.disposalDate') = ''
+        THEN json_set(data, '$.disposalDate', NULL)
+      ELSE data
+    END AS normalized_data,
+    created_at, updated_at
+  FROM fixed_assets
+);
+DROP TABLE fixed_assets;
+ALTER TABLE fixed_assets_v4 RENAME TO fixed_assets;
+CREATE INDEX idx_fixed_assets_fp_created_id
+  ON fixed_assets(fiscal_period_id, created_at, id);
+
+CREATE TEMP TABLE openkk_entries_v4 AS SELECT * FROM entries;
+CREATE TEMP TABLE openkk_entry_lines_v4 AS SELECT * FROM entry_lines;
+
+DROP TABLE entry_lines;
+DROP TABLE entries;
+
+CREATE TABLE entries (
+  id               TEXT PRIMARY KEY,
+  fiscal_period_id TEXT NOT NULL REFERENCES fiscal_periods(id) ON DELETE CASCADE,
+  date             TEXT NOT NULL CHECK (date = date(date)),
+  local_id         TEXT CHECK (local_id IS NULL OR length(trim(local_id)) > 0),
+  description      TEXT NOT NULL,
+  business_rate    REAL NOT NULL CHECK (business_rate BETWEEN 0 AND 1),
+  created_at       INTEGER NOT NULL,
+  updated_at       INTEGER NOT NULL
+);
+INSERT INTO entries(
+  id, fiscal_period_id, date, local_id, description, business_rate, created_at, updated_at
+)
+SELECT
+  id,
+  fiscal_period_id,
+  date,
+  CASE WHEN trim(local_id) = '' THEN NULL ELSE local_id END,
+  description,
+  business_rate,
+  created_at,
+  updated_at
+FROM openkk_entries_v4;
+CREATE INDEX idx_entries_fp_date_created_id
+  ON entries(fiscal_period_id, date, created_at, id);
+CREATE UNIQUE INDEX idx_entries_fp_local_id
+  ON entries(fiscal_period_id, local_id) WHERE local_id IS NOT NULL;
+
+CREATE TABLE entry_lines (
+  entry_id               TEXT NOT NULL REFERENCES entries(id) ON DELETE CASCADE,
+  id                     TEXT NOT NULL,
+  side                   TEXT NOT NULL CHECK (side IN ('debit', 'credit')),
+  book_account_id        TEXT NOT NULL,
+  amount                 REAL NOT NULL CHECK (amount >= 0),
+  partner_name           TEXT NOT NULL,
+  tax_category_id        TEXT NOT NULL,
+  business_category_id   TEXT NOT NULL,
+  position               INTEGER NOT NULL CHECK (position >= 0),
+  PRIMARY KEY (entry_id, position)
+);
+INSERT INTO entry_lines(
+  entry_id, id, side, book_account_id, amount, partner_name,
+  tax_category_id, business_category_id, position
+)
+SELECT
+  entry_id, id, side, book_account_id, amount, partner_name,
+  tax_category_id, business_category_id, position
+FROM openkk_entry_lines_v4;
+
+DROP TABLE openkk_entry_lines_v4;
+DROP TABLE openkk_entries_v4;
 `.trim(),
 };
 
@@ -458,5 +583,4 @@ export const SCHEMA_MIGRATIONS: SchemaMigration[] = [
   MIGRATION_V4,
 ];
 
-export const SCHEMA_VERSION =
-  SCHEMA_MIGRATIONS[SCHEMA_MIGRATIONS.length - 1]!.version;
+export const SCHEMA_VERSION = MIGRATION_V4.version;

@@ -25,8 +25,8 @@ export type ClosingFixedAsset = {
   usefulLife: number;
   businessRate: number;
   status: "active" | "sold" | "disposed" | "retired";
-  disposalDate: string;
-  disposalPrice: number;
+  disposalDate: string | null;
+  disposalPrice: number | null;
   bookAccountId: string;
 };
 
@@ -35,8 +35,12 @@ export type ClosingBookAccount = {
   accountType: MasterBookAccountType;
 };
 
-export type ClosingOpeningJournal = Omit<ClosingEntry, "localId"> & {
+export type ClosingOpeningJournal = {
   id: string;
+  date: string;
+  description: string;
+  businessRate: number;
+  lines: ClosingEntryLine[];
 };
 
 export const CLOSING_GENERATED_LOCAL_ID_PREFIX = "virtual:";
@@ -92,7 +96,7 @@ function buildFixedAssetEntries(
     asset.status === "active" || asset.status === "retired"
       ? periodEndDate
       : asset.disposalDate;
-  if (endDate === "") return [];
+  if (endDate == null) return [];
   const entries: ClosingEntry[] = [];
   const depreciation = computePeriodDepreciation({
     acquisitionDate: asset.acquisitionDate,
@@ -124,11 +128,15 @@ function buildFixedAssetEntries(
     asOf: endDate,
   }).currentBookValue;
   if (asset.status === "sold") {
-    const gain = Math.max(0, asset.disposalPrice - bookValue);
-    const loss = Math.max(0, bookValue - asset.disposalPrice);
+    const disposalPrice = asset.disposalPrice;
+    if (disposalPrice == null) {
+      throw new Error(`sold fixed asset has no disposal price: ${asset.id}`);
+    }
+    const gain = Math.max(0, disposalPrice - bookValue);
+    const loss = Math.max(0, bookValue - disposalPrice);
     const debits = [
-      ...(asset.disposalPrice > 0
-        ? [line("debit", BANK, asset.disposalPrice)]
+      ...(disposalPrice > 0
+        ? [line("debit", BANK, disposalPrice)]
         : []),
       ...(loss > 0 ? [line("debit", ASSET_SALE_LOSS, loss)] : []),
     ];

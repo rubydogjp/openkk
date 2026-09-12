@@ -36,12 +36,12 @@ function stringVars<T extends Record<string, string>>(
 function pxVars<T extends Record<string, number>>(
   prefix: string,
   defaults: T,
-  nameOf: (key: string) => string = kebab,
+  nameOf: ((key: string) => string) | null,
 ): VarMap<T> {
   return Object.fromEntries(
     Object.entries(defaults).map(([key, value]) => [
       key,
-      cssVar(`${prefix}-${nameOf(key)}`, `${value}px`),
+      cssVar(`${prefix}-${(nameOf ?? kebab)(key)}`, `${value}px`),
     ]),
   ) as VarMap<T>;
 }
@@ -273,7 +273,7 @@ export const shadows = stringVars("shadow", shadowDefaults);
 
 export const rings = stringVars("ring", ringDefaults);
 
-export const fontSize = pxVars("font-size", fontSizeDefaults);
+export const fontSize = pxVars("font-size", fontSizeDefaults, null);
 
 export const fontWeight = unitlessVars("font-weight", fontWeightDefaults);
 
@@ -283,26 +283,32 @@ export const spacing = pxVars("space", spacingDefaults, (key) =>
   key.replace(/^s/, ""),
 );
 
-export const radii = pxVars("radius", radiiDefaults);
+export const radii = pxVars("radius", radiiDefaults, null);
 
 export const sizes = {
-  button: pxVars("size-button", sizeDefaults.button),
-  field: pxVars("size-field", sizeDefaults.field),
-  chip: pxVars("size-chip", sizeDefaults.chip),
-  account: pxVars("size-account", sizeDefaults.account),
-  shell: pxVars("size-shell", sizeDefaults.shell),
-  content: pxVars("size-content", sizeDefaults.content),
-  drawer: pxVars("size-drawer", sizeDefaults.drawer),
+  button: pxVars("size-button", sizeDefaults.button, null),
+  field: pxVars("size-field", sizeDefaults.field, null),
+  chip: pxVars("size-chip", sizeDefaults.chip, null),
+  account: pxVars("size-account", sizeDefaults.account, null),
+  shell: pxVars("size-shell", sizeDefaults.shell, null),
+  content: pxVars("size-content", sizeDefaults.content, null),
+  drawer: pxVars("size-drawer", sizeDefaults.drawer, null),
 };
 
 type TypographyToken = keyof typeof typographyDefaults;
 
-type TypographyStyle = {
-  fontSize: string;
-  lineHeight: string;
-  fontWeight: string;
-  fontFamily?: string;
-};
+type TypographyStyle =
+  | {
+      fontSize: string;
+      lineHeight: string;
+      fontWeight: string;
+    }
+  | {
+      fontSize: string;
+      lineHeight: string;
+      fontWeight: string;
+      fontFamily: string;
+    };
 
 function typographyStyle(token: TypographyToken): TypographyStyle {
   const spec = typographyDefaults[token];
@@ -313,17 +319,20 @@ function typographyStyle(token: TypographyToken): TypographyStyle {
       ? `${spec.fontSize}px`
       : fontSize[spec.fontSize];
 
-  const style: TypographyStyle = {
+  const style = {
     fontSize: cssVar(`${name}-font-size`, size),
     lineHeight: cssVar(`${name}-line-height`, String(spec.lineHeight)),
     fontWeight: cssVar(`${name}-font-weight`, fontWeight[spec.fontWeight]),
   };
 
   if ("fontFamily" in spec) {
-    style.fontFamily = cssVar(
-      `${name}-font-family`,
-      fontFamily[spec.fontFamily],
-    );
+    return {
+      ...style,
+      fontFamily: cssVar(
+        `${name}-font-family`,
+        fontFamily[spec.fontFamily],
+      ),
+    };
   }
 
   return style;
@@ -345,6 +354,19 @@ export const typography = {
   dialogTitle: typographyStyle("dialogTitle"),
   pageTitle: typographyStyle("pageTitle"),
 };
+
+type TypographyDefault =
+  | {
+      fontSize: number;
+      lineHeight: number;
+      fontWeight: number;
+    }
+  | {
+      fontSize: number;
+      lineHeight: number;
+      fontWeight: number;
+      fontFamily: string;
+    };
 
 export const tokenDefaults = {
   palette: paletteDefaults,
@@ -371,13 +393,5 @@ export const tokenDefaults = {
           : {}),
       },
     ]),
-  ) as Record<
-    TypographyToken,
-    {
-      fontSize: number;
-      lineHeight: number;
-      fontWeight: number;
-      fontFamily?: string;
-    }
-  >,
+  ) as Record<TypographyToken, TypographyDefault>,
 };

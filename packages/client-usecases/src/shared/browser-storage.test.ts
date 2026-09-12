@@ -24,7 +24,7 @@ describe("readStoredUser", () => {
       kind: "custom",
       id: "user-1",
       displayName: "user-1",
-      email: "",
+      email: null,
       iconUrl: null,
       authProvider: "custom",
     });

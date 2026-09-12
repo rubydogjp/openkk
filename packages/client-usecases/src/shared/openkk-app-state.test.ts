@@ -94,7 +94,7 @@ function remotePeriod(
     opening: null,
     createdAt: "1970-01-01T00:00:00.000Z",
     updatedAt: "1970-01-01T00:00:00.000Z",
-    archiveDataAvailable: null,
+    archiveDataAvailable: true,
     archivedAt: null,
   };
   return Object.assign(base, overrides);

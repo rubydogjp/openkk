@@ -1,12 +1,12 @@
 import type {
-  OpeningJournalDbRecord,
   FiscalPeriodOpeningDbRecord,
-} from "../persistence-types.js";
+  OpeningJournalDbRecord,
+} from "@rubydogjp/openkk-server-ports";
 import { isoToMs, msToIso, validateOpeningDbRecord } from "./persistence-codec.js";
 import type { SqlDb } from "./sql-db.js";
 
 export function requireOpening<Opening>(
-  opening: Opening | null | undefined,
+  opening: Opening | null,
   fiscalPeriodId: string,
 ): Opening {
   if (opening == null) {
@@ -66,16 +66,14 @@ export async function replaceOpening(
       VALUES(?, ?, ?, ?)`,
     bind: [opening.id, opening.fiscalPeriodId, isoToMs(opening.createdAt), now],
   });
-  for (const [position, line] of (
-    opening.openingBalanceLines ?? []
-  ).entries()) {
+  for (const [position, line] of opening.openingBalanceLines.entries()) {
     await db.exec({
       sql: `INSERT INTO opening_balance_lines(opening_id, id, account_id, amount, position)
         VALUES(?, ?, ?, ?, ?)`,
       bind: [opening.id, line.id, line.accountId, line.amount, position],
     });
   }
-  for (const [position, journal] of (opening.openingJournals ?? []).entries()) {
+  for (const [position, journal] of opening.openingJournals.entries()) {
     await db.exec({
       sql: `INSERT INTO opening_journals(
         opening_id, id, date, description, business_rate, position
@@ -156,7 +154,7 @@ async function loadOpenings(
   })) as Array<[string, string, string, number]>;
   for (const [openingId, id, accountId, amount] of balanceRows) {
     const opening = openingForId(result, openingIdToPeriodId, openingId);
-    opening.openingBalanceLines!.push({ id, accountId, amount });
+    opening.openingBalanceLines.push({ id, accountId, amount });
   }
 
   const journalRows = (await db.exec({
@@ -181,7 +179,7 @@ async function loadOpenings(
       lines: [],
     };
     journals.set(journalKey(openingId, id), journal);
-    openingForId(result, openingIdToPeriodId, openingId).openingJournals!.push(
+    openingForId(result, openingIdToPeriodId, openingId).openingJournals.push(
       journal,
     );
   }

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  entryRecord,
+  type EntryRecordOverrides,
+} from "../../test-support/entry-record.js";
 import type { EntryRecord } from "../entries/entry-record.js";
 import { computeFsAggregate } from "./fs-data.js";
 
@@ -735,32 +739,6 @@ function sumByPrefix(
     .reduce((total, line) => total + line.amount, 0);
 }
 
-function entry(overrides: Partial<EntryRecord>): EntryRecord {
-  const base: EntryRecord = {
-    id: "entry-1",
-    fiscalPeriodId: "fp-1",
-    date: "2026-01-01",
-    weekday: "木",
-    debit: "普通預金",
-    debitType: "asset",
-    debitAmount: "0",
-    credit: "普通預金",
-    creditType: "asset",
-    creditAmount: "0",
-    description: "test",
-    partner: "",
-    businessRate: "",
-    taxCategory: "対象外",
-    businessCategory: "",
-    lines: null,
-    businessRateRatio: null,
-    localId: null,
-    debitBookAccountId: null,
-    creditBookAccountId: null,
-    debitTaxCategoryId: null,
-    creditTaxCategoryId: null,
-    debitBusinessCategoryId: null,
-    creditBusinessCategoryId: null,
-  };
-  return Object.assign(base, overrides);
+function entry(overrides: EntryRecordOverrides): EntryRecord {
+  return entryRecord(overrides);
 }

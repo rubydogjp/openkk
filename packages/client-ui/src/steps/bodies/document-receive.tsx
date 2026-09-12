@@ -28,7 +28,7 @@ export function DocumentReceiveBody({
   onSwitchToStep,
 }: {
   onSwitchToStep: ((no: number) => void) | null;
-} = { onSwitchToStep: null }) {
+}) {
   const appState = useOpenkkAppState();
   const config = useOpenkkConfig();
   const editingLocked = resolveEditingPolicy(config).locked;
@@ -39,7 +39,7 @@ export function DocumentReceiveBody({
     (period) => period.id === appState.currentFiscalPeriodId,
   );
   const { printJournal, printGeneralLedger, printFinancialStatements } =
-    useStepDocumentPrinters(currentFiscalPeriod);
+    useStepDocumentPrinters(currentFiscalPeriod ?? null);
 
   if (currentFiscalPeriod == null) {
     return (
@@ -84,13 +84,14 @@ export function DocumentReceiveBody({
           <StepCallout tone="warning">
             この手順はまだ進められません。
           </StepCallout>
-          <StepDivider />
+          <StepDivider marginY={null} />
         </>
       ) : null}
 
       <section>
         <StepSectionLabel>受領する書類</StepSectionLabel>
         <DocumentFileList
+          actionLabel={null}
           items={[
             {
               label: "仕訳帳.pdf",
@@ -120,7 +121,10 @@ export function DocumentReceiveBody({
               justifyContent: "flex-start",
             }}
           >
-            <StepSecondaryButton onClick={() => onSwitchToStep?.(4)}>
+            <StepSecondaryButton
+              onClick={() => onSwitchToStep?.(4)}
+              disabled={false}
+            >
               前の手順へ
             </StepSecondaryButton>
           </div>
@@ -134,7 +138,12 @@ export function DocumentReceiveBody({
             }}
           >
             {isDone ? (
-              <StepPrimaryButton onClick={() => onSwitchToStep?.(6)} variant={null} icon={null}>
+              <StepPrimaryButton
+                onClick={() => onSwitchToStep?.(6)}
+                disabled={false}
+                variant={null}
+                icon={null}
+              >
                 次の手順へ
               </StepPrimaryButton>
             ) : editingLocked ? (

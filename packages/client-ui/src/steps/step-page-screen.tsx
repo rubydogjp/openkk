@@ -64,7 +64,6 @@ export function StepsPageScreen({
   const mainRef = useRef<HTMLElement>(null);
 
   const [bodyBusy, setBodyBusy] = useState(false);
-  // 処理中であることを画面の外にも伝える (テストや自動操作が正確に待てる)
   useReportWorkInProgress(bodyBusy);
 
   useEffect(() => {

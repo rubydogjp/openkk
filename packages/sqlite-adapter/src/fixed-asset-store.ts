@@ -1,13 +1,15 @@
 import { serverNotFoundError } from "@rubydogjp/openkk-server-domain";
 
-import type { FixedAssetsDb } from "../db-adapter.js";
-import type { FixedAssetDbRecord } from "../persistence-types.js";
+import type {
+  FixedAssetDbRecord,
+  FixedAssetsDb,
+} from "@rubydogjp/openkk-server-ports";
 import { assertDbFiscalPeriodAllows } from "./fiscal-period-guard.js";
 import {
   msToIso,
-  parseFiscalPeriodDbRecord,
-  parseFixedAssetDbRecord,
-  serializeFixedAssetDbRecord,
+  parseFiscalPeriodDataColumn,
+  parseFixedAssetDataColumn,
+  serializeFixedAssetDataColumn,
 } from "./persistence-codec.js";
 import {
   assertDbFixedAssetRecord,
@@ -32,13 +34,13 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
       return rows.map(
         ([data, userId, createdAt, updatedAt, periodData]) => {
           const asset: FixedAssetDbRecord = {
-            ...parseFixedAssetDbRecord(data),
+            ...parseFixedAssetDataColumn(data),
             userId,
             createdAt: msToIso(createdAt),
             updatedAt: msToIso(updatedAt),
           };
           const period = {
-            ...parseFiscalPeriodDbRecord(periodData),
+            ...parseFiscalPeriodDataColumn(periodData),
             userId,
           };
           assertDbFixedAssetRecord(asset, period);
@@ -59,13 +61,13 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
       const row = rows[0];
       if (row == null) return null;
       const asset: FixedAssetDbRecord = {
-        ...parseFixedAssetDbRecord(row[0]),
+        ...parseFixedAssetDataColumn(row[0]),
         userId: row[1],
         createdAt: msToIso(row[2]),
         updatedAt: msToIso(row[3]),
       };
       const period = {
-        ...parseFiscalPeriodDbRecord(row[4]),
+        ...parseFiscalPeriodDataColumn(row[4]),
         userId: row[1],
       };
       assertDbFixedAssetRecord(asset, period);
@@ -86,8 +88,8 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
         depreciationMethod: input.depreciationMethod,
         businessRate: input.businessRate,
         status: "active",
-        disposalDate: "",
-        disposalPrice: 0,
+        disposalDate: null,
+        disposalPrice: null,
         bookAccountId: input.bookAccountId,
         createdAt: timestamp,
         updatedAt: timestamp,
@@ -106,7 +108,7 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
           bind: [
             id,
             fiscalPeriodId,
-            serializeFixedAssetDbRecord(record),
+            serializeFixedAssetDataColumn(record),
             now,
             now,
           ],
@@ -115,8 +117,7 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
       return record;
     },
     async update(id, patch) {
-      let updated: FixedAssetDbRecord | null = null;
-      await runInTransaction(db, async () => {
+      return runInTransaction(db, async () => {
         const rows = (await db.exec({
           sql: `SELECT fa.data, fp.user_id, fa.created_at
             FROM fixed_assets fa
@@ -131,7 +132,7 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
           throw serverNotFoundError(`fixed asset not found: ${id}`);
         const now = nowMs();
         const existing: FixedAssetDbRecord = {
-          ...parseFixedAssetDbRecord(row[0]),
+          ...parseFixedAssetDataColumn(row[0]),
           userId: row[1],
           createdAt: msToIso(row[2]),
           updatedAt: msToIso(now),
@@ -142,42 +143,42 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
           ["journalizing"],
           "update fixed asset",
         );
-        updated = {
+        const updated: FixedAssetDbRecord = {
           ...existing,
-          ...(patch.name != null ? { name: patch.name } : {}),
-          ...(patch.acquisitionDate != null
+          ...(patch.name !== undefined ? { name: patch.name } : {}),
+          ...(patch.acquisitionDate !== undefined
             ? { acquisitionDate: patch.acquisitionDate }
             : {}),
-          ...(patch.acquisitionCost != null
+          ...(patch.acquisitionCost !== undefined
             ? { acquisitionCost: patch.acquisitionCost }
             : {}),
-          ...(patch.usefulLife != null
+          ...(patch.usefulLife !== undefined
             ? { usefulLife: patch.usefulLife }
             : {}),
-          ...(patch.depreciationMethod != null
+          ...(patch.depreciationMethod !== undefined
             ? { depreciationMethod: patch.depreciationMethod }
             : {}),
-          ...(patch.businessRate != null
+          ...(patch.businessRate !== undefined
             ? { businessRate: patch.businessRate }
             : {}),
-          ...(patch.status != null ? { status: patch.status } : {}),
-          ...(patch.disposalDate != null
+          ...(patch.status !== undefined ? { status: patch.status } : {}),
+          ...(patch.disposalDate !== undefined
             ? { disposalDate: patch.disposalDate }
             : {}),
-          ...(patch.disposalPrice != null
+          ...(patch.disposalPrice !== undefined
             ? { disposalPrice: patch.disposalPrice }
             : {}),
-          ...(patch.bookAccountId != null
+          ...(patch.bookAccountId !== undefined
             ? { bookAccountId: patch.bookAccountId }
             : {}),
         };
         assertDbFixedAssetRecord(updated, period);
         await db.exec({
           sql: `UPDATE fixed_assets SET data = ?, updated_at = ? WHERE id = ?`,
-          bind: [serializeFixedAssetDbRecord(updated), now, id],
+          bind: [serializeFixedAssetDataColumn(updated), now, id],
         });
+        return updated;
       });
-      return updated!;
     },
     async delete(id) {
       await runInTransaction(db, async () => {

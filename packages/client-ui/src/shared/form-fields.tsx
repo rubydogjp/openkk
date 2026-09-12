@@ -19,14 +19,22 @@ export function FormStyles() {
 }
 
 export function FormStack({
-  gap = spacing.s28,
+  gap,
   children,
 }: {
-  gap?: number | string;
+  gap: number | string | null;
   children: ReactNode;
 }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap }}>{children}</div>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: gap ?? spacing.s28,
+      }}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -57,13 +65,13 @@ export function FormField({
 export function FormTextInput({
   value,
   onChange,
-  readOnly = false,
+  readOnly,
   width,
   placeholder,
 }: {
   value: string;
   onChange: (value: string) => void;
-  readOnly?: boolean;
+  readOnly: boolean;
   width: number | null;
   placeholder: string | null;
 }) {
@@ -128,13 +136,13 @@ export function FormDatePair({
   end,
   onChangeStart,
   onChangeEnd,
-  readOnly = false,
+  readOnly,
 }: {
   start: string;
   end: string;
   onChangeStart: (value: string) => void;
   onChangeEnd: (value: string) => void;
-  readOnly?: boolean;
+  readOnly: boolean;
 }) {
   return (
     <div style={{ display: "inline-flex", alignItems: "center", gap: spacing.s10 }}>
@@ -173,20 +181,6 @@ function ReadOnlyDate({ value }: { value: string }) {
   );
 }
 
-export function FormHelpText({ children }: { children: ReactNode }) {
-  return (
-    <p
-      style={{
-        margin: `${spacing.s12} 0 0`,
-        color: palette.textMuted,
-        ...typography.helper,
-      }}
-    >
-      {children}
-    </p>
-  );
-}
-
 export function FormErrorText({ children }: { children: ReactNode }) {
   return (
     <p
@@ -203,10 +197,10 @@ export function FormErrorText({ children }: { children: ReactNode }) {
 }
 
 export function FormActions({
-  align = "end",
+  align,
   children,
 }: {
-  align?: "start" | "end";
+  align: "start" | "end" | null;
   children: ReactNode;
 }) {
   return (
@@ -214,7 +208,7 @@ export function FormActions({
       style={{
         marginTop: spacing.s12,
         display: "flex",
-        justifyContent: align === "end" ? "flex-end" : "flex-start",
+        justifyContent: align !== "start" ? "flex-end" : "flex-start",
         gap: spacing.s10,
       }}
     >
@@ -237,20 +231,21 @@ const baseButtonStyle: CSSProperties = {
 export function FormPrimaryButton({
   children,
   onClick,
-  disabled = false,
-  type = "button",
+  disabled,
+  type,
   variant = "primary",
   icon,
 }: {
   children: ReactNode;
   onClick: (() => void) | null;
-  disabled?: boolean;
-  type?: "button" | "submit";
+  disabled: boolean;
+  type: "button" | "submit" | null;
 
   variant: "primary" | "success" | null;
 
   icon: ReactNode | null;
 }) {
+  const isDisabled = disabled;
   const bg = variant === "success" ? palette.success : palette.brand;
   const shadow =
     variant === "success"
@@ -258,16 +253,16 @@ export function FormPrimaryButton({
       : shadows.primaryButton;
   return (
     <button
-      type={type}
+      type={type ?? "button"}
       onClick={onClick ?? undefined}
-      disabled={disabled}
+      disabled={isDisabled}
       style={{
         ...baseButtonStyle,
         background: bg,
         color: palette.surface,
-        opacity: disabled ? 0.5 : 1,
-        cursor: disabled ? "default" : "pointer",
-        boxShadow: disabled ? "none" : shadow,
+        opacity: isDisabled ? 0.5 : 1,
+        cursor: isDisabled ? "default" : "pointer",
+        boxShadow: isDisabled ? "none" : shadow,
         display: "inline-flex",
         alignItems: "center",
         gap: spacing.s8,
@@ -284,27 +279,28 @@ export function FormPrimaryButton({
 export function FormSecondaryButton({
   children,
   onClick,
-  disabled = false,
-  type = "button",
+  disabled,
+  type,
 }: {
   children: ReactNode;
   onClick: (() => void) | null;
-  disabled?: boolean;
-  type?: "button" | "submit";
+  disabled: boolean;
+  type: "button" | "submit" | null;
 }) {
+  const isDisabled = disabled;
   return (
     <button
-      type={type}
+      type={type ?? "button"}
       onClick={onClick ?? undefined}
-      disabled={disabled}
+      disabled={isDisabled}
       style={{
         ...baseButtonStyle,
         minWidth: sizes.button.formSecondaryMinWidth,
         background: palette.surface,
         color: palette.text,
         border: `1px solid ${palette.borderStrong}`,
-        opacity: disabled ? 0.5 : 1,
-        cursor: disabled ? "default" : "pointer",
+        opacity: isDisabled ? 0.5 : 1,
+        cursor: isDisabled ? "default" : "pointer",
       }}
     >
       {children}

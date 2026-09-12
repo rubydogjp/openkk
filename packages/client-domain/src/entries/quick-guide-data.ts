@@ -24,14 +24,28 @@ export type QuickGuideTemplate = {
   businessRatePercent: number | null;
 };
 
-export type QuickGuideOption = {
-  title: string;
-  subtitle: string | null;
-  nextPage: QuickGuidePage | null;
-  template: QuickGuideTemplate | null;
-
-  close: boolean | null;
-};
+export type QuickGuideOption =
+  | {
+      title: string;
+      subtitle: string | null;
+      nextPage: QuickGuidePage;
+      template: null;
+      close: false;
+    }
+  | {
+      title: string;
+      subtitle: string | null;
+      nextPage: null;
+      template: QuickGuideTemplate;
+      close: false;
+    }
+  | {
+      title: string;
+      subtitle: string | null;
+      nextPage: null;
+      template: null;
+      close: true;
+    };
 
 export function guideTitle(page: QuickGuidePage): string {
   switch (page) {
@@ -102,35 +116,47 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
           subtitle: "売上、プライベート口座からの入金など",
           nextPage: "incoming",
           template: null,
-          close: null,
+          close: false,
         },
         {
           title: "出金",
           subtitle: "経費、プライベート口座への出金など",
           nextPage: "outgoing",
           template: null,
-          close: null,
+          close: false,
         },
         {
           title: "資金移動",
           subtitle: "現金と預金の交換、自己資金の出し入れ",
           nextPage: "transfer",
           template: null,
-          close: null,
+          close: false,
         },
       ];
 
     case "incoming":
       return [
-        { title: "報酬が確定した・請求書を送った", nextPage: "salesAccrual", subtitle: null, template: null, close: null },
+        {
+          title: "報酬が確定した・請求書を送った",
+          subtitle: null,
+          nextPage: "salesAccrual",
+          template: null,
+          close: false,
+        },
         {
           title: "入金待ちだった報酬が口座に振り込まれた",
           nextPage: "receivableCollection",
           subtitle: null,
           template: null,
-          close: null,
+          close: false,
         },
-        { title: "その他の入金", nextPage: "otherIncoming", subtitle: null, template: null, close: null },
+        {
+          title: "その他の入金",
+          subtitle: null,
+          nextPage: "otherIncoming",
+          template: null,
+          close: false,
+        },
       ];
 
     case "outgoing":
@@ -140,30 +166,36 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
           nextPage: "expensePayable",
           subtitle: null,
           template: null,
-          close: null,
+          close: false,
         },
         {
           title: "費用をその場で事業サイフから現金払いした",
           nextPage: "expenseImmediateCash",
           subtitle: null,
           template: null,
-          close: null,
+          close: false,
         },
         {
           title: "費用をその場でプライベートサイフから支払った",
           nextPage: "expenseOwnerBorrow",
           subtitle: null,
           template: null,
-          close: null,
+          close: false,
         },
         {
           title: "カード利用分が口座から引き落とされた",
           nextPage: "liabilityRepayment",
           subtitle: null,
           template: null,
-          close: null,
+          close: false,
         },
-        { title: "その他の出金", close: true, subtitle: null, nextPage: null, template: null },
+        {
+          title: "その他の出金",
+          subtitle: null,
+          nextPage: null,
+          template: null,
+          close: true,
+        },
       ];
 
     case "transfer":
@@ -173,28 +205,28 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
           nextPage: "bankToCash",
           subtitle: null,
           template: null,
-          close: null,
+          close: false,
         },
         {
           title: "事業財布から事業口座へ現金を預け入れた",
           nextPage: "cashToBank",
           subtitle: null,
           template: null,
-          close: null,
+          close: false,
         },
         {
           title: "事業口座からプライベート資金を引き出した",
           nextPage: "ownerWithdrawal",
           subtitle: null,
           template: null,
-          close: null,
+          close: false,
         },
         {
           title: "プライベート資金から事業用口座に入金した",
           nextPage: "ownerDeposit",
           subtitle: null,
           template: null,
-          close: null,
+          close: false,
         },
       ];
 
@@ -210,7 +242,7 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             businessRatePercent: null,
           },
           nextPage: null,
-          close: null,
+          close: false,
         },
         {
           title: "即日入金",
@@ -222,9 +254,15 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             businessRatePercent: null,
           },
           nextPage: null,
-          close: null,
+          close: false,
         },
-        { title: "その他の売上", nextPage: "otherSales", subtitle: null, template: null, close: null },
+        {
+          title: "その他の売上",
+          subtitle: null,
+          nextPage: "otherSales",
+          template: null,
+          close: false,
+        },
       ];
 
     case "receivableCollection":
@@ -239,9 +277,15 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             businessRatePercent: null,
           },
           nextPage: null,
-          close: null,
+          close: false,
         },
-        { title: "その他の回収", nextPage: "otherReceivableCollection", subtitle: null, template: null, close: null },
+        {
+          title: "その他の回収",
+          subtitle: null,
+          nextPage: "otherReceivableCollection",
+          template: null,
+          close: false,
+        },
       ];
 
     case "ownerDeposit":
@@ -256,7 +300,7 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             businessRatePercent: null,
           },
           nextPage: null,
-          close: null,
+          close: false,
         },
       ];
 
@@ -279,7 +323,7 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             businessRatePercent: null,
           },
           nextPage: null,
-          close: null,
+          close: false,
         },
       ];
 
@@ -295,7 +339,7 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             businessRatePercent: null,
           },
           nextPage: null,
-          close: null,
+          close: false,
         },
       ];
 
@@ -311,7 +355,7 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             businessRatePercent: null,
           },
           nextPage: null,
-          close: null,
+          close: false,
         },
       ];
 
@@ -327,7 +371,7 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             businessRatePercent: null,
           },
           nextPage: null,
-          close: null,
+          close: false,
         },
       ];
 
@@ -343,7 +387,7 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             businessRatePercent: null,
           },
           nextPage: null,
-          close: null,
+          close: false,
         },
         {
           title: "雑収入を現金で受け取った",
@@ -355,7 +399,7 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             businessRatePercent: null,
           },
           nextPage: null,
-          close: null,
+          close: false,
         },
         {
           title: "前受金として受け取った",
@@ -367,9 +411,15 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             businessRatePercent: null,
           },
           nextPage: null,
-          close: null,
+          close: false,
         },
-        { title: "科目を自分で選ぶ", close: true, subtitle: null, nextPage: null, template: null },
+        {
+          title: "科目を自分で選ぶ",
+          subtitle: null,
+          nextPage: null,
+          template: null,
+          close: true,
+        },
       ];
 
     case "otherSales":
@@ -384,7 +434,7 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             businessRatePercent: null,
           },
           nextPage: null,
-          close: null,
+          close: false,
         },
         {
           title: "現金で売上を受け取った",
@@ -396,9 +446,15 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             businessRatePercent: null,
           },
           nextPage: null,
-          close: null,
+          close: false,
         },
-        { title: "科目を自分で選ぶ", close: true, subtitle: null, nextPage: null, template: null },
+        {
+          title: "科目を自分で選ぶ",
+          subtitle: null,
+          nextPage: null,
+          template: null,
+          close: true,
+        },
       ];
 
     case "otherReceivableCollection":
@@ -413,7 +469,7 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             businessRatePercent: null,
           },
           nextPage: null,
-          close: null,
+          close: false,
         },
         {
           title: "未収入金を口座で回収した",
@@ -425,7 +481,7 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             businessRatePercent: null,
           },
           nextPage: null,
-          close: null,
+          close: false,
         },
         {
           title: "未収入金を現金で回収した",
@@ -437,9 +493,15 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
             businessRatePercent: null,
           },
           nextPage: null,
-          close: null,
+          close: false,
         },
-        { title: "科目を自分で選ぶ", close: true, subtitle: null, nextPage: null, template: null },
+        {
+          title: "科目を自分で選ぶ",
+          subtitle: null,
+          nextPage: null,
+          template: null,
+          close: true,
+        },
       ];
   }
 }
@@ -459,7 +521,7 @@ function expenseOptions(
         businessRatePercent: 100,
       },
       nextPage: null,
-      close: null,
+      close: false,
     },
     {
       title: "電気・ガス・水道料金",
@@ -471,7 +533,7 @@ function expenseOptions(
         businessRatePercent: 100,
       },
       nextPage: null,
-      close: null,
+      close: false,
     },
     {
       title: "インターネット料金",
@@ -483,7 +545,7 @@ function expenseOptions(
         businessRatePercent: 100,
       },
       nextPage: null,
-      close: null,
+      close: false,
     },
     {
       title: "移動・宿泊",
@@ -495,7 +557,7 @@ function expenseOptions(
         businessRatePercent: null,
       },
       nextPage: null,
-      close: null,
+      close: false,
     },
     {
       title: "会食・お土産",
@@ -507,7 +569,7 @@ function expenseOptions(
         businessRatePercent: null,
       },
       nextPage: null,
-      close: null,
+      close: false,
     },
     {
       title: "面談・会議室代",
@@ -519,7 +581,7 @@ function expenseOptions(
         businessRatePercent: null,
       },
       nextPage: null,
-      close: null,
+      close: false,
     },
     {
       title: "文房具・事務用品・消耗品",
@@ -531,7 +593,7 @@ function expenseOptions(
         businessRatePercent: null,
       },
       nextPage: null,
-      close: null,
+      close: false,
     },
     {
       title: "広告・宣伝",
@@ -543,7 +605,7 @@ function expenseOptions(
         businessRatePercent: null,
       },
       nextPage: null,
-      close: null,
+      close: false,
     },
     {
       title: "配送・送料",
@@ -555,7 +617,7 @@ function expenseOptions(
         businessRatePercent: null,
       },
       nextPage: null,
-      close: null,
+      close: false,
     },
     {
       title: "手数料",
@@ -567,7 +629,7 @@ function expenseOptions(
         businessRatePercent: null,
       },
       nextPage: null,
-      close: null,
+      close: false,
     },
     {
       title: "税金・証明書",
@@ -579,7 +641,7 @@ function expenseOptions(
         businessRatePercent: null,
       },
       nextPage: null,
-      close: null,
+      close: false,
     },
     {
       title: "本・資料",
@@ -591,7 +653,7 @@ function expenseOptions(
         businessRatePercent: null,
       },
       nextPage: null,
-      close: null,
+      close: false,
     },
     {
       title: "修理・保守",
@@ -603,7 +665,7 @@ function expenseOptions(
         businessRatePercent: null,
       },
       nextPage: null,
-      close: null,
+      close: false,
     },
     {
       title: "福利厚生",
@@ -615,7 +677,7 @@ function expenseOptions(
         businessRatePercent: null,
       },
       nextPage: null,
-      close: null,
+      close: false,
     },
     {
       title: "その他・雑費",
@@ -627,9 +689,15 @@ function expenseOptions(
         businessRatePercent: null,
       },
       nextPage: null,
-      close: null,
+      close: false,
     },
-    { title: "科目を自分で選ぶ", close: true, subtitle: null, nextPage: null, template: null },
+    {
+      title: "科目を自分で選ぶ",
+      subtitle: null,
+      nextPage: null,
+      template: null,
+      close: true,
+    },
   ];
 }
 
@@ -665,19 +733,14 @@ export function normalizeAccountName(name: string): string {
   return name.replace(/\s+/g, "").trim();
 }
 
-/**
- * 同名科目が複数ある場合（例: 「消耗品費」「通信費」「水道光熱費」等は
- * 製造原価(cost_of_sales)版と販管費(expense)版が併存する）、ガイドは
- * 個人事業主の販管費／収益向けのため cost_of_sales 版を避けて解決する。
- * 完全一致を優先し、無ければ部分一致でフォールバックする。
- */
-export function resolveBookAccountByName<
+export function resolveGuideBookAccount<
   T extends { name: string; accountType: string | null },
 >(name: string, accounts: readonly T[]): T | null {
   const aliases = ACCOUNT_ALIASES[name] ?? [name];
-  const prefer = (matches: T[]): T | undefined =>
+  const prefer = (matches: T[]): T | null =>
     matches.find((account) => account.accountType !== "cost_of_sales") ??
-    matches[0];
+    matches[0] ??
+    null;
 
   for (const alias of aliases) {
     const norm = normalizeAccountName(alias);

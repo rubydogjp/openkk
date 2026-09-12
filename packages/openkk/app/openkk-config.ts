@@ -3,11 +3,11 @@ import { parseOpenkkEnv } from "@rubydogjp/openkk-frontend";
 
 const BUNDLE = "original";
 
-const env = parseOpenkkEnv(process.env.NEXT_PUBLIC_OPENKK_ENV);
+const env = parseOpenkkEnv(process.env.NEXT_PUBLIC_OPENKK_ENV ?? null);
 const userId = "openkk-original-user";
 
 export const openkkConfig: OpenkkConfig = {
-  clock: createSystemClock(),
+  clock: createSystemClock(null),
   env,
   bundleLabel: "無印版",
   isMockMode: false,

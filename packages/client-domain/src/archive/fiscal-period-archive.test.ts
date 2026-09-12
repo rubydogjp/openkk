@@ -29,7 +29,7 @@ describe("fiscal period archive", () => {
 
   it("keeps the archive format a stable public contract", () => {
     expect(FISCAL_PERIOD_ARCHIVE_FORMAT).toBe("openkk.fiscal-period-archive");
-    expect(FISCAL_PERIOD_ARCHIVE_VERSION).toBe(1);
+    expect(FISCAL_PERIOD_ARCHIVE_VERSION).toBe(2);
 
     const zip = createFiscalPeriodArchiveZip(
       buildFiscalPeriodArchivePayload({
@@ -56,7 +56,7 @@ describe("fiscal period archive", () => {
 
     const payload = readFiscalPeriodArchiveZip(zip);
     expect(payload.manifest.format).toBe("openkk.fiscal-period-archive");
-    expect(payload.manifest.version).toBe(1);
+    expect(payload.manifest.version).toBe(2);
   });
 
   it("round-trips a fiscal period archive through a zip file", () => {
@@ -77,6 +77,70 @@ describe("fiscal period archive", () => {
     const zip = createFiscalPeriodArchiveZip(payload);
 
     expect(readFiscalPeriodArchiveZip(zip)).toEqual(payload);
+  });
+
+  it("preserves null fixed-asset disposal fields", () => {
+    const payload = buildFiscalPeriodArchivePayload({
+      createdAt: "2026-06-05T00:00:00.000Z",
+      fiscalPeriod: {
+        id: "fp-1",
+        name: "2026年分",
+        startDate: "2026-01-01",
+        endDate: "2026-12-31",
+      },
+      entries: [],
+      fixedAssets: [
+        { id: "asset-1", disposalDate: null, disposalPrice: null },
+      ],
+      closings: [],
+    });
+
+    expect(payload.fixedAssets[0]).toMatchObject({
+      disposalDate: null,
+      disposalPrice: null,
+    });
+  });
+
+  it("preserves null entry localIds", () => {
+    const payload = buildFiscalPeriodArchivePayload({
+      createdAt: "2026-06-05T00:00:00.000Z",
+      fiscalPeriod: {
+        id: "fp-1",
+        name: "2026年分",
+        startDate: "2026-01-01",
+        endDate: "2026-12-31",
+      },
+      entries: [{ id: "entry-1", localId: null }],
+      fixedAssets: [],
+      closings: [],
+    });
+
+    expect(payload.entries[0]).toMatchObject({ localId: null });
+  });
+
+  it("reads version 1 archives", () => {
+    const current = buildFiscalPeriodArchivePayload({
+      createdAt: "2026-06-05T00:00:00.000Z",
+      fiscalPeriod: {
+        id: "fp-1",
+        name: "2026年分",
+        startDate: "2026-01-01",
+        endDate: "2026-12-31",
+      },
+      entries: [{ id: "entry-1", localId: "" }],
+      fixedAssets: [
+        { id: "asset-1", disposalDate: "", disposalPrice: 0 },
+      ],
+      closings: [],
+    });
+    const legacy = {
+      ...current,
+      manifest: { ...current.manifest, version: 1 as const },
+    };
+
+    expect(
+      readFiscalPeriodArchiveZip(createFiscalPeriodArchiveZip(legacy)),
+    ).toEqual(legacy);
   });
 
   it("rejects payloads with an unsupported manifest format", () => {

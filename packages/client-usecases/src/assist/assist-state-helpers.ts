@@ -1,40 +1,43 @@
 import {
   computeStraightLineDepreciation,
-  formatBusinessRatePercent,
   parseAmount,
-  parseBusinessRate,
   parseIsoLocalDate,
-  type EntryAccountVisualType,
+  resolveCategoryId,
+  resolveBookAccountId,
+  type BookAccount,
+  type BookAccountType,
   type FixedAssetDraft,
-  type FixedAssetPreviewItem,
+  type FixedAsset,
+  type FixedAssetStatus,
   type OpeningCarryoverDraft,
   type OpeningCarryoverRecord,
 } from "@rubydogjp/openkk-client-domain";
 import type {
   FixedAssetApiRecord,
   FixedAssetPatchInput,
+  OpeningJournalApiRecord,
+  OpeningJournalLineApiRecord,
 } from "@rubydogjp/openkk-client-ports";
 
 export function replaceLoadedFixedAssets(
   fiscalPeriodId: string | null,
-  nextAssets: FixedAssetPreviewItem[],
-): FixedAssetPreviewItem[] {
-  if (fiscalPeriodId == null || fiscalPeriodId.length === 0) return [];
+  nextAssets: FixedAsset[],
+): FixedAsset[] {
+  if (fiscalPeriodId == null) return [];
   return nextAssets;
 }
 
 export function upsertFixedAsset(
-  current: FixedAssetPreviewItem[],
-  next: FixedAssetPreviewItem,
-): FixedAssetPreviewItem[] {
+  current: FixedAsset[],
+  next: FixedAsset,
+): FixedAsset[] {
   return [...current.filter((asset) => asset.id !== next.id), next];
 }
 
 export function listFixedAssetsForPeriod(
-  assets: FixedAssetPreviewItem[],
-  fiscalPeriodId: string | null,
-): FixedAssetPreviewItem[] {
-  if (fiscalPeriodId == null) return assets;
+  assets: FixedAsset[],
+  fiscalPeriodId: string,
+): FixedAsset[] {
   return assets.filter((asset) => asset.fiscalPeriodId === fiscalPeriodId);
 }
 
@@ -60,34 +63,17 @@ export function nextOpeningCarryoverId(
 }
 
 export function mapOpeningJournalToRecord(
-  journal: {
-    id: string;
-    date: string;
-    description: string;
-    businessRate: number;
-    lines: Array<{
-      id: string;
-      side: "debit" | "credit";
-      bookAccountId: string;
-      amount: number;
-      partnerName: string;
-      taxCategoryId: string;
-      businessCategoryId: string;
-    }>;
-  },
+  journal: OpeningJournalApiRecord,
   fiscalPeriodId: string,
   accountNameById: Record<string, string>,
-  accountTypeById: Record<string, EntryAccountVisualType>,
+  accountTypeById: Record<string, BookAccountType>,
   taxCategoryNameById: Record<string, string>,
   businessCategoryNameById: Record<string, string>,
 ): OpeningCarryoverRecord {
-  const debit = journal.lines.find((line) => line.side === "debit");
-  const credit = journal.lines.find((line) => line.side === "credit");
   const lines = journal.lines.map((line) => ({
     id: line.id,
     side: line.side,
-    accountName:
-      accountNameById[line.bookAccountId] ?? line.bookAccountId,
+    accountName: accountNameById[line.bookAccountId] ?? line.bookAccountId,
     accountType: accountTypeById[line.bookAccountId] ?? "asset",
     amount: formatAmount(line.amount),
     bookAccountId: line.bookAccountId,
@@ -105,33 +91,7 @@ export function mapOpeningJournalToRecord(
     fiscalPeriodId,
     date: journal.date,
     description: journal.description,
-    debit:
-      accountNameById[debit?.bookAccountId ?? ""] ?? debit?.bookAccountId ?? "",
-    debitType: accountTypeById[debit?.bookAccountId ?? ""] ?? "asset",
-    debitAmount: formatAmount(debit?.amount ?? 0),
-    credit:
-      accountNameById[credit?.bookAccountId ?? ""] ??
-      credit?.bookAccountId ??
-      "",
-    creditType: accountTypeById[credit?.bookAccountId ?? ""] ?? "revenue",
-    creditAmount: formatAmount(credit?.amount ?? 0),
-    partner: debit?.partnerName ?? credit?.partnerName ?? "",
-    taxCategory:
-      taxCategoryNameById[debit?.taxCategoryId ?? ""] ??
-      taxCategoryNameById[credit?.taxCategoryId ?? ""] ??
-      debit?.taxCategoryId ??
-      credit?.taxCategoryId ??
-      "対象外",
-    businessCategory:
-      businessCategoryNameById[debit?.businessCategoryId ?? ""] ??
-      businessCategoryNameById[credit?.businessCategoryId ?? ""] ??
-      debit?.businessCategoryId ??
-      credit?.businessCategoryId ??
-      "対象外",
-    businessRate: formatBusinessRatePercent(journal.businessRate ?? 1),
-    businessRateRatio: journal.businessRate ?? 1,
-    debitBookAccountId: debit?.bookAccountId ?? null,
-    creditBookAccountId: credit?.bookAccountId ?? null,
+    businessRate: journal.businessRate,
     lines,
   };
 }
@@ -140,54 +100,18 @@ export function buildOpeningJournalLines(
   journalId: string,
   draft: OpeningCarryoverDraft,
   master: {
-    accountIdsByName: Record<string, string[]>;
-    accountTypeById: Record<string, EntryAccountVisualType>;
-    taxCategoryIdByValue: Record<string, string>;
-    businessCategoryIdByValue: Record<string, string>;
+    accounts: ReadonlyArray<BookAccount>;
+    taxCategories: ReadonlyArray<{ id: string; name: string }>;
+    businessCategories: ReadonlyArray<{ id: string; name: string }>;
   },
-): Array<{
-  id: string;
-  side: "debit" | "credit";
-  bookAccountId: string;
-  amount: number;
-  partnerName: string;
-  taxCategoryId: string;
-  businessCategoryId: string;
-}> | null {
-  const draftLines =
-    draft.lines ??
-    [
-      {
-        id: "",
-        side: "debit" as const,
-        accountName: draft.debit,
-        accountType: draft.debitType,
-        amount: draft.debitAmount,
-        bookAccountId: draft.debitBookAccountId,
-        partnerName: null,
-        taxCategoryId: null,
-        taxCategoryName: null,
-        businessCategoryId: null,
-        businessCategoryName: null,
-      },
-      {
-        id: "",
-        side: "credit" as const,
-        accountName: draft.credit,
-        accountType: draft.creditType,
-        amount: draft.creditAmount,
-        bookAccountId: draft.creditBookAccountId,
-        partnerName: null,
-        taxCategoryId: null,
-        taxCategoryName: null,
-        businessCategoryId: null,
-        businessCategoryName: null,
-      },
-    ];
+): OpeningJournalLineApiRecord[] | null {
+  for (const line of draft.lines) {
+    if (line.id != null && line.id.trim() === "") {
+      throw new Error("opening carryover line id must not be blank");
+    }
+  }
   const usedLineIds = new Set(
-    draftLines.flatMap((line) =>
-      typeof line.id === "string" && line.id.trim() !== "" ? [line.id] : [],
-    ),
+    draft.lines.flatMap((line) => (line.id == null ? [] : [line.id])),
   );
   const nextLineSequence = { debit: 1, credit: 1 };
   const allocateLineId = (side: "debit" | "credit") => {
@@ -203,30 +127,30 @@ export function buildOpeningJournalLines(
     return id;
   };
   const result = [];
-  for (const line of draftLines) {
-    const bookAccountId = resolveBookAccountId(
-      line.bookAccountId,
-      line.accountName,
-      line.accountType,
-      master,
-    );
+  for (const line of draft.lines) {
+    const bookAccountId = resolveBookAccountId({
+      explicitId: line.bookAccountId,
+      accountName: line.accountName,
+      accountType: line.accountType,
+      accounts: master.accounts,
+    });
     if (bookAccountId == null) return null;
-    const existingLineId =
-      typeof line.id === "string" && line.id.trim() !== "" ? line.id : null;
     result.push({
-      id: existingLineId ?? allocateLineId(line.side),
+      id: line.id ?? allocateLineId(line.side),
       side: line.side,
       bookAccountId,
       amount: parseAmount(line.amount),
-      partnerName: line.partnerName ?? draft.partner,
+      partnerName: line.partnerName ?? "",
       taxCategoryId: resolveCategoryId(
-        line.taxCategoryId ?? draft.taxCategory,
-        master.taxCategoryIdByValue,
+        line.taxCategoryId,
+        line.taxCategoryName ?? "",
+        master.taxCategories,
         "tax_out_of_scope",
       ),
       businessCategoryId: resolveCategoryId(
-        line.businessCategoryId ?? draft.businessCategory,
-        master.businessCategoryIdByValue,
+        line.businessCategoryId,
+        line.businessCategoryName ?? "",
+        master.businessCategories,
         "biz_none",
       ),
     });
@@ -234,87 +158,35 @@ export function buildOpeningJournalLines(
   return result;
 }
 
-export function resolveBookAccountId(
-  explicitId: string | null,
-  name: string,
-  accountType: EntryAccountVisualType,
-  master: {
-    accountIdsByName: Record<string, string[]>;
-    accountTypeById: Record<string, EntryAccountVisualType>;
-  },
-): string | null {
-  if (
-    explicitId != null &&
-    explicitId.length > 0 &&
-    master.accountTypeById[explicitId] === accountType
-  ) {
-    return explicitId;
-  }
-  const matches = (master.accountIdsByName[name] ?? []).filter(
-    (id) => master.accountTypeById[id] === accountType,
-  );
-  return matches.length === 1 ? matches[0] : null;
-}
-
-export function resolveUpdatedBookAccountId(
+export function resolveFixedAssetAccountId(
   current: { accountId: string | null; accountName: string | null } | null,
   draftAccountName: string,
-  accountType: EntryAccountVisualType,
-  master: {
-    accountIdsByName: Record<string, string[]>;
-    accountTypeById: Record<string, EntryAccountVisualType>;
-  },
+  accounts: ReadonlyArray<BookAccount>,
 ): string | null {
   const unchangedAccountId =
     current?.accountName === draftAccountName ? current.accountId : null;
-  return resolveBookAccountId(
-    unchangedAccountId,
-    draftAccountName,
-    accountType,
-    master,
-  );
+  const id = resolveBookAccountId({
+    explicitId: unchangedAccountId,
+    accountName: draftAccountName,
+    accountType: "asset",
+    accounts,
+  });
+  return accounts.find((account) => account.id === id)?.accountType === "asset"
+    ? id
+    : null;
 }
 
-export function groupAccountIdsByName(
-  accounts: ReadonlyArray<{ id: string; name: string }>,
-): Record<string, string[]> {
-  const result: Record<string, string[]> = {};
-  for (const account of accounts) {
-    (result[account.name] ??= []).push(account.id);
-  }
-  return result;
-}
-
-export function buildCategoryIdByValue(
-  categories: ReadonlyArray<{ id: string; name: string }>,
-): Record<string, string> {
-  return Object.fromEntries(
-    categories.flatMap((category) => [
-      [category.id, category.id],
-      [category.name, category.id],
-    ]),
-  );
-}
-
-export function resolveCategoryId(
-  value: string,
-  categoryIdByValue: Record<string, string>,
-  fallbackId: string,
-): string {
-  return categoryIdByValue[value] ?? (value.trim() === "" ? fallbackId : value);
-}
-
-export function mapFixedAssetToPreview(
+export function mapFixedAsset(
   asset: FixedAssetApiRecord,
   accountName: string | null,
   today: Date,
   fiscalPeriodEndDate: string | null,
-): FixedAssetPreviewItem {
+): FixedAsset {
   const isClosed = asset.status !== "active";
   const asOf =
-    asset.status === "retired"
-      ? (parseIsoLocalDate(fiscalPeriodEndDate ?? "") ?? today)
-      : isClosed && asset.disposalDate
+    asset.status === "retired" && fiscalPeriodEndDate != null
+      ? (parseIsoLocalDate(fiscalPeriodEndDate) ?? today)
+      : isClosed && asset.disposalDate != null
         ? (parseIsoLocalDate(asset.disposalDate) ?? today)
         : today;
   const depreciation = computeStraightLineDepreciation({
@@ -327,23 +199,19 @@ export function mapFixedAssetToPreview(
     id: asset.id,
     fiscalPeriodId: asset.fiscalPeriodId,
     name: asset.name,
-    account: accountName ?? asset.bookAccountId,
-    accountId: asset.bookAccountId,
-    period: depreciation.periodLabel,
-    remaining: depreciation.remainingLabel,
-    progress: depreciation.progress,
-    current: formatYen(depreciation.currentBookValue),
-    purchase: formatYen(asset.acquisitionCost),
+    accountName: accountName ?? asset.bookAccountId,
+    bookAccountId: asset.bookAccountId,
     status: mapFixedAssetStatusLabel(asset.status),
-    depreciationAmount: formatYen(depreciation.annualDepreciation),
     acquisitionDate: asset.acquisitionDate,
     acquisitionCost: asset.acquisitionCost,
     usefulLife: asset.usefulLife,
     businessRate: asset.businessRate,
-    disposalDate: asset.disposalDate || null,
-    disposalPrice: asset.disposalPrice
-      ? formatYen(asset.disposalPrice)
-      : null,
+    disposalDate: asset.disposalDate,
+    disposalPrice: asset.disposalPrice,
+    depreciationStartLabel: depreciation.periodLabel,
+    remainingDepreciationLabel: depreciation.remainingLabel,
+    depreciationProgress: depreciation.progress,
+    currentBookValue: depreciation.currentBookValue,
   };
 }
 
@@ -356,60 +224,60 @@ export function fixedAssetDraftToPatch(
     acquisitionDate: draft.acquisitionDate,
     acquisitionCost: parseAmount(draft.acquisitionCost),
     usefulLife: Math.max(1, Math.round(draft.usefulLife) || 1),
-    businessRate: resolveFixedAssetDraftBusinessRate(draft),
+    businessRate: fixedAssetDraftBusinessRate(draft),
     status: mapFixedAssetStatusApi(draft.status),
     disposalDate: requiresFixedAssetDisposal(draft.status)
-      ? (draft.disposalDate ?? "")
-      : "",
+      ? requireDraftValue(draft.disposalDate, "disposalDate")
+      : null,
     disposalPrice:
-      draft.status === "売却済" ? parseAmount(draft.disposalPrice ?? "0") : 0,
+      draft.status === "売却済"
+        ? parseAmount(requireDraftValue(draft.disposalPrice, "disposalPrice"))
+        : null,
     bookAccountId,
-    depreciationMethod: null,
   };
 }
 
-export function openingDraftBusinessRate(draft: OpeningCarryoverDraft): number {
-  const exact = draft.businessRateRatio;
-  if (exact != null && Number.isFinite(exact) && exact >= 0 && exact <= 1) {
-    return exact;
-  }
-  return parseBusinessRate(draft.businessRate);
+function requireDraftValue(value: string | null, field: string): string {
+  if (value == null) throw new Error(`fixed asset draft ${field} is required`);
+  return value;
 }
 
 function formatAmount(value: number): string {
   return new Intl.NumberFormat("ja-JP").format(Math.abs(value));
 }
 
-function formatYen(value: number): string {
-  return new Intl.NumberFormat("ja-JP").format(value);
-}
-
-function mapFixedAssetStatusLabel(status: string): string {
-  if (status === "active") return "償却中";
-  if (status === "sold") return "売却済";
-  if (status === "disposed") return "廃棄済";
-  if (status === "retired") return "完了";
-  return status;
+function mapFixedAssetStatusLabel(
+  status: FixedAssetApiRecord["status"],
+): FixedAssetStatus {
+  const labels: Record<FixedAssetApiRecord["status"], FixedAssetStatus> = {
+    active: "償却中",
+    sold: "売却済",
+    disposed: "廃棄済",
+    retired: "完了",
+  };
+  return labels[status];
 }
 
 function mapFixedAssetStatusApi(
-  statusLabel: string,
+  statusLabel: FixedAssetStatus,
 ): "active" | "sold" | "disposed" | "retired" {
-  if (statusLabel === "償却中") return "active";
-  if (statusLabel === "売却済") return "sold";
-  if (statusLabel === "廃棄済") return "disposed";
-  if (statusLabel === "完了") return "retired";
-  return "active";
+  const statuses: Record<
+    FixedAssetStatus,
+    "active" | "sold" | "disposed" | "retired"
+  > = {
+    償却中: "active",
+    完了: "retired",
+    売却済: "sold",
+    廃棄済: "disposed",
+  };
+  return statuses[statusLabel];
 }
 
-export function resolveFixedAssetDraftBusinessRate(
-  draft: FixedAssetDraft,
-): number {
-  const exact = draft.businessRateRatio;
-  if (exact != null && Number.isFinite(exact) && exact >= 0 && exact <= 1) {
-    return exact;
-  }
-  return Math.max(0, Math.min(100, draft.businessRatePercent)) / 100;
+export function fixedAssetDraftBusinessRate(draft: FixedAssetDraft): number {
+  return (
+    draft.businessRate ??
+    Math.max(0, Math.min(100, draft.businessRatePercent)) / 100
+  );
 }
 
 function requiresFixedAssetDisposal(statusLabel: string): boolean {

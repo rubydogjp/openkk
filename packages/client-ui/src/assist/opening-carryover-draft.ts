@@ -1,19 +1,18 @@
 import type {
-  EntryAccountVisualType,
-  OpeningCarryoverRecord,
+  BookAccountType,
+  OpeningCarryoverDraft,
 } from "@rubydogjp/openkk-client-domain";
 
 type AccountOption = {
   id: string;
   name: string;
-  accountType: EntryAccountVisualType;
+  accountType: BookAccountType;
 };
 
 export function buildNewOpeningCarryoverDraft(
-  fiscalPeriodId: string,
   periodStartDate: string,
   accountOptions: AccountOption[],
-): OpeningCarryoverRecord {
+): OpeningCarryoverDraft {
   const debit =
     accountOptions.find(
       (account) => account.name === "売掛金" && account.accountType === "asset",
@@ -23,23 +22,37 @@ export function buildNewOpeningCarryoverDraft(
       (account) => account.name === "売上" && account.accountType === "revenue",
     ) ?? accountOptions.find((account) => account.accountType === "revenue");
   return {
-    id: "__new_opening_carryover__",
-    fiscalPeriodId,
     date: periodStartDate,
     description: "期首再振替",
-    debit: debit?.name ?? "",
-    debitType: debit?.accountType ?? "asset",
-    debitAmount: "",
-    credit: credit?.name ?? "",
-    creditType: credit?.accountType ?? "revenue",
-    creditAmount: "",
-    partner: "",
-    taxCategory: "対象外",
-    businessCategory: "対象外",
-    businessRate: "100",
-    debitBookAccountId: debit?.id ?? null,
-    creditBookAccountId: credit?.id ?? null,
-    businessRateRatio: null,
-    lines: null,
+    businessRateInput: "",
+    businessRate: null,
+    lines: [
+      {
+        id: null,
+        side: "debit",
+        accountName: debit?.name ?? "",
+        accountType: debit?.accountType ?? "asset",
+        amount: "",
+        bookAccountId: debit?.id ?? null,
+        partnerName: "",
+        taxCategoryId: null,
+        taxCategoryName: "対象外",
+        businessCategoryId: null,
+        businessCategoryName: "対象外",
+      },
+      {
+        id: null,
+        side: "credit",
+        accountName: credit?.name ?? "",
+        accountType: credit?.accountType ?? "revenue",
+        amount: "",
+        bookAccountId: credit?.id ?? null,
+        partnerName: "",
+        taxCategoryId: null,
+        taxCategoryName: "対象外",
+        businessCategoryId: null,
+        businessCategoryName: "対象外",
+      },
+    ],
   };
 }

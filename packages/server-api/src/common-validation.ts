@@ -1,13 +1,9 @@
-import {
-  assertTextFieldLength,
-  serverValidationError,
-} from "@rubydogjp/openkk-server-domain";
+import { assertTextFieldLength, serverValidationError } from "@rubydogjp/openkk-server-domain";
 
 export function assertNonBlankString(value: unknown, label: string): void {
   if (typeof value !== "string" || value.trim() === "") {
-    throw serverValidationError(`${label} is required`);
+    throw serverValidationError(`${label} is required`, null);
   }
-  assertTextFieldLength(value, label);
 }
 
 export function assertString(
@@ -15,14 +11,26 @@ export function assertString(
   label: string,
 ): asserts value is string {
   if (typeof value !== "string") {
-    throw serverValidationError(`${label} must be a string`);
+    throw serverValidationError(`${label} must be a string`, null);
   }
+}
+
+export function assertNonBlankText(value: unknown, label: string): void {
+  assertNonBlankString(value, label);
+  assertTextFieldLength(value as string, label);
+}
+
+export function assertText(
+  value: unknown,
+  label: string,
+): asserts value is string {
+  assertString(value, label);
   assertTextFieldLength(value, label);
 }
 
 export function assertOptionalBoolean(value: unknown, label: string): void {
   if (value !== undefined && typeof value !== "boolean") {
-    throw serverValidationError(`${label} must be a boolean`);
+    throw serverValidationError(`${label} must be a boolean`, null);
   }
 }
 
@@ -31,6 +39,6 @@ export function assertObject(
   label: string,
 ): asserts value is object {
   if (typeof value !== "object" || value == null || Array.isArray(value)) {
-    throw serverValidationError(`${label} must be an object`);
+    throw serverValidationError(`${label} must be an object`, null);
   }
 }

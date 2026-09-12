@@ -9,7 +9,7 @@ describe("AsyncMutationQueue", () => {
   it("runs mutations in invocation order even when the first is delayed", async () => {
     const events: string[] = [];
     const queue = new AsyncMutationQueue();
-    let releaseFirst: (() => void) | undefined;
+    let releaseFirst = () => {};
     const firstGate = new Promise<void>((resolve) => {
       releaseFirst = resolve;
     });
@@ -27,7 +27,7 @@ describe("AsyncMutationQueue", () => {
 
     await Promise.resolve();
     expect(events).toEqual(["first:start"]);
-    releaseFirst?.();
+    releaseFirst();
 
     await expect(Promise.all([first, second])).resolves.toEqual([
       "first",
@@ -52,7 +52,7 @@ describe("KeyedAsyncMutationQueue", () => {
   it("serializes each key without blocking a different key", async () => {
     const events: string[] = [];
     const queue = new KeyedAsyncMutationQueue<string>();
-    let releaseFirst: (() => void) | undefined;
+    let releaseFirst = () => {};
     const firstGate = new Promise<void>((resolve) => {
       releaseFirst = resolve;
     });
@@ -71,7 +71,7 @@ describe("KeyedAsyncMutationQueue", () => {
 
     await other;
     expect(events).toEqual(["entry-1:first:start", "entry-2:first"]);
-    releaseFirst?.();
+    releaseFirst();
     await Promise.all([first, second]);
     expect(events).toEqual([
       "entry-1:first:start",

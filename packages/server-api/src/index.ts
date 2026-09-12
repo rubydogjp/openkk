@@ -144,7 +144,7 @@ export function createOpenkkServerApi(
       create: async (fpId, input) => {
         const period = await getOwnedFiscalPeriod(fpId);
         assertPeriodPhase(period, "journalizing", "create entry");
-        assertEntryInput(input, period);
+        assertEntryInput(input, period, false);
         assertEntryMasterReferences(input);
         return usecases.entries.create(uid, fpId, input);
       },
@@ -152,7 +152,7 @@ export function createOpenkkServerApi(
         const period = await getOwnedFiscalPeriod(fpId);
         assertPeriodPhase(period, "journalizing", "update entry");
         assertNonBlankString(id, "Entry id");
-        assertEntryInput(input, period);
+        assertEntryInput(input, period, false);
         assertEntryMasterReferences(input);
         const existing = await usecases.entries.getById(uid, id);
         if (existing == null || existing.fiscalPeriodId !== fpId) {
@@ -182,7 +182,7 @@ export function createOpenkkServerApi(
           "import entries",
         );
         if (!Array.isArray(inputs)) {
-          throw serverValidationError("Entry import input must be an array");
+          throw serverValidationError("Entry import input must be an array", null);
         }
         if (inputs.length > MAX_ENTRY_IMPORT_ITEMS) {
           throw serverValidationError(
@@ -194,7 +194,7 @@ export function createOpenkkServerApi(
         for (const input of inputs) {
           assertObject(input, "Entry input");
           if (!Array.isArray(input.lines)) {
-            throw serverValidationError("Entry lines must be an array");
+            throw serverValidationError("Entry lines must be an array", null);
           }
           importLineCount += input.lines.length;
           if (
@@ -208,7 +208,7 @@ export function createOpenkkServerApi(
           }
         }
         inputs.forEach((input) => {
-          assertEntryInput(input, period);
+          assertEntryInput(input, period, false);
           assertEntryMasterReferences(input);
         });
         const entries = await usecases.entries.importMany(uid, fpId, inputs);

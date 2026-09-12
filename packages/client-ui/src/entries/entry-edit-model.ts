@@ -1,7 +1,8 @@
 import {
-  getEntryLines,
+  formatBusinessRatePercent,
   parseAmount,
-  type EntryAccountVisualType,
+  resolveEntryPairMetadata,
+  type BookAccountType,
   type EntryLine,
   type EntryRecord,
 } from "@rubydogjp/openkk-client-domain";
@@ -15,11 +16,11 @@ export type EntryLinePair = {
   debitLineId: string | null;
   debitAccountId: string | null;
   debitAccountName: string;
-  debitAccountType: EntryAccountVisualType;
+  debitAccountType: BookAccountType;
   debitAmount: string;
   creditAccountId: string | null;
   creditAccountName: string;
-  creditAccountType: EntryAccountVisualType;
+  creditAccountType: BookAccountType;
   creditAmount: string;
   debitPartnerName: string | null;
   debitTaxCategoryId: string | null;
@@ -30,22 +31,32 @@ export type EntryLinePair = {
   creditBusinessCategoryId: string | null;
 };
 
-export type EntryFormDraft = {
+export type EntryFormState = {
   date: string;
   description: string;
   partner: string;
-  businessRate: string;
-  businessRateRatio: number | null;
+  businessRateInput: string;
+  businessRate: number | null;
   taxCategory: string;
   businessCategory: string;
   pairs: EntryLinePair[];
 };
 
-export function entryRecordToFormDraft(
-  record: EntryRecord,
+export function entryRecordToDraft(record: EntryRecord): EntryDraft {
+  return {
+    date: record.date,
+    description: record.description,
+    businessRateInput: formatBusinessRatePercent(record.businessRate),
+    businessRate: record.businessRate,
+    lines: record.lines,
+  };
+}
+
+export function entryToFormState(
+  record: EntryDraft,
   nextLinePairId: () => string,
-): EntryFormDraft {
-  const lines = getEntryLines(record);
+): EntryFormState {
+  const lines = record.lines;
   const debits = lines.filter((line) => line.side === "debit");
   const credits = lines.filter((line) => line.side === "credit");
   const rowCount = Math.max(debits.length, credits.length, 1);
@@ -73,20 +84,24 @@ export function entryRecordToFormDraft(
       creditBusinessCategoryId: credit?.businessCategoryId ?? null,
     });
   }
+  const metadata = resolveEntryPairMetadata({
+    debit: debits[0] ?? null,
+    credit: credits[0] ?? null,
+  });
   return {
     date: record.date,
     description: record.description,
-    partner: record.partner,
+    partner: metadata.partner,
+    businessRateInput: record.businessRateInput,
     businessRate: record.businessRate,
-    businessRateRatio: record.businessRateRatio,
-    taxCategory: record.taxCategory,
-    businessCategory: record.businessCategory,
+    taxCategory: metadata.taxCategory,
+    businessCategory: metadata.businessCategory,
     pairs,
   };
 }
 
-export function entryFormDraftToEntryDraft(
-  draft: EntryFormDraft,
+export function entryFormStateToEntryDraft(
+  draft: EntryFormState,
   accounts: EntryMasterAccountOption[],
 ): EntryDraft {
   const lines: EntryLine[] = [];
@@ -108,11 +123,11 @@ export function entryFormDraftToEntryDraft(
         accountType: pair.debitAccountType,
         amount: pair.debitAmount,
         bookAccountId: matched?.id ?? null,
-        partnerName: pair.debitPartnerName,
+        partnerName: pair.debitPartnerName ?? draft.partner,
         taxCategoryId: pair.debitTaxCategoryId,
-        taxCategoryName: null,
+        taxCategoryName: draft.taxCategory,
         businessCategoryId: pair.debitBusinessCategoryId,
-        businessCategoryName: null,
+        businessCategoryName: draft.businessCategory,
       });
     }
     if (
@@ -132,22 +147,19 @@ export function entryFormDraftToEntryDraft(
         accountType: pair.creditAccountType,
         amount: pair.creditAmount,
         bookAccountId: matched?.id ?? null,
-        partnerName: pair.creditPartnerName,
+        partnerName: pair.creditPartnerName ?? draft.partner,
         taxCategoryId: pair.creditTaxCategoryId,
-        taxCategoryName: null,
+        taxCategoryName: draft.taxCategory,
         businessCategoryId: pair.creditBusinessCategoryId,
-        businessCategoryName: null,
+        businessCategoryName: draft.businessCategory,
       });
     }
   }
   return {
     date: draft.date,
     description: draft.description,
-    partner: draft.partner,
+    businessRateInput: draft.businessRateInput,
     businessRate: draft.businessRate,
-    businessRateRatio: draft.businessRateRatio,
-    taxCategory: draft.taxCategory,
-    businessCategory: draft.businessCategory,
     lines,
   };
 }
@@ -155,7 +167,7 @@ export function entryFormDraftToEntryDraft(
 function resolveDraftAccount(
   accountId: string | null,
   accountName: string,
-  accountType: EntryAccountVisualType,
+  accountType: BookAccountType,
   accounts: EntryMasterAccountOption[],
 ): EntryMasterAccountOption | null {
   const explicit = accounts.find((account) => account.id === accountId);
@@ -165,19 +177,4 @@ function resolveDraftAccount(
       account.name === accountName && account.accountType === accountType,
   );
   return matches.length === 1 ? matches[0]! : null;
-}
-
-export function mergeOptions(
-  primary: Iterable<string>,
-  secondary: Iterable<string>,
-): string[] {
-  const out: string[] = [];
-  const seen = new Set<string>();
-  for (const raw of [...primary, ...secondary]) {
-    const trimmed = (raw ?? "").trim();
-    if (trimmed.length === 0 || seen.has(trimmed)) continue;
-    seen.add(trimmed);
-    out.push(trimmed);
-  }
-  return out;
 }

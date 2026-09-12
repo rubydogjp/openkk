@@ -5,13 +5,15 @@ import {
   serverValidationError,
 } from "@rubydogjp/openkk-server-domain";
 
-import type { EntriesDb } from "../db-adapter.js";
 import type {
+  EntriesDb,
   EntryDbRecord,
-  FiscalPeriodDbRecord,
-} from "../persistence-types.js";
+} from "@rubydogjp/openkk-server-ports";
+import type {
+  FiscalPeriodDbRow,
+} from "./table-types.js";
 import { assertDbFiscalPeriodAllows } from "./fiscal-period-guard.js";
-import { msToIso, parseFiscalPeriodDbRecord } from "./persistence-codec.js";
+import { msToIso, parseFiscalPeriodDataColumn } from "./persistence-codec.js";
 import {
   assertDbEntryInput,
   assertDbPeriodOwnership,
@@ -51,7 +53,7 @@ export function createEntriesDb(db: SqlDb): EntriesDb {
         fiscalPeriodId,
         date: input.date,
         description: input.description,
-        localId: input.localId ?? "",
+        localId: input.localId,
         businessRate: input.businessRate,
         lines: input.lines.map((line) => ({ ...line, id: newId("eline") })),
         createdAt: timestamp,
@@ -84,8 +86,7 @@ export function createEntriesDb(db: SqlDb): EntriesDb {
       return record;
     },
     async update(id, input) {
-      let updated: EntryDbRecord | null = null;
-      await runInTransaction(db, async () => {
+      return runInTransaction(db, async () => {
         const existing =
           (
             await loadEntries(db, `WHERE e.id = ? ORDER BY l.position ASC`, [
@@ -102,11 +103,11 @@ export function createEntriesDb(db: SqlDb): EntriesDb {
         );
         assertDbEntryInput(input, period, "Entry");
         const now = nowMs();
-        updated = {
+        const updated: EntryDbRecord = {
           ...existing,
           date: input.date,
           description: input.description,
-          localId: input.localId ?? existing.localId,
+          localId: input.localId,
           businessRate: input.businessRate,
           lines: input.lines.map((line) => ({ ...line, id: newId("eline") })),
           updatedAt: msToIso(now),
@@ -127,8 +128,8 @@ export function createEntriesDb(db: SqlDb): EntriesDb {
           bind: [id],
         });
         await insertEntryLines(db, updated);
+        return updated;
       });
-      return updated!;
     },
     async delete(id) {
       await runInTransaction(db, async () => {
@@ -150,17 +151,18 @@ export function createEntriesDb(db: SqlDb): EntriesDb {
     },
     async importMany(userId, fiscalPeriodId, inputs) {
       if (!Array.isArray(inputs)) {
-        throw serverValidationError("Entry import input must be an array");
+        throw serverValidationError("Entry import input must be an array", null);
       }
       if (inputs.length > MAX_ENTRY_IMPORT_ITEMS) {
         throw serverValidationError(
           `Entry import exceeds the ${MAX_ENTRY_IMPORT_ITEMS} item limit`,
+          null,
         );
       }
       let importLineCount = 0;
       for (const input of inputs) {
         if (input == null || !Array.isArray(input.lines)) {
-          throw serverValidationError("Entry import lines must be an array");
+          throw serverValidationError("Entry import lines must be an array", null);
         }
         importLineCount += input.lines.length;
         if (
@@ -169,6 +171,7 @@ export function createEntriesDb(db: SqlDb): EntriesDb {
         ) {
           throw serverValidationError(
             `Entry import exceeds the ${MAX_ENTRY_IMPORT_LINES.toLocaleString("en-US")} line limit`,
+            null,
           );
         }
       }
@@ -177,9 +180,9 @@ export function createEntriesDb(db: SqlDb): EntriesDb {
       const candidates: EntryDbRecord[] = [];
       const seenLocalIds = new Set<string>();
       for (const input of inputs) {
-        const localId = input.localId ?? "";
-        if (localId !== "" && seenLocalIds.has(localId)) continue;
-        if (localId !== "") seenLocalIds.add(localId);
+        const localId = input.localId;
+        if (localId != null && seenLocalIds.has(localId)) continue;
+        if (localId != null) seenLocalIds.add(localId);
         candidates.push({
           id: newId("entry"),
           userId,
@@ -219,7 +222,7 @@ type EntryRow = [
   string,
   string,
   string,
-  string,
+  string | null,
   number,
   number,
   number,
@@ -231,6 +234,8 @@ type EntryRow = [
   string | null,
   string | null,
   string,
+  number,
+  number,
 ];
 
 async function loadEntries(
@@ -243,7 +248,8 @@ async function loadEntries(
       e.id, fp.user_id, e.fiscal_period_id, e.date, e.description, e.local_id,
       e.business_rate, e.created_at, e.updated_at,
       l.id, l.side, l.book_account_id, l.amount, l.partner_name,
-      l.tax_category_id, l.business_category_id, fp.data
+      l.tax_category_id, l.business_category_id,
+      fp.data, fp.created_at, fp.updated_at
     FROM entries e
     JOIN fiscal_periods fp ON fp.id = e.fiscal_period_id
     LEFT JOIN entry_lines l ON l.entry_id = e.id
@@ -253,7 +259,7 @@ async function loadEntries(
     rowMode: "array",
   })) as EntryRow[];
   const records = new Map<string, EntryDbRecord>();
-  const periods = new Map<string, FiscalPeriodDbRecord>();
+  const periods = new Map<string, FiscalPeriodDbRow>();
   for (const row of rows) {
     let record = records.get(row[0]);
     if (record == null) {
@@ -271,19 +277,39 @@ async function loadEntries(
       };
       records.set(record.id, record);
       periods.set(record.id, {
-        ...parseFiscalPeriodDbRecord(row[16]),
+        ...parseFiscalPeriodDataColumn(row[16]),
         userId: row[1],
+        createdAt: msToIso(row[17]),
+        updatedAt: msToIso(row[18]),
       });
     }
-    if (row[10] != null) {
+    const lineId = row[9];
+    const side = row[10];
+    if (side != null) {
+      const bookAccountId = row[11];
+      const amount = row[12];
+      const partnerName = row[13];
+      const taxCategoryId = row[14];
+      const businessCategoryId = row[15];
+      if (
+        lineId == null ||
+        (side !== "debit" && side !== "credit") ||
+        bookAccountId == null ||
+        amount == null ||
+        partnerName == null ||
+        taxCategoryId == null ||
+        businessCategoryId == null
+      ) {
+        throw new Error(`invalid stored entry line: ${record.id}`);
+      }
       record.lines.push({
-        id: row[9]!,
-        side: row[10] as "debit" | "credit",
-        bookAccountId: row[11]!,
-        amount: row[12]!,
-        partnerName: row[13]!,
-        taxCategoryId: row[14]!,
-        businessCategoryId: row[15]!,
+        id: lineId,
+        side,
+        bookAccountId,
+        amount,
+        partnerName,
+        taxCategoryId,
+        businessCategoryId,
       });
     }
   }
@@ -350,7 +376,7 @@ export async function insertImportedEntries(
     const rows = (await db.exec({
       sql: `INSERT INTO entries(id, fiscal_period_id, date, local_id, description, business_rate, created_at, updated_at)
         VALUES ${placeholders}
-        ON CONFLICT(fiscal_period_id, local_id) WHERE local_id <> '' DO NOTHING
+        ON CONFLICT(fiscal_period_id, local_id) WHERE local_id IS NOT NULL DO NOTHING
         RETURNING id`,
       bind,
       returnValue: "resultRows",

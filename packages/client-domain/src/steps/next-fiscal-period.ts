@@ -1,15 +1,15 @@
 import {
-  DEFAULT_BOOK_ACCOUNTS,
   DEFAULT_BUSINESS_CATEGORIES,
   DEFAULT_TAX_CATEGORIES,
 } from "../entries/default-master-data.js";
-import {
-  getEntryLines,
-  resolveEntryBusinessRate,
-  type EntryLine,
-  type EntryRecord,
-} from "../entries/entry-record.js";
+import { type EntryLine, type EntryRecord } from "../entries/entry-record.js";
 import { parseAmount, parseIsoLocalDate } from "../shared/parse-utils.js";
+import { resolveCategoryId } from "../entries/category-resolution.js";
+import {
+  resolveBookAccountId,
+  type BookAccount,
+} from "../entries/book-account.js";
+import { AppError } from "../shared/app-error.js";
 
 export type NextFiscalPeriodSuggestion = {
   name: string;
@@ -78,13 +78,14 @@ const PROFIT_LOSS_TYPES = new Set(["revenue", "expense", "cost_of_sales"]);
 
 export function buildOpeningCarryoverJournalsFromReversibleEntries(input: {
   entries: EntryRecord[];
+  accounts: ReadonlyArray<BookAccount>;
   nextFiscalPeriodId: string;
   nextStartDate: string;
 }): OpeningCarryoverJournal[] {
   const journals: OpeningCarryoverJournal[] = [];
 
   for (const entry of input.entries) {
-    const lines = getEntryLines(entry);
+    const lines = entry.lines;
     if (!areEntryLinesBalanced(lines)) continue;
     const balanceLines = lines.filter(isReversibleBalanceLine);
     const profitLossLines = lines.filter((line) =>
@@ -102,10 +103,18 @@ export function buildOpeningCarryoverJournalsFromReversibleEntries(input: {
         id: journalId,
         date: input.nextStartDate,
         description: `再振替: ${entry.description}`,
-        businessRate: resolveEntryBusinessRate(entry),
+        businessRate: entry.businessRate,
         lines: [
-          toOpeningJournalLine(`${journalId}-b`, reversedBalanceLine, entry),
-          toOpeningJournalLine(`${journalId}-p`, reversedProfitLossLine, entry),
+          toOpeningJournalLine(
+            `${journalId}-b`,
+            reversedBalanceLine,
+            input.accounts,
+          ),
+          toOpeningJournalLine(
+            `${journalId}-p`,
+            reversedProfitLossLine,
+            input.accounts,
+          ),
         ],
       });
     }
@@ -137,7 +146,10 @@ function areEntryLinesBalanced(lines: EntryLine[]): boolean {
     if (!Number.isSafeInteger(amount) || amount <= 0) return false;
     if (line.side === "debit") debitTotal += amount;
     else creditTotal += amount;
-    if (!Number.isSafeInteger(debitTotal) || !Number.isSafeInteger(creditTotal)) {
+    if (
+      !Number.isSafeInteger(debitTotal) ||
+      !Number.isSafeInteger(creditTotal)
+    ) {
       return false;
     }
   }
@@ -188,75 +200,44 @@ function matchReversiblePairs(
 function toOpeningJournalLine(
   id: string,
   line: EntryLine,
-  entry: EntryRecord,
+  accounts: ReadonlyArray<BookAccount>,
 ): OpeningCarryoverJournal["lines"][number] {
+  const bookAccountId = resolveBookAccountId({
+    explicitId: line.bookAccountId,
+    accountName: line.accountName,
+    accountType: line.accountType,
+    accounts,
+  });
+  if (bookAccountId == null) {
+    throw new AppError({
+      messageForDeveloper:
+        "Opening carryover book account cannot be resolved: " +
+        line.accountName,
+      messageForUser: "再振替の勘定科目を特定できませんでした",
+      originalMessage: null,
+      statusCode: null,
+      code: null,
+    });
+  }
   return {
     id,
     side: line.side,
-    bookAccountId: resolveBookAccountId(line),
+    bookAccountId,
     amount: parseAmount(line.amount),
-    partnerName: line.partnerName ?? entry.partner,
-    taxCategoryId: resolveCategoryId({
-      explicitId:
-        line.taxCategoryId ??
-        (line.side === "debit"
-          ? entry.debitTaxCategoryId
-          : entry.creditTaxCategoryId),
-      displayValue: entry.taxCategory,
-      categories: DEFAULT_TAX_CATEGORIES,
-      blankFallbackId: "tax_out_of_scope",
-    }),
-    businessCategoryId: resolveCategoryId({
-      explicitId:
-        line.businessCategoryId ??
-        (line.side === "debit"
-          ? entry.debitBusinessCategoryId
-          : entry.creditBusinessCategoryId),
-      displayValue: entry.businessCategory,
-      categories: DEFAULT_BUSINESS_CATEGORIES,
-      blankFallbackId: "biz_none",
-    }),
+    partnerName: line.partnerName ?? "",
+    taxCategoryId: resolveCategoryId(
+      line.taxCategoryId,
+      line.taxCategoryName ?? "",
+      DEFAULT_TAX_CATEGORIES,
+      "tax_out_of_scope",
+    ),
+    businessCategoryId: resolveCategoryId(
+      line.businessCategoryId,
+      line.businessCategoryName ?? "",
+      DEFAULT_BUSINESS_CATEGORIES,
+      "biz_none",
+    ),
   };
-}
-
-function resolveCategoryId(input: {
-  explicitId: string | null;
-  displayValue: string;
-  categories: Array<{ id: string; name: string }>;
-  blankFallbackId: string;
-}): string {
-  const explicit = input.explicitId?.trim() ?? "";
-  if (explicit !== "") {
-    return (
-      input.categories.find(
-        (category) =>
-          category.id === explicit || category.name === explicit,
-      )?.id ?? explicit
-    );
-  }
-  const display = input.displayValue.trim();
-  if (display === "") return input.blankFallbackId;
-  return (
-    input.categories.find(
-      (category) => category.id === display || category.name === display,
-    )?.id ?? display
-  );
-}
-
-function resolveBookAccountId(line: EntryLine): string {
-  if (line.bookAccountId != null && line.bookAccountId.length > 0) {
-    return line.bookAccountId;
-  }
-  return (
-    DEFAULT_BOOK_ACCOUNTS.find(
-      (account) =>
-        account.name === line.accountName &&
-        account.accountType === line.accountType,
-    )?.id ??
-    DEFAULT_BOOK_ACCOUNTS.find((account) => account.name === line.accountName)
-      ?.id ??
-    line.accountName
-  );
 }
 
 function addYearsToIsoDate(value: string, years: number): string | null {

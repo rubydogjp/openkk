@@ -27,9 +27,8 @@ function period(overrides: Partial<FiscalPeriod> = {}): FiscalPeriod {
 }
 
 describe("isJournalizingActive", () => {
-  it("returns false for null/undefined", () => {
+  it("returns false for null", () => {
     expect(isJournalizingActive(null)).toBe(false);
-    expect(isJournalizingActive(undefined)).toBe(false);
   });
 
   it("returns false when stage is pre_opening", () => {
@@ -57,37 +56,33 @@ describe("isJournalizingActive", () => {
 
 describe("buildPeriodLockMessage", () => {
   it("returns locked message when period is null", () => {
-    const msg = buildPeriodLockMessage(null);
+    const msg = buildPeriodLockMessage(null, null);
     expect(msg).not.toBeNull();
     expect(msg?.title).toBeTruthy();
   });
 
-  it("returns locked message when period is undefined", () => {
-    expect(buildPeriodLockMessage(undefined)).not.toBeNull();
-  });
-
   it("returns locked message when stage is pre_opening", () => {
-    const msg = buildPeriodLockMessage(period({ phase: "pre_opening" }));
+    const msg = buildPeriodLockMessage(period({ phase: "pre_opening" }), null);
     expect(msg).not.toBeNull();
   });
 
   it("returns locked message when stage is post_closing", () => {
-    const msg = buildPeriodLockMessage(period({ phase: "post_closing" }));
+    const msg = buildPeriodLockMessage(period({ phase: "post_closing" }), null);
     expect(msg).not.toBeNull();
   });
 
   it("returns locked message when pre-closing", () => {
-    const msg = buildPeriodLockMessage(period({ phase: "pre_closing" }));
+    const msg = buildPeriodLockMessage(period({ phase: "pre_closing" }), null);
     expect(msg).not.toBeNull();
   });
 
   it("returns locked message when archived", () => {
-    const msg = buildPeriodLockMessage(period({ archiveStatus: "archived" }));
+    const msg = buildPeriodLockMessage(period({ archiveStatus: "archived" }), null);
     expect(msg?.description).toContain("圧縮保存済み");
   });
 
   it("returns null (unlocked) when journalizing and not closed", () => {
-    const msg = buildPeriodLockMessage(period({ phase: "journalizing" }));
+    const msg = buildPeriodLockMessage(period({ phase: "journalizing" }), null);
     expect(msg).toBeNull();
   });
 

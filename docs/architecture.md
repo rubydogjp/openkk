@@ -4,7 +4,7 @@
 
 ## 全体構造
 
-19 workspace を「client」「server」「adapters」「composition roots」に分類する。
+workspace を「client」「server」「adapters」「composition roots」に分類する。
 依存グラフ: [`dependency-graph.md`](./dependency-graph.md)
 API 契約: [`api-contract.md`](./api-contract.md)
 SQLite スキーマ: [`database-schema.md`](./database-schema.md)
@@ -25,6 +25,7 @@ packages/
 │
 ├── file-db-adapter      OpenkkDbPort 実装 — SQLite Wasm + OPFS（ブラウザ永続化）
 ├── memory-db-adapter    OpenkkDbPort 実装 — インメモリ揮発 DB
+├── sqlite-adapter       上記2つが共有するSQL・保存処理・マイグレーション
 ├── embedded-backend-adapter  OpenkkBackendPort 実装 — 同プロセス HTTP 風 bridge
 ├── print-adapter        PrintPort 実装 — ブラウザ印刷
 │
@@ -71,7 +72,7 @@ server side:   api → usecases → ports → domain
 ユーザーは `OpenkkUser = EmbeddedUser | CustomUser`（`client-domain` の `user.ts`）でドメインモデル化する。`config.authMode` で挙動を選ぶ：
 
 - `embedded`（sim/demo/original の既定）: 固定の `EmbeddedUser` 1名で起動時に自動サインイン。サインアウトは非活性（`userCanSignOut` が `false`）。`server-usecases` の auth は embedded 単一ユーザー向け local 実装。
-- `custom`: Google 認証等で実ユーザー（`CustomUser`）を扱う OSS 派生プロダクト向け。サードパーティが `OpenkkServerPort.auth`（`startSession`/`completeSession`/`redeemCompletionCode`/`signOut`）を自前バックエンドで実装し、`redeemCompletionCode` で `CreateTokenResponse`（`userId` ＋任意で `displayName`/`email`/`iconUrl`/`authProvider`）を返す。クライアントはそれを `CustomUser` に写像する。
+- `custom`: Google 認証等で実ユーザー（`CustomUser`）を扱う派生プロダクト向け。独自バックエンドは `OpenkkServerPort.auth` を実装し、`CreateTokenResponse` の未設定値を `null` で返す。
 
 実装手順は [`authentication.md`](./authentication.md) を参照。
 
@@ -85,9 +86,9 @@ server side:   api → usecases → ports → domain
 
 ## DB スキーマとマイグレーション
 
-DB操作契約は `db-adapter.ts`、DB境界型は `persistence-types.ts` に置く。SQLite固有処理は `sqlite/` 配下で `fiscal-period-store.ts`、`entry-store.ts`、`fixed-asset-store.ts`、`closing-store.ts`、`opening-store.ts`、`seed-store.ts` に分け、`adapter.ts` は組み立てだけを担当する。テーブル構造は [`database-schema.md`](./database-schema.md) を参照。
+`server-ports` にDB操作契約と境界型を置く。SQL・保存処理・DDLは `sqlite-adapter` が担当する。テーブル構造は [`database-schema.md`](./database-schema.md) を参照。
 
-`file-db-adapter`・`memory-db-adapter` は共通SQLiteアダプタをラップし、起動時に `runMigrations()` を呼ぶ。DB実装を差し替える場合は `OpenkkDbPort` を実装し、保存モデルとDDLはその実装内で管理する。
+`file-db-adapter`・`memory-db-adapter` は `sqlite-adapter` を利用し、起動時に `runMigrations()` を呼ぶ。DB実装を差し替える場合は `OpenkkDbPort` を実装し、DDLはその実装内で管理する。
 
 SQLite の単一接続では、トランザクションへ別操作が混入しないよう読取を含む公開ポート呼出しを直列化する。
 
@@ -95,21 +96,26 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 
 ## PWA とオフラインキャッシュ
 
-Download版のService Workerは、静的エクスポートの主要ルートと発見した同一オリジンの静的アセットをインストール時に事前保存する。正本は `scripts/service-worker.template.js` に置き、`gen-service-workers.mjs` が各アプリの `public/sw.js` を生成する。通常版・デモ版はdebugルートを事前保存せず、Sim版だけが保存する。ドキュメントとmanifestはnetwork-first、静的アセットはcache-first、別オリジンとGET以外のリクエストはキャッシュ対象外とする。
+Download版のService Workerは静的エクスポートを事前保存する。正本は `scripts/service-worker.template.js` に置き、`gen-service-workers.mjs` が各アプリの `public/sw.js` を生成する。debugルートを事前保存するのはSim版だけ。
 
-事前保存の対象は、ビルド出力に必ず存在するアプリシェル（テンプレートの`PRECACHE_URLS`）と、本文の正規表現走査で発見した同一オリジンのアセットの2種類に分かれる。アプリシェルが1つでも取得できない新しいWorkerはインストールを完了させず、直前の完全なオフラインシェルを維持する。一方、発見したアセットは推測なので取得できなくてもインストールは継続する。Next.jsはRSCのフライトペイロードをHTML内のJS文字列として埋め込むため、本文には`\"`でエスケープされたチャンクパスやminify済みJSのテンプレートリテラル片が現れる。これらを実在するURLと誤認して落とすと、PWAが一切キャッシュできなくなる。実行時のキャッシュ保存失敗は取得済みレスポンスを妨げず、5xxまたはネットワーク障害時だけ既存キャッシュへフォールバックする。4xxは現在の応答としてそのまま返す。
+事前保存は2段階に分かれる。
 
-各ビルドは`NEXT_PUBLIC_BUILD_ID`をService Worker URLの`v`クエリへ反映する。新しいWorkerの有効化時には同じアプリシェル用prefixを持つ旧バージョンだけを削除し、他用途のキャッシュは保持する。
+- アプリシェル（テンプレートの `PRECACHE_URLS`）はビルド出力に必ず存在する。1つでも取得できなければインストールを完了させず、直前の完全なオフラインシェルを維持する。
+- 本文の走査で発見した同一オリジンのアセットは推測なので、取得できなくてもインストールを続行する。Next.js が RSC ペイロードを HTML 内の JS 文字列として埋め込むため、走査結果には実在しないパス片が混ざる。
 
-`beforeinstallprompt`はインストール画面の描画前に発生し得るため、`client-ui`のPWA状態モジュールをshellから先行読込みし、単回利用のpromptをアプリ全体で保持する。
+取得方針はドキュメントとmanifestがnetwork-first、静的アセットがcache-first。別オリジンとGET以外は対象外。実行時のキャッシュ保存失敗は取得済みの応答を妨げない。5xxとネットワーク障害だけ既存キャッシュへフォールバックし、4xxはそのまま返す。
+
+各ビルドは `NEXT_PUBLIC_BUILD_ID` をService Worker URLの `v` クエリへ反映する。有効化時は同じアプリシェルprefixを持つ旧版だけを削除し、他用途のキャッシュは保持する。
+
+`beforeinstallprompt` はインストール画面の描画前に発生し得るため、`client-ui` のPWA状態モジュールをshellから先行読込みし、単回利用のpromptをアプリ全体で保持する。
 
 ## テスト戦略
 
 | レイヤー | ツール | 対象 |
 |---|---|---|
 | ユニット | vitest | ドメインロジック・パーサー・DB adapter |
-| DB ポート契約適合 | vitest | `OpenkkDbPort` 共有 conformance（`server-ports/src/db-port-conformance.ts`）を memory/file-db 両実アダプタ＋遅延非同期コアに通し、dev(memory)↔prod(OPFS worker) の挙動一致を保証 |
-| E2E | Playwright | Sim版のブラウザ操作フルフローと、通常版の静的export smoke。締めフローでは仮帳票＝確定帳票＝概要図を実画面で検証 |
+| DB ポート契約適合 | vitest | `OpenkkDbPort` 共有 conformance（`server-ports/test-support/db-port-conformance.ts`）を memory/file-db 両実アダプタ＋遅延非同期コアに通し、dev(memory)↔prod(OPFS worker) の挙動一致を保証 |
+| E2E | Playwright | Sim版の操作フローと、通常版の静的export・OPFS永続化。締めフローでは仮帳票＝確定帳票＝概要図を実画面で検証 |
 | パッケージ構造 | vitest | workspace 整合性チェック |
 
 `npm run test:e2e` は Sim版を専用 port 4306 で起動し、既存プロセスを再利用せず実行する。`npm run test:e2e:export` は通常版を静的exportして検査する。生成物・全workspace・3アプリ・両E2Eをまとめた検査は `npm run check:full` で実行できる。

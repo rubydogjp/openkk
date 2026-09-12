@@ -58,11 +58,11 @@ export function StepMetaCard({ children }: { children: ReactNode }) {
 export function StepMetaRow({
   label,
   value,
-  divider = false,
+  divider,
 }: {
   label: string;
   value: ReactNode;
-  divider?: boolean;
+  divider: boolean;
 }) {
   return (
     <>
@@ -112,26 +112,8 @@ export function StepSectionLabel({ children }: { children: ReactNode }) {
   );
 }
 
-export function StepDivider({ marginY = 28 }: { marginY?: number } = {}) {
-  return <div style={{ height: marginY }} />;
-}
-
-export function StepNoticeCard({ children }: { children: ReactNode }) {
-  return (
-    <div
-      style={{
-        background: palette.warningBg,
-        border: `1px solid ${palette.warningBorder}`,
-        borderRadius: 10,
-        padding: "12px 16px",
-        fontSize: fontSize.base,
-        color: palette.text,
-        lineHeight: 1.65,
-      }}
-    >
-      {children}
-    </div>
-  );
+export function StepDivider({ marginY }: { marginY: number | null }) {
+  return <div style={{ height: marginY ?? 28 }} />;
 }
 
 type StepCalloutTone = "action" | "info" | "warning" | "alert";
@@ -168,12 +150,12 @@ const STEP_CALLOUT_TONE: Record<
 
 export function StepCallout({
   children,
-  tone = "action",
+  tone,
 }: {
   children: ReactNode;
-  tone?: StepCalloutTone;
+  tone: StepCalloutTone | null;
 }) {
-  const style = STEP_CALLOUT_TONE[tone];
+  const style = STEP_CALLOUT_TONE[tone ?? "action"];
   return (
     <div
       style={{
@@ -298,12 +280,12 @@ export function StepFormRow({
   label,
   control,
   hint,
-  divider = false,
+  divider,
 }: {
   label: string;
   control: ReactNode;
   hint: ReactNode | null;
-  divider?: boolean;
+  divider: boolean;
 }) {
   return (
     <>
@@ -355,16 +337,17 @@ export function StepFormRow({
 export function StepPrimaryButton({
   onClick,
   children,
-  disabled = false,
+  disabled,
   variant = "primary",
   icon,
 }: {
   onClick: () => void;
   children: ReactNode;
-  disabled?: boolean;
+  disabled: boolean;
   variant: "primary" | "success" | null;
   icon: ReactNode | null;
 }) {
+  const isDisabled = disabled;
   const bg = variant === "success" ? palette.success : palette.brand;
   const shadow =
     variant === "success"
@@ -374,7 +357,7 @@ export function StepPrimaryButton({
     <button
       type="button"
       onClick={onClick}
-      disabled={disabled}
+      disabled={isDisabled}
       style={{
         height: sizes.button.compactHeight,
         minWidth: icon != null ? sizes.button.compactIconTextMinWidth : sizes.button.compactMinWidth,
@@ -385,9 +368,9 @@ export function StepPrimaryButton({
         color: palette.surface,
         fontSize: fontSize.base,
         fontWeight: fontWeight.bold,
-        cursor: disabled ? "default" : "pointer",
-        opacity: disabled ? 0.5 : 1,
-        boxShadow: disabled ? "none" : shadow,
+        cursor: isDisabled ? "default" : "pointer",
+        opacity: isDisabled ? 0.5 : 1,
+        boxShadow: isDisabled ? "none" : shadow,
         display: "inline-flex",
         alignItems: "center",
         gap: spacing.s8,
@@ -406,17 +389,18 @@ export function StepPrimaryButton({
 export function StepSecondaryButton({
   onClick,
   children,
-  disabled = false,
+  disabled,
 }: {
   onClick: () => void;
   children: ReactNode;
-  disabled?: boolean;
+  disabled: boolean;
 }) {
+  const isDisabled = disabled;
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={disabled}
+      disabled={isDisabled}
       style={{
         height: sizes.button.compactHeight,
         minWidth: sizes.button.compactMinWidth,
@@ -427,7 +411,7 @@ export function StepSecondaryButton({
         color: palette.text,
         fontSize: fontSize.base,
         fontWeight: fontWeight.bold,
-        cursor: disabled ? "default" : "pointer",
+        cursor: isDisabled ? "default" : "pointer",
         opacity: disabled ? 0.5 : 1,
       }}
     >
@@ -457,7 +441,7 @@ export function UndoIcon({ color }: { color: string }) {
   );
 }
 
-export function CheckIcon({ color }: { color: string }) {
+export function CheckCircleIcon({ color }: { color: string }) {
   return (
     <svg width={16} height={16} viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="12" r="9.5" stroke={color} strokeWidth="1.8" />
@@ -476,43 +460,6 @@ export function PlayIcon({ color }: { color: string }) {
   return (
     <svg width={12} height={12} viewBox="0 0 24 24" fill={color} aria-hidden>
       <polygon points="7 5 19 12 7 19" />
-    </svg>
-  );
-}
-
-export function CheckMarkIcon({ color }: { color: string }) {
-  return (
-    <svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-      <path
-        d="M5 12l4 4 10-10"
-        stroke={color}
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-export function ArrowRightIcon({ color }: { color: string }) {
-  return (
-    <svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-      <line
-        x1="5"
-        y1="12"
-        x2="19"
-        y2="12"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <polyline
-        points="13 6 19 12 13 18"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
     </svg>
   );
 }

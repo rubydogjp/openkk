@@ -159,6 +159,7 @@ export function CreateFiscalPeriodPage() {
               />
             }
             hint={null}
+            divider={false}
           />
           <StepFormRow
             label="期間"
@@ -204,13 +205,20 @@ export function CreateFiscalPeriodPage() {
               if (!createLock.current.isLocked) router.push("/steps");
             }}
             disabled={isCreating}
+            type={null}
           >
             キャンセル
           </FormSecondaryButton>
           {atPeriodLimit || editingLocked ? (
             <LockButton label="作成する" style={null} />
           ) : (
-            <FormPrimaryButton onClick={handleCreate} disabled={!canSubmit} variant={null} icon={null}>
+            <FormPrimaryButton
+              onClick={handleCreate}
+              disabled={!canSubmit}
+              type={null}
+              variant={null}
+              icon={null}
+            >
               {isCreating ? "作成中…" : "作成する"}
             </FormPrimaryButton>
           )}

@@ -1,7 +1,4 @@
-import type {
-  CustomUser,
-  OpenkkUser,
-} from "@rubydogjp/openkk-client-domain";
+import type { OpenkkUser } from "@rubydogjp/openkk-client-domain";
 
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
@@ -46,10 +43,9 @@ export function safeStorageRemove(
 export function readStoredUser(raw: string | null): OpenkkUser | null {
   if (raw == null || raw === "") return null;
   try {
-    const parsed = JSON.parse(raw) as Partial<CustomUser>;
+    const parsed: unknown = JSON.parse(raw);
     if (
-      parsed == null ||
-      typeof parsed !== "object" ||
+      !isRecord(parsed) ||
       parsed.kind !== "custom" ||
       typeof parsed.id !== "string" ||
       parsed.id.trim() === ""
@@ -64,7 +60,10 @@ export function readStoredUser(raw: string | null): OpenkkUser | null {
         parsed.displayName.trim() !== ""
           ? parsed.displayName
           : parsed.id,
-      email: typeof parsed.email === "string" ? parsed.email : "",
+      email:
+        typeof parsed.email === "string" && parsed.email.trim() !== ""
+          ? parsed.email.trim()
+          : null,
       iconUrl:
         parsed.iconUrl === null || isSafeStoredHttpUrl(parsed.iconUrl)
           ? parsed.iconUrl
@@ -78,6 +77,10 @@ export function readStoredUser(raw: string | null): OpenkkUser | null {
   } catch {
     return null;
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value != null && !Array.isArray(value);
 }
 
 function isSafeStoredHttpUrl(value: unknown): value is string {

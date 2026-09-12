@@ -1,9 +1,36 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   requestAppInstall,
   type InstallPromptEvent,
 } from "./pwa-install.js";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+it("shares and consumes the browser install prompt across imports", async () => {
+  const browser = new EventTarget();
+  const addListener = vi.spyOn(browser, "addEventListener");
+  vi.stubGlobal("window", browser);
+  vi.resetModules();
+  const state = await import("./pwa-install.js");
+  const otherConsumer = await import("./pwa-install.js");
+  const changed = vi.fn();
+  const unsubscribe = state.subscribeInstallChange(changed);
+  const prompt = new Event("beforeinstallprompt", { cancelable: true });
+
+  browser.dispatchEvent(prompt);
+  expect(prompt.defaultPrevented).toBe(true);
+  expect(otherConsumer.getDeferredInstallPrompt()).toBe(prompt);
+  expect(state.takeDeferredInstallPrompt()).toBe(prompt);
+  expect(otherConsumer.takeDeferredInstallPrompt()).toBeNull();
+  browser.dispatchEvent(new Event("appinstalled"));
+  expect(state.isAppInstalled()).toBe(true);
+  expect(changed).toHaveBeenCalledTimes(3);
+  expect(addListener).toHaveBeenCalledTimes(2);
+  unsubscribe();
+});
 
 describe("requestAppInstall", () => {
   it("reports an accepted deferred install prompt", async () => {

@@ -18,7 +18,7 @@ type TypeToken = {
   styleToken: keyof typeof typography;
   role: string;
   sample: string;
-  keepReason: string;
+  description: string;
 };
 
 const typeTokens: TypeToken[] = [
@@ -27,117 +27,99 @@ const typeTokens: TypeToken[] = [
     styleToken: "finePrint",
     role: "10px / 軸・曜日など、短いメタ表示だけ。",
     sample: "05/21 WED",
-    keepReason:
-      "グラフ軸やカレンダーで密度が必要。本文・ボタン・タグには小さすぎる。",
+    description: "グラフ軸やカレンダーなど、表示密度が高い場所に限定する。",
   },
   {
     name: "Meta",
     styleToken: "meta",
     role: "11px / ラベルより弱い補助メタ。",
     sample: "最終更新 12:34",
-    keepReason: "Fine Print より読ませるが、本文ではない情報に限定する。",
+    description: "更新時刻など、本文より弱いメタ情報に使う。",
   },
   {
     name: "Helper",
     styleToken: "helper",
     role: "12px / 説明・補足・validation。",
     sample: "この項目はあとから変更できます。",
-    keepReason:
-      "Body と統合すると補足が強くなりすぎる。11px では説明文として小さい。",
+    description: "入力補助や検証メッセージなど、本文を支える説明に使う。",
   },
   {
     name: "Body",
     styleToken: "body",
     role: "13px / アプリ本文とテーブル本文の標準。",
     sample: "売上、経費、決算整理を順番に確認します。",
-    keepReason:
-      "業務 UI の密度を保つ中心サイズ。Table Cell は Body に統合した。",
+    description: "本文とテーブルの標準サイズとして使う。",
   },
   {
     name: "Input",
     styleToken: "input",
     role: "14px / 入力値と steps の導入文。",
     sample: "5月分 売上入金",
-    keepReason:
-      "編集対象は本文より一段読みやすくする。Body Large は用途が曖昧なので Input に統合した。",
+    description: "編集対象の値と、手順ページの短い導入文に使う。",
   },
   {
     name: "Label",
     styleToken: "label",
     role: "12px / フォーム・表ヘッダー・固定ラベル。",
     sample: "取引日",
-    keepReason:
-      "Helper と同じ 12px だが、weight と用途が違う。入力値より目立たせない。",
+    description: "入力欄や列の意味を示す固定ラベルに使う。",
   },
   {
     name: "Control",
     styleToken: "control",
     role: "13px / ボタン・select・menu item。",
     sample: "追加",
-    keepReason: "Body と同サイズだが、押せる要素として semibold に固定する。",
+    description: "ボタンやメニューなど、操作できる要素に使う。",
   },
   {
     name: "Amount",
     styleToken: "amount",
     role: "13px / 金額・数値列。",
     sample: "1,234,567",
-    keepReason: "NotoSansMono 専用。桁揃えが目的なので Body とは分ける。",
+    description: "等幅フォントで桁を揃える金額・数値列に使う。",
   },
   {
     name: "Chip",
     styleToken: "chip",
     role: "12px / 取引先・事業割合などのタグ。",
     sample: "取引先: RubyDog",
-    keepReason:
-      "Label と同サイズだが通常 weight。勘定科目より弱く見せるため分ける。",
+    description: "取引先や事業割合などの補助属性に使う。",
   },
   {
     name: "Account Label",
     styleToken: "accountLabel",
     role: "13px / 勘定科目コンテナ。",
     sample: "売上高",
-    keepReason:
-      "固定幅コンテナ内で識別する主情報。Chip より強く、見出しより小さい。",
+    description: "仕訳行の主情報となる勘定科目名に使う。",
   },
   {
     name: "Section Title",
     styleToken: "sectionTitle",
     role: "15px / カード・drawer 内の小見出し。",
     sample: "取引情報",
-    keepReason:
-      "18px ではカード内で強すぎる。Body との差を最小限にして密度を保つ。",
+    description: "カードや drawer 内の小見出しに使う。",
   },
   {
     name: "Content Title",
     styleToken: "contentTitle",
     role: "18px / steps の H2 相当。",
     sample: "月別の収支推移を確認する",
-    keepReason: "Markdown 的な章見出し。Section Title と役割が違うため残す。",
+    description: "手順ページ本文の章見出しに使う。",
   },
   {
     name: "Dialog Title",
     styleToken: "dialogTitle",
     role: "20px / モーダル・空状態の短い独立タイトル。",
     sample: "期間がロックされています",
-    keepReason:
-      "Page Title ほど大きくせず、カード内見出しより強い独立タイトルにする。",
+    description: "モーダルや空状態の独立したタイトルに使う。",
   },
   {
     name: "Page Title",
     styleToken: "pageTitle",
     role: "24px / ページ H1。",
     sample: "決算書を作成する",
-    keepReason:
-      "通常画面の上限。28px 以上は marketing / hero 以外では使わない。",
+    description: "通常画面の最上位タイトルに使う。",
   },
-];
-
-const removedTokens = [
-  "Caption は Meta / Label / Helper に分解。名前だけでは用途が曖昧だった。",
-  "Supporting は Helper に改名。12px の補足説明という用途へ固定した。",
-  "Body Large は Input に統合。14px は本文拡大ではなく、編集値・導入文に限定した。",
-  "Table Cell は Body に統合。見た目の差が小さく、別 token にする意味が弱かった。",
-  "Content Heading は Content Title に改名。Markdown 的な H2 であることを明確にした。",
 ];
 
 const familyTokens = [
@@ -291,7 +273,7 @@ export function FontThemePage() {
 
         <Section
           title="Type Scale"
-          lead="似た token を統合し、選ぶ理由が明確なものだけ残します。"
+          lead="用途ごとに一つの token を選びます。"
         >
           <div style={{ display: "grid", gap: spacing.s10 }}>
             {typeTokens.map((token) => (
@@ -349,27 +331,6 @@ export function FontThemePage() {
           </div>
         </Section>
 
-        <Section
-          title="Self Review"
-          lead="一つずつ見直して、削った token と残した理由を明記します。"
-        >
-          <Card style={null}>
-            <ul
-              style={{
-                margin: 0,
-                paddingLeft: 18,
-                ...typography.body,
-                color: palette.textSoft,
-              }}
-            >
-              {removedTokens.map((item) => (
-                <li key={item} style={{ margin: "6px 0" }}>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </Card>
-        </Section>
       </div>
     </main>
   );
@@ -451,7 +412,7 @@ function TypeRow({ token }: { token: TypeToken }) {
         </div>
       </div>
       <p style={{ ...typography.body, color: palette.textSoft, margin: 0 }}>
-        {token.keepReason}
+        {token.description}
       </p>
     </Card>
   );

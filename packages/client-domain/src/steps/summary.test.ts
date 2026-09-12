@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  entryRecord,
+  type EntryRecordOverrides,
+} from "../../test-support/entry-record.js";
+import {
   computeExpenseContribution,
   computeRevenueContribution,
   parseAmount,
@@ -21,7 +25,7 @@ function plTotals(rows: EntrySummaryRow[]): {
   let revenue = 0;
   let expenses = 0;
   for (const row of rows) {
-    const rate = parseBusinessRate(row.businessRate);
+    const rate = row.businessRate;
     revenue += computeRevenueContribution(row, rate);
     expenses += computeExpenseContribution(row, rate);
   }
@@ -43,7 +47,7 @@ describe("summary contributions", () => {
       entry({ creditType: "revenue", creditAmount: "100,000" }),
       entry({ debitType: "cost_of_sales", debitAmount: "30,000" }),
       entry({
-        businessRate: "50",
+        businessRate: 0.5,
         debitType: "expense",
         debitAmount: "20,000",
       }),
@@ -145,7 +149,7 @@ describe("summary contributions", () => {
         credit: "普通預金",
         creditType: "asset",
         creditAmount: "20,000",
-        businessRate: "50",
+        businessRate: 0.5,
       }),
     ];
     const transfer = buildBusinessRateTransferEntry({
@@ -164,45 +168,13 @@ describe("summary contributions", () => {
   });
 });
 
-function entry(overrides: Partial<EntrySummaryRow>): EntrySummaryRow {
-  const base: EntrySummaryRow = {
-    businessRate: "",
-    debitType: "asset",
-    debitAmount: "0",
-    creditType: "asset",
-    creditAmount: "0",
-    businessRateRatio: null,
-    lines: null,
-  };
-  return Object.assign(base, overrides);
+function entry(overrides: EntryRecordOverrides): EntrySummaryRow {
+  return entryRecord(overrides);
 }
 
-function record(overrides: Partial<EntryRecord>): EntryRecord {
-  const base: EntryRecord = {
-    id: "entry-1",
+function record(overrides: EntryRecordOverrides): EntryRecord {
+  return entryRecord(overrides, {
     fiscalPeriodId: "fp-2026",
     date: "2026-03-01",
-    weekday: "",
-    debit: "普通預金",
-    debitType: "asset",
-    debitAmount: "0",
-    credit: "普通預金",
-    creditType: "asset",
-    creditAmount: "0",
-    description: "test",
-    partner: "",
-    businessRate: "",
-    taxCategory: "対象外",
-    businessCategory: "",
-    lines: null,
-    businessRateRatio: null,
-    localId: null,
-    debitBookAccountId: null,
-    creditBookAccountId: null,
-    debitTaxCategoryId: null,
-    creditTaxCategoryId: null,
-    debitBusinessCategoryId: null,
-    creditBusinessCategoryId: null,
-  };
-  return Object.assign(base, overrides);
+  });
 }

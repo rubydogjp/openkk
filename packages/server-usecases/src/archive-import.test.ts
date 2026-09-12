@@ -29,7 +29,7 @@ describe("normalizeArchiveImportInput", () => {
       {
         date: "2026-04-01",
         description: "売上",
-        localId: "archive:entry-1",
+        localId: null,
         businessRate: 1,
         lines: [
           {
@@ -52,20 +52,16 @@ describe("normalizeArchiveImportInput", () => {
       },
     ]);
     expect(normalized.fixedAssets[0]).toMatchObject({
-      createInput: {
-        name: "PC",
-        acquisitionDate: "2026-04-01",
-        acquisitionCost: 240000,
-        usefulLife: 4,
-        depreciationMethod: "straight_line",
-        businessRate: 0.5,
-        bookAccountId: "acct_equipment",
-      },
-      patchInput: {
-        status: "sold",
-        disposalDate: "2026-12-01",
-        disposalPrice: 120000,
-      },
+      name: "PC",
+      acquisitionDate: "2026-04-01",
+      acquisitionCost: 240000,
+      usefulLife: 4,
+      depreciationMethod: "straight_line",
+      businessRate: 0.5,
+      bookAccountId: "acct_equipment",
+      status: "sold",
+      disposalDate: "2026-12-01",
+      disposalPrice: 120000,
     });
     expect(normalized.preClosings).toEqual([{ year: 2026 }]);
     expect(normalized.closings).toEqual([{ year: 2026 }]);
@@ -108,7 +104,7 @@ describe("normalizeArchiveImportInput", () => {
     const input = validArchiveInput();
     configureArchivePhase(input, "pre_opening");
     input.fiscalPeriod.openingBalancesCompleted = true;
-    delete input.fiscalPeriod.opening;
+    input.fiscalPeriod.opening = null;
 
     expect(() => normalizeArchiveImportInput(input, "user-1")).toThrow(
       /completed opening balances require opening data/,
@@ -268,7 +264,7 @@ describe("normalizeArchiveImportInput", () => {
     );
   });
 
-  it("rejects wrong types in optional entry-line strings", () => {
+  it("rejects wrong types in entry-line strings", () => {
     const invalidPartner = validArchiveInput();
     const partnerLine = (
       invalidPartner.entries[0] as { lines: Array<Record<string, unknown>> }
@@ -293,11 +289,11 @@ describe("normalizeArchiveImportInput", () => {
     invalidLocalId.entries[0]!.localId = 123;
     expect(() =>
       normalizeArchiveImportInput(invalidLocalId, "user-1"),
-    ).toThrow(/entry\.localId must be a string/);
+    ).toThrow(/entry\.localId must be a string or null/);
 
     const invalidLineId = validArchiveInput();
     const openingLine = archiveOpening(invalidLineId).openingJournals[0]!
-      .lines[0]! as { id?: unknown };
+      .lines[0]! as { id: unknown };
     openingLine.id = { corrupted: true };
     expect(() =>
       normalizeArchiveImportInput(invalidLineId, "user-1"),
@@ -307,6 +303,36 @@ describe("normalizeArchiveImportInput", () => {
     invalidStatus.fixedAssets[0]!.status = 1;
     expect(() =>
       normalizeArchiveImportInput(invalidStatus, "user-1"),
+    ).toThrow(/fixedAsset\.status must be a string/);
+  });
+
+  it("requires version 2 fields to be explicit", () => {
+    const missingOpening = validArchiveInput();
+    delete missingOpening.fiscalPeriod.opening;
+    expect(() =>
+      normalizeArchiveImportInput(missingOpening, "user-1"),
+    ).toThrow(/opening must be null or an object/);
+
+    const missingLocalId = validArchiveInput();
+    delete missingLocalId.entries[0]!.localId;
+    expect(() =>
+      normalizeArchiveImportInput(missingLocalId, "user-1"),
+    ).toThrow(/entry\.localId must be a string or null/);
+
+    const missingLineMetadata = validArchiveInput();
+    delete (
+      missingLineMetadata.entries[0]!.lines as Array<
+        Record<string, unknown>
+      >
+    )[0]!.partnerName;
+    expect(() =>
+      normalizeArchiveImportInput(missingLineMetadata, "user-1"),
+    ).toThrow(/entry\.line\.partnerName must be a string/);
+
+    const missingStatus = validArchiveInput();
+    delete missingStatus.fixedAssets[0]!.status;
+    expect(() =>
+      normalizeArchiveImportInput(missingStatus, "user-1"),
     ).toThrow(/fixedAsset\.status must be a string/);
   });
 
@@ -345,7 +371,7 @@ describe("normalizeArchiveImportInput", () => {
     const missingDate = validArchiveInput();
     delete missingDate.fixedAssets[0]!.disposalDate;
     expect(() => normalizeArchiveImportInput(missingDate, "user-1")).toThrow(
-      /requires disposalDate/,
+      /disposalDate must be a string/,
     );
 
     const beforeAcquisition = validArchiveInput();
@@ -376,8 +402,8 @@ describe("normalizeArchiveImportInput", () => {
 
     const prematureRetirement = validArchiveInput();
     prematureRetirement.fixedAssets[0]!.status = "retired";
-    prematureRetirement.fixedAssets[0]!.disposalDate = "";
-    prematureRetirement.fixedAssets[0]!.disposalPrice = 0;
+    prematureRetirement.fixedAssets[0]!.disposalDate = null;
+    prematureRetirement.fixedAssets[0]!.disposalPrice = null;
     expect(() =>
       normalizeArchiveImportInput(prematureRetirement, "user-1"),
     ).toThrow(/has not reached memorandum value/);
@@ -391,7 +417,9 @@ describe("normalizeArchiveImportInput", () => {
 
   it("rejects an unknown archived closing kind", () => {
     const input = validArchiveInput();
-    input.closings = [{ year: 2026, kind: "unexpected" }];
+    input.closings = [
+      { fiscalPeriodId: "period-1", year: 2026, kind: "unexpected" },
+    ];
 
     expect(() => normalizeArchiveImportInput(input, "user-1")).toThrow(
       /archive closing.kind is invalid/,
@@ -400,15 +428,17 @@ describe("normalizeArchiveImportInput", () => {
 
   it("rejects mismatched or duplicate archived closing records", () => {
     const wrongYear = validArchiveInput();
-    wrongYear.closings = [{ year: 2025, kind: "closing" }];
+    wrongYear.closings = [
+      { fiscalPeriodId: "period-1", year: 2025, kind: "closing" },
+    ];
     expect(() => normalizeArchiveImportInput(wrongYear, "user-1")).toThrow(
       /must match fiscal period end year 2026/,
     );
 
     const duplicate = validArchiveInput();
     duplicate.closings = [
-      { year: 2026, kind: "closing" },
-      { year: 2026, kind: "closing" },
+      { fiscalPeriodId: "period-1", year: 2026, kind: "closing" },
+      { fiscalPeriodId: "period-1", year: 2026, kind: "closing" },
     ];
     expect(() => normalizeArchiveImportInput(duplicate, "user-1")).toThrow(
       /archive closing is duplicated/,
@@ -417,7 +447,9 @@ describe("normalizeArchiveImportInput", () => {
 
   it("rejects lifecycle flags and closing records inconsistent with phase", () => {
     const missingPreClosing = validArchiveInput();
-    missingPreClosing.closings = [{ year: 2026, kind: "closing" }];
+    missingPreClosing.closings = [
+      { fiscalPeriodId: "period-1", year: 2026, kind: "closing" },
+    ];
     expect(() =>
       normalizeArchiveImportInput(missingPreClosing, "user-1"),
     ).toThrow(/post_closing phase requires pre-closing and closing records/);
@@ -485,7 +517,7 @@ describe("normalizeArchiveImportInput", () => {
     const missingOpening = validArchiveInput();
     configureArchivePhase(missingOpening, "journalizing");
     missingOpening.fiscalPeriod.openingBalancesCompleted = true;
-    delete missingOpening.fiscalPeriod.opening;
+    missingOpening.fiscalPeriod.opening = null;
     expect(() =>
       normalizeArchiveImportInput(missingOpening, "user-1"),
     ).toThrow(/completed opening balances require opening data/);
@@ -592,6 +624,7 @@ describe("normalizeArchiveImportInput", () => {
 
   it("normalizes category display names from legacy archives to master IDs", () => {
     const input = validArchiveInput();
+    input.manifest.version = 1;
     const lines = input.entries[0]!.lines as Array<Record<string, unknown>>;
     lines[0]!.taxCategoryId = "課税 10%";
     lines[0]!.businessCategoryId = "第5種（サービス業等）";
@@ -620,6 +653,7 @@ describe("normalizeArchiveImportInput", () => {
 
   it("validates master references even when a legacy entry has no identifier", () => {
     const input = validArchiveInput();
+    input.manifest.version = 1;
     delete input.entries[0]!.id;
     delete input.entries[0]!.localId;
     const lines = input.entries[0]!.lines as Array<Record<string, unknown>>;
@@ -639,25 +673,19 @@ describe("normalizeArchiveImportInput", () => {
     );
   });
 
-  it("allows empty fixed asset disposal date as unset", () => {
+  it("reads legacy fixed asset disposal sentinels as null", () => {
     const input = validArchiveInput();
+    input.manifest.version = 1;
     input.fixedAssets[0]!.status = "active";
     input.fixedAssets[0]!.disposalDate = "";
     input.fixedAssets[0]!.disposalPrice = 0;
 
     const normalized = normalizeArchiveImportInput(input, "user-1");
 
-    expect(normalized.fixedAssets[0]?.patchInput).toEqual({
-      name: null,
-      acquisitionDate: null,
-      acquisitionCost: null,
-      usefulLife: null,
-      depreciationMethod: null,
-      businessRate: null,
-      status: null,
+    expect(normalized.fixedAssets[0]).toMatchObject({
+      status: "active",
       disposalDate: null,
       disposalPrice: null,
-      bookAccountId: null,
     });
   });
 
@@ -676,7 +704,7 @@ type ArchiveOpeningView = {
   openingJournals: Array<{
     id: string;
     description: string;
-    lines: Array<{ id?: string; amount: number }>;
+    lines: Array<{ id: string; amount: number }>;
   }>;
 };
 
@@ -699,7 +727,7 @@ function validArchiveInput(): FiscalPeriodArchiveImportInput {
   return {
     manifest: {
       format: "openkk.fiscal-period-archive",
-      version: 1,
+      version: 2,
       createdAt: "2026-12-31T00:00:00.000Z",
       fiscalPeriodId: "period-1",
       name: "2026年分",
@@ -736,14 +764,22 @@ function validArchiveInput(): FiscalPeriodArchiveImportInput {
             businessRate: 1,
             lines: [
               {
+                id: "carry-1-line-1",
                 side: "debit",
                 bookAccountId: "acct_cash",
                 amount: 1000,
+                partnerName: "",
+                taxCategoryId: "",
+                businessCategoryId: "",
               },
               {
+                id: "carry-1-line-2",
                 side: "credit",
                 bookAccountId: "acct_sales",
                 amount: 1000,
+                partnerName: "",
+                taxCategoryId: "",
+                businessCategoryId: "",
               },
             ],
           },
@@ -753,25 +789,34 @@ function validArchiveInput(): FiscalPeriodArchiveImportInput {
     entries: [
       {
         id: "entry-1",
+        fiscalPeriodId: "period-1",
         date: "2026-04-01",
         description: "売上",
+        localId: null,
         businessRate: 1,
         lines: [
           {
             side: "debit",
             bookAccountId: "acct_cash",
             amount: 1000,
+            partnerName: "",
+            taxCategoryId: "",
+            businessCategoryId: "",
           },
           {
             side: "credit",
             bookAccountId: "acct_sales",
             amount: 1000,
+            partnerName: "",
+            taxCategoryId: "",
+            businessCategoryId: "",
           },
         ],
       },
     ],
     fixedAssets: [
       {
+        fiscalPeriodId: "period-1",
         name: "PC",
         acquisitionDate: "2026-04-01",
         acquisitionCost: 240000,
@@ -785,8 +830,8 @@ function validArchiveInput(): FiscalPeriodArchiveImportInput {
       },
     ],
     closings: [
-      { year: 2026, kind: "pre_closing" },
-      { year: 2026, kind: "closing" },
+      { fiscalPeriodId: "period-1", year: 2026, kind: "pre_closing" },
+      { fiscalPeriodId: "period-1", year: 2026, kind: "closing" },
     ],
   };
 }
@@ -802,11 +847,25 @@ function configureArchivePhase(
   input.fiscalPeriod.documentsReceivedCompleted = phase === "post_closing";
   input.closings =
     phase === "pre_closing"
-      ? [{ year: 2026, kind: "pre_closing" }]
+      ? [
+          {
+            fiscalPeriodId: "period-1",
+            year: 2026,
+            kind: "pre_closing",
+          },
+        ]
       : phase === "post_closing"
         ? [
-            { year: 2026, kind: "pre_closing" },
-            { year: 2026, kind: "closing" },
+            {
+              fiscalPeriodId: "period-1",
+              year: 2026,
+              kind: "pre_closing",
+            },
+            {
+              fiscalPeriodId: "period-1",
+              year: 2026,
+              kind: "closing",
+            },
           ]
         : [];
 }

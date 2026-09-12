@@ -15,7 +15,7 @@ export function isValidSuccessBody(
     case "entryRemove":
     case "fiscalPeriodRemove":
     case "fixedAssetRemove":
-      return body == null;
+      return body === null;
     case "authStartSession":
       return isObject(body) && isSafeHttpUrl(body.authUrl);
     case "authCompleteSession":
@@ -119,7 +119,7 @@ function isFiscalPeriod(value: unknown): boolean {
         String(value.phase),
       ) &&
       ["active", "archived"].includes(String(value.archiveStatus)) &&
-      isNullableBoolean(value.archiveDataAvailable) &&
+      typeof value.archiveDataAvailable === "boolean" &&
       isNullableIsoTimestamp(value.archivedAt) &&
       typeof value.settingsCompleted === "boolean" &&
       typeof value.openingBalancesCompleted === "boolean" &&
@@ -141,17 +141,17 @@ function isFiscalPeriod(value: unknown): boolean {
   ) {
     return false;
   }
-  if (value.opening == null) return !value.openingBalancesCompleted;
+  if (value.opening === null) return !value.openingBalancesCompleted;
   if (!isOpening(value.opening, value)) return false;
   return (
     !value.openingBalancesCompleted ||
-    areOpeningBalanceLinesBalanced(value.opening.openingBalanceLines ?? [])
+    areOpeningBalanceLinesBalanced(value.opening.openingBalanceLines)
   );
 }
 
 type ValidOpening = Record<string, unknown> & {
-  openingBalanceLines: Array<Record<string, unknown>> | null;
-  openingJournals: Array<Record<string, unknown>> | null;
+  openingBalanceLines: Array<Record<string, unknown>>;
+  openingJournals: Array<Record<string, unknown>>;
 };
 
 function isOpening(
@@ -169,8 +169,8 @@ function isOpening(
   ) {
     return false;
   }
-  const balanceLines = value.openingBalanceLines ?? [];
-  const journals = value.openingJournals ?? [];
+  const balanceLines = value.openingBalanceLines;
+  const journals = value.openingJournals;
   if (
     !Array.isArray(balanceLines) ||
     !Array.isArray(journals) ||
@@ -266,15 +266,15 @@ function isEntry(value: unknown): boolean {
       "createdAt",
       "updatedAt",
     ]) &&
-    isString(value.localId) &&
-    (value.localId === "" || value.localId.trim() !== "") &&
+    isNullableString(value.localId) &&
+    (value.localId === null || value.localId.trim() !== "") &&
     isIsoTimestamp(value.createdAt) &&
     isIsoTimestamp(value.updatedAt) &&
     isIsoDateString(value.date) &&
     isUnitRate(value.businessRate) &&
     isArrayOf(value.lines, isEntryLine) &&
     value.lines.length <= MAX_ENTRY_LINES &&
-    areEntryLinesBalanced(value.lines) &&
+    areEntryLinesBalanced(value.lines, false) &&
     hasUniqueValues(value.lines.map((line) => line.id))
   );
 }
@@ -306,11 +306,11 @@ function isFixedAsset(value: unknown): boolean {
       "createdAt",
       "updatedAt",
     ]) ||
-    !isString(value.disposalDate) ||
+    !isNullableString(value.disposalDate) ||
     !isIsoTimestamp(value.createdAt) ||
     !isIsoTimestamp(value.updatedAt) ||
     !isIsoDateString(value.acquisitionDate) ||
-    (value.disposalDate !== "" && !isIsoDateString(value.disposalDate)) ||
+    (value.disposalDate !== null && !isIsoDateString(value.disposalDate)) ||
     !isPositiveInteger(value.acquisitionCost) ||
     !isPositiveInteger(value.usefulLife) ||
     value.usefulLife > MAX_FIXED_ASSET_USEFUL_LIFE_YEARS ||
@@ -319,15 +319,19 @@ function isFixedAsset(value: unknown): boolean {
     !["active", "sold", "disposed", "retired"].includes(
       String(value.status),
     ) ||
-    !isNonNegativeSafeInteger(value.disposalPrice)
+    (value.disposalPrice !== null &&
+      !isNonNegativeSafeInteger(value.disposalPrice))
   ) {
     return false;
   }
   const hasDisposal = value.status === "sold" || value.status === "disposed";
   return (
-    (hasDisposal ? value.disposalDate !== "" : value.disposalDate === "") &&
-    (value.status === "sold" ? true : value.disposalPrice === 0) &&
-    (value.disposalDate === "" || value.disposalDate >= value.acquisitionDate)
+    (hasDisposal ? value.disposalDate !== null : value.disposalDate === null) &&
+    (value.status === "sold"
+      ? value.disposalPrice !== null
+      : value.disposalPrice === null) &&
+    (value.disposalDate === null ||
+      value.disposalDate >= value.acquisitionDate)
   );
 }
 
@@ -428,20 +432,16 @@ function isSafeHttpUrl(value: unknown): value is string {
   }
 }
 
-function isNullableString(value: unknown): boolean {
-  return value == null || isString(value);
+function isNullableString(value: unknown): value is string | null {
+  return value === null || isString(value);
 }
 
 function isNullableSafeHttpUrl(value: unknown): boolean {
-  return value == null || isSafeHttpUrl(value);
+  return value === null || isSafeHttpUrl(value);
 }
 
 function isNullableIsoTimestamp(value: unknown): boolean {
-  return value == null || isIsoTimestamp(value);
-}
-
-function isNullableBoolean(value: unknown): boolean {
-  return value == null || typeof value === "boolean";
+  return value === null || isIsoTimestamp(value);
 }
 
 function isFiniteNumber(value: unknown): value is number {
@@ -470,7 +470,7 @@ function isPositiveInteger(value: unknown): value is number {
 
 function areEntryLinesBalanced(
   lines: Array<Record<string, unknown>>,
-  allowZero = false,
+  allowZero: boolean,
 ): boolean {
   let debitTotal = 0;
   let creditTotal = 0;
@@ -548,7 +548,7 @@ function isEntryRecordArray(
     hasUniqueValues(
       value
         .map((entry) => entry.localId)
-        .filter((localId) => localId !== ""),
+        .filter((localId) => localId !== null),
     )
   );
 }

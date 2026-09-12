@@ -13,17 +13,18 @@ import type {
 } from "@rubydogjp/openkk-server-ports";
 import {
   assertNonBlankString,
+  assertNonBlankText,
   assertObject,
-  assertString,
+  assertText,
 } from "./common-validation.js";
 
 export function assertEntryInput(
   input: EntryUpsertInput,
   period: FiscalPeriodApiRecord,
-  allowClosingGenerated = false,
+  allowClosingGenerated: boolean,
 ): void {
   assertObject(input, "Entry input");
-  assertNonBlankString(input.description, "Entry description");
+  assertNonBlankText(input.description, "Entry description");
   assertIsoDate(input.date, "Entry date");
   if (input.date < period.startDate || input.date > period.endDate) {
     throw serverValidationError(
@@ -43,22 +44,22 @@ export function assertEntryInput(
   }
   if (input.localId != null) {
     if (typeof input.localId !== "string") {
-      throw serverValidationError("Entry localId must be a string");
+      throw serverValidationError("Entry localId must be a string", null);
     }
     if (input.localId.trim() === "") {
-      throw serverValidationError("Entry localId is required when provided");
+      throw serverValidationError("Entry localId is required when provided", null);
     }
   }
   assertUnitRate(input.businessRate, "Entry business rate");
   if (!Array.isArray(input.lines)) {
-    throw serverValidationError("Entry lines must be an array");
+    throw serverValidationError("Entry lines must be an array", null);
   }
   for (const line of input.lines) {
     if (line == null || typeof line !== "object") {
-      throw serverValidationError("Entry line must be an object");
+      throw serverValidationError("Entry line must be an object", null);
     }
     assertNonBlankString(line.bookAccountId, "Entry line book account");
-    assertString(line.partnerName, "Entry line partner");
+    assertText(line.partnerName, "Entry line partner");
     assertNonNegativeSafeInteger(line.amount, "Entry line amount");
   }
   assertEntryLinesBalanced(input.lines, "Entry", { allowZero: false });
@@ -72,7 +73,7 @@ export function assertEntryMasterReferences(input: EntryUpsertInput): void {
         "存在しない勘定科目が指定されています",
       );
     }
-    assertString(line.taxCategoryId, "Entry line tax category");
-    assertString(line.businessCategoryId, "Entry line business category");
+    assertText(line.taxCategoryId, "Entry line tax category");
+    assertText(line.businessCategoryId, "Entry line business category");
   }
 }

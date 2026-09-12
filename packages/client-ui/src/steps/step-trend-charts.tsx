@@ -253,8 +253,8 @@ function TrendLegend() {
           flex: 1,
         }}
       >
-        <LegendChip label="収益" color={palette.success} line={null} />
-        <LegendChip label="費用" color={palette.brand} line={null} />
+        <LegendChip label="収益" color={palette.success} line={false} />
+        <LegendChip label="費用" color={palette.brand} line={false} />
         <LegendChip label="利益・損失" color={profitColor} line />
       </div>
     </div>
@@ -470,7 +470,7 @@ function TrendDetailsLink(props: { href: string }) {
 function LegendChip(props: {
   label: string;
   color: string;
-  line: boolean | null;
+  line: boolean;
 }) {
   const markerStyle = props.line
     ? { width: 12, height: 2 }

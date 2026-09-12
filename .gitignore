@@ -14,3 +14,6 @@ next-env.d.ts
 
 # repository rules
 .secrets/
+
+# editor / agent local settings
+.claude/settings.local.json

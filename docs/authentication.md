@@ -39,7 +39,7 @@ type CustomUser = {
 2. **`OpenkkServerPort.auth` を実装したバックエンド adapter** を用意する（`embedded-backend` の代わりに HTTP backend を `createOpenkkEmbeddedBackendAdapter` 相当で差し込む）。実装するメソッド:
    - `startSession(redirectUrl)` → 外部認証 URL を発行（`{ authUrl }`）。
    - `completeSession({ state, code })` → 認証完了し `{ completionCode }` を返す。
-   - `redeemCompletionCode(completionCode)` → `CreateTokenResponse` を返す。`userId` は必須、`displayName` / `email` / `iconUrl` / `authProvider` を返すとそのまま `CustomUser` に反映される。
+   - `redeemCompletionCode(completionCode)` → `CreateTokenResponse` を返す。未設定の `displayName` / `email` / `iconUrl` / `authProvider` は `null` にする。
    - `signOut()` → サーバ側セッション/Cookie を破棄。
 3. クライアントの状態管理（`openkk-app-state`）が以下を自動で駆動する。実装不要。
    - サインイン: `startSignIn` → 外部 URL へリダイレクト → `/auth/result` で `completeSignIn`（= `completeSession` ＋ `redeemCompletionCode`）→ `CustomUser` を保持。

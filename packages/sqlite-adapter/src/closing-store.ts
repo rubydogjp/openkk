@@ -5,14 +5,19 @@ import {
   serverValidationError,
 } from "@rubydogjp/openkk-server-domain";
 
-import type { ClosingsDb, PreClosingsDb } from "../db-adapter.js";
 import type {
   ClosingDbRecord,
+  ClosingsDb,
   EntryDbRecord,
   EntryDbUpsertInput,
+  FiscalPeriodDbPhase,
   FiscalPeriodDbRecord,
   PreClosingDbRecord,
-} from "../persistence-types.js";
+  PreClosingsDb,
+} from "@rubydogjp/openkk-server-ports";
+import type {
+  FiscalPeriodDataColumn,
+} from "./table-types.js";
 import { insertEntryLines, insertImportedEntries } from "./entry-store.js";
 import {
   loadOpeningByFiscalPeriod,
@@ -20,8 +25,8 @@ import {
 } from "./opening-store.js";
 import {
   msToIso,
-  parseFiscalPeriodDbRecord,
-  serializeFiscalPeriodDbRecord,
+  parseFiscalPeriodDataColumn,
+  serializeFiscalPeriodDataColumn,
 } from "./persistence-codec.js";
 import {
   assertDbClosingGeneratedSizeLimits,
@@ -142,7 +147,7 @@ async function replaceClosingGeneratedEntries(
   userId: string,
   fiscalPeriodId: string,
   inputs: EntryDbUpsertInput[],
-  period: FiscalPeriodDbRecord,
+  period: FiscalPeriodDataColumn,
 ): Promise<void> {
   for (const input of inputs) {
     assertDbEntryInput(input, period, "Closing entry");
@@ -152,6 +157,7 @@ async function replaceClosingGeneratedEntries(
     ) {
       throw serverValidationError(
         "Closing entry localId must use the reserved generated prefix",
+        null,
       );
     }
   }
@@ -164,7 +170,7 @@ async function replaceClosingGeneratedEntries(
     fiscalPeriodId,
     date: input.date,
     description: input.description,
-    localId: input.localId ?? "",
+    localId: input.localId,
     businessRate: input.businessRate,
     lines: input.lines.map((line) => ({ ...line, id: newId("eline") })),
     createdAt: timestamp,
@@ -205,15 +211,14 @@ async function assertDbClosingMarkerExists(
 async function transitionFiscalPeriod(
   db: SqlDb,
   fiscalPeriodId: string,
-  expectedPhase: FiscalPeriodDbRecord["phase"],
-  nextPhase: FiscalPeriodDbRecord["phase"],
+  expectedPhase: FiscalPeriodDbPhase,
+  nextPhase: FiscalPeriodDbPhase,
   writeTransitionData: (
     userId: string,
-    period: FiscalPeriodDbRecord,
+    period: FiscalPeriodDataColumn,
   ) => Promise<void>,
 ): Promise<FiscalPeriodDbRecord> {
-  let updated: FiscalPeriodDbRecord | null = null;
-  await runInTransaction(db, async () => {
+  const updated = await runInTransaction(db, async () => {
     const rows = (await db.exec({
       sql: `SELECT user_id, data, created_at FROM fiscal_periods WHERE id = ?`,
       bind: [fiscalPeriodId],
@@ -223,7 +228,7 @@ async function transitionFiscalPeriod(
     const row = rows[0];
     if (row == null)
       throw serverNotFoundError(`fiscal period not found: ${fiscalPeriodId}`);
-    const current = parseFiscalPeriodDbRecord(row[1]);
+    const current = parseFiscalPeriodDataColumn(row[1]);
     if (current.archiveStatus === "archived") {
       throw serverConflictError(
         `archived fiscal period cannot transition: ${fiscalPeriodId}`,
@@ -237,29 +242,26 @@ async function transitionFiscalPeriod(
       );
     }
     const now = nowMs();
-    updated = {
+    const opening = requireOpening(
+      await loadOpeningByFiscalPeriod(db, fiscalPeriodId),
+      fiscalPeriodId,
+    );
+    const updated: FiscalPeriodDbRecord = {
       ...current,
       userId: row[0],
       createdAt: msToIso(row[2]),
       updatedAt: msToIso(now),
       phase: nextPhase,
+      opening,
     };
-    const opening = requireOpening(
-      await loadOpeningByFiscalPeriod(db, fiscalPeriodId),
-      fiscalPeriodId,
-    );
     assertDbOpeningForPeriod(opening, updated);
-    const serializedRecord = serializeFiscalPeriodDbRecord(updated);
-    const currentWithOwnership = { ...current, userId: row[0] };
-    await writeTransitionData(row[0], currentWithOwnership);
+    const serializedRecord = serializeFiscalPeriodDataColumn(updated);
+    await writeTransitionData(row[0], current);
     await db.exec({
       sql: `UPDATE fiscal_periods SET data = ?, updated_at = ? WHERE id = ?`,
       bind: [serializedRecord, now, fiscalPeriodId],
     });
+    return updated;
   });
-  const opening = requireOpening(
-    await loadOpeningByFiscalPeriod(db, fiscalPeriodId),
-    fiscalPeriodId,
-  );
-  return { ...updated!, opening };
+  return updated;
 }

@@ -7,16 +7,16 @@ import { palette, radii, sizes, spacing, typography } from "./design-tokens.js";
 export type DocumentFileItem = {
   label: string;
   description: string | null;
-  active: boolean | null;
+  active: boolean;
   onClick: (() => void) | null;
 };
 
 export function DocumentFileList({
   items,
-  actionLabel = "受け取る",
+  actionLabel,
 }: {
   items: DocumentFileItem[];
-  actionLabel?: string;
+  actionLabel: string | null;
 }) {
   return (
     <div style={listStyle}>
@@ -24,7 +24,7 @@ export function DocumentFileList({
         <DocumentFileTile
           key={item.label}
           {...item}
-          actionLabel={actionLabel}
+          actionLabel={actionLabel ?? "受け取る"}
           showDivider={index > 0}
         />
       ))}
@@ -35,10 +35,10 @@ export function DocumentFileList({
 export function DocumentFileTile(
   props: DocumentFileItem & {
     actionLabel: string | null;
-    showDivider: boolean | null;
+    showDivider: boolean;
   },
 ) {
-  const isActive = props.active ?? true;
+  const isActive = props.active;
   const isClickable = isActive && props.onClick != null;
   const description = props.description ?? documentDescription(props.label);
   return (

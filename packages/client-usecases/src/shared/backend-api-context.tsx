@@ -26,6 +26,7 @@ export function useBackendApi(): OpenkkBackendPort {
       messageForUser: "アプリの初期化に失敗しました",
       originalMessage: null,
       statusCode: null,
+      code: null,
     });
   }
   return value;

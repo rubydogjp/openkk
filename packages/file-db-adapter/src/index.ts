@@ -1,9 +1,11 @@
 import {
-  createSqliteDbAdapter,
   type DbSnapshot,
   type OpenkkDbPort,
-  type SqlDb,
 } from "@rubydogjp/openkk-server-ports";
+import {
+  createSqliteDbAdapter,
+  type SqlDb,
+} from "@rubydogjp/openkk-sqlite-adapter";
 export { type DbSnapshot } from "@rubydogjp/openkk-server-ports";
 
 export type FileDbAdapterOptions = {
@@ -11,19 +13,15 @@ export type FileDbAdapterOptions = {
   dbFileName: string | null;
 };
 
-type WorkerResponse = {
-  id: number;
-  ok: boolean;
-  result: unknown | null;
-  error: string | null;
-};
+type WorkerResponse =
+  | { id: number; ok: true; result: unknown }
+  | { id: number; ok: false; error: string };
 
-function createWorkerSqlDb(
+async function createWorkerSqlDb(
   worker: Worker,
   onFatal: (error: Error) => void,
-): SqlDb & {
-  init(payload: { vfsName: string; dbFileName: string }): Promise<void>;
-} {
+  initPayload: { vfsName: string; dbFileName: string },
+): Promise<SqlDb> {
   let nextId = 1;
   const pending = new Map<
     number,
@@ -32,16 +30,16 @@ function createWorkerSqlDb(
   let fatalError: Error | null = null;
 
   worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
-    const { id, ok, result, error } = event.data;
+    const response = event.data;
+    const { id } = response;
     const entry = pending.get(id);
     if (entry == null) return;
     pending.delete(id);
-    if (ok) entry.resolve(result);
-    else entry.reject(new Error(error ?? "sqlite worker error"));
+    if (response.ok) entry.resolve(response.result);
+    else entry.reject(new Error(response.error));
   };
 
-  // A worker crash (uncaught error or deserialization failure) never sends a
-  // response, so reject every in-flight request instead of leaving them hung.
+  // Worker failures have no matching response for pending requests.
   function failWorker(reason: string): void {
     if (fatalError != null) return;
     const error = new Error(reason);
@@ -73,14 +71,11 @@ function createWorkerSqlDb(
     });
   }
 
-  return {
-    exec: (arg) => send("exec", arg),
-    init: (payload) => send("init", payload).then(() => undefined),
-  };
+  await send("init", initPayload);
+  return { exec: (arg) => send("exec", arg) };
 }
 
-// OPFS の SAHPool は同一ファイルを複数ハンドルで開けない。1 ドキュメント内では
-// worker / DB を 1 つだけに固定し、再マウント等での二重初期化を防ぐ。
+// SAHPool permits one handle per file.
 let cachedAdapter: Promise<OpenkkDbPort> | null = null;
 let cachedAdapterKey: string | null = null;
 
@@ -102,17 +97,17 @@ export function createFileDbAdapter(
     });
     const initialization = (async () => {
       try {
-        const db = createWorkerSqlDb(worker, () => {
-          worker.terminate();
-          if (cachedAdapter === initialization) {
-            cachedAdapter = null;
-            cachedAdapterKey = null;
-          }
-        });
-        await db.init({
-          vfsName: options.vfsName,
-          dbFileName,
-        });
+        const db = await createWorkerSqlDb(
+          worker,
+          () => {
+            worker.terminate();
+            if (cachedAdapter === initialization) {
+              cachedAdapter = null;
+              cachedAdapterKey = null;
+            }
+          },
+          { vfsName: options.vfsName, dbFileName },
+        );
         return await createSqliteDbAdapter(db, seed);
       } catch (error) {
         cachedAdapter = null;

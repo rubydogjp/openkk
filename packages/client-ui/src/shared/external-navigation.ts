@@ -6,7 +6,7 @@ export type ExternalWindowOpener = (
 
 export function openExternalUrl(
   url: string,
-  opener: ExternalWindowOpener = window.open.bind(window),
+  opener: ExternalWindowOpener | null,
 ): void {
-  opener(url, "_blank", "noopener,noreferrer");
+  (opener ?? window.open.bind(window))(url, "_blank", "noopener,noreferrer");
 }

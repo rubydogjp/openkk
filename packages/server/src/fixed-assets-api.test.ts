@@ -169,14 +169,6 @@ describe("openkk server fixed asset API", () => {
       server.fixedAssets.patch("fp-1", created.id, {
         status: "sold",
         disposalDate: "2026-13-01",
-        name: null,
-        acquisitionDate: null,
-        acquisitionCost: null,
-        usefulLife: null,
-        depreciationMethod: null,
-        businessRate: null,
-        disposalPrice: null,
-        bookAccountId: null,
       }),
     ).rejects.toThrow(/Fixed asset disposal date is invalid/);
 
@@ -200,14 +192,7 @@ describe("openkk server fixed asset API", () => {
       server.fixedAssets.patch("fp-1", created.id, {
         status: "sold",
         disposalDate: "2026-03-31",
-        name: null,
-        acquisitionDate: null,
-        acquisitionCost: null,
-        usefulLife: null,
-        depreciationMethod: null,
-        businessRate: null,
-        disposalPrice: null,
-        bookAccountId: null,
+        disposalPrice: 0,
       }),
     ).rejects.toThrow(/must not be before acquisition date/);
 
@@ -232,13 +217,6 @@ describe("openkk server fixed asset API", () => {
         status: "sold",
         disposalDate: "2026-12-01",
         disposalPrice: -1,
-        name: null,
-        acquisitionDate: null,
-        acquisitionCost: null,
-        usefulLife: null,
-        depreciationMethod: null,
-        businessRate: null,
-        bookAccountId: null,
       }),
     ).rejects.toThrow(
       /Fixed asset disposal price must be a non-negative finite number/,
@@ -261,10 +239,10 @@ describe("openkk server fixed asset API", () => {
     });
 
     await expect(
-      server.fixedAssets.patch("fp-1", created.id, { status: "sold", name: null, acquisitionDate: null, acquisitionCost: null, usefulLife: null, depreciationMethod: null, businessRate: null, disposalDate: null, disposalPrice: null, bookAccountId: null }),
+      server.fixedAssets.patch("fp-1", created.id, { status: "sold" }),
     ).rejects.toThrow(/requires a disposal date/);
     await expect(
-      server.fixedAssets.patch("fp-1", created.id, { status: "disposed", name: null, acquisitionDate: null, acquisitionCost: null, usefulLife: null, depreciationMethod: null, businessRate: null, disposalDate: null, disposalPrice: null, bookAccountId: null }),
+      server.fixedAssets.patch("fp-1", created.id, { status: "disposed" }),
     ).rejects.toThrow(/requires a disposal date/);
 
     expect((await server.fixedAssets.getAll("fp-1"))[0]?.status).toBe("active");
@@ -285,15 +263,6 @@ describe("openkk server fixed asset API", () => {
 
     const updated = await server.fixedAssets.patch("fp-1", created.id, {
       status: "retired",
-      name: null,
-      acquisitionDate: null,
-      acquisitionCost: null,
-      usefulLife: null,
-      depreciationMethod: null,
-      businessRate: null,
-      disposalDate: null,
-      disposalPrice: null,
-      bookAccountId: null,
     });
     expect(updated.status).toBe("retired");
   });
@@ -312,7 +281,7 @@ describe("openkk server fixed asset API", () => {
     });
 
     await expect(
-      server.fixedAssets.patch("fp-1", created.id, { status: "retired", name: null, acquisitionDate: null, acquisitionCost: null, usefulLife: null, depreciationMethod: null, businessRate: null, disposalDate: null, disposalPrice: null, bookAccountId: null }),
+      server.fixedAssets.patch("fp-1", created.id, { status: "retired" }),
     ).rejects.toThrow(/cannot be retired before it reaches memorandum value/);
     expect((await server.fixedAssets.getAll("fp-1"))[0]?.status).toBe(
       "active",
@@ -336,14 +305,6 @@ describe("openkk server fixed asset API", () => {
       server.fixedAssets.patch("fp-1", created.id, {
         status: "retired",
         disposalDate: "2026-12-01",
-        name: null,
-        acquisitionDate: null,
-        acquisitionCost: null,
-        usefulLife: null,
-        depreciationMethod: null,
-        businessRate: null,
-        disposalPrice: null,
-        bookAccountId: null,
       }),
     ).rejects.toThrow(/must not have a disposal date/);
 
@@ -352,13 +313,6 @@ describe("openkk server fixed asset API", () => {
         status: "disposed",
         disposalDate: "2026-12-01",
         disposalPrice: 1000,
-        name: null,
-        acquisitionDate: null,
-        acquisitionCost: null,
-        usefulLife: null,
-        depreciationMethod: null,
-        businessRate: null,
-        bookAccountId: null,
       }),
     ).rejects.toThrow(/must not have a disposal price/);
 
@@ -396,14 +350,7 @@ describe("openkk server fixed asset API", () => {
       server.fixedAssets.patch("fp-1", created.id, {
         status: "sold",
         disposalDate: "2025-12-31",
-        name: null,
-        acquisitionDate: null,
-        acquisitionCost: null,
-        usefulLife: null,
-        depreciationMethod: null,
-        businessRate: null,
-        disposalPrice: null,
-        bookAccountId: null,
+        disposalPrice: 0,
       }),
     ).rejects.toThrow(/disposal date .* must be within fiscal period/);
   });
@@ -557,7 +504,7 @@ function createFixedAssetDb(
           id: "entry-1",
           fiscalPeriodId,
           ...input,
-          localId: input.localId ?? "",
+          localId: input.localId,
           lines: entryLinesWithIds(input.lines),
         });
       },
@@ -566,7 +513,7 @@ function createFixedAssetDb(
           id,
           fiscalPeriodId: "fp-1",
           ...input,
-          localId: input.localId ?? "",
+          localId: input.localId,
           lines: entryLinesWithIds(input.lines),
         });
       },
@@ -581,7 +528,7 @@ function createFixedAssetDb(
             id: `entry-${index + 1}`,
             fiscalPeriodId,
             ...input,
-            localId: input.localId ?? "",
+            localId: input.localId,
             lines: entryLinesWithIds(input.lines),
           }),
         );
@@ -612,7 +559,7 @@ function createFixedAssetDb(
       async update(id: string, patch: FixedAssetPatchInput) {
         const current = fixedAssets.get(id);
         if (current == null) throw new Error(`fixed asset not found: ${id}`);
-        const updated = fixedAsset({ ...current, ...changedFields(patch) });
+        const updated = fixedAsset({ ...current, ...patch });
         fixedAssets.set(id, updated);
         return updated;
       },
@@ -678,7 +625,7 @@ function fiscalPeriod(
     opening: null,
     createdAt: TEST_TIMESTAMP,
     updatedAt: TEST_TIMESTAMP,
-    archiveDataAvailable: null,
+    archiveDataAvailable: true,
     archivedAt: null,
   };
   return Object.assign(base, overrides);
@@ -691,7 +638,7 @@ function entry(overrides: Partial<EntryApiRecord>): EntryApiRecord {
     fiscalPeriodId: "fp-1",
     date: "2026-01-01",
     description: "entry",
-    localId: "",
+    localId: null,
     businessRate: 1,
     lines: [],
     createdAt: TEST_TIMESTAMP,
@@ -714,19 +661,11 @@ function fixedAsset(
     depreciationMethod: "straight_line",
     businessRate: 1,
     status: "active",
-    disposalDate: "",
-    disposalPrice: 0,
+    disposalDate: null,
+    disposalPrice: null,
     bookAccountId: "",
     createdAt: TEST_TIMESTAMP,
     updatedAt: TEST_TIMESTAMP,
   };
   return Object.assign(base, overrides);
-}
-
-function changedFields<T extends object>(patch: T): {
-  [K in keyof T]?: Exclude<T[K], null>;
-} {
-  return Object.fromEntries(
-    Object.entries(patch).filter(([, value]) => value !== null),
-  ) as { [K in keyof T]?: Exclude<T[K], null> };
 }

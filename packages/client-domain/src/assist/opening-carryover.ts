@@ -1,30 +1,33 @@
 import type { EntryLine } from "../entries/entry-record.js";
-import type { EntryAccountVisualType } from "../entries/entries-types.js";
+import type { BookAccountType } from "../entries/book-account.js";
 
-export type OpeningCarryoverLine = EntryLine & { id: string };
+export type OpeningCarryoverLine = {
+  id: string;
+  side: "debit" | "credit";
+  accountName: string;
+  accountType: BookAccountType;
+  amount: string;
+  bookAccountId: string | null;
+  partnerName: string | null;
+  taxCategoryId: string | null;
+  taxCategoryName: string | null;
+  businessCategoryId: string | null;
+  businessCategoryName: string | null;
+};
 
 export type OpeningCarryoverRecord = {
   id: string;
   fiscalPeriodId: string;
   date: string;
   description: string;
-  debit: string;
-  debitType: EntryAccountVisualType;
-  debitAmount: string;
-  credit: string;
-  creditType: EntryAccountVisualType;
-  creditAmount: string;
-  partner: string;
-  taxCategory: string;
-  businessCategory: string;
-  businessRate: string;
-  businessRateRatio: number | null;
-  debitBookAccountId: string | null;
-  creditBookAccountId: string | null;
-  lines: OpeningCarryoverLine[] | null;
+  businessRate: number;
+  lines: OpeningCarryoverLine[];
 };
 
-export type OpeningCarryoverDraft = Omit<
-  OpeningCarryoverRecord,
-  "id" | "fiscalPeriodId"
->;
+export type OpeningCarryoverDraft = {
+  date: string;
+  description: string;
+  businessRateInput: string;
+  businessRate: number | null;
+  lines: EntryLine[];
+};

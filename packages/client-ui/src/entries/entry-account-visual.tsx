@@ -1,4 +1,4 @@
-import type { EntryAccountVisualType } from "@rubydogjp/openkk-client-domain";
+import type { BookAccountType } from "@rubydogjp/openkk-client-domain";
 
 import { palette } from "../shared/design-tokens.js";
 
@@ -8,7 +8,7 @@ export type EntryAccountPalette = {
 };
 
 export function entryAccountPalette(
-  type: EntryAccountVisualType,
+  type: BookAccountType,
 ): EntryAccountPalette {
   switch (type) {
     case "asset":
@@ -41,7 +41,7 @@ export function entryAccountPalette(
 }
 
 export function EntryAccountIcon(props: {
-  type: EntryAccountVisualType;
+  type: BookAccountType;
   color: string;
   size: number;
 }) {
@@ -68,7 +68,7 @@ export function EntryAccountIcon(props: {
   );
 }
 
-function entryAccountIconPath(type: EntryAccountVisualType): string {
+function entryAccountIconPath(type: BookAccountType): string {
   switch (type) {
     case "asset":
       return "/icons/assets.svg";

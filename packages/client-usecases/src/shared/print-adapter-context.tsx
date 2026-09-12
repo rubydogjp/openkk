@@ -26,6 +26,7 @@ export function usePrintAdapter(): PrintPort {
       messageForUser: "印刷機能の初期化に失敗しました",
       originalMessage: null,
       statusCode: null,
+      code: null,
     });
   }
   return value;

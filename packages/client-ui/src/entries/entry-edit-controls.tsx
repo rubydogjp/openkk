@@ -11,7 +11,7 @@ import {
 
 import {
   MAX_TEXT_FIELD_LENGTH,
-  type EntryAccountVisualType,
+  type BookAccountType,
 } from "@rubydogjp/openkk-client-domain";
 import type { EntryMasterAccountOption } from "@rubydogjp/openkk-client-usecases";
 import {
@@ -47,7 +47,7 @@ export const entryDrawerColors = {
   green: palette.success,
 };
 
-const accountTypeLabel: Record<EntryAccountVisualType, string> = {
+const accountTypeLabel: Record<BookAccountType, string> = {
   asset: "資産",
   liability: "負債",
   equity: "純資産",
@@ -100,16 +100,16 @@ export function AccountPicker({
   accountType,
   onChange,
   options,
-  fullWidth = false,
+  fullWidth,
   ariaLabel,
 }: {
   selectedId: string | null;
   value: string;
-  accountType: EntryAccountVisualType;
+  accountType: BookAccountType;
   onChange: (option: EntryMasterAccountOption) => void;
   options: EntryMasterAccountOption[];
 
-  fullWidth?: boolean;
+  fullWidth: boolean;
   ariaLabel: string | null;
 }) {
   const [open, setOpen] = useState(false);
@@ -135,7 +135,10 @@ export function AccountPicker({
   return (
     <div
       ref={containerRef}
-      style={{ position: "relative", width: fullWidth ? "100%" : undefined }}
+      style={{
+        position: "relative",
+        width: fullWidth ? "100%" : undefined,
+      }}
     >
       <button
         type="button"
@@ -261,10 +264,10 @@ function groupAccounts(
   options: EntryMasterAccountOption[],
   query: string,
 ): Array<{
-  type: EntryAccountVisualType;
+  type: BookAccountType;
   accounts: EntryMasterAccountOption[];
 }> {
-  const order: EntryAccountVisualType[] = [
+  const order: BookAccountType[] = [
     "asset",
     "liability",
     "equity",
@@ -293,7 +296,7 @@ export function SuggestionInput({
   options,
   placeholder,
   ariaLabel,
-  align = "left",
+  align,
   inputMode,
 }: {
   value: string;
@@ -301,9 +304,10 @@ export function SuggestionInput({
   options: string[];
   placeholder: string | null;
   ariaLabel: string | null;
-  align?: "left" | "right";
+  align: "left" | "right" | null;
   inputMode: "numeric" | "decimal" | null;
 }) {
+  const textAlign = align ?? "left";
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(value);
   const { containerRef, popupRef } = usePopoverLifecycle<
@@ -345,11 +349,12 @@ export function SuggestionInput({
           fontSize: fontSize.sm,
           color: value === "" ? entryDrawerColors.muted : entryDrawerColors.blue,
           fontWeight: fontWeight.regular,
-          textAlign: align,
+          textAlign,
           cursor: "pointer",
           display: "flex",
           alignItems: "center",
-          justifyContent: align === "right" ? "flex-end" : "flex-start",
+          justifyContent:
+            textAlign === "right" ? "flex-end" : "flex-start",
           fontVariantNumeric: inputMode == null ? undefined : "tabular-nums",
         }}
       >
@@ -359,7 +364,7 @@ export function SuggestionInput({
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
             width: "100%",
-            textAlign: align,
+            textAlign,
           }}
         >
           {value === "" ? (placeholder ?? "選択") : value}
@@ -542,24 +547,25 @@ export function BalanceIndicator({
 
 export function ValidationCard({
   messages,
-  compact = false,
+  compact,
 }: {
   messages: string[];
-  compact?: boolean;
+  compact: boolean;
 }) {
+  const isCompact = compact;
   return (
     <div
       role="alert"
       style={{
         width: "100%",
         boxSizing: "border-box",
-        borderRadius: compact ? radii.sm : 12,
+        borderRadius: isCompact ? radii.sm : 12,
         border: `1px solid ${entryDrawerColors.red}2E`,
         background: `${entryDrawerColors.red}0D`,
-        padding: compact ? "10px 12px" : "14px 16px",
+        padding: isCompact ? "10px 12px" : "14px 16px",
         display: "flex",
         flexDirection: "column",
-        gap: compact ? 4 : 8,
+        gap: isCompact ? 4 : 8,
       }}
     >
       <div
@@ -567,7 +573,7 @@ export function ValidationCard({
           display: "inline-flex",
           alignItems: "center",
           gap: 8,
-          fontSize: compact ? fontSize.sm : fontSize.base,
+          fontSize: isCompact ? fontSize.sm : fontSize.base,
           fontWeight: fontWeight.bold,
           color: entryDrawerColors.red,
         }}
@@ -581,7 +587,7 @@ export function ValidationCard({
             paddingLeft: 22,
             fontSize: fontSize.sm,
             color: entryDrawerColors.text,
-            lineHeight: compact ? 1.45 : 1.6,
+            lineHeight: isCompact ? 1.45 : 1.6,
           }}
         >
           ・{message}

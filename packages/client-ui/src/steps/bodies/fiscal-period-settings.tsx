@@ -184,6 +184,7 @@ export function FiscalPeriodSettingsBody({
             />
           }
           hint={null}
+          divider={false}
         />
         <StepFormRow
           label="期間"
@@ -228,7 +229,12 @@ export function FiscalPeriodSettingsBody({
             justifyContent: "flex-end",
           }}
         >
-          <StepPrimaryButton onClick={() => onSwitchToStep?.(2)} variant={null} icon={null}>
+          <StepPrimaryButton
+            onClick={() => onSwitchToStep?.(2)}
+            disabled={false}
+            variant={null}
+            icon={null}
+          >
             次の手順へ
           </StepPrimaryButton>
         </div>

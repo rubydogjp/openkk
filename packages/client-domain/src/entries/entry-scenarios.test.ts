@@ -1,16 +1,19 @@
 import { describe, expect, it } from "vitest";
 
-import type { FixedAssetPreviewItem } from "../assist/fixed-asset-data.js";
+import {
+  entryRecord,
+  type EntryRecordOverrides,
+} from "../../test-support/entry-record.js";
+import type { FixedAsset } from "../assist/fixed-asset-data.js";
 import type { OpeningCarryoverRecord } from "../assist/opening-carryover.js";
 import {
   computeExpenseContribution,
   computeRevenueContribution,
-  parseBusinessRate,
   type EntrySummaryRow,
 } from "../steps/summary.js";
 import {
+  type EntryLine,
   type EntryRecord,
-  getEntryLines,
   recordToPreviewRows,
 } from "./entry-record.js";
 import {
@@ -65,8 +68,8 @@ describe("entry scenario rows", () => {
       ],
     });
 
-    expect(totalBySide(getEntryLines(record), "debit")).toBe(15_000);
-    expect(totalBySide(getEntryLines(record), "credit")).toBe(15_000);
+    expect(totalBySide(record.lines, "debit")).toBe(15_000);
+    expect(totalBySide(record.lines, "credit")).toBe(15_000);
 
     const rows = recordToPreviewRows(record);
     expect(rows).toHaveLength(2);
@@ -147,16 +150,16 @@ describe("entry scenario rows", () => {
         fixedAsset({
           id: "full-year",
           name: "サーバー",
-          acquisitionDate: "2025-01-01", // 通年保有 → 1 年分
-          purchase: "1,200,000",
+          acquisitionDate: "2025-01-01",
+          acquisitionCost: 1_200_000,
           usefulLife: 5,
           businessRate: 1,
         }),
         fixedAsset({
           id: "mid-year",
           name: "モニター",
-          acquisitionDate: "2026-04-10", // 当期取得 → 4〜12月の 9 ヶ月分
-          purchase: "1,200,000",
+          acquisitionDate: "2026-04-10",
+          acquisitionCost: 1_200_000,
           usefulLife: 5,
           businessRate: 1,
         }),
@@ -174,7 +177,7 @@ describe("entry scenario rows", () => {
       debitAmount: "240,000",
       credit: "工具器具備品",
       creditAmount: "240,000",
-      businessRate: "100",
+      businessRate: 1,
     });
     expect(
       rows.find((row) => row.description.includes("モニター")),
@@ -198,12 +201,12 @@ describe("entry scenario rows", () => {
           id: "sold",
           name: "撮影機材",
           acquisitionDate: "2024-01-01",
-          purchase: "1,200,000",
+          acquisitionCost: 1_200_000,
           usefulLife: 5,
           businessRate: 1,
           status: "売却済",
           disposalDate: "2026-06-15",
-          disposalPrice: "700,000",
+          disposalPrice: 700_000,
         }),
       ],
       periodStartDate: "2026-01-01",
@@ -253,7 +256,7 @@ describe("entry scenario rows", () => {
           id: "scrapped",
           name: "旧プリンター",
           acquisitionDate: "2024-01-01",
-          purchase: "1,200,000",
+          acquisitionCost: 1_200_000,
           usefulLife: 5,
           businessRate: 1,
           status: "廃棄済",
@@ -302,12 +305,12 @@ describe("entry scenario rows", () => {
           id: "sold",
           name: "撮影機材",
           acquisitionDate: "2024-01-01",
-          purchase: "1,200,000",
+          acquisitionCost: 1_200_000,
           usefulLife: 5,
           businessRate: 1,
           status: "売却済",
           disposalDate: "2026-06-15",
-          disposalPrice: "700,000",
+          disposalPrice: 700_000,
         }),
       ],
       periodStartDate: "2026-01-01",
@@ -361,13 +364,35 @@ describe("entry scenario rows", () => {
           id: "carryover-accrued-cost",
           fiscalPeriodId: "fp-2027",
           date: "2027-01-01",
-          debit: "未払金",
-          debitType: "liability",
-          debitAmount: "210,000",
-          credit: "仕入金額",
-          creditType: "cost_of_sales",
-          creditAmount: "210,000",
           description: "前年末未払仕入の再振替",
+          lines: [
+            {
+              id: "carryover-accrued-cost-d",
+              side: "debit",
+              accountName: "未払金",
+              accountType: "liability",
+              amount: "210,000",
+              bookAccountId: null,
+              partnerName: "",
+              taxCategoryId: null,
+              taxCategoryName: "対象外",
+              businessCategoryId: null,
+              businessCategoryName: "",
+            },
+            {
+              id: "carryover-accrued-cost-c",
+              side: "credit",
+              accountName: "仕入金額",
+              accountType: "cost_of_sales",
+              amount: "210,000",
+              bookAccountId: null,
+              partnerName: "",
+              taxCategoryId: null,
+              taxCategoryName: "対象外",
+              businessCategoryId: null,
+              businessCategoryName: "",
+            },
+          ],
         }),
       ],
     });
@@ -411,11 +436,11 @@ describe("entry scenario rows", () => {
             amount: "210,000",
             id: null,
             bookAccountId: null,
-            partnerName: null,
+            partnerName: "",
             taxCategoryId: null,
-            taxCategoryName: null,
+            taxCategoryName: "対象外",
             businessCategoryId: null,
-            businessCategoryName: null,
+            businessCategoryName: "",
           },
           {
             side: "credit",
@@ -424,11 +449,11 @@ describe("entry scenario rows", () => {
             amount: "210,000",
             id: null,
             bookAccountId: null,
-            partnerName: null,
+            partnerName: "",
             taxCategoryId: null,
-            taxCategoryName: null,
+            taxCategoryName: "対象外",
             businessCategoryId: null,
-            businessCategoryName: null,
+            businessCategoryName: "",
           },
         ],
       }),
@@ -436,8 +461,7 @@ describe("entry scenario rows", () => {
   });
 });
 
-/** 分析・トレンドと同じく、全行を収益/費用に集計した PL を返す。 */
-function plTotals(rows: ReadonlyArray<Omit<EntrySummaryRow, "lines">>): {
+function plTotals(rows: ReturnType<typeof recordToPreviewRows>): {
   revenue: number;
   expenses: number;
   profit: number;
@@ -445,8 +469,8 @@ function plTotals(rows: ReadonlyArray<Omit<EntrySummaryRow, "lines">>): {
   let revenue = 0;
   let expenses = 0;
   for (const source of rows) {
-    const row: EntrySummaryRow = { ...source, lines: null };
-    const rate = parseBusinessRate(row.businessRate);
+    const row: EntrySummaryRow = entryRecord(source);
+    const rate = row.businessRate;
     revenue += computeRevenueContribution(row, rate);
     expenses += computeExpenseContribution(row, rate);
   }
@@ -454,33 +478,31 @@ function plTotals(rows: ReadonlyArray<Omit<EntrySummaryRow, "lines">>): {
 }
 
 function fixedAsset(
-  overrides: Partial<FixedAssetPreviewItem> & { id: string },
-): FixedAssetPreviewItem {
-  const base: FixedAssetPreviewItem = {
+  overrides: Partial<FixedAsset> & { id: string },
+): FixedAsset {
+  const base: FixedAsset = {
     id: overrides.id,
     name: "資産",
-    account: "工具器具備品",
-    period: "",
-    remaining: "",
-    progress: 0,
-    current: "0",
-    purchase: "0",
+    accountName: "工具器具備品",
+    bookAccountId: "acct_equipment",
     status: "償却中",
     fiscalPeriodId: "fp-2026",
-    accountId: null,
-    depreciationAmount: null,
-    acquisitionDate: null,
-    acquisitionCost: null,
-    usefulLife: null,
-    businessRate: null,
+    acquisitionDate: "2026-01-01",
+    acquisitionCost: 1,
+    usefulLife: 1,
+    businessRate: 1,
     disposalDate: null,
     disposalPrice: null,
+    depreciationStartLabel: "",
+    remainingDepreciationLabel: "",
+    depreciationProgress: 0,
+    currentBookValue: 1,
   };
   return Object.assign(base, overrides);
 }
 
-function entry(overrides: Partial<EntryRecord>): EntryRecord {
-  const base: EntryRecord = {
+function entry(overrides: EntryRecordOverrides): EntryRecord {
+  return entryRecord(overrides, {
     id: "scenario-entry",
     fiscalPeriodId: "fp-2026",
     date: "2026-09-05",
@@ -488,25 +510,10 @@ function entry(overrides: Partial<EntryRecord>): EntryRecord {
     debit: "消耗品費",
     debitType: "expense",
     debitAmount: "10,000",
-    credit: "普通預金",
-    creditType: "asset",
     creditAmount: "15,000",
     description: "複合仕訳のテスト",
-    partner: "",
-    businessRate: "",
     taxCategory: "課税 10%",
-    businessCategory: "",
-    lines: null,
-    businessRateRatio: null,
-    localId: null,
-    debitBookAccountId: null,
-    creditBookAccountId: null,
-    debitTaxCategoryId: null,
-    creditTaxCategoryId: null,
-    debitBusinessCategoryId: null,
-    creditBusinessCategoryId: null,
-  };
-  return Object.assign(base, overrides);
+  });
 }
 
 function openingCarryover(
@@ -517,26 +524,14 @@ function openingCarryover(
     fiscalPeriodId: "fp-2027",
     date: "2027-01-01",
     description: "再振替",
-    debit: "未払金",
-    debitType: "liability",
-    debitAmount: "0",
-    credit: "仕入金額",
-    creditType: "cost_of_sales",
-    creditAmount: "0",
-    partner: "",
-    taxCategory: "対象外",
-    businessCategory: "",
-    businessRate: "",
-    businessRateRatio: null,
-    debitBookAccountId: null,
-    creditBookAccountId: null,
-    lines: null,
+    businessRate: 1,
+    lines: [],
   };
   return Object.assign(base, overrides);
 }
 
 function totalBySide(
-  lines: ReturnType<typeof getEntryLines>,
+  lines: EntryLine[],
   side: "debit" | "credit",
 ): number {
   return lines

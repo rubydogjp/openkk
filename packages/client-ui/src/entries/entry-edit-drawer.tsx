@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 
 import { StepFormRow } from "../steps/step-ui.js";
 import { AmountInput } from "../shared/amount-field.js";
@@ -19,17 +19,17 @@ import {
   sizes,
 } from "../shared/design-tokens.js";
 import {
-  resolveBookAccountByName,
+  resolveGuideBookAccount,
   type QuickGuideOption,
   type QuickGuidePage,
+  mergeOptions,
   type QuickGuideTemplate,
 } from "@rubydogjp/openkk-client-domain";
 import { QuickGuidePanel, QuickGuideTriggerButton } from "./quick-guide-panel.js";
 import {
-  entryFormDraftToEntryDraft,
-  entryRecordToFormDraft,
-  mergeOptions,
-  type EntryFormDraft,
+  entryFormStateToEntryDraft,
+  entryToFormState,
+  type EntryFormState,
   type EntryLinePair,
 } from "./entry-edit-model.js";
 import {
@@ -57,7 +57,6 @@ import type {
 import {
   MAX_ENTRY_LINES,
   parseAmount,
-  type EntryRecord,
 } from "@rubydogjp/openkk-client-domain";
 import {
   validateEntryAmounts,
@@ -81,26 +80,25 @@ const BIZ_RATE_PRESETS = [
 ];
 
 export function EntryEditDrawer(props: {
-  entry: EntryRecord;
+  entry: EntryDraft;
   accountOptions: EntryMasterAccountOption[];
   taxCategoryOptions: EntryMasterCategoryOption[];
   businessCategoryOptions: EntryMasterCategoryOption[];
   suggestions: EntrySuggestions;
-  mode: "create" | "edit" | null;
+  mode: "create" | "edit";
   minDate: string | null;
   maxDate: string | null;
   onSave: (draft: EntryDraft) => Promise<void> | void;
   onDelete: (() => Promise<void> | void) | null;
   onClose: () => void;
 }) {
-  const mode = props.mode ?? "edit";
   const linePairIdSequence = useRef(0);
   const nextLinePairId = () => {
     linePairIdSequence.current += 1;
     return `row-${linePairIdSequence.current}`;
   };
-  const [draft, setDraft] = useState<EntryFormDraft>(() =>
-    entryRecordToFormDraft(props.entry, nextLinePairId),
+  const [draft, setDraft] = useState<EntryFormState>(() =>
+    entryToFormState(props.entry, nextLinePairId),
   );
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -111,19 +109,11 @@ export function EntryEditDrawer(props: {
 
   const [guideStack, setGuideStack] = useState<QuickGuidePage[]>([]);
 
-  useEffect(() => {
-    setDraft(entryRecordToFormDraft(props.entry, nextLinePairId));
-    setConfirmingDelete(false);
-    setTriedSave(false);
-    setErrorText(null);
-    setGuideStack([]);
-  }, [props.entry.id]);
-
   const drawerRef = useModalLifecycle<HTMLElement>(() => {
     if (!mutationLock.current.isLocked) props.onClose();
   }, null);
 
-  const update = (patch: Partial<EntryFormDraft>) =>
+  const update = (patch: Partial<EntryFormState>) =>
     setDraft((current) => ({ ...current, ...patch }));
 
   const updatePartner = (value: string) =>
@@ -217,7 +207,7 @@ export function EntryEditDrawer(props: {
     setGuideStack((prev) => (prev.length <= 1 ? [] : prev.slice(0, -1)));
 
   const findAccountByName = (name: string): EntryMasterAccountOption | null =>
-    resolveBookAccountByName(name, props.accountOptions);
+    resolveGuideBookAccount(name, props.accountOptions);
 
   const applyGuideTemplate = (template: QuickGuideTemplate) => {
     const debit = findAccountByName(template.debitAccountName);
@@ -250,25 +240,21 @@ export function EntryEditDrawer(props: {
         debitLineId: null,
         creditLineId: null,
       };
+      const templateDescription = template.description?.trim() ?? "";
       const shouldSetDescription =
-        template.description != null &&
-        template.description.trim() !== "" &&
-        current.description.trim() === "";
+        templateDescription !== "" && current.description.trim() === "";
       const newDescription = shouldSetDescription
-        ? template.description!.trim()
+        ? templateDescription
         : current.description;
-      const newBusinessRate =
-        template.businessRatePercent != null
-          ? String(Math.max(0, Math.min(100, template.businessRatePercent)))
-          : current.businessRate;
+      const templateRatePercent = template.businessRatePercent;
       return {
         ...current,
         description: newDescription,
-        businessRate: newBusinessRate,
-        businessRateRatio:
-          template.businessRatePercent == null
-            ? current.businessRateRatio
-            : null,
+        businessRateInput:
+          templateRatePercent == null
+            ? current.businessRateInput
+            : String(Math.max(0, Math.min(100, templateRatePercent))),
+        businessRate: templateRatePercent == null ? current.businessRate : null,
         pairs: [newPair],
       };
     });
@@ -285,7 +271,7 @@ export function EntryEditDrawer(props: {
       pushGuide(option.nextPage);
       return;
     }
-    if (option.close === true) {
+    if (option.close) {
       closeGuide();
     }
   };
@@ -338,7 +324,7 @@ export function EntryEditDrawer(props: {
   if (amountValidationMessage != null)
     validationMessages.push(amountValidationMessage);
   const businessRateValidationMessage = validateBusinessRate(
-    draft.businessRate,
+    draft.businessRateInput,
   );
   if (businessRateValidationMessage != null) {
     validationMessages.push(businessRateValidationMessage);
@@ -373,7 +359,7 @@ export function EntryEditDrawer(props: {
     setSaving(true);
     setErrorText(null);
     try {
-      await props.onSave(entryFormDraftToEntryDraft(draft, props.accountOptions));
+      await props.onSave(entryFormStateToEntryDraft(draft, props.accountOptions));
     } catch (error) {
       debugAppError(error);
       setErrorText(safeUserErrorMessage(error, "保存に失敗しました"));
@@ -428,7 +414,9 @@ export function EntryEditDrawer(props: {
         ref={drawerRef}
         role="dialog"
         aria-modal="true"
-        aria-label={mode === "create" ? "仕訳の新規作成" : "仕訳の編集"}
+        aria-label={
+          props.mode === "create" ? "仕訳の新規作成" : "仕訳の編集"
+        }
         tabIndex={-1}
         className="bk-entry-drawer"
         style={{
@@ -482,7 +470,7 @@ export function EntryEditDrawer(props: {
               color: entryDrawerColors.text,
             }}
           >
-            {mode === "create" ? "仕訳の新規作成" : "仕訳の編集"}
+            {props.mode === "create" ? "仕訳の新規作成" : "仕訳の編集"}
           </div>
           <button
             type="button"
@@ -546,6 +534,7 @@ export function EntryEditDrawer(props: {
                   />
                 }
                 hint={null}
+                divider={false}
               />
 
               <div
@@ -678,6 +667,7 @@ export function EntryEditDrawer(props: {
                   </div>
                 }
                 hint={null}
+                divider={false}
               />
               <StepFormRow
                 label="取引先"
@@ -689,22 +679,24 @@ export function EntryEditDrawer(props: {
                       options={mergeOptions([], props.suggestions.partner)}
                       ariaLabel="取引先"
                       placeholder="取引先を入力"
+                      align={null}
                       inputMode={null}
                     />
                   </div>
                 }
                 hint={null}
+                divider={false}
               />
               <StepFormRow
                 label="事業割合 (%)"
                 control={
                   <div style={{ width: 120 }}>
                     <SuggestionInput
-                      value={draft.businessRate}
+                      value={draft.businessRateInput}
                       onChange={(next) =>
                         update({
-                          businessRate: next.trim(),
-                          businessRateRatio: null,
+                          businessRateInput: next.trim(),
+                          businessRate: null,
                         })
                       }
                       options={BIZ_RATE_PRESETS}
@@ -716,6 +708,7 @@ export function EntryEditDrawer(props: {
                   </div>
                 }
                 hint={null}
+                divider={false}
               />
               <StepFormRow
                 label="課税区分"
@@ -730,11 +723,13 @@ export function EntryEditDrawer(props: {
                       )}
                       ariaLabel="課税区分"
                       placeholder="未選択"
+                      align={null}
                       inputMode={null}
                     />
                   </div>
                 }
                 hint={null}
+                divider={false}
               />
               <StepFormRow
                 label="事業区分"
@@ -749,11 +744,13 @@ export function EntryEditDrawer(props: {
                       )}
                       ariaLabel="事業区分"
                       placeholder="未選択"
+                      align={null}
                       inputMode={null}
                     />
                   </div>
                 }
                 hint={null}
+                divider={false}
               />
             </>
           )}
@@ -782,7 +779,7 @@ export function EntryEditDrawer(props: {
               width: "100%",
             }}
           >
-            {mode === "edit" && props.onDelete != null ? (
+          {props.mode === "edit" && props.onDelete != null ? (
               <button
                 type="button"
                 onClick={() => setConfirmingDelete(true)}
@@ -821,7 +818,11 @@ export function EntryEditDrawer(props: {
                   cursor: saving || deleting ? "default" : "pointer",
                 }}
               >
-                {saving ? "保存中…" : mode === "create" ? "作成" : "保存"}
+                {saving
+                  ? "保存中…"
+                  : props.mode === "create"
+                    ? "作成"
+                    : "保存"}
               </button>
             </div>
           </div>

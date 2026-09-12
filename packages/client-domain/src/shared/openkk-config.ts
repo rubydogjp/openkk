@@ -53,11 +53,11 @@ export interface OpenkkConfig {
 }
 
 export function createSystemClock(
-  currentDate: () => Date = () => new Date(),
+  currentDate: (() => Date) | null,
 ): OpenkkClock {
   return {
     kind: "system",
-    today: () => new Date(currentDate()),
+    today: () => new Date(currentDate?.() ?? Date.now()),
   };
 }
 

@@ -1,6 +1,5 @@
 import {
   entryToVisualPairs,
-  getEntryLines,
   resolveEntryPairMetadata,
   type EntryLine,
   type EntryRecord,
@@ -74,7 +73,7 @@ export function buildJournalBody(
       const debitTotal = rows.reduce(
         (s, r) =>
           s +
-          getEntryLines(r)
+          r.lines
             .filter((line) => line.side === "debit")
             .reduce((lineSum, line) => lineSum + parseNum(line.amount), 0),
         0,
@@ -82,7 +81,7 @@ export function buildJournalBody(
       const creditTotal = rows.reduce(
         (s, r) =>
           s +
-          getEntryLines(r)
+          r.lines
             .filter((line) => line.side === "credit")
             .reduce((lineSum, line) => lineSum + parseNum(line.amount), 0),
         0,
@@ -96,7 +95,7 @@ export function buildJournalBody(
             pairs.map((pair, index) => {
               const isFirstPair = pairOffset + index === 0;
               const metadata = formatEntryMetadata(
-                resolveEntryPairMetadata(entry, pair),
+                resolveEntryPairMetadata(pair),
               );
               return `<tr>
   <td style="${TD}">${isFirstPair ? esc(fmtDate(entry.date)) : ""}</td>

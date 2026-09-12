@@ -4,18 +4,21 @@ import {
   MAX_ENTRY_IMPORT_LINES,
   MAX_ENTRY_LINES,
 } from "@rubydogjp/openkk-server-domain";
-import type { FiscalPeriodOpeningDbRecord } from "../persistence-types.js";
+import type {
+  FiscalPeriodDbRecord,
+  FiscalPeriodOpeningDbRecord,
+} from "@rubydogjp/openkk-server-ports";
 
 import {
-  parseFiscalPeriodDbRecord,
-  parseFixedAssetDbRecord,
-  serializeFiscalPeriodDbRecord,
+  parseFiscalPeriodDataColumn,
+  parseFixedAssetDataColumn,
+  serializeFiscalPeriodDataColumn,
   validateOpeningDbRecord,
 } from "./persistence-codec.js";
 
 describe("SQLite persistence codecs", () => {
   it("parses phase and archive status independently", () => {
-    const record = parseFiscalPeriodDbRecord(
+    const record = parseFiscalPeriodDataColumn(
       JSON.stringify({
         id: "fp-1",
         name: "FY2026",
@@ -23,10 +26,11 @@ describe("SQLite persistence codecs", () => {
         endDate: "2026-12-31",
         phase: "pre_opening",
         archiveStatus: "archived",
+        archiveDataAvailable: true,
+        archivedAt: "2026-12-31T00:00:00.000Z",
         settingsCompleted: false,
         openingBalancesCompleted: false,
         documentsReceivedCompleted: false,
-        opening: null,
       }),
     );
     expect(record.phase).toBe("pre_opening");
@@ -34,8 +38,8 @@ describe("SQLite persistence codecs", () => {
   });
 
   it.each([
-    ["fiscal period", parseFiscalPeriodDbRecord, { id: "fp-1" }],
-    ["fixed asset", parseFixedAssetDbRecord, { id: "fa-1", usefulLife: null }],
+    ["fiscal period", parseFiscalPeriodDataColumn, { id: "fp-1" }],
+    ["fixed asset", parseFixedAssetDataColumn, { id: "fa-1", usefulLife: null }],
   ])("rejects malformed %s JSON", (_label, parse, value) => {
     expect(() => parse(JSON.stringify(value))).toThrow(
       /Invalid .* data in SQLite/,
@@ -43,7 +47,7 @@ describe("SQLite persistence codecs", () => {
   });
 
   it("does not persist column-backed fields inside fiscal period JSON", () => {
-    const json = serializeFiscalPeriodDbRecord({
+    const record: FiscalPeriodDbRecord = {
       id: "fp-1",
       userId: "user-1",
       name: "FY2026",
@@ -65,9 +69,10 @@ describe("SQLite persistence codecs", () => {
         openingBalanceLines: [],
         openingJournals: [],
       },
-      archiveDataAvailable: null,
+      archiveDataAvailable: true,
       archivedAt: null,
-    });
+    };
+    const json = serializeFiscalPeriodDataColumn(record);
     const parsed = JSON.parse(json);
     expect(parsed).not.toHaveProperty("opening");
     expect(parsed).not.toHaveProperty("userId");
@@ -86,9 +91,10 @@ describe("SQLite persistence codecs", () => {
       "an active purged-data marker",
       { archiveDataAvailable: false, archiveStatus: "active" },
     ],
+    ["a missing archivedAt field", { archivedAt: undefined }],
   ])("rejects a fiscal period with %s", (_label, patch) => {
     expect(() =>
-      parseFiscalPeriodDbRecord(
+      parseFiscalPeriodDataColumn(
         JSON.stringify({
           id: "fp-1",
           name: "FY2026",
@@ -96,6 +102,8 @@ describe("SQLite persistence codecs", () => {
           endDate: "2026-12-31",
           phase: "journalizing",
           archiveStatus: "active",
+          archiveDataAvailable: true,
+          archivedAt: null,
           settingsCompleted: true,
           openingBalancesCompleted: true,
           documentsReceivedCompleted: false,
@@ -206,7 +214,7 @@ describe("SQLite persistence codecs", () => {
 
   it("rejects zero-cost fixed assets loaded from SQLite", () => {
     expect(() =>
-      parseFixedAssetDbRecord(
+      parseFixedAssetDataColumn(
         JSON.stringify({
           id: "fa-1",
           fiscalPeriodId: "fp-1",
@@ -217,8 +225,8 @@ describe("SQLite persistence codecs", () => {
           depreciationMethod: "straight_line",
           businessRate: 1,
           status: "active",
-          disposalDate: "",
-          disposalPrice: 0,
+          disposalDate: null,
+          disposalPrice: null,
           bookAccountId: "acct_equipment",
         }),
       ),

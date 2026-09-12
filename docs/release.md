@@ -1,6 +1,6 @@
 # リリース手順
 
-`packages/` 配下のライブラリ 16 個を npm に publish する。
+`packages/` 配下のライブラリを npm に publish する。
 `@rubydogjp/openkk` / `openkk-sim` / `openkk-demo` はアプリなので `private: true`、publish されない。
 
 publish の認証は Trusted Publishing (OIDC) で行う。npm のトークンは使わないので、
@@ -17,29 +17,25 @@ GitHub Secrets に登録するものは無い。
    `package-lock.json` も一緒に更新される。
 
    ```
-   npm run version:set 26.1.9
+   npm run version:set X.Y.Z
    ```
 
 2. 差分を確認してコミットする。
 
    ```
-   git commit -am "bump version to 26.1.9"
+   git commit -am "release: X.Y.Z"
    ```
 
 3. タグを打って push する。
 
    ```
-   git tag v26.1.9
-   git push origin main v26.1.9
+   git tag vX.Y.Z
+   git push origin main vX.Y.Z
    ```
 
 4. `Release` workflow がタグ一致の検証 → 生成物検証 → build → lint → unit/E2E test
    → 本番依存監査 → `npm publish` を実行する。
    provenance は OIDC 経由の publish で自動的に付く。
-
-`scripts/verify-release.mjs` が publish 前に全パッケージをまとめて検証するのは、
-publish が1パッケージずつ進むため。provenance は `repository.url` の一致を要求するので、
-1つでも欠けていると数件 publish した後で落ち、バージョンが混在して公開される。
 
 内容だけ先に確認したい場合は `Release` workflow を手動実行する。
 `dry_run` が既定で有効なので、publish せずに配布物を確認できる。

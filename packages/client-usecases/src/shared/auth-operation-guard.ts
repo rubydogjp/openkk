@@ -23,6 +23,7 @@ export class AuthOperationGuard {
       messageForUser: "認証状態が変わったため、処理を中止しました",
       originalMessage: null,
       statusCode: null,
+      code: null,
     });
   }
 }

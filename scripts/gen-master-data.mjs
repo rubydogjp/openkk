@@ -29,10 +29,10 @@ const outputs = [
       "generated-master-data.ts",
     ),
     source: buildTypescript(catalog, {
-      accountTypeName: "EntryAccountVisualType",
+      accountTypeName: "BookAccountType",
       declareAccountType: false,
       header:
-        'import type { EntryAccountVisualType } from "./entries-types.js";\n\n',
+        'import type { BookAccountType } from "./book-account.js";\n\n',
     }),
   },
 ];

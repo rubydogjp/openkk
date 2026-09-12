@@ -1,11 +1,5 @@
-// テスト用の Worker スタブ。ブラウザの sqlite.worker.js の代わりに、Node 上で
-// sqlite-wasm(:memory:) を動かし、file-db-adapter の Worker メッセージプロトコル
-// ({id,type,payload} → {id,ok,result/error}) を忠実に話す。これにより
-// createFileDbAdapter の実トランスポート（createWorkerSqlDb の往復）を Node で検証できる。
-// vitest に依存しないが、テスト専用のためビルドからは除外する。
-
 import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
-import { runMigrations } from "@rubydogjp/openkk-server-ports";
+import { runMigrations } from "@rubydogjp/openkk-sqlite-adapter";
 
 type WorkerMessage = {
   id: number;
@@ -13,8 +7,8 @@ type WorkerMessage = {
   payload: unknown;
 };
 
-export class RealDbWorker {
-  static instances: RealDbWorker[] = [];
+export class InMemoryDbWorker {
+  static instances: InMemoryDbWorker[] = [];
   onmessage: ((event: MessageEvent) => void) | null = null;
   onmessageerror: (() => void) | null = null;
   onerror: ((event: ErrorEvent) => void) | null = null;
@@ -22,15 +16,15 @@ export class RealDbWorker {
   private dbPromise: Promise<{ exec(arg: unknown): unknown }> | null = null;
 
   constructor() {
-    RealDbWorker.instances.push(this);
+    InMemoryDbWorker.instances.push(this);
   }
 
   private getDb() {
     if (this.dbPromise == null) {
       this.dbPromise = (async () => {
         const sqlite3 = await sqlite3InitModule({
-          print: () => undefined,
-          printErr: () => undefined,
+          print: () => {},
+          printErr: () => {},
         });
         const db = new sqlite3.oo1.DB(":memory:");
         runMigrations(db);
@@ -46,7 +40,7 @@ export class RealDbWorker {
         const db = await this.getDb();
         if (message.type === "init") {
           this.onmessage?.({
-            data: { id: message.id, ok: true },
+            data: { id: message.id, ok: true, result: null },
             source: null,
             currentTarget: null,
             srcElement: null,
@@ -54,15 +48,17 @@ export class RealDbWorker {
           } as MessageEvent);
           return;
         }
-        const arg = message.payload as { returnValue?: string };
         const wantsRows =
-          typeof arg === "object" && arg?.returnValue === "resultRows";
+          typeof message.payload === "object" &&
+          message.payload != null &&
+          "returnValue" in message.payload &&
+          message.payload.returnValue === "resultRows";
         const result = db.exec(message.payload);
         this.onmessage?.({
           data: {
             id: message.id,
             ok: true,
-            result: wantsRows ? result : undefined,
+            result: wantsRows ? result : null,
           },
           source: null,
           currentTarget: null,

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { RealDbWorker } from "./real-db-worker.js";
+import { InMemoryDbWorker } from "../test-support/in-memory-db-worker.js";
 
 type WorkerMessage = {
   id: number;
@@ -56,7 +56,13 @@ class FakeWorker {
   }
 
   crash(message: string): void {
-    this.onerror?.({ message, error: null, currentTarget: null, srcElement: null, target: null } as ErrorEvent);
+    this.onerror?.({
+      message,
+      error: null,
+      currentTarget: null,
+      srcElement: null,
+      target: null,
+    } as ErrorEvent);
   }
 }
 
@@ -73,13 +79,16 @@ describe("createFileDbAdapter — behavior parity over the worker proxy", () => 
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.resetModules();
-    RealDbWorker.instances = [];
+    InMemoryDbWorker.instances = [];
   });
 
   async function makeDb() {
-    vi.stubGlobal("Worker", RealDbWorker);
+    vi.stubGlobal("Worker", InMemoryDbWorker);
     const { createFileDbAdapter } = await import("./index.js");
-    return createFileDbAdapter({ vfsName: "opfs-behavior", dbFileName: null }, null);
+    return createFileDbAdapter(
+      { vfsName: "opfs-behavior", dbFileName: null },
+      null,
+    );
   }
 
   async function seedFiscalPeriod(db: Awaited<ReturnType<typeof makeDb>>) {
@@ -136,7 +145,6 @@ describe("createFileDbAdapter — behavior parity over the worker proxy", () => 
     ]);
     expect(first).toHaveLength(2);
 
-    // 同じ localId は再取込みでスキップされ、新規のみ挿入される。
     const second = await db.entries.importMany("user-1", fp.id, [
       entryInput("a"),
       entryInput("c"),
@@ -171,7 +179,7 @@ describe("createFileDbAdapter", () => {
     FakeWorker.instances = [];
   });
 
-  it("clears the singleton cache when worker initialization fails so callers can retry", async () => {
+  it("clears a failed initialization so callers can retry", async () => {
     vi.stubGlobal("Worker", FakeWorker);
     FakeWorker.outcomes = [
       { kind: "response", ok: false, error: "ANOTHER_TAB" },
@@ -179,11 +187,17 @@ describe("createFileDbAdapter", () => {
     ];
     const { createFileDbAdapter } = await import("./index.js");
 
-    await expect(createFileDbAdapter({ vfsName: "opfs-test", dbFileName: null }, null)).rejects.toThrow(
-      "ANOTHER_TAB",
-    );
+    await expect(
+      createFileDbAdapter(
+        { vfsName: "opfs-test", dbFileName: null },
+        null,
+      ),
+    ).rejects.toThrow("ANOTHER_TAB");
 
-    const db = await createFileDbAdapter({ vfsName: "opfs-test", dbFileName: null }, null);
+    const db = await createFileDbAdapter(
+      { vfsName: "opfs-test", dbFileName: null },
+      null,
+    );
 
     expect(db.fiscalPeriods).toBeTruthy();
     expect(FakeWorker.instances).toHaveLength(2);
@@ -198,11 +212,17 @@ describe("createFileDbAdapter", () => {
     ];
     const { createFileDbAdapter } = await import("./index.js");
 
-    await expect(createFileDbAdapter({ vfsName: "opfs-test", dbFileName: null }, null)).rejects.toThrow(
-      "postMessage failed",
-    );
+    await expect(
+      createFileDbAdapter(
+        { vfsName: "opfs-test", dbFileName: null },
+        null,
+      ),
+    ).rejects.toThrow("postMessage failed");
 
-    const db = await createFileDbAdapter({ vfsName: "opfs-test", dbFileName: null }, null);
+    const db = await createFileDbAdapter(
+      { vfsName: "opfs-test", dbFileName: null },
+      null,
+    );
 
     expect(db.entries).toBeTruthy();
     expect(FakeWorker.instances).toHaveLength(2);
@@ -232,11 +252,14 @@ describe("createFileDbAdapter", () => {
     expect(FakeWorker.instances).toHaveLength(1);
   });
 
-  it("rejects in-flight and future calls after a runtime worker crash and allows recreation", async () => {
+  it("rejects calls after a worker crash and allows recreation", async () => {
     vi.stubGlobal("Worker", FakeWorker);
     FakeWorker.outcomes = [{ kind: "response", ok: true }];
     const { createFileDbAdapter } = await import("./index.js");
-    const first = await createFileDbAdapter({ vfsName: "opfs-test", dbFileName: null }, null);
+    const first = await createFileDbAdapter(
+      { vfsName: "opfs-test", dbFileName: null },
+      null,
+    );
 
     FakeWorker.instances[0]!.hangNext = true;
     const inFlight = first.fiscalPeriods.getAllByUser("user-1");

@@ -26,7 +26,7 @@
   "devDependencies": {
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.5",
-    "next": "^16.2.12",
+    "next": "^16.3.4",
     "typescript": "^5.8.3"
   },
   "description": "オープン会計 frontend ランタイム共通基盤 — bundle 非依存の Providers 配線・env パース・Next 設定を 3 バンドルアプリ(openkk/openkk_sim/openkk_demo)で共有する。",

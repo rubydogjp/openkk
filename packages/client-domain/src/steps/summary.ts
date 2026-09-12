@@ -3,56 +3,18 @@ import {
   applyBusinessRateToLines,
   type EntryLine,
 } from "../entries/entry-record.js";
-import type { EntryAccountVisualType } from "../entries/entries-types.js";
 export { parseAmount, parseBusinessRate } from "../shared/parse-utils.js";
 
 export type EntrySummaryRow = {
-  businessRate: string;
-  businessRateRatio: number | null;
-  debitType: string;
-  debitAmount: string;
-  creditType: string;
-  creditAmount: string;
-  lines: EntryLine[] | null;
+  businessRate: number;
+  lines: EntryLine[];
 };
-
-function summaryRowLines(record: EntrySummaryRow): EntryLine[] {
-  if (record.lines != null && record.lines.length > 0) return record.lines;
-  return [
-    {
-      side: "debit",
-      accountName: "",
-      accountType: record.debitType as EntryAccountVisualType,
-      amount: record.debitAmount,
-      id: null,
-      bookAccountId: null,
-      partnerName: null,
-      taxCategoryId: null,
-      taxCategoryName: null,
-      businessCategoryId: null,
-      businessCategoryName: null,
-    },
-    {
-      side: "credit",
-      accountName: "",
-      accountType: record.creditType as EntryAccountVisualType,
-      amount: record.creditAmount,
-      id: null,
-      bookAccountId: null,
-      partnerName: null,
-      taxCategoryId: null,
-      taxCategoryName: null,
-      businessCategoryId: null,
-      businessCategoryName: null,
-    },
-  ];
-}
 
 function businessRateAdjustedLines(
   record: EntrySummaryRow,
   rate: number,
 ): EntryLine[] {
-  return applyBusinessRateToLines(summaryRowLines(record), rate);
+  return applyBusinessRateToLines(record.lines, rate);
 }
 
 export function computeRevenueContribution(

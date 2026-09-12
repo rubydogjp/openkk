@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { fileURLToPath, pathToFileURL } from "node:url";
-import { execFileSync } from "node:child_process";
-import { tmpdir } from "node:os";
+import { readFileSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -14,18 +13,16 @@ const tokensPath = path.join(
 );
 const outFile = path.join(root, "docs", "theming.md");
 
-const work = mkdtempSync(path.join(tmpdir(), "openkk-theme-docs-"));
-const bundle = path.join(work, "design-tokens.mjs");
-
-execFileSync(
-  path.join(root, "node_modules/.bin/esbuild"),
-  [tokensPath, "--bundle", "--format=esm", `--outfile=${bundle}`, "--log-level=error"],
-  { cwd: root },
+const ts = createRequire(tokensPath)("typescript");
+const { outputText } = ts.transpileModule(readFileSync(tokensPath, "utf8"), {
+  compilerOptions: {
+    target: ts.ScriptTarget.ES2022,
+    module: ts.ModuleKind.ES2022,
+  },
+});
+const tokens = await import(
+  `data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`
 );
-
-const tokens = await import(pathToFileURL(bundle).href);
-
-rmSync(work, { recursive: true, force: true });
 
 const parseVar = (value) => {
   const m = /^var\((--openkk-[a-z0-9-]+),\s*([\s\S]+)\)$/.exec(value);
@@ -139,5 +136,11 @@ const md = `<!-- npm run gen-theme-docs で生成。直接編集しない。 -->
 
 ${tables}`;
 
-writeFileSync(outFile, md);
-console.log(`wrote ${path.relative(root, outFile)} (${total} variables)`);
+if (process.argv.includes("--check")) {
+  if (readFileSync(outFile, "utf8") !== md) {
+    throw new Error("Generated theme documentation is stale: docs/theming.md");
+  }
+} else {
+  writeFileSync(outFile, md);
+  console.log(`wrote ${path.relative(root, outFile)} (${total} variables)`);
+}

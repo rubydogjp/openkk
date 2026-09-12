@@ -1,14 +1,16 @@
 import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
 import {
-  createSqliteDbAdapter,
-  runMigrations,
   type DbSnapshot,
   type OpenkkDbPort,
-  type SqlDb,
 } from "@rubydogjp/openkk-server-ports";
+import {
+  createSqliteDbAdapter,
+  runMigrations,
+  type SqlDb,
+} from "@rubydogjp/openkk-sqlite-adapter";
 
 import { createMemoryDbAdapter } from "./index.js";
-import { runDbPortConformance } from "../../server-ports/src/db-port-conformance.js";
+import { runDbPortConformance } from "../../server-ports/test-support/db-port-conformance.js";
 
 runDbPortConformance("memory-db-adapter (sync transport)", {
   makeAdapter: () => createMemoryDbAdapter(null),

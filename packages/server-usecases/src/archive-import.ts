@@ -5,8 +5,6 @@ import {
   assertOpeningBalanceAccountId,
   assertUniqueAccountIds,
   computeFixedAssetBookValue,
-  DEFAULT_BUSINESS_CATEGORIES,
-  DEFAULT_TAX_CATEGORIES,
   getDefaultBookAccount,
   MAX_ENTRY_IMPORT_ITEMS,
   MAX_ENTRY_IMPORT_LINES,
@@ -18,8 +16,18 @@ import type {
   EntryUpsertInput,
   FiscalPeriodArchiveDbImportInput,
   FiscalPeriodArchiveImportInput,
-  FixedAssetPatchInput,
+  FixedAssetDbImportInput,
 } from "@rubydogjp/openkk-server-ports";
+import { migrateFiscalPeriodArchiveV1 } from "./archive-import-v1.js";
+
+type FiscalPeriodArchiveVersion = 1 | 2;
+
+export type FiscalPeriodArchiveContent = {
+  fiscalPeriod: Record<string, unknown>;
+  entries: unknown[];
+  fixedAssets: unknown[];
+  closings: unknown[];
+};
 
 export function normalizeArchiveImportInput(
   input: FiscalPeriodArchiveImportInput,
@@ -27,39 +35,60 @@ export function normalizeArchiveImportInput(
 ): FiscalPeriodArchiveDbImportInput {
   const archive = objectValue(input, "archive");
   const manifest = objectValue(archive.manifest, "archive manifest");
-  const fiscalPeriod = objectValue(
+  const sourceFiscalPeriod = objectValue(
     archive.fiscalPeriod,
     "archive fiscalPeriod",
   );
-  const entries = requireArrayValue(archive.entries, "archive entries");
-  const fixedAssets = requireArrayValue(
+  const sourceEntries = requireArrayValue(archive.entries, "archive entries");
+  const sourceFixedAssets = requireArrayValue(
     archive.fixedAssets,
     "archive fixedAssets",
   );
-  const closings = requireArrayValue(archive.closings, "archive closings");
+  const sourceClosings = requireArrayValue(
+    archive.closings,
+    "archive closings",
+  );
   assertArchiveImportSizeLimits({
-    fiscalPeriod,
-    entries,
-    fixedAssets,
-    closings,
+    fiscalPeriod: sourceFiscalPeriod,
+    entries: sourceEntries,
+    fixedAssets: sourceFixedAssets,
+    closings: sourceClosings,
   });
   const manifestFiscalPeriodId = requireString(
     manifest.fiscalPeriodId,
     "archive manifest.fiscalPeriodId",
   );
-  const sourceId = requireString(fiscalPeriod.id, "archive fiscalPeriod.id");
+  const sourceId = requireString(
+    sourceFiscalPeriod.id,
+    "archive fiscalPeriod.id",
+  );
   if (sourceId !== manifestFiscalPeriodId) {
     throw serverValidationError(
       "archive fiscalPeriod id does not match manifest",
+      null,
     );
   }
   if (manifest.format !== "openkk.fiscal-period-archive") {
-    throw serverValidationError("archive manifest.format is invalid");
+    throw serverValidationError("archive manifest.format is invalid", null);
   }
-  if (manifest.version !== 1) {
-    throw serverValidationError("archive manifest.version is not supported");
-  }
+  const archiveVersion = requireArchiveVersion(manifest.version);
+  const content: FiscalPeriodArchiveContent = {
+    fiscalPeriod: sourceFiscalPeriod,
+    entries: sourceEntries,
+    fixedAssets: sourceFixedAssets,
+    closings: sourceClosings,
+  };
+  const { fiscalPeriod, entries, fixedAssets, closings } =
+    archiveVersion === 1
+      ? migrateFiscalPeriodArchiveV1(content, sourceId)
+      : content;
   const sourceOpening = fiscalPeriod.opening;
+  if (sourceOpening === undefined) {
+    throw serverValidationError(
+      "archive fiscalPeriod.opening must be null or an object",
+      null,
+    );
+  }
   const startDate = requireIsoDate(
     fiscalPeriod.startDate,
     "archive fiscalPeriod.startDate",
@@ -69,7 +98,7 @@ export function normalizeArchiveImportInput(
     "archive fiscalPeriod.endDate",
   );
   assertDateRange(startDate, endDate, "archive fiscalPeriod");
-  const periodName = requireString(
+  const periodName = requireText(
     fiscalPeriod.name,
     "archive fiscalPeriod.name",
   );
@@ -80,6 +109,7 @@ export function normalizeArchiveImportInput(
   ) {
     throw serverValidationError(
       "archive manifest fiscal-period metadata does not match fiscalPeriod",
+      null,
     );
   }
   const normalizedClosings = closings.map((closing) =>
@@ -94,11 +124,12 @@ export function normalizeArchiveImportInput(
     if (closing.year !== expectedClosingYear) {
       throw serverValidationError(
         `archive closing.year must match fiscal period end year ${expectedClosingYear}`,
+        null,
       );
     }
     const key = `${closing.kind}:${closing.year}`;
     if (closingKeys.has(key)) {
-      throw serverValidationError(`archive closing is duplicated: ${key}`);
+      throw serverValidationError(`archive closing is duplicated: ${key}`, null);
     }
     closingKeys.add(key);
   }
@@ -117,6 +148,7 @@ export function normalizeArchiveImportInput(
     if (entryLocalIds.has(entry.localId)) {
       throw serverValidationError(
         `archive entry.localId is duplicated: ${entry.localId}`,
+        null,
       );
     }
     entryLocalIds.add(entry.localId);
@@ -260,7 +292,7 @@ function normalizeFiscalPeriodPhase(value: unknown) {
   ) {
     return value;
   }
-  throw serverValidationError("archive fiscalPeriod.phase is invalid");
+  throw serverValidationError("archive fiscalPeriod.phase is invalid", null);
 }
 
 function normalizeArchivedOpening(
@@ -271,7 +303,7 @@ function normalizeArchivedOpening(
   openingBalancesCompleted: boolean,
 ) {
   const opening = objectValue(value, "archive opening");
-  const openingBalanceLines = arrayValue(
+  const openingBalanceLines = requireArrayValue(
     opening.openingBalanceLines,
     "archive openingBalanceLines",
   ).map((line) => {
@@ -298,45 +330,45 @@ function normalizeArchivedOpening(
     "archive openingBalanceLines",
   );
   assertUniqueIds(openingBalanceLines, "archive openingBalanceLines");
-  const openingJournals = arrayValue(
+  const openingJournals = requireArrayValue(
     opening.openingJournals,
     "archive openingJournals",
   ).map((journal) => {
     const item = objectValue(journal, "archive openingJournal");
     const id = requireString(item.id, "archive openingJournal.id");
-    const lines = arrayValue(item.lines, "archive openingJournal.lines").map(
-      (line, index) => {
-        const lineObject = objectValue(line, "archive openingJournal.line");
-        return {
-          id: legacyOptionalId(
-            lineObject.id,
-            `${id}-line-${index + 1}`,
-            "archive openingJournal.line.id",
-          ),
-          side: normalizeSide(lineObject.side),
-          bookAccountId: requireString(
-            lineObject.bookAccountId,
-            "archive openingJournal.line.bookAccountId",
-          ),
-          amount: requireNonNegativeNumber(
-            lineObject.amount,
-            "archive openingJournal.line.amount",
-          ),
-          partnerName: optionalString(
-            lineObject.partnerName,
-            "archive openingJournal.line.partnerName",
-          ),
-          taxCategoryId: normalizeTaxCategoryId(
-            lineObject.taxCategoryId,
-            "archive openingJournal.line.taxCategoryId",
-          ),
-          businessCategoryId: normalizeBusinessCategoryId(
-            lineObject.businessCategoryId,
-            "archive openingJournal.line.businessCategoryId",
-          ),
-        };
-      },
-    );
+    const lines = requireArrayValue(
+      item.lines,
+      "archive openingJournal.lines",
+    ).map((line) => {
+      const lineObject = objectValue(line, "archive openingJournal.line");
+      return {
+        id: requireString(
+          lineObject.id,
+          "archive openingJournal.line.id",
+        ),
+        side: normalizeSide(lineObject.side),
+        bookAccountId: requireString(
+          lineObject.bookAccountId,
+          "archive openingJournal.line.bookAccountId",
+        ),
+        amount: requireNonNegativeNumber(
+          lineObject.amount,
+          "archive openingJournal.line.amount",
+        ),
+        partnerName: requireTextValue(
+          lineObject.partnerName,
+          "archive openingJournal.line.partnerName",
+        ),
+        taxCategoryId: requireTextValue(
+          lineObject.taxCategoryId,
+          "archive openingJournal.line.taxCategoryId",
+        ),
+        businessCategoryId: requireTextValue(
+          lineObject.businessCategoryId,
+          "archive openingJournal.line.businessCategoryId",
+        ),
+      };
+    });
     assertUniqueIds(lines, `archive openingJournal ${id} lines`);
     assertEntryLinesBalanced(lines, "archive openingJournal", {
       allowZero: true,
@@ -345,13 +377,14 @@ function normalizeArchivedOpening(
     if (date < periodStartDate || date > periodEndDate) {
       throw serverValidationError(
         `archive openingJournal.date must be within fiscal period ${periodStartDate} to ${periodEndDate}`,
+        null,
       );
     }
     assertArchivedEntryMasterReferences({ lines });
     return {
       id,
       date,
-      description: requireStringValue(
+      description: requireTextValue(
         item.description,
         "archive openingJournal.description",
       ),
@@ -381,7 +414,7 @@ function normalizeArchivedEntry(
   periodEndDate: string,
   sourceFiscalPeriodId: string,
 ): EntryUpsertInput {
-  assertV1CompatibleSourceFiscalPeriodId(
+  assertSourceFiscalPeriodId(
     value.fiscalPeriodId,
     sourceFiscalPeriodId,
     "archive entry.fiscalPeriodId",
@@ -390,43 +423,49 @@ function normalizeArchivedEntry(
   if (date < periodStartDate || date > periodEndDate) {
     throw serverValidationError(
       `archive entry.date must be within fiscal period ${periodStartDate} to ${periodEndDate}`,
+      null,
     );
   }
-  const description = requireString(
+  const description = requireText(
     value.description,
     "archive entry.description",
   );
-  const localId = archivedEntryLocalId(value.localId, value.id);
+  const localId = requireNullableString(
+    value.localId,
+    "archive entry.localId",
+  );
   const businessRate = requireUnitRate(
     value.businessRate,
     "archive entry.businessRate",
   );
-  const lines = arrayValue(value.lines, "archive entry.lines").map((line) => {
-    const item = objectValue(line, "archive entry.line");
-    return {
-      side: normalizeSide(item.side),
-      bookAccountId: requireString(
-        item.bookAccountId,
-        "archive entry.line.bookAccountId",
-      ),
-      amount: requireNonNegativeNumber(
-        item.amount,
-        "archive entry.line.amount",
-      ),
-      partnerName: optionalString(
-        item.partnerName,
-        "archive entry.line.partnerName",
-      ),
-      taxCategoryId: normalizeTaxCategoryId(
-        item.taxCategoryId,
-        "archive entry.line.taxCategoryId",
-      ),
-      businessCategoryId: normalizeBusinessCategoryId(
-        item.businessCategoryId,
-        "archive entry.line.businessCategoryId",
-      ),
-    };
-  });
+  const lines = requireArrayValue(value.lines, "archive entry.lines").map(
+    (line) => {
+      const item = objectValue(line, "archive entry.line");
+      return {
+        side: normalizeSide(item.side),
+        bookAccountId: requireString(
+          item.bookAccountId,
+          "archive entry.line.bookAccountId",
+        ),
+        amount: requireNonNegativeNumber(
+          item.amount,
+          "archive entry.line.amount",
+        ),
+        partnerName: requireTextValue(
+          item.partnerName,
+          "archive entry.line.partnerName",
+        ),
+        taxCategoryId: requireTextValue(
+          item.taxCategoryId,
+          "archive entry.line.taxCategoryId",
+        ),
+        businessCategoryId: requireTextValue(
+          item.businessCategoryId,
+          "archive entry.line.businessCategoryId",
+        ),
+      };
+    },
+  );
   assertEntryLinesBalanced(lines, "archive entry", { allowZero: false });
   return { date, description, localId, businessRate, lines };
 }
@@ -436,88 +475,86 @@ function normalizeArchivedFixedAsset(
   periodStartDate: string,
   periodEndDate: string,
   sourceFiscalPeriodId: string,
-) {
-  assertV1CompatibleSourceFiscalPeriodId(
+): FixedAssetDbImportInput {
+  assertSourceFiscalPeriodId(
     value.fiscalPeriodId,
     sourceFiscalPeriodId,
     "archive fixedAsset.fiscalPeriodId",
   );
-  const patchInput: FixedAssetPatchInput = { name: null, acquisitionDate: null, acquisitionCost: null, usefulLife: null, depreciationMethod: null, businessRate: null, status: null, disposalDate: null, disposalPrice: null, bookAccountId: null };
   const acquisitionDate = requireIsoDate(
     value.acquisitionDate,
     "archive fixedAsset.acquisitionDate",
   );
-  const status =
-    value.status == null
-      ? "active"
-      : normalizeFixedAssetStatus(
-          requireStringValue(value.status, "archive fixedAsset.status"),
-        );
+  const status = normalizeFixedAssetStatus(
+    requireStringValue(value.status, "archive fixedAsset.status"),
+  );
   if (acquisitionDate > periodEndDate) {
     throw serverValidationError(
       `archive fixedAsset.acquisitionDate must not be after fiscal period end ${periodEndDate}`,
+      null,
     );
   }
   if (value.depreciationMethod !== "straight_line") {
     throw serverValidationError(
       "archive fixedAsset.depreciationMethod is invalid",
+      null,
     );
   }
   const disposalDate =
-    value.disposalDate == null || value.disposalDate === ""
-      ? ""
+    value.disposalDate === null
+      ? null
       : requireIsoDate(
           value.disposalDate,
           "archive fixedAsset.disposalDate",
         );
-  const disposalPrice =
-    value.disposalPrice == null
-      ? 0
+  const archivedDisposalPrice =
+    value.disposalPrice === null
+      ? null
       : requireNonNegativeNumber(
           value.disposalPrice,
           "archive fixedAsset.disposalPrice",
         );
+  const disposalPrice = archivedDisposalPrice;
   if (
     (status === "active" || status === "retired") &&
-    (disposalDate !== "" || disposalPrice !== 0)
+    (disposalDate != null || disposalPrice != null)
   ) {
     throw serverValidationError(
       `archive ${status} fixedAsset must not contain disposal data`,
+      null,
     );
   }
-  if (status === "disposed" && disposalPrice !== 0) {
+  if (status === "disposed" && disposalPrice != null) {
     throw serverValidationError(
       "archive disposed fixedAsset must not contain a disposal price",
+      null,
     );
   }
-  if (status !== "active") {
-    patchInput.status = status;
-    if (disposalDate !== "") patchInput.disposalDate = disposalDate;
-    if (disposalPrice !== 0) patchInput.disposalPrice = disposalPrice;
+  if (status === "sold" && disposalPrice == null) {
+    throw serverValidationError(
+      "archive sold fixedAsset requires disposalPrice",
+      null,
+    );
   }
-  if (
-    (status === "sold" || status === "disposed") &&
-    patchInput.disposalDate == null
-  ) {
+  if ((status === "sold" || status === "disposed") && disposalDate == null) {
     throw serverValidationError(
       `archive fixedAsset with status ${status} requires disposalDate`,
+      null,
     );
   }
-  if (
-    patchInput.disposalDate != null &&
-    patchInput.disposalDate < acquisitionDate
-  ) {
+  if (disposalDate != null && disposalDate < acquisitionDate) {
     throw serverValidationError(
       "archive fixedAsset.disposalDate must not be before acquisitionDate",
+      null,
     );
   }
   if (
-    patchInput.disposalDate != null &&
-    (patchInput.disposalDate < periodStartDate ||
-      patchInput.disposalDate > periodEndDate)
+    disposalDate != null &&
+    (disposalDate < periodStartDate || disposalDate > periodEndDate)
   ) {
     throw serverValidationError(
       `archive fixedAsset.disposalDate must be within fiscal period ${periodStartDate} to ${periodEndDate}`,
+      null,
     );
   }
   const bookAccountId = requireString(
@@ -532,6 +569,7 @@ function normalizeArchivedFixedAsset(
   ) {
     throw serverValidationError(
       `archive fixedAsset.bookAccountId must reference a fixed-asset account: ${bookAccountId}`,
+      null,
     );
   }
   const acquisitionCost = requirePositiveInteger(
@@ -545,6 +583,7 @@ function normalizeArchivedFixedAsset(
   if (usefulLife > MAX_FIXED_ASSET_USEFUL_LIFE_YEARS) {
     throw serverValidationError(
       `archive fixedAsset.usefulLife must not exceed ${MAX_FIXED_ASSET_USEFUL_LIFE_YEARS} years`,
+      null,
     );
   }
   if (
@@ -558,22 +597,23 @@ function normalizeArchivedFixedAsset(
   ) {
     throw serverValidationError(
       "archive retired fixedAsset has not reached memorandum value at fiscal period end",
+      null,
     );
   }
   return {
-    createInput: {
-      name: requireString(value.name, "archive fixedAsset.name"),
-      acquisitionDate,
-      acquisitionCost,
-      usefulLife,
-      depreciationMethod: "straight_line" as const,
-      businessRate: requireUnitRate(
-        value.businessRate,
-        "archive fixedAsset.businessRate",
-      ),
-      bookAccountId,
-    },
-    patchInput,
+    name: requireText(value.name, "archive fixedAsset.name"),
+    acquisitionDate,
+    acquisitionCost,
+    usefulLife,
+    depreciationMethod: "straight_line",
+    businessRate: requireUnitRate(
+      value.businessRate,
+      "archive fixedAsset.businessRate",
+    ),
+    status,
+    disposalDate,
+    disposalPrice,
+    bookAccountId,
   };
 }
 
@@ -581,39 +621,18 @@ function normalizeArchivedClosing(
   value: Record<string, unknown>,
   sourceFiscalPeriodId: string,
 ) {
-  assertV1CompatibleSourceFiscalPeriodId(
+  assertSourceFiscalPeriodId(
     value.fiscalPeriodId,
     sourceFiscalPeriodId,
     "archive closing.fiscalPeriodId",
   );
   if (value.kind !== "pre_closing" && value.kind !== "closing") {
-    throw serverValidationError("archive closing.kind is invalid");
+    throw serverValidationError("archive closing.kind is invalid", null);
   }
   return {
     year: requirePositiveInteger(value.year, "archive closing.year"),
     kind: value.kind,
   };
-}
-
-function normalizeTaxCategoryId(value: unknown, label: string): string {
-  return normalizeCategoryId(value, label, DEFAULT_TAX_CATEGORIES);
-}
-
-function normalizeBusinessCategoryId(value: unknown, label: string): string {
-  return normalizeCategoryId(value, label, DEFAULT_BUSINESS_CATEGORIES);
-}
-
-function normalizeCategoryId(
-  value: unknown,
-  label: string,
-  categories: ReadonlyArray<{ id: string; name: string }>,
-): string {
-  const text = optionalString(value, label);
-  if (text === "") return "";
-  const category = categories.find(
-    (candidate) => candidate.id === text || candidate.name === text,
-  );
-  return category?.id ?? text;
 }
 
 function assertUniqueIds(
@@ -623,21 +642,20 @@ function assertUniqueIds(
   const ids = new Set<string>();
   for (const item of items) {
     if (ids.has(item.id)) {
-      throw serverValidationError(`${label} has a duplicate id: ${item.id}`);
+      throw serverValidationError(`${label} has a duplicate id: ${item.id}`, null);
     }
     ids.add(item.id);
   }
 }
 
-function assertV1CompatibleSourceFiscalPeriodId(
+function assertSourceFiscalPeriodId(
   value: unknown,
   sourceFiscalPeriodId: string,
   label: string,
 ): void {
-  if (value == null) return;
   const id = requireString(value, label);
   if (id !== sourceFiscalPeriodId) {
-    throw serverValidationError(`${label} does not match archive fiscalPeriod`);
+    throw serverValidationError(`${label} does not match archive fiscalPeriod`, null);
   }
 }
 
@@ -652,6 +670,7 @@ function assertArchivedEntryMasterReferences(input: {
     if (getDefaultBookAccount(line.bookAccountId) == null) {
       throw serverValidationError(
         `archive line references unknown bookAccountId: ${line.bookAccountId}`,
+        null,
       );
     }
   }
@@ -670,6 +689,7 @@ function assertArchivedOpeningBalancesBalanced(
     } else {
       throw serverValidationError(
         `archive openingBalanceLine.accountId must start with a: or l:: ${line.accountId}`,
+        null,
       );
     }
     if (
@@ -678,12 +698,14 @@ function assertArchivedOpeningBalancesBalanced(
     ) {
       throw serverValidationError(
         "archive opening balance totals exceed the safe integer range",
+        null,
       );
     }
   }
   if (assets !== liabilitiesAndEquity) {
     throw serverValidationError(
       `archive opening balances must balance: assets ${assets}, liabilities and equity ${liabilitiesAndEquity}`,
+      null,
     );
   }
 }
@@ -704,11 +726,13 @@ function assertArchiveLifecycle(input: {
   if (input.documentsReceivedCompleted && input.phase !== "post_closing") {
     throw serverValidationError(
       "archive documentsReceivedCompleted requires post_closing phase",
+      null,
     );
   }
   if (input.openingBalancesCompleted && input.opening == null) {
     throw serverValidationError(
       "archive completed opening balances require opening data",
+      null,
     );
   }
   if (input.openingBalancesCompleted && input.opening != null) {
@@ -716,6 +740,7 @@ function assertArchiveLifecycle(input: {
       if (journal.description.trim() === "") {
         throw serverValidationError(
           "archive completed openingJournal description is required",
+          null,
         );
       }
       assertEntryLinesBalanced(
@@ -735,6 +760,7 @@ function assertArchiveLifecycle(input: {
     if (input.settingsCompleted || hasPreClosing || hasClosing) {
       throw serverValidationError(
         "archive pre_opening lifecycle flags are inconsistent",
+        null,
       );
     }
     return;
@@ -742,12 +768,14 @@ function assertArchiveLifecycle(input: {
   if (!input.settingsCompleted) {
     throw serverValidationError(
       `archive ${input.phase} phase requires settingsCompleted`,
+      null,
     );
   }
   if (input.phase === "journalizing") {
     if (hasPreClosing || hasClosing) {
       throw serverValidationError(
         "archive journalizing phase must not contain closing records",
+        null,
       );
     }
     return;
@@ -755,12 +783,14 @@ function assertArchiveLifecycle(input: {
   if (!input.openingBalancesCompleted) {
     throw serverValidationError(
       `archive ${input.phase} phase requires completed opening balances`,
+      null,
     );
   }
   if (input.phase === "pre_closing") {
     if (!hasPreClosing || hasClosing) {
       throw serverValidationError(
         "archive pre_closing phase requires only a pre-closing record",
+        null,
       );
     }
     return;
@@ -768,42 +798,14 @@ function assertArchiveLifecycle(input: {
   if (!hasPreClosing || !hasClosing) {
     throw serverValidationError(
       "archive post_closing phase requires pre-closing and closing records",
+      null,
     );
   }
 }
 
 function normalizeSide(value: unknown): "debit" | "credit" {
   if (value === "debit" || value === "credit") return value;
-  throw serverValidationError("archive line side is invalid");
-}
-
-function legacyOptionalId(
-  value: unknown,
-  fallback: string,
-  label: string,
-): string {
-  if (value == null || value === "") return fallback;
-  if (typeof value !== "string") {
-    throw serverValidationError(`${label} must be a string`);
-  }
-  return value.trim() === "" ? fallback : value;
-}
-
-function archivedEntryLocalId(
-  value: unknown,
-  archivedEntryId: unknown,
-): string | null {
-  if (value != null) {
-    if (typeof value !== "string") {
-      throw serverValidationError("archive entry.localId must be a string");
-    }
-    if (value.trim() !== "") return value;
-  }
-  if (archivedEntryId == null) return null;
-  if (typeof archivedEntryId !== "string") {
-    throw serverValidationError("archive entry.id must be a string");
-  }
-  return archivedEntryId.trim() === "" ? null : `archive:${archivedEntryId}`;
+  throw serverValidationError("archive line side is invalid", null);
 }
 
 function normalizeFixedAssetStatus(
@@ -817,55 +819,76 @@ function normalizeFixedAssetStatus(
   ) {
     return value;
   }
-  throw serverValidationError("archive fixedAsset.status is invalid");
+  throw serverValidationError("archive fixedAsset.status is invalid", null);
 }
 
 function objectValue(
   value: unknown,
-  label = "archive value",
+  label: string,
 ): Record<string, unknown> {
   if (typeof value !== "object" || value == null || Array.isArray(value)) {
-    throw serverValidationError(`${label} must be an object`);
+    throw serverValidationError(`${label} must be an object`, null);
   }
   return value as Record<string, unknown>;
 }
 
-function arrayValue(value: unknown, label = "archive value"): unknown[] {
-  if (value == null) return [];
-  return requireArrayValue(value, label);
-}
-
-function requireArrayValue(value: unknown, label = "archive value"): unknown[] {
+function requireArrayValue(value: unknown, label: string): unknown[] {
   if (!Array.isArray(value)) {
-    throw serverValidationError(`${label} must be an array`);
+    throw serverValidationError(`${label} must be an array`, null);
   }
   return value;
 }
 
 function requireString(value: unknown, label: string): string {
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw serverValidationError(`${label} is required`);
+  if (typeof value !== "string") {
+    throw serverValidationError(`${label} must be a string`, null);
+  }
+  if (value.trim().length === 0) {
+    throw serverValidationError(`${label} is required`, null);
   }
   return value;
+}
+
+function requireNullableString(value: unknown, label: string): string | null {
+  if (value === null) return null;
+  if (typeof value !== "string") {
+    throw serverValidationError(`${label} must be a string or null`, null);
+  }
+  if (value.trim() === "") {
+    throw serverValidationError(`${label} must not be blank`, null);
+  }
+  return value;
+}
+
+function requireText(value: unknown, label: string): string {
+  const text = requireString(value, label);
+  assertTextFieldLength(text, label);
+  return text;
 }
 
 function requireStringValue(value: unknown, label: string): string {
   if (typeof value !== "string") {
-    throw serverValidationError(`${label} must be a string`);
+    throw serverValidationError(`${label} must be a string`, null);
   }
   return value;
 }
 
+function requireTextValue(value: unknown, label: string): string {
+  const text = requireStringValue(value, label);
+  assertTextFieldLength(text, label);
+  return text;
+}
+
 function requireBoolean(value: unknown, label: string): boolean {
   if (typeof value !== "boolean") {
-    throw serverValidationError(`${label} must be a boolean`);
+    throw serverValidationError(`${label} must be a boolean`, null);
   }
   return value;
 }
 
 function requireNumber(value: unknown, label: string): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw serverValidationError(`${label} must be a finite number`);
+    throw serverValidationError(`${label} must be a finite number`, null);
   }
   return value;
 }
@@ -875,6 +898,7 @@ function requireNonNegativeNumber(value: unknown, label: string): number {
   if (numberValue < 0 || !Number.isSafeInteger(numberValue)) {
     throw serverValidationError(
       `${label} must be a non-negative finite number and a safe integer`,
+      null,
     );
   }
   return numberValue;
@@ -883,7 +907,7 @@ function requireNonNegativeNumber(value: unknown, label: string): number {
 function requirePositiveInteger(value: unknown, label: string): number {
   const numberValue = requireNumber(value, label);
   if (!Number.isSafeInteger(numberValue) || numberValue < 1) {
-    throw serverValidationError(`${label} must be a positive integer`);
+    throw serverValidationError(`${label} must be a positive integer`, null);
   }
   return numberValue;
 }
@@ -891,7 +915,7 @@ function requirePositiveInteger(value: unknown, label: string): number {
 function requireUnitRate(value: unknown, label: string): number {
   const numberValue = requireNumber(value, label);
   if (numberValue < 0 || numberValue > 1) {
-    throw serverValidationError(`${label} must be between 0 and 1`);
+    throw serverValidationError(`${label} must be between 0 and 1`, null);
   }
   return numberValue;
 }
@@ -899,16 +923,12 @@ function requireUnitRate(value: unknown, label: string): number {
 function requireIsoDate(value: unknown, label: string): string {
   const text = requireString(value, label);
   if (parseIsoDate(text) == null) {
-    throw serverValidationError(`${label} is invalid`);
+    throw serverValidationError(`${label} is invalid`, null);
   }
   return text;
 }
 
-function optionalString(value: unknown, label: string): string {
-  if (value == null) return "";
-  if (typeof value !== "string") {
-    throw serverValidationError(`${label} must be a string`);
-  }
-  assertTextFieldLength(value, label);
-  return value;
+function requireArchiveVersion(value: unknown): FiscalPeriodArchiveVersion {
+  if (value === 1 || value === 2) return value;
+  throw serverValidationError("archive manifest.version is not supported", null);
 }

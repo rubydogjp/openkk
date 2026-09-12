@@ -3,12 +3,13 @@ export type OpenkkApiErrorDto = {
   messageForUser: string;
   originalMessage: string | null;
   statusCode: number | null;
+  code: string | null;
 };
 
 export type OpenkkHttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 export type OpenkkHttpSuccessStatus = 200 | 201 | 204;
 export type OpenkkEmptyRequest = Record<string, never>;
-export type OpenkkNoContentResponse = void;
+export type OpenkkNoContentResponse = null;
 
 export type StartAuthSessionRequest = { redirectUrl: string };
 export type StartAuthSessionResponse = { authUrl: string };
@@ -41,7 +42,14 @@ export type EntryApiLine = {
   businessCategoryId: string;
 };
 
-export type EntryApiLineInput = Omit<EntryApiLine, "id">;
+export type EntryApiLineInput = {
+  side: EntryApiSide;
+  bookAccountId: string;
+  amount: number;
+  partnerName: string;
+  taxCategoryId: string;
+  businessCategoryId: string;
+};
 
 export type EntryApiRecord = {
   id: string;
@@ -49,7 +57,7 @@ export type EntryApiRecord = {
   fiscalPeriodId: string;
   date: string;
   description: string;
-  localId: string;
+  localId: string | null;
   businessRate: number;
   lines: EntryApiLine[];
   createdAt: string;
@@ -98,6 +106,14 @@ export type OpeningApiRecord = {
   openingJournals: OpeningJournalApiRecord[];
 };
 
+export type FiscalPeriodOpeningInput = {
+  id: string;
+  userId: string;
+  fiscalPeriodId: string;
+  openingBalanceLines: OpeningBalanceLineApiRecord[];
+  openingJournals: OpeningJournalApiRecord[];
+};
+
 export type FiscalPeriodApiRecord = {
   id: string;
   userId: string;
@@ -106,7 +122,7 @@ export type FiscalPeriodApiRecord = {
   endDate: string;
   phase: "pre_opening" | "journalizing" | "pre_closing" | "post_closing";
   archiveStatus: "active" | "archived";
-  archiveDataAvailable: boolean | null;
+  archiveDataAvailable: boolean;
   archivedAt: string | null;
   settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
@@ -129,7 +145,7 @@ export type FiscalPeriodPatchInput = Partial<{
   settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
-  opening: Omit<OpeningApiRecord, "createdAt" | "updatedAt">;
+  opening: FiscalPeriodOpeningInput;
 }>;
 
 export type FiscalPeriodArchiveImportInput = {
@@ -151,8 +167,8 @@ export type FixedAssetApiRecord = {
   depreciationMethod: "straight_line";
   businessRate: number;
   status: "active" | "sold" | "disposed" | "retired";
-  disposalDate: string;
-  disposalPrice: number;
+  disposalDate: string | null;
+  disposalPrice: number | null;
   bookAccountId: string;
   createdAt: string;
   updatedAt: string;
@@ -169,16 +185,16 @@ export type FixedAssetCreateInput = {
 };
 
 export type FixedAssetPatchInput = {
-  name: string | null;
-  acquisitionDate: string | null;
-  acquisitionCost: number | null;
-  usefulLife: number | null;
-  depreciationMethod: "straight_line" | null;
-  businessRate: number | null;
-  status: "active" | "sold" | "disposed" | "retired" | null;
-  disposalDate: string | null;
-  disposalPrice: number | null;
-  bookAccountId: string | null;
+  name?: string;
+  acquisitionDate?: string;
+  acquisitionCost?: number;
+  usefulLife?: number;
+  depreciationMethod?: "straight_line";
+  businessRate?: number;
+  status?: "active" | "sold" | "disposed" | "retired";
+  disposalDate?: string | null;
+  disposalPrice?: number | null;
+  bookAccountId?: string;
 };
 
 export type MasterBookAccountNormalBalanceSide = "debit" | "credit";
@@ -685,6 +701,7 @@ export interface EntriesApi {
     input: EntryUpsertInput,
   ): Promise<EntryApiRecord>;
   remove(fiscalPeriodId: string, id: string): Promise<void>;
+  /** Returns only entries inserted for previously unseen `localId` values. */
   importMany(
     fiscalPeriodId: string,
     entries: EntryUpsertInput[],
@@ -698,11 +715,6 @@ export interface FiscalPeriodApi {
     input: FiscalPeriodArchiveImportInput,
   ): Promise<FiscalPeriodApiRecord>;
   archive(id: string): Promise<FiscalPeriodApiRecord>;
-  /**
-   * アーカイブ済み期間の実データ(entries/lines/opening/closings 等)を削除し、
-   * 軽量スタブ(`archiveDataAvailable=false`)として残す。ephemeral ポリシーで
-   * 翌期へ進む確定後に呼ばれる。persistent バックエンドは未実装/no-op でよい。
-   */
   purgeArchivedData(id: string): Promise<FiscalPeriodApiRecord>;
   patch(
     id: string,

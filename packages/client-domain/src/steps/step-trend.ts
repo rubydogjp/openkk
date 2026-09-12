@@ -3,7 +3,6 @@ import {
   computeRevenueContribution,
   type EntrySummaryRow,
 } from "./summary.js";
-import { resolveEntryBusinessRate } from "../entries/entry-record.js";
 import { buildYearMonthRange, parseYearMonth } from "./year-month.js";
 
 export type StepTrendPoint = {
@@ -16,7 +15,6 @@ export type StepTrendPoint = {
 };
 
 export function buildStepTrendPoints(input: {
-  // 複合仕訳(lines)も集計対象に含むよう、summary と同じ EntrySummaryRow を使う。
   entries: Array<EntrySummaryRow & { date: string }>;
   startDate: string;
   endDate: string;
@@ -34,7 +32,7 @@ export function buildStepTrendPoints(input: {
     const key = entry.date.slice(0, 7);
     const bucket = totals.get(key);
     if (bucket == null) continue;
-    const rate = resolveEntryBusinessRate(entry);
+    const rate = entry.businessRate;
     bucket.revenue += computeRevenueContribution(entry, rate);
     bucket.expenses += computeExpenseContribution(entry, rate);
   }

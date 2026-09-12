@@ -30,10 +30,6 @@ import {
 } from "./entry-record-state.js";
 import {
   entryRecordToImportPayload,
-  optionalEntryLocalId,
-  resolveBookAccountId,
-  resolveBusinessCategoryId,
-  resolveTaxCategoryId,
 } from "./import-mapping.js";
 
 import type {
@@ -47,23 +43,22 @@ import type {
 
 import {
   parseAmount,
-  formatBusinessRatePercent,
+  resolveCategoryId,
+  resolveBookAccountId,
   recordToPreviewRows,
-  resolveEntryBusinessRate,
+  draftBusinessRate,
   weekdayJa,
   type EntryRecord,
   type EntryLine,
+  type BookAccountType,
 } from "@rubydogjp/openkk-client-domain";
 import type { EntryPreviewRow } from "@rubydogjp/openkk-client-domain";
 
 export type EntryDraft = {
   date: string;
   description: string;
-  partner: string;
-  businessRate: string;
-  businessRateRatio: number | null;
-  taxCategory: string;
-  businessCategory: string;
+  businessRateInput: string;
+  businessRate: number | null;
   lines: EntryLine[];
 };
 
@@ -290,7 +285,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
           const created = await backendApi.entries.create(fiscalPeriodId, {
             date: draft.date,
             description: draft.description,
-            businessRate: resolveEntryBusinessRate(draft),
+            businessRate: draftBusinessRate(draft),
             lines,
             localId: null,
           });
@@ -338,8 +333,8 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
               {
                 date: draft.date,
                 description: draft.description,
-                localId: optionalEntryLocalId(currentRecord.localId),
-                businessRate: resolveEntryBusinessRate(draft),
+                localId: currentRecord.localId,
+                businessRate: draftBusinessRate(draft),
                 lines,
               },
             );
@@ -441,12 +436,15 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
         const biz = new Set<string>();
         for (const record of records) {
           if (record.fiscalPeriodId !== fiscalPeriodId) continue;
-          if (record.partner.trim().length > 0)
-            partner.add(record.partner.trim());
-          if (record.taxCategory.trim().length > 0)
-            tax.add(record.taxCategory.trim());
-          if (record.businessCategory.trim().length > 0)
-            biz.add(record.businessCategory.trim());
+          for (const line of record.lines) {
+            addSuggestion(partner, line.partnerName, null);
+            addSuggestion(tax, line.taxCategoryName, line.taxCategoryId);
+            addSuggestion(
+              biz,
+              line.businessCategoryName,
+              line.businessCategoryId,
+            );
+          }
         }
         return {
           partner: Array.from(partner).sort(),
@@ -505,6 +503,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
               "仕訳が同時に更新されたため読み込み直せませんでした。もう一度お試しください",
             originalMessage: null,
             statusCode: null,
+            code: null,
           });
         } catch (error) {
           if (!appState.isAuthOperationCurrent(authOperationVersion)) throw error;
@@ -556,24 +555,6 @@ function mapRemoteEntryToRecord(input: {
     ),
     id: null,
   }));
-  const debitLine = lines.find((line) => line.side === "debit") ?? null;
-  const creditLine = lines.find((line) => line.side === "credit") ?? null;
-  const headerPartner =
-    input.entry.lines[0]?.partnerName ??
-    input.entry.lines[1]?.partnerName ??
-    "";
-  const headerTax = mapTaxName(
-    input.entry.lines[0]?.taxCategoryId ??
-      input.entry.lines[1]?.taxCategoryId ??
-      "",
-    input.taxes,
-  );
-  const headerBiz = mapBusinessName(
-    input.entry.lines[0]?.businessCategoryId ??
-      input.entry.lines[1]?.businessCategoryId ??
-      "",
-    input.businesses,
-  );
   const date = input.entry.date;
   return {
     id: input.entry.id,
@@ -581,31 +562,9 @@ function mapRemoteEntryToRecord(input: {
     date,
     weekday: weekdayJa(date),
     lines,
-    debit: debitLine?.accountName ?? "",
-    debitType: debitLine?.accountType ?? "asset",
-    debitAmount: debitLine?.amount ?? "0",
-    credit: creditLine?.accountName ?? "",
-    creditType: creditLine?.accountType ?? "liability",
-    creditAmount: creditLine?.amount ?? "0",
     description: input.entry.description,
-    partner: headerPartner,
-    businessRate: formatBusinessRatePercent(input.entry.businessRate ?? 1),
-    businessRateRatio: input.entry.businessRate ?? 1,
-    taxCategory: headerTax,
-    businessCategory: headerBiz,
-    localId: input.entry.localId ?? null,
-    debitBookAccountId: debitLine?.bookAccountId ?? null,
-    creditBookAccountId: creditLine?.bookAccountId ?? null,
-    debitTaxCategoryId:
-      input.entry.lines.find((l) => l.side === "debit")?.taxCategoryId ?? null,
-    creditTaxCategoryId:
-      input.entry.lines.find((l) => l.side === "credit")?.taxCategoryId ?? null,
-    debitBusinessCategoryId:
-      input.entry.lines.find((l) => l.side === "debit")?.businessCategoryId ??
-      null,
-    creditBusinessCategoryId:
-      input.entry.lines.find((l) => l.side === "credit")?.businessCategoryId ??
-      null,
+    businessRate: input.entry.businessRate,
+    localId: input.entry.localId,
   };
 }
 
@@ -641,11 +600,11 @@ function mapBusinessName(
 function mapAccountType(
   id: string | null,
   accounts: MasterBookAccount[],
-  fallback: EntryRecord["debitType"],
-): EntryRecord["debitType"] {
+  fallback: BookAccountType,
+): BookAccountType {
   if (id == null) return fallback;
   return (accounts.find((account) => account.id === id)?.accountType ??
-    fallback) as EntryRecord["debitType"];
+    fallback) as BookAccountType;
 }
 
 function formatAmount(value: number): string {
@@ -661,37 +620,52 @@ function buildEntryApiLinesFromDraft(
   },
   errorContext: { messageForDeveloper: string; messageForUser: string },
 ): EntryApiLineInput[] {
-  const lines: EntryApiLineInput[] = draft.lines.map((line) => ({
-    side: line.side,
-    bookAccountId:
-      resolveBookAccountId({
-        explicitId: line.bookAccountId,
-        accountName: line.accountName,
-        accountType: line.accountType,
-        accounts: master.accounts,
-      }) ?? "",
-    amount: parseAmount(line.amount),
-    partnerName: line.partnerName ?? draft.partner,
-    taxCategoryId: resolveTaxCategoryId(
-      line.taxCategoryId ?? null,
-      draft.taxCategory,
-      master.taxes,
-    ),
-    businessCategoryId: resolveBusinessCategoryId(
-      line.businessCategoryId ?? null,
-      draft.businessCategory,
-      master.businesses,
-    ),
-  }));
-  if (lines.some((line) => line.bookAccountId === "")) {
-    throw new AppError({
-      messageForDeveloper: errorContext.messageForDeveloper,
-      messageForUser: errorContext.messageForUser,
-      originalMessage: null,
-      statusCode: null,
+  return draft.lines.map((line) => {
+    const bookAccountId = resolveBookAccountId({
+      explicitId: line.bookAccountId,
+      accountName: line.accountName,
+      accountType: line.accountType,
+      accounts: master.accounts,
     });
-  }
-  return lines;
+    if (bookAccountId == null) {
+      throw new AppError({
+        messageForDeveloper: errorContext.messageForDeveloper,
+        messageForUser: errorContext.messageForUser,
+        originalMessage: null,
+        statusCode: null,
+        code: null,
+      });
+    }
+    return {
+      side: line.side,
+      bookAccountId,
+      amount: parseAmount(line.amount),
+      partnerName: line.partnerName ?? "",
+      taxCategoryId: resolveCategoryId(
+        line.taxCategoryId,
+        line.taxCategoryName ?? "",
+        master.taxes,
+        "tax_out_of_scope",
+      ),
+      businessCategoryId: resolveCategoryId(
+        line.businessCategoryId,
+        line.businessCategoryName ?? "",
+        master.businesses,
+        "biz_none",
+      ),
+    };
+  });
+}
+
+function addSuggestion(
+  suggestions: Set<string>,
+  preferred: string | null,
+  fallback: string | null,
+): void {
+  const value = preferred ?? fallback;
+  if (value == null) return;
+  const trimmed = value.trim();
+  if (trimmed !== "") suggestions.add(trimmed);
 }
 
 export function useOpenkkEntries() {
@@ -703,6 +677,7 @@ export function useOpenkkEntries() {
       messageForUser: "仕訳データを読み込めませんでした",
       originalMessage: null,
       statusCode: null,
+      code: null,
     });
   }
   return value;

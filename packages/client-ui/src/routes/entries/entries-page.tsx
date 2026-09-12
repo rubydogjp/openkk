@@ -18,8 +18,6 @@ import {
   buildPeriodLockMessage,
   formatIsoLocalDate,
   resolveEditingPolicy,
-  weekdayJa,
-  type EntryRecord,
   type EntryPreviewRow,
 } from "@rubydogjp/openkk-client-domain";
 import {
@@ -27,6 +25,7 @@ import {
   useOpenkkAssist,
   useOpenkkEntries,
   useOpenkkConfig,
+  type EntryDraft,
   type EntryMasterAccountOption,
 } from "@rubydogjp/openkk-client-usecases";
 import {
@@ -36,6 +35,7 @@ import {
   type EntryStatusMessage,
 } from "../../entries/entries-ui.js";
 import { EntryEditDrawer } from "../../entries/entry-edit-drawer.js";
+import { entryRecordToDraft } from "../../entries/entry-edit-model.js";
 import { downloadBytes } from "../../shared/download.js";
 import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 
@@ -55,7 +55,7 @@ export function EntriesPage() {
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (period) => period.id === appState.currentFiscalPeriodId,
   );
-  const fiscalPeriodId = appState.currentFiscalPeriodId ?? "";
+  const fiscalPeriodId = appState.currentFiscalPeriodId;
   const configuredToday = openkkConfig.today;
   const [displayedMonth, setDisplayedMonth] = useState<YearMonthValue>(() =>
     clampMonthToPeriod(
@@ -70,7 +70,7 @@ export function EntriesPage() {
   const [statusMessage, setStatusMessage] = useState<EntryStatusMessage | null>(
     null,
   );
-  const [newEntryDraft, setNewEntryDraft] = useState<EntryRecord | null>(null);
+  const [newEntryDraft, setNewEntryDraft] = useState<EntryDraft | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const importLock = useRef(new ExclusiveActionLock());
   const selectedFiscalPeriodId = useRef(fiscalPeriodId);
@@ -99,11 +99,7 @@ export function EntriesPage() {
   ]);
 
   useEffect(() => {
-    setNewEntryDraft((current) =>
-      current == null || current.fiscalPeriodId === fiscalPeriodId
-        ? current
-        : null,
-    );
+    setNewEntryDraft(null);
   }, [fiscalPeriodId]);
 
   useEffect(() => {
@@ -126,7 +122,7 @@ export function EntriesPage() {
     compareYearMonth(displayedMonth, periodEndMonth) < 0;
   const yearMonth = formatYearMonth(displayedMonth);
   const lockedMessage = buildPeriodLockMessage(
-    currentFiscalPeriod,
+    currentFiscalPeriod ?? null,
     "仕訳を記録できます",
   );
   const isReadOnlyPeriod =
@@ -134,26 +130,26 @@ export function EntriesPage() {
     currentFiscalPeriod?.phase === "pre_closing";
   const screenLockedMessage = isReadOnlyPeriod ? null : lockedMessage;
   const importLockedMessage = buildPeriodLockMessage(
-    currentFiscalPeriod,
+    currentFiscalPeriod ?? null,
     "仕訳を取り込めます",
   );
   const canImport =
-    fiscalPeriodId !== "" && importLockedMessage == null && !editingLocked;
+    fiscalPeriodId != null && importLockedMessage == null && !editingLocked;
   const rows =
-    fiscalPeriodId === ""
+    fiscalPeriodId == null
       ? []
       : entriesState.listMonthRows(fiscalPeriodId, yearMonth);
   const fullPeriodEntries =
-    fiscalPeriodId === ""
+    fiscalPeriodId == null
       ? []
       : entriesState.listFiscalPeriodEntries(fiscalPeriodId);
   const virtualRows = useMemo<EntryPreviewRow[]>(() => {
-    if (fiscalPeriodId === "") return [];
+    if (fiscalPeriodId == null) return [];
     const materializedLocalIds = new Set(
       fullPeriodEntries
         .map((entry) => entry.localId)
         .filter(
-          (localId): localId is string => localId != null && localId !== "",
+          (localId): localId is string => localId != null,
         ),
     );
     const realEntries = fullPeriodEntries.filter(
@@ -182,9 +178,7 @@ export function EntriesPage() {
         yearMonth,
       }),
     ].filter(
-      (row) =>
-        row.recordId == null ||
-        !materializedLocalIds.has(`virtual:${row.recordId}`),
+      (row) => !materializedLocalIds.has(`virtual:${row.recordId}`),
     );
   }, [
     assistState,
@@ -309,7 +303,7 @@ export function EntriesPage() {
   );
 
   const handleImportFile = async (kind: EntryFileKind, file: File) => {
-    if (fiscalPeriodId === "") {
+    if (fiscalPeriodId == null) {
       setStatusMessage({ kind: "error", text: "期間が未選択です" });
       return;
     }
@@ -339,6 +333,7 @@ export function EntriesPage() {
             "取込中に会計期間が切り替わったため、データは保存しませんでした",
           originalMessage: null,
           statusCode: null,
+          code: null,
         });
       }
       const result = await entriesState.mergeFiscalPeriodEntries(
@@ -370,7 +365,7 @@ export function EntriesPage() {
   };
 
   const handleExport = (kind: EntryFileKind) => {
-    if (fiscalPeriodId === "") {
+    if (fiscalPeriodId == null) {
       setStatusMessage({ kind: "error", text: "期間が未選択です" });
       return;
     }
@@ -412,11 +407,10 @@ export function EntriesPage() {
         onAddEntry={
           lockedMessage == null && !isReadOnlyPeriod && !editingLocked
             ? () => {
-                if (fiscalPeriodId === "") return;
+                if (fiscalPeriodId == null) return;
                 navigateWithEntryParam(null);
                 setNewEntryDraft(
-                  buildNewEntryDraftRecord(
-                    fiscalPeriodId,
+                  buildNewEntryDraft(
                     resolveNewEntryDefaultDate({
                       today: openkkConfig.today,
                       displayedMonth,
@@ -438,23 +432,23 @@ export function EntriesPage() {
                   return;
                 }
                 if (isReadOnlyPeriod) return;
-                if (row.recordId == null) return;
                 openDrawer(row.recordId);
               }
             : null
         }
         onImportFile={canImport && !isImporting ? handleImportFile : null}
-        onExport={fiscalPeriodId !== "" ? handleExport : null}
-        isPlaceholderData={null}
+        onExport={fiscalPeriodId != null ? handleExport : null}
+        isPlaceholderData={false}
       />
-      {drawerEntry != null &&
+      {fiscalPeriodId != null &&
+      drawerEntry != null &&
       newEntryDraft == null &&
       lockedMessage == null &&
       !isReadOnlyPeriod &&
       !editingLocked ? (
         <EntryEditDrawer
           key={`edit:${drawerEntry.id}`}
-          entry={drawerEntry}
+          entry={entryRecordToDraft(drawerEntry)}
           minDate={currentFiscalPeriod?.startDate ?? null}
           maxDate={currentFiscalPeriod?.endDate ?? null}
           accountOptions={entriesState.accountOptions}
@@ -474,6 +468,7 @@ export function EntriesPage() {
                 messageForUser: "仕訳の保存に失敗しました",
                 originalMessage: null,
                 statusCode: null,
+                code: null,
               });
             }
           }}
@@ -487,18 +482,20 @@ export function EntriesPage() {
                 messageForUser: "仕訳の削除に失敗しました",
                 originalMessage: null,
                 statusCode: null,
+                code: null,
               });
             }
           }}
-          mode={null}
+          mode="edit"
         />
       ) : null}
-      {newEntryDraft != null &&
+      {fiscalPeriodId != null &&
+      newEntryDraft != null &&
       lockedMessage == null &&
       !isReadOnlyPeriod &&
       !editingLocked ? (
         <EntryEditDrawer
-          key={`create:${newEntryDraft.id}`}
+          key="create"
           mode="create"
           entry={newEntryDraft}
           minDate={currentFiscalPeriod?.startDate ?? null}
@@ -523,6 +520,7 @@ export function EntriesPage() {
                 messageForUser: "仕訳の作成に失敗しました",
                 originalMessage: null,
                 statusCode: null,
+                code: null,
               });
             }
           }}
@@ -585,11 +583,10 @@ function formatYearMonth(month: YearMonthValue): string {
   return `${month.year}-${String(month.month).padStart(2, "0")}`;
 }
 
-function buildNewEntryDraftRecord(
-  fiscalPeriodId: string,
+function buildNewEntryDraft(
   defaultDate: string,
   accountOptions: EntryMasterAccountOption[],
-): EntryRecord {
+): EntryDraft {
   const debit =
     accountOptions.find((account) => account.name === "仮払金") ??
     accountOptions.find((account) => account.accountType === "expense") ??
@@ -598,23 +595,19 @@ function buildNewEntryDraftRecord(
     accountOptions.find((account) => account.name === "普通預金") ??
     accountOptions.find((account) => account.accountType === "asset") ??
     accountOptions[0];
-  const date = defaultDate;
   return {
-    id: "__new_entry__",
-    fiscalPeriodId,
-    date,
-    weekday: weekdayJa(date),
+    date: defaultDate,
     lines: [
       {
         side: "debit",
         accountName: debit?.name ?? "",
         accountType: debit?.accountType ?? "expense",
         amount: "",
-        bookAccountId: debit?.id,
+        bookAccountId: debit?.id ?? null,
         id: null,
         partnerName: null,
         taxCategoryId: null,
-        taxCategoryName: null,
+        taxCategoryName: "対象外",
         businessCategoryId: null,
         businessCategoryName: null,
       },
@@ -623,34 +616,18 @@ function buildNewEntryDraftRecord(
         accountName: credit?.name ?? "",
         accountType: credit?.accountType ?? "asset",
         amount: "",
-        bookAccountId: credit?.id,
+        bookAccountId: credit?.id ?? null,
         id: null,
         partnerName: null,
         taxCategoryId: null,
-        taxCategoryName: null,
+        taxCategoryName: "対象外",
         businessCategoryId: null,
         businessCategoryName: null,
       },
     ],
-    debit: debit?.name ?? "",
-    debitType: debit?.accountType ?? "expense",
-    debitAmount: "",
-    credit: credit?.name ?? "",
-    creditType: credit?.accountType ?? "asset",
-    creditAmount: "",
     description: "",
-    partner: "",
-    businessRate: "",
-    taxCategory: "対象外",
-    businessCategory: "",
-    businessRateRatio: null,
-    localId: null,
-    debitBookAccountId: null,
-    creditBookAccountId: null,
-    debitTaxCategoryId: null,
-    creditTaxCategoryId: null,
-    debitBusinessCategoryId: null,
-    creditBusinessCategoryId: null,
+    businessRateInput: "",
+    businessRate: null,
   };
 }
 

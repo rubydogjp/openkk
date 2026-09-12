@@ -16,7 +16,7 @@ import {
 } from "@rubydogjp/openkk-client-usecases";
 
 export function useStepDocumentPrinters(
-  fiscalPeriod: FiscalPeriod | undefined,
+  fiscalPeriod: FiscalPeriod | null,
 ) {
   const entriesState = useOpenkkEntries();
   const assistState = useOpenkkAssist();

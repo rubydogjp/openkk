@@ -11,11 +11,13 @@ import {
 export { assertFiscalPeriodArchiveByteLength, MAX_FISCAL_PERIOD_ARCHIVE_BYTES };
 
 export const FISCAL_PERIOD_ARCHIVE_FORMAT = "openkk.fiscal-period-archive";
-export const FISCAL_PERIOD_ARCHIVE_VERSION = 1;
+export const FISCAL_PERIOD_ARCHIVE_VERSION = 2;
+
+export type FiscalPeriodArchiveVersion = 1 | 2;
 
 export type FiscalPeriodArchiveManifest = {
   format: typeof FISCAL_PERIOD_ARCHIVE_FORMAT;
-  version: typeof FISCAL_PERIOD_ARCHIVE_VERSION;
+  version: FiscalPeriodArchiveVersion;
   createdAt: string;
   fiscalPeriodId: string;
   name: string;
@@ -126,6 +128,7 @@ function readJsonFile<T>(files: Map<string, Uint8Array>, name: string): T {
         "圧縮済みファイル内のデータ形式を確認できませんでした。別のファイルを選択してください。",
       originalMessage: error instanceof Error ? error.message : String(error),
       statusCode: null,
+      code: null,
     });
   }
 }
@@ -136,7 +139,10 @@ function assertFiscalPeriodArchivePayload(
   if (payload.manifest?.format !== FISCAL_PERIOD_ARCHIVE_FORMAT) {
     throw invalidArchiveContentError("archive manifest format is invalid");
   }
-  if (payload.manifest.version !== FISCAL_PERIOD_ARCHIVE_VERSION) {
+  if (
+    payload.manifest.version !== 1 &&
+    payload.manifest.version !== FISCAL_PERIOD_ARCHIVE_VERSION
+  ) {
     throw invalidArchiveContentError(
       "archive manifest version is not supported",
     );

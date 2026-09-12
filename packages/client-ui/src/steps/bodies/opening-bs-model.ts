@@ -1,6 +1,6 @@
 import {
   OPENING_EQUITY_LABELS,
-  type EntryAccountVisualType,
+  type BookAccountType,
 } from "@rubydogjp/openkk-client-domain";
 
 export const BS_ROWS: Array<{
@@ -64,7 +64,7 @@ const EQUITY_LABELS = OPENING_EQUITY_LABELS;
 export const assetKey = (label: string) => `a:${label}`;
 export const liabilityKey = (label: string) => `l:${label}`;
 export const isEditableLiability = (label: string) => label !== "";
-export const liabilityAccountType = (label: string): EntryAccountVisualType =>
+export const liabilityAccountType = (label: string): BookAccountType =>
   EQUITY_LABELS.has(label) ? "equity" : "liability";
 
 export function parseOpeningAmount(value: string | number): number | null {

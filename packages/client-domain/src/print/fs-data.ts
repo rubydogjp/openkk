@@ -1,4 +1,4 @@
-import { getEntryLines, type EntryRecord } from "../entries/entry-record.js";
+import type { EntryRecord } from "../entries/entry-record.js";
 import { parseAmount } from "../shared/parse-utils.js";
 import { OPENING_EQUITY_LABELS } from "../steps/summary.js";
 
@@ -124,10 +124,8 @@ export function computeFsAggregate({
   const liabilityNetByName = new Map<string, number>();
   const equityNetByName = new Map<string, number>();
 
-  // 家事按分は materialize 済みの按分振替仕訳（buildBusinessRateTransferEntry）として
-  // entries に含まれる前提のため、ここでは生明細をそのまま集計する。
   for (const e of entries) {
-    for (const line of getEntryLines(e)) {
+    for (const line of e.lines) {
       const amount = parseAmount(line.amount);
       const sign = line.side === "debit" ? 1 : -1;
 
@@ -276,7 +274,6 @@ export function computeFsAggregate({
   const expenseWriteIns = writeInCandidates
     .slice(0, WRITE_IN_SLOT_COUNT)
     .map(([label, amount]) => ({ label, amount }));
-  // スロットに収まらない任意経費は雑費へ集約し、経費合計（行32）と各行の和を一致させる。
   const writeInOverflow = writeInCandidates
     .slice(WRITE_IN_SLOT_COUNT)
     .reduce((sum, [, value]) => sum + value, 0);

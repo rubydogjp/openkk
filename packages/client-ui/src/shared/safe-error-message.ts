@@ -2,7 +2,7 @@ import { AppError } from "@rubydogjp/openkk-client-domain";
 
 export function safeUserErrorMessage(
   error: unknown,
-  fallbackUserMessage = "エラーが発生しました",
+  fallbackUserMessage: string | null,
 ): string {
   return AppError.from(error, {
     fallbackUserMessage,

@@ -21,9 +21,11 @@ import type {
 } from "@rubydogjp/openkk-server-ports";
 import {
   assertNonBlankString,
+  assertNonBlankText,
   assertObject,
   assertOptionalBoolean,
   assertString,
+  assertText,
 } from "./common-validation.js";
 import { assertEntryMasterReferences } from "./entry-validation.js";
 
@@ -111,7 +113,7 @@ export function assertFiscalPeriodReadyForPreClosing(period: FiscalPeriodApiReco
       "期首残高データを保存してから仮締めしてください",
     );
   }
-  for (const journal of period.opening.openingJournals ?? []) {
+  for (const journal of period.opening.openingJournals) {
     assertEntryLinesBalanced(journal.lines, "Opening journal",{ allowZero: false },);
     assertEntryMasterReferences({
       date: journal.date,
@@ -132,7 +134,7 @@ export function archivedFiscalPeriodError(messageForDeveloper: string) {
 
 export function assertFiscalPeriodCreateInput(input: FiscalPeriodCreateInput) {
   assertObject(input, "Fiscal period input");
-  assertNonBlankString(input.name, "Fiscal period name");
+  assertNonBlankText(input.name, "Fiscal period name");
   assertDateRange(input.startDate, input.endDate, "Fiscal period");
 }
 
@@ -190,6 +192,7 @@ export function assertFiscalPeriodContainsExistingData(
   const disposalOutsidePeriod = fixedAssets.find(
     (asset) =>
       (asset.status === "sold" || asset.status === "disposed") &&
+      asset.disposalDate != null &&
       (asset.disposalDate < period.startDate ||
         asset.disposalDate > period.endDate),
   );
@@ -243,7 +246,7 @@ export function assertFiscalPeriodPatchInput(
 ) {
   assertObject(patch, "Fiscal period patch");
   if (patch.name != null) {
-    assertNonBlankString(patch.name, "Fiscal period name");
+    assertNonBlankText(patch.name, "Fiscal period name");
   }
   if (patch.startDate != null) {
     assertString(patch.startDate, "Fiscal period start date");
@@ -279,7 +282,7 @@ export function assertFiscalPeriodPatchInput(
       !Array.isArray(opening.openingBalanceLines) ||
       !Array.isArray(opening.openingJournals)
     ) {
-      throw serverValidationError("Opening data must contain line arrays");
+      throw serverValidationError("Opening data must contain line arrays", null);
     }
     assertOpeningDataSizeLimits(opening);
     assertNonBlankString(opening.id, "Opening id");
@@ -302,7 +305,7 @@ export function assertFiscalPeriodPatchInput(
     }
     for (const line of opening.openingBalanceLines) {
       if (line == null || typeof line !== "object") {
-        throw serverValidationError("Opening balance line must be an object");
+        throw serverValidationError("Opening balance line must be an object", null);
       }
       assertNonBlankString(line.accountId, "Opening balance account");
       assertOpeningBalanceAccountId(
@@ -326,12 +329,13 @@ export function assertFiscalPeriodPatchInput(
       ) {
         throw serverValidationError(
           "Opening journal must contain a lines array",
+          null,
         );
       }
       assertNonBlankString(journal.id, "Opening journal id");
-      assertString(journal.description, "Opening journal description");
+      assertText(journal.description, "Opening journal description");
       if (openingWillBeCompleted) {
-        assertNonBlankString(
+        assertNonBlankText(
           journal.description,
           "Opening journal description",
         );
@@ -347,14 +351,14 @@ export function assertFiscalPeriodPatchInput(
       assertUniqueIds(journal.lines, `Opening journal ${journal.id} line ids`);
       for (const line of journal.lines) {
         if (line == null || typeof line !== "object") {
-          throw serverValidationError("Opening journal line must be an object");
+          throw serverValidationError("Opening journal line must be an object", null);
         }
         assertNonBlankString(
           line.bookAccountId,
           "Opening journal line book account",
         );
         assertNonBlankString(line.id, "Opening journal line id");
-        assertString(line.partnerName, "Opening journal line partner");
+        assertText(line.partnerName, "Opening journal line partner");
         assertNonNegativeSafeInteger(
           line.amount,
           "Opening journal line amount",
@@ -391,9 +395,9 @@ export function assertFiscalPeriodPatchInput(
     );
   }
   if (mustValidateCompletedOpening && effectiveOpening != null) {
-    assertOpeningBalancesBalanced(effectiveOpening.openingBalanceLines ?? []);
-    for (const journal of effectiveOpening.openingJournals ?? []) {
-      assertNonBlankString(journal.description, "Opening journal description");
+    assertOpeningBalancesBalanced(effectiveOpening.openingBalanceLines);
+    for (const journal of effectiveOpening.openingJournals) {
+      assertNonBlankText(journal.description, "Opening journal description");
       assertEntryLinesBalanced(journal.lines, "Opening journal",{ allowZero: false },);
     }
   }
@@ -446,7 +450,7 @@ function assertUniqueIds(
   const ids = new Set<string>();
   for (const item of items) {
     if (typeof item !== "object" || item == null || Array.isArray(item)) {
-      throw serverValidationError(`${label} must contain objects`);
+      throw serverValidationError(`${label} must contain objects`, null);
     }
     const id = (item as { id: unknown }).id;
     assertNonBlankString(id, `${label} item id`);

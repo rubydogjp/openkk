@@ -198,7 +198,10 @@ export function NextFiscalPeriodBody({
       appState.assertAuthOperationCurrent(authOperationVersion);
       if (createdId == null) return;
       if (carries.bs || carries.transfer) {
-        const entries = await entriesState.reloadAndWait();
+        const [entries, accounts] = await Promise.all([
+          entriesState.reloadAndWait(),
+          backendApi.masterData.getBookAccounts(),
+        ]);
         appState.assertAuthOperationCurrent(authOperationVersion);
         const aggregate = computeFsAggregate({
           openingBalanceLines:
@@ -209,6 +212,7 @@ export function NextFiscalPeriodBody({
         const openingJournals = carries.transfer
           ? buildOpeningCarryoverJournalsFromReversibleEntries({
               entries,
+              accounts,
               nextFiscalPeriodId: createdId,
               nextStartDate: startDate,
             })
@@ -217,7 +221,7 @@ export function NextFiscalPeriodBody({
           openingBalancesCompleted: carries.bs,
           opening: {
             id: `op-${createdId}`,
-            userId: appState.session?.user.id ?? "",
+            userId: currentFiscalPeriod.userId,
             fiscalPeriodId: createdId,
             openingBalanceLines: carries.bs
               ? openingBalanceLines.map((line) => ({
@@ -275,6 +279,7 @@ export function NextFiscalPeriodBody({
                 "次の期間の初期化に失敗し、作成途中の期間も自動削除できませんでした。期間一覧で不要な期間を確認してください",
               originalMessage: String(error),
               statusCode: null,
+              code: null,
             }),
           );
           return;
@@ -381,7 +386,7 @@ export function NextFiscalPeriodBody({
           <StepCallout tone="warning">
             この手順はまだ進められません。
           </StepCallout>
-          <StepDivider />
+          <StepDivider marginY={null} />
         </>
       ) : null}
 
@@ -404,6 +409,7 @@ export function NextFiscalPeriodBody({
               />
             }
             hint={null}
+            divider={false}
           />
           <StepFormRow
             label="期間"
@@ -435,12 +441,16 @@ export function NextFiscalPeriodBody({
         </StepMetaCard>
       </section>
 
-      <StepDivider />
+      <StepDivider marginY={null} />
 
       <section>
         <StepSectionLabel>引き継ぎ</StepSectionLabel>
         <StepMetaCard>
-          <StepMetaRow label="引き継ぎ元" value={currentFiscalPeriod.name} />
+          <StepMetaRow
+            label="引き継ぎ元"
+            value={currentFiscalPeriod.name}
+            divider={false}
+          />
           <StepFormRow
             label="引き継ぎ項目"
             divider
@@ -500,7 +510,10 @@ export function NextFiscalPeriodBody({
                     gap: 12,
                   }}
                 >
-                  <StepSecondaryButton onClick={() => setPendingAdvance(false)}>
+                  <StepSecondaryButton
+                    onClick={() => setPendingAdvance(false)}
+                    disabled={false}
+                  >
                     キャンセル
                   </StepSecondaryButton>
                   <StepPrimaryButton
@@ -551,7 +564,10 @@ export function NextFiscalPeriodBody({
               justifyContent: "flex-start",
             }}
           >
-            <StepSecondaryButton onClick={() => onSwitchToStep?.(5)}>
+            <StepSecondaryButton
+              onClick={() => onSwitchToStep?.(5)}
+              disabled={false}
+            >
               前の手順へ
             </StepSecondaryButton>
           </div>
@@ -560,7 +576,7 @@ export function NextFiscalPeriodBody({
 
       {nextPeriodFooter != null ? (
         <>
-          <StepDivider />
+          <StepDivider marginY={null} />
           <StepCallout tone="info">{nextPeriodFooter}</StepCallout>
         </>
       ) : null}
@@ -573,6 +589,7 @@ export function NextFiscalPeriodBody({
           <StepMetaRow
             label="圧縮保存"
             value="手続きが終わった会計期間のデータを長期保存するには圧縮保存しておくことがおすすめです。"
+            divider={false}
           />
         </StepMetaCard>
         <div
@@ -628,14 +645,15 @@ function CarryCheckboxItem({
   checked,
   onChange,
   label,
-  disabled = false,
+  disabled,
 }: {
   inputId: string;
   checked: boolean;
   onChange: () => void;
   label: string;
-  disabled?: boolean;
+  disabled: boolean;
 }) {
+  const isDisabled = disabled;
   return (
     <label
       htmlFor={inputId}
@@ -646,8 +664,8 @@ function CarryCheckboxItem({
         minHeight: 40,
         paddingLeft: 4,
         paddingRight: 8,
-        cursor: disabled ? "default" : "pointer",
-        opacity: disabled ? 0.55 : 1,
+        cursor: isDisabled ? "default" : "pointer",
+        opacity: isDisabled ? 0.55 : 1,
         userSelect: "none",
         borderRadius: 6,
       }}
@@ -656,7 +674,7 @@ function CarryCheckboxItem({
         id={inputId}
         type="checkbox"
         checked={checked}
-        disabled={disabled}
+        disabled={isDisabled}
         onChange={onChange}
         className="bk-checkbox-input"
       />

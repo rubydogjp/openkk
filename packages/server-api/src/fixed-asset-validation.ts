@@ -16,6 +16,7 @@ import type {
 } from "@rubydogjp/openkk-server-ports";
 import {
   assertNonBlankString,
+  assertNonBlankText,
   assertObject,
   assertString,
 } from "./common-validation.js";
@@ -25,10 +26,10 @@ export function assertFixedAssetCreateInput(
   period: FiscalPeriodApiRecord,
 ): void {
   assertObject(input, "Fixed asset input");
-  assertNonBlankString(input.name, "Fixed asset name");
+  assertNonBlankText(input.name, "Fixed asset name");
   assertNonBlankString(input.bookAccountId, "Fixed asset book account");
   if (input.depreciationMethod !== "straight_line") {
-    throw serverValidationError("Fixed asset depreciation method is invalid");
+    throw serverValidationError("Fixed asset depreciation method is invalid", null);
   }
   assertIsoDate(input.acquisitionDate, "Fixed asset acquisition date");
   assertPositiveInteger(input.acquisitionCost, "Fixed asset acquisition cost");
@@ -45,99 +46,115 @@ export function assertFixedAssetCreateInput(
 
 export function assertFixedAssetPatchInput(input: FixedAssetPatchInput): void {
   assertObject(input, "Fixed asset patch");
-  if (input.name != null) {
-    assertNonBlankString(input.name, "Fixed asset name");
+  if (input.name !== undefined) {
+    assertNonBlankText(input.name, "Fixed asset name");
   }
-  if (input.bookAccountId != null) {
+  if (input.bookAccountId !== undefined) {
     assertNonBlankString(input.bookAccountId, "Fixed asset book account");
   }
   if (
-    input.depreciationMethod != null &&
+    input.depreciationMethod !== undefined &&
     input.depreciationMethod !== "straight_line"
   ) {
-    throw serverValidationError("Fixed asset depreciation method is invalid");
+    throw serverValidationError("Fixed asset depreciation method is invalid", null);
   }
   if (
-    input.status != null &&
+    input.status !== undefined &&
     !FIXED_ASSET_STATUSES.includes(input.status)
   ) {
-    throw serverValidationError("Fixed asset status is invalid");
+    throw serverValidationError("Fixed asset status is invalid", null);
   }
-  if (input.acquisitionDate != null) {
+  if (input.acquisitionDate !== undefined) {
     assertString(input.acquisitionDate, "Fixed asset acquisition date");
     assertIsoDate(input.acquisitionDate, "Fixed asset acquisition date");
   }
-  if (input.disposalDate != null) {
-    assertString(input.disposalDate, "Fixed asset disposal date");
-    if (input.disposalDate !== "") {
+  if (input.disposalDate !== undefined) {
+    if (input.disposalDate !== null) {
+      assertString(input.disposalDate, "Fixed asset disposal date");
       assertIsoDate(input.disposalDate, "Fixed asset disposal date");
     }
   }
-  if (input.acquisitionCost != null) {
+  if (input.acquisitionCost !== undefined) {
     assertPositiveInteger(
       input.acquisitionCost,
       "Fixed asset acquisition cost",
     );
   }
-  if (input.usefulLife != null) {
+  if (input.usefulLife !== undefined) {
     assertFixedAssetUsefulLife(input.usefulLife);
   }
-  if (input.businessRate != null) {
+  if (input.businessRate !== undefined) {
     assertUnitRate(input.businessRate, "Fixed asset business rate");
   }
-  if (input.disposalPrice != null) {
-    assertNonNegativeSafeInteger(
-      input.disposalPrice,
-      "Fixed asset disposal price",
-    );
+  if (input.disposalPrice !== undefined) {
+    if (input.disposalPrice !== null) {
+      assertNonNegativeSafeInteger(
+        input.disposalPrice,
+        "Fixed asset disposal price",
+      );
+    }
   }
 }
 
-const DISPOSAL_STATUSES: ReadonlyArray<FixedAssetPatchInput["status"]> = [
+type FixedAssetStatus = "active" | "sold" | "disposed" | "retired";
+
+const DISPOSAL_STATUSES: ReadonlyArray<FixedAssetStatus> = ["sold", "disposed"];
+const FIXED_ASSET_STATUSES: ReadonlyArray<FixedAssetStatus> = [
+  "active",
   "sold",
   "disposed",
+  "retired",
 ];
-const FIXED_ASSET_STATUSES: ReadonlyArray<
-  NonNullable<FixedAssetPatchInput["status"]>
-> = ["active", "sold", "disposed", "retired"];
 
 export function assertFixedAssetDisposalConsistency(
   existing: {
     status: string;
     acquisitionDate: string;
-    disposalDate: string;
-    disposalPrice: number;
+    disposalDate: string | null;
+    disposalPrice: number | null;
   },
   patch: FixedAssetPatchInput,
 ): void {
   const effectiveStatus = patch.status ?? existing.status;
   const effectiveAcquisitionDate =
     patch.acquisitionDate ?? existing.acquisitionDate;
-  const effectiveDisposalDate = patch.disposalDate ?? existing.disposalDate;
-  const effectiveDisposalPrice = patch.disposalPrice ?? existing.disposalPrice;
-  const isDisposalStatus = DISPOSAL_STATUSES.includes(
-    effectiveStatus as FixedAssetPatchInput["status"],
+  const effectiveDisposalDate =
+    patch.disposalDate === undefined
+      ? existing.disposalDate
+      : patch.disposalDate;
+  const effectiveDisposalPrice =
+    patch.disposalPrice === undefined
+      ? existing.disposalPrice
+      : patch.disposalPrice;
+  const isDisposalStatus = DISPOSAL_STATUSES.some(
+    (status) => status === effectiveStatus,
   );
-  if (isDisposalStatus && effectiveDisposalDate.trim() === "") {
+  if (isDisposalStatus && effectiveDisposalDate == null) {
     throw serverValidationError(
       `Fixed asset with status ${effectiveStatus} requires a disposal date`,
       "売却・廃棄の固定資産には処分日を入力してください",
     );
   }
-  if (!isDisposalStatus && effectiveDisposalDate.trim() !== "") {
+  if (!isDisposalStatus && effectiveDisposalDate != null) {
     throw serverValidationError(
       `Fixed asset with status ${effectiveStatus} must not have a disposal date`,
       "償却中・完了の固定資産には処分日を設定できません",
     );
   }
-  if (effectiveStatus !== "sold" && effectiveDisposalPrice !== 0) {
+  if (effectiveStatus === "sold" && effectiveDisposalPrice == null) {
+    throw serverValidationError(
+      "Fixed asset with status sold requires a disposal price",
+      "売却済の固定資産には売却額を入力してください",
+    );
+  }
+  if (effectiveStatus !== "sold" && effectiveDisposalPrice != null) {
     throw serverValidationError(
       `Fixed asset with status ${effectiveStatus} must not have a disposal price`,
       "売却済以外の固定資産には売却額を設定できません",
     );
   }
   if (
-    effectiveDisposalDate.trim() !== "" &&
+    effectiveDisposalDate != null &&
     effectiveDisposalDate < effectiveAcquisitionDate
   ) {
     throw serverValidationError(
@@ -153,7 +170,10 @@ export function assertFixedAssetEffectiveInput(
   period: FiscalPeriodApiRecord,
 ): void {
   const acquisitionDate = patch.acquisitionDate ?? existing.acquisitionDate;
-  const disposalDate = patch.disposalDate ?? existing.disposalDate;
+  const disposalDate =
+    patch.disposalDate === undefined
+      ? existing.disposalDate
+      : patch.disposalDate;
   const status = patch.status ?? existing.status;
   const bookAccountId = patch.bookAccountId ?? existing.bookAccountId;
   const acquisitionCost = patch.acquisitionCost ?? existing.acquisitionCost;
@@ -169,6 +189,7 @@ export function assertFixedAssetEffectiveInput(
   }
   if (
     (status === "sold" || status === "disposed") &&
+    disposalDate != null &&
     (disposalDate < period.startDate || disposalDate > period.endDate)
   ) {
     throw serverValidationError(

@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 
-import type {
-  EntryAccountVisualType,
-  EntryPreviewRow,
+import {
+  formatBusinessRatePercent,
+  type BookAccountType,
+  type EntryPreviewRow,
 } from "@rubydogjp/openkk-client-domain";
 import { AmountText } from "../shared/amount-field.js";
 import {
@@ -57,17 +58,17 @@ export function EntriesTable(props: {
 
   onOpenEntry: ((row: EntryPreviewRow, index: number) => void) | null;
   onAddEntry: (() => void) | null;
-  readOnly: boolean | null;
+  readOnly: boolean;
 
   activeRecordId: string | null;
-  fillHeight: boolean | null;
+  fillHeight: boolean;
   headerTone: EntriesHeaderTone | null;
 }) {
   const onOpen = props.onOpenEntry;
   const isEmpty = props.rows.length === 0;
-  const fillHeight = props.fillHeight ?? false;
-  const activeRecordId = props.activeRecordId ?? null;
-  const isReadOnly = props.readOnly === true;
+  const { fillHeight } = props;
+  const activeRecordId = props.activeRecordId;
+  const isReadOnly = props.readOnly;
   const headerTone = resolveEntriesHeaderTone(props.headerTone ?? "default");
   return (
     <div
@@ -159,7 +160,7 @@ export function EntriesTable(props: {
                 const rowClickable =
                   onOpen != null && (!isReadOnly || isVirtual);
                 const isRecordHead =
-                  row.isFirstOfRecord !== false ||
+                  row.isFirstOfRecord ||
                   row.recordId !== props.rows[index - 1]?.recordId;
                 const isRepeat = !isRecordHead;
                 const isActive =
@@ -168,7 +169,7 @@ export function EntriesTable(props: {
                   row.recordId === activeRecordId;
                 return (
                   <div
-                    key={`${row.recordId ?? row.date}-${index}`}
+                    key={`${row.recordId}-${index}`}
                     className={`bk-entries-row${rowClickable ? " is-clickable" : ""}${isActive ? " is-active" : ""}${isVirtual ? " is-virtual" : ""}`}
                     onClick={
                       rowClickable ? () => onOpen(row, index) : undefined
@@ -261,9 +262,9 @@ export function EntriesTable(props: {
                       <RepeatPlaceholderCell align="right" />
                     ) : (
                       <TableTagCell
-                        text={row.businessRate}
+                        text={formatBusinessRatePercent(row.businessRate)}
                         align="right"
-                        emptyText="100"
+                        emptyText={null}
                       />
                     )}
                     {isRepeat ? (
@@ -567,7 +568,7 @@ function VirtualEntryDateCell({ label }: { label: string }) {
 
 export function AccountChip(props: {
   label: string;
-  type: EntryAccountVisualType;
+  type: BookAccountType;
 }) {
   const accountPalette = entryAccountPalette(props.type);
   return (
@@ -611,7 +612,7 @@ export function AccountChip(props: {
 
 export function AccountChipCell(props: {
   label: string;
-  type: EntryAccountVisualType;
+  type: BookAccountType;
 }) {
   const accountPalette = entryAccountPalette(props.type);
   return (
@@ -657,7 +658,9 @@ export function AccountChipCell(props: {
 function TableAmountCell(props: { children: ReactNode }) {
   return (
     <div style={{ padding: "0 12px", textAlign: "right" }}>
-      <AmountText>{props.children}</AmountText>
+      <AmountText bold={false} muted={false}>
+        {props.children}
+      </AmountText>
     </div>
   );
 }

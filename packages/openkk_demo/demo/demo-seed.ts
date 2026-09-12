@@ -6,26 +6,26 @@ import type {
 } from "@rubydogjp/openkk-client";
 import {
   parseAmount,
-  resolveEntryBusinessRate,
+  resolveBookAccountId,
+  resolveCategoryId,
   DEFAULT_BOOK_ACCOUNTS,
   DEFAULT_BUSINESS_CATEGORIES,
   DEFAULT_TAX_CATEGORIES,
-  getEntryLines,
   bootstrapOpeningBalanceLines,
   type EntryRecord,
-  type FixedAssetPreviewItem,
+  type FixedAsset,
   type OpenkkConfig,
 } from "@rubydogjp/openkk-client";
-import type { MemoryDbSnapshot } from "@rubydogjp/openkk-memory-db-adapter";
+import type { DbSnapshot } from "@rubydogjp/openkk-memory-db-adapter";
 
 import { buildDemoEntries, demoFixedAssetItems } from "./demo-content";
 
 const DEMO_SEED_TIMESTAMP = new Date(0).toISOString();
 
-export function buildOpenkkDemoSeed(config: OpenkkConfig): MemoryDbSnapshot {
+export function buildOpenkkDemoSeed(config: OpenkkConfig): DbSnapshot {
   const fiscalPeriod = buildDemoSeedFiscalPeriod(config);
   return {
-    fiscalPeriods: [{ userId: config.mockUserId, record: fiscalPeriod }],
+    fiscalPeriods: [fiscalPeriod],
     entries: buildDemoEntries().map((record) =>
       entryRecordToApiRecord(record, fiscalPeriod.id, config.mockUserId),
     ),
@@ -33,7 +33,7 @@ export function buildOpenkkDemoSeed(config: OpenkkConfig): MemoryDbSnapshot {
       fixedAssetItemToApiRecord(item, fiscalPeriod.id, config.mockUserId),
     ),
     closings: [],
-    preClosings: null,
+    preClosings: [],
   };
 }
 
@@ -62,7 +62,7 @@ function buildDemoSeedFiscalPeriod(
     },
     createdAt: DEMO_SEED_TIMESTAMP,
     updatedAt: DEMO_SEED_TIMESTAMP,
-    archiveDataAvailable: null,
+    archiveDataAvailable: true,
     archivedAt: null,
   };
 }
@@ -78,65 +78,45 @@ function entryRecordToApiRecord(
     fiscalPeriodId,
     date: record.date,
     description: record.description,
-    localId: record.localId ?? "",
-    businessRate: resolveEntryBusinessRate(record),
-    lines: getEntryLines(record).map(
-      (line, index): EntryApiLine => ({
+    localId: record.localId,
+    businessRate: record.businessRate,
+    lines: record.lines.map((line, index): EntryApiLine => {
+      const bookAccountId = resolveBookAccountId({
+        explicitId: line.bookAccountId,
+        accountName: line.accountName,
+        accountType: line.accountType,
+        accounts: DEFAULT_BOOK_ACCOUNTS,
+      });
+      if (bookAccountId == null) {
+        throw new Error("Unknown demo book account: " + line.accountName);
+      }
+      return {
         id: `${record.id}-line-${index}`,
         side: line.side,
-        bookAccountId:
-          DEFAULT_BOOK_ACCOUNTS.find(
-            (account) => account.id === line.bookAccountId,
-          )?.id ??
-          DEFAULT_BOOK_ACCOUNTS.find(
-            (account) =>
-              account.name === line.accountName &&
-              account.accountType === line.accountType,
-          )?.id ??
-          DEFAULT_BOOK_ACCOUNTS.find(
-            (account) => account.name === line.accountName,
-          )?.id ??
-          line.accountName,
+        bookAccountId,
         amount: parseAmount(line.amount),
-        partnerName: line.partnerName ?? record.partner,
-        taxCategoryId: resolveDemoCategoryId(
-          line.taxCategoryId ?? undefined,
-          record.taxCategory,
+        partnerName: line.partnerName ?? "",
+        taxCategoryId: resolveCategoryId(
+          line.taxCategoryId,
+          line.taxCategoryName ?? "",
           DEFAULT_TAX_CATEGORIES,
           "tax_out_of_scope",
         ),
-        businessCategoryId: resolveDemoCategoryId(
-          line.businessCategoryId ?? undefined,
-          record.businessCategory,
+        businessCategoryId: resolveCategoryId(
+          line.businessCategoryId,
+          line.businessCategoryName ?? "",
           DEFAULT_BUSINESS_CATEGORIES,
           "biz_none",
         ),
-      }),
-    ),
+      };
+    }),
     createdAt: DEMO_SEED_TIMESTAMP,
     updatedAt: DEMO_SEED_TIMESTAMP,
   };
 }
 
-function resolveDemoCategoryId(
-  explicitId: string | undefined,
-  displayValue: string,
-  categories: ReadonlyArray<{ id: string; name: string }>,
-  blankFallbackId: string,
-): string {
-  const explicitValue = explicitId?.trim() ?? "";
-  const candidate = explicitValue === "" ? displayValue.trim() : explicitValue;
-  if (candidate === "") return blankFallbackId;
-  return (
-    categories.find(
-      (category) =>
-        category.id === candidate || category.name === candidate,
-    )?.id ?? candidate
-  );
-}
-
 function fixedAssetItemToApiRecord(
-  item: FixedAssetPreviewItem,
+  item: FixedAsset,
   fiscalPeriodId: string,
   userId: string,
 ): FixedAssetApiRecord {
@@ -145,19 +125,15 @@ function fixedAssetItemToApiRecord(
     userId,
     fiscalPeriodId,
     name: item.name,
-    acquisitionDate: item.acquisitionDate ?? "",
-    acquisitionCost: parseAmount(item.purchase),
-    usefulLife: item.usefulLife ?? 0,
+    acquisitionDate: item.acquisitionDate,
+    acquisitionCost: item.acquisitionCost,
+    usefulLife: item.usefulLife,
     depreciationMethod: "straight_line",
-    businessRate: item.businessRate ?? 1,
+    businessRate: item.businessRate,
     status: fixedAssetStatusToApi(item.status),
-    disposalDate: item.disposalDate ?? "",
-    disposalPrice: parseAmount(item.disposalPrice ?? "0"),
-    bookAccountId:
-      DEFAULT_BOOK_ACCOUNTS.find((account) => account.name === item.account)
-        ?.id ??
-      item.accountId ??
-      item.account,
+    disposalDate: item.disposalDate,
+    disposalPrice: item.disposalPrice,
+    bookAccountId: item.bookAccountId,
     createdAt: DEMO_SEED_TIMESTAMP,
     updatedAt: DEMO_SEED_TIMESTAMP,
   };

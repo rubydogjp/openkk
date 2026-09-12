@@ -23,8 +23,8 @@ import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 const INSTALL_AVAILABILITY_TIMEOUT_MS = 2500;
 
 type NavigatorWithExperimentalInstall = Navigator & {
-  install: (() => Promise<unknown>) | null;
-  standalone: boolean | null;
+  install: unknown;
+  standalone: unknown;
 };
 
 type Phase =
@@ -87,12 +87,13 @@ export function InstallPage() {
     setPhase("installing");
     const prompt = takeDeferredInstallPrompt();
     const nav = navigator as NavigatorWithExperimentalInstall;
+    const install = nav.install;
     try {
       const outcome = await requestAppInstall({
         prompt,
         install:
-          prompt == null && typeof nav.install === "function"
-            ? () => nav.install!()
+          prompt == null && typeof install === "function"
+            ? () => install.call(nav)
             : null,
       });
       setPhase(outcome);
@@ -142,7 +143,7 @@ export function InstallPage() {
           >
             ホーム画面に追加済みです
           </p>
-          <PrimaryButton onClick={() => router.push("/")}>
+          <PrimaryButton onClick={() => router.push("/")} disabled={false}>
             アプリを開く
           </PrimaryButton>
         </>
@@ -159,7 +160,7 @@ export function InstallPage() {
               ? "ホーム画面への追加をキャンセルしました"
               : "この環境では「ホーム画面に追加」できません"}
           </p>
-          <PrimaryButton onClick={() => router.push("/")}>
+          <PrimaryButton onClick={() => router.push("/")} disabled={false}>
             このままブラウザで開始
           </PrimaryButton>
         </>
@@ -182,27 +183,28 @@ export function InstallPage() {
 function PrimaryButton({
   children,
   onClick,
-  disabled = false,
+  disabled,
 }: {
   children: ReactNode;
   onClick: () => void;
-  disabled?: boolean;
+  disabled: boolean;
 }) {
+  const isDisabled = disabled;
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={disabled}
+      disabled={isDisabled}
       style={{
         height: 48,
         padding: "0 28px",
         borderRadius: 12,
         border: "none",
-        background: disabled ? palette.borderStrong : palette.brand,
+        background: isDisabled ? palette.borderStrong : palette.brand,
         color: palette.surface,
         fontSize: fontSize.md,
         fontWeight: fontWeight.bold,
-        cursor: disabled ? "default" : "pointer",
+        cursor: isDisabled ? "default" : "pointer",
       }}
     >
       {children}

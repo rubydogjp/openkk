@@ -1,6 +1,6 @@
 # Database Schema
 
-標準実装の SQLite スキーマ。DDL の正本は `packages/server-ports/src/sqlite/schema.ts`。
+標準実装の SQLite スキーマ。DDL の正本は `packages/sqlite-adapter/src/schema.ts`。
 
 ```mermaid
 erDiagram
@@ -21,7 +21,7 @@ erDiagram
   fiscal_periods {
     TEXT id PK
     TEXT user_id
-    TEXT data "JSON: FiscalPeriodDbRecord"
+    TEXT data "JSON: FiscalPeriodDataColumn"
     INTEGER created_at
     INTEGER updated_at
   }
@@ -81,7 +81,7 @@ erDiagram
   fixed_assets {
     TEXT id PK
     TEXT fiscal_period_id
-    TEXT data "JSON: FixedAssetDbRecord"
+    TEXT data "JSON: FixedAssetDataColumn"
     INTEGER created_at
     INTEGER updated_at
   }
@@ -97,20 +97,25 @@ erDiagram
 
 Openingと仕訳明細は子テーブルへ正規化する。仮締めと本締めも別テーブルで管理する。
 
+会計期間の型は読み込む範囲で3段に分かれる。`FiscalPeriodDataColumn` は `data` 列の中身、
+`FiscalPeriodDbRow` は行そのもの（`user_id` と時刻を含む）、`FiscalPeriodDbRecord` は
+Opening まで読んだ全体。子テーブルを持たない固定資産は `FixedAssetDataColumn` と
+`FixedAssetDbRecord` の2段。
+
 子テーブルの外部キーは期間・Opening削除時に `ON DELETE CASCADE` で削除される。残る `data` 列は `json_valid` と主要列との一致をCHECK制約で検証する。
 
-Indexes: `fiscal_periods(user_id, created_at, id)`, Opening各行の表示順、`entries(fiscal_period_id, date, created_at, id)`, `fixed_assets(fiscal_period_id, created_at, id)`。空でない `entries.local_id` は期間内で一意。
+Indexes: `fiscal_periods(user_id, created_at, id)`, Opening各行の表示順、`entries(fiscal_period_id, date, created_at, id)`, `fixed_assets(fiscal_period_id, created_at, id)`。`entries.local_id` は `null` 以外なら期間内で一意。
 
 ## マイグレーション
 
 `SCHEMA_VERSION` は 4。起動時に不足分を順に適用する。
 
-**公開済みのマイグレーションは書き換えない。** v1〜v3 は v26.1.12 までに公開済みで、
-既存端末のDBが適用済みのため。誤りは新しいバージョンで打ち消す。
+公開済みのマイグレーションは書き換えず、修正は新しいバージョンに分離する。
+未公開のバージョンは追加せず、次に公開するバージョンへまとめる。
 
 | version | 内容 |
 |---|---|
 | 1 | 初期スキーマ |
-| 2 | テーブル設計を正規化。v1 JSON の `taxCategoryName` / `businessCategoryName`（表示名）を `*_category_id` 列へそのまま移送 |
+| 2 | Opening・仕訳明細・締め状態を子テーブルへ正規化 |
 | 3 | `entry_lines` に明細IDを追加 |
-| 4 | v2 が移送した既定区分の表示名を既定IDへ変換（`対象外` → `tax_out_of_scope` 等）。既定に無い値はそのまま残す |
+| 4 | 税区分・事業区分をIDへ変換し、未設定値を `null` に統一 |

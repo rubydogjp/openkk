@@ -1,23 +1,24 @@
 "use client";
 
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties } from "react";
 
-import { fontSize, fontWeight, palette, radii, sizes, spacing, typography } from "./design-tokens.js";
+import { palette, radii, sizes, spacing, typography } from "./design-tokens.js";
 
 export function LockIcon({
-  size = 20,
-  opacity = 1,
+  size,
+  opacity,
 }: {
-  size?: number;
-  opacity?: number;
+  size: number | null;
+  opacity: number | null;
 }) {
+  const iconSize = size ?? 20;
   return (
     <svg
-      width={size}
-      height={size}
+      width={iconSize}
+      height={iconSize}
       viewBox="0 0 248 248"
       xmlns="http://www.w3.org/2000/svg"
-      style={{ opacity, display: "block" }}
+      style={{ opacity: opacity ?? 1, display: "block" }}
       aria-hidden="true"
     >
       <g transform="translate(-516 -236)">
@@ -32,10 +33,10 @@ export function LockIcon({
 }
 
 export function LockButton({
-  label = "この操作はできません",
+  label,
   style,
 }: {
-  label?: string;
+  label: string | null;
   style: CSSProperties | null;
 }) {
   return (
@@ -58,123 +59,8 @@ export function LockButton({
         ...style,
       }}
     >
-      <LockIcon size={18} />
-      <span>{label}</span>
+      <LockIcon size={18} opacity={null} />
+      <span>{label ?? "この操作はできません"}</span>
     </button>
-  );
-}
-
-export function LockFabButton({
-  size = 56,
-  title = "追加できません",
-}: {
-  size?: number;
-  title?: string;
-}) {
-  return (
-    <button
-      type="button"
-      disabled
-      title={title}
-      aria-label={title}
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 999,
-        border: `1px solid ${palette.borderStrong}`,
-        background: palette.surface,
-        cursor: "default",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        boxShadow: "0 6px 14px rgba(0,0,0,0.06)",
-      }}
-    >
-      <LockIcon size={Math.round(size * 0.42)} />
-    </button>
-  );
-}
-
-export function LockCircleButton({
-  size = 28,
-  title = "編集できません",
-}: {
-  size?: number;
-  title?: string;
-}) {
-  return (
-    <span
-      role="img"
-      aria-label={title}
-      title={title}
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 999,
-        border: `1px solid ${palette.borderStrong}`,
-        background: palette.surface,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <LockIcon size={Math.round(size * 0.6)} />
-    </span>
-  );
-}
-
-export function LockNotice({
-  title,
-  description,
-  compact = false,
-}: {
-  title: ReactNode;
-  description: ReactNode;
-  compact?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        width: "100%",
-        padding: compact ? 14 : 18,
-        background: palette.formGroupBg,
-        borderRadius: 18,
-        border: `1px solid ${palette.borderSubtle}`,
-        display: "flex",
-        alignItems: "flex-start",
-        gap: 12,
-      }}
-    >
-      <div
-        style={{
-          width: compact ? 34 : 40,
-          height: compact ? 34 : 40,
-          borderRadius: 12,
-          border: `1px solid ${palette.borderSubtle}`,
-          background: palette.surface,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}
-      >
-        <LockIcon size={20} />
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold, color: palette.text }}>
-          {title}
-        </div>
-        <div
-          style={{
-            marginTop: 4,
-            fontSize: fontSize.base,
-            lineHeight: 1.5,
-            color: palette.textSoft,
-          }}
-        >
-          {description}
-        </div>
-      </div>
-    </div>
   );
 }

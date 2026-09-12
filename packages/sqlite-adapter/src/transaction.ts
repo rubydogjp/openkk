@@ -1,13 +1,14 @@
 import type { SqlDb } from "./sql-db.js";
 
-export async function runInTransaction(
+export async function runInTransaction<Result>(
   db: SqlDb,
-  operation: () => Promise<void>,
-): Promise<void> {
+  operation: () => Promise<Result>,
+): Promise<Result> {
   await db.exec("BEGIN");
   try {
-    await operation();
+    const result = await operation();
     await db.exec("COMMIT");
+    return result;
   } catch (operationError) {
     try {
       await db.exec("ROLLBACK");

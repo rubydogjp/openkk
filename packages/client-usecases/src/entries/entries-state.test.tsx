@@ -2,8 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   entryRecordToImportPayload,
-  optionalEntryLocalId,
-  resolveBookAccountId,
 } from "./import-mapping.js";
 import {
   earliestEntryDate,
@@ -11,7 +9,11 @@ import {
   replaceFiscalPeriodEntryRecords,
   upsertEntryRecord,
 } from "./entry-record-state.js";
-import type { EntryRecord } from "@rubydogjp/openkk-client-domain";
+import type {
+  BookAccountType,
+  EntryLine,
+  EntryRecord,
+} from "@rubydogjp/openkk-client-domain";
 import type {
   MasterBookAccount,
   MasterBusinessCategory,
@@ -37,50 +39,91 @@ const businesses: Pick<MasterBusinessCategory, "id" | "name">[] = [
   { id: "biz_retail", name: "第2種（小売業等）" },
 ];
 
-function entry(overrides: Partial<EntryRecord> = {}): EntryRecord {
-  const base: EntryRecord = {
-    id: "entry-1",
-    fiscalPeriodId: "fp-1",
-    date: "2026-09-05",
-    weekday: "土",
-    debit: "仕入",
-    debitType: "cost_of_sales",
-    debitAmount: "10,000",
-    credit: "未払金",
-    creditType: "liability",
-    creditAmount: "10,000",
-    description: "テスト仕訳",
-    partner: "",
-    businessRate: "100",
-    taxCategory: "課税 10%",
-    businessCategory: "第5種（サービス業等）",
-    lines: null,
-    businessRateRatio: null,
-    localId: null,
-    debitBookAccountId: null,
-    creditBookAccountId: null,
-    debitTaxCategoryId: null,
-    creditTaxCategoryId: null,
-    debitBusinessCategoryId: null,
-    creditBusinessCategoryId: null,
+type EntryInput = Partial<
+  Omit<EntryRecord, "lines"> & {
+    lines: EntryLine[];
+    debit: string;
+    debitType: BookAccountType;
+    debitAmount: string;
+    credit: string;
+    creditType: BookAccountType;
+    creditAmount: string;
+    partner: string;
+    taxCategory: string;
+    businessCategory: string;
+    debitBookAccountId: string | null;
+    creditBookAccountId: string | null;
+  }
+>;
+
+function entry(input: EntryInput = {}): EntryRecord {
+  const partner = input.partner ?? "";
+  const taxCategory = input.taxCategory ?? "課税 10%";
+  const businessCategory =
+    input.businessCategory ?? "第5種（サービス業等）";
+  const line = (side: EntryLine["side"]): EntryLine => {
+    const debit = side === "debit";
+    return {
+      id: null,
+      side,
+      accountName: debit
+        ? (input.debit ?? "仕入")
+        : (input.credit ?? "未払金"),
+      accountType: debit
+        ? (input.debitType ?? "cost_of_sales")
+        : (input.creditType ?? "liability"),
+      amount: debit
+        ? (input.debitAmount ?? "10,000")
+        : (input.creditAmount ?? "10,000"),
+      bookAccountId: debit
+        ? (input.debitBookAccountId ?? null)
+        : (input.creditBookAccountId ?? null),
+      partnerName: partner,
+      taxCategoryId: null,
+      taxCategoryName: taxCategory,
+      businessCategoryId: null,
+      businessCategoryName: businessCategory,
+    };
   };
-  return Object.assign(base, overrides);
+  return {
+    id: input.id ?? "entry-1",
+    fiscalPeriodId: input.fiscalPeriodId ?? "fp-1",
+    date: input.date ?? "2026-09-05",
+    weekday: input.weekday ?? "土",
+    description: input.description ?? "テスト仕訳",
+    businessRate: input.businessRate ?? 1,
+    localId: input.localId ?? null,
+    lines: input.lines ?? [line("debit"), line("credit")],
+  };
 }
 
 describe("entryRecordToImportPayload", () => {
-  it("nulls out an empty backend localId in update/import payloads", () => {
-    expect(optionalEntryLocalId("")).toBeNull();
-    expect(optionalEntryLocalId("   ")).toBeNull();
-    expect(optionalEntryLocalId(null)).toBeNull();
-    expect(optionalEntryLocalId("entry-key")).toBe("entry-key");
+  it("rejects an unknown account id even when its display name matches", () => {
+    expect(() => entryRecordToImportPayload(entry({
+      debitBookAccountId: "unknown",
+    }), { accounts, taxes, businesses })).toThrow("entries.import: unresolved bookAccountId");
+  });
 
-    const payload = entryRecordToImportPayload(entry({ localId: "" }), {
+  it("preserves unknown explicit category ids for backend validation", () => {
+    const record = entry({});
+    record.lines = record.lines.map((line) => ({
+      ...line,
+      taxCategoryId: "unknown_tax",
+      taxCategoryName: "",
+      businessCategoryId: "unknown_business",
+      businessCategoryName: "第5種（サービス業等）",
+    }));
+    const payload = entryRecordToImportPayload(record, {
       accounts,
       taxes,
       businesses,
     });
-
-    expect(payload.localId).toBeNull();
+    expect(payload.lines).toEqual(
+      record.lines.map((line) => expect.objectContaining({
+        taxCategoryId: line.taxCategoryId,
+        businessCategoryId: line.businessCategoryId,
+      })),
+    );
   });
 
   it("maps a blank tax category to out-of-scope taxation", () => {
@@ -102,17 +145,8 @@ describe("entryRecordToImportPayload", () => {
       fiscalPeriodId: "fp-1",
       date: "2026-09-05",
       weekday: "土",
-      debit: "仕入",
-      debitType: "cost_of_sales",
-      debitAmount: "168,000",
-      credit: "未払金",
-      creditType: "liability",
-      creditAmount: "210,000",
       description: "秋商材の仕入と配送費",
-      partner: "取引先A",
-      businessRate: "100",
-      taxCategory: "課税 10%",
-      businessCategory: "第5種（サービス業等）",
+      businessRate: 1,
       localId: "compound-1",
       lines: [
         {
@@ -122,11 +156,11 @@ describe("entryRecordToImportPayload", () => {
           amount: "168,000",
           bookAccountId: "acct_cost_of_sales_商品仕入高",
           id: null,
-          partnerName: null,
+          partnerName: "取引先A",
           taxCategoryId: null,
-          taxCategoryName: null,
+          taxCategoryName: "課税 10%",
           businessCategoryId: null,
-          businessCategoryName: null,
+          businessCategoryName: "第5種（サービス業等）",
         },
         {
           side: "debit",
@@ -135,11 +169,11 @@ describe("entryRecordToImportPayload", () => {
           amount: "42,000",
           bookAccountId: "acct_expense_荷造運賃",
           id: null,
-          partnerName: null,
+          partnerName: "取引先A",
           taxCategoryId: null,
-          taxCategoryName: null,
+          taxCategoryName: "課税 10%",
           businessCategoryId: null,
-          businessCategoryName: null,
+          businessCategoryName: "第5種（サービス業等）",
         },
         {
           side: "credit",
@@ -148,20 +182,13 @@ describe("entryRecordToImportPayload", () => {
           amount: "210,000",
           bookAccountId: "acct_accrued_expense",
           id: null,
-          partnerName: null,
+          partnerName: "取引先A",
           taxCategoryId: null,
-          taxCategoryName: null,
+          taxCategoryName: "課税 10%",
           businessCategoryId: null,
-          businessCategoryName: null,
+          businessCategoryName: "第5種（サービス業等）",
         },
       ],
-      businessRateRatio: null,
-      debitBookAccountId: null,
-      creditBookAccountId: null,
-      debitTaxCategoryId: null,
-      creditTaxCategoryId: null,
-      debitBusinessCategoryId: null,
-      creditBusinessCategoryId: null,
     };
 
     const payload = entryRecordToImportPayload(entry, {
@@ -198,48 +225,10 @@ describe("entryRecordToImportPayload", () => {
     ]);
   });
 
-  it("clamps imported business-use rates to 0-100 percent", () => {
-    const entry: EntryRecord = {
-      id: "entry-1",
-      fiscalPeriodId: "fp-1",
-      date: "2026-09-05",
-      weekday: "土",
-      debit: "仕入",
-      debitType: "cost_of_sales",
-      debitAmount: "10,000",
-      credit: "未払金",
-      creditType: "liability",
-      creditAmount: "10,000",
-      description: "事業割合のテスト",
-      partner: "",
-      businessRate: "150",
-      taxCategory: "課税 10%",
-      businessCategory: "第5種（サービス業等）",
-      localId: "rate-1",
-      debitBookAccountId: "acct_cost_of_sales_商品仕入高",
-      creditBookAccountId: "acct_accrued_expense",
-      lines: null,
-      businessRateRatio: null,
-      debitTaxCategoryId: null,
-      creditTaxCategoryId: null,
-      debitBusinessCategoryId: null,
-      creditBusinessCategoryId: null,
-    };
-
-    const payload = entryRecordToImportPayload(entry, {
-      accounts,
-      taxes,
-      businesses,
-    });
-
-    expect(payload.businessRate).toBe(1);
-  });
-
-  it("preserves an exact backend rate instead of its rounded display value", () => {
+  it("passes a full-precision rate through unchanged", () => {
     const payload = entryRecordToImportPayload(
       entry({
-        businessRate: "33.33",
-        businessRateRatio: 0.3333333333333333,
+        businessRate: 0.3333333333333333,
       }),
       { accounts, taxes, businesses },
     );
@@ -250,7 +239,6 @@ describe("entryRecordToImportPayload", () => {
   it("preserves line-specific metadata instead of replacing it with header values", () => {
     const payload = entryRecordToImportPayload(
       entry({
-        partner: "header partner",
         lines: [
           {
             side: "debit",
@@ -272,11 +260,11 @@ describe("entryRecordToImportPayload", () => {
             amount: "10,000",
             bookAccountId: "acct_accrued_expense",
             id: null,
-            partnerName: null,
+            partnerName: "header partner",
             taxCategoryId: null,
-            taxCategoryName: null,
+            taxCategoryName: "課税 10%",
             businessCategoryId: null,
-            businessCategoryName: null,
+            businessCategoryName: "第5種（サービス業等）",
           },
         ],
       }),
@@ -298,37 +286,7 @@ describe("entryRecordToImportPayload", () => {
   });
 });
 
-describe("resolveBookAccountId", () => {
-  const duplicateAccounts: Pick<
-    MasterBookAccount,
-    "id" | "name" | "accountType"
-  >[] = [
-    { id: "deferred-current", name: "繰延税金資産", accountType: "asset" },
-    { id: "deferred-fixed", name: "繰延税金資産", accountType: "asset" },
-  ];
 
-  it("uses a valid explicit id for same-name accounts", () => {
-    expect(
-      resolveBookAccountId({
-        explicitId: "deferred-fixed",
-        accountName: "繰延税金資産",
-        accountType: "asset",
-        accounts: duplicateAccounts,
-      }),
-    ).toBe("deferred-fixed");
-  });
-
-  it("rejects an ambiguous name-only fallback", () => {
-    expect(
-      resolveBookAccountId({
-        accountName: "繰延税金資産",
-        accountType: "asset",
-        accounts: duplicateAccounts,
-        explicitId: null,
-      }),
-    ).toBeNull();
-  });
-});
 
 describe("earliestEntryDate", () => {
   it("uses only records actually inserted by the backend", () => {

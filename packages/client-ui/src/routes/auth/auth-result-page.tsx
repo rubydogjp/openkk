@@ -18,15 +18,21 @@ export function AuthResultPage() {
     if (startedRef.current) return;
     startedRef.current = true;
 
-    const state = searchParams.get("state") ?? "";
-    const code = searchParams.get("code") ?? "";
-    if (state.trim() === "" || code.trim() === "") {
+    const state = searchParams.get("state");
+    const code = searchParams.get("code");
+    if (
+      state == null ||
+      state.trim() === "" ||
+      code == null ||
+      code.trim() === ""
+    ) {
       setScreenError(
         new AppError({
           messageForUser: "サインイン結果を確認できませんでした",
           messageForDeveloper: "auth-result: state or code missing",
           originalMessage: null,
           statusCode: null,
+          code: null,
         }),
       );
       return;

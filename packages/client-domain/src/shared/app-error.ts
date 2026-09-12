@@ -3,6 +3,7 @@ export type AppErrorLike = {
   messageForUser: string;
   originalMessage: string | null;
   statusCode: number | null;
+  code: string | null;
 };
 
 export type AppErrorFromOptions = {
@@ -11,11 +12,20 @@ export type AppErrorFromOptions = {
   statusCode: number | null;
 };
 
+export type AppErrorPatch = {
+  messageForDeveloper?: string;
+  messageForUser?: string;
+  originalMessage?: string | null;
+  statusCode?: number | null;
+  code?: string | null;
+};
+
 export class AppError extends Error implements AppErrorLike {
   readonly messageForDeveloper: string;
   readonly messageForUser: string;
   readonly originalMessage: string | null;
   readonly statusCode: number | null;
+  readonly code: string | null;
 
   constructor(params: AppErrorLike) {
     const normalized = normalizeAppErrorLike(params);
@@ -25,6 +35,7 @@ export class AppError extends Error implements AppErrorLike {
     this.messageForUser = normalized.messageForUser;
     this.originalMessage = normalized.originalMessage;
     this.statusCode = normalized.statusCode;
+    this.code = normalized.code;
   }
 
   static from(error: unknown, options: AppErrorFromOptions): AppError {
@@ -37,6 +48,7 @@ export class AppError extends Error implements AppErrorLike {
         messageForUser: error.messageForUser,
         originalMessage: error.originalMessage,
         statusCode: error.statusCode,
+        code: error.code,
       });
     }
     return new AppError({
@@ -46,6 +58,7 @@ export class AppError extends Error implements AppErrorLike {
       messageForUser: options.fallbackUserMessage ?? "エラーが発生しました",
       originalMessage: stringifyOriginalMessage(error),
       statusCode: options.statusCode ?? null,
+      code: null,
     });
   }
 
@@ -58,6 +71,7 @@ export class AppError extends Error implements AppErrorLike {
       messageForUser: json.messageForUser,
       originalMessage: json.originalMessage,
       statusCode: json.statusCode,
+      code: json.code,
     });
   }
 
@@ -67,10 +81,11 @@ export class AppError extends Error implements AppErrorLike {
       messageForUser: this.messageForUser,
       originalMessage: this.originalMessage,
       statusCode: this.statusCode,
+      code: this.code,
     };
   }
 
-  copyWith(params: Partial<AppErrorLike>): AppError {
+  copyWith(params: AppErrorPatch): AppError {
     return new AppError({
       messageForDeveloper:
         typeof params.messageForDeveloper === "string"
@@ -87,11 +102,15 @@ export class AppError extends Error implements AppErrorLike {
           : this.originalMessage,
       statusCode:
         validStatusCode(params.statusCode) ? params.statusCode : this.statusCode,
+      code:
+        typeof params.code === "string" || params.code === null
+          ? params.code
+          : this.code,
     });
   }
 
   override toString(): string {
-    return `AppError(messageForDeveloper: ${this.messageForDeveloper}, messageForUser: ${this.messageForUser}, originalMessage: ${this.originalMessage}, statusCode: ${this.statusCode})`;
+    return `AppError(messageForDeveloper: ${this.messageForDeveloper}, messageForUser: ${this.messageForUser}, originalMessage: ${this.originalMessage}, statusCode: ${this.statusCode}, code: ${this.code})`;
   }
 }
 
@@ -104,12 +123,13 @@ export function jsonToAppError(json: Record<string, unknown>): AppError {
       messageForUser: "エラー情報の解析に失敗しました",
       originalMessage: stringifyOriginalMessage(error),
       statusCode: null,
+      code: null,
     });
   }
 }
 
 function normalizeAppErrorLike(value: AppErrorLike): AppErrorLike {
-  const candidate: Partial<AppErrorLike> = isObject(value) ? value : {};
+  const candidate: Record<string, unknown> = isObject(value) ? value : {};
   return {
     messageForDeveloper:
       typeof candidate.messageForDeveloper === "string"
@@ -127,6 +147,7 @@ function normalizeAppErrorLike(value: AppErrorLike): AppErrorLike {
     statusCode: validStatusCode(candidate.statusCode)
       ? candidate.statusCode
       : null,
+    code: typeof candidate.code === "string" ? candidate.code : null,
   };
 }
 
@@ -167,6 +188,7 @@ function isAppErrorLike(value: unknown): value is AppErrorLike {
     typeof value.messageForUser === "string" &&
     (typeof value.originalMessage === "string" ||
       value.originalMessage === null) &&
-    validStatusCode(value.statusCode)
+    validStatusCode(value.statusCode) &&
+    (typeof value.code === "string" || value.code === null)
   );
 }

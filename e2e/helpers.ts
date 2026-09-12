@@ -54,13 +54,6 @@ export async function clickButton(page: Page, name: string) {
   await page.getByRole("button", { name }).last().click();
 }
 
-/** Opens the entry drawer for a given row by clicking its row button. */
-export async function openEntryRow(page: Page, rowPartialText: string) {
-  await page
-    .getByRole("button", { name: new RegExp(rowPartialText) })
-    .first()
-    .click();
-}
 
 /**
  * 帳票は印刷用 iframe(srcdoc) で開く。ヘッドレスでは print を無効化して iframe を

@@ -14,7 +14,7 @@ export type AppErrorTextProps = {
 export function AppErrorText(props: AppErrorTextProps) {
   const message = safeUserErrorMessage(
     props.error,
-    props.fallbackUserMessage ?? undefined,
+    props.fallbackUserMessage,
   );
 
   useEffect(() => {

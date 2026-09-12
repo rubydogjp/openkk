@@ -6,9 +6,8 @@ import {
   MAX_FIXED_ASSET_USEFUL_LIFE_YEARS,
 } from "@rubydogjp/openkk-server-domain";
 
-import type { OpenkkDbPort } from "./db-adapter.js";
-import type { FiscalPeriodArchiveDbImportInput } from "./persistence-types.js";
-import type { DbSnapshot } from "./sqlite/adapter.js";
+import type { OpenkkDbPort } from "../src/db-adapter.js";
+import type { DbSnapshot, FiscalPeriodArchiveDbImportInput } from "../src/persistence-types.js";
 
 export type DbPortConformanceContext = {
   makeAdapter: () => Promise<OpenkkDbPort>;
@@ -65,24 +64,21 @@ export function runDbPortConformance(
   function seedWithPeriods(...ids: string[]): DbSnapshot {
     return {
       fiscalPeriods: ids.map((id) => ({
+        id,
         userId: "user-1",
-        record: {
-          id,
-          userId: "user-1",
-          name: id,
-          startDate: "2026-01-01",
-          endDate: "2026-12-31",
-          phase: "journalizing",
-          archiveStatus: "active",
-          archiveDataAvailable: null,
-          archivedAt: null,
-          settingsCompleted: true,
-          openingBalancesCompleted: true,
-          documentsReceivedCompleted: false,
-          opening: null,
-          createdAt: "1970-01-01T00:00:00.000Z",
-          updatedAt: "1970-01-01T00:00:00.000Z",
-        },
+        name: id,
+        startDate: "2026-01-01",
+        endDate: "2026-12-31",
+        phase: "journalizing",
+        archiveStatus: "active",
+        archiveDataAvailable: true,
+        archivedAt: null,
+        settingsCompleted: true,
+        openingBalancesCompleted: true,
+        documentsReceivedCompleted: false,
+        opening: null,
+        createdAt: "1970-01-01T00:00:00.000Z",
+        updatedAt: "1970-01-01T00:00:00.000Z",
       })),
       entries: [],
       fixedAssets: [],
@@ -266,8 +262,6 @@ export function runDbPortConformance(
       await new Promise((resolve) => setTimeout(resolve, 2));
       const updated = await db.fiscalPeriods.update(period.id, { opening });
 
-      // updatedAt advances on write; createdAt stays immutable, and the persisted
-      // record must match what update() returned.
       expect(updated.opening).toEqual({
         ...opening,
         updatedAt: updated.opening!.updatedAt,
@@ -415,12 +409,12 @@ export function runDbPortConformance(
 
     it("archives only a completed post-closing fiscal period", async () => {
       const sqlPhasePeriod = {
-        ...seedWithPeriods("fp-archive").fiscalPeriods[0]!.record,
+        ...seedWithPeriods("fp-archive").fiscalPeriods[0]!,
         phase: "post_closing" as const,
         documentsReceivedCompleted: true,
       };
       const phaseDb = await ctx.makeSeededAdapter({
-        fiscalPeriods: [{ userId: "user-1", record: sqlPhasePeriod }],
+        fiscalPeriods: [sqlPhasePeriod],
         entries: [],
         fixedAssets: [],
         preClosings: [{ fiscalPeriodId: "fp-archive", year: 2026 }],
@@ -518,7 +512,6 @@ export function runDbPortConformance(
       expect(stub.archiveStatus).toBe("archived");
       expect(stub.archiveDataAvailable).toBe(false);
       expect(stub.archivedAt).toEqual(expect.any(String));
-      // 子データは全て削除され、期間行はスタブとして残る。
       expect(await db.entries.getAll(period.id)).toEqual([]);
       expect(await db.fixedAssets.getAllByFiscalPeriod(period.id)).toEqual([]);
       expect(await db.preClosings.get(period.id, 2026)).toBeNull();
@@ -552,7 +545,7 @@ export function runDbPortConformance(
           settingsCompleted: true,
           openingBalancesCompleted: true,
           documentsReceivedCompleted: true,
-          opening: undefined,
+          opening: null,
         },
         entries: [
           {
@@ -565,27 +558,16 @@ export function runDbPortConformance(
         ],
         fixedAssets: [
           {
-            createInput: {
-              name: "Imported Camera",
-              acquisitionDate: "2026-04-01",
-              acquisitionCost: 100000,
-              usefulLife: 3,
-              depreciationMethod: "straight_line",
-              businessRate: 1,
-              bookAccountId: "acct_equipment",
-            },
-            patchInput: {
-              status: "sold",
-              disposalDate: "2026-12-01",
-              disposalPrice: 50000,
-              bookAccountId: null,
-              businessRate: null,
-              name: null,
-              acquisitionDate: null,
-              acquisitionCost: null,
-              usefulLife: null,
-              depreciationMethod: null,
-            },
+            name: "Imported Camera",
+            acquisitionDate: "2026-04-01",
+            acquisitionCost: 100000,
+            usefulLife: 3,
+            depreciationMethod: "straight_line",
+            businessRate: 1,
+            bookAccountId: "acct_equipment",
+            status: "sold",
+            disposalDate: "2026-12-01",
+            disposalPrice: 50000,
           },
         ],
         preClosings: [{ year: 2026 }],
@@ -627,7 +609,7 @@ export function runDbPortConformance(
           settingsCompleted: true,
           openingBalancesCompleted: true,
           documentsReceivedCompleted: false,
-          opening: undefined,
+          opening: null,
         },
         entries: [
           {
@@ -887,7 +869,7 @@ export function runDbPortConformance(
       expect(await db.entries.getById(original.id)).toBeNull();
     });
 
-    it("reads, updates, and deletes an entry whose localId was omitted", async () => {
+    it("preserves a null localId when reading and updating an entry", async () => {
       const db = await makeDb();
       const period = await createTestFiscalPeriod(db, "user-1");
       const created = await db.entries.create("user-1", period.id, {
@@ -898,7 +880,7 @@ export function runDbPortConformance(
         localId: null,
       });
 
-      expect((await db.entries.getById(created.id))?.localId).toBe("");
+      expect((await db.entries.getById(created.id))?.localId).toBeNull();
 
       const updated = await db.entries.update(created.id, {
         date: "2026-04-16",
@@ -907,7 +889,7 @@ export function runDbPortConformance(
         lines: [testEntryLine, testCreditEntryLine],
         localId: null,
       });
-      expect(updated.localId).toBe("");
+      expect(updated.localId).toBeNull();
       expect(updated.description).toBe("updated without external id");
 
       await db.entries.delete(created.id);
@@ -1011,7 +993,6 @@ export function runDbPortConformance(
       ]);
       expect(first).toHaveLength(2);
 
-      // Re-import L1 (existing) + L3 (new) + duplicate L3 within the batch.
       const second = await db.entries.importMany("user-1", period.id, [
         {
           date: "2026-04-01",
@@ -1151,19 +1132,13 @@ export function runDbPortConformance(
         businessRate: 0.7,
         status: "disposed",
         disposalDate: "2026-12-31",
-        disposalPrice: 0,
-        bookAccountId: null,
-        name: null,
-        acquisitionDate: null,
-        acquisitionCost: null,
-        usefulLife: null,
-        depreciationMethod: null,
+        disposalPrice: null,
       });
       expect(updated).toMatchObject({
         businessRate: 0.7,
         status: "disposed",
         disposalDate: "2026-12-31",
-        disposalPrice: 0,
+        disposalPrice: null,
         name: "Camera",
       });
 
@@ -1206,19 +1181,12 @@ export function runDbPortConformance(
           status: "disposed",
           disposalDate: "2026-12-31",
           disposalPrice: 20000,
-          bookAccountId: null,
-          businessRate: null,
-          name: null,
-          acquisitionDate: null,
-          acquisitionCost: null,
-          usefulLife: null,
-          depreciationMethod: null,
         }),
       ).rejects.toThrow(/must not have a disposal price/);
       expect(await db.fixedAssets.getById(asset.id)).toMatchObject({
         status: "active",
-        disposalDate: "",
-        disposalPrice: 0,
+        disposalDate: null,
+        disposalPrice: null,
       });
     });
   });
@@ -1258,7 +1226,7 @@ export function runDbPortConformance(
 
     it("rejects a seeded phase whose persisted markers are missing", async () => {
       const seed = seedWithPeriods("fp-missing-marker");
-      seed.fiscalPeriods[0]!.record.phase = "pre_closing";
+      seed.fiscalPeriods[0]!.phase = "pre_closing";
 
       await expect(ctx.makeSeededAdapter(seed)).rejects.toThrow(
         /inconsistent with phase pre_closing/,
@@ -1397,24 +1365,21 @@ export function runDbPortConformance(
       const seed: DbSnapshot = {
         fiscalPeriods: [
           {
+            id: "fp-seed",
             userId: "user-1",
-            record: {
-              id: "fp-seed",
-              userId: "user-1",
-              name: "Seed",
-              startDate: "2026-01-01",
-              endDate: "2026-12-31",
-              phase: "pre_opening",
-              archiveStatus: "active",
-              settingsCompleted: false,
-              openingBalancesCompleted: false,
-              documentsReceivedCompleted: false,
-              opening: null,
-              createdAt: "1970-01-01T00:00:00.000Z",
-              updatedAt: "1970-01-01T00:00:00.000Z",
-              archiveDataAvailable: null,
-              archivedAt: null,
-            },
+            name: "Seed",
+            startDate: "2026-01-01",
+            endDate: "2026-12-31",
+            phase: "pre_opening",
+            archiveStatus: "active",
+            settingsCompleted: false,
+            openingBalancesCompleted: false,
+            documentsReceivedCompleted: false,
+            opening: null,
+            createdAt: "1970-01-01T00:00:00.000Z",
+            updatedAt: "1970-01-01T00:00:00.000Z",
+            archiveDataAvailable: true,
+            archivedAt: null,
           },
         ],
         entries: [],
@@ -1502,9 +1467,13 @@ export function runDbPortConformance(
       );
 
       const wrongOwner = seedWithPeriods("fp-wrong-owner");
-      wrongOwner.fiscalPeriods[0]!.userId = "user-2";
+      wrongOwner.entries = missingParent.entries.map((entry) => ({
+        ...entry,
+        fiscalPeriodId: "fp-wrong-owner",
+        userId: "user-2",
+      }));
       await expect(ctx.makeSeededAdapter(wrongOwner)).rejects.toThrow(
-        /ownership is inconsistent/,
+        /Stored entry identity is invalid/,
       );
 
       await expect(
@@ -1536,7 +1505,7 @@ export function runDbPortConformance(
       );
 
       const invalidYear = seedWithPeriods("fp-invalid-year");
-      invalidYear.fiscalPeriods[0]!.record.phase = "pre_closing";
+      invalidYear.fiscalPeriods[0]!.phase = "pre_closing";
       invalidYear.preClosings = [
         { fiscalPeriodId: "fp-invalid-year", year: 2025 },
       ];
@@ -1547,9 +1516,9 @@ export function runDbPortConformance(
 
     it("loads valid closing rows for multiple non-overlapping periods", async () => {
       const seed = seedWithPeriods("fp-1", "fp-2");
-      seed.fiscalPeriods[0]!.record.phase = "pre_closing";
-      seed.fiscalPeriods[1]!.record = {
-        ...seed.fiscalPeriods[1]!.record,
+      seed.fiscalPeriods[0]!.phase = "pre_closing";
+      seed.fiscalPeriods[1]! = {
+        ...seed.fiscalPeriods[1]!,
         startDate: "2027-01-01",
         endDate: "2027-12-31",
         phase: "post_closing",

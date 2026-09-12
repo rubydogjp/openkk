@@ -1,34 +1,33 @@
-export type FixedAssetPreviewItem = {
+export type FixedAssetStatus = "償却中" | "完了" | "売却済" | "廃棄済";
+
+export type FixedAsset = {
   id: string;
-  fiscalPeriodId: string | null;
+  fiscalPeriodId: string;
   name: string;
-  account: string;
-  accountId: string | null;
-  period: string;
-  remaining: string;
-  progress: number;
-  current: string;
-  purchase: string;
-  status: string;
-  depreciationAmount: string | null;
-  // 償却計算の元になる真実の値
-  acquisitionDate: string | null;
-  acquisitionCost: number | null;
-  usefulLife: number | null;
-  businessRate: number | null;
+  accountName: string;
+  bookAccountId: string;
+  status: FixedAssetStatus;
+  acquisitionDate: string;
+  acquisitionCost: number;
+  usefulLife: number;
+  businessRate: number;
   disposalDate: string | null;
-  disposalPrice: string | null;
+  disposalPrice: number | null;
+  depreciationStartLabel: string;
+  remainingDepreciationLabel: string;
+  depreciationProgress: number;
+  currentBookValue: number;
 };
 
 export type FixedAssetDraft = {
   name: string;
   account: string;
   acquisitionDate: string;
-  acquisitionCost: string; // 金額入力（カンマ区切り可）
-  usefulLife: number; // 耐用年数（年）
-  businessRatePercent: number; // 事業割合 0..100
-  businessRateRatio: number | null;
-  status: string;
+  acquisitionCost: string;
+  usefulLife: number;
+  businessRatePercent: number;
+  businessRate: number | null;
+  status: FixedAssetStatus;
   disposalDate: string | null;
   disposalPrice: string | null;
 };

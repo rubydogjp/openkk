@@ -41,6 +41,7 @@ describe("resolveOpenkkHttpResponse", () => {
           messageForUser: "圧縮保存済みです",
           originalMessage: null,
           statusCode: 400,
+          code: null,
         },
       }),
     );
@@ -61,6 +62,7 @@ describe("resolveOpenkkHttpResponse", () => {
           messageForUser: "データを読み込めませんでした",
           originalMessage: null,
           statusCode: 500,
+          code: null,
         },
       }),
     );
@@ -420,7 +422,13 @@ describe("resolveOpenkkHttpResponse", () => {
       captureError(() =>
         resolveOpenkkHttpResponse("authRedeemCompletionCode", {
           status: 200,
-          body: { userId: "user-1", iconUrl: "javascript:alert(1)" },
+          body: {
+            userId: "user-1",
+            displayName: null,
+            email: null,
+            iconUrl: "javascript:alert(1)",
+            authProvider: null,
+          },
         }),
       ),
     ).toMatchObject({
@@ -432,7 +440,10 @@ describe("resolveOpenkkHttpResponse", () => {
         status: 200,
         body: {
           userId: "user-1",
+          displayName: null,
+          email: null,
           iconUrl: "https://images.example.test/user.png",
+          authProvider: null,
         },
       }),
     ).toMatchObject({ userId: "user-1" });
@@ -721,11 +732,23 @@ describe("resolveOpenkkHttpResponse", () => {
     });
   });
 
-  it("rejects a response body for a no-content endpoint", () => {
+  it("represents a no-content response as explicit null", () => {
+    expect(
+      resolveOpenkkHttpResponse("authSignOut", {
+        status: 204,
+        body: null,
+      }),
+    ).toBeNull();
     expect(() =>
       resolveOpenkkHttpResponse("authSignOut", {
         status: 204,
         body: { ok: true },
+      }),
+    ).toThrow();
+    expect(() =>
+      resolveOpenkkHttpResponse("authSignOut", {
+        status: 204,
+        body: undefined,
       }),
     ).toThrow();
   });
@@ -769,6 +792,7 @@ describe("isMaintenanceModeError", () => {
           messageForUser: "データを読み込めませんでした",
           originalMessage: null,
           statusCode: 500,
+          code: null,
         },
       }),
     );
@@ -830,9 +854,12 @@ function fiscalPeriod() {
     endDate: "2026-12-31",
     phase: "pre_opening",
     archiveStatus: "active",
+    archiveDataAvailable: true,
+    archivedAt: null,
     settingsCompleted: false,
     openingBalancesCompleted: false,
     documentsReceivedCompleted: false,
+    opening: null,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
   };
@@ -884,8 +911,8 @@ function fixedAssetResponse() {
     depreciationMethod: "straight_line",
     businessRate: 1,
     status: "active",
-    disposalDate: "",
-    disposalPrice: 0,
+    disposalDate: null,
+    disposalPrice: null,
     bookAccountId: "acct_equipment",
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",

@@ -207,7 +207,7 @@ async function dispatchEmbeddedHttp(
       }
       case "authSignOut":
         await server.auth.signOut();
-        return { status: 204, body: undefined };
+        return { status: 204, body: null };
       case "preClosingGet": {
         const request = body as EndpointRequest<"preClosingGet">;
         return {
@@ -295,7 +295,7 @@ async function dispatchEmbeddedHttp(
       case "entryRemove": {
         const request = body as EndpointRequest<"entryRemove">;
         await server.entries.remove(request.fiscalPeriodId, request.id);
-        return { status: 204, body: undefined };
+        return { status: 204, body: null };
       }
       case "entryImportMany": {
         const request = body as EndpointRequest<"entryImportMany">;
@@ -366,7 +366,7 @@ async function dispatchEmbeddedHttp(
       case "fiscalPeriodRemove": {
         const request = body as EndpointRequest<"fiscalPeriodRemove">;
         await server.fiscalPeriod.remove(request.id);
-        return { status: 204, body: undefined };
+        return { status: 204, body: null };
       }
       case "fixedAssetsGetAll": {
         const request = body as EndpointRequest<"fixedAssetsGetAll">;
@@ -407,7 +407,7 @@ async function dispatchEmbeddedHttp(
       case "fixedAssetRemove": {
         const request = body as EndpointRequest<"fixedAssetRemove">;
         await server.fixedAssets.remove(request.fiscalPeriodId, request.id);
-        return { status: 204, body: undefined };
+        return { status: 204, body: null };
       }
       case "masterBookAccounts":
         return {
@@ -443,7 +443,6 @@ async function dispatchEmbeddedHttp(
 }
 
 function jsonRoundTrip<T>(value: T): T {
-  if (value === undefined) return value;
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
@@ -457,13 +456,13 @@ function serverErrorToEmbeddedHttpResponse(error: unknown): OpenkkHttpResponse {
         messageForUser: error.messageForUser,
         originalMessage: error.originalMessage,
         statusCode: status,
-        code: null,
+        code: error.code,
       } satisfies OpenkkApiErrorDto,
     };
   }
   return {
     status: 500,
-    body: undefined,
+    body: null,
   };
 }
 

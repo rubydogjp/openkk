@@ -3,7 +3,7 @@ import { parseOpenkkEnv } from "@rubydogjp/openkk-frontend";
 
 const BUNDLE = "sim";
 
-const env = parseOpenkkEnv(process.env.NEXT_PUBLIC_OPENKK_ENV);
+const env = parseOpenkkEnv(process.env.NEXT_PUBLIC_OPENKK_ENV ?? null);
 const userId = "openkk-sim-user";
 const mockToday = new Date(2026, 8, 5);
 

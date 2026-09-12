@@ -1,7 +1,7 @@
 export type ArchiveDataPeriod = {
   id: string;
   archiveStatus: "active" | "archived";
-  archiveDataAvailable: boolean | null;
+  archiveDataAvailable: boolean;
 };
 
 export function isSelectedFiscalPeriodDataPurged(

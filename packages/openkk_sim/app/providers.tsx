@@ -16,7 +16,10 @@ const brandConfig: BrandConfig = { marketingSiteUrl: null, productSiteUrl: null,
 const runtime: OpenkkBundleRuntime = {
   config: openkkConfig,
   brandConfig,
-  calloutSlots: {},
+  calloutSlots: {
+    stepJournalizingPreClosingHint: null,
+    stepNextFiscalPeriodFooter: null,
+  },
   createBackendApi: createMemoryBackendApi,
   registerServiceWorker: false,
   seedFiscalPeriod: null,

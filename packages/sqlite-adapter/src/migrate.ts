@@ -13,7 +13,7 @@ export function runMigrations(db: MigrationDb): void {
   }
   if (currentVersion > SCHEMA_VERSION) {
     throw new Error(
-      `[openkk-browser-db] schema_version ${currentVersion} is newer than app SCHEMA_VERSION ${SCHEMA_VERSION}; refusing to downgrade. Update the app or clear OPFS storage.`,
+      `schema_version ${currentVersion} is newer than app SCHEMA_VERSION ${SCHEMA_VERSION}; refusing to downgrade. Update the app.`,
     );
   }
 
@@ -35,7 +35,7 @@ export function runMigrations(db: MigrationDb): void {
         cause = transactionRollbackError(error, rollbackError);
       }
       throw new Error(
-        `[openkk-browser-db] migration to version ${migration.version} failed: ${
+        `migration to version ${migration.version} failed: ${
           error instanceof Error ? error.message : String(error)
         }`,
         { cause },
@@ -60,13 +60,13 @@ function readSchemaVersion(db: MigrationDb): number {
   const text = String(raw);
   if (!/^(0|[1-9]\d*)$/.test(text)) {
     throw new Error(
-      `[openkk-browser-db] invalid schema_version: ${JSON.stringify(text)}`,
+      `invalid schema_version: ${JSON.stringify(text)}`,
     );
   }
   const parsed = Number(text);
   if (!Number.isSafeInteger(parsed)) {
     throw new Error(
-      `[openkk-browser-db] schema_version is outside the safe integer range: ${text}`,
+      `schema_version is outside the safe integer range: ${text}`,
     );
   }
   return parsed;

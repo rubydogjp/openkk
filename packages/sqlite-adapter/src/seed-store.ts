@@ -1,16 +1,15 @@
 import { serverValidationError } from "@rubydogjp/openkk-server-domain";
 
 import type {
-  EntryDbRecord,
+  DbSnapshot,
   FiscalPeriodDbRecord,
-  FixedAssetDbRecord,
-} from "../persistence-types.js";
+} from "@rubydogjp/openkk-server-ports";
 import { insertEntryLines } from "./entry-store.js";
-import { defaultOpening, replaceOpening } from "./opening-store.js";
+import { defaultOpening, replaceOpening, requireOpening } from "./opening-store.js";
 import {
   msToIso,
-  serializeFiscalPeriodDbRecord,
-  serializeFixedAssetDbRecord,
+  serializeFiscalPeriodDataColumn,
+  serializeFixedAssetDataColumn,
 } from "./persistence-codec.js";
 import {
   assertDbClosingYear,
@@ -22,14 +21,6 @@ import {
 import { nowMs } from "./runtime.js";
 import type { SqlDb } from "./sql-db.js";
 import { runInTransaction } from "./transaction.js";
-
-export type DbSnapshot = {
-  fiscalPeriods: Array<{ userId: string; record: FiscalPeriodDbRecord }>;
-  entries: EntryDbRecord[];
-  fixedAssets: FixedAssetDbRecord[];
-  preClosings: Array<{ fiscalPeriodId: string; year: number }> | null;
-  closings: Array<{ fiscalPeriodId: string; year: number }>;
-};
 
 export async function seedStores(db: SqlDb, seed: DbSnapshot): Promise<void> {
   const now = nowMs();
@@ -44,38 +35,34 @@ function prepareAndValidateSeed(seed: DbSnapshot, now: number): DbSnapshot {
     !Array.isArray(seed.fiscalPeriods) ||
     !Array.isArray(seed.entries) ||
     !Array.isArray(seed.fixedAssets) ||
-    (seed.preClosings !== undefined && !Array.isArray(seed.preClosings)) ||
+    !Array.isArray(seed.preClosings) ||
     !Array.isArray(seed.closings)
   ) {
-    throw serverValidationError("Seed collections must be arrays");
+    throw serverValidationError("Seed collections must be arrays", null);
   }
 
   const fiscalPeriods = seed.fiscalPeriods.map((item) => {
-    if (item.userId !== item.record.userId) {
-      throw serverValidationError(
-        `Seed fiscal period ownership is inconsistent: ${item.record.id}`,
-      );
-    }
     const opening =
-      item.record.opening == null
-        ? defaultOpening(item.userId, item.record.id, now)
+      item.opening == null
+        ? defaultOpening(item.userId, item.id, now)
         : {
-            ...item.record.opening,
+            ...item.opening,
             createdAt: msToIso(now),
             updatedAt: msToIso(now),
           };
-    const record = { ...item.record, userId: item.userId, opening };
+    const record = { ...item, opening };
     assertDbOpeningForPeriod(opening, record);
-    serializeFiscalPeriodDbRecord(record);
-    return { userId: item.userId, record };
+    serializeFiscalPeriodDataColumn(record);
+    return record;
   });
 
   const periodsById = new Map<string, FiscalPeriodDbRecord>();
   const activePeriodsByUser = new Map<string, FiscalPeriodDbRecord[]>();
-  for (const { record } of fiscalPeriods) {
+  for (const record of fiscalPeriods) {
     if (periodsById.has(record.id)) {
       throw serverValidationError(
         `Seed contains duplicate fiscal period id: ${record.id}`,
+        null,
       );
     }
     periodsById.set(record.id, record);
@@ -89,6 +76,7 @@ function prepareAndValidateSeed(seed: DbSnapshot, now: number): DbSnapshot {
     if (overlap != null) {
       throw serverValidationError(
         `Seed fiscal period ${record.id} overlaps active fiscal period ${overlap.id}`,
+        null,
       );
     }
     activePeriods.push(record);
@@ -101,14 +89,15 @@ function prepareAndValidateSeed(seed: DbSnapshot, now: number): DbSnapshot {
     const period = requireSeedFiscalPeriod(periodsById, entry.fiscalPeriodId);
     assertDbStoredEntryRecord(entry, period);
     if (entryIds.has(entry.id)) {
-      throw serverValidationError(`Seed contains duplicate entry id: ${entry.id}`);
+      throw serverValidationError(`Seed contains duplicate entry id: ${entry.id}`, null);
     }
     entryIds.add(entry.id);
-    if (entry.localId === "") continue;
+    if (entry.localId == null) continue;
     const scopedLocalId = `${entry.fiscalPeriodId}\u0000${entry.localId}`;
     if (entryLocalIds.has(scopedLocalId)) {
       throw serverValidationError(
         `Seed contains duplicate entry localId: ${entry.localId}`,
+        null,
       );
     }
     entryLocalIds.add(scopedLocalId);
@@ -118,10 +107,11 @@ function prepareAndValidateSeed(seed: DbSnapshot, now: number): DbSnapshot {
   for (const asset of seed.fixedAssets) {
     const period = requireSeedFiscalPeriod(periodsById, asset.fiscalPeriodId);
     assertDbStoredFixedAssetRecord(asset, period);
-    serializeFixedAssetDbRecord(asset);
+    serializeFixedAssetDataColumn(asset);
     if (fixedAssetIds.has(asset.id)) {
       throw serverValidationError(
         `Seed contains duplicate fixed asset id: ${asset.id}`,
+        null,
       );
     }
     fixedAssetIds.add(asset.id);
@@ -129,7 +119,7 @@ function prepareAndValidateSeed(seed: DbSnapshot, now: number): DbSnapshot {
 
   const preClosingsByPeriod = groupSeedClosingRows(
     periodsById,
-    seed.preClosings ?? [],
+    seed.preClosings,
     "pre-closing",
   );
   const closingsByPeriod = groupSeedClosingRows(
@@ -146,11 +136,12 @@ function prepareAndValidateSeed(seed: DbSnapshot, now: number): DbSnapshot {
         seed.fixedAssets.some((asset) => asset.fiscalPeriodId === period.id) ||
         preClosings.length > 0 ||
         closings.length > 0 ||
-        (period.opening?.openingBalanceLines?.length ?? 0) > 0 ||
-        (period.opening?.openingJournals?.length ?? 0) > 0;
+        (period.opening?.openingBalanceLines.length ?? 0) > 0 ||
+        (period.opening?.openingJournals.length ?? 0) > 0;
       if (hasArchivedData) {
         throw serverValidationError(
           `Seed archived fiscal period ${period.id} contains purged data`,
+          null,
         );
       }
       continue;
@@ -162,7 +153,7 @@ function prepareAndValidateSeed(seed: DbSnapshot, now: number): DbSnapshot {
     fiscalPeriods,
     entries: seed.entries,
     fixedAssets: seed.fixedAssets,
-    preClosings: seed.preClosings ?? [],
+    preClosings: seed.preClosings,
     closings: seed.closings,
   };
 }
@@ -175,6 +166,7 @@ function requireSeedFiscalPeriod(
   if (period == null) {
     throw serverValidationError(
       `Seed fiscal period not found: ${String(fiscalPeriodId)}`,
+      null,
     );
   }
   return period;
@@ -193,6 +185,7 @@ function groupSeedClosingRows(
     if (periodRows.some((existing) => existing.year === row.year)) {
       throw serverValidationError(
         `Seed contains duplicate ${label} marker for ${period.id}`,
+        null,
       );
     }
     periodRows.push({ year: row.year });
@@ -206,13 +199,12 @@ async function seedStoresInner(
   seed: DbSnapshot,
   now: number,
 ): Promise<void> {
-  for (const item of seed.fiscalPeriods) {
-    const record = item.record;
-    const seededOpening = record.opening!;
-    const serializedRecord = serializeFiscalPeriodDbRecord(record);
+  for (const record of seed.fiscalPeriods) {
+    const seededOpening = requireOpening(record.opening, record.id);
+    const serializedRecord = serializeFiscalPeriodDataColumn(record);
     await db.exec({
       sql: `INSERT INTO fiscal_periods(id, user_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
-      bind: [item.record.id, item.userId, serializedRecord, now, now],
+      bind: [record.id, record.userId, serializedRecord, now, now],
     });
     await replaceOpening(db, seededOpening, now);
   }
@@ -238,13 +230,13 @@ async function seedStoresInner(
       bind: [
         asset.id,
         asset.fiscalPeriodId,
-        serializeFixedAssetDbRecord(asset),
+        serializeFixedAssetDataColumn(asset),
         now,
         now,
       ],
     });
   }
-  for (const preClosing of seed.preClosings ?? []) {
+  for (const preClosing of seed.preClosings) {
     await db.exec({
       sql: `INSERT INTO pre_closings(fiscal_period_id, year) VALUES(?, ?)`,
       bind: [preClosing.fiscalPeriodId, preClosing.year],

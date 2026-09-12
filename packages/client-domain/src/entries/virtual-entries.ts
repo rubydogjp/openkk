@@ -1,13 +1,11 @@
-import type { FixedAssetPreviewItem } from "../assist/fixed-asset-data.js";
+import type { FixedAsset } from "../assist/fixed-asset-data.js";
 import {
   computePeriodDepreciation,
   computeStraightLineDepreciation,
 } from "../assist/fixed-asset-depreciation.js";
 import type { OpeningCarryoverRecord } from "../assist/opening-carryover.js";
-import type {
-  EntryAccountVisualType,
-  EntryPreviewRow,
-} from "./entries-types.js";
+import type { BookAccountType } from "./book-account.js";
+import type { EntryPreviewRow } from "./entries-types.js";
 import {
   BUSINESS_RATE_TRANSFER_LOCAL_ID,
   buildBusinessRateTransferEntry,
@@ -16,7 +14,6 @@ import {
   type EntryRecord,
 } from "./entry-record.js";
 import {
-  formatBusinessRatePercent,
   parseAmount,
   parseIsoLocalDate,
 } from "../shared/parse-utils.js";
@@ -44,45 +41,15 @@ export function buildVirtualOpeningCarryoverRows(input: {
         record.date.startsWith(input.yearMonth),
     )
     .flatMap((record) => {
-      const lines =
-        record.lines ??
-        [
-          {
-            id: `${record.id}-d`,
-            side: "debit" as const,
-            accountName: record.debit,
-            accountType: record.debitType,
-            amount: record.debitAmount,
-            bookAccountId: record.debitBookAccountId,
-            partnerName: null,
-            taxCategoryId: null,
-            taxCategoryName: null,
-            businessCategoryId: null,
-            businessCategoryName: null,
-          },
-          {
-            id: `${record.id}-c`,
-            side: "credit" as const,
-            accountName: record.credit,
-            accountType: record.creditType,
-            amount: record.creditAmount,
-            bookAccountId: record.creditBookAccountId,
-            partnerName: null,
-            taxCategoryId: null,
-            taxCategoryName: null,
-            businessCategoryId: null,
-            businessCategoryName: null,
-          },
-        ];
       return recordToPreviewRows({
-        ...record,
+        id: record.id,
+        fiscalPeriodId: record.fiscalPeriodId,
+        date: record.date,
         weekday: "",
-        lines,
+        lines: record.lines,
+        description: record.description,
+        businessRate: record.businessRate,
         localId: null,
-        debitTaxCategoryId: null,
-        creditTaxCategoryId: null,
-        debitBusinessCategoryId: null,
-        creditBusinessCategoryId: null,
       }).map((row) => ({
         ...row,
         recordId: `virtual-opening-carryover-${record.id}`,
@@ -97,27 +64,7 @@ export function buildVirtualOpeningCarryoverRows(input: {
     });
 }
 
-type FixedAssetTruth = {
-  acquisitionDate: string;
-  acquisitionCost: number;
-  usefulLife: number;
-};
-
-/**
- * 償却計算に必要な「真実」の値をプレビュー項目から取り出す。取得価額は
- * `acquisitionCost`（無ければ表示用 `purchase` 文字列）から復元する。
- * 必須値が欠ける／不正な資産は減価償却の対象外（null）とする。
- */
-function fixedAssetTruth(asset: FixedAssetPreviewItem): FixedAssetTruth | null {
-  const { acquisitionDate, usefulLife } = asset;
-  if (acquisitionDate == null || usefulLife == null) return null;
-  if (parseIsoLocalDate(acquisitionDate) == null) return null;
-  const acquisitionCost = asset.acquisitionCost ?? parseAmount(asset.purchase);
-  if (!Number.isFinite(acquisitionCost) || acquisitionCost <= 0) return null;
-  return { acquisitionDate, acquisitionCost, usefulLife };
-}
-
-function fixedAssetVirtual(asset: FixedAssetPreviewItem) {
+function fixedAssetVirtual(asset: FixedAsset) {
   return {
     id: `fixed-asset-${asset.id}`,
     kind: "fixed_asset" as const,
@@ -127,15 +74,9 @@ function fixedAssetVirtual(asset: FixedAssetPreviewItem) {
   };
 }
 
-function businessRateLabel(asset: FixedAssetPreviewItem): string {
-  return asset.businessRate == null
-    ? ""
-    : formatBusinessRatePercent(asset.businessRate);
-}
-
 export function buildVirtualFixedAssetRows(input: {
   fiscalPeriodId: string;
-  assets: FixedAssetPreviewItem[];
+  assets: FixedAsset[];
   periodStartDate: string | null;
   periodEndDate: string | null;
   yearMonth: string;
@@ -149,14 +90,9 @@ export function buildVirtualFixedAssetRows(input: {
 
   const rows: EntryPreviewRow[] = [];
   for (const asset of input.assets) {
-    if (
-      asset.fiscalPeriodId != null &&
-      asset.fiscalPeriodId !== input.fiscalPeriodId
-    ) {
+    if (asset.fiscalPeriodId !== input.fiscalPeriodId) {
       continue;
     }
-    const truth = fixedAssetTruth(asset);
-    if (truth == null) continue;
 
     if (asset.status === "償却中" || asset.status === "完了") {
       if (periodEndDate == null || !periodEndDate.startsWith(input.yearMonth)) {
@@ -167,7 +103,6 @@ export function buildVirtualFixedAssetRows(input: {
       rows.push(
         ...buildDepreciationRows({
           asset,
-          truth,
           periodStartDate,
           asOf,
           dateText: periodEndDate,
@@ -183,19 +118,18 @@ export function buildVirtualFixedAssetRows(input: {
       }
       const asOf = parseIsoLocalDate(disposalDate);
       if (asOf == null) continue;
-      // (1) 期首〜処分日の当期償却費を先に計上し、簿価を処分日時点まで落とす。
       rows.push(
         ...buildDepreciationRows({
           asset,
-          truth,
           periodStartDate,
           asOf,
           dateText: disposalDate,
         }),
       );
-      // (2) 処分日時点の簿価で資産を売却 / 除却する。
       const bookValue = computeStraightLineDepreciation({
-        ...truth,
+        acquisitionDate: asset.acquisitionDate,
+        acquisitionCost: asset.acquisitionCost,
+        usefulLife: asset.usefulLife,
         asOf,
       }).currentBookValue;
       if (asset.status === "売却済") {
@@ -209,14 +143,15 @@ export function buildVirtualFixedAssetRows(input: {
 }
 
 function buildDepreciationRows(input: {
-  asset: FixedAssetPreviewItem;
-  truth: FixedAssetTruth;
+  asset: FixedAsset;
   periodStartDate: Date;
   asOf: Date;
   dateText: string;
 }): EntryPreviewRow[] {
   const depreciation = computePeriodDepreciation({
-    ...input.truth,
+    acquisitionDate: input.asset.acquisitionDate,
+    acquisitionCost: input.asset.acquisitionCost,
+    usefulLife: input.asset.usefulLife,
     periodStartDate: input.periodStartDate,
     asOf: input.asOf,
   });
@@ -225,8 +160,7 @@ function buildDepreciationRows(input: {
     recordId: `virtual-fixed-asset-${input.asset.id}`,
     date: monthDay(input.dateText),
     description: `${input.asset.name}の減価償却`,
-    businessRate: businessRateLabel(input.asset),
-    businessRateRatio: input.asset.businessRate,
+    businessRate: input.asset.businessRate,
     virtual: fixedAssetVirtual(input.asset),
     debits: [
       {
@@ -238,9 +172,9 @@ function buildDepreciationRows(input: {
     ],
     credits: [
       {
-        accountName: input.asset.account,
+        accountName: input.asset.accountName,
         accountType: "asset",
-        bookAccountId: input.asset.accountId,
+        bookAccountId: input.asset.bookAccountId,
         amount: depreciation,
       },
     ],
@@ -248,11 +182,14 @@ function buildDepreciationRows(input: {
 }
 
 function buildSaleRows(input: {
-  asset: FixedAssetPreviewItem;
+  asset: FixedAsset;
   disposalDate: string;
   bookValue: number;
 }): EntryPreviewRow[] {
-  const disposalPrice = parseAmount(input.asset.disposalPrice ?? "0");
+  const disposalPrice = input.asset.disposalPrice;
+  if (disposalPrice == null) {
+    throw new Error(`sold fixed asset has no disposal price: ${input.asset.id}`);
+  }
   const gain = Math.max(0, disposalPrice - input.bookValue);
   const loss = Math.max(0, input.bookValue - disposalPrice);
   const debits: VirtualPair[] = [];
@@ -275,9 +212,9 @@ function buildSaleRows(input: {
   }
   if (input.bookValue > 0) {
     credits.push({
-      accountName: input.asset.account,
+      accountName: input.asset.accountName,
       accountType: "asset",
-      bookAccountId: input.asset.accountId,
+      bookAccountId: input.asset.bookAccountId,
       amount: input.bookValue,
     });
   }
@@ -293,8 +230,7 @@ function buildSaleRows(input: {
     recordId: `virtual-fixed-asset-sale-${input.asset.id}`,
     date: monthDay(input.disposalDate),
     description: `${input.asset.name}の売却`,
-    businessRate: businessRateLabel(input.asset),
-    businessRateRatio: input.asset.businessRate,
+    businessRate: input.asset.businessRate,
     virtual: fixedAssetVirtual(input.asset),
     debits,
     credits,
@@ -302,7 +238,7 @@ function buildSaleRows(input: {
 }
 
 function buildRetirementRows(input: {
-  asset: FixedAssetPreviewItem;
+  asset: FixedAsset;
   disposalDate: string;
   bookValue: number;
 }): EntryPreviewRow[] {
@@ -311,8 +247,7 @@ function buildRetirementRows(input: {
     recordId: `virtual-fixed-asset-retire-${input.asset.id}`,
     date: monthDay(input.disposalDate),
     description: `${input.asset.name}の除却`,
-    businessRate: businessRateLabel(input.asset),
-    businessRateRatio: input.asset.businessRate,
+    businessRate: input.asset.businessRate,
     virtual: fixedAssetVirtual(input.asset),
     debits: [
       {
@@ -324,9 +259,9 @@ function buildRetirementRows(input: {
     ],
     credits: [
       {
-        accountName: input.asset.account,
+        accountName: input.asset.accountName,
         accountType: "asset",
-        bookAccountId: input.asset.accountId,
+        bookAccountId: input.asset.bookAccountId,
         amount: input.bookValue,
       },
     ],
@@ -343,7 +278,7 @@ function formatAmount(value: number): string {
 
 type VirtualPair = {
   accountName: string;
-  accountType: EntryAccountVisualType;
+  accountType: BookAccountType;
   bookAccountId: string | null;
   amount: number;
 };
@@ -352,8 +287,7 @@ function buildVirtualRowsFromPairs(input: {
   recordId: string;
   date: string;
   description: string;
-  businessRate: string;
-  businessRateRatio: number | null;
+  businessRate: number;
   virtual: EntryPreviewRow["virtual"];
   debits: VirtualPair[];
   credits: VirtualPair[];
@@ -381,7 +315,6 @@ function buildVirtualRowsFromPairs(input: {
       description: input.description,
       partner: "",
       businessRate: input.businessRate,
-      businessRateRatio: input.businessRateRatio,
       taxCategory: "対象外",
       businessCategory: "",
       virtual: input.virtual,
@@ -400,7 +333,7 @@ export function buildClosingVirtualEntries(input: {
   periodStartDate: string | null;
   periodEndDate: string | null;
   entries: EntryRecord[];
-  assets: FixedAssetPreviewItem[];
+  assets: FixedAsset[];
   carryovers: OpeningCarryoverRecord[];
 }): EntryRecord[] {
   const carryoverEntries = input.carryovers.flatMap((record) =>
@@ -457,14 +390,14 @@ export function withClosingVirtualEntries(input: {
   periodStartDate: string | null;
   periodEndDate: string | null;
   entries: EntryRecord[];
-  assets: FixedAssetPreviewItem[];
+  assets: FixedAsset[];
   carryovers: OpeningCarryoverRecord[];
 }): EntryRecord[] {
   const materializedLocalIds = new Set(
     input.entries
       .map((entry) => entry.localId)
       .filter(
-        (localId): localId is string => localId != null && localId !== "",
+        (localId): localId is string => localId != null,
       ),
   );
   const realEntries = input.entries.filter(
@@ -495,7 +428,7 @@ export function buildVirtualBusinessRateTransferRows(input: {
   periodStartDate: string | null;
   periodEndDate: string | null;
   entries: EntryRecord[];
-  assets: FixedAssetPreviewItem[];
+  assets: FixedAsset[];
   carryovers: OpeningCarryoverRecord[];
   yearMonth: string;
 }): EntryPreviewRow[] {
@@ -528,7 +461,7 @@ export function materializeVirtualEntryRows(input: {
 }): EntryRecord[] {
   const grouped = new Map<string, EntryPreviewRow[]>();
   for (const row of input.rows) {
-    if (row.virtual == null || row.recordId == null) continue;
+    if (row.virtual == null) continue;
     const current = grouped.get(row.recordId) ?? [];
     current.push(row);
     grouped.set(row.recordId, current);
@@ -536,7 +469,7 @@ export function materializeVirtualEntryRows(input: {
 
   return Array.from(grouped.entries()).map(([recordId, rows]): EntryRecord => {
     const sorted = [...rows].sort(
-      (left, right) => (left.lineIndex ?? 0) - (right.lineIndex ?? 0),
+      (left, right) => left.lineIndex - right.lineIndex,
     );
     const first = sorted[0]!;
     const lines = sorted.flatMap((row) => {
@@ -548,12 +481,12 @@ export function materializeVirtualEntryRows(input: {
           accountType: row.debitType,
           amount: row.debitAmount,
           bookAccountId: row.debitBookAccountId,
-          partnerName: row.debitPartnerName,
+          partnerName: row.debitPartnerName ?? first.partner,
           taxCategoryId: row.debitTaxCategoryId,
           businessCategoryId: row.debitBusinessCategoryId,
           id: null,
-          taxCategoryName: null,
-          businessCategoryName: null,
+          taxCategoryName: first.taxCategory,
+          businessCategoryName: first.businessCategory,
         });
       }
       if (row.credit.trim() !== "" && parseAmount(row.creditAmount) > 0) {
@@ -563,18 +496,16 @@ export function materializeVirtualEntryRows(input: {
           accountType: row.creditType,
           amount: row.creditAmount,
           bookAccountId: row.creditBookAccountId,
-          partnerName: row.creditPartnerName,
+          partnerName: row.creditPartnerName ?? first.partner,
           taxCategoryId: row.creditTaxCategoryId,
           businessCategoryId: row.creditBusinessCategoryId,
           id: null,
-          taxCategoryName: null,
-          businessCategoryName: null,
+          taxCategoryName: first.taxCategory,
+          businessCategoryName: first.businessCategory,
         });
       }
       return out;
     });
-    const debitLine = lines.find((line) => line.side === "debit") ?? null;
-    const creditLine = lines.find((line) => line.side === "credit") ?? null;
     const date = `${input.yearMonth}-${first.date.slice(3, 5)}`;
     return {
       id: `materialized-${recordId}`,
@@ -582,25 +513,9 @@ export function materializeVirtualEntryRows(input: {
       date,
       weekday: "",
       lines,
-      debit: debitLine?.accountName ?? "",
-      debitType: debitLine?.accountType ?? "asset",
-      debitAmount: debitLine?.amount ?? "",
-      credit: creditLine?.accountName ?? "",
-      creditType: creditLine?.accountType ?? "asset",
-      creditAmount: creditLine?.amount ?? "",
       description: first.description,
-      partner: first.partner,
       businessRate: first.businessRate,
-      businessRateRatio: first.businessRateRatio,
-      taxCategory: first.taxCategory,
-      businessCategory: first.businessCategory,
       localId: `virtual:${recordId}`,
-      debitBookAccountId: null,
-      creditBookAccountId: null,
-      debitTaxCategoryId: null,
-      creditTaxCategoryId: null,
-      debitBusinessCategoryId: null,
-      creditBusinessCategoryId: null,
     };
   });
 }

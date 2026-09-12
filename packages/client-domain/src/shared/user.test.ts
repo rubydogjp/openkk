@@ -38,7 +38,7 @@ describe("OpenkkUser helpers", () => {
   });
 
   it("exposes email only for custom users", () => {
-    expect(userEmail(embedded)).toBe("");
+    expect(userEmail(embedded)).toBeNull();
     expect(userEmail(custom)).toBe("taro@example.com");
   });
 });

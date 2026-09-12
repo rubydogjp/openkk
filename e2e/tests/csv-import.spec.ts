@@ -1,10 +1,6 @@
 import { expect, test } from "@playwright/test";
 import path from "node:path";
-import {
-  advanceToJournalizing,
-  clickButton,
-  createFiscalPeriod,
-} from "../helpers";
+import { advanceToJournalizing, createFiscalPeriod } from "../helpers";
 
 const CSV_FIXTURE = path.resolve("e2e/fixtures/csv-import-test.csv");
 const JSON_FIXTURE = path.resolve("e2e/fixtures/dev-closing-entries.json");

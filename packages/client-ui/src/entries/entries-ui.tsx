@@ -7,7 +7,6 @@ import {
   type EntryFileKind,
 } from "./entry-file-actions.js";
 import { EntriesTable, MonthNavButton } from "./entries-table.js";
-import { entryAccountPalette } from "./entry-account-visual.js";
 import {
   fontSize,
   fontWeight,
@@ -16,10 +15,8 @@ import {
   shadows,
   sizes,
   spacing,
-  typography,
 } from "../shared/design-tokens.js";
 import type {
-  EntryAccountVisualType,
   EntryPreviewRow,
 } from "@rubydogjp/openkk-client-domain";
 
@@ -37,44 +34,6 @@ const entryColors = {
   accentBg: palette.warningBg,
   accentFg: palette.warning,
 };
-
-export function EntryAccountField(props: {
-  value: string;
-  type: EntryAccountVisualType;
-  onChange: (value: string) => void;
-}) {
-  const accountPalette = entryAccountPalette(props.type);
-
-  return (
-    <div
-      style={{
-        height: sizes.account.tableHeight,
-        borderRadius: radii.sm,
-        background: accountPalette.background,
-        border: `1px solid ${accountPalette.foreground}`,
-        color: accountPalette.foreground,
-        display: "flex",
-        alignItems: "center",
-        padding: "0 8px",
-      }}
-    >
-      <input
-        value={props.value}
-        onChange={(event) => props.onChange(event.target.value)}
-        style={{
-          width: "100%",
-          border: "none",
-          outline: "none",
-          background: "transparent",
-          color: accountPalette.foreground,
-          fontSize: fontSize.xs,
-          fontWeight: fontWeight.medium,
-          caretColor: accountPalette.foreground,
-        }}
-      />
-    </div>
-  );
-}
 
 export function EntriesMonthSwitcher(props: {
   label: string;
@@ -148,8 +107,8 @@ export function EntriesScreen(props: {
   canGoNext: boolean;
   onPrev: () => void;
   onNext: () => void;
-  isPlaceholderData: boolean | null;
-  readOnly: boolean | null;
+  isPlaceholderData: boolean;
+  readOnly: boolean;
   onAddEntry: (() => void) | null;
   onImportFile: ((kind: EntryFileKind, file: File) => void) | null;
   onExport: ((kind: EntryFileKind) => void) | null;
@@ -177,7 +136,7 @@ export function EntriesScreen(props: {
   }
 
   const showFileMenu = props.onImportFile != null || props.onExport != null;
-  const isReadOnly = props.readOnly === true;
+  const isReadOnly = props.readOnly;
 
   return (
     <section
@@ -298,12 +257,13 @@ export function VirtualEntryDrawer(props: {
     onDismiss: props.onClose,
     trapFocus: true,
     initialFocusRef: null,
-    focusOnOpen: null,
-    restoreFocus: null,
+    focusOnOpen: true,
+    restoreFocus: true,
   });
   if (virtual == null) return null;
   const rows =
     props.rows == null || props.rows.length === 0 ? [props.row] : props.rows;
+  const assistHref = virtual.assistHref;
   return (
     <>
       <div
@@ -364,7 +324,7 @@ export function VirtualEntryDrawer(props: {
               color: palette.text,
             }}
           >
-            <AssistGlyph />
+            <AssistGlyph color={null} />
             補助 / {virtual.label}
           </div>
           <button
@@ -444,10 +404,10 @@ export function VirtualEntryDrawer(props: {
               );
             })}
           </div>
-          {virtual.assistHref != null ? (
+          {assistHref != null ? (
             <button
               type="button"
-              onClick={() => props.onOpenAssist(virtual.assistHref!)}
+              onClick={() => props.onOpenAssist(assistHref)}
               style={{
                 height: sizes.button.ctaHeight,
                 borderRadius: radii.sm,
@@ -511,7 +471,7 @@ function VirtualEntrySummaryRow(props: { label: string; value: string }) {
   );
 }
 
-function AssistGlyph({ color = palette.text }: { color?: string }) {
+function AssistGlyph({ color }: { color: string | null }) {
   return (
     <span
       aria-hidden="true"
@@ -519,7 +479,7 @@ function AssistGlyph({ color = palette.text }: { color?: string }) {
         width: 18,
         height: 18,
         display: "inline-block",
-        backgroundColor: color,
+        backgroundColor: color ?? palette.text,
         maskImage: "url('/icons/assist.svg')",
         maskRepeat: "no-repeat",
         maskPosition: "center",
@@ -669,83 +629,5 @@ function LockIcon() {
         WebkitMaskSize: "contain",
       }}
     />
-  );
-}
-
-export function EntriesPreviewSurface(props: { rows: EntryPreviewRow[] }) {
-  const entryTableScale = 1352 / 1152;
-  const scaledTableWidth = 1152 * entryTableScale;
-
-  return (
-    <div
-      style={{
-        position: "relative",
-        height: "100%",
-        padding: "18px 24px 96px",
-      }}
-    >
-      <div
-        style={{ display: "grid", justifyItems: "center", marginBottom: 18 }}
-      >
-        <EntriesMonthSwitcher
-          label="2026年9月"
-          canGoPrev
-          canGoNext
-          onPrev={() => undefined}
-          onNext={() => undefined}
-        />
-      </div>
-      <div
-        style={{
-          width: "100%",
-          height: 475,
-          position: "relative",
-          display: "flex",
-          justifyContent: "center",
-        }}
-      >
-        <div
-          style={{
-            width: scaledTableWidth,
-            height: 352,
-            overflow: "visible",
-            position: "relative",
-          }}
-        >
-          <div
-            style={{
-              width: 1152,
-              transform: `scale(${entryTableScale})`,
-              transformOrigin: "top left",
-            }}
-          >
-            <EntriesTable rows={props.rows} onOpenEntry={null} onAddEntry={null} readOnly={null} activeRecordId={null} fillHeight={null} headerTone={null} />
-          </div>
-        </div>
-      </div>
-      <div
-        style={{
-          position: "absolute",
-          right: 28,
-          bottom: 28,
-        }}
-      >
-        <button
-          type="button"
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: 999,
-            border: "none",
-            background: entryColors.blue,
-            color: "#ffffff",
-            fontSize: typography.pageTitle.fontSize,
-            lineHeight: 1,
-          }}
-        >
-          +
-        </button>
-      </div>
-    </div>
   );
 }

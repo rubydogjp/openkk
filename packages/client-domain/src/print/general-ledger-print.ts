@@ -1,6 +1,5 @@
 import {
   entryLineAccountKey,
-  getEntryLines,
   resolveEntryLineMetadata,
   type EntryLine,
   type EntryRecord,
@@ -109,7 +108,7 @@ function buildLedger(
 ): AccountLedger {
   const relevant = allEntries
     .flatMap((entry) =>
-      getEntryLines(entry)
+      entry.lines
         .filter((line) => entryLineAccountKey(line) === account.key)
         .map((line) => ({ entry, line })),
     )
@@ -134,7 +133,7 @@ function buildLedger(
         date: e.date,
         counterAccount: counterAccountsForLine(e, line),
         memo: e.description,
-        metadata: formatEntryMetadata(resolveEntryLineMetadata(e, line)),
+        metadata: formatEntryMetadata(resolveEntryLineMetadata(line)),
         debitAmt: amt,
         creditAmt: 0,
         balance,
@@ -146,7 +145,7 @@ function buildLedger(
         date: e.date,
         counterAccount: counterAccountsForLine(e, line),
         memo: e.description,
-        metadata: formatEntryMetadata(resolveEntryLineMetadata(e, line)),
+        metadata: formatEntryMetadata(resolveEntryLineMetadata(line)),
         debitAmt: 0,
         creditAmt: amt,
         balance,
@@ -180,7 +179,7 @@ export function buildGeneralLedgerBody(
   const encounterOrder: AccountIdentity[] = [];
   const seen = new Set<string>();
   for (const e of [...entries].sort((a, b) => a.date.localeCompare(b.date))) {
-    for (const line of getEntryLines(e)) {
+    for (const line of e.lines) {
       const key = entryLineAccountKey(line);
       if (!seen.has(key)) {
         seen.add(key);
@@ -430,7 +429,7 @@ export function buildGeneralLedgerDocument(
 
 function counterAccountsForLine(entry: EntryRecord, target: EntryLine): string {
   const oppositeSide = target.side === "debit" ? "credit" : "debit";
-  return getEntryLines(entry)
+  return entry.lines
     .filter((line) => line.side === oppositeSide)
     .map((line) => line.accountName)
     .filter((name) => name.length > 0)

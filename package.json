@@ -12,6 +12,7 @@
     "packages/server-usecases",
     "packages/server-api",
     "packages/server",
+    "packages/sqlite-adapter",
     "packages/memory-db-adapter",
     "packages/file-db-adapter",
     "packages/embedded-backend",
@@ -25,13 +26,13 @@
   "scripts": {
     "prepare": "npm run build:packages",
     "check": "npm run build:packages && npm run lint && npm test",
-    "check:generated": "npm run check:master-data && npm run check:service-workers && npm run check:dependency-graph",
+    "check:generated": "npm run check:master-data && npm run check:service-workers && npm run check:dependency-graph && npm run check:theme-docs",
     "check:full": "npm run audit:production && npm run check:generated && npm run check && npm run build:apps && npm run test:e2e:export:built && npm run test:e2e",
     "audit:production": "npm audit --omit=dev --audit-level=high",
     "clean:packages": "node scripts/clean-package-builds.mjs",
-    "build:packages": "npm run clean:packages && npm run build -w @rubydogjp/openkk-client-domain -w @rubydogjp/openkk-server-domain -w @rubydogjp/openkk-client-ports -w @rubydogjp/openkk-server-ports -w @rubydogjp/openkk-client-usecases -w @rubydogjp/openkk-server-usecases -w @rubydogjp/openkk-client-ui -w @rubydogjp/openkk-server-api -w @rubydogjp/openkk-client -w @rubydogjp/openkk-server -w @rubydogjp/openkk-print-adapter -w @rubydogjp/openkk-file-db-adapter -w @rubydogjp/openkk-memory-db-adapter -w @rubydogjp/openkk-embedded-backend -w @rubydogjp/openkk-embedded-backend-adapter -w @rubydogjp/openkk-frontend",
+    "build:packages": "npm run clean:packages && npm run build -w @rubydogjp/openkk-client-domain -w @rubydogjp/openkk-server-domain -w @rubydogjp/openkk-client-ports -w @rubydogjp/openkk-server-ports -w @rubydogjp/openkk-client-usecases -w @rubydogjp/openkk-server-usecases -w @rubydogjp/openkk-client-ui -w @rubydogjp/openkk-server-api -w @rubydogjp/openkk-client -w @rubydogjp/openkk-server -w @rubydogjp/openkk-print-adapter -w @rubydogjp/openkk-sqlite-adapter -w @rubydogjp/openkk-file-db-adapter -w @rubydogjp/openkk-memory-db-adapter -w @rubydogjp/openkk-embedded-backend -w @rubydogjp/openkk-embedded-backend-adapter -w @rubydogjp/openkk-frontend",
     "build:apps": "npm run build -w @rubydogjp/openkk -w @rubydogjp/openkk-sim -w @rubydogjp/openkk-demo",
-    "lint": "npm run lint --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present && tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "gen-deps": "node scripts/gen-dep-graph.mjs",
@@ -41,6 +42,7 @@
     "gen-master-data": "node scripts/gen-master-data.mjs",
     "check:master-data": "node scripts/gen-master-data.mjs --check",
     "gen-theme-docs": "node scripts/gen-theme-docs.mjs",
+    "check:theme-docs": "node scripts/gen-theme-docs.mjs --check",
     "version:set": "node scripts/set-version.mjs",
     "setup-trusted-publishing": "node scripts/setup-trusted-publishing.mjs",
     "dev:vscode:openkk": "npm run dev:vscode -w @rubydogjp/openkk",
@@ -53,7 +55,8 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
-    "vitest": "^3.2.4"
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.11"
   },
   "version": "1.0.0",
   "description": "オープン会計 — open-source double-entry bookkeeping library for sole proprietors. Hexagonal architecture with swappable backend and storage adapters.",
@@ -69,6 +72,6 @@
   },
   "overrides": {
     "postcss": "^8.5.25",
-    "sharp": "^0.35.3"
+    "sharp": "^0.35.4"
   }
 }

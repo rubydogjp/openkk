@@ -202,6 +202,8 @@ function ShellChrome({
   const appState = useOpenkkAppState();
   const openkkConfig = useOpenkkConfig();
   const brandConfig = useBrandConfig();
+  const marketingSiteUrl = brandConfig.marketingSiteUrl;
+  const productSiteUrl = brandConfig.productSiteUrl;
   const session = appState.session;
   const hasPeriod =
     appState.currentFiscalPeriodId != null &&
@@ -233,8 +235,8 @@ function ShellChrome({
     onDismiss: () => setDrawerOpen(false),
     trapFocus: true,
     initialFocusRef: null,
-    focusOnOpen: null,
-    restoreFocus: null,
+    focusOnOpen: true,
+    restoreFocus: true,
   });
   const [authActionError, setAuthActionError] = useState<unknown>(null);
   const [authActionPending, setAuthActionPending] = useState(false);
@@ -255,7 +257,7 @@ function ShellChrome({
 
   const fiscalPeriodLabel = currentFiscalPeriod?.name ?? "期間 未選択";
   const displayName = session?.user.displayName ?? "";
-  const email = session != null ? userEmail(session.user) : "";
+  const email = session != null ? userEmail(session.user) : null;
   const canSignOut = session != null && userCanSignOut(session.user);
 
   async function handleSignInClick() {
@@ -686,10 +688,10 @@ function ShellChrome({
             ref={accountMenuContainerRef}
             style={{ padding: 8, position: "relative" }}
           >
-            {hasSession && brandConfig.marketingSiteUrl != null ? (
+            {hasSession && marketingSiteUrl != null ? (
               <button
                 type="button"
-                onClick={() => openExternalUrl(brandConfig.marketingSiteUrl!)}
+                onClick={() => openExternalUrl(marketingSiteUrl, null)}
                 style={{
                   width: "100%",
                   display: "flex",
@@ -851,7 +853,7 @@ function ShellChrome({
                         >
                           {displayName}
                         </div>
-                        {email !== "" && (
+                        {email != null && (
                           <div
                             style={{
                               marginTop: 2,
@@ -879,7 +881,7 @@ function ShellChrome({
                         label="プロフィール"
                         labelColor={PALETTE.menuTextDisabled}
                         disabled
-                        onClick={() => undefined}
+                        onClick={() => {}}
                       />
                     </div>
 
@@ -889,7 +891,7 @@ function ShellChrome({
                         padding: "6px 0 8px",
                       }}
                     >
-                      {brandConfig.productSiteUrl != null && (
+                      {productSiteUrl != null && (
                         <MenuButton
                           icon={
                             <ExternalLinkIcon
@@ -901,9 +903,9 @@ function ShellChrome({
                           labelColor={PALETTE.menuLink}
                           onClick={() => {
                             setMenuOpen(false);
-                            openExternalUrl(brandConfig.productSiteUrl!);
+                            openExternalUrl(productSiteUrl, null);
                           }}
-                          disabled={null}
+                          disabled={false}
                         />
                       )}
                       <MenuButton
@@ -997,14 +999,14 @@ function MenuButton(props: {
   icon: ReactNode;
   label: string;
   labelColor: string;
-  disabled: boolean | null;
+  disabled: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       role="menuitem"
-      disabled={props.disabled ?? undefined}
+      disabled={props.disabled}
       onClick={props.onClick}
       className="bk-menu-item"
       style={{

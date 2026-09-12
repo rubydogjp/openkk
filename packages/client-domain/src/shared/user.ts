@@ -8,7 +8,7 @@ export type CustomUser = {
   kind: "custom";
   id: string;
   displayName: string;
-  email: string;
+  email: string | null;
   iconUrl: string | null;
   authProvider: string;
 };
@@ -27,6 +27,6 @@ export function userCanSignOut(user: OpenkkUser): boolean {
   return user.kind === "custom";
 }
 
-export function userEmail(user: OpenkkUser): string {
-  return user.kind === "custom" ? user.email : "";
+export function userEmail(user: OpenkkUser): string | null {
+  return user.kind === "custom" ? user.email : null;
 }

@@ -1,56 +1,96 @@
 import fs from "node:fs";
 import path from "node:path";
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
-const rootDir = path.resolve(import.meta.dirname, "..");
-const packagesDir = path.join(rootDir, "packages");
-
-const OPTIONAL_DECLARATION = /(^|[ ({,;])[A-Za-z_][A-Za-z0-9_]*\?:/;
-
+const packagesDir = path.resolve(import.meta.dirname, "../packages");
+const BUILDER_FILE = /(?:\.test\.tsx?$|^[^/]+\/test-support\/)/;
 const EXTERNAL_SHAPE_FILES = new Set([
-  "client-ui/src/shared/design-tokens.ts",
   "file-db-adapter/src/index.test.ts",
-  "file-db-adapter/src/real-db-worker.ts",
   "file-db-adapter/src/sqlite.worker.ts",
   "frontend/src/service-worker.test.ts",
-  "server-ports/src/sqlite/migrate.test.ts",
-  "server-ports/src/sqlite/sql-db.ts",
-]);
-
-const OVERRIDE_FACTORY_FILES = new Set([
-  "client-domain/src/entries/import-export.test.ts",
-  "server-usecases/src/archive-import.test.ts",
-  "server/src/closing-flow.test.ts",
-  "server/src/fiscal-period-api.test.ts",
+  "sqlite-adapter/src/migrate.test.ts",
+  "sqlite-adapter/src/sql-db.ts",
 ]);
 
 function sourceFiles(dir: string): string[] {
-  const found: string[] = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (entry.name === "node_modules" || entry.name === "dist") continue;
-      found.push(...sourceFiles(full));
-    } else if (/\.tsx?$/.test(entry.name)) {
-      found.push(full);
+      return entry.name === "node_modules" || entry.name === "dist"
+        ? []
+        : sourceFiles(full);
     }
-  }
-  return found;
+    return /\.tsx?$/.test(entry.name) ? [full] : [];
+  });
 }
 
-function hasDefaultValue(lines: string[], name: string): boolean {
-  return lines.some(
-    (line) =>
-      new RegExp(`^\\s{2,}${name} = [^=]`).test(line.replace(/\s+$/, "")) ||
-      new RegExp(`[{,]\\s*${name} = [^=]`).test(line),
-  );
+function isPatch(node: ts.Node): boolean {
+  for (let parent = node.parent; parent != null; parent = parent.parent) {
+    if (
+      (ts.isTypeAliasDeclaration(parent) ||
+        ts.isInterfaceDeclaration(parent)) &&
+      /Patch(?:Input)?$/.test(parent.name.text)
+    )
+      return true;
+    if (ts.isParameter(parent) && parent.name.getText() === "patch")
+      return true;
+  }
+  return false;
+}
+
+function violations(source: string, file: string): string[] {
+  const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
+  const findings: string[] = [];
+  const builder = BUILDER_FILE.test(file);
+  function visit(node: ts.Node): void {
+    let reason: string | null = null;
+    if (node.kind === ts.SyntaxKind.UndefinedKeyword) {
+      reason = "undefined type";
+    } else if (!builder && ts.isParameter(node) && node.initializer != null) {
+      reason = "default parameter";
+    } else if (
+      (ts.isParameter(node) ||
+        ts.isPropertySignature(node) ||
+        ts.isPropertyDeclaration(node) ||
+        ts.isMethodSignature(node)) &&
+      node.questionToken != null &&
+      !isPatch(node)
+    ) {
+      reason = "optional declaration";
+    } else if (
+      ts.isTypeReferenceNode(node) &&
+      node.typeName.getText(ast) === "Partial" &&
+      !builder &&
+      !isPatch(node)
+    ) {
+      reason = "Partial outside patch";
+    } else if (
+      ts.isIndexedAccessTypeNode(node) &&
+      /PatchInput$/.test(node.objectType.getText(ast)) &&
+      !(
+        ts.isTypeReferenceNode(node.parent) &&
+        node.parent.typeName.getText(ast) === "NonNullable"
+      )
+    ) {
+      reason = "nullable patch property type";
+    }
+    if (reason != null) {
+      const line =
+        ast.getLineAndCharacterOfPosition(node.getStart(ast)).line + 1;
+      findings.push(file + ":" + line + ": " + reason);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(ast);
+  return findings;
 }
 
 describe("explicit null instead of undefined", () => {
-  it("declares no optional properties outside the documented exceptions", () => {
-    const offenders: string[] = [];
+  it("requires explicit values outside patches and external shapes", () => {
+    const findings: string[] = [];
     for (const packageDir of fs.readdirSync(packagesDir)) {
-      for (const subdir of ["src", "app", "demo"]) {
+      for (const subdir of ["src", "app", "demo", "test-support"]) {
         const dir = path.join(packagesDir, packageDir, subdir);
         if (!fs.existsSync(dir)) continue;
         for (const file of sourceFiles(dir)) {
@@ -59,19 +99,32 @@ describe("explicit null instead of undefined", () => {
             .split(path.sep)
             .join("/");
           if (EXTERNAL_SHAPE_FILES.has(relative)) continue;
-          if (OVERRIDE_FACTORY_FILES.has(relative)) continue;
-          const lines = fs.readFileSync(file, "utf8").split("\n");
-          lines.forEach((line, index) => {
-            if (!OPTIONAL_DECLARATION.test(line)) return;
-            const name = line.match(
-              /([A-Za-z_][A-Za-z0-9_]*)\?:/,
-            )?.[1] as string;
-            if (hasDefaultValue(lines, name)) return;
-            offenders.push(`${relative}:${index + 1}: ${line.trim()}`);
-          });
+          findings.push(...violations(fs.readFileSync(file, "utf8"), relative));
         }
       }
     }
-    expect(offenders).toEqual([]);
+    expect(findings).toEqual([]);
+  });
+
+  it.each([
+    "function read(value = null) {}",
+    "type Value = { 'name'?: string };",
+    "type Value = { name:\n string |\n undefined };",
+    "type Value = Partial<{ name: string }>;",
+  ])("rejects %s", (source) => {
+    expect(violations(source, "example.ts")).not.toEqual([]);
+  });
+
+  it("permits explicit null and patch omission", () => {
+    expect(
+      violations(
+        [
+          "type Value = { name: string | null };",
+          "type ValuePatchInput = { name?: string | null };",
+          "function read(value: Value | null) {}",
+        ].join("\n"),
+        "example.ts",
+      ),
+    ).toEqual([]);
   });
 });

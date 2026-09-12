@@ -2,7 +2,7 @@ import type { OpenkkEnv } from "@rubydogjp/openkk-client";
 
 const DEFAULT_ENV: OpenkkEnv = "prod";
 
-export function parseOpenkkEnv(value: string | undefined): OpenkkEnv {
+export function parseOpenkkEnv(value: string | null): OpenkkEnv {
   switch (value) {
     case "dev":
     case "stg":

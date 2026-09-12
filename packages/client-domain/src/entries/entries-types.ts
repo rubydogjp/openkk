@@ -1,10 +1,4 @@
-export type EntryAccountVisualType =
-  | "asset"
-  | "liability"
-  | "equity"
-  | "revenue"
-  | "cost_of_sales"
-  | "expense";
+import type { BookAccountType } from "./book-account.js";
 
 export type VirtualEntrySourceKind =
   | "opening_carryover"
@@ -20,21 +14,21 @@ export type VirtualEntrySource = {
 };
 
 export type EntryPreviewRow = {
-  recordId: string | null;
-  lineIndex: number | null;
-  lineCount: number | null;
-  isFirstOfRecord: boolean | null;
+  recordId: string;
+  lineIndex: number;
+  lineCount: number;
+  isFirstOfRecord: boolean;
   date: string;
   weekday: string;
   debit: string;
-  debitType: EntryAccountVisualType;
+  debitType: BookAccountType;
   debitAmount: string;
   debitBookAccountId: string | null;
   debitPartnerName: string | null;
   debitTaxCategoryId: string | null;
   debitBusinessCategoryId: string | null;
   credit: string;
-  creditType: EntryAccountVisualType;
+  creditType: BookAccountType;
   creditAmount: string;
   creditBookAccountId: string | null;
   creditPartnerName: string | null;
@@ -42,8 +36,7 @@ export type EntryPreviewRow = {
   creditBusinessCategoryId: string | null;
   description: string;
   partner: string;
-  businessRate: string;
-  businessRateRatio: number | null;
+  businessRate: number;
   taxCategory: string;
   businessCategory: string;
   virtual: VirtualEntrySource | null;

@@ -698,7 +698,7 @@ describe("openkk server fiscal period API", () => {
     const archiveInput = {
       manifest: {
         format: "openkk.fiscal-period-archive",
-        version: 1,
+        version: 2,
         createdAt: "2026-12-31T00:00:00.000Z",
         fiscalPeriodId: "fp-source",
         name: "Archived",
@@ -764,10 +764,10 @@ async function captureAsyncError(fn: () => Promise<unknown>): Promise<unknown> {
 
 function createFiscalPeriodDb(
   seed: StoredFiscalPeriodApiRecord[],
-  childSeed: {
-    entries?: EntryApiRecord[];
-    fixedAssets?: FixedAssetApiRecord[];
-  } = {},
+  childSeed: Partial<{
+    entries: EntryApiRecord[];
+    fixedAssets: FixedAssetApiRecord[];
+  }> = {},
 ): OpenkkDbPort {
   const fiscalPeriods = new Map(seed.map((period) => [period.id, period]));
   const entries = childSeed.entries ?? [];
@@ -872,7 +872,7 @@ function createFiscalPeriodDb(
         return entry({
           fiscalPeriodId,
           ...input,
-          localId: input.localId ?? "",
+          localId: input.localId,
           lines: entryLinesWithIds(input.lines),
         });
       },
@@ -880,7 +880,7 @@ function createFiscalPeriodDb(
         return entry({
           id,
           ...input,
-          localId: input.localId ?? "",
+          localId: input.localId,
           lines: entryLinesWithIds(input.lines),
         });
       },
@@ -895,7 +895,7 @@ function createFiscalPeriodDb(
             id: `entry-${index + 1}`,
             fiscalPeriodId,
             ...input,
-            localId: input.localId ?? "",
+            localId: input.localId,
             lines: entryLinesWithIds(input.lines),
           }),
         );
@@ -980,7 +980,7 @@ function fiscalPeriod(
     opening: null,
     createdAt: TEST_TIMESTAMP,
     updatedAt: TEST_TIMESTAMP,
-    archiveDataAvailable: null,
+    archiveDataAvailable: true,
     archivedAt: null,
   };
   return Object.assign(base, overrides);
@@ -1034,7 +1034,7 @@ function entry(overrides: Partial<EntryApiRecord>): EntryApiRecord {
     fiscalPeriodId: "fp-1",
     date: "2026-01-01",
     description: "entry",
-    localId: "",
+    localId: null,
     businessRate: 1,
     lines: [],
     createdAt: TEST_TIMESTAMP,
@@ -1057,8 +1057,8 @@ function fixedAsset(
     depreciationMethod: "straight_line",
     businessRate: 1,
     status: "active",
-    disposalDate: "",
-    disposalPrice: 0,
+    disposalDate: null,
+    disposalPrice: null,
     bookAccountId: "",
     createdAt: TEST_TIMESTAMP,
     updatedAt: TEST_TIMESTAMP,

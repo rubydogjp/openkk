@@ -293,10 +293,10 @@ describe("openkk server closing flow", () => {
 
 function createMemoryDb(
   fiscalPeriodOverrides: Partial<FiscalPeriodApiRecord> = {},
-  sources: {
-    entries?: EntryApiRecord[];
-    fixedAssets?: FixedAssetApiRecord[];
-  } = {},
+  sources: Partial<{
+    entries: EntryApiRecord[];
+    fixedAssets: FixedAssetApiRecord[];
+  }> = {},
 ): OpenkkDbPort {
   const preClosings = new Set<string>();
   const closings = new Set<string>();
@@ -363,7 +363,7 @@ function createMemoryDb(
           id: "entry-1",
           fiscalPeriodId,
           ...input,
-          localId: input.localId ?? "",
+          localId: input.localId,
           lines: entryLinesWithIds(input.lines),
         });
       },
@@ -372,7 +372,7 @@ function createMemoryDb(
           id,
           fiscalPeriodId: "fp-1",
           ...input,
-          localId: input.localId ?? "",
+          localId: input.localId,
           lines: entryLinesWithIds(input.lines),
         });
       },
@@ -387,7 +387,7 @@ function createMemoryDb(
             id: `entry-${index + 1}`,
             fiscalPeriodId,
             ...input,
-            localId: input.localId ?? "",
+            localId: input.localId,
             lines: entryLinesWithIds(input.lines),
           }),
         );
@@ -495,7 +495,7 @@ function entry(overrides: Partial<EntryApiRecord>): EntryApiRecord {
     fiscalPeriodId: "fp-1",
     date: "2026-01-01",
     description: "entry",
-    localId: "",
+    localId: null,
     businessRate: 1,
     lines: [],
     createdAt: TEST_TIMESTAMP,
@@ -551,8 +551,8 @@ function fixedAsset(
     depreciationMethod: "straight_line",
     businessRate: 1,
     status: "active",
-    disposalDate: "",
-    disposalPrice: 0,
+    disposalDate: null,
+    disposalPrice: null,
     bookAccountId: "",
     createdAt: TEST_TIMESTAMP,
     updatedAt: TEST_TIMESTAMP,

@@ -1,14 +1,14 @@
 import { afterEach, vi } from "vitest";
 import type { DbSnapshot, OpenkkDbPort } from "@rubydogjp/openkk-server-ports";
 
-import { runDbPortConformance } from "../../server-ports/src/db-port-conformance.js";
-import { RealDbWorker } from "./real-db-worker.js";
+import { runDbPortConformance } from "../../server-ports/test-support/db-port-conformance.js";
+import { InMemoryDbWorker } from "../test-support/in-memory-db-worker.js";
 
 async function createWorkerTransportAdapter(
   seed: DbSnapshot | null,
 ): Promise<OpenkkDbPort> {
   vi.resetModules();
-  vi.stubGlobal("Worker", RealDbWorker);
+  vi.stubGlobal("Worker", InMemoryDbWorker);
   const { createFileDbAdapter } = await import("./index.js");
   return createFileDbAdapter(
     { vfsName: "opfs-conformance", dbFileName: null },

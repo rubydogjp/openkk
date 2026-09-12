@@ -1,7 +1,7 @@
 // Generated from resources/gen/bookkeeping_master_data.json. Do not edit directly.
 // Regenerate: npm run gen-master-data
 
-import type { EntryAccountVisualType } from "./entries-types.js";
+import type { BookAccountType } from "./book-account.js";
 
 export type NormalBalanceSide = "debit" | "credit";
 
@@ -20,7 +20,7 @@ export type DefaultBookAccount = {
   description: string;
   kana: string;
   normalBalanceSide: NormalBalanceSide;
-  accountType: EntryAccountVisualType;
+  accountType: BookAccountType;
   balanceSheetSection: BalanceSheetSection;
   sortOrder: number;
 };

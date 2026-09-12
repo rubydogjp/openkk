@@ -9,15 +9,16 @@ describe("AppError", () => {
       messageForUser: "ユーザー向け",
       originalMessage: null,
       statusCode: 400,
+      code: null,
     });
 
-    expect(AppError.from(original,
-      {
+    expect(
+      AppError.from(original, {
         fallbackUserMessage: null,
         fallbackDeveloperMessage: null,
         statusCode: null,
-      }
-    )).toBe(original);
+      }),
+    ).toBe(original);
   });
 
   it("preserves structurally compatible AppError-like objects", () => {
@@ -28,6 +29,7 @@ describe("AppError", () => {
       messageForUser: "サーバー由来の文言",
       originalMessage: "raw",
       statusCode: 409,
+      code: "conflict",
     };
 
     const appError = AppError.from(serverSideError, {
@@ -41,6 +43,7 @@ describe("AppError", () => {
     expect(appError.messageForUser).toBe("サーバー由来の文言");
     expect(appError.originalMessage).toBe("raw");
     expect(appError.statusCode).toBe(409);
+    expect(appError.code).toBe("conflict");
   });
 
   it("uses fallbacks for ordinary errors", () => {
@@ -62,6 +65,7 @@ describe("AppError", () => {
       messageForUser: "ユーザー向け",
       originalMessage: "raw",
       statusCode: 409,
+      code: null,
     });
 
     const cleared = original.copyWith({
@@ -83,12 +87,14 @@ describe("AppError", () => {
       messageForUser: "ユーザー向け",
       originalMessage: "raw",
       statusCode: 409,
+      code: null,
     });
     const copied = original.copyWith({
       messageForDeveloper: undefined,
       messageForUser: undefined,
       originalMessage: undefined,
       statusCode: undefined,
+      code: undefined,
     });
 
     expect(copied.toJson()).toEqual(original.toJson());

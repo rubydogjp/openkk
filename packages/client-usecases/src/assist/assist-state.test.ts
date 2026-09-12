@@ -2,20 +2,32 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildOpeningJournalLines,
+  resolveFixedAssetAccountId,
   fixedAssetDraftToPatch,
-  groupAccountIdsByName,
   listFixedAssetsForPeriod,
   mapOpeningJournalToRecord,
   nextOpeningCarryoverId,
   replaceLoadedFixedAssets,
-  resolveBookAccountId,
-  resolveUpdatedBookAccountId,
   upsertFixedAsset,
 } from "./assist-state-helpers.js";
-import type {
-  FixedAssetDraft,
-  FixedAssetPreviewItem,
+import {
+  formatBusinessRatePercent,
+  type FixedAsset,
+  type BookAccount,
+  type FixedAssetDraft,
+  type OpeningCarryoverDraft,
+  type OpeningCarryoverRecord,
 } from "@rubydogjp/openkk-client-domain";
+
+function carryoverDraft(record: OpeningCarryoverRecord): OpeningCarryoverDraft {
+  return {
+    date: record.date,
+    description: record.description,
+    businessRateInput: formatBusinessRatePercent(record.businessRate),
+    businessRate: record.businessRate,
+    lines: record.lines,
+  };
+}
 
 describe("fixedAssetDraftToPatch", () => {
   it("preserves the exact backend business rate during unrelated edits", () => {
@@ -23,7 +35,7 @@ describe("fixedAssetDraftToPatch", () => {
       fixedAssetDraftToPatch(
         draft({
           businessRatePercent: 33.33333333333333,
-          businessRateRatio: 0.3333333333333333,
+          businessRate: 0.3333333333333333,
         }),
         "acct_equipment",
       ).businessRate,
@@ -61,7 +73,7 @@ describe("fixedAssetDraftToPatch", () => {
     ).toMatchObject({
       status: "disposed",
       disposalDate: "2026-10-01",
-      disposalPrice: 0,
+      disposalPrice: null,
     });
   });
 
@@ -77,8 +89,8 @@ describe("fixedAssetDraftToPatch", () => {
       ),
     ).toMatchObject({
       status: "active",
-      disposalDate: "",
-      disposalPrice: 0,
+      disposalDate: null,
+      disposalPrice: null,
     });
   });
 
@@ -94,8 +106,8 @@ describe("fixedAssetDraftToPatch", () => {
       ),
     ).toMatchObject({
       status: "retired",
-      disposalDate: "",
-      disposalPrice: 0,
+      disposalDate: null,
+      disposalPrice: null,
     });
   });
 });
@@ -111,7 +123,6 @@ describe("replaceLoadedFixedAssets", () => {
     const assets = [previewAsset({ id: "asset-1" })];
 
     expect(replaceLoadedFixedAssets(null, assets)).toEqual([]);
-    expect(replaceLoadedFixedAssets("", assets)).toEqual([]);
   });
 });
 
@@ -139,12 +150,6 @@ describe("listFixedAssetsForPeriod", () => {
     ];
 
     expect(listFixedAssetsForPeriod(assets, "fp-current")).toEqual([assets[1]]);
-  });
-
-  it("keeps the unfiltered form for the current fixed-assets screen", () => {
-    const assets = [previewAsset()];
-
-    expect(listFixedAssetsForPeriod(assets, null)).toBe(assets);
   });
 });
 
@@ -183,88 +188,51 @@ describe("nextOpeningCarryoverId", () => {
   });
 });
 
-describe("resolveBookAccountId", () => {
-  const accountTypeById = {
-    asset_bonus: "asset",
-    expense_bonus: "expense",
-  } as const;
-  const accountIdsByName = groupAccountIdsByName([
-    { id: "asset_bonus", name: "賞与" },
-    { id: "expense_bonus", name: "賞与" },
-  ]);
+describe("resolveFixedAssetAccountId", () => {
+  const accounts: BookAccount[] = [
+    { id: "asset_current", name: "繰延税金資産", accountType: "asset" },
+    { id: "asset_fixed", name: "繰延税金資産", accountType: "asset" },
+    { id: "asset_equipment", name: "工具器具備品", accountType: "asset" },
+    { id: "expense_equipment", name: "工具器具備品", accountType: "expense" },
+  ];
 
-  it("resolves duplicate display names by account type", () => {
+  it("resolves a changed name within asset accounts", () => {
     expect(
-      resolveBookAccountId(null, "賞与", "expense", {
-        accountIdsByName,
-        accountTypeById,
-      }),
-    ).toBe("expense_bonus");
-  });
-
-  it("keeps an explicit id only when its type agrees", () => {
-    expect(
-      resolveBookAccountId("asset_bonus", "賞与", "asset", {
-        accountIdsByName,
-        accountTypeById,
-      }),
-    ).toBe("asset_bonus");
-    expect(
-      resolveBookAccountId("asset_bonus", "賞与", "expense", {
-        accountIdsByName,
-        accountTypeById,
-      }),
-    ).toBe("expense_bonus");
-  });
-});
-
-describe("resolveUpdatedBookAccountId", () => {
-  const master = {
-    accountTypeById: {
-      asset_current: "asset",
-      asset_fixed: "asset",
-      asset_equipment: "asset",
-      expense_equipment: "expense",
-    } as const,
-    accountIdsByName: groupAccountIdsByName([
-      { id: "asset_current", name: "繰延税金資産" },
-      { id: "asset_fixed", name: "繰延税金資産" },
-      { id: "asset_equipment", name: "工具器具備品" },
-      { id: "expense_equipment", name: "工具器具備品" },
-    ]),
-  };
-
-  it("resolves a changed account name instead of retaining the old id", () => {
-    expect(
-      resolveUpdatedBookAccountId(
+      resolveFixedAssetAccountId(
         { accountId: "asset_current", accountName: "繰延税金資産" },
         "工具器具備品",
-        "asset",
-        master,
+        accounts,
       ),
     ).toBe("asset_equipment");
   });
 
-  it("retains an unchanged id when same-name accounts are ambiguous", () => {
+  it("retains an unchanged identity among same-name accounts", () => {
     expect(
-      resolveUpdatedBookAccountId(
+      resolveFixedAssetAccountId(
         { accountId: "asset_fixed", accountName: "繰延税金資産" },
         "繰延税金資産",
-        "asset",
-        master,
+        accounts,
       ),
     ).toBe("asset_fixed");
   });
 
-  it("does not resolve a changed name to an account of another type", () => {
+  it("rejects an incompatible explicit identity without substituting another account", () => {
     expect(
-      resolveUpdatedBookAccountId(
-        { accountId: "asset_current", accountName: "繰延税金資産" },
+      resolveFixedAssetAccountId(
+        { accountId: "expense_equipment", accountName: "工具器具備品" },
         "工具器具備品",
-        "expense",
-        master,
+        accounts,
       ),
-    ).toBe("expense_equipment");
+    ).toBeNull();
+    expect(
+      resolveFixedAssetAccountId(null, "工具器具備品", [
+        {
+          id: "expense_equipment",
+          name: "工具器具備品",
+          accountType: "expense",
+        },
+      ]),
+    ).toBeNull();
   });
 });
 
@@ -279,9 +247,11 @@ describe("compound opening journals", () => {
     expense_rent: "expense",
     expense_fee: "expense",
   } as const;
-  const accountIdsByName = groupAccountIdsByName(
-    Object.entries(accountNameById).map(([id, name]) => ({ id, name })),
-  );
+  const accounts: BookAccount[] = [
+    { id: "asset_cash", name: "現金", accountType: "asset" },
+    { id: "expense_rent", name: "地代家賃", accountType: "expense" },
+    { id: "expense_fee", name: "支払手数料", accountType: "expense" },
+  ];
   const journal = {
     id: "opening-1",
     date: "2026-01-01",
@@ -342,41 +312,43 @@ describe("compound opening journals", () => {
   });
 
   it("preserves line ids and line-specific metadata when saved", () => {
-    const draft = mapOpeningJournalToRecord(
-      journal,
-      "fp-1",
-      accountNameById,
-      accountTypeById,
-      { tax_10: "課税 10%", tax_out_of_scope: "対象外" },
-      { biz_service: "サービス", biz_none: "対象外" },
+    const draft: OpeningCarryoverDraft = carryoverDraft(
+      mapOpeningJournalToRecord(
+        journal,
+        "fp-1",
+        accountNameById,
+        accountTypeById,
+        { tax_10: "課税 10%", tax_out_of_scope: "対象外" },
+        { biz_service: "サービス", biz_none: "対象外" },
+      ),
     );
     const rebuilt = buildOpeningJournalLines("opening-1", draft, {
-      accountIdsByName,
-      accountTypeById,
-      taxCategoryIdByValue: {
-        tax_10: "tax_10",
-        tax_out_of_scope: "tax_out_of_scope",
-      },
-      businessCategoryIdByValue: {
-        biz_service: "biz_service",
-        biz_none: "biz_none",
-      },
+      accounts,
+      taxCategories: [
+        { id: "tax_10", name: "課税 10%" },
+        { id: "tax_out_of_scope", name: "対象外" },
+      ],
+      businessCategories: [
+        { id: "biz_service", name: "サービス" },
+        { id: "biz_none", name: "対象外" },
+      ],
     });
 
     expect(rebuilt).toEqual(journal.lines);
   });
 
   it("allocates unused ids for rows added after an earlier row was removed", () => {
-    const draft = mapOpeningJournalToRecord(
-      journal,
-      "fp-1",
-      accountNameById,
-      accountTypeById,
-      { tax_10: "課税 10%", tax_out_of_scope: "対象外" },
-      { biz_service: "サービス", biz_none: "対象外" },
+    const draft: OpeningCarryoverDraft = carryoverDraft(
+      mapOpeningJournalToRecord(
+        journal,
+        "fp-1",
+        accountNameById,
+        accountTypeById,
+        { tax_10: "課税 10%", tax_out_of_scope: "対象外" },
+        { biz_service: "サービス", biz_none: "対象外" },
+      ),
     );
-    const originalLines = draft.lines;
-    const [rentLine, feeLine, cashLine] = originalLines ?? [];
+    const [rentLine, feeLine, cashLine] = draft.lines;
     if (rentLine == null || feeLine == null || cashLine == null) {
       throw new Error("mapped lines are missing");
     }
@@ -384,21 +356,20 @@ describe("compound opening journals", () => {
       { ...rentLine, id: "opening-1-d" },
       { ...feeLine, id: "opening-1-d2" },
       { ...cashLine, id: "opening-1-c" },
-      { ...feeLine, id: "", amount: "20,000" },
-      { ...cashLine, id: "", amount: "20,000" },
+      { ...feeLine, id: null, amount: "20,000" },
+      { ...cashLine, id: null, amount: "20,000" },
     ];
 
     const rebuilt = buildOpeningJournalLines("opening-1", draft, {
-      accountIdsByName,
-      accountTypeById,
-      taxCategoryIdByValue: {
-        tax_10: "tax_10",
-        tax_out_of_scope: "tax_out_of_scope",
-      },
-      businessCategoryIdByValue: {
-        biz_service: "biz_service",
-        biz_none: "biz_none",
-      },
+      accounts,
+      taxCategories: [
+        { id: "tax_10", name: "課税 10%" },
+        { id: "tax_out_of_scope", name: "対象外" },
+      ],
+      businessCategories: [
+        { id: "biz_service", name: "サービス" },
+        { id: "biz_none", name: "対象外" },
+      ],
     });
 
     expect(rebuilt?.map((line) => line.id)).toEqual([
@@ -408,6 +379,30 @@ describe("compound opening journals", () => {
       "opening-1-d3",
       "opening-1-c2",
     ]);
+  });
+
+  it("rejects blank line ids", () => {
+    const draft = carryoverDraft(
+      mapOpeningJournalToRecord(
+        journal,
+        "fp-1",
+        accountNameById,
+        accountTypeById,
+        { tax_10: "課税 10%", tax_out_of_scope: "対象外" },
+        { biz_service: "サービス", biz_none: "対象外" },
+      ),
+    );
+    const firstLine = draft.lines[0];
+    if (firstLine == null) throw new Error("mapped lines are missing");
+    draft.lines = [{ ...firstLine, id: "" }];
+
+    expect(() =>
+      buildOpeningJournalLines("opening-1", draft, {
+        accounts,
+        taxCategories: [],
+        businessCategories: [],
+      }),
+    ).toThrow("opening carryover line id must not be blank");
   });
 });
 
@@ -420,35 +415,31 @@ function draft(overrides: Partial<FixedAssetDraft> = {}): FixedAssetDraft {
     usefulLife: 4,
     businessRatePercent: 80,
     status: "償却中",
-    businessRateRatio: null,
+    businessRate: null,
     disposalDate: null,
     disposalPrice: null,
   };
   return Object.assign(base, overrides);
 }
 
-function previewAsset(
-  overrides: Partial<FixedAssetPreviewItem> = {},
-): FixedAssetPreviewItem {
-  const base: FixedAssetPreviewItem = {
+function previewAsset(overrides: Partial<FixedAsset> = {}): FixedAsset {
+  const base: FixedAsset = {
     id: "asset-1",
     fiscalPeriodId: "fp-1",
     name: "業務用PC",
-    account: "工具器具備品",
-    period: "2026年4月〜2030年3月",
-    remaining: "残り4年",
-    progress: 0,
-    current: "300,000",
-    purchase: "300,000",
+    accountName: "工具器具備品",
+    bookAccountId: "acct_equipment",
     status: "償却中",
-    accountId: null,
-    depreciationAmount: null,
-    acquisitionDate: null,
-    acquisitionCost: null,
-    usefulLife: null,
-    businessRate: null,
+    acquisitionDate: "2026-04-01",
+    acquisitionCost: 300_000,
+    usefulLife: 4,
+    businessRate: 0.8,
     disposalDate: null,
     disposalPrice: null,
+    depreciationStartLabel: "2026年4月〜",
+    remainingDepreciationLabel: "あと48ヶ月",
+    depreciationProgress: 0,
+    currentBookValue: 300_000,
   };
   return Object.assign(base, overrides);
 }

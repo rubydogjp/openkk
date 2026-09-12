@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  entryRecord,
+  type EntryRecordOverrides,
+} from "../../test-support/entry-record.js";
 import { AppError } from "../shared/app-error.js";
 import {
   assertEntryImportSize,
@@ -18,36 +22,27 @@ import {
   MAX_ENTRY_LINES,
   MAX_ENTRY_IMPORT_SIZE,
 } from "./entry-limits.js";
-import type { EntryRecord } from "./entry-record.js";
+import {
+  recordToPreviewRows,
+  type EntryRecord,
+} from "./entry-record.js";
 
-function entry(overrides: Partial<EntryRecord> = {}): EntryRecord {
-  const base: EntryRecord = {
+function entry(overrides: EntryRecordOverrides = {}): EntryRecord {
+  return entryRecord(overrides, {
     id: "e-1",
     fiscalPeriodId: "fp-1",
     date: "2026-01-15",
     weekday: "木",
-    debit: "普通預金",
-    debitType: "asset",
     debitAmount: "100,000",
     credit: "売上",
     creditType: "revenue",
     creditAmount: "100,000",
     description: "売上入金",
     partner: "取引先A",
-    businessRate: "",
     taxCategory: "課税 10%",
     businessCategory: "第5種（サービス業等）",
     localId: "e-1",
-    lines: null,
-    businessRateRatio: null,
-    debitBookAccountId: null,
-    creditBookAccountId: null,
-    debitTaxCategoryId: null,
-    creditTaxCategoryId: null,
-    debitBusinessCategoryId: null,
-    creditBusinessCategoryId: null,
-  };
-  return Object.assign(base, overrides);
+  });
 }
 
 describe("journal import limits", () => {
@@ -98,8 +93,7 @@ describe("JSON export/import round-trip", () => {
       entry({
         id: "e-1",
         localId: "sale-jan",
-        businessRate: "33.3333333333",
-        businessRateRatio: 1 / 3,
+        businessRate: 1 / 3,
       }),
       entry({
         id: "e-2",
@@ -122,15 +116,15 @@ describe("JSON export/import round-trip", () => {
     });
     expect(imported).toHaveLength(2);
     expect(imported[0]?.localId).toBe("sale-jan");
-    expect(imported[0]?.debit).toBe("普通預金");
-    expect(imported[0]?.businessRateRatio).toBe(1 / 3);
+    expect(recordToPreviewRows(imported[0]!)[0]?.debit).toBe("普通預金");
+    expect(imported[0]?.businessRate).toBe(1 / 3);
     expect(imported[1]?.localId).toBe("rent-jan");
-    expect(imported[1]?.debit).toBe("地代家賃");
+    expect(recordToPreviewRows(imported[1]!)[0]?.debit).toBe("地代家賃");
     expect(imported[0]?.fiscalPeriodId).toBe("fp-2");
   });
 
-  it("falls back to id when localId is absent on export", () => {
-    const e = entry({ id: "entry-xyz", localId: undefined });
+  it("falls back to id when localId is null on export", () => {
+    const e = entry({ id: "entry-xyz", localId: null });
     const json = exportEntriesAsJson([e]);
     const parsed = JSON.parse(json) as { entries: Array<{ localId: string }> };
     expect(parsed.entries[0]?.localId).toBe("entry-xyz");
@@ -222,7 +216,6 @@ describe("JSON export/import round-trip", () => {
 
   it("preserves simple-entry account and category IDs as exported lines", () => {
     const original = entry({
-      lines: undefined,
       debitBookAccountId: "acct_bank_custom",
       creditBookAccountId: "acct_sales_custom",
       debitTaxCategoryId: "tax_debit_custom",
@@ -432,8 +425,8 @@ describe("importEntriesFromJson — error handling", () => {
       ],
     });
     const [e] = importEntriesFromJson({ text: json, fiscalPeriodId: "fp-1" });
-    expect(e?.taxCategory).toBe("対象外");
-    expect(e?.businessCategory).toBe("対象外");
+    expect(recordToPreviewRows(e!)[0]?.taxCategory).toBe("対象外");
+    expect(recordToPreviewRows(e!)[0]?.businessCategory).toBe("対象外");
     expect(e?.weekday).toBeTruthy();
   });
 
@@ -463,9 +456,24 @@ describe("importEntriesFromJson — error handling", () => {
     ).toThrow(/row 1: invalid debit amount/);
   });
 
+  it("clamps a percent-only business rate to 0-100", () => {
+    const payload = JSON.parse(exportEntriesAsJson([entry()])) as {
+      entries: Array<Record<string, unknown>>;
+    };
+    payload.entries[0]!.businessRate = "150";
+    delete payload.entries[0]!.businessRateRatio;
+
+    const imported = importEntriesFromJson({
+      text: JSON.stringify(payload),
+      fiscalPeriodId: "fp-1",
+    });
+
+    expect(imported[0]?.businessRate).toBe(1);
+  });
+
   it("rejects an invalid exact business rate", () => {
     const payload = JSON.parse(exportEntriesAsJson([entry()])) as {
-      entries: Array<{ businessRateRatio?: unknown }>;
+      entries: Array<{ businessRateRatio: unknown }>;
     };
     payload.entries[0]!.businessRateRatio = 1.01;
 
@@ -613,8 +621,7 @@ describe("CSV export/import round-trip", () => {
     const original = [
       entry({
         localId: "a1",
-        businessRate: "33.3333333333",
-        businessRateRatio: 1 / 3,
+        businessRate: 1 / 3,
       }),
       entry({
         id: "e-2",
@@ -635,11 +642,11 @@ describe("CSV export/import round-trip", () => {
     });
     expect(imported).toHaveLength(2);
     expect(imported[0]?.localId).toBe("a1");
-    expect(imported[0]?.debit).toBe("普通預金");
-    expect(imported[0]?.businessRateRatio).toBe(1 / 3);
+    expect(recordToPreviewRows(imported[0]!)[0]?.debit).toBe("普通預金");
+    expect(imported[0]?.businessRate).toBe(1 / 3);
     expect(imported[1]?.localId).toBe("a2");
-    expect(imported[1]?.debit).toBe("地代家賃");
-    expect(imported[0]?.debitType).toBe("asset");
+    expect(recordToPreviewRows(imported[1]!)[0]?.debit).toBe("地代家賃");
+    expect(recordToPreviewRows(imported[0]!)[0]?.debitType).toBe("asset");
   });
 
   it("preserves compound journal lines through CSV export then import", () => {
@@ -716,7 +723,9 @@ describe("CSV export/import round-trip", () => {
       fiscalPeriodId: "fp-1",
     });
     expect(imported[0]?.description).toBe('A,B "quoted"');
-    expect(imported[0]?.partner).toBe("株式会社,テスト");
+    expect(recordToPreviewRows(imported[0]!)[0]?.partner).toBe(
+      "株式会社,テスト",
+    );
   });
 
   it("preserves carriage returns inside exported fields", () => {
@@ -777,8 +786,10 @@ describe("CSV export/import round-trip", () => {
     const imported = importEntriesFromCsv({ text: csv, fiscalPeriodId: "fp-2" });
     expect(imported[0]?.localId).toBe(original.localId);
     expect(imported[0]?.description).toBe(original.description);
-    expect(imported[0]?.partner).toBe(original.partner);
-    expect(imported[0]?.taxCategory).toBe(original.taxCategory);
+    const importedRow = recordToPreviewRows(imported[0]!)[0];
+    const originalRow = recordToPreviewRows(original)[0];
+    expect(importedRow?.partner).toBe(originalRow?.partner);
+    expect(importedRow?.taxCategory).toBe(originalRow?.taxCategory);
   });
 
   it("does not strip a user's literal leading apostrophe", () => {

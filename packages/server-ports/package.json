@@ -14,10 +14,8 @@
     "lint": "tsc -p tsconfig.json --noEmit",
     "build": "tsc -p tsconfig.build.json"
   },
-  "dependencies": {
-    "@rubydogjp/openkk-server-domain": "^26.1.12"
-  },
   "devDependencies": {
+    "@rubydogjp/openkk-server-domain": "^26.1.12",
     "typescript": "^5.8.3"
   },
   "description": "オープン会計 server-side port interfaces (OpenkkDbPort, OpenkkServerPort) and wire DTOs",

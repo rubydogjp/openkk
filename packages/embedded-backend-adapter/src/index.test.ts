@@ -17,7 +17,7 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
             fiscalPeriodId: "fp-1",
             date: input.date,
             description: input.description,
-            localId: input.localId ?? "",
+            localId: input.localId,
             businessRate: input.businessRate,
             lines: input.lines.map((line, index) => ({
               ...line,
@@ -80,7 +80,7 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
               opening: null,
               createdAt: "1970-01-01T00:00:00.000Z",
               updatedAt: "1970-01-01T00:00:00.000Z",
-              archiveDataAvailable: null,
+              archiveDataAvailable: true,
               archivedAt: null,
             },
           ];
@@ -101,6 +101,7 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
             messageForUser: "圧縮保存済みの会計期間は変更できません",
             originalMessage: null,
             statusCode: 409,
+            code: null,
           };
         },
       },
@@ -147,6 +148,7 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
             messageForUser: "会計期間を読み込めませんでした",
             originalMessage: null,
             statusCode: 500,
+            code: "storage_unavailable",
           };
         },
       },
@@ -158,7 +160,7 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
       messageForUser: "会計期間を読み込めませんでした",
       originalMessage: null,
       statusCode: 500,
-      code: null,
+      code: "storage_unavailable",
     });
   });
 });

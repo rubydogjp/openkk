@@ -108,11 +108,12 @@ describe("runMigrations", () => {
   });
 
   it("throws when DB version is newer than app (refuses downgrade)", () => {
-    const { db } = createFakeDb({
+    const { db, execLog } = createFakeDb({
       metaTableExists: true,
       schemaVersion: SCHEMA_VERSION + 1,
     });
     expect(() => runMigrations(db)).toThrow(/newer than app SCHEMA_VERSION/);
+    expect(execLog).toEqual([]);
   });
 
   it("rolls back and surfaces error when migration SQL fails", () => {

@@ -13,8 +13,8 @@ export function serializeDataOperations(
         () => operation(...args),
       );
       tail = result.then(
-        () => undefined,
-        () => undefined,
+        () => {},
+        () => {},
       );
       return result;
     };

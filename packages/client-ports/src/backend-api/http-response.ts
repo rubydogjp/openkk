@@ -84,9 +84,7 @@ export function isOpenkkApiErrorDto(
     (typeof candidate.originalMessage === "string" ||
       candidate.originalMessage === null) &&
     (candidate.statusCode === null || isHttpStatus(candidate.statusCode)) &&
-    (candidate.code === undefined ||
-      candidate.code === null ||
-      typeof candidate.code === "string")
+    (candidate.code === null || typeof candidate.code === "string")
   );
 }
 

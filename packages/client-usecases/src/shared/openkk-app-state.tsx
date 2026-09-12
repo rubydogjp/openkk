@@ -10,7 +10,10 @@ import {
   type ReactNode,
 } from "react";
 
-import type { FiscalPeriodApiRecord } from "@rubydogjp/openkk-client-ports";
+import type {
+  FiscalPeriodApiRecord,
+  FiscalPeriodPatchInput,
+} from "@rubydogjp/openkk-client-ports";
 import {
   AppError,
   buildBootstrapFiscalPeriodId,
@@ -44,19 +47,6 @@ import {
   safeStorageSet,
 } from "./browser-storage.js";
 
-type FiscalPeriodUpdate = Partial<{
-  name: string;
-  startDate: string;
-  endDate: string;
-  settingsCompleted: boolean;
-  openingBalancesCompleted: boolean;
-  documentsReceivedCompleted: boolean;
-  opening: Omit<
-    NonNullable<FiscalPeriod["opening"]>,
-    "createdAt" | "updatedAt"
-  >;
-}>;
-
 type OpenkkAppState = {
   session: Session | null;
   captureAuthOperationVersion: () => number;
@@ -81,8 +71,8 @@ type OpenkkAppState = {
   updateFiscalPeriod: (
     fiscalPeriodId: string,
     input:
-      | FiscalPeriodUpdate
-      | ((current: FiscalPeriod) => FiscalPeriodUpdate | null),
+      | FiscalPeriodPatchInput
+      | ((current: FiscalPeriod) => FiscalPeriodPatchInput | null),
   ) => Promise<boolean>;
   archiveFiscalPeriod: (fiscalPeriodId: string) => Promise<boolean>;
   purgeArchivedFiscalPeriod: (fiscalPeriodId: string) => Promise<boolean>;
@@ -490,7 +480,10 @@ export function OpenkkAppStateProvider(props: {
             kind: "custom",
             id: token.userId,
             displayName: token.displayName ?? token.userId,
-            email: token.email ?? "",
+            email:
+              token.email == null || token.email.trim() === ""
+                ? null
+                : token.email.trim(),
             iconUrl: token.iconUrl ?? null,
             authProvider: token.authProvider ?? "custom",
           };
@@ -538,6 +531,7 @@ export function useOpenkkAppState() {
       messageForUser: "アプリの状態を読み込めませんでした",
       originalMessage: null,
       statusCode: null,
+      code: null,
     });
   }
   return value;
@@ -554,8 +548,8 @@ function mapRemoteFiscalPeriod(period: FiscalPeriodApiRecord): FiscalPeriod {
     endDate: period.endDate,
     phase: period.phase,
     archiveStatus: period.archiveStatus,
-    archiveDataAvailable: period.archiveDataAvailable ?? true,
-    archivedAt: period.archivedAt ?? null,
+    archiveDataAvailable: period.archiveDataAvailable,
+    archivedAt: period.archivedAt,
     settingsCompleted: period.settingsCompleted,
     openingBalancesCompleted: period.openingBalancesCompleted,
     documentsReceivedCompleted: period.documentsReceivedCompleted,
@@ -572,20 +566,20 @@ function mapRemoteFiscalPeriod(period: FiscalPeriodApiRecord): FiscalPeriod {
             fiscalPeriodId: period.opening.fiscalPeriodId,
             createdAt: period.opening.createdAt,
             updatedAt: period.opening.updatedAt,
-            openingBalanceLines: (period.opening.openingBalanceLines ?? []).map(
+            openingBalanceLines: period.opening.openingBalanceLines.map(
               (line) => ({
                 id: line.id,
                 accountId: line.accountId,
                 amount: line.amount,
               }),
             ),
-            openingJournals: (period.opening.openingJournals ?? []).map(
+            openingJournals: period.opening.openingJournals.map(
               (journal) => ({
                 id: journal.id,
                 date: journal.date,
                 description: journal.description,
                 businessRate: journal.businessRate,
-                lines: (journal.lines ?? []).map((line) => ({
+                lines: journal.lines.map((line) => ({
                   id: line.id,
                   side: line.side,
                   bookAccountId: line.bookAccountId,
@@ -634,5 +628,6 @@ function fiscalPeriodCleanupError(
       "会計期間の初期化に失敗し、作成途中の期間も自動削除できませんでした。期間一覧を再読込して不要な期間を確認してください",
     originalMessage: String(originalError),
     statusCode: null,
+    code: null,
   });
 }

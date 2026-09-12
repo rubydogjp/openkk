@@ -4,12 +4,12 @@ import {
   DEFAULT_TAX_CATEGORIES,
 } from "@rubydogjp/openkk-server-domain";
 
-import type { MasterDataDb } from "../db-adapter.js";
 import type {
   MasterBookAccountDbRecord,
   MasterBusinessCategoryDbRecord,
+  MasterDataDb,
   MasterTaxCategoryDbRecord,
-} from "../persistence-types.js";
+} from "@rubydogjp/openkk-server-ports";
 import { msToIso } from "./persistence-codec.js";
 
 const MASTER_RECORD_TIMESTAMP = msToIso(0);

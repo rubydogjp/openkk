@@ -30,9 +30,14 @@ npm run test:e2e        # Sim版の操作シナリオ
 npm run test:e2e:export # 通常版の静的export smoke
 ```
 
-詳細は [`docs/`](./docs/) を参照してください。
-
-API 契約: [`docs/api-contract.md`](./docs/api-contract.md)
+ドキュメント:
+[機能一覧](./docs/features.md) /
+[アーキテクチャ](./docs/architecture.md) /
+[API 契約](./docs/api-contract.md) /
+[認証](./docs/authentication.md) /
+[DB スキーマ](./docs/database-schema.md) /
+[テーマ](./docs/theming.md) /
+[リリース手順](./docs/release.md)
 
 ## ライセンス
 

@@ -12,6 +12,13 @@ export function parseBusinessRate(value: string): number {
   return Math.max(0, Math.min(100, n)) / 100;
 }
 
+export function draftBusinessRate(draft: {
+  businessRateInput: string;
+  businessRate: number | null;
+}): number {
+  return draft.businessRate ?? parseBusinessRate(draft.businessRateInput);
+}
+
 export function formatBusinessRatePercent(value: number): string {
   if (!Number.isFinite(value)) return "100";
   const percent = Math.max(0, Math.min(1, value)) * 100;

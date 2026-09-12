@@ -16,7 +16,7 @@ import {
 } from "./entry-validation.js";
 
 export function assertClosingGeneratedEntries(
-  entries: EntryUpsertInput[] | undefined,
+  entries: unknown,
   period: FiscalPeriodApiRecord,
 ): void {
   if (!Array.isArray(entries)) {
@@ -53,7 +53,7 @@ export function assertClosingGeneratedEntries(
   const localIds = new Set<string>();
   for (const entry of entries) {
     if (entry == null || typeof entry !== "object") {
-      throw serverValidationError("Closing entry must be an object");
+      throw serverValidationError("Closing entry must be an object", null);
     }
     if (
       typeof entry.localId !== "string" ||
@@ -80,42 +80,45 @@ export function assertClosingEntriesMatch(
   actual: EntryUpsertInput[],
   expected: ClosingEntry[],
 ): void {
-  const normalize = (entry: ClosingEntry) => ({
-    date: entry.date,
-    description: entry.description,
-    localId: entry.localId ?? "",
-    businessRate: entry.businessRate,
-    lines: entry.lines
-      .map((line) => ({
-        side: line.side,
-        bookAccountId: line.bookAccountId,
-        amount: line.amount,
-        partnerName: line.partnerName,
-        taxCategoryId: line.taxCategoryId,
-        businessCategoryId: line.businessCategoryId,
-      }))
-      .sort((left, right) =>
-        [
-          left.side,
-          left.bookAccountId,
-          left.amount,
-          left.partnerName,
-          left.taxCategoryId,
-          left.businessCategoryId,
-        ]
-          .join("\u0000")
-          .localeCompare(
-            [
-              right.side,
-              right.bookAccountId,
-              right.amount,
-              right.partnerName,
-              right.taxCategoryId,
-              right.businessCategoryId,
-            ].join("\u0000"),
-          ),
-      ),
-  });
+  const normalize = (entry: ClosingEntry) => {
+    if (entry.localId == null) throwClosingEntriesMismatch();
+    return {
+      date: entry.date,
+      description: entry.description,
+      localId: entry.localId,
+      businessRate: entry.businessRate,
+      lines: entry.lines
+        .map((line) => ({
+          side: line.side,
+          bookAccountId: line.bookAccountId,
+          amount: line.amount,
+          partnerName: line.partnerName,
+          taxCategoryId: line.taxCategoryId,
+          businessCategoryId: line.businessCategoryId,
+        }))
+        .sort((left, right) =>
+          [
+            left.side,
+            left.bookAccountId,
+            left.amount,
+            left.partnerName,
+            left.taxCategoryId,
+            left.businessCategoryId,
+          ]
+            .join("\u0000")
+            .localeCompare(
+              [
+                right.side,
+                right.bookAccountId,
+                right.amount,
+                right.partnerName,
+                right.taxCategoryId,
+                right.businessCategoryId,
+              ].join("\u0000"),
+            ),
+        ),
+    };
+  };
   const sortEntries = (entries: ClosingEntry[]) =>
     entries
       .map(normalize)
@@ -124,9 +127,13 @@ export function assertClosingEntriesMatch(
     JSON.stringify(sortEntries(actual)) !==
     JSON.stringify(sortEntries(expected))
   ) {
-    throw serverConflictError(
-      "Closing entries do not match the current fiscal-period source data",
-      "本締め用の自動仕訳が最新データと一致しません。画面を再読み込みしてから再実行してください",
-    );
+    throwClosingEntriesMismatch();
   }
+}
+
+function throwClosingEntriesMismatch(): never {
+  throw serverConflictError(
+    "Closing entries do not match the current fiscal-period source data",
+    "本締め用の自動仕訳が最新データと一致しません。画面を再読み込みしてから再実行してください",
+  );
 }
