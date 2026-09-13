@@ -10,7 +10,7 @@ import {
   buildAnalyticsEntries,
   buildVirtualBusinessRateTransferRows,
   buildVirtualFixedAssetRows,
-  materializeVirtualEntryRows,
+  buildVirtualFixedAssetEntries,
   withClosingVirtualEntries,
 } from "./virtual-entries.js";
 
@@ -108,7 +108,7 @@ describe("buildVirtualFixedAssetRows", () => {
   });
 
   it("depreciates through a sale date and removes the remaining book value", () => {
-    const rows = buildVirtualFixedAssetRows({
+    const entries = buildVirtualFixedAssetEntries({
       fiscalPeriodId: "fp-2026",
       assets: [
         depreciatingAsset({
@@ -119,12 +119,6 @@ describe("buildVirtualFixedAssetRows", () => {
       ],
       periodStartDate: "2026-01-01",
       periodEndDate: "2026-12-31",
-      yearMonth: "2026-06",
-    });
-    const entries = materializeVirtualEntryRows({
-      fiscalPeriodId: "fp-2026",
-      yearMonth: "2026-06",
-      rows,
     });
 
     expect(entries).toHaveLength(2);
@@ -182,19 +176,13 @@ describe("buildVirtualFixedAssetRows", () => {
   });
 });
 
-describe("materializeVirtualEntryRows", () => {
-  it("reconstructs a balanced EntryRecord from virtual rows", () => {
-    const rows = buildVirtualFixedAssetRows({
+describe("generated entry records", () => {
+  it("builds a balanced period-end depreciation entry", () => {
+    const [record] = buildVirtualFixedAssetEntries({
       fiscalPeriodId: "fp-2026",
       assets: [depreciatingAsset()],
       periodStartDate: "2026-01-01",
       periodEndDate: "2026-12-31",
-      yearMonth: "2026-12",
-    });
-    const [record] = materializeVirtualEntryRows({
-      fiscalPeriodId: "fp-2026",
-      yearMonth: "2026-12",
-      rows,
     });
 
     expect(record!.date).toBe("2026-12-31");
@@ -260,24 +248,22 @@ describe("materializeVirtualEntryRows", () => {
       "tax_out_of_scope",
       "tax_sales_10",
     ]);
+    expect(lines.map((line) => line.taxCategoryName)).toEqual([
+      "対象外",
+      "課税売上 10%",
+    ]);
     expect(lines.map((line) => line.businessCategoryId)).toEqual([
       "biz_none",
       "biz_none",
     ]);
   });
 
-  it("preserves the exact fixed-asset business rate when materializing", () => {
-    const rows = buildVirtualFixedAssetRows({
+  it("preserves the exact fixed-asset business rate", () => {
+    const [record] = buildVirtualFixedAssetEntries({
       fiscalPeriodId: "fp-2026",
       assets: [depreciatingAsset({ businessRate: 0.3333333333333333 })],
       periodStartDate: "2026-01-01",
       periodEndDate: "2026-12-31",
-      yearMonth: "2026-12",
-    });
-    const [record] = materializeVirtualEntryRows({
-      fiscalPeriodId: "fp-2026",
-      yearMonth: "2026-12",
-      rows,
     });
 
     expect(record?.businessRate).toBe(0.3333333333333333);

@@ -112,7 +112,7 @@ function stringifyOriginalMessage(error: unknown): string | null {
     if (error == null) return null;
     if (typeof error === "string") return error.length === 0 ? null : error;
     if (error instanceof Error) return error.message || error.toString();
-    if (Array.isArray(error) || isObject(error)) return JSON.stringify(error);
+    if (Array.isArray(error) || isObject(error)) return JSON.stringify(error) ?? null;
     return String(error);
   } catch {
     return "<unprintable>";

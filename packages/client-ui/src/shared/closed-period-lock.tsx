@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/navigation.js";
 
 import { fontSize, fontWeight, palette, radii, sizes, spacing, typography } from "./design-tokens.js";
 

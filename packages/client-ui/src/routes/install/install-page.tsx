@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/navigation.js";
 
 import { useOpenkkConfig } from "@rubydogjp/openkk-client-usecases";
 

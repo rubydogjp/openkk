@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation.js";
 
 import { AppError } from "@rubydogjp/openkk-client-domain";
 import { useOpenkkAppState } from "@rubydogjp/openkk-client-usecases";

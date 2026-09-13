@@ -19,7 +19,8 @@ import {
 import {
   buildVirtualFixedAssetRows,
   buildVirtualOpeningCarryoverRows,
-  materializeVirtualEntryRows,
+  buildVirtualFixedAssetEntries,
+  buildVirtualOpeningCarryoverEntries,
 } from "./virtual-entries.js";
 
 describe("entry scenario rows", () => {
@@ -297,8 +298,8 @@ describe("entry scenario rows", () => {
     });
   });
 
-  it("materializes the sale entry into an idempotent compound entry", () => {
-    const rows = buildVirtualFixedAssetRows({
+  it("builds a compound sale entry with a stable localId", () => {
+    const entries = buildVirtualFixedAssetEntries({
       fiscalPeriodId: "fp-2026",
       assets: [
         fixedAsset({
@@ -315,13 +316,6 @@ describe("entry scenario rows", () => {
       ],
       periodStartDate: "2026-01-01",
       periodEndDate: "2026-12-31",
-      yearMonth: "2026-06",
-    });
-
-    const entries = materializeVirtualEntryRows({
-      fiscalPeriodId: "fp-2026",
-      yearMonth: "2026-06",
-      rows,
     });
 
     expect(
@@ -356,7 +350,7 @@ describe("entry scenario rows", () => {
   });
 
   it("turns opening carryover records into next-period reversal rows", () => {
-    const rows = buildVirtualOpeningCarryoverRows({
+    const input = {
       fiscalPeriodId: "fp-2027",
       yearMonth: "2027-01",
       records: [
@@ -395,7 +389,8 @@ describe("entry scenario rows", () => {
           ],
         }),
       ],
-    });
+    };
+    const rows = buildVirtualOpeningCarryoverRows(input);
 
     expect(rows).toEqual([
       expect.objectContaining({
@@ -416,13 +411,7 @@ describe("entry scenario rows", () => {
       }),
     ]);
 
-    expect(
-      materializeVirtualEntryRows({
-        fiscalPeriodId: "fp-2027",
-        yearMonth: "2027-01",
-        rows,
-      }),
-    ).toEqual([
+    expect(buildVirtualOpeningCarryoverEntries(input)).toEqual([
       expect.objectContaining({
         fiscalPeriodId: "fp-2027",
         date: "2027-01-01",

@@ -9,6 +9,26 @@ import {
 } from "./entry-edit-model.js";
 
 describe("entry edit model", () => {
+  it("uses null for missing sides of an empty draft", () => {
+    const state = entryToFormState(
+      {
+        date: "2026-01-01",
+        description: "",
+        businessRateInput: "100",
+        businessRate: 1,
+        lines: [],
+      },
+      () => "pair-1",
+    );
+
+    expect(state.pairs[0]).toMatchObject({
+      debitLineId: null,
+      debitAccountId: null,
+      creditLineId: null,
+      creditAccountId: null,
+    });
+  });
+
   it("keeps surviving line identities after removing an earlier row", () => {
     const record: EntryRecord = {
       id: "opening-1",

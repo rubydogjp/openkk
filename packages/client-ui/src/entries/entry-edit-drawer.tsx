@@ -161,21 +161,21 @@ export function EntryEditDrawer(props: {
   const addRow = () => {
     const defDebit =
       props.accountOptions.find((a) => a.accountType === "expense") ??
-      props.accountOptions[0];
+      props.accountOptions[0] ?? null;
     const defCredit =
       props.accountOptions.find((a) => a.accountType === "asset") ??
-      props.accountOptions[0];
+      props.accountOptions[0] ?? null;
     setDraft((current) => ({
       ...current,
       pairs: [
         ...current.pairs,
         {
           id: nextLinePairId(),
-          debitAccountId: defDebit?.id,
+          debitAccountId: defDebit?.id ?? null,
           debitAccountName: defDebit?.name ?? "",
           debitAccountType: defDebit?.accountType ?? "expense",
           debitAmount: "",
-          creditAccountId: defCredit?.id,
+          creditAccountId: defCredit?.id ?? null,
           creditAccountName: defCredit?.name ?? "",
           creditAccountType: defCredit?.accountType ?? "asset",
           creditAmount: "",

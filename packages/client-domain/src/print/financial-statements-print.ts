@@ -159,7 +159,7 @@ function buildGroupHtml(
     <span style="font-size:8px;color:${BLUE};line-height:1.1">${esc(label)}</span>
     ${row.note ? `<span style="font-size:6px;color:${BLUE};line-height:1.1">${esc(row.note)}</span>` : ""}
   </div>
-  <div style="${amountCell}justify-content:flex-end;padding:2px 8px;"><span style="font-size:10px;color:${TEXT_DARK}">${fmt(amounts[row.index])}</span></div>
+  <div style="${amountCell}justify-content:flex-end;padding:2px 8px;"><span style="font-size:10px;color:${TEXT_DARK}">${fmt(amounts[row.index] ?? null)}</span></div>
 </div>`;
     })
     .join("\n");

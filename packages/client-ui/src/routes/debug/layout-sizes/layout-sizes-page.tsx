@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "next/link.js";
 import type { CSSProperties, ReactNode } from "react";
 
 import {
@@ -1476,58 +1476,6 @@ export function LayoutSizesPage() {
           </Card>
         </Section>
 
-        <Section
-          title="Design Decisions Draft"
-          lead="今回の設計案です。まだ適用せず、次の段階で採用可否を判断します。"
-        >
-          <Card style={null}>
-            <ul
-              style={{
-                margin: 0,
-                paddingLeft: 18,
-                ...typography.body,
-                color: palette.textSoft,
-              }}
-            >
-              <li style={{ margin: "6px 0" }}>
-                entries テーブルは `header 40px / row 52px / account 36px / tag
-                30px` を基準寸法として維持します。
-              </li>
-              <li style={{ margin: "6px 0" }}>
-                ボタンは `button.compact 36px / button.form 40px / button.cta
-                44px / button.iconOnly 36px`
-                に絞ります。例外条件を増やさず、用途ごとに別サイズとして扱います。
-              </li>
-              <li style={{ margin: "6px 0" }}>
-                保存・キャンセルのようなフォーム操作は常に `button.form`
-                を使い、主従差は高さではなく塗り・枠線・文字色・最低横幅で表現します。
-              </li>
-              <li style={{ margin: "6px 0" }}>
-                ボタンの最低横幅は `compact 72px / icon+text 88px / form primary
-                96px / cta 112px` を基準にし、full-width は mobile または単独
-                block CTA に限定します。
-              </li>
-              <li style={{ margin: "6px 0" }}>
-                クリック可能な icon-only は見た目 icon size と hit area
-                を分離し、desktop 36px / mobile 44-48px を守ります。
-              </li>
-              <li style={{ margin: "6px 0" }}>
-                余白は `4 / 8 / 12 / 16 / 20 / 24 / 32 / 40px`
-                を主軸にしますが、entries 行内の既存 padding
-                は見た目維持を優先して微調整に留めます。
-              </li>
-              <li style={{ margin: "6px 0" }}>
-                radius は `6 / 8 / 10 / 12 / pill` に固定します。entries account
-                の 8px は維持し、14px 以上の大きい角丸は preview / hero
-                以外では避けます。
-              </li>
-              <li style={{ margin: "6px 0" }}>
-                会計アプリとしての密度を優先しつつ、重要操作と mobile 操作は
-                Apple 44pt / Material 48dp の考え方に寄せます。
-              </li>
-            </ul>
-          </Card>
-        </Section>
       </div>
     </main>
   );

@@ -25,7 +25,7 @@ describe("SQLite schema", () => {
   });
 });
 
-type FakeMeta = { schemaVersion?: number | string; metaTableExists: boolean };
+type FakeMeta = { schemaVersion: number | string | null; metaTableExists: boolean };
 
 function createFakeDb(initial: Partial<FakeMeta> = {}): {
   db: MigrationDb;
@@ -36,7 +36,7 @@ function createFakeDb(initial: Partial<FakeMeta> = {}): {
 } {
   const state: FakeMeta = {
     metaTableExists: initial.metaTableExists ?? false,
-    schemaVersion: initial.schemaVersion,
+    schemaVersion: initial.schemaVersion ?? null,
   };
   const execLog: Array<string | { sql: string; bind?: unknown[] }> = [];
   let pendingError: Error | null = null;
@@ -125,7 +125,7 @@ describe("runMigrations", () => {
 
     expect(execLog[0]).toBe("BEGIN");
     expect(execLog).toContain("ROLLBACK");
-    expect(state.schemaVersion).toBeUndefined();
+    expect(state.schemaVersion).toBeNull();
   });
 
   it("retains the migration failure when rollback also fails", () => {
@@ -163,7 +163,7 @@ describe("runMigrations", () => {
   it("reads schema_version=0 when meta table exists but row is missing", () => {
     const { db, state } = createFakeDb({
       metaTableExists: true,
-      schemaVersion: undefined,
+      schemaVersion: null,
     });
     runMigrations(db);
     expect(state.schemaVersion).toBe(SCHEMA_VERSION);

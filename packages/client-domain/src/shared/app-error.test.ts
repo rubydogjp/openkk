@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { AppError, jsonToAppError } from "./app-error.js";
+import { AppError, jsonToAppError, type AppErrorPatch } from "./app-error.js";
 
 describe("AppError", () => {
   it("keeps existing client AppError instances", () => {
@@ -95,7 +95,7 @@ describe("AppError", () => {
       originalMessage: undefined,
       statusCode: undefined,
       code: undefined,
-    });
+    } as unknown as AppErrorPatch);
 
     expect(copied.toJson()).toEqual(original.toJson());
   });

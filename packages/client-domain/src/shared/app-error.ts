@@ -169,7 +169,7 @@ function stringifyOriginalMessage(error: unknown): string | null {
       return error.message || error.toString();
     }
     if (Array.isArray(error) || isObject(error)) {
-      return JSON.stringify(error);
+      return JSON.stringify(error) ?? null;
     }
     return String(error);
   } catch {

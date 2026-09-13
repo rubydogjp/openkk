@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
@@ -30,6 +31,30 @@ const packageNameToDir = new Map(
 );
 
 describe("openkk workspace structure", () => {
+  it("loads every published JavaScript entry point in Node.js", () => {
+    const entries = packageRecords
+      .filter((record) => !APP_DIRS.has(record.packageDir))
+      .flatMap(({ packageJson }) =>
+        Object.entries(packageJson.exports)
+          .filter(([, target]) => typeof target === "object")
+          .map(([subpath]) =>
+            packageJson.name + (subpath === "." ? "" : subpath.slice(1)),
+          ),
+      );
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        "for (const entry of process.argv.slice(1)) await import(entry);",
+        ...entries,
+      ],
+      { cwd: rootDir, encoding: "utf8" },
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+  });
+
   it("keeps package directories and root workspaces in sync", () => {
     expect(workspaceNames.sort()).toEqual(packageDirs);
   });
@@ -74,7 +99,8 @@ describe("openkk workspace structure", () => {
         const specifiers = source.matchAll(
           /(?:from\s*|import\s*\(\s*|^\s*import\s+)(["'])(\.\.?\/[^"']*)\1/gm,
         );
-        for (const [, , specifier] of specifiers) {
+        for (const match of specifiers) {
+          const specifier = match[2]!;
           if (!/\.(js|json|css)$/.test(specifier)) {
             offenders.push(`${path.relative(rootDir, file)}: ${specifier}`);
           }

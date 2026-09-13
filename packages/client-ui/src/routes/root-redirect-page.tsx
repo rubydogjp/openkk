@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/navigation.js";
 
 import { palette } from "../shared/design-tokens.js";
 

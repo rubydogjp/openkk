@@ -106,18 +106,16 @@ function buildFixedAssetEntries(
     endDate,
   });
   if (depreciation > 0) {
-    entries.push(
-      generatedEntry({
-        date: endDate,
-        description: `${asset.name}の減価償却`,
-        localId: `${CLOSING_GENERATED_LOCAL_ID_PREFIX}virtual-fixed-asset-${asset.id}`,
-        businessRate: asset.businessRate,
-        lines: [
-          line("debit", DEPRECIATION_EXPENSE, depreciation),
-          line("credit", asset.bookAccountId, depreciation),
-        ],
-      }),
-    );
+    entries.push({
+      date: endDate,
+      description: `${asset.name}の減価償却`,
+      localId: `${CLOSING_GENERATED_LOCAL_ID_PREFIX}virtual-fixed-asset-${asset.id}`,
+      businessRate: asset.businessRate,
+      lines: [
+        line("debit", DEPRECIATION_EXPENSE, depreciation),
+        line("credit", asset.bookAccountId, depreciation),
+      ],
+    });
   }
   if (asset.status !== "sold" && asset.status !== "disposed") return entries;
 
@@ -147,29 +145,25 @@ function buildFixedAssetEntries(
       ...(gain > 0 ? [line("credit", ASSET_SALE_GAIN, gain)] : []),
     ];
     if (debits.length > 0 || credits.length > 0) {
-      entries.push(
-        generatedEntry({
-          date: endDate,
-          description: `${asset.name}の売却`,
-          localId: `${CLOSING_GENERATED_LOCAL_ID_PREFIX}virtual-fixed-asset-sale-${asset.id}`,
-          businessRate: asset.businessRate,
-          lines: [...debits, ...credits],
-        }),
-      );
+      entries.push({
+        date: endDate,
+        description: `${asset.name}の売却`,
+        localId: `${CLOSING_GENERATED_LOCAL_ID_PREFIX}virtual-fixed-asset-sale-${asset.id}`,
+        businessRate: asset.businessRate,
+        lines: [...debits, ...credits],
+      });
     }
   } else if (bookValue > 0) {
-    entries.push(
-      generatedEntry({
-        date: endDate,
-        description: `${asset.name}の除却`,
-        localId: `${CLOSING_GENERATED_LOCAL_ID_PREFIX}virtual-fixed-asset-retire-${asset.id}`,
-        businessRate: asset.businessRate,
-        lines: [
-          line("debit", ASSET_RETIREMENT_LOSS, bookValue),
-          line("credit", asset.bookAccountId, bookValue),
-        ],
-      }),
-    );
+    entries.push({
+      date: endDate,
+      description: `${asset.name}の除却`,
+      localId: `${CLOSING_GENERATED_LOCAL_ID_PREFIX}virtual-fixed-asset-retire-${asset.id}`,
+      businessRate: asset.businessRate,
+      lines: [
+        line("debit", ASSET_RETIREMENT_LOSS, bookValue),
+        line("credit", asset.bookAccountId, bookValue),
+      ],
+    });
   }
   return entries;
 }
@@ -217,19 +211,12 @@ function buildBusinessRateTransfer(input: {
     );
   }
   if (lines.length === 0) return null;
-  return generatedEntry({
+  return {
     date: input.date,
     description: "家事按分の振替",
     localId: `${CLOSING_GENERATED_LOCAL_ID_PREFIX}business-rate-transfer`,
     businessRate: 1,
     lines,
-  });
-}
-
-function generatedEntry(input: ClosingEntry): ClosingEntry {
-  return {
-    ...input,
-    lines: input.lines.map((entryLine) => ({ ...entryLine })),
   };
 }
 

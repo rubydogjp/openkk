@@ -13,10 +13,8 @@
 | 期間フェーズ | `pre_opening` → `journalizing` → `pre_closing` → `post_closing` |
 | 圧縮保存 | フェーズを保持したまま `archiveStatus` を `archived` に変更し `archivedAt` を記録 |
 | ロック判定 | `buildPeriodLockMessage` / `isJournalizingActive` でステージ別の編集可否を判定 |
-| ライフサイクルポリシー | `OpenkkConfig.fiscalPeriodPolicy`（`resolveFiscalPeriodPolicy`）で `maxActivePeriods`（単一 active 強制）・`archiveRetention`（`persistent` / `ephemeral`）を宣言。既定は無制限・恒久保持で素の OpenKK は従来どおり |
+| ライフサイクルポリシー | `OpenkkConfig.fiscalPeriodPolicy`（`resolveFiscalPeriodPolicy`）で `maxActivePeriods`（単一 active 強制）・`archiveRetention`（`persistent` / `ephemeral`）を宣言。既定は無制限・恒久保持 |
 | スタブ化（purge） | `ephemeral` 構成で翌期へ進む確定後に `fiscalPeriod.purgeArchivedData` が実データを削除し、`archiveDataAvailable=false` のスタブ（名称・期間・`archivedAt` のみ）を残す。`isArchivedStub` で描画分岐 |
-
-**実装パッケージ:** `client-domain` (ロジック), `client-usecases` (状態), `server-usecases` (永続化), `file-db-adapter`/`memory-db-adapter` (DB)
 
 ---
 
@@ -32,8 +30,6 @@
 | 事業按分率 | 0–100%（小数可）で指定し、期末に個人負担分を振替 |
 | 簡単入力ガイド | テンプレートから借方・貸方科目を自動補完するウィザード |
 
-**実装パッケージ:** `client-domain` (`EntryRecord`, ロジック), `client-usecases` (`OpenkkEntriesProvider`), `client-ui` (`EntryEditDrawer`), `server-usecases`, `server-ports` (`EntriesApi`)
-
 ---
 
 ## 3. ファイルインポート / エクスポート (Data Portability)
@@ -44,8 +40,6 @@
 | インポート | CSV (`.csv`) | ヘッダ付き CSV を取り込む |
 | エクスポート | JSON / CSV | 期間内全仕訳を明細ID・税区分・事業区分・厳密な事業割合を保ったままダウンロード |
 | マージ | — | 既存仕訳と `localId` で突合し、新規のみ追加（既存と重複する `localId` は取込時に `ON CONFLICT DO NOTHING` でスキップ） |
-
-**実装パッケージ:** `client-domain` (`entries/import-export.ts`), `sqlite-adapter` (`entry-store.ts` の `importMany`)
 
 ---
 
@@ -61,8 +55,6 @@
 | 廃棄バーチャル行 | 廃棄済資産の処分日に「期首〜処分日の当期償却費」＋残存簿価を固定資産除却損として除却 |
 | 家事按分 | 減価償却費・除却損は全額計上し、`businessRate` の個人負担分は本締め時の按分振替仕訳でまとめて事業主貸へ振替 |
 
-**実装パッケージ:** `client-domain` (`virtual-entries.ts`, `fixed-asset-data.ts`), `client-usecases` (`OpenkkAssistProvider`), `client-ui` (`FixedAssetEditDrawer`), `server-ports` (`FixedAssetsApi`)
-
 ---
 
 ## 5. 期首繰越 / 再振替 (Opening Carryover)
@@ -72,8 +64,6 @@
 | 再振替仕訳の登録 | 前期末に計上した未払・前払などを翌期首に再振替する仕訳を管理 |
 | バーチャル行として表示 | 1月の仕訳一覧に「再振替」バッジ付きで自動表示 |
 | 期首残高の入力 | 資産・負債の期首残高 (`openingBalanceLines`) を貸借一致で入力 |
-
-**実装パッケージ:** `client-domain` (`opening-carryover.ts`, `demo-data.ts`), `client-usecases`, `client-ui` (`OpeningCarryoverPage`)
 
 ---
 
@@ -94,8 +84,6 @@
 
 減価償却・再振替・家事按分のバーチャル仕訳は `buildClosingVirtualEntries` が単一の真実として生成し、本締め時に実仕訳化 (materialize) する。本締め前の仮帳票プレビューも `withClosingVirtualEntries` で同じバーチャル仕訳を含めて生成するため、**仮帳票と確定帳票の数字は一致する**。
 
-**実装パッケージ:** `client-domain` (`step-derivation.ts`, `virtual-entries.ts`), `client-usecases` (`useOpenkkClosing`), `client-ui` (各 step body コンポーネント, `use-step-document-printers.ts`), `server-usecases` (`createClosingUsecase`)
-
 ---
 
 ## 7. 財務帳票 (Financial Reports)
@@ -108,8 +96,6 @@
 
 生成した HTML は `PrintPort.openPrint(html)` 経由でブラウザの印刷ダイアログに渡す。帳票内のすべてのユーザーデータは HTMLエスケープ済み (`escapeHtml`)。
 
-**実装パッケージ:** `client-domain` (`journal-print.ts`, `general-ledger-print.ts`, `financial-statements-print.ts`, `fs-data.ts`), `client-usecases` (`usePrintDocument`), `print-adapter` (ブラウザ実装)
-
 ---
 
 ## 8. 分析・トレンド (Analytics)
@@ -119,8 +105,6 @@
 | 月次 PL トレンド | 期間内の各月の売上・費用・利益をグラフ表示 (`buildStepTrendPoints`)。未確定の減価償却・再振替を含め、各仕訳で直接按分するため期末の家事按分振替は二重計上しない |
 | FS サマリー | 期末時点の PL/BS を数値で表示 (`computeFsAggregate`) |
 | 科目別内訳 | 売上・費用の科目別貢献度を計算 (`computeRevenueContribution` / `computeExpenseContribution`) |
-
-**実装パッケージ:** `client-domain` (`summary.ts`, `step-trend.ts`), `client-ui` (`analytics-page`)
 
 ---
 
@@ -132,8 +116,6 @@
 | `memory-db-adapter` | インメモリ (揮発) | ページリロードでリセット |
 
 どちらも `OpenkkDbPort` を実装しており差し替え可能。SQLとマイグレーションは `sqlite-adapter` で共有する。
-
-**実装パッケージ:** `file-db-adapter`, `memory-db-adapter`, `server-ports` (`OpenkkDbPort`)
 
 ---
 
@@ -149,8 +131,6 @@
 
 勘定科目は既定IDのみ、税区分・事業区分は既定IDと利用者定義値を受け付ける。
 
-**実装パッケージ:** `client-domain` (`default-master-data.ts`), `server-domain` (`master-data.ts`)
-
 ---
 
 ## テスト範囲
@@ -163,7 +143,7 @@
 | 通常版export smoke | `npm run test:e2e:export` | 静的成果物、OPFS初期化、複数タブ制御を検証 |
 | 全検査 | `npm run check:full` | 生成物drift、全workspace、3アプリのproduction build、上記E2E |
 
-テスト件数は追加のたびに変わるため文書へ固定せず、各コマンドの実行結果を正とする。DB アダプタを追加したら `runDbPortConformance` に通し、memory（Sim/デモ）と OPFS worker（通常版）の挙動一致を担保する。
+DB アダプタを追加したら `runDbPortConformance` に通し、memory（Sim/デモ）と OPFS worker（通常版）の挙動一致を担保する。
 
 ---
 
@@ -191,5 +171,3 @@
 | `CustomUser` | OSS 派生プロダクトの実ユーザー（Google 等） | 認証フロー経由 | 可 |
 
 リファレンスアプリ（sim/demo/original の3バンドル）は全て `authMode:"embedded"`。CustomUser 認証はサードパーティが `OpenkkServerPort.auth`（`AuthApi`）を実装して `CustomUser` を返すことで有効化する。実装手順は [`authentication.md`](./authentication.md) を参照。
-
-**実装パッケージ:** `client-domain` (`user.ts`, `Session`), `client-usecases` (`openkk-app-state`), `client-ui` (`shell-layout`, `sign-in-content`), `server-ports` (`AuthApi`)

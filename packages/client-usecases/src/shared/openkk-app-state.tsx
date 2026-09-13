@@ -339,15 +339,10 @@ export function OpenkkAppStateProvider(props: {
           const resolved =
             typeof input === "function" ? input(current) : input;
           if (resolved == null) return false;
-          const patched = await backendApi.fiscalPeriod.patch(fiscalPeriodId, {
-            name: resolved.name,
-            startDate: resolved.startDate,
-            endDate: resolved.endDate,
-            settingsCompleted: resolved.settingsCompleted,
-            openingBalancesCompleted: resolved.openingBalancesCompleted,
-            documentsReceivedCompleted: resolved.documentsReceivedCompleted,
-            opening: resolved.opening,
-          });
+          const patched = await backendApi.fiscalPeriod.patch(
+            fiscalPeriodId,
+            resolved,
+          );
           authOperationGuard.current.assertCurrent(operationVersion);
           fiscalPeriodListVersion.current.invalidate("all");
           fiscalPeriodsRef.current = applyFiscalPeriodUpdate(

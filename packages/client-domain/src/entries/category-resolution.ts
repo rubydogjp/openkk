@@ -4,7 +4,8 @@ export function resolveCategoryId(
   categories: ReadonlyArray<{ id: string; name: string }>,
   blankFallbackId: string,
 ): string {
-  const value = explicitId?.trim() || name.trim();
+  if (explicitId !== null) return explicitId;
+  const value = name.trim();
   if (value === "") return blankFallbackId;
   return (
     categories.find((category) => category.id === value)?.id ??

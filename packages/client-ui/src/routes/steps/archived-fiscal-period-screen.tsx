@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/navigation.js";
 
 import {
   AppError,

@@ -49,12 +49,18 @@ import {
   StepSectionLabel,
 } from "../step-ui.js";
 
-const CARRY_ITEMS: Array<{ id: string; label: string }> = [
+type CarryOptions = {
+  bs: boolean;
+  transfer: boolean;
+  fixed: boolean;
+};
+
+const CARRY_ITEMS: Array<{ id: keyof CarryOptions; label: string }> = [
   { id: "bs", label: "期末のBS → 翌期首のBS" },
   { id: "transfer", label: "期末の振替 → 翌期首の再振替" },
   { id: "fixed", label: "固定資産データ" },
 ];
-const DEFAULT_CARRIES: Record<string, boolean> = {
+const DEFAULT_CARRIES: CarryOptions = {
   bs: true,
   transfer: true,
   fixed: true,
@@ -94,7 +100,7 @@ export function NextFiscalPeriodBody({
   const workflowLock = useRef(new ExclusiveActionLock());
   const [pendingAdvance, setPendingAdvance] = useState(false);
   const [carries, setCarries] =
-    useState<Record<string, boolean>>(DEFAULT_CARRIES);
+    useState<CarryOptions>(DEFAULT_CARRIES);
 
   useEffect(() => {
     if (currentFiscalPeriod == null) return;
@@ -306,7 +312,7 @@ export function NextFiscalPeriodBody({
     }
   };
 
-  const toggleCarry = (id: string) =>
+  const toggleCarry = (id: keyof CarryOptions) =>
     setCarries((prev) => ({ ...prev, [id]: !prev[id] }));
 
   const handleArchive = async () => {

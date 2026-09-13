@@ -41,7 +41,7 @@ export function formatDateButtonLabel(isoDate: string): string {
 export function isoDateToWeekday(isoDate: string): string {
   const date = parseIsoDate(isoDate);
   if (date == null) return "";
-  return WEEKDAY_JP[date.getDay()];
+  return WEEKDAY_JP[date.getDay()]!;
 }
 
 export function DatePickerButton(props: {
