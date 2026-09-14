@@ -84,7 +84,7 @@ server side:   api → usecases → ports → domain
 
 `server-api` でも、URL 上の fiscal period と子リソースの所属関係、会計期間のフェーズ、入力形式を検証する。これは HTTP 境界の検証であり、`server-usecases` の所有者検証を省略する理由にはしない。これにより `server-usecases` を直接利用する独自 composition root でも同じ所有者境界が保たれる。
 
-本締め用の生成仕訳はクライアントから受け取った内容を信用せず、`server-domain` が永続化済みの仕訳・固定資産・期首データから再計算して一致を検証する。
+本締め時は `server-usecases` が保存済みデータを取得し、`server-domain` で生成仕訳を再計算・照合する。本締め後の帳票・分析は保存済み仕訳を使う。
 
 ## DB スキーマとマイグレーション
 

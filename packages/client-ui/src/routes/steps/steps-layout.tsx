@@ -13,6 +13,7 @@ import {
   deriveSteps,
   buildAnalyticsEntries,
   buildStepTrendPoints,
+  type FiscalPeriodPhase,
 } from "@rubydogjp/openkk-client-domain";
 import { normalizePathname } from "../../shared/pathname.js";
 import { StepsPageScreen } from "../../steps/step-page-screen.js";
@@ -66,6 +67,7 @@ function StepsStepperHost({ pathname }: { pathname: string }) {
     <StepsPageScreenWithChart
       steps={steps}
       currentFiscalPeriodId={currentFiscalPeriod.id}
+      currentPhase={currentFiscalPeriod.phase}
       currentStartDate={currentFiscalPeriod.startDate}
       currentEndDate={currentFiscalPeriod.endDate}
     />
@@ -75,11 +77,13 @@ function StepsStepperHost({ pathname }: { pathname: string }) {
 function StepsPageScreenWithChart({
   steps,
   currentFiscalPeriodId,
+  currentPhase,
   currentStartDate,
   currentEndDate,
 }: {
   steps: ReturnType<typeof deriveSteps>;
   currentFiscalPeriodId: string;
+  currentPhase: FiscalPeriodPhase;
   currentStartDate: string;
   currentEndDate: string;
 }) {
@@ -91,6 +95,7 @@ function StepsPageScreenWithChart({
       buildStepTrendPoints({
         entries: buildAnalyticsEntries({
           fiscalPeriodId: currentFiscalPeriodId,
+          phase: currentPhase,
           periodStartDate: currentStartDate,
           periodEndDate: currentEndDate,
           entries: entriesState.listFiscalPeriodEntries(currentFiscalPeriodId),
@@ -107,6 +112,7 @@ function StepsPageScreenWithChart({
       assistState,
       today,
       currentFiscalPeriodId,
+      currentPhase,
       currentStartDate,
       currentEndDate,
     ],

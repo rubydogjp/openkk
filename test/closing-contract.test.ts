@@ -4,9 +4,41 @@ import { mapOpeningJournalToRecord } from "../packages/client-usecases/src/assis
 import { entryRecordToImportPayload } from "../packages/client-usecases/src/entries/import-mapping.js";
 import { createMemoryDbAdapter } from "../packages/memory-db-adapter/src/index.js";
 import { createOpenkkServer } from "../packages/server/src/index.js";
+import { createServerUsecases } from "../packages/server-usecases/src/usecases.js";
 import type { OpeningJournalApiRecord } from "../packages/server-ports/src/index.js";
 
 describe("client/server closing contract", () => {
+  it("rejects missing generated entries when calling the closing usecase directly", async () => {
+    const db = await createMemoryDbAdapter(null);
+    const server = createOpenkkServer(db, { userId: "user-1" });
+    const period = await server.fiscalPeriod.create({
+      name: "2026年分",
+      startDate: "2026-01-01",
+      endDate: "2026-12-31",
+    });
+    await server.fiscalPeriod.patch(period.id, {
+      settingsCompleted: true,
+      openingBalancesCompleted: true,
+    });
+    await server.fixedAssets.create(period.id, {
+      name: "PC",
+      acquisitionDate: "2026-01-01",
+      acquisitionCost: 120_000,
+      usefulLife: 4,
+      depreciationMethod: "straight_line",
+      businessRate: 1,
+      bookAccountId: "acct_equipment",
+    });
+    await server.preClosing.run({ fiscalPeriodId: period.id, year: 2026 });
+
+    await expect(
+      createServerUsecases(db).closing.run("user-1", period.id, 2026, []),
+    ).rejects.toThrow(/do not match the current fiscal-period source data/);
+    expect((await db.fiscalPeriods.getById(period.id))?.phase).toBe("pre_closing");
+    expect(await db.closings.get(period.id, 2026)).toBeNull();
+    expect(await db.entries.getAll(period.id)).toEqual([]);
+  });
+
   it.each(["", "tax_10", "custom-tax"])(
     "closes a period without changing stored category id %j",
     async (taxCategoryId) => {

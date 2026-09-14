@@ -1,4 +1,5 @@
 import type { MasterBookAccountType } from "./generated-master-data.js";
+import { serverConflictError } from "./app-error.js";
 
 export type ClosingEntryLine = {
   side: "debit" | "credit";
@@ -85,6 +86,38 @@ export function buildExpectedClosingEntries(input: {
     bookAccounts: input.bookAccounts,
   });
   return transfer == null ? assistEntries : [...assistEntries, transfer];
+}
+
+export function assertClosingEntriesMatch(
+  actual: ClosingEntry[],
+  expected: ClosingEntry[],
+): void {
+  const canonicalEntries = (entries: ClosingEntry[]) =>
+    entries.map((entry) => JSON.stringify({
+      date: entry.date,
+      description: entry.description,
+      localId: entry.localId,
+      businessRate: entry.businessRate,
+      lines: entry.lines
+        .map((line) => JSON.stringify([
+          line.side,
+          line.bookAccountId,
+          line.amount,
+          line.partnerName,
+          line.taxCategoryId,
+          line.businessCategoryId,
+        ]))
+        .sort(),
+    })).sort();
+  if (
+    JSON.stringify(canonicalEntries(actual)) !==
+    JSON.stringify(canonicalEntries(expected))
+  ) {
+    throw serverConflictError(
+      "Closing entries do not match the current fiscal-period source data",
+      "本締め用の自動仕訳が最新データと一致しません。画面を再読み込みしてから再実行してください",
+    );
+  }
 }
 
 function buildFixedAssetEntries(

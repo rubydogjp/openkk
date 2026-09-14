@@ -1,6 +1,45 @@
 import { describe, expect, it } from "vitest";
 
-import { buildExpectedClosingEntries } from "./closing-entries.js";
+import {
+  assertClosingEntriesMatch,
+  buildExpectedClosingEntries,
+  type ClosingEntry,
+} from "./closing-entries.js";
+
+describe("assertClosingEntriesMatch", () => {
+  const entry: ClosingEntry = {
+    date: "2026-12-31",
+    description: "決算仕訳",
+    localId: "virtual:entry",
+    businessRate: 1,
+    lines: (["debit", "credit"] as const).map((side) => ({
+      side,
+      bookAccountId: side === "debit" ? "acct_cash" : "acct_sales",
+      amount: 100,
+      partnerName: "取引先",
+      taxCategoryId: "tax_out_of_scope",
+      businessCategoryId: "biz_none",
+    })),
+  };
+
+  it("ignores entry and line order", () => {
+    const second = { ...entry, localId: "virtual:second" };
+    expect(() => assertClosingEntriesMatch(
+      [{ ...second, lines: [...second.lines].reverse() }, entry],
+      [entry, second],
+    )).not.toThrow();
+  });
+
+  it("rejects changed amounts and duplicate entries", () => {
+    expect(() => assertClosingEntriesMatch(
+      [{ ...entry, lines: entry.lines.map((line) => ({ ...line, amount: 101 })) }],
+      [entry],
+    )).toThrow(/do not match/);
+    expect(() => assertClosingEntriesMatch([entry, entry], [entry])).toThrow(
+      /do not match/,
+    );
+  });
+});
 
 describe("buildExpectedClosingEntries fixed-asset disposal", () => {
   it("matches depreciation and sale against the disposal-date book value", () => {

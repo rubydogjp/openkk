@@ -72,6 +72,7 @@ export function ClosingBody({
     if (currentFiscalPeriod == null) return null;
     const entries = withClosingVirtualEntries({
       fiscalPeriodId: currentFiscalPeriod.id,
+      phase: currentFiscalPeriod.phase,
       periodStartDate: currentFiscalPeriod.startDate,
       periodEndDate: currentFiscalPeriod.endDate,
       entries: entriesState.listFiscalPeriodEntries(currentFiscalPeriod.id),

@@ -544,6 +544,7 @@ describe("buildVirtualBusinessRateTransferRows", () => {
 describe("withClosingVirtualEntries", () => {
   it("appends virtual entries to real entries", () => {
     const result = withClosingVirtualEntries({
+      phase: "pre_closing",
       fiscalPeriodId: "fp-2026",
       periodStartDate: "2026-01-01",
       periodEndDate: "2026-12-31",
@@ -566,6 +567,7 @@ describe("withClosingVirtualEntries", () => {
     });
 
     const result = withClosingVirtualEntries({
+      phase: "pre_closing",
       fiscalPeriodId: "fp-2026",
       periodStartDate: "2026-01-01",
       periodEndDate: "2026-12-31",
@@ -581,11 +583,35 @@ describe("withClosingVirtualEntries", () => {
       ),
     ).toHaveLength(1);
   });
+
+  it("uses saved closing entries when restored assets have new ids", () => {
+    const entries = buildClosingVirtualEntries({
+      fiscalPeriodId: "fp-2026",
+      periodStartDate: "2026-01-01",
+      periodEndDate: "2026-12-31",
+      entries: [],
+      assets: [depreciatingAsset()],
+      carryovers: [],
+    });
+    const input = {
+      fiscalPeriodId: "fp-2026",
+      phase: "post_closing" as const,
+      periodStartDate: "2026-01-01",
+      periodEndDate: "2026-12-31",
+      entries,
+      assets: [depreciatingAsset({ id: "restored-asset" })],
+      carryovers: [],
+    };
+
+    expect(withClosingVirtualEntries(input)).toEqual(entries);
+    expect(buildAnalyticsEntries(input)).toEqual(entries);
+  });
 });
 
 describe("buildAnalyticsEntries", () => {
   it("includes assist entries but excludes the business-rate transfer", () => {
     const result = buildAnalyticsEntries({
+      phase: "journalizing",
       fiscalPeriodId: "fp-2026",
       periodStartDate: "2026-01-01",
       periodEndDate: "2026-12-31",

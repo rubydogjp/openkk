@@ -1,4 +1,6 @@
 import {
+  assertClosingEntriesMatch,
+  buildExpectedClosingEntries,
   serverConflictError,
   serverNotFoundError,
 } from "@rubydogjp/openkk-server-domain";
@@ -40,7 +42,21 @@ function createClosingUsecase(db: OpenkkDbPort) {
       year: number,
       entries: EntryUpsertInput[],
     ) {
-      await requireOwnedFiscalPeriod(db, userId, fiscalPeriodId);
+      const period = await requireOwnedFiscalPeriod(db, userId, fiscalPeriodId);
+      const [persistedEntries, fixedAssets, bookAccounts] = await Promise.all([
+        db.entries.getAll(fiscalPeriodId),
+        db.fixedAssets.getAllByFiscalPeriod(fiscalPeriodId),
+        db.masterData.getAllBookAccounts(),
+      ]);
+      const expectedEntries = buildExpectedClosingEntries({
+        periodStartDate: period.startDate,
+        periodEndDate: period.endDate,
+        entries: persistedEntries,
+        fixedAssets,
+        openingJournals: period.opening?.openingJournals ?? [],
+        bookAccounts,
+      });
+      assertClosingEntriesMatch(entries, expectedEntries);
       return db.closings.run(fiscalPeriodId, year, entries);
     },
   };

@@ -25,6 +25,7 @@ export function useStepDocumentPrinters(
   const closingEntries = (period: FiscalPeriod): EntryRecord[] =>
     withClosingVirtualEntries({
       fiscalPeriodId: period.id,
+      phase: period.phase,
       periodStartDate: period.startDate,
       periodEndDate: period.endDate,
       entries: entriesState.listFiscalPeriodEntries(period.id),

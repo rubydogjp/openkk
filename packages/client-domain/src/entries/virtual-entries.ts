@@ -4,6 +4,7 @@ import {
   computeStraightLineDepreciation,
 } from "../assist/fixed-asset-depreciation.js";
 import type { OpeningCarryoverRecord } from "../assist/opening-carryover.js";
+import type { FiscalPeriodPhase } from "../shared/models.js";
 import type { BookAccountType } from "./book-account.js";
 import type { EntryPreviewRow } from "./entries-types.js";
 import {
@@ -368,14 +369,20 @@ export function buildClosingVirtualEntries(input: {
   return transfer == null ? assistEntries : [...assistEntries, transfer];
 }
 
-export function withClosingVirtualEntries(input: {
+export type FiscalPeriodEntriesInput = {
   fiscalPeriodId: string;
+  phase: FiscalPeriodPhase;
   periodStartDate: string | null;
   periodEndDate: string | null;
   entries: EntryRecord[];
   assets: FixedAsset[];
   carryovers: OpeningCarryoverRecord[];
-}): EntryRecord[] {
+};
+
+export function withClosingVirtualEntries(
+  input: FiscalPeriodEntriesInput,
+): EntryRecord[] {
+  if (input.phase === "post_closing") return input.entries;
   const materializedLocalIds = new Set(
     input.entries
       .map((entry) => entry.localId)
@@ -401,7 +408,7 @@ export function withClosingVirtualEntries(input: {
 }
 
 export function buildAnalyticsEntries(
-  input: Parameters<typeof withClosingVirtualEntries>[0],
+  input: FiscalPeriodEntriesInput,
 ): EntryRecord[] {
   return excludeBusinessRateTransfer(withClosingVirtualEntries(input));
 }

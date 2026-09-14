@@ -58,6 +58,7 @@ export function JournalizingAnalyticsPage() {
     };
     const effectiveEntries = buildAnalyticsEntries({
       fiscalPeriodId: currentFiscalPeriod.id,
+      phase: currentFiscalPeriod.phase,
       periodStartDate: currentFiscalPeriod.startDate,
       periodEndDate: currentFiscalPeriod.endDate,
       entries: entriesState.listFiscalPeriodEntries(currentFiscalPeriod.id),

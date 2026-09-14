@@ -2,12 +2,9 @@ import {
   CLOSING_GENERATED_LOCAL_ID_PREFIX,
   MAX_ENTRY_IMPORT_ITEMS,
   MAX_ENTRY_IMPORT_LINES,
-  serverConflictError,
   serverValidationError,
 } from "@rubydogjp/openkk-server-domain";
-import type { ClosingEntry } from "@rubydogjp/openkk-server-domain";
 import type {
-  EntryUpsertInput,
   FiscalPeriodApiRecord,
 } from "@rubydogjp/openkk-server-ports";
 import {
@@ -74,66 +71,4 @@ export function assertClosingGeneratedEntries(
     assertEntryInput(entry, period, true);
     assertEntryMasterReferences(entry);
   }
-}
-
-export function assertClosingEntriesMatch(
-  actual: EntryUpsertInput[],
-  expected: ClosingEntry[],
-): void {
-  const normalize = (entry: ClosingEntry) => {
-    if (entry.localId == null) throwClosingEntriesMismatch();
-    return {
-      date: entry.date,
-      description: entry.description,
-      localId: entry.localId,
-      businessRate: entry.businessRate,
-      lines: entry.lines
-        .map((line) => ({
-          side: line.side,
-          bookAccountId: line.bookAccountId,
-          amount: line.amount,
-          partnerName: line.partnerName,
-          taxCategoryId: line.taxCategoryId,
-          businessCategoryId: line.businessCategoryId,
-        }))
-        .sort((left, right) =>
-          [
-            left.side,
-            left.bookAccountId,
-            left.amount,
-            left.partnerName,
-            left.taxCategoryId,
-            left.businessCategoryId,
-          ]
-            .join("\u0000")
-            .localeCompare(
-              [
-                right.side,
-                right.bookAccountId,
-                right.amount,
-                right.partnerName,
-                right.taxCategoryId,
-                right.businessCategoryId,
-              ].join("\u0000"),
-            ),
-        ),
-    };
-  };
-  const sortEntries = (entries: ClosingEntry[]) =>
-    entries
-      .map(normalize)
-      .sort((left, right) => left.localId.localeCompare(right.localId));
-  if (
-    JSON.stringify(sortEntries(actual)) !==
-    JSON.stringify(sortEntries(expected))
-  ) {
-    throwClosingEntriesMismatch();
-  }
-}
-
-function throwClosingEntriesMismatch(): never {
-  throw serverConflictError(
-    "Closing entries do not match the current fiscal-period source data",
-    "本締め用の自動仕訳が最新データと一致しません。画面を再読み込みしてから再実行してください",
-  );
 }

@@ -1,5 +1,4 @@
 import {
-  buildExpectedClosingEntries,
   MAX_ENTRY_IMPORT_ITEMS,
   MAX_ENTRY_IMPORT_LINES,
   serverConflictError,
@@ -10,7 +9,6 @@ import type { OpenkkServerPort } from "@rubydogjp/openkk-server-ports";
 import type { ServerUsecases } from "@rubydogjp/openkk-server-usecases";
 import {
   archivedFiscalPeriodError,
-  assertClosingEntriesMatch,
   assertClosingGeneratedEntries,
   assertClosingYear,
   assertEntryInput,
@@ -116,22 +114,6 @@ export function createOpenkkServerApi(
         assertPeriodPhase(period, "pre_closing", "run closing");
         assertClosingYear(period, year);
         assertClosingGeneratedEntries(entries, period);
-        const [persistedEntries, fixedAssets, bookAccounts] = await Promise.all(
-          [
-            usecases.entries.getAll(uid, fiscalPeriodId),
-            usecases.fixedAssets.getAll(uid, fiscalPeriodId),
-            usecases.masterData.getBookAccounts(),
-          ],
-        );
-        const expectedEntries = buildExpectedClosingEntries({
-          periodStartDate: period.startDate,
-          periodEndDate: period.endDate,
-          entries: persistedEntries,
-          fixedAssets,
-          openingJournals: period.opening?.openingJournals ?? [],
-          bookAccounts,
-        });
-        assertClosingEntriesMatch(entries, expectedEntries);
         return usecases.closing.run(uid, fiscalPeriodId, year, entries);
       },
     },
