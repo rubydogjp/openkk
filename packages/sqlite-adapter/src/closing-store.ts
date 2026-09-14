@@ -137,8 +137,8 @@ async function deleteClosingGeneratedEntries(
   fiscalPeriodId: string,
 ): Promise<void> {
   await db.exec({
-    sql: `DELETE FROM entries WHERE fiscal_period_id = ? AND local_id LIKE ?`,
-    bind: [fiscalPeriodId, `${CLOSING_GENERATED_LOCAL_ID_PREFIX}%`],
+    sql: `DELETE FROM entries WHERE fiscal_period_id = ? AND local_id GLOB ?`,
+    bind: [fiscalPeriodId, `${CLOSING_GENERATED_LOCAL_ID_PREFIX}*`],
   });
 }
 

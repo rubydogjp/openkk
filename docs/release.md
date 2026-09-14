@@ -79,6 +79,5 @@ npm run setup-trusted-publishing
 - `package.json` と `LICENSE` は npm の標準ファイルとして同梱される。
 - npm が常に同梱する各パッケージ直下の `LICENSE` は、rootの `LICENSE` と
   同一であることを公開前検証で確認する。
-- domain/ports/usecases/server/adapter はNodeから直接importできる。
-  `client-ui`・`frontend`・`client` は Next.js の client module に依存するため、
-  対応バンドラ経由で利用する。
+- 全ライブラリの公開エントリをNodeからimportできることを検証する。
+  UIの実行にはReact・Next.jsを使用する。

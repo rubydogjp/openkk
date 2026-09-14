@@ -7,6 +7,7 @@ import {
   useOpenkkAppState,
   useOpenkkAssist,
   useOpenkkConfig,
+  useOpenkkToday,
 } from "@rubydogjp/openkk-client-usecases";
 import {
   buildPeriodLockMessage,
@@ -27,6 +28,7 @@ export function FixedAssetsPage() {
   const assistState = useOpenkkAssist();
   const appState = useOpenkkAppState();
   const openkkConfig = useOpenkkConfig();
+  const today = useOpenkkToday();
   const editingLocked = resolveEditingPolicy(openkkConfig).locked;
   const [newAssetDraft, setNewAssetDraft] =
     useState<FixedAssetDraft | null>(null);
@@ -40,7 +42,7 @@ export function FixedAssetsPage() {
     currentFiscalPeriod?.phase === "pre_closing";
   const screenLockMessage = isReadOnlyPeriod ? null : lockMessage;
   const fixedAssetPreviewAsOf = capFixedAssetPreviewDate(
-    openkkConfig.today,
+    today,
     currentFiscalPeriod?.endDate ?? null,
   );
 
@@ -97,7 +99,7 @@ export function FixedAssetsPage() {
                 setNewAssetDraft(
                   buildNewFixedAssetDraft(
                     currentFiscalPeriod.startDate,
-                    openkkConfig.today,
+                    today,
                   ),
                 );
               }

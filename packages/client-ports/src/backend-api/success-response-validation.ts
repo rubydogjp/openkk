@@ -142,22 +142,13 @@ function isFiscalPeriod(value: unknown): boolean {
     return false;
   }
   if (value.opening === null) return !value.openingBalancesCompleted;
-  if (!isOpening(value.opening, value)) return false;
-  return (
-    !value.openingBalancesCompleted ||
-    areOpeningBalanceLinesBalanced(value.opening.openingBalanceLines)
-  );
+  return isOpening(value.opening, value);
 }
-
-type ValidOpening = Record<string, unknown> & {
-  openingBalanceLines: Array<Record<string, unknown>>;
-  openingJournals: Array<Record<string, unknown>>;
-};
 
 function isOpening(
   value: unknown,
   fiscalPeriod: Record<string, unknown>,
-): value is ValidOpening {
+): boolean {
   if (!isObject(value)) return false;
   if (
     !hasNonBlankStrings(value, ["id", "userId", "fiscalPeriodId"]) ||
@@ -206,7 +197,9 @@ function isOpening(
   return (
     hasUniqueValues(balanceLines.map((line) => line.id)) &&
     hasUniqueValues(balanceLines.map((line) => line.accountId)) &&
-    hasUniqueValues(journals.map((journal) => journal.id))
+    hasUniqueValues(journals.map((journal) => journal.id)) &&
+    (!fiscalPeriod.openingBalancesCompleted ||
+      areOpeningBalanceLinesBalanced(balanceLines))
   );
 }
 

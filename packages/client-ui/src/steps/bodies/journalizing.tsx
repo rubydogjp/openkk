@@ -13,6 +13,7 @@ import {
   useOpenkkCallout,
   useOpenkkClosing,
   useOpenkkConfig,
+  useOpenkkToday,
 } from "@rubydogjp/openkk-client-usecases";
 import { fontSize, fontWeight, palette } from "../../shared/design-tokens.js";
 import { useConfirmDialog } from "../../shared/confirm-dialog.js";
@@ -44,6 +45,7 @@ export function JournalizingBody({
 }) {
   const router = useRouter();
   const config = useOpenkkConfig();
+  const today = useOpenkkToday();
   const appState = useOpenkkAppState();
   const closingApi = useOpenkkClosing();
   const preClosingHint = useOpenkkCallout("stepJournalizingPreClosingHint");
@@ -121,7 +123,7 @@ export function JournalizingBody({
         isCurrentMonthWithinFiscalPeriod(
           currentFiscalPeriod.startDate,
           currentFiscalPeriod.endDate,
-          config.today,
+          today,
         )
       ) {
         const forceConfirmed = await confirm({

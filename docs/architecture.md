@@ -67,12 +67,14 @@ server side:   api → usecases → ports → domain
 
 `embedded-backend`、`frontend`、3つのアプリ workspace は参照実装。独自アプリは自前の composition root でアダプタを組み合わせる。
 
+設定は `OpenkkConfig` に定義し、`useOpenkkConfig` で取得する。日付の状態は `useOpenkkToday` で購読する。
+
 ## 認証について
 
 ユーザーは `OpenkkUser = EmbeddedUser | CustomUser`（`client-domain` の `user.ts`）でドメインモデル化する。`config.authMode` で挙動を選ぶ：
 
 - `embedded`（sim/demo/original の既定）: 固定の `EmbeddedUser` 1名で起動時に自動サインイン。サインアウトは非活性（`userCanSignOut` が `false`）。`server-usecases` の auth は embedded 単一ユーザー向け local 実装。
-- `custom`: Google 認証等で実ユーザー（`CustomUser`）を扱う派生プロダクト向け。独自バックエンドは `OpenkkServerPort.auth` を実装し、`CreateTokenResponse` の未設定値を `null` で返す。
+- `custom`: Google 認証等で実ユーザー（`CustomUser`）を扱う派生プロダクト向け。独自バックエンドは `OpenkkServerPort.auth` を実装し、`RedeemCompletionCodeResponse` の未設定値を `null` で返す。
 
 実装手順は [`authentication.md`](./authentication.md) を参照。
 

@@ -10,6 +10,7 @@ import {
   readFiscalPeriodArchiveZip,
   resolveEditingPolicy,
   resolveFiscalPeriodPolicy,
+  type FiscalPeriod,
 } from "@rubydogjp/openkk-client-domain";
 import {
   useOpenkkAppState,
@@ -30,10 +31,6 @@ import {
   spacing,
   typography,
 } from "../shared/design-tokens.js";
-
-type FiscalPeriod = ReturnType<
-  typeof useOpenkkAppState
->["fiscalPeriods"][number];
 
 export function FiscalPeriodsContent() {
   const router = useRouter();

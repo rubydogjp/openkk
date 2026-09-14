@@ -19,14 +19,6 @@ import type {
   OpeningJournalLineApiRecord,
 } from "@rubydogjp/openkk-client-ports";
 
-export function replaceLoadedFixedAssets(
-  fiscalPeriodId: string | null,
-  nextAssets: FixedAsset[],
-): FixedAsset[] {
-  if (fiscalPeriodId == null) return [];
-  return nextAssets;
-}
-
 export function upsertFixedAsset(
   current: FixedAsset[],
   next: FixedAsset,

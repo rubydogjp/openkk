@@ -7,7 +7,7 @@ import {
   useOpenkkAppState,
   useOpenkkAssist,
   useOpenkkEntries,
-  useOpenkkConfig,
+  useOpenkkToday,
 } from "@rubydogjp/openkk-client-usecases";
 import {
   computeExpenseContribution,
@@ -41,7 +41,7 @@ export function JournalizingAnalyticsPage() {
   const appState = useOpenkkAppState();
   const entriesState = useOpenkkEntries();
   const assistState = useOpenkkAssist();
-  const openkkConfig = useOpenkkConfig();
+  const today = useOpenkkToday();
   const [expandedMonths, setExpandedMonths] = useState<string[]>([]);
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (period) => period.id === appState.currentFiscalPeriodId,
@@ -53,8 +53,8 @@ export function JournalizingAnalyticsPage() {
     const endMonth = parseYearMonth(currentFiscalPeriod.endDate);
     const months = buildYearMonthRange(startMonth, endMonth);
     const currentMonth = {
-      year: openkkConfig.today.getFullYear(),
-      month: openkkConfig.today.getMonth() + 1,
+      year: today.getFullYear(),
+      month: today.getMonth() + 1,
     };
     const effectiveEntries = buildAnalyticsEntries({
       fiscalPeriodId: currentFiscalPeriod.id,
@@ -89,7 +89,7 @@ export function JournalizingAnalyticsPage() {
           compareYearMonth(yearMonth, currentMonth) <= 0,
       };
     });
-  }, [assistState, currentFiscalPeriod, entriesState, openkkConfig.today]);
+  }, [assistState, currentFiscalPeriod, entriesState, today]);
 
   return (
     <section style={{ padding: "24px 24px 96px" }}>

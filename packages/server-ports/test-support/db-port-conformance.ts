@@ -29,7 +29,7 @@ const testCreditEntryLine = {
   bookAccountId: "acct_sales",
 };
 
-function closingGeneratedEntry(localId: string, description: string) {
+function testEntryInput(localId: string | null, description: string) {
   return {
     date: "2026-12-31",
     description,
@@ -699,6 +699,27 @@ export function runDbPortConformance(
   });
 
   describe(`OpenkkDbPort conformance [${label}] / entries`, () => {
+    it.each(["create", "update", "importMany"] as const)(
+      "rejects an omitted localId on %s",
+      async (operation) => {
+        const db = await makeDb();
+        const period = await createTestFiscalPeriod(db);
+        const input = testEntryInput(null, "Imported entry");
+        const original = await db.entries.create("user-1", period.id, input);
+        Reflect.deleteProperty(input, "localId");
+
+        const result =
+          operation === "create"
+            ? db.entries.create("user-1", period.id, input)
+            : operation === "update"
+              ? db.entries.update(original.id, input)
+              : db.entries.importMany("user-1", period.id, [input]);
+
+        await expect(result).rejects.toMatchObject({ statusCode: 400 });
+        expect(await db.entries.getAll(period.id)).toEqual([original]);
+      },
+    );
+
     it("rejects an entry whose fiscal period does not exist", async () => {
       const db = await makeDb();
       await expect(
@@ -1237,12 +1258,12 @@ export function runDbPortConformance(
       const db = await makeDb();
       const period = await createTestFiscalPeriod(db);
       await db.entries.importMany("user-1", period.id, [
-        closingGeneratedEntry("virtual:legacy", "legacy generated entry"),
+        testEntryInput("virtual:legacy", "legacy generated entry"),
       ]);
       await db.preClosings.run(period.id, 2026);
 
       const closed = await db.closings.run(period.id, 2026, [
-        closingGeneratedEntry("virtual:final", "final generated entry"),
+        testEntryInput("virtual:final", "final generated entry"),
       ]);
 
       expect(closed.phase).toBe("post_closing");
@@ -1254,7 +1275,7 @@ export function runDbPortConformance(
         db.entries.create(
           "user-1",
           period.id,
-          closingGeneratedEntry("ordinary", "late entry"),
+          testEntryInput("ordinary", "late entry"),
         ),
       ).rejects.toThrow(/cannot create entry from phase post_closing/);
       await expect(
@@ -1280,7 +1301,7 @@ export function runDbPortConformance(
 
       await expect(
         db.closings.run(period.id, 2026, [
-          closingGeneratedEntry("ordinary", "not generated"),
+          testEntryInput("ordinary", "not generated"),
         ]),
       ).rejects.toThrow(/reserved generated prefix/);
 
@@ -1294,7 +1315,7 @@ export function runDbPortConformance(
       const db = await makeDb();
       const period = await createTestFiscalPeriod(db);
       await db.preClosings.run(period.id, 2026);
-      const entry = closingGeneratedEntry("virtual:limit", "limit");
+      const entry = testEntryInput("virtual:limit", "limit");
 
       await expect(
         db.closings.run(
@@ -1321,11 +1342,38 @@ export function runDbPortConformance(
       expect(await db.closings.get(period.id, 2026)).toBeNull();
     });
 
+    it.each(["cancel", "close"])(
+      "preserves ordinary entry identifiers with different casing on %s",
+      async (operation) => {
+        const db = await makeDb();
+        const period = await createTestFiscalPeriod(db);
+        const inputs = ["Virtual:import", "VIRTUAL:import", "ordinary", null].map(
+          (localId) => testEntryInput(localId, "Imported entry"),
+        );
+        const ordinaryEntries = await db.entries.importMany(
+          "user-1",
+          period.id,
+          inputs,
+        );
+        await db.preClosings.run(period.id, 2026);
+
+        if (operation === "cancel") {
+          await db.preClosings.cancel(period.id, 2026);
+        } else {
+          await db.closings.run(period.id, 2026, []);
+        }
+
+        const persisted = await db.entries.getAll(period.id);
+        expect(persisted).toHaveLength(ordinaryEntries.length);
+        expect(persisted).toEqual(expect.arrayContaining(ordinaryEntries));
+      },
+    );
+
     it("removes legacy generated entries when pre-closing is cancelled", async () => {
       const db = await makeDb();
       const period = await createTestFiscalPeriod(db);
       await db.entries.importMany("user-1", period.id, [
-        closingGeneratedEntry("virtual:legacy", "legacy generated entry"),
+        testEntryInput("virtual:legacy", "legacy generated entry"),
       ]);
       await db.preClosings.run(period.id, 2026);
 
@@ -1340,10 +1388,10 @@ export function runDbPortConformance(
       const db = await makeDb();
       const period = await createTestFiscalPeriod(db);
       await db.entries.importMany("user-1", period.id, [
-        closingGeneratedEntry("virtual:legacy", "legacy generated entry"),
+        testEntryInput("virtual:legacy", "legacy generated entry"),
       ]);
       await db.preClosings.run(period.id, 2026);
-      const duplicate = closingGeneratedEntry(
+      const duplicate = testEntryInput(
         "virtual:duplicate",
         "duplicate generated entry",
       );

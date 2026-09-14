@@ -42,9 +42,9 @@ export function assertEntryInput(
       "この仕訳識別子は本締め用に予約されています",
     );
   }
-  if (input.localId != null) {
+  if (input.localId !== null) {
     if (typeof input.localId !== "string") {
-      throw serverValidationError("Entry localId must be a string", null);
+      throw serverValidationError("Entry localId must be a string or null", null);
     }
     if (input.localId.trim() === "") {
       throw serverValidationError("Entry localId is required when provided", null);

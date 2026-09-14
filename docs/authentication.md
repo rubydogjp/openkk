@@ -14,7 +14,7 @@ type CustomUser = {
   kind: "custom";
   id: string;
   displayName: string;
-  email: string;
+  email: string | null;
   iconUrl: string | null;
   authProvider: string;
 };
@@ -33,20 +33,20 @@ type CustomUser = {
 
 ## CustomUser 認証の実装（サードパーティ向け）
 
-認証の実体（OAuth、トークン検証、セッション管理）はサードパーティが実装する。openkk 側は seam（`OpenkkServerPort.auth` = `AuthApi`）とドメイン型のみ提供する。最小実装手順は次の通り。
+外部認証（OAuth、トークン検証、セッション管理）はサードパーティが実装する。openkk は `AuthApi` とユーザー型を提供する。
 
 1. **`authMode: "custom"`** を `OpenkkConfig` に設定する。
-2. **`OpenkkServerPort.auth` を実装したバックエンド adapter** を用意する（`embedded-backend` の代わりに HTTP backend を `createOpenkkEmbeddedBackendAdapter` 相当で差し込む）。実装するメソッド:
+2. **`OpenkkBackendPort.auth` を実装したクライアントアダプタ** を用意し、独自バックエンドへ接続する。TypeScriptサーバーでは `OpenkkServerPort.auth` が同じ契約を持つ。実装するメソッド:
    - `startSession(redirectUrl)` → 外部認証 URL を発行（`{ authUrl }`）。
    - `completeSession({ state, code })` → 認証完了し `{ completionCode }` を返す。
-   - `redeemCompletionCode(completionCode)` → `CreateTokenResponse` を返す。未設定の `displayName` / `email` / `iconUrl` / `authProvider` は `null` にする。
+   - `redeemCompletionCode(completionCode)` → `RedeemCompletionCodeResponse` を返す。未設定の `displayName` / `email` / `iconUrl` / `authProvider` は `null` にする。
    - `signOut()` → サーバ側セッション/Cookie を破棄。
 3. クライアントの状態管理（`openkk-app-state`）が以下を自動で駆動する。実装不要。
    - サインイン: `startSignIn` → 外部 URL へリダイレクト → `/auth/result` で `completeSignIn`（= `completeSession` ＋ `redeemCompletionCode`）→ `CustomUser` を保持。
    - サインアウト: `auth.signOut()` を呼び、ローカルのユーザーを破棄。
 
-> 所有者検証は `server-api` の `getOwnedFiscalPeriod` に集約されている（[`architecture.md`](./architecture.md) 参照）。`server-usecases` を直接組む場合は呼び出し側で同等の検証を実装すること。
+所有者検証は `server-usecases` が担当する。`server-api` は期間と子リソースの所属関係・操作可能なフェーズ・入力形式も検証する（[`architecture.md`](./architecture.md) 参照）。
 
 ## 復元とトークン有効性（CustomUser）
 
-クライアントは起動時に前回の `CustomUser` を localStorage から復元するが、**バックエンドのセッション/トークン有効性は再検証しない**（最小 seam のため）。トークン失効時はデータ取得 API が失敗し、シェル上部のロードエラーバナー（再読み込み）で表面化する。トークンのリフレッシュや `me()` 相当の再検証が必要な場合はサードパーティの `AuthApi` 実装側で行う。バックエンドは保存ユーザーを信頼せず、常に自前のトークン/Cookie で認可すること。
+クライアントは起動時に前回の `CustomUser` を localStorage から復元する。セッションの再検証や更新は独自の `AuthApi` が担当する。バックエンドは保存ユーザーを信頼せず、自前のトークン/Cookie で認可する。データ取得に失敗するとシェル上部に再読み込み用のエラーバナーを表示する。

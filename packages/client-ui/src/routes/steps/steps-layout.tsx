@@ -7,7 +7,7 @@ import {
   useOpenkkAppState,
   useOpenkkAssist,
   useOpenkkEntries,
-  useOpenkkConfig,
+  useOpenkkToday,
 } from "@rubydogjp/openkk-client-usecases";
 import {
   deriveSteps,
@@ -85,7 +85,7 @@ function StepsPageScreenWithChart({
 }) {
   const entriesState = useOpenkkEntries();
   const assistState = useOpenkkAssist();
-  const openkkConfig = useOpenkkConfig();
+  const today = useOpenkkToday();
   const trendPoints = useMemo(
     () =>
       buildStepTrendPoints({
@@ -100,12 +100,12 @@ function StepsPageScreenWithChart({
         startDate: currentStartDate,
         endDate: currentEndDate,
 
-        today: openkkConfig.today,
+        today,
       }),
     [
       entriesState,
       assistState,
-      openkkConfig,
+      today,
       currentFiscalPeriodId,
       currentStartDate,
       currentEndDate,

@@ -25,6 +25,7 @@ import {
   useOpenkkAssist,
   useOpenkkEntries,
   useOpenkkConfig,
+  useOpenkkToday,
   type EntryDraft,
   type EntryMasterAccountOption,
 } from "@rubydogjp/openkk-client-usecases";
@@ -49,6 +50,7 @@ export function EntriesPage() {
   const searchParams = useSearchParams();
   const appState = useOpenkkAppState();
   const openkkConfig = useOpenkkConfig();
+  const today = useOpenkkToday();
   const entriesState = useOpenkkEntries();
   const assistState = useOpenkkAssist();
   const editingLocked = resolveEditingPolicy(openkkConfig).locked;
@@ -56,12 +58,11 @@ export function EntriesPage() {
     (period) => period.id === appState.currentFiscalPeriodId,
   );
   const fiscalPeriodId = appState.currentFiscalPeriodId;
-  const configuredToday = openkkConfig.today;
   const [displayedMonth, setDisplayedMonth] = useState<YearMonthValue>(() =>
     clampMonthToPeriod(
       {
-        year: configuredToday.getFullYear(),
-        month: configuredToday.getMonth() + 1,
+        year: today.getFullYear(),
+        month: today.getMonth() + 1,
       },
       currentFiscalPeriod?.startDate ?? null,
       currentFiscalPeriod?.endDate ?? null,
@@ -80,8 +81,8 @@ export function EntriesPage() {
     const monthParam = searchParams.get("month");
     const fromParam = parseMonthParam(monthParam);
     const baseMonth = fromParam ?? {
-      year: configuredToday.getFullYear(),
-      month: configuredToday.getMonth() + 1,
+      year: today.getFullYear(),
+      month: today.getMonth() + 1,
     };
     setDisplayedMonth(
       clampMonthToPeriod(
@@ -95,7 +96,7 @@ export function EntriesPage() {
     currentFiscalPeriod?.id,
     currentFiscalPeriod?.startDate,
     searchParams,
-    configuredToday,
+    today,
   ]);
 
   useEffect(() => {
@@ -412,7 +413,7 @@ export function EntriesPage() {
                 setNewEntryDraft(
                   buildNewEntryDraft(
                     resolveNewEntryDefaultDate({
-                      today: openkkConfig.today,
+                      today,
                       displayedMonth,
                       periodStartDate: currentFiscalPeriod?.startDate ?? null,
                       periodEndDate: currentFiscalPeriod?.endDate ?? null,

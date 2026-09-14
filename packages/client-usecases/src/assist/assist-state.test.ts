@@ -7,7 +7,6 @@ import {
   listFixedAssetsForPeriod,
   mapOpeningJournalToRecord,
   nextOpeningCarryoverId,
-  replaceLoadedFixedAssets,
   upsertFixedAsset,
 } from "./assist-state-helpers.js";
 import {
@@ -109,20 +108,6 @@ describe("fixedAssetDraftToPatch", () => {
       disposalDate: null,
       disposalPrice: null,
     });
-  });
-});
-
-describe("replaceLoadedFixedAssets", () => {
-  it("keeps loaded assets when a fiscal period is selected", () => {
-    const assets = [previewAsset({ id: "asset-1" })];
-
-    expect(replaceLoadedFixedAssets("fp-1", assets)).toBe(assets);
-  });
-
-  it("clears cached assets when no fiscal period is selected", () => {
-    const assets = [previewAsset({ id: "asset-1" })];
-
-    expect(replaceLoadedFixedAssets(null, assets)).toEqual([]);
   });
 });
 

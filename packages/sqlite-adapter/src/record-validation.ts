@@ -178,10 +178,13 @@ export function assertDbEntryInput(
     );
   }
   if (
-    input.localId != null &&
+    input.localId !== null &&
     (typeof input.localId !== "string" || input.localId.trim() === "")
   ) {
-    throw serverValidationError(`${label} localId must be a non-blank string`, null);
+    throw serverValidationError(
+      `${label} localId must be a non-blank string or null`,
+      null,
+    );
   }
   assertUnitRate(input.businessRate, `${label} business rate`);
   if (!Array.isArray(input.lines)) {

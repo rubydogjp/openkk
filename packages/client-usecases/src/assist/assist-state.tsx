@@ -12,7 +12,10 @@ import {
 
 import { useOpenkkAppState } from "../shared/openkk-app-state.js";
 import { useBackendApi } from "../shared/backend-api-context.js";
-import { useOpenkkConfig } from "../shared/openkk-config-context.js";
+import {
+  useOpenkkConfig,
+  useOpenkkToday,
+} from "../shared/openkk-config-context.js";
 import { assertEditingUnlocked } from "../shared/editing-policy.js";
 import { isSelectedFiscalPeriodDataPurged } from "../shared/archive-data-policy.js";
 import { AsyncStateVersion } from "../shared/async-state-version.js";
@@ -24,7 +27,6 @@ import {
   mapFixedAsset,
   mapOpeningJournalToRecord,
   nextOpeningCarryoverId,
-  replaceLoadedFixedAssets,
   fixedAssetDraftBusinessRate,
   resolveFixedAssetAccountId,
   upsertFixedAsset,
@@ -78,6 +80,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
   const backendApi = useBackendApi();
   const appState = useOpenkkAppState();
   const config = useOpenkkConfig();
+  const today = useOpenkkToday();
 
   const [fixedAssets, setFixedAssets] = useState<FixedAsset[]>([]);
 
@@ -117,9 +120,8 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
     appState.currentFiscalPeriodId,
   );
   const fixedAssetPreviewAsOf = useMemo(
-    () =>
-      capFixedAssetPreviewDate(config.today, currentFiscalPeriodEndDate),
-    [config.today, currentFiscalPeriodEndDate],
+    () => capFixedAssetPreviewDate(today, currentFiscalPeriodEndDate),
+    [today, currentFiscalPeriodEndDate],
   );
 
   useEffect(() => {
@@ -194,15 +196,12 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
           return;
         }
         setFixedAssets(
-          replaceLoadedFixedAssets(
-            fiscalPeriodId,
-            remote.map((asset) =>
-              mapFixedAsset(
-                asset,
-                bookAccountNameById[asset.bookAccountId] ?? null,
-                fixedAssetPreviewAsOf,
-                currentFiscalPeriodEndDate ?? null,
-              ),
+          remote.map((asset) =>
+            mapFixedAsset(
+              asset,
+              bookAccountNameById[asset.bookAccountId] ?? null,
+              fixedAssetPreviewAsOf,
+              currentFiscalPeriodEndDate,
             ),
           ),
         );
@@ -566,11 +565,7 @@ function openingCarryoverAccountResolutionError(operation: string): AppError {
   });
 }
 
-export {
-  fixedAssetDraftToPatch,
-  nextOpeningCarryoverId,
-  replaceLoadedFixedAssets,
-};
+export { fixedAssetDraftToPatch, nextOpeningCarryoverId };
 
 export function useOpenkkAssist() {
   const value = useContext(AssistContext);

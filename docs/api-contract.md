@@ -82,8 +82,9 @@ Archived fiscal periods are read-only. Mutations against them must fail with `Op
 |---|---|
 | date | `YYYY-MM-DD` |
 | `businessRate` | `0..1` |
-| amount | non-negative number |
-| `usefulLife`, closing `year` | positive integer |
+| amount | non-negative safe integer |
+| `usefulLife` | integer, `1..100` |
+| closing `year` | fiscal period end year |
 | fixed-asset disposal fields | sold: date and price; disposed: date; otherwise `null` |
 
 `fiscalPeriod.archive` preserves `phase`, sets `archiveStatus` to `archived`, and stamps `archivedAt`.
@@ -99,17 +100,18 @@ Third-party backends declare a lifecycle policy via `OpenkkConfig.fiscalPeriodPo
 |---|---|---|
 | `maxActivePeriods` | `null` | Max non-archived periods. `null` = unlimited. `1` blocks creating a next period until the current one is archived. |
 | `archiveRetention` | `"persistent"` | `"persistent"` keeps archived data forever. `"ephemeral"` purges archived data when advancing to the next period (stub remains). |
-| `ephemeralArchiveWarning` | — | Optional per-bundle override for the irreversible-advance warning text. |
+| `ephemeralArchiveWarning` | `null` | Warning text override; `null` uses the default text. |
+| `allowArchiveImport` | `true` | Allow importing archived periods. |
 
 `FiscalPeriodApiRecord` carries two required lifecycle fields:
 
 - `archiveDataAvailable` — `true` while real data is available; `false` marks a purged stub.
-- `archivedAt` — ISO timestamp for listing and ordering archived periods.
+- `archivedAt` — archive timestamp or `null`; active periods require `null`.
 
 `fiscalPeriod.purgeArchivedData(id)` deletes an archived period's real data
 (entries/lines/opening/fixed assets/closings) and returns the lightweight stub
 (`archiveDataAvailable: false`). It requires the period to be `archived` (otherwise `409`).
-`persistent` backends may leave it unimplemented / no-op. Carryover into the next period
+`persistent` backends may return the archived record unchanged. Carryover into the next period
 must be committed **before** purge so the new period never depends on purged data.
 
 ## Archive Zip Format (stable public contract)

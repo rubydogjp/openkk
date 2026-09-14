@@ -13,6 +13,7 @@ import {
 import {
   useOpenkkAppState,
   useOpenkkConfig,
+  useOpenkkToday,
 } from "@rubydogjp/openkk-client-usecases";
 import { AppErrorText } from "../../../shared/app-error-text.js";
 import { LockButton } from "../../../shared/lock-icon.js";
@@ -39,7 +40,8 @@ export function CreateFiscalPeriodPage() {
   const router = useRouter();
   const appState = useOpenkkAppState();
   const openkkConfig = useOpenkkConfig();
-  const initialYear = openkkConfig.today.getFullYear();
+  const today = useOpenkkToday();
+  const initialYear = today.getFullYear();
   const [name, setName] = useState(`${initialYear}年分`);
   const [startDate, setStartDate] = useState(`${initialYear}-01-01`);
   const [endDate, setEndDate] = useState(`${initialYear}-12-31`);

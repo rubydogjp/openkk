@@ -10,6 +10,10 @@ import {
   type BookAccount,
 } from "../entries/book-account.js";
 import { AppError } from "../shared/app-error.js";
+import type {
+  FiscalPeriodOpeningJournal,
+  FiscalPeriodOpeningJournalLine,
+} from "../shared/models.js";
 
 export type NextFiscalPeriodSuggestion = {
   name: string;
@@ -41,22 +45,6 @@ function addDaysToIsoDate(value: string, days: number): string | null {
   ].join("-");
 }
 
-type OpeningCarryoverJournal = {
-  id: string;
-  date: string;
-  description: string;
-  businessRate: number;
-  lines: Array<{
-    id: string;
-    side: "debit" | "credit";
-    bookAccountId: string;
-    amount: number;
-    partnerName: string;
-    taxCategoryId: string;
-    businessCategoryId: string;
-  }>;
-};
-
 const REVERSIBLE_BALANCE_ACCOUNTS = new Set([
   "未収入金",
   "未収収益",
@@ -81,8 +69,8 @@ export function buildOpeningCarryoverJournalsFromReversibleEntries(input: {
   accounts: ReadonlyArray<BookAccount>;
   nextFiscalPeriodId: string;
   nextStartDate: string;
-}): OpeningCarryoverJournal[] {
-  const journals: OpeningCarryoverJournal[] = [];
+}): FiscalPeriodOpeningJournal[] {
+  const journals: FiscalPeriodOpeningJournal[] = [];
 
   for (const entry of input.entries) {
     const lines = entry.lines;
@@ -201,7 +189,7 @@ function toOpeningJournalLine(
   id: string,
   line: EntryLine,
   accounts: ReadonlyArray<BookAccount>,
-): OpeningCarryoverJournal["lines"][number] {
+): FiscalPeriodOpeningJournalLine {
   const bookAccountId = resolveBookAccountId({
     explicitId: line.bookAccountId,
     accountName: line.accountName,

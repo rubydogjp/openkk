@@ -4,15 +4,13 @@ import {
   createContext,
   useContext,
   useEffect,
-  useMemo,
   useState,
   type ReactNode,
 } from "react";
 import { AppError, type OpenkkConfig } from "@rubydogjp/openkk-client-domain";
 
-export type RuntimeOpenkkConfig = OpenkkConfig & { today: Date };
-
-const OpenkkConfigContext = createContext<RuntimeOpenkkConfig | null>(null);
+const OpenkkConfigContext = createContext<OpenkkConfig | null>(null);
+const OpenkkTodayContext = createContext<Date | null>(null);
 
 export function OpenkkConfigProvider(props: {
   config: OpenkkConfig;
@@ -42,25 +40,37 @@ export function OpenkkConfigProvider(props: {
     return () => clearTimeout(timer);
   }, [props.config.clock]);
 
-  const activeConfig = useMemo(
-    () => ({ ...props.config, today }),
-    [props.config, today],
-  );
-
   return (
-    <OpenkkConfigContext.Provider value={activeConfig}>
-      {props.children}
+    <OpenkkConfigContext.Provider value={props.config}>
+      <OpenkkTodayContext.Provider value={today}>
+        {props.children}
+      </OpenkkTodayContext.Provider>
     </OpenkkConfigContext.Provider>
   );
 }
 
-export function useOpenkkConfig(): RuntimeOpenkkConfig {
+export function useOpenkkConfig(): OpenkkConfig {
   const value = useContext(OpenkkConfigContext);
   if (value == null) {
     throw new AppError({
       messageForDeveloper:
         "useOpenkkConfig must be used within OpenkkConfigProvider",
       messageForUser: "アプリの設定を読み込めませんでした",
+      originalMessage: null,
+      statusCode: null,
+      code: null,
+    });
+  }
+  return value;
+}
+
+export function useOpenkkToday(): Date {
+  const value = useContext(OpenkkTodayContext);
+  if (value == null) {
+    throw new AppError({
+      messageForDeveloper:
+        "useOpenkkToday must be used within OpenkkConfigProvider",
+      messageForUser: "アプリの日付を読み込めませんでした",
       originalMessage: null,
       statusCode: null,
       code: null,

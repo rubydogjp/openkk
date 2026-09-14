@@ -24,6 +24,26 @@ import type {
 } from "@rubydogjp/openkk-server-ports";
 
 describe("openkk server entries API", () => {
+  it.each(["create", "patch", "importMany"] as const)(
+    "rejects an omitted localId before %s persists data",
+    async (operation) => {
+      const server = createOpenkkServer(createEntryDb(), { userId: "user-1" });
+      const original = await server.entries.create("fp-1", validEntryInput());
+      const input = validEntryInput();
+      Reflect.deleteProperty(input, "localId");
+
+      const result =
+        operation === "create"
+          ? server.entries.create("fp-1", input)
+          : operation === "patch"
+            ? server.entries.patch("fp-1", original.id, input)
+            : server.entries.importMany("fp-1", [input]);
+
+      await expect(result).rejects.toMatchObject({ statusCode: 400 });
+      expect(await server.entries.getAll("fp-1")).toEqual([original]);
+    },
+  );
+
   it("rejects child-data reads after archived data was purged", async () => {
     const db = createEntryDb({
       archiveStatus: "archived",

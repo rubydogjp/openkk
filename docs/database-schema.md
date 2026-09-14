@@ -70,6 +70,7 @@ erDiagram
   }
   entry_lines {
     TEXT entry_id PK,FK
+    TEXT id
     TEXT side
     TEXT book_account_id
     REAL amount

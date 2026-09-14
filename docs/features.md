@@ -39,7 +39,7 @@
 | インポート | JSON (`.json`) | `schema: "openkk-journal-v1"` 形式の仕訳 JSON を取り込む |
 | インポート | CSV (`.csv`) | ヘッダ付き CSV を取り込む |
 | エクスポート | JSON / CSV | 期間内全仕訳を明細ID・税区分・事業区分・厳密な事業割合を保ったままダウンロード |
-| マージ | — | 既存仕訳と `localId` で突合し、新規のみ追加（既存と重複する `localId` は取込時に `ON CONFLICT DO NOTHING` でスキップ） |
+| マージ | — | `localId` が既存仕訳と重複しないものだけ追加 |
 
 ---
 
@@ -48,7 +48,7 @@
 | 機能 | 説明 |
 |---|---|
 | 固定資産の登録 | 名称・取得日・取得価額・耐用年数・事業按分率を入力 |
-| 固定資産の編集 | 任意のタイミングで各フィールドを更新 |
+| 固定資産の編集 | 記帳中に各フィールドを更新 |
 | ステータス管理 | `active` / `sold` (売却済) / `disposed` (廃棄済) / `retired` (完了)。完了年度の償却費は計上し、翌期へは繰り越さない |
 | 減価償却バーチャル仕訳 | 当期償却費（期首〜期末／処分日の**月割**, 取得月算入の暦月ベース, 備忘価額1円で打ち切り）を自動生成 (`computePeriodDepreciation`) |
 | 売却バーチャル行 | 売却済資産の処分日に「期首〜処分日の当期償却費」＋売却仕訳（処分日簿価で資産を除き、差額を固定資産売却損益）を自動生成 |
@@ -76,13 +76,13 @@
 | 1. 期間を開始 | 期間設定の確認 (開始日・終了日) |
 | 2. 期首のBSを入力 | 貸借対照表の期首残高を入力 |
 | 3. 日々の仕訳 | 仕訳の入力・インポート・進捗グラフの確認。完了時に `runPreClosing` で仮締めし仮の帳票3点を生成 |
-| 4. 本締め | `runFinal` → 最終帳票3点を生成・財務諸表サマリー表示。`cancelPreClosing` で仮締めへ戻せる |
+| 4. 本締め | 最終帳票3点を生成・財務諸表サマリーを表示。本締め後は変更不可 |
 | 5. 書類を受け取る | 生成済み帳票を確認し受取完了 |
 | 6. 次の期間へ | BS 繰越・再振替・固定資産データの引き継ぎを確認 |
 
-仮締め (`runPreClosing`) はフェーズを `journalizing → pre_closing` に、本締め (`runFinal`) は `pre_closing → post_closing` に遷移させる。
+仮締め (`runPreClosing`) は `journalizing → pre_closing`、本締め (`runFinal`) は `pre_closing → post_closing` に遷移させる。本締め前なら `cancelPreClosing` で記帳に戻れる。
 
-減価償却・再振替・家事按分のバーチャル仕訳は `buildClosingVirtualEntries` が単一の真実として生成し、本締め時に実仕訳化 (materialize) する。本締め前の仮帳票プレビューも `withClosingVirtualEntries` で同じバーチャル仕訳を含めて生成するため、**仮帳票と確定帳票の数字は一致する**。
+減価償却・再振替・家事按分の自動仕訳を仮帳票に含め、本締め時に保存する。サーバーが保存済みデータから再計算して検証するため、仮帳票と確定帳票の数字は一致する。
 
 ---
 
@@ -170,4 +170,4 @@ DB アダプタを追加したら `runDbPortConformance` に通し、memory（Si
 | `EmbeddedUser` | この端末固定の1名（sim/demo/original） | 起動時に自動 | 不可（`userCanSignOut`=false） |
 | `CustomUser` | OSS 派生プロダクトの実ユーザー（Google 等） | 認証フロー経由 | 可 |
 
-リファレンスアプリ（sim/demo/original の3バンドル）は全て `authMode:"embedded"`。CustomUser 認証はサードパーティが `OpenkkServerPort.auth`（`AuthApi`）を実装して `CustomUser` を返すことで有効化する。実装手順は [`authentication.md`](./authentication.md) を参照。
+リファレンスアプリは全て `authMode: "embedded"`。外部認証の実装は [`authentication.md`](./authentication.md) を参照。
