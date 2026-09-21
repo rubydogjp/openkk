@@ -31,7 +31,7 @@ export function DocumentReceiveBody({
 }) {
   const appState = useOpenkkAppState();
   const config = useOpenkkConfig();
-  const editingLocked = resolveEditingPolicy(config).locked;
+  const editingLocked = resolveEditingPolicy(config.editingPolicy).locked;
   const [screenError, setScreenError] = useState<unknown>(null);
   const [isCompleting, setIsCompleting] = useState(false);
   const completeLock = useRef(new ExclusiveActionLock());

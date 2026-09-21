@@ -84,12 +84,12 @@ async function archivedPeriod(): Promise<Uint8Array> {
     await import("@rubydogjp/openkk-server");
   const db = await createMemoryDbAdapter(null);
   const server = createOpenkkServer(db, { userId: "source-user" });
-  let period = await server.fiscalPeriod.create({
+  let period = await server.fiscalPeriods.create({
     name: "2026年",
     startDate: "2026-01-01",
     endDate: "2026-12-31",
   });
-  await server.fiscalPeriod.patch(period.id, {
+  await server.fiscalPeriods.patch(period.id, {
     settingsCompleted: true,
     openingBalancesCompleted: true,
   });
@@ -120,8 +120,8 @@ async function archivedPeriod(): Promise<Uint8Array> {
     bookAccountId: "acct_equipment",
   });
   const fixedAssets = await server.fixedAssets.getAll(period.id);
-  await server.preClosing.run({ fiscalPeriodId: period.id, year: 2026 });
-  await server.closing.run({
+  await server.preClosings.run({ fiscalPeriodId: period.id, year: 2026 });
+  await server.closings.run({
     fiscalPeriodId: period.id,
     year: 2026,
     entries: buildExpectedClosingEntries({
@@ -133,7 +133,7 @@ async function archivedPeriod(): Promise<Uint8Array> {
       bookAccounts: await server.masterData.getBookAccounts(),
     }),
   });
-  period = await server.fiscalPeriod.patch(period.id, {
+  period = await server.fiscalPeriods.patch(period.id, {
     documentsReceivedCompleted: true,
   });
   return createFiscalPeriodArchiveZip(

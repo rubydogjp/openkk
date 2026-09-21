@@ -240,7 +240,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         return fixedAssets.find((asset) => asset.id === assetId) ?? null;
       },
       async addFixedAsset(draft) {
-        assertEditingUnlocked(config, "assist.addFixedAsset");
+        assertEditingUnlocked(config.editingPolicy, "assist.addFixedAsset");
         const authOperationVersion = appState.captureAuthOperationVersion();
         const fiscalPeriodId = appState.currentFiscalPeriodId;
         if (fiscalPeriodId == null) return null;
@@ -285,7 +285,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         }
       },
       async updateFixedAsset(assetId, draft) {
-        assertEditingUnlocked(config, "assist.updateFixedAsset");
+        assertEditingUnlocked(config.editingPolicy, "assist.updateFixedAsset");
         const authOperationVersion = appState.captureAuthOperationVersion();
         const current =
           fixedAssets.find((asset) => asset.id === assetId) ?? null;
@@ -379,7 +379,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         );
       },
       async addOpeningCarryover(fiscalPeriodId, draft) {
-        assertEditingUnlocked(config, "assist.addOpeningCarryover");
+        assertEditingUnlocked(config.editingPolicy, "assist.addOpeningCarryover");
         const period = appState.fiscalPeriods.find(
           (p) => p.id === fiscalPeriodId,
         );
@@ -427,7 +427,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         return updated ? nextId : null;
       },
       async updateOpeningCarryover(carryoverId, draft) {
-        assertEditingUnlocked(config, "assist.updateOpeningCarryover");
+        assertEditingUnlocked(config.editingPolicy, "assist.updateOpeningCarryover");
         const fiscalPeriodId = appState.currentFiscalPeriodId;
         if (fiscalPeriodId == null || fiscalPeriodId.length === 0) return false;
         const period = appState.fiscalPeriods.find(
@@ -474,7 +474,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         );
       },
       async deleteFixedAsset(assetId) {
-        assertEditingUnlocked(config, "assist.deleteFixedAsset");
+        assertEditingUnlocked(config.editingPolicy, "assist.deleteFixedAsset");
         const authOperationVersion = appState.captureAuthOperationVersion();
         const current =
           fixedAssets.find((asset) => asset.id === assetId) ?? null;
@@ -499,7 +499,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         });
       },
       async deleteOpeningCarryover(carryoverId) {
-        assertEditingUnlocked(config, "assist.deleteOpeningCarryover");
+        assertEditingUnlocked(config.editingPolicy, "assist.deleteOpeningCarryover");
         const fiscalPeriodId = appState.currentFiscalPeriodId;
         if (fiscalPeriodId == null || fiscalPeriodId.length === 0) return false;
         const period = appState.fiscalPeriods.find(

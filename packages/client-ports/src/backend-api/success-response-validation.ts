@@ -30,15 +30,9 @@ export function isValidSuccessBody(
         isNullableString(body.authProvider)
       );
     case "preClosingGet":
-      return (
-        isObject(body) &&
-        (body.preClosing === null || isEmptyObject(body.preClosing))
-      );
+      return isObject(body) && typeof body.preClosed === "boolean";
     case "closingGet":
-      return (
-        isObject(body) &&
-        (body.closing === null || isEmptyObject(body.closing))
-      );
+      return isObject(body) && typeof body.closed === "boolean";
     case "preClosingRun":
     case "preClosingCancel":
     case "closingRun":
@@ -64,8 +58,7 @@ export function isValidSuccessBody(
     case "fiscalPeriodsGetAll":
       return (
         isObject(body) &&
-        isUniqueRecordArray(body.fiscalPeriods, isFiscalPeriod) &&
-        hasNoOverlappingActiveFiscalPeriods(body.fiscalPeriods)
+        isUniqueRecordArray(body.fiscalPeriods, isFiscalPeriod)
       );
     case "fixedAssetsGetAll":
       return (
@@ -115,7 +108,6 @@ function isFiscalPeriod(value: unknown): boolean {
       isIsoDateString(value.endDate) &&
       isIsoTimestamp(value.createdAt) &&
       isIsoTimestamp(value.updatedAt) &&
-      value.startDate <= value.endDate &&
       ["pre_opening", "journalizing", "pre_closing", "post_closing"].includes(
         String(value.phase),
       ) &&
@@ -129,21 +121,7 @@ function isFiscalPeriod(value: unknown): boolean {
   ) {
     return false;
   }
-  if (
-    (value.phase === "pre_opening"
-      ? value.settingsCompleted
-      : !value.settingsCompleted) ||
-    ((value.phase === "pre_closing" || value.phase === "post_closing") &&
-      !value.openingBalancesCompleted) ||
-    (value.documentsReceivedCompleted && value.phase !== "post_closing") ||
-    (value.archiveDataAvailable === false &&
-      value.archiveStatus !== "archived") ||
-    (value.archiveStatus === "active" && value.archivedAt != null)
-  ) {
-    return false;
-  }
-  if (value.opening === null) return !value.openingBalancesCompleted;
-  return isOpening(value.opening, value);
+  return value.opening === null || isOpening(value.opening, value);
 }
 
 function isOpening(
@@ -184,23 +162,14 @@ function isOpening(
   }
   if (
     !isArrayOf(balanceLines, isOpeningBalanceLine) ||
-    !isArrayOf(journals, (journal) =>
-      isOpeningJournal(
-        journal,
-        String(fiscalPeriod.startDate),
-        String(fiscalPeriod.endDate),
-        fiscalPeriod.openingBalancesCompleted !== true,
-      ),
-    )
+    !isArrayOf(journals, isOpeningJournal)
   ) {
     return false;
   }
   return (
     hasUniqueValues(balanceLines.map((line) => line.id)) &&
     hasUniqueValues(balanceLines.map((line) => line.accountId)) &&
-    hasUniqueValues(journals.map((journal) => journal.id)) &&
-    (!fiscalPeriod.openingBalancesCompleted ||
-      areOpeningBalanceLinesBalanced(balanceLines))
+    hasUniqueValues(journals.map((journal) => journal.id))
   );
 }
 
@@ -226,24 +195,15 @@ function isOpeningBalanceAccountId(value: unknown): value is string {
   );
 }
 
-function isOpeningJournal(
-  value: unknown,
-  periodStartDate: string,
-  periodEndDate: string,
-  allowZero: boolean,
-): value is Record<string, unknown> {
+function isOpeningJournal(value: unknown): value is Record<string, unknown> {
   return (
     isObject(value) &&
     hasNonBlankStrings(value, ["id", "date"]) &&
     isString(value.description) &&
-    (allowZero || value.description.trim() !== "") &&
     isIsoDateString(value.date) &&
-    value.date >= periodStartDate &&
-    value.date <= periodEndDate &&
     isUnitRate(value.businessRate) &&
     isArrayOf(value.lines, isEntryLine) &&
     value.lines.length <= MAX_ENTRY_LINES &&
-    areEntryLinesBalanced(value.lines, allowZero) &&
     hasUniqueValues(value.lines.map((line) => line.id))
   );
 }
@@ -268,7 +228,6 @@ function isEntry(value: unknown): boolean {
     isUnitRate(value.businessRate) &&
     isArrayOf(value.lines, isEntryLine) &&
     value.lines.length <= MAX_ENTRY_LINES &&
-    areEntryLinesBalanced(value.lines, false) &&
     hasUniqueValues(value.lines.map((line) => line.id))
   );
 }
@@ -288,9 +247,9 @@ function isEntryLine(value: unknown): value is Record<string, unknown> {
 }
 
 function isFixedAsset(value: unknown): boolean {
-  if (
-    !isObject(value) ||
-    !hasNonBlankStrings(value, [
+  return (
+    isObject(value) &&
+    hasNonBlankStrings(value, [
       "id",
       "userId",
       "fiscalPeriodId",
@@ -299,33 +258,19 @@ function isFixedAsset(value: unknown): boolean {
       "bookAccountId",
       "createdAt",
       "updatedAt",
-    ]) ||
-    !isNullableString(value.disposalDate) ||
-    !isIsoTimestamp(value.createdAt) ||
-    !isIsoTimestamp(value.updatedAt) ||
-    !isIsoDateString(value.acquisitionDate) ||
-    (value.disposalDate !== null && !isIsoDateString(value.disposalDate)) ||
-    !isPositiveInteger(value.acquisitionCost) ||
-    !isPositiveInteger(value.usefulLife) ||
-    value.usefulLife > MAX_FIXED_ASSET_USEFUL_LIFE_YEARS ||
-    value.depreciationMethod !== "straight_line" ||
-    !isUnitRate(value.businessRate) ||
-    !["active", "sold", "disposed", "retired"].includes(
-      String(value.status),
-    ) ||
-    (value.disposalPrice !== null &&
-      !isNonNegativeSafeInteger(value.disposalPrice))
-  ) {
-    return false;
-  }
-  const hasDisposal = value.status === "sold" || value.status === "disposed";
-  return (
-    (hasDisposal ? value.disposalDate !== null : value.disposalDate === null) &&
-    (value.status === "sold"
-      ? value.disposalPrice !== null
-      : value.disposalPrice === null) &&
-    (value.disposalDate === null ||
-      value.disposalDate >= value.acquisitionDate)
+    ]) &&
+    isIsoTimestamp(value.createdAt) &&
+    isIsoTimestamp(value.updatedAt) &&
+    isIsoDateString(value.acquisitionDate) &&
+    isNullableIsoDateString(value.disposalDate) &&
+    isPositiveInteger(value.acquisitionCost) &&
+    isPositiveInteger(value.usefulLife) &&
+    value.usefulLife <= MAX_FIXED_ASSET_USEFUL_LIFE_YEARS &&
+    value.depreciationMethod === "straight_line" &&
+    isUnitRate(value.businessRate) &&
+    ["active", "sold", "disposed", "retired"].includes(String(value.status)) &&
+    (value.disposalPrice === null ||
+      isNonNegativeSafeInteger(value.disposalPrice))
   );
 }
 
@@ -389,10 +334,6 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value != null && !Array.isArray(value);
 }
 
-function isEmptyObject(value: unknown): boolean {
-  return isObject(value) && Object.keys(value).length === 0;
-}
-
 function hasStrings(value: Record<string, unknown>, keys: string[]): boolean {
   return keys.every((key) => isString(value[key]));
 }
@@ -434,6 +375,10 @@ function isNullableSafeHttpUrl(value: unknown): boolean {
   return value === null || isSafeHttpUrl(value);
 }
 
+function isNullableIsoDateString(value: unknown): boolean {
+  return value === null || isIsoDateString(value);
+}
+
 function isNullableIsoTimestamp(value: unknown): boolean {
   return value === null || isIsoTimestamp(value);
 }
@@ -462,62 +407,7 @@ function isPositiveInteger(value: unknown): value is number {
   return Number.isSafeInteger(value) && Number(value) >= 1;
 }
 
-function areEntryLinesBalanced(
-  lines: Array<Record<string, unknown>>,
-  allowZero: boolean,
-): boolean {
-  let debitTotal = 0;
-  let creditTotal = 0;
-  let hasDebit = false;
-  let hasCredit = false;
-  for (const line of lines) {
-    const amount = line.amount;
-    if (!isNonNegativeSafeInteger(amount)) return false;
-    if (line.side === "debit") {
-      hasDebit = true;
-      debitTotal += amount;
-    } else if (line.side === "credit") {
-      hasCredit = true;
-      creditTotal += amount;
-    } else return false;
-    if (
-      !Number.isSafeInteger(debitTotal) ||
-      !Number.isSafeInteger(creditTotal)
-    ) {
-      return false;
-    }
-  }
-  return (
-    hasDebit &&
-    hasCredit &&
-    (allowZero || debitTotal > 0) &&
-    debitTotal === creditTotal
-  );
-}
 
-function areOpeningBalanceLinesBalanced(
-  lines: Array<Record<string, unknown>>,
-): boolean {
-  let assetTotal = 0;
-  let liabilityAndEquityTotal = 0;
-  for (const line of lines) {
-    const amount = line.amount;
-    const accountId = line.accountId;
-    if (!isNonNegativeSafeInteger(amount) || !isString(accountId)) {
-      return false;
-    }
-    if (accountId.startsWith("a:")) assetTotal += amount;
-    else if (accountId.startsWith("l:")) liabilityAndEquityTotal += amount;
-    else return false;
-    if (
-      !Number.isSafeInteger(assetTotal) ||
-      !Number.isSafeInteger(liabilityAndEquityTotal)
-    ) {
-      return false;
-    }
-  }
-  return assetTotal === liabilityAndEquityTotal;
-}
 
 function hasUniqueValues(values: unknown[]): boolean {
   return new Set(values).size === values.length;
@@ -547,20 +437,6 @@ function isEntryRecordArray(
   );
 }
 
-function hasNoOverlappingActiveFiscalPeriods(
-  periods: Array<Record<string, unknown>>,
-): boolean {
-  const active = periods
-    .filter((period) => period.archiveStatus === "active")
-    .sort((left, right) =>
-      String(left.startDate).localeCompare(String(right.startDate)),
-    );
-  return active.every(
-    (period, index) =>
-      index === 0 ||
-      String(period.startDate) > String(active[index - 1]!.endDate),
-  );
-}
 
 function isIsoTimestamp(value: unknown): value is string {
   if (!isString(value)) return false;

@@ -38,7 +38,7 @@ export function FiscalPeriodSettingsBody({
 }) {
   const appState = useOpenkkAppState();
   const config = useOpenkkConfig();
-  const editingLocked = resolveEditingPolicy(config).locked;
+  const editingLocked = resolveEditingPolicy(config.editingPolicy).locked;
   const { confirm, dialog } = useConfirmDialog();
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (period) => period.id === appState.currentFiscalPeriodId,
@@ -107,7 +107,7 @@ export function FiscalPeriodSettingsBody({
   const isStarted = currentFiscalPeriod.settingsCompleted;
   const isReadOnly = isStarted || isPeriodLocked || editingLocked;
   const lockMessage = editingLocked
-    ? (resolveEditingPolicy(config).lockedNotice ??
+    ? (resolveEditingPolicy(config.editingPolicy).lockedNotice ??
       "この環境ではデータの編集がロックされています。")
     : isPeriodLocked
       ? "仮締め以降のため変更できません。"

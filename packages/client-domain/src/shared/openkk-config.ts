@@ -30,6 +30,11 @@ export type OpenkkEditingPolicy = {
   lockedNotice: string | null;
 };
 
+export const DEFAULT_EDITING_POLICY: OpenkkEditingPolicy = {
+  locked: false,
+  lockedNotice: null,
+};
+
 export interface OpenkkClock {
   kind: "system" | "fixed";
   today(): Date;
@@ -67,16 +72,13 @@ export function createFixedClock(today: Date): OpenkkClock {
 }
 
 export function resolveEditingPolicy(
-  config: Pick<OpenkkConfig, "editingPolicy">,
+  policy: OpenkkEditingPolicy | null,
 ): OpenkkEditingPolicy {
-  return {
-    locked: config.editingPolicy?.locked ?? false,
-    lockedNotice: config.editingPolicy?.lockedNotice ?? null,
-  };
+  return policy ?? DEFAULT_EDITING_POLICY;
 }
 
 export function resolveFiscalPeriodPolicy(
-  config: Pick<OpenkkConfig, "fiscalPeriodPolicy">,
+  policy: FiscalPeriodPolicy | null,
 ): FiscalPeriodPolicy {
-  return config.fiscalPeriodPolicy ?? DEFAULT_FISCAL_PERIOD_POLICY;
+  return policy ?? DEFAULT_FISCAL_PERIOD_POLICY;
 }

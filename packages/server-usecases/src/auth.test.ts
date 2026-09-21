@@ -15,7 +15,7 @@ describe("local auth use case", () => {
     const completed = await auth.completeSession(state, code);
     await expect(
       auth.redeemCompletionCode(completed.completionCode),
-    ).resolves.toEqual({ userId: "local-auth-user" });
+    ).resolves.toBeUndefined();
     await expect(auth.completeSession(state, code)).rejects.toThrow(
       /invalid or expired/,
     );
@@ -97,6 +97,6 @@ describe("local auth use case", () => {
     );
     await expect(
       auth.redeemCompletionCode(completions.at(-1)!),
-    ).resolves.toEqual({ userId: "local-auth-user" });
+    ).resolves.toBeUndefined();
   });
 });

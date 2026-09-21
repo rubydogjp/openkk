@@ -53,7 +53,7 @@ export function EntriesPage() {
   const today = useOpenkkToday();
   const entriesState = useOpenkkEntries();
   const assistState = useOpenkkAssist();
-  const editingLocked = resolveEditingPolicy(openkkConfig).locked;
+  const editingLocked = resolveEditingPolicy(openkkConfig.editingPolicy).locked;
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (period) => period.id === appState.currentFiscalPeriodId,
   );

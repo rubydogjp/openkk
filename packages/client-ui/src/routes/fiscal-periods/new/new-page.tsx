@@ -49,7 +49,7 @@ export function CreateFiscalPeriodPage() {
   const [screenError, setScreenError] = useState<unknown>(null);
   const [isCreating, setIsCreating] = useState(false);
   const createLock = useRef(new ExclusiveActionLock());
-  const editingLocked = resolveEditingPolicy(openkkConfig).locked;
+  const editingLocked = resolveEditingPolicy(openkkConfig.editingPolicy).locked;
 
   useEffect(() => {
     if (nameEdited) return;
@@ -76,7 +76,7 @@ export function CreateFiscalPeriodPage() {
       null,
     );
   const maxActivePeriods =
-    resolveFiscalPeriodPolicy(openkkConfig).maxActivePeriods;
+    resolveFiscalPeriodPolicy(openkkConfig.fiscalPeriodPolicy).maxActivePeriods;
   const atPeriodLimit =
     maxActivePeriods != null &&
     appState.fiscalPeriods.filter((period) => period.archiveStatus === "active")

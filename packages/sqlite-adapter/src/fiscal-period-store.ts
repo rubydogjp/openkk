@@ -25,9 +25,9 @@ import {
 } from "./opening-store.js";
 import {
   msToIso,
-  parseFiscalPeriodDataColumn,
-  serializeFiscalPeriodDataColumn,
-  serializeFixedAssetDataColumn,
+  parseFiscalPeriodDbData,
+  serializeFiscalPeriodDbData,
+  serializeFixedAssetDbData,
 } from "./persistence-codec.js";
 import {
   assertDbArchiveImportSizeLimits,
@@ -43,7 +43,7 @@ import { runInTransaction } from "./transaction.js";
 
 export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
   const periods: FiscalPeriodsDb = {
-    async getAllByUser(userId) {
+    async getAll(userId) {
       const rows = (await db.exec({
         sql: `SELECT data, created_at, updated_at FROM fiscal_periods WHERE user_id = ? ORDER BY created_at ASC, id ASC`,
         bind: [userId],
@@ -52,7 +52,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       })) as Array<[string, number, number]>;
       const openings = await loadOpeningsByUser(db, userId);
       return rows.map(([data, createdAt, updatedAt]) => {
-        const record = parseFiscalPeriodDataColumn(data);
+        const record = parseFiscalPeriodDbData(data);
         const opening = requireOpening(
           openings.get(record.id) ?? null,
           record.id,
@@ -77,7 +77,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       })) as Array<[string, string, number, number]>;
       const row = rows[0];
       if (row == null) return null;
-      const record = parseFiscalPeriodDataColumn(row[1]);
+      const record = parseFiscalPeriodDbData(row[1]);
       const opening = requireOpening(
         await loadOpeningByFiscalPeriod(db, id),
         id,
@@ -135,7 +135,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         record.openingBalancesCompleted = input.carryBalances;
         await insertFiscalPeriod(db, record, now);
         if (input.carryFixedAssets) {
-          const assets = await createFixedAssetsDb(db).getAllByFiscalPeriod(
+          const assets = await createFixedAssetsDb(db).getAll(
             source.id,
           );
           for (const asset of assets) {
@@ -193,7 +193,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       };
       assertDbOpeningForPeriod(opening, record);
       assertDbImportedClosingState(record, input.preClosings, input.closings);
-      const serializedRecord = serializeFiscalPeriodDataColumn(record);
+      const serializedRecord = serializeFiscalPeriodDbData(record);
       await runInTransaction(db, async () => {
         await assertNoOverlappingActiveFiscalPeriod(db, {
           userId,
@@ -288,7 +288,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
           throw serverNotFoundError(`fiscal period not found: ${id}`);
         const now = nowMs();
         const timestamp = msToIso(now);
-        const stored = parseFiscalPeriodDataColumn(row[1]);
+        const stored = parseFiscalPeriodDbData(row[1]);
         assertDbFiscalPeriodPatchAllowed(stored, patch);
         const existingOpening = requireOpening(
           await loadOpeningByFiscalPeriod(db, id),
@@ -343,7 +343,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
           opening: normalizedOpening,
         };
         assertDbOpeningForPeriod(normalizedOpening, updated);
-        const serializedRecord = serializeFiscalPeriodDataColumn(updated);
+        const serializedRecord = serializeFiscalPeriodDbData(updated);
         if (patch.startDate !== undefined || patch.endDate !== undefined) {
           await assertNoOverlappingActiveFiscalPeriod(db, {
             userId: row[0],
@@ -374,7 +374,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         if (row == null)
           throw serverNotFoundError(`fiscal period not found: ${id}`);
         const now = nowMs();
-        const current = parseFiscalPeriodDataColumn(row[1]);
+        const current = parseFiscalPeriodDbData(row[1]);
         if (
           current.archiveStatus === "archived" ||
           current.phase !== "post_closing" ||
@@ -395,7 +395,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         };
         await db.exec({
           sql: `UPDATE fiscal_periods SET data = ?, updated_at = ? WHERE id = ?`,
-          bind: [serializeFiscalPeriodDataColumn(updated), now, id],
+          bind: [serializeFiscalPeriodDbData(updated), now, id],
         });
         return updated;
       });
@@ -414,7 +414,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       const row = rows[0];
       if (row == null)
         throw serverNotFoundError(`fiscal period not found: ${id}`);
-      const current = parseFiscalPeriodDataColumn(row[1]);
+      const current = parseFiscalPeriodDbData(row[1]);
       if (current.archiveStatus !== "archived") {
         throw serverConflictError(
           `fiscal period must be archived before purge: ${id}`,
@@ -450,7 +450,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         await replaceOpening(db, defaultOpening(row[0], id, now), now);
         await db.exec({
           sql: `UPDATE fiscal_periods SET data = ?, updated_at = ? WHERE id = ?`,
-          bind: [serializeFiscalPeriodDataColumn(updated), now, id],
+          bind: [serializeFiscalPeriodDbData(updated), now, id],
         });
       });
       return {
@@ -512,7 +512,7 @@ async function insertFiscalPeriod(
     bind: [
       record.id,
       record.userId,
-      serializeFiscalPeriodDataColumn(record),
+      serializeFiscalPeriodDbData(record),
       now,
       now,
     ],
@@ -532,7 +532,7 @@ async function insertFixedAsset(
     bind: [
       asset.id,
       asset.fiscalPeriodId,
-      serializeFixedAssetDataColumn(asset),
+      serializeFixedAssetDbData(asset),
       now,
       now,
     ],
@@ -555,7 +555,7 @@ async function assertNoOverlappingActiveFiscalPeriod(
     rowMode: "array",
   })) as Array<[string]>;
   const overlap = rows
-    .map(([data]) => parseFiscalPeriodDataColumn(data))
+    .map(([data]) => parseFiscalPeriodDbData(data))
     .find(
       (period) =>
         period.id !== input.excludeFiscalPeriodId &&

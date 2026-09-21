@@ -21,7 +21,7 @@ erDiagram
   fiscal_periods {
     TEXT id PK
     TEXT user_id
-    TEXT data "JSON: FiscalPeriodDataColumn"
+    TEXT data "JSON: FiscalPeriodDbData"
     INTEGER created_at
     INTEGER updated_at
   }
@@ -82,7 +82,7 @@ erDiagram
   fixed_assets {
     TEXT id PK
     TEXT fiscal_period_id
-    TEXT data "JSON: FixedAssetDataColumn"
+    TEXT data "JSON: FixedAssetDbData"
     INTEGER created_at
     INTEGER updated_at
   }
@@ -98,9 +98,9 @@ erDiagram
 
 Openingと仕訳明細は子テーブルへ正規化する。仮締めと本締めも別テーブルで管理する。
 
-会計期間の型は読み込む範囲で3段に分かれる。`FiscalPeriodDataColumn` は `data` 列の中身、
+会計期間の型は読み込む範囲で3段に分かれる。`FiscalPeriodDbData` は `data` 列の中身、
 `FiscalPeriodDbRow` は行そのもの（`user_id` と時刻を含む）、`FiscalPeriodDbRecord` は
-Opening まで読んだ全体。子テーブルを持たない固定資産は `FixedAssetDataColumn` と
+Opening まで読んだ全体。子テーブルを持たない固定資産は `FixedAssetDbData` と
 `FixedAssetDbRecord` の2段。
 
 子テーブルの外部キーは期間・Opening削除時に `ON DELETE CASCADE` で削除される。残る `data` 列は `json_valid` と主要列との一致をCHECK制約で検証する。

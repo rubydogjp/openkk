@@ -7,9 +7,9 @@ import type {
 import { assertDbFiscalPeriodAllows } from "./fiscal-period-guard.js";
 import {
   msToIso,
-  parseFiscalPeriodDataColumn,
-  parseFixedAssetDataColumn,
-  serializeFixedAssetDataColumn,
+  parseFiscalPeriodDbData,
+  parseFixedAssetDbData,
+  serializeFixedAssetDbData,
 } from "./persistence-codec.js";
 import {
   assertDbFixedAssetRecord,
@@ -21,7 +21,7 @@ import { runInTransaction } from "./transaction.js";
 
 export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
   return {
-    async getAllByFiscalPeriod(fiscalPeriodId) {
+    async getAll(fiscalPeriodId) {
       const rows = (await db.exec({
         sql: `SELECT fa.data, fp.user_id, fa.created_at, fa.updated_at, fp.data
           FROM fixed_assets fa
@@ -34,13 +34,13 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
       return rows.map(
         ([data, userId, createdAt, updatedAt, periodData]) => {
           const asset: FixedAssetDbRecord = {
-            ...parseFixedAssetDataColumn(data),
+            ...parseFixedAssetDbData(data),
             userId,
             createdAt: msToIso(createdAt),
             updatedAt: msToIso(updatedAt),
           };
           const period = {
-            ...parseFiscalPeriodDataColumn(periodData),
+            ...parseFiscalPeriodDbData(periodData),
             userId,
           };
           assertDbFixedAssetRecord(asset, period);
@@ -61,13 +61,13 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
       const row = rows[0];
       if (row == null) return null;
       const asset: FixedAssetDbRecord = {
-        ...parseFixedAssetDataColumn(row[0]),
+        ...parseFixedAssetDbData(row[0]),
         userId: row[1],
         createdAt: msToIso(row[2]),
         updatedAt: msToIso(row[3]),
       };
       const period = {
-        ...parseFiscalPeriodDataColumn(row[4]),
+        ...parseFiscalPeriodDbData(row[4]),
         userId: row[1],
       };
       assertDbFixedAssetRecord(asset, period);
@@ -108,7 +108,7 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
           bind: [
             id,
             fiscalPeriodId,
-            serializeFixedAssetDataColumn(record),
+            serializeFixedAssetDbData(record),
             now,
             now,
           ],
@@ -132,7 +132,7 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
           throw serverNotFoundError(`fixed asset not found: ${id}`);
         const now = nowMs();
         const existing: FixedAssetDbRecord = {
-          ...parseFixedAssetDataColumn(row[0]),
+          ...parseFixedAssetDbData(row[0]),
           userId: row[1],
           createdAt: msToIso(row[2]),
           updatedAt: msToIso(now),
@@ -175,7 +175,7 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
         assertDbFixedAssetRecord(updated, period);
         await db.exec({
           sql: `UPDATE fixed_assets SET data = ?, updated_at = ? WHERE id = ?`,
-          bind: [serializeFixedAssetDataColumn(updated), now, id],
+          bind: [serializeFixedAssetDbData(updated), now, id],
         });
         return updated;
       });

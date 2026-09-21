@@ -16,7 +16,7 @@ const MASTER_RECORD_TIMESTAMP = msToIso(0);
 
 export function createMasterDataDb(): MasterDataDb {
   return {
-    async getAllBookAccounts() {
+    async getBookAccounts() {
       return DEFAULT_BOOK_ACCOUNTS.map(
         (a): MasterBookAccountDbRecord => ({
           id: a.id,
@@ -32,7 +32,7 @@ export function createMasterDataDb(): MasterDataDb {
         }),
       );
     },
-    async getAllTaxCategories() {
+    async getTaxCategories() {
       return DEFAULT_TAX_CATEGORIES.map(
         (c): MasterTaxCategoryDbRecord => ({
           id: c.id,
@@ -43,7 +43,7 @@ export function createMasterDataDb(): MasterDataDb {
         }),
       );
     },
-    async getAllBusinessCategories() {
+    async getBusinessCategories() {
       return DEFAULT_BUSINESS_CATEGORIES.map(
         (c): MasterBusinessCategoryDbRecord => ({
           id: c.id,

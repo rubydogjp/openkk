@@ -13,8 +13,8 @@ import type {
   FiscalPeriodOpeningDbRecord,
 } from "@rubydogjp/openkk-server-ports";
 import type {
-  FiscalPeriodDataColumn,
-  FixedAssetDataColumn,
+  FiscalPeriodDbData,
+  FixedAssetDbData,
 } from "./table-types.js";
 
 export function msToIso(ms: number): string {
@@ -25,12 +25,12 @@ export function isoToMs(iso: string): number {
   return new Date(iso).getTime();
 }
 
-export function parseFiscalPeriodDataColumn(
+export function parseFiscalPeriodDbData(
   json: string,
-): FiscalPeriodDataColumn {
+): FiscalPeriodDbData {
   return decodeRecord(json, "fiscal period", (value) => {
-    const id = requiredNonBlankString(value, "id");
-    const name = requiredNonBlankString(value, "name");
+    const id = nonBlankString(value, "id");
+    const name = nonBlankString(value, "name");
     const startDate = isoDate(value, "startDate");
     const endDate = isoDate(value, "endDate");
     const phase = enumValue(value, "phase", [
@@ -43,16 +43,16 @@ export function parseFiscalPeriodDataColumn(
       "active",
       "archived",
     ]);
-    const settingsCompleted = requiredBoolean(value, "settingsCompleted");
-    const openingBalancesCompleted = requiredBoolean(
+    const settingsCompleted = booleanValue(value, "settingsCompleted");
+    const openingBalancesCompleted = booleanValue(
       value,
       "openingBalancesCompleted",
     );
-    const documentsReceivedCompleted = requiredBoolean(
+    const documentsReceivedCompleted = booleanValue(
       value,
       "documentsReceivedCompleted",
     );
-    const archiveDataAvailable = requiredBoolean(
+    const archiveDataAvailable = booleanValue(
       value,
       "archiveDataAvailable",
     );
@@ -75,10 +75,10 @@ export function parseFiscalPeriodDataColumn(
   });
 }
 
-export function serializeFiscalPeriodDataColumn(
-  value: FiscalPeriodDataColumn,
+export function serializeFiscalPeriodDbData(
+  value: FiscalPeriodDbData,
 ): string {
-  const data: FiscalPeriodDataColumn = {
+  const data: FiscalPeriodDbData = {
     id: value.id,
     name: value.name,
     startDate: value.startDate,
@@ -91,26 +91,20 @@ export function serializeFiscalPeriodDataColumn(
     openingBalancesCompleted: value.openingBalancesCompleted,
     documentsReceivedCompleted: value.documentsReceivedCompleted,
   };
-  return serializeRecord(data, parseFiscalPeriodDataColumn);
+  return serializeRecord(data, parseFiscalPeriodDbData);
 }
 
 export function validateOpeningDbRecord(
   opening: FiscalPeriodOpeningDbRecord,
 ): void {
-  assertOpeningCollectionSizeLimits(
-    opening.openingBalanceLines,
-    opening.openingJournals,
-  );
-  decodeRecord(JSON.stringify(opening), "opening", (value) => {
-    validateOpening(value);
-  });
+  validateOpening(asObject(opening, "opening"));
 }
 
-export function parseFixedAssetDataColumn(json: string): FixedAssetDataColumn {
+export function parseFixedAssetDbData(json: string): FixedAssetDbData {
   return decodeRecord(json, "fixed asset", (value) => {
-    const id = requiredNonBlankString(value, "id");
-    const fiscalPeriodId = requiredNonBlankString(value, "fiscalPeriodId");
-    const name = requiredNonBlankString(value, "name");
+    const id = nonBlankString(value, "id");
+    const fiscalPeriodId = nonBlankString(value, "fiscalPeriodId");
+    const name = nonBlankString(value, "name");
     const acquisitionDate = isoDate(value, "acquisitionDate");
     const acquisitionCost = positiveInteger(value, "acquisitionCost");
     const usefulLife = positiveInteger(value, "usefulLife");
@@ -125,11 +119,11 @@ export function parseFixedAssetDataColumn(json: string): FixedAssetDataColumn {
       "retired",
     ]);
     const disposalDate = nullableIsoDate(value, "disposalDate");
-    const disposalPrice = requiredNullableNonNegativeInteger(
+    const disposalPrice = nullableNonNegativeInteger(
       value,
       "disposalPrice",
     );
-    const bookAccountId = requiredNonBlankString(value, "bookAccountId");
+    const bookAccountId = nonBlankString(value, "bookAccountId");
     return {
       id,
       fiscalPeriodId,
@@ -147,10 +141,10 @@ export function parseFixedAssetDataColumn(json: string): FixedAssetDataColumn {
   });
 }
 
-export function serializeFixedAssetDataColumn(
-  value: FixedAssetDataColumn,
+export function serializeFixedAssetDbData(
+  value: FixedAssetDbData,
 ): string {
-  const data: FixedAssetDataColumn = {
+  const data: FixedAssetDbData = {
     id: value.id,
     fiscalPeriodId: value.fiscalPeriodId,
     name: value.name,
@@ -164,13 +158,13 @@ export function serializeFixedAssetDataColumn(
     disposalPrice: value.disposalPrice,
     bookAccountId: value.bookAccountId,
   };
-  return serializeRecord(data, parseFixedAssetDataColumn);
+  return serializeRecord(data, parseFixedAssetDbData);
 }
 
 function validateOpening(value: Record<string, unknown>): void {
-  requiredNonBlankString(value, "id");
-  requiredNonBlankString(value, "userId");
-  requiredNonBlankString(value, "fiscalPeriodId");
+  nonBlankString(value, "id");
+  nonBlankString(value, "userId");
+  nonBlankString(value, "fiscalPeriodId");
   isoTimestamp(value, "createdAt");
   isoTimestamp(value, "updatedAt");
   const openingBalanceLines = arrayValue(value, "openingBalanceLines");
@@ -178,8 +172,8 @@ function validateOpening(value: Record<string, unknown>): void {
   assertOpeningCollectionSizeLimits(openingBalanceLines, openingJournals);
   const validatedOpeningBalanceLines = openingBalanceLines.map((item) => {
     const line = asObject(item, "opening balance line");
-    const id = requiredNonBlankString(line, "id");
-    const accountId = requiredNonBlankString(line, "accountId");
+    const id = nonBlankString(line, "id");
+    const accountId = nonBlankString(line, "accountId");
     assertOpeningBalanceAccountId(
       accountId,
       "opening balance accountId",
@@ -197,9 +191,9 @@ function validateOpening(value: Record<string, unknown>): void {
   );
   openingJournals.forEach((item) => {
     const journal = asObject(item, "opening journal");
-    requiredNonBlankString(journal, "id");
+    nonBlankString(journal, "id");
     isoDate(journal, "date");
-    requiredString(journal, "description");
+    stringValue(journal, "description");
     unitRate(journal, "businessRate");
     const lines = arrayValue(journal, "lines");
     const validatedLines = lines.map(parseOpeningJournalLine);
@@ -256,13 +250,13 @@ function assertOpeningCollectionSizeLimits(
 function parseOpeningJournalLine(value: unknown): EntryDbLine {
   const line = asObject(value, "opening journal line");
   return {
-    id: requiredNonBlankString(line, "id"),
+    id: nonBlankString(line, "id"),
     side: enumValue(line, "side", ["debit", "credit"]),
-    bookAccountId: requiredNonBlankString(line, "bookAccountId"),
+    bookAccountId: nonBlankString(line, "bookAccountId"),
     amount: nonNegativeInteger(line, "amount"),
-    partnerName: requiredString(line, "partnerName"),
-    taxCategoryId: requiredString(line, "taxCategoryId"),
-    businessCategoryId: requiredString(line, "businessCategoryId"),
+    partnerName: stringValue(line, "partnerName"),
+    taxCategoryId: stringValue(line, "taxCategoryId"),
+    businessCategoryId: stringValue(line, "businessCategoryId"),
   };
 }
 
@@ -293,51 +287,51 @@ function serializeRecord<Value>(
 
 function asObject(value: unknown, label: string): Record<string, unknown> {
   if (typeof value !== "object" || value == null || Array.isArray(value)) {
-    throw new Error(`${label} must be an object`);
+    throw serverValidationError(`${label} must be an object`, null);
   }
   return value as Record<string, unknown>;
 }
 
-function requiredString(
+function stringValue(
   record: Record<string, unknown>,
   key: string,
 ): string {
   const value = record[key];
   if (typeof value !== "string") {
-    throw new Error(`${key} must be a string`);
+    throw serverValidationError(`${key} must be a string`, null);
   }
   return value;
 }
 
-function requiredNonBlankString(
+function nonBlankString(
   record: Record<string, unknown>,
   key: string,
 ): string {
-  const value = requiredString(record, key);
+  const value = stringValue(record, key);
   if (value.trim() === "") {
-    throw new Error(`${key} must not be blank`);
+    throw serverValidationError(`${key} must not be blank`, null);
   }
   return value;
 }
 
-function requiredNullableString(
+function nullableString(
   record: Record<string, unknown>,
   key: string,
 ): string | null {
   const value = record[key];
   if (value !== null && typeof value !== "string") {
-    throw new Error(`${key} must be a string or null`);
+    throw serverValidationError(`${key} must be a string or null`, null);
   }
   return value;
 }
 
-function requiredBoolean(
+function booleanValue(
   record: Record<string, unknown>,
   key: string,
 ): boolean {
   const value = record[key];
   if (typeof value !== "boolean") {
-    throw new Error(`${key} must be a boolean`);
+    throw serverValidationError(`${key} must be a boolean`, null);
   }
   return value;
 }
@@ -348,7 +342,7 @@ function finiteNumber(
 ): number {
   const value = record[key];
   if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new Error(`${key} must be a finite number`);
+    throw serverValidationError(`${key} must be a finite number`, null);
   }
   return value;
 }
@@ -359,17 +353,17 @@ function nonNegativeInteger(
 ): number {
   const value = finiteNumber(record, key);
   if (!Number.isSafeInteger(value) || value < 0) {
-    throw new Error(`${key} must be a non-negative safe integer`);
+    throw serverValidationError(`${key} must be a non-negative safe integer`, null);
   }
   return value;
 }
 
-function requiredNullableNonNegativeInteger(
+function nullableNonNegativeInteger(
   record: Record<string, unknown>,
   key: string,
 ): number | null {
   if (!(key in record)) {
-    throw new Error(`${key} must be a non-negative safe integer or null`);
+    throw serverValidationError(`${key} must be a non-negative safe integer or null`, null);
   }
   return record[key] === null ? null : nonNegativeInteger(record, key);
 }
@@ -380,21 +374,21 @@ function positiveInteger(
 ): number {
   const value = finiteNumber(record, key);
   if (!Number.isSafeInteger(value) || value < 1) {
-    throw new Error(`${key} must be a positive safe integer`);
+    throw serverValidationError(`${key} must be a positive safe integer`, null);
   }
   return value;
 }
 
 function unitRate(record: Record<string, unknown>, key: string): number {
   const rate = finiteNumber(record, key);
-  if (rate < 0 || rate > 1) throw new Error(`${key} must be between 0 and 1`);
+  if (rate < 0 || rate > 1) throw serverValidationError(`${key} must be between 0 and 1`, null);
   return rate;
 }
 
 function isoDate(record: Record<string, unknown>, key: string): string {
-  const value = requiredString(record, key);
+  const value = stringValue(record, key);
   if (parseIsoDate(value) == null) {
-    throw new Error(`${key} must be an ISO date`);
+    throw serverValidationError(`${key} must be an ISO date`, null);
   }
   return value;
 }
@@ -403,7 +397,7 @@ function nullableIsoDate(
   record: Record<string, unknown>,
   key: string,
 ): string | null {
-  return requiredNullableString(record, key) === null
+  return nullableString(record, key) === null
     ? null
     : isoDate(record, key);
 }
@@ -412,16 +406,16 @@ function nullableIsoTimestamp(
   record: Record<string, unknown>,
   key: string,
 ): string | null {
-  return requiredNullableString(record, key) === null
+  return nullableString(record, key) === null
     ? null
     : isoTimestamp(record, key);
 }
 
 function isoTimestamp(record: Record<string, unknown>, key: string): string {
-  const timestamp = requiredString(record, key);
+  const timestamp = stringValue(record, key);
   const parsed = new Date(timestamp);
   if (Number.isNaN(parsed.getTime()) || parsed.toISOString() !== timestamp) {
-    throw new Error(`${key} must be an ISO timestamp`);
+    throw serverValidationError(`${key} must be an ISO timestamp`, null);
   }
   return timestamp;
 }
@@ -434,7 +428,7 @@ function assertUniqueObjectValues(
   const seen = new Set<unknown>();
   for (const value of values) {
     const field = asObject(value, label)[key];
-    if (seen.has(field)) throw new Error(`${label} ${key} must be unique`);
+    if (seen.has(field)) throw serverValidationError(`${label} ${key} must be unique`, null);
     seen.add(field);
   }
 }
@@ -452,7 +446,7 @@ function validateFiscalPeriodLifecycle(value: Record<string, unknown>): void {
     (value.archiveDataAvailable === false && value.archiveStatus !== "archived") ||
     (value.archiveStatus === "active" && value.archivedAt != null)
   ) {
-    throw new Error("fiscal period lifecycle fields are inconsistent");
+    throw serverValidationError("fiscal period lifecycle fields are inconsistent", null);
   }
 }
 
@@ -467,11 +461,11 @@ function enumValue<const Value extends string>(
       if (candidate === value) return candidate;
     }
   }
-  throw new Error(`${key} has an unsupported value`);
+  throw serverValidationError(`${key} has an unsupported value`, null);
 }
 
 function arrayValue(record: Record<string, unknown>, key: string): unknown[] {
   const value = record[key];
-  if (!Array.isArray(value)) throw new Error(`${key} must be an array`);
+  if (!Array.isArray(value)) throw serverValidationError(`${key} must be an array`, null);
   return value;
 }

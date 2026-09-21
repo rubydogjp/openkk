@@ -114,6 +114,31 @@ describe("carryover calculations", () => {
     }
   });
 
+  it("agrees on every master account about which entries can be reversed", () => {
+    for (const account of DEFAULT_BOOK_ACCOUNTS) {
+      for (const side of ["debit", "credit"] as const) {
+        const record = entry([
+          line(side, account.id, 100),
+          line(side === "debit" ? "credit" : "debit", "acct_purchases", 100),
+        ]);
+        let reversible = false;
+        try {
+          reversible =
+            buildCarryoverOpeningJournals({
+              entries: [record],
+              startDate: "2027-01-01",
+            }).length > 0;
+        } catch {
+          reversible = false;
+        }
+        expect(
+          isOpeningCarryoverCandidate(clientEntry(record)),
+          `${account.id}: ${side}`,
+        ).toBe(reversible);
+      }
+    }
+  });
+
   it.each([
     ["sale", "acct_cash", "acct_sales"],
     ["expense", "acct_supplies", "acct_bank"],
@@ -308,12 +333,12 @@ describe("carryover calculations", () => {
 
 async function closedSource(db: OpenkkDbPort) {
   const server = createOpenkkServer(db, { userId: "user-1" });
-  const period = await server.fiscalPeriod.create({
+  const period = await server.fiscalPeriods.create({
     name: "2026年",
     startDate: "2026-01-01",
     endDate: "2026-12-31",
   });
-  await server.fiscalPeriod.patch(period.id, {
+  await server.fiscalPeriods.patch(period.id, {
     settingsCompleted: true,
     openingBalancesCompleted: true,
   });
@@ -350,8 +375,8 @@ async function closedSource(db: OpenkkDbPort) {
     bookAccountId: "acct_equipment",
   });
   await server.fixedAssets.patch(period.id, retired.id, { status: "retired" });
-  await server.preClosing.run({ fiscalPeriodId: period.id, year: 2026 });
-  await server.closing.run({
+  await server.preClosings.run({ fiscalPeriodId: period.id, year: 2026 });
+  await server.closings.run({
     fiscalPeriodId: period.id,
     year: 2026,
     entries: buildExpectedClosingEntries({
@@ -363,7 +388,7 @@ async function closedSource(db: OpenkkDbPort) {
       bookAccounts: await server.masterData.getBookAccounts(),
     }),
   });
-  await server.fiscalPeriod.patch(period.id, {
+  await server.fiscalPeriods.patch(period.id, {
     documentsReceivedCompleted: true,
   });
   const input: FiscalPeriodNextCreateInput = {
@@ -383,9 +408,9 @@ describe("atomic fiscal period carryover", () => {
     const { server, period, input } = await closedSource(
       await createMemoryDbAdapter(null),
     );
-    await server.fiscalPeriod.archive(period.id);
+    await server.fiscalPeriods.archive(period.id);
     const backend = createOpenkkEmbeddedBackendAdapter(server);
-    const next = await backend.fiscalPeriod.createNext(input);
+    const next = await backend.fiscalPeriods.createNext(input);
     expect(next).toMatchObject({
       phase: "pre_opening",
       settingsCompleted: false,
@@ -407,13 +432,13 @@ describe("atomic fiscal period carryover", () => {
     expect(await backend.fixedAssets.getAll(next.id)).toMatchObject([
       { name: longText, status: "active" },
     ]);
-    await backend.fiscalPeriod.purgeArchivedData(period.id);
+    await backend.fiscalPeriods.purgeArchivedData(period.id);
     expect(
-      (await backend.fiscalPeriod.getAll()).find((item) => item.id === next.id),
+      (await backend.fiscalPeriods.getAll()).find((item) => item.id === next.id),
     ).toEqual(next);
-    await backend.fiscalPeriod.patch(next.id, { settingsCompleted: true });
-    await backend.preClosing.run({ fiscalPeriodId: next.id, year: 2027 });
-    const closed = await backend.closing.run({
+    await backend.fiscalPeriods.patch(next.id, { settingsCompleted: true });
+    await backend.preClosings.run({ fiscalPeriodId: next.id, year: 2027 });
+    const closed = await backend.closings.run({
       fiscalPeriodId: next.id,
       year: 2027,
       entries: buildExpectedClosingEntries({
@@ -439,7 +464,7 @@ describe("atomic fiscal period carryover", () => {
       const { server, input } = await closedSource(
         await createMemoryDbAdapter(null),
       );
-      const next = await server.fiscalPeriod.createNext({
+      const next = await server.fiscalPeriods.createNext({
         ...input,
         carryBalances,
         reversalEntryIds: [],
@@ -461,24 +486,24 @@ describe("atomic fiscal period carryover", () => {
       [input.reversalEntryIds[0]!, input.reversalEntryIds[0]!],
     ]) {
       await expect(
-        server.fiscalPeriod.createNext({ ...input, reversalEntryIds }),
+        server.fiscalPeriods.createNext({ ...input, reversalEntryIds }),
       ).rejects.toThrow();
     }
-    expect(await server.fiscalPeriod.getAll()).toHaveLength(1);
+    expect(await server.fiscalPeriods.getAll()).toHaveLength(1);
   });
 
   it("allows other fields to change while keeping stored long text", async () => {
     const { server, input } = await closedSource(
       await createMemoryDbAdapter(null),
     );
-    const next = await server.fiscalPeriod.createNext(input);
+    const next = await server.fiscalPeriods.createNext(input);
     const opening = next.opening!;
     const journals = opening.openingJournals.map((journal) => ({
       ...journal,
       businessRate: 0.5,
     }));
     await expect(
-      server.fiscalPeriod.patch(next.id, {
+      server.fiscalPeriods.patch(next.id, {
         opening: { ...opening, openingJournals: journals },
       }),
     ).resolves.toMatchObject({
@@ -489,7 +514,7 @@ describe("atomic fiscal period carryover", () => {
       },
     });
     await expect(
-      server.fiscalPeriod.patch(next.id, {
+      server.fiscalPeriods.patch(next.id, {
         opening: {
           ...opening,
           openingJournals: journals.map((journal) => ({
@@ -499,7 +524,7 @@ describe("atomic fiscal period carryover", () => {
         },
       }),
     ).rejects.toThrow(/400 character limit/);
-    await server.fiscalPeriod.patch(next.id, { settingsCompleted: true });
+    await server.fiscalPeriods.patch(next.id, { settingsCompleted: true });
     const [asset] = await server.fixedAssets.getAll(next.id);
     await expect(
       server.fixedAssets.patch(next.id, asset!.id, {
@@ -520,7 +545,7 @@ describe("atomic fiscal period carryover", () => {
       startDate: "2026-01-01",
       endDate: "2026-12-31",
     });
-    await server.fiscalPeriod.patch(period.id, {
+    await server.fiscalPeriods.patch(period.id, {
       name: longText,
       settingsCompleted: true,
       openingBalancesCompleted: true,
@@ -561,42 +586,42 @@ describe("atomic fiscal period carryover", () => {
     const db = await createMemoryDbAdapter(null);
     const { server, input } = await closedSource(db);
     await expect(
-      createOpenkkServer(db, { userId: "other" }).fiscalPeriod.createNext(
+      createOpenkkServer(db, { userId: "other" }).fiscalPeriods.createNext(
         input,
       ),
     ).rejects.toMatchObject({ statusCode: 404 });
     await expect(
-      server.fiscalPeriod.createNext({ ...input, startDate: "2026-01-01" }),
+      server.fiscalPeriods.createNext({ ...input, startDate: "2026-01-01" }),
     ).rejects.toThrow();
     await expect(
-      server.fiscalPeriod.createNext({
+      server.fiscalPeriods.createNext({
         ...input,
         carryBalances: null,
       } as never),
     ).rejects.toThrow();
     await expect(
-      server.fiscalPeriod.createNext({
+      server.fiscalPeriods.createNext({
         ...input,
         reversalEntryIds: null,
       } as never),
     ).rejects.toThrow();
-    const next = await server.fiscalPeriod.createNext(input);
-    await expect(server.fiscalPeriod.createNext(input)).rejects.toThrow(
+    const next = await server.fiscalPeriods.createNext(input);
+    await expect(server.fiscalPeriods.createNext(input)).rejects.toThrow(
       /overlaps/,
     );
     await expect(
-      server.fiscalPeriod.createNext({
+      server.fiscalPeriods.createNext({
         ...input,
         sourceFiscalPeriodId: next.id,
         startDate: "2028-01-01",
         endDate: "2028-12-31",
       }),
     ).rejects.toThrow(/closing/);
-    expect(await server.fiscalPeriod.getAll()).toHaveLength(2);
-    await server.fiscalPeriod.archive(input.sourceFiscalPeriodId);
-    await server.fiscalPeriod.purgeArchivedData(input.sourceFiscalPeriodId);
+    expect(await server.fiscalPeriods.getAll()).toHaveLength(2);
+    await server.fiscalPeriods.archive(input.sourceFiscalPeriodId);
+    await server.fiscalPeriods.purgeArchivedData(input.sourceFiscalPeriodId);
     await expect(
-      server.fiscalPeriod.createNext({
+      server.fiscalPeriods.createNext({
         ...input,
         startDate: "2028-01-01",
         endDate: "2028-12-31",
@@ -609,14 +634,14 @@ describe("atomic fiscal period carryover", () => {
       await createMemoryDbAdapter(null),
     );
     const results = await Promise.allSettled([
-      server.fiscalPeriod.createNext(input),
-      server.fiscalPeriod.createNext(input),
+      server.fiscalPeriods.createNext(input),
+      server.fiscalPeriods.createNext(input),
     ]);
     expect(results.map((result) => result.status)).toEqual([
       "fulfilled",
       "rejected",
     ]);
-    expect(await server.fiscalPeriod.getAll()).toHaveLength(2);
+    expect(await server.fiscalPeriods.getAll()).toHaveLength(2);
   });
 
   it.each(["opening_journal_lines", "fixed_assets"])(
@@ -643,23 +668,23 @@ describe("atomic fiscal period carryover", () => {
       try {
         const db = await createSqliteDbAdapter(sql, null);
         const { server, input } = await closedSource(db);
-        const before = await server.fiscalPeriod.getAll();
+        const before = await server.fiscalPeriods.getAll();
         const sourceEntries = await server.entries.getAll(
           input.sourceFiscalPeriodId,
         );
         failWrites = true;
-        await expect(server.fiscalPeriod.createNext(input)).rejects.toThrow(
+        await expect(server.fiscalPeriods.createNext(input)).rejects.toThrow(
           "injected write failure",
         );
-        expect(await server.fiscalPeriod.getAll()).toEqual(before);
+        expect(await server.fiscalPeriods.getAll()).toEqual(before);
         expect(await server.entries.getAll(input.sourceFiscalPeriodId)).toEqual(
           sourceEntries,
         );
         failWrites = false;
         await expect(
-          server.fiscalPeriod.createNext(input),
+          server.fiscalPeriods.createNext(input),
         ).resolves.toMatchObject({ name: "2027年" });
-        expect(await server.fiscalPeriod.getAll()).toHaveLength(2);
+        expect(await server.fiscalPeriods.getAll()).toHaveLength(2);
       } finally {
         raw.close();
       }

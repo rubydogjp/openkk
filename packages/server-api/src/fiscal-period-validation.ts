@@ -1,6 +1,8 @@
 import {
   assertDateRange,
+  assertEntryLineMatchesRules,
   assertEntryLinesBalanced,
+  assertFiscalPeriodPatchMatchesPhase,
   assertIsoDate,
   assertNonNegativeSafeInteger,
   assertOpeningBalanceAccountId,
@@ -28,7 +30,6 @@ import {
   assertString,
   assertTextChange,
 } from "./common-validation.js";
-import { assertEntryMasterReferences } from "./entry-validation.js";
 
 export function assertPeriodDataAvailable(
   period: FiscalPeriodApiRecord,
@@ -120,13 +121,9 @@ export function assertFiscalPeriodReadyForPreClosing(
     assertEntryLinesBalanced(journal.lines, "Opening journal", {
       allowZero: false,
     });
-    assertEntryMasterReferences({
-      date: journal.date,
-      description: journal.description,
-      businessRate: journal.businessRate,
-      lines: journal.lines,
-      localId: null,
-    });
+    for (const line of journal.lines) {
+      assertEntryLineMatchesRules(line, "Opening journal");
+    }
   }
 }
 
@@ -436,13 +433,9 @@ export function assertFiscalPeriodPatchInput(
       assertEntryLinesBalanced(journal.lines, "Opening journal", {
         allowZero: !openingWillBeCompleted,
       });
-      assertEntryMasterReferences({
-        date: journal.date,
-        description: journal.description,
-        businessRate: journal.businessRate,
-        lines: journal.lines,
-        localId: null,
-      });
+      for (const line of journal.lines) {
+        assertEntryLineMatchesRules(line, "Opening journal");
+      }
     }
   }
   const effectiveOpening = opening ?? current.opening;
@@ -537,49 +530,5 @@ export function assertFiscalPeriodPatchAllowed(
   patch: FiscalPeriodPatchInput,
 ) {
   assertObject(patch, "Fiscal period patch");
-  const changedKeys = Object.entries(patch)
-    .filter(([, value]) => value !== undefined)
-    .map(([key]) => key);
-  const allowedKeysByPhase: Record<
-    FiscalPeriodApiRecord["phase"],
-    ReadonlySet<string>
-  > = {
-    pre_opening: new Set([
-      "name",
-      "startDate",
-      "endDate",
-      "settingsCompleted",
-      "openingBalancesCompleted",
-      "opening",
-    ]),
-    journalizing: new Set(["openingBalancesCompleted", "opening"]),
-    pre_closing: new Set(),
-    post_closing: new Set(["documentsReceivedCompleted"]),
-  };
-  if (current.phase === "pre_closing") {
-    throw serverConflictError(
-      `Fiscal period ${current.id} cannot be updated from phase pre_closing`,
-      "仮締め中の会計期間は変更できません",
-    );
-  }
-  if (
-    current.phase === "post_closing" &&
-    (changedKeys.length !== 1 ||
-      changedKeys[0] !== "documentsReceivedCompleted" ||
-      patch.documentsReceivedCompleted !== true)
-  ) {
-    throw serverConflictError(
-      `Fiscal period ${current.id} only allows document receipt completion after closing`,
-      "本締め後は書類受領の完了以外を変更できません",
-    );
-  }
-  const disallowedKey = changedKeys.find(
-    (key) => !allowedKeysByPhase[current.phase].has(key),
-  );
-  if (disallowedKey != null) {
-    throw serverConflictError(
-      `Fiscal period ${current.id} cannot update ${disallowedKey} from phase ${current.phase}`,
-      "開始後は会計期間の設定を変更できません",
-    );
-  }
+  assertFiscalPeriodPatchMatchesPhase(current, patch);
 }

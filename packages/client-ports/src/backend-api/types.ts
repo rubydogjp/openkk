@@ -29,9 +29,6 @@ export type RedeemCompletionCodeResponse = {
 export type AuthSignOutRequest = OpenkkEmptyRequest;
 export type AuthSignOutResponse = OpenkkNoContentResponse;
 
-export type PreClosingApiRecord = Record<string, never>;
-export type ClosingApiRecord = Record<string, never>;
-
 export type EntryApiSide = "debit" | "credit";
 
 export type EntryApiLine = {
@@ -265,14 +262,14 @@ export type MaintenanceGetRequest = OpenkkEmptyRequest;
 export type MaintenanceGetResponse = MaintenanceStatus;
 
 export type PreClosingGetRequest = { fiscalPeriodId: string; year: number };
-export type PreClosingGetResponse = { preClosing: PreClosingApiRecord | null };
+export type PreClosingGetResponse = { preClosed: boolean };
 export type PreClosingRunRequest = { fiscalPeriodId: string; year: number };
 export type PreClosingRunResponse = { fiscalPeriod: FiscalPeriodApiRecord };
 export type PreClosingCancelRequest = { fiscalPeriodId: string; year: number };
 export type PreClosingCancelResponse = { fiscalPeriod: FiscalPeriodApiRecord };
 
 export type ClosingGetRequest = { fiscalPeriodId: string; year: number };
-export type ClosingGetResponse = { closing: ClosingApiRecord | null };
+export type ClosingGetResponse = { closed: boolean };
 export type ClosingRunRequest = {
   fiscalPeriodId: string;
   year: number;
@@ -698,16 +695,13 @@ export interface AuthApi {
   signOut(): Promise<void>;
 }
 
-export interface ClosingApi {
-  get(fiscalPeriodId: string, year: number): Promise<ClosingApiRecord | null>;
+export interface ClosingsApi {
+  get(fiscalPeriodId: string, year: number): Promise<boolean>;
   run(input: ClosingRunRequest): Promise<FiscalPeriodApiRecord>;
 }
 
-export interface PreClosingApi {
-  get(
-    fiscalPeriodId: string,
-    year: number,
-  ): Promise<PreClosingApiRecord | null>;
+export interface PreClosingsApi {
+  get(fiscalPeriodId: string, year: number): Promise<boolean>;
   run(input: {
     fiscalPeriodId: string;
     year: number;
@@ -727,14 +721,14 @@ export interface EntriesApi {
     input: EntryUpsertInput,
   ): Promise<EntryApiRecord>;
   remove(fiscalPeriodId: string, id: string): Promise<void>;
-  /** Returns only entries inserted for previously unseen `localId` values. */
+  /** Skips `localId` values already present in the fiscal period. */
   importMany(
     fiscalPeriodId: string,
     entries: EntryUpsertInput[],
   ): Promise<{ importedCount: number; entries: EntryApiRecord[] }>;
 }
 
-export interface FiscalPeriodApi {
+export interface FiscalPeriodsApi {
   getAll(): Promise<FiscalPeriodApiRecord[]>;
   create(input: FiscalPeriodCreateInput): Promise<FiscalPeriodApiRecord>;
   createNext(input: FiscalPeriodNextCreateInput): Promise<FiscalPeriodApiRecord>;
@@ -776,10 +770,10 @@ export interface MaintenanceApi {
 
 export interface OpenkkBackendPort {
   auth: AuthApi;
-  preClosing: PreClosingApi;
-  closing: ClosingApi;
+  preClosings: PreClosingsApi;
+  closings: ClosingsApi;
   entries: EntriesApi;
-  fiscalPeriod: FiscalPeriodApi;
+  fiscalPeriods: FiscalPeriodsApi;
   fixedAssets: FixedAssetsApi;
   masterData: MasterDataApi;
   maintenance: MaintenanceApi;

@@ -59,13 +59,11 @@ const HANDLED_LIABILITY_NAMES = new Set<string>(
   BS_ROWS.map((row) => row.liabilityLabel).filter((label) => label !== ""),
 );
 
-const EQUITY_LABELS = OPENING_EQUITY_LABELS;
-
 export const assetKey = (label: string) => `a:${label}`;
 export const liabilityKey = (label: string) => `l:${label}`;
 export const isEditableLiability = (label: string) => label !== "";
 export const liabilityAccountType = (label: string): BookAccountType =>
-  EQUITY_LABELS.has(label) ? "equity" : "liability";
+  OPENING_EQUITY_LABELS.has(label) ? "equity" : "liability";
 
 export function parseOpeningAmount(value: string | number): number | null {
   const parsed =

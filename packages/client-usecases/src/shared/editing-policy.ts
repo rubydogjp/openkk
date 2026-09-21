@@ -1,14 +1,14 @@
 import {
   AppError,
   resolveEditingPolicy,
-  type OpenkkConfig,
+  type OpenkkEditingPolicy,
 } from "@rubydogjp/openkk-client-domain";
 
 export function assertEditingUnlocked(
-  config: Pick<OpenkkConfig, "editingPolicy">,
+  editingPolicy: OpenkkEditingPolicy | null,
   operation: string,
 ): void {
-  const policy = resolveEditingPolicy(config);
+  const policy = resolveEditingPolicy(editingPolicy);
   if (!policy.locked) return;
 
   throw new AppError({

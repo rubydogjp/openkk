@@ -5,13 +5,13 @@ import { assertEditingUnlocked } from "./editing-policy.js";
 
 describe("assertEditingUnlocked", () => {
   it("allows mutations when editing is not locked", () => {
-    expect(() => assertEditingUnlocked({ editingPolicy: null }, "entries.create")).not.toThrow();
+    expect(() => assertEditingUnlocked(null, "entries.create")).not.toThrow();
   });
 
   it("rejects mutations with the configured notice when locked", () => {
     try {
       assertEditingUnlocked(
-        { editingPolicy: { locked: true, lockedNotice: "閲覧専用です" } },
+        { locked: true, lockedNotice: "閲覧専用です" },
         "entries.create",
       );
       throw new Error("expected editing lock error");

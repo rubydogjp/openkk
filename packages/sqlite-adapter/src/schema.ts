@@ -583,4 +583,5 @@ export const SCHEMA_MIGRATIONS: SchemaMigration[] = [
   MIGRATION_V4,
 ];
 
-export const SCHEMA_VERSION = MIGRATION_V4.version;
+export const SCHEMA_VERSION =
+  SCHEMA_MIGRATIONS[SCHEMA_MIGRATIONS.length - 1]!.version;

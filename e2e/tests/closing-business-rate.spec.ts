@@ -4,7 +4,7 @@ import {
   advanceToJournalizing,
   clickButton,
   createFiscalPeriod,
-  disablePrint,
+  disablePrintBeforeFirstNavigation,
   expectStep,
   extractReportAmounts,
   goToMonth,
@@ -22,7 +22,7 @@ test.describe("家事按分 → 締めフローの帳票一貫性", () => {
   test("仮帳票と確定帳票が按分後の同じ数字で一致し、元帳と財務諸表が突合する", async ({
     page,
   }) => {
-    await disablePrint(page);
+    await disablePrintBeforeFirstNavigation(page);
 
     await createFiscalPeriod(page, "按分検証 2026年分");
     await advanceToJournalizing(page);

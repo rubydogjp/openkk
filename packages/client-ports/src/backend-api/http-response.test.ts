@@ -163,39 +163,12 @@ describe("resolveOpenkkHttpResponse", () => {
     }
   });
 
-  it("rejects overlapping active periods returned by the server", () => {
-    expect(
-      captureError(() =>
-        resolveOpenkkHttpResponse("fiscalPeriodsGetAll", {
-          status: 200,
-          body: {
-            fiscalPeriods: [
-              fiscalPeriod(),
-              {
-                ...fiscalPeriod(),
-                id: "fp-2",
-                startDate: "2026-12-31",
-                endDate: "2027-12-30",
-              },
-            ],
-          },
-        }),
-      ),
-    ).toMatchObject({
-      messageForDeveloper:
-        "fiscalPeriodsGetAll returned a malformed success response",
-    });
-  });
-
-  it("rejects blank identifiers, invalid timestamps, and active purged flags", () => {
+  it("rejects blank identifiers and invalid timestamps", () => {
     const invalidPeriods = [
       { ...fiscalPeriod(), id: " " },
       { ...fiscalPeriod(), updatedAt: "not-a-timestamp" },
-      { ...fiscalPeriod(), archiveDataAvailable: false },
-      {
-        ...fiscalPeriod(),
-        archivedAt: "2026-12-31T00:00:00.000Z",
-      },
+      { ...fiscalPeriod(), archiveDataAvailable: "yes" },
+      { ...fiscalPeriod(), archivedAt: "not-a-timestamp" },
     ];
 
     for (const period of invalidPeriods) {
@@ -213,17 +186,29 @@ describe("resolveOpenkkHttpResponse", () => {
     }
   });
 
-  it("rejects non-empty placeholder closing records", () => {
+  it("rejects a closing presence flag that is not a boolean", () => {
     expect(
       captureError(() =>
         resolveOpenkkHttpResponse("closingGet", {
           status: 200,
-          body: { closing: { unexpected: true } },
+          body: { closed: "yes" },
         }),
       ),
     ).toMatchObject({
       messageForDeveloper: "closingGet returned a malformed success response",
     });
+    expect(
+      resolveOpenkkHttpResponse("closingGet", {
+        status: 200,
+        body: { closed: false },
+      }),
+    ).toEqual({ closed: false });
+    expect(
+      resolveOpenkkHttpResponse("preClosingGet", {
+        status: 200,
+        body: { preClosed: true },
+      }),
+    ).toEqual({ preClosed: true });
   });
 
   it("rejects malformed and duplicate master records", () => {
@@ -279,37 +264,6 @@ describe("resolveOpenkkHttpResponse", () => {
     ).toEqual({ taxCategories: [category] });
   });
 
-  it("rejects contradictory fiscal-period lifecycle flags", () => {
-    const invalidPeriods = [
-      {
-        ...fiscalPeriod(),
-        phase: "journalizing",
-        settingsCompleted: false,
-      },
-      {
-        ...fiscalPeriod(),
-        phase: "pre_closing",
-        settingsCompleted: true,
-        openingBalancesCompleted: false,
-      },
-      { ...fiscalPeriod(), documentsReceivedCompleted: true },
-    ];
-
-    for (const period of invalidPeriods) {
-      expect(
-        captureError(() =>
-          resolveOpenkkHttpResponse("fiscalPeriodsGetAll", {
-            status: 200,
-            body: { fiscalPeriods: [period] },
-          }),
-        ),
-      ).toMatchObject({
-        messageForDeveloper:
-          "fiscalPeriodsGetAll returned a malformed success response",
-      });
-    }
-  });
-
   it("accepts carried opening balances before next-period settings start", () => {
     const period = {
       ...fiscalPeriod(),
@@ -330,71 +284,31 @@ describe("resolveOpenkkHttpResponse", () => {
     ).toEqual({ fiscalPeriods: [period] });
   });
 
-  it("accepts a balanced zero-value opening-journal draft only while opening is incomplete", () => {
-    const zeroJournal = {
-      id: "journal-1",
-      date: "2026-01-01",
-      description: "",
-      businessRate: 1,
-      lines: entryResponse().lines.map((line) => ({ ...line, amount: 0 })),
-    };
-    const incomplete = {
+  it("accepts a zero-value opening-journal draft", () => {
+    const period = {
       ...fiscalPeriod(),
-      opening: openingResponse({ openingJournals: [zeroJournal] }),
+      opening: openingResponse({
+        openingJournals: [
+          {
+            id: "journal-1",
+            date: "2026-01-01",
+            description: "",
+            businessRate: 1,
+            lines: entryResponse().lines.map((line) => ({
+              ...line,
+              amount: 0,
+            })),
+          },
+        ],
+      }),
     };
 
     expect(
       resolveOpenkkHttpResponse("fiscalPeriodsGetAll", {
         status: 200,
-        body: { fiscalPeriods: [incomplete] },
+        body: { fiscalPeriods: [period] },
       }),
-    ).toEqual({ fiscalPeriods: [incomplete] });
-
-    expect(
-      captureError(() =>
-        resolveOpenkkHttpResponse("fiscalPeriodsGetAll", {
-          status: 200,
-          body: {
-            fiscalPeriods: [
-              {
-                ...incomplete,
-                openingBalancesCompleted: true,
-                opening: openingResponse({
-                  openingJournals: [
-                    { ...zeroJournal, description: "finalized" },
-                  ],
-                }),
-              },
-            ],
-          },
-        }),
-      ),
-    ).toMatchObject({
-      messageForDeveloper:
-        "fiscalPeriodsGetAll returned a malformed success response",
-    });
-  });
-
-  it("rejects completed opening balances when the opening data is missing", () => {
-    expect(
-      captureError(() =>
-        resolveOpenkkHttpResponse("fiscalPeriodsGetAll", {
-          status: 200,
-          body: {
-            fiscalPeriods: [
-              {
-                ...fiscalPeriod(),
-                openingBalancesCompleted: true,
-                opening: null,
-              },
-            ],
-          },
-        }),
-      ),
-    ).toMatchObject({
-      messageForDeveloper:
-        "fiscalPeriodsGetAll returned a malformed success response",
-    });
+    ).toEqual({ fiscalPeriods: [period] });
   });
 
   it("rejects unsafe authentication redirect URLs", () => {
@@ -519,65 +433,25 @@ describe("resolveOpenkkHttpResponse", () => {
     });
   });
 
-  it("rejects unbalanced completed opening balances", () => {
+  it("rejects duplicate opening accounts", () => {
+    const opening = openingResponse({
+      openingBalanceLines: [
+        { id: "asset-1", accountId: "a:現金", amount: 1000 },
+        { id: "asset-2", accountId: "a:現金", amount: 1000 },
+      ],
+    });
+
     expect(
       captureError(() =>
         resolveOpenkkHttpResponse("fiscalPeriodsGetAll", {
           status: 200,
-          body: {
-            fiscalPeriods: [
-              {
-                ...fiscalPeriod(),
-                openingBalancesCompleted: true,
-                opening: openingResponse({
-                  openingBalanceLines: [
-                    { id: "asset", accountId: "a:現金", amount: 1000 },
-                    { id: "liability", accountId: "l:元入金", amount: 999 },
-                  ],
-                }),
-              },
-            ],
-          },
+          body: { fiscalPeriods: [{ ...fiscalPeriod(), opening }] },
         }),
       ),
     ).toMatchObject({
       messageForDeveloper:
         "fiscalPeriodsGetAll returned a malformed success response",
     });
-  });
-
-  it("rejects duplicate opening accounts and out-of-period journals", () => {
-    const duplicateAccount = openingResponse({
-      openingBalanceLines: [
-        { id: "asset-1", accountId: "a:現金", amount: 1000 },
-        { id: "asset-2", accountId: "a:現金", amount: 1000 },
-      ],
-    });
-    const outOfPeriodJournal = openingResponse({
-      openingJournals: [
-        {
-          id: "journal-1",
-          date: "2025-12-31",
-          description: "期間外の再振替",
-          businessRate: 1,
-          lines: entryResponse().lines,
-        },
-      ],
-    });
-
-    for (const opening of [duplicateAccount, outOfPeriodJournal]) {
-      expect(
-        captureError(() =>
-          resolveOpenkkHttpResponse("fiscalPeriodsGetAll", {
-            status: 200,
-            body: { fiscalPeriods: [{ ...fiscalPeriod(), opening }] },
-          }),
-        ),
-      ).toMatchObject({
-        messageForDeveloper:
-          "fiscalPeriodsGetAll returned a malformed success response",
-      });
-    }
   });
 
   it("rejects an import count that disagrees with returned entries", () => {
@@ -591,27 +465,6 @@ describe("resolveOpenkkHttpResponse", () => {
     ).toMatchObject({
       messageForDeveloper:
         "entryImportMany returned a malformed success response",
-    });
-  });
-
-  it("rejects an unbalanced entry in a successful response", () => {
-    expect(
-      captureError(() =>
-        resolveOpenkkHttpResponse("entryCreate", {
-          status: 201,
-          body: {
-            entry: {
-              ...entryResponse(),
-              lines: [
-                { ...entryResponse().lines[0], amount: 1000 },
-                { ...entryResponse().lines[1], amount: 999 },
-              ],
-            },
-          },
-        }),
-      ),
-    ).toMatchObject({
-      messageForDeveloper: "entryCreate returned a malformed success response",
     });
   });
 
@@ -684,25 +537,7 @@ describe("resolveOpenkkHttpResponse", () => {
     }
   });
 
-  it("rejects fixed-asset disposal data that contradicts its status", () => {
-    expect(
-      captureError(() =>
-        resolveOpenkkHttpResponse("fixedAssetCreate", {
-          status: 201,
-          body: {
-            fixedAsset: {
-              ...fixedAssetResponse(),
-              status: "retired",
-              disposalDate: "2026-12-01",
-            },
-          },
-        }),
-      ),
-    ).toMatchObject({
-      messageForDeveloper:
-        "fixedAssetCreate returned a malformed success response",
-    });
-
+  it("rejects fixed-asset values outside their allowed range", () => {
     expect(
       captureError(() =>
         resolveOpenkkHttpResponse("fixedAssetCreate", {

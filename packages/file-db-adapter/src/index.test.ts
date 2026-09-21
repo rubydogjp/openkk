@@ -132,7 +132,7 @@ describe("createFileDbAdapter — behavior parity over the worker proxy", () => 
     const created = await seedFiscalPeriod(db);
     const loaded = await db.fiscalPeriods.getById(created.id);
     expect(loaded?.name).toBe("2026年分");
-    expect(await db.fiscalPeriods.getAllByUser("user-1")).toHaveLength(1);
+    expect(await db.fiscalPeriods.getAll("user-1")).toHaveLength(1);
   });
 
   it("imports entries idempotently on localId", async () => {
@@ -262,7 +262,7 @@ describe("createFileDbAdapter", () => {
     );
 
     FakeWorker.instances[0]!.hangNext = true;
-    const inFlight = first.fiscalPeriods.getAllByUser("user-1");
+    const inFlight = first.fiscalPeriods.getAll("user-1");
     await Promise.resolve();
     FakeWorker.instances[0]!.crash("worker boom");
 
@@ -270,7 +270,7 @@ describe("createFileDbAdapter", () => {
       "worker boom",
     );
     await expect(
-      withDeadline(first.fiscalPeriods.getAllByUser("user-1"), "future call"),
+      withDeadline(first.fiscalPeriods.getAll("user-1"), "future call"),
     ).rejects.toThrow("worker boom");
     expect(FakeWorker.instances[0]!.terminated).toBe(true);
 

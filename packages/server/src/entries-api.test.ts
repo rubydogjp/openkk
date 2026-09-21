@@ -8,7 +8,6 @@ import {
   MAX_TEXT_FIELD_LENGTH,
 } from "@rubydogjp/openkk-server-domain";
 import type {
-  ClosingApiRecord,
   EntryApiRecord,
   EntryUpsertInput,
   FiscalPeriodApiRecord,
@@ -91,7 +90,7 @@ describe("openkk server entries API", () => {
     const server = createOpenkkServer(db, { userId: "user-1" });
 
     const reading = server.entries.getAll("fp-1");
-    const purging = server.fiscalPeriod.purgeArchivedData("fp-1");
+    const purging = server.fiscalPeriods.purgeArchivedData("fp-1");
     await readStarted;
     expect(trace).toEqual(["read:start"]);
 
@@ -202,10 +201,10 @@ describe("openkk server entries API", () => {
         ...validEntryInput(),
         localId: 123,
       } as unknown as EntryUpsertInput),
-    ).rejects.toThrow(/Entry localId must be a string/);
+    ).rejects.toThrow(/Entry localId must be a non-blank string or null/);
     await expect(
       server.entries.create("fp-1", validEntryInput({ localId: "" })),
-    ).rejects.toThrow(/Entry localId is required/);
+    ).rejects.toThrow(/Entry localId must be a non-blank string or null/);
     expect(await server.entries.getAll("fp-1")).toEqual([]);
   });
 
@@ -347,7 +346,7 @@ describe("openkk server entries API", () => {
           })),
         }),
       ),
-    ).rejects.toThrow(/Unknown book account/);
+    ).rejects.toThrow(/Entry line references unknown book account/);
     const created = await server.entries.create(
       "fp-1",
       validEntryInput({
@@ -548,7 +547,7 @@ function createEntryDb(
   const entries = new Map<string, EntryApiRecord>();
   return {
     fiscalPeriods: {
-      async getAllByUser() {
+      async getAll() {
         return [fiscalPeriod({ id: "fp-1", ...fiscalPeriodOverrides })];
       },
       async getById(id) {
@@ -649,7 +648,7 @@ function createEntryDb(
       },
     },
     fixedAssets: {
-      async getAllByFiscalPeriod() {
+      async getAll() {
         return [];
       },
       async getById() {
@@ -669,7 +668,7 @@ function createEntryDb(
     },
     preClosings: {
       async get() {
-        return null;
+        return false;
       },
       async run() {
         return fiscalPeriod({ phase: "pre_closing" });
@@ -679,21 +678,21 @@ function createEntryDb(
       },
     },
     closings: {
-      async get(): Promise<ClosingApiRecord | null> {
-        return null;
+      async get(): Promise<boolean> {
+        return false;
       },
       async run() {
         return fiscalPeriod({ phase: "post_closing" });
       },
     },
     masterData: {
-      async getAllBookAccounts(): Promise<MasterBookAccount[]> {
+      async getBookAccounts(): Promise<MasterBookAccount[]> {
         return [];
       },
-      async getAllTaxCategories(): Promise<MasterTaxCategory[]> {
+      async getTaxCategories(): Promise<MasterTaxCategory[]> {
         return [];
       },
-      async getAllBusinessCategories(): Promise<MasterBusinessCategory[]> {
+      async getBusinessCategories(): Promise<MasterBusinessCategory[]> {
         return [];
       },
     },

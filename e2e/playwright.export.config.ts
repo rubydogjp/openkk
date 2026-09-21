@@ -1,6 +1,5 @@
 import { defineConfig } from "@playwright/test";
 
-// 静的 export (next build の out/) を配信して起動 smoke するための設定。
 const PORT = 4308;
 const COI = "1";
 

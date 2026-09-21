@@ -13,7 +13,7 @@ import type {
   FiscalPeriodDbRow,
 } from "./table-types.js";
 import { assertDbFiscalPeriodAllows } from "./fiscal-period-guard.js";
-import { msToIso, parseFiscalPeriodDataColumn } from "./persistence-codec.js";
+import { msToIso, parseFiscalPeriodDbData } from "./persistence-codec.js";
 import {
   assertDbEntryInput,
   assertDbPeriodOwnership,
@@ -277,7 +277,7 @@ async function loadEntries(
       };
       records.set(record.id, record);
       periods.set(record.id, {
-        ...parseFiscalPeriodDataColumn(row[16]),
+        ...parseFiscalPeriodDbData(row[16]),
         userId: row[1],
         createdAt: msToIso(row[17]),
         updatedAt: msToIso(row[18]),

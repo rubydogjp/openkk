@@ -10,15 +10,15 @@ import type {
 } from "@rubydogjp/openkk-server-ports";
 
 import {
-  parseFiscalPeriodDataColumn,
-  parseFixedAssetDataColumn,
-  serializeFiscalPeriodDataColumn,
+  parseFiscalPeriodDbData,
+  parseFixedAssetDbData,
+  serializeFiscalPeriodDbData,
   validateOpeningDbRecord,
 } from "./persistence-codec.js";
 
 describe("SQLite persistence codecs", () => {
   it("parses phase and archive status independently", () => {
-    const record = parseFiscalPeriodDataColumn(
+    const record = parseFiscalPeriodDbData(
       JSON.stringify({
         id: "fp-1",
         name: "FY2026",
@@ -38,8 +38,8 @@ describe("SQLite persistence codecs", () => {
   });
 
   it.each([
-    ["fiscal period", parseFiscalPeriodDataColumn, { id: "fp-1" }],
-    ["fixed asset", parseFixedAssetDataColumn, { id: "fa-1", usefulLife: null }],
+    ["fiscal period", parseFiscalPeriodDbData, { id: "fp-1" }],
+    ["fixed asset", parseFixedAssetDbData, { id: "fa-1", usefulLife: null }],
   ])("rejects malformed %s JSON", (_label, parse, value) => {
     expect(() => parse(JSON.stringify(value))).toThrow(
       /Invalid .* data in SQLite/,
@@ -72,7 +72,7 @@ describe("SQLite persistence codecs", () => {
       archiveDataAvailable: true,
       archivedAt: null,
     };
-    const json = serializeFiscalPeriodDataColumn(record);
+    const json = serializeFiscalPeriodDbData(record);
     const parsed = JSON.parse(json);
     expect(parsed).not.toHaveProperty("opening");
     expect(parsed).not.toHaveProperty("userId");
@@ -94,7 +94,7 @@ describe("SQLite persistence codecs", () => {
     ["a missing archivedAt field", { archivedAt: undefined }],
   ])("rejects a fiscal period with %s", (_label, patch) => {
     expect(() =>
-      parseFiscalPeriodDataColumn(
+      parseFiscalPeriodDbData(
         JSON.stringify({
           id: "fp-1",
           name: "FY2026",
@@ -214,7 +214,7 @@ describe("SQLite persistence codecs", () => {
 
   it("rejects zero-cost fixed assets loaded from SQLite", () => {
     expect(() =>
-      parseFixedAssetDataColumn(
+      parseFixedAssetDbData(
         JSON.stringify({
           id: "fa-1",
           fiscalPeriodId: "fp-1",

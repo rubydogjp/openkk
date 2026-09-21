@@ -53,11 +53,11 @@ export function ArchivedFiscalPeriodScreen({
     setIsDownloading(true);
     try {
       const year = Number(fiscalPeriod.endDate.slice(0, 4));
-      const [entries, fixedAssets, preClosing, closing] = await Promise.all([
+      const [entries, fixedAssets, preClosed, closed] = await Promise.all([
         backendApi.entries.getAll(fiscalPeriod.id),
         backendApi.fixedAssets.getAll(fiscalPeriod.id),
-        backendApi.preClosing.get(fiscalPeriod.id, year),
-        backendApi.closing.get(fiscalPeriod.id, year),
+        backendApi.preClosings.get(fiscalPeriod.id, year),
+        backendApi.closings.get(fiscalPeriod.id, year),
       ]);
       appState.assertAuthOperationCurrent(authOperationVersion);
       const payload = buildFiscalPeriodArchivePayload({
@@ -66,10 +66,10 @@ export function ArchivedFiscalPeriodScreen({
         entries: entries.map((entry) => ({ ...entry })),
         fixedAssets: fixedAssets.map((asset) => ({ ...asset })),
         closings: [
-          ...(preClosing == null
+          ...(!preClosed
             ? []
             : [{ fiscalPeriodId: fiscalPeriod.id, year, kind: "pre_closing" }]),
-          ...(closing == null
+          ...(!closed
             ? []
             : [{ fiscalPeriodId: fiscalPeriod.id, year, kind: "closing" }]),
         ],

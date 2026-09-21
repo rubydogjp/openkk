@@ -701,7 +701,7 @@ function expenseOptions(
   ];
 }
 
-export const ACCOUNT_ALIASES: Record<string, string[]> = {
+const ACCOUNT_ALIASES: Record<string, string[]> = {
   売上: ["売上", "売上高"],
   売掛金: ["売掛金"],
   未収入金: ["未収入金"],
@@ -729,7 +729,7 @@ export const ACCOUNT_ALIASES: Record<string, string[]> = {
   雑収入: ["雑収入"],
 };
 
-export function normalizeAccountName(name: string): string {
+function normalizeAccountName(name: string): string {
   return name.replace(/\s+/g, "").trim();
 }
 

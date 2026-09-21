@@ -23,7 +23,7 @@ import type { StepItem } from "@rubydogjp/openkk-client-domain";
 import { type StepTrendPoint } from "@rubydogjp/openkk-client-domain";
 import { StatusChip } from "./step-ui.js";
 
-export const STEP_PATHS: Record<number, string> = {
+const STEP_PATHS: Record<number, string> = {
   1: "/steps/fiscal-period-settings",
   2: "/steps/opening-bs",
   3: "/steps/journalizing",

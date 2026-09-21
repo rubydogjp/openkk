@@ -49,7 +49,7 @@ export function ClosingBody({
 }) {
   const appState = useOpenkkAppState();
   const config = useOpenkkConfig();
-  const editingLocked = resolveEditingPolicy(config).locked;
+  const editingLocked = resolveEditingPolicy(config.editingPolicy).locked;
   const entriesState = useOpenkkEntries();
   const assistState = useOpenkkAssist();
   const closingApi = useOpenkkClosing();

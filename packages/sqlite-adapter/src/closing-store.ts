@@ -6,17 +6,15 @@ import {
 } from "@rubydogjp/openkk-server-domain";
 
 import type {
-  ClosingDbRecord,
   ClosingsDb,
   EntryDbRecord,
   EntryDbUpsertInput,
   FiscalPeriodDbPhase,
   FiscalPeriodDbRecord,
-  PreClosingDbRecord,
   PreClosingsDb,
 } from "@rubydogjp/openkk-server-ports";
 import type {
-  FiscalPeriodDataColumn,
+  FiscalPeriodDbData,
 } from "./table-types.js";
 import { insertEntryLines, insertImportedEntries } from "./entry-store.js";
 import {
@@ -25,8 +23,8 @@ import {
 } from "./opening-store.js";
 import {
   msToIso,
-  parseFiscalPeriodDataColumn,
-  serializeFiscalPeriodDataColumn,
+  parseFiscalPeriodDbData,
+  serializeFiscalPeriodDbData,
 } from "./persistence-codec.js";
 import {
   assertDbClosingGeneratedSizeLimits,
@@ -47,7 +45,7 @@ export function createPreClosingsDb(db: SqlDb): PreClosingsDb {
         returnValue: "resultRows",
         rowMode: "array",
       })) as Array<[number]>;
-      return rows[0] == null ? null : ({} satisfies PreClosingDbRecord);
+      return rows[0] != null;
     },
     async run(fiscalPeriodId, year) {
       return transitionFiscalPeriod(
@@ -98,7 +96,7 @@ export function createClosingsDb(db: SqlDb): ClosingsDb {
         returnValue: "resultRows",
         rowMode: "array",
       })) as Array<[number]>;
-      return rows[0] == null ? null : ({} satisfies ClosingDbRecord);
+      return rows[0] != null;
     },
     async run(fiscalPeriodId, year, entries) {
       assertDbClosingGeneratedSizeLimits(entries);
@@ -147,7 +145,7 @@ async function replaceClosingGeneratedEntries(
   userId: string,
   fiscalPeriodId: string,
   inputs: EntryDbUpsertInput[],
-  period: FiscalPeriodDataColumn,
+  period: FiscalPeriodDbData,
 ): Promise<void> {
   for (const input of inputs) {
     assertDbEntryInput(input, period, "Closing entry");
@@ -215,7 +213,7 @@ async function transitionFiscalPeriod(
   nextPhase: FiscalPeriodDbPhase,
   writeTransitionData: (
     userId: string,
-    period: FiscalPeriodDataColumn,
+    period: FiscalPeriodDbData,
   ) => Promise<void>,
 ): Promise<FiscalPeriodDbRecord> {
   const updated = await runInTransaction(db, async () => {
@@ -228,7 +226,7 @@ async function transitionFiscalPeriod(
     const row = rows[0];
     if (row == null)
       throw serverNotFoundError(`fiscal period not found: ${fiscalPeriodId}`);
-    const current = parseFiscalPeriodDataColumn(row[1]);
+    const current = parseFiscalPeriodDbData(row[1]);
     if (current.archiveStatus === "archived") {
       throw serverConflictError(
         `archived fiscal period cannot transition: ${fiscalPeriodId}`,
@@ -255,7 +253,7 @@ async function transitionFiscalPeriod(
       opening,
     };
     assertDbOpeningForPeriod(opening, updated);
-    const serializedRecord = serializeFiscalPeriodDataColumn(updated);
+    const serializedRecord = serializeFiscalPeriodDbData(updated);
     await writeTransitionData(row[0], current);
     await db.exec({
       sql: `UPDATE fiscal_periods SET data = ?, updated_at = ? WHERE id = ?`,

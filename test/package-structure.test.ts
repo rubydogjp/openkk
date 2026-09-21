@@ -304,10 +304,10 @@ describe("openkk workspace structure", () => {
       /(?:Request|Response|ApiRecord|Input|ApiErrorDto)$/;
     const sharedApiInterfaces = [
       "AuthApi",
-      "PreClosingApi",
-      "ClosingApi",
+      "PreClosingsApi",
+      "ClosingsApi",
       "EntriesApi",
-      "FiscalPeriodApi",
+      "FiscalPeriodsApi",
       "FixedAssetsApi",
       "MasterDataApi",
     ];

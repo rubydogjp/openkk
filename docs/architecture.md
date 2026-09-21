@@ -18,7 +18,7 @@ packages/
 ├── client               上 4 つの meta barrel
 │
 ├── server-domain        サーバー側ドメインロジック・デフォルトマスターデータ
-├── server-ports         DB port・保存型・wire DTO
+├── server-ports         DB port・保存型・wire DTO・ポート呼出しの直列化
 ├── server-usecases      CRUD オーケストレーション
 ├── server-api           OpenkkServerPort を組み立てる factory
 ├── server               上 4 つの meta barrel
@@ -84,6 +84,8 @@ server side:   api → usecases → ports → domain
 
 `server-api` でも、URL 上の fiscal period と子リソースの所属関係、会計期間のフェーズ、入力形式を検証する。これは HTTP 境界の検証であり、`server-usecases` の所有者検証を省略する理由にはしない。これにより `server-usecases` を直接利用する独自 composition root でも同じ所有者境界が保たれる。
 
+会計期間のパッチ可否・仕訳・固定資産の入力規則そのものは `server-domain` が持ち、HTTP 境界（`server-api`）と DB 境界（`sqlite-adapter`）の両方がそこを呼ぶ。境界ごとに検証しつつ規則は一箇所に保つ。
+
 本締め時は `server-usecases` が保存済みデータを取得し、`server-domain` で生成仕訳を再計算・照合する。本締め後の帳票・分析は保存済み仕訳を使う。
 
 ## DB スキーマとマイグレーション
@@ -92,7 +94,7 @@ server side:   api → usecases → ports → domain
 
 `file-db-adapter`・`memory-db-adapter` は `sqlite-adapter` を利用し、起動時に `runMigrations()` を呼ぶ。DB実装を差し替える場合は `OpenkkDbPort` を実装し、DDLはその実装内で管理する。
 
-SQLite の単一接続では、トランザクションへ別操作が混入しないよう読取を含む公開ポート呼出しを直列化する。
+SQLite の単一接続では、トランザクションへ別操作が混入しないよう読取を含む公開ポート呼出しを直列化する。直列化は `server-ports` の `serializePortOperations` が担い、`OpenkkDbPort` と `OpenkkServerPort` の両方で使う。
 
 エントリの取込み（`importMany`）は `localId` 単位で冪等で、同一 fiscal period に既存の `localId` はスキップされる。バルク挿入はトランザクションで囲まれ、途中失敗時はロールバックされる。
 
@@ -121,4 +123,4 @@ Download版のService Workerは静的エクスポートを事前保存する。�
 | パッケージ構造 | vitest | workspace 整合性チェック |
 
 `npm run test:e2e` は Sim版を専用 port 4306 で起動し、既存プロセスを再利用せず実行する。`npm run test:e2e:export` は通常版を静的exportして検査する。生成物・全workspace・3アプリ・両E2Eをまとめた検査は `npm run check:full` で実行できる。
-新しい `OpenkkDbPort` 実装を追加したら `runDbPortConformance` に通すこと。
+このリポジトリに `OpenkkDbPort` 実装を追加したら `runDbPortConformance` に通すこと。conformance は `server-ports/test-support/` にあり npm には公開しないので、外部の実装はこのリポジトリを参照する。

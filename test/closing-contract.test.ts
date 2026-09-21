@@ -11,12 +11,12 @@ describe("client/server closing contract", () => {
   it("rejects missing generated entries when calling the closing usecase directly", async () => {
     const db = await createMemoryDbAdapter(null);
     const server = createOpenkkServer(db, { userId: "user-1" });
-    const period = await server.fiscalPeriod.create({
+    const period = await server.fiscalPeriods.create({
       name: "2026年分",
       startDate: "2026-01-01",
       endDate: "2026-12-31",
     });
-    await server.fiscalPeriod.patch(period.id, {
+    await server.fiscalPeriods.patch(period.id, {
       settingsCompleted: true,
       openingBalancesCompleted: true,
     });
@@ -29,13 +29,13 @@ describe("client/server closing contract", () => {
       businessRate: 1,
       bookAccountId: "acct_equipment",
     });
-    await server.preClosing.run({ fiscalPeriodId: period.id, year: 2026 });
+    await server.preClosings.run({ fiscalPeriodId: period.id, year: 2026 });
 
     await expect(
-      createServerUsecases(db).closing.run("user-1", period.id, 2026, []),
+      createServerUsecases(db).closings.run("user-1", period.id, 2026, []),
     ).rejects.toThrow(/do not match the current fiscal-period source data/);
     expect((await db.fiscalPeriods.getById(period.id))?.phase).toBe("pre_closing");
-    expect(await db.closings.get(period.id, 2026)).toBeNull();
+    expect(await db.closings.get(period.id, 2026)).toBe(false);
     expect(await db.entries.getAll(period.id)).toEqual([]);
   });
 
@@ -45,7 +45,7 @@ describe("client/server closing contract", () => {
       const server = createOpenkkServer(await createMemoryDbAdapter(null), {
         userId: "user-1",
       });
-      const period = await server.fiscalPeriod.create({
+      const period = await server.fiscalPeriods.create({
         name: "2026年分",
         startDate: "2026-01-01",
         endDate: "2026-12-31",
@@ -76,7 +76,7 @@ describe("client/server closing contract", () => {
           },
         ],
       };
-      await server.fiscalPeriod.patch(period.id, {
+      await server.fiscalPeriods.patch(period.id, {
         settingsCompleted: true,
         openingBalancesCompleted: true,
         opening: {
@@ -107,8 +107,8 @@ describe("client/server closing contract", () => {
         carryovers: [carryover],
       }).map((entry) => entryRecordToImportPayload(entry, { accounts, taxes, businesses }));
 
-      await server.preClosing.run({ fiscalPeriodId: period.id, year: 2026 });
-      const closed = await server.closing.run({
+      await server.preClosings.run({ fiscalPeriodId: period.id, year: 2026 });
+      const closed = await server.closings.run({
         fiscalPeriodId: period.id,
         year: 2026,
         entries,

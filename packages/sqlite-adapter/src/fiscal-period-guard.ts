@@ -6,7 +6,7 @@ import type {
 import type {
   FiscalPeriodDbRow,
 } from "./table-types.js";
-import { msToIso, parseFiscalPeriodDataColumn } from "./persistence-codec.js";
+import { msToIso, parseFiscalPeriodDbData } from "./persistence-codec.js";
 import type { SqlDb } from "./sql-db.js";
 
 export async function assertDbFiscalPeriodAllows(
@@ -24,7 +24,7 @@ export async function assertDbFiscalPeriodAllows(
   const row = rows[0];
   if (row == null) return null;
   const period = {
-    ...parseFiscalPeriodDataColumn(row[1]),
+    ...parseFiscalPeriodDbData(row[1]),
     userId: row[0],
     createdAt: msToIso(row[2]),
     updatedAt: msToIso(row[3]),

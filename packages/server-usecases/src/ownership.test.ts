@@ -82,7 +82,7 @@ describe("server usecase ownership boundary", () => {
     const db = {
       fiscalPeriods: {
         getById: vi.fn(async () => ({ id: "fp-1", userId: "user-2" })),
-        getAllByUser: vi.fn(async () => []),
+        getAll: vi.fn(async () => []),
         archive,
       },
       closings: { run: runClosing },
@@ -90,10 +90,10 @@ describe("server usecase ownership boundary", () => {
     const usecases = createServerUsecases(db);
 
     await expect(
-      usecases.fiscalPeriod.archive("user-1", "fp-1"),
+      usecases.fiscalPeriods.archive("user-1", "fp-1"),
     ).rejects.toThrow(/fiscal period not found/);
     await expect(
-      usecases.closing.run("user-1", "fp-1", 2026, []),
+      usecases.closings.run("user-1", "fp-1", 2026, []),
     ).rejects.toThrow(/fiscal period not found/);
     expect(archive).not.toHaveBeenCalled();
     expect(runClosing).not.toHaveBeenCalled();

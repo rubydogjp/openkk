@@ -265,7 +265,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
         return records.find((record) => record.id === entryId) ?? null;
       },
       async createEntryFromDraft(fiscalPeriodId, draft) {
-        assertEditingUnlocked(config, "entries.createEntryFromDraft");
+        assertEditingUnlocked(config.editingPolicy, "entries.createEntryFromDraft");
         const authOperationVersion = appState.captureAuthOperationVersion();
         periodVersions.current.invalidate(fiscalPeriodId);
         const lines = buildEntryApiLinesFromDraft(
@@ -304,7 +304,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
         }
       },
       async saveEntry(entryId, draft) {
-        assertEditingUnlocked(config, "entries.saveEntry");
+        assertEditingUnlocked(config.editingPolicy, "entries.saveEntry");
         const authOperationVersion = appState.captureAuthOperationVersion();
         const currentRecord = records.find((record) => record.id === entryId);
         if (currentRecord == null) {
@@ -358,7 +358,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
         });
       },
       async deleteEntry(entryId) {
-        assertEditingUnlocked(config, "entries.deleteEntry");
+        assertEditingUnlocked(config.editingPolicy, "entries.deleteEntry");
         const authOperationVersion = appState.captureAuthOperationVersion();
         const currentRecord = records.find((record) => record.id === entryId);
         if (currentRecord == null) {
@@ -378,7 +378,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
         });
       },
       async mergeFiscalPeriodEntries(fiscalPeriodId, importedEntries) {
-        assertEditingUnlocked(config, "entries.mergeFiscalPeriodEntries");
+        assertEditingUnlocked(config.editingPolicy, "entries.mergeFiscalPeriodEntries");
         const authOperationVersion = appState.captureAuthOperationVersion();
         periodVersions.current.invalidate(fiscalPeriodId);
         const payload = importedEntries.map((entry) =>

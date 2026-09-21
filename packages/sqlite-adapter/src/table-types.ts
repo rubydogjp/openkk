@@ -4,7 +4,7 @@ import type {
   FixedAssetDbStatus,
 } from "@rubydogjp/openkk-server-ports";
 
-export type FiscalPeriodDataColumn = {
+export type FiscalPeriodDbData = {
   id: string;
   name: string;
   startDate: string;
@@ -35,7 +35,7 @@ export type FiscalPeriodDbRow = {
   updatedAt: string;
 };
 
-export type FixedAssetDataColumn = {
+export type FixedAssetDbData = {
   id: string;
   fiscalPeriodId: string;
   name: string;

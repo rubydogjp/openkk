@@ -100,7 +100,7 @@ export function AmountReadOnlyField({ value }: { value: string }) {
   );
 }
 
-export function formatGrouped(value: string): string {
+function formatGrouped(value: string): string {
   const digitsOnly = value.replace(/[^\d-]/g, "");
   if (digitsOnly === "" || digitsOnly === "-") return "";
   const n = parseInt(digitsOnly, 10);

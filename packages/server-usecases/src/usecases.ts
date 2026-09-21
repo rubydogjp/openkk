@@ -23,16 +23,16 @@ export type ServerUsecases = ReturnType<typeof createServerUsecases>;
 export function createServerUsecases(db: OpenkkDbPort) {
   return {
     auth: createLocalAuthUsecase(),
-    preClosing: createPreClosingUsecase(db),
-    closing: createClosingUsecase(db),
+    preClosings: createPreClosingsUsecase(db),
+    closings: createClosingsUsecase(db),
     entries: createEntriesUsecase(db),
-    fiscalPeriod: createFiscalPeriodUsecase(db),
+    fiscalPeriods: createFiscalPeriodsUsecase(db),
     fixedAssets: createFixedAssetsUsecase(db),
     masterData: createMasterDataUsecase(db),
   };
 }
 
-function createClosingUsecase(db: OpenkkDbPort) {
+function createClosingsUsecase(db: OpenkkDbPort) {
   return {
     async get(userId: string, fiscalPeriodId: string, year: number) {
       await requireOwnedFiscalPeriod(db, userId, fiscalPeriodId);
@@ -47,8 +47,8 @@ function createClosingUsecase(db: OpenkkDbPort) {
       const period = await requireOwnedFiscalPeriod(db, userId, fiscalPeriodId);
       const [persistedEntries, fixedAssets, bookAccounts] = await Promise.all([
         db.entries.getAll(fiscalPeriodId),
-        db.fixedAssets.getAllByFiscalPeriod(fiscalPeriodId),
-        db.masterData.getAllBookAccounts(),
+        db.fixedAssets.getAll(fiscalPeriodId),
+        db.masterData.getBookAccounts(),
       ]);
       const expectedEntries = buildExpectedClosingEntries({
         periodStartDate: period.startDate,
@@ -64,7 +64,7 @@ function createClosingUsecase(db: OpenkkDbPort) {
   };
 }
 
-function createPreClosingUsecase(db: OpenkkDbPort) {
+function createPreClosingsUsecase(db: OpenkkDbPort) {
   return {
     async get(userId: string, fiscalPeriodId: string, year: number) {
       await requireOwnedFiscalPeriod(db, userId, fiscalPeriodId);
@@ -118,10 +118,10 @@ function createEntriesUsecase(db: OpenkkDbPort) {
   };
 }
 
-function createFiscalPeriodUsecase(db: OpenkkDbPort) {
+function createFiscalPeriodsUsecase(db: OpenkkDbPort) {
   return {
     async getAll(userId: string) {
-      return db.fiscalPeriods.getAllByUser(userId);
+      return db.fiscalPeriods.getAll(userId);
     },
     async create(userId: string, input: FiscalPeriodCreateInput) {
       return db.fiscalPeriods.create(userId, input);
@@ -140,7 +140,7 @@ function createFiscalPeriodUsecase(db: OpenkkDbPort) {
       input: FiscalPeriodArchiveImportInput,
     ) {
       const normalized = normalizeArchiveImportInput(input, userId);
-      const overlap = (await db.fiscalPeriods.getAllByUser(userId)).find(
+      const overlap = (await db.fiscalPeriods.getAll(userId)).find(
         (period) =>
           period.archiveStatus === "active" &&
           normalized.fiscalPeriod.startDate <= period.endDate &&
@@ -177,7 +177,7 @@ function createFixedAssetsUsecase(db: OpenkkDbPort) {
   return {
     async getAll(userId: string, fiscalPeriodId: string) {
       await requireOwnedFiscalPeriod(db, userId, fiscalPeriodId);
-      return db.fixedAssets.getAllByFiscalPeriod(fiscalPeriodId);
+      return db.fixedAssets.getAll(fiscalPeriodId);
     },
     async getById(userId: string, id: string) {
       const asset = await db.fixedAssets.getById(id);
@@ -205,13 +205,13 @@ function createFixedAssetsUsecase(db: OpenkkDbPort) {
 function createMasterDataUsecase(db: OpenkkDbPort) {
   return {
     async getBookAccounts() {
-      return db.masterData.getAllBookAccounts();
+      return db.masterData.getBookAccounts();
     },
     async getTaxCategories() {
-      return db.masterData.getAllTaxCategories();
+      return db.masterData.getTaxCategories();
     },
     async getBusinessCategories() {
-      return db.masterData.getAllBusinessCategories();
+      return db.masterData.getBusinessCategories();
     },
   };
 }

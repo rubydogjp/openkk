@@ -1,15 +1,12 @@
 import {
   assertEntryLinesBalanced,
+  assertEntryMatchesRules,
   assertFiscalPeriodArchiveSize,
-  assertIsoDate,
-  assertNonNegativeSafeInteger,
+  assertFiscalPeriodPatchMatchesPhase,
+  assertFixedAssetMatchesRules,
   assertPositiveInteger,
-  assertUnitRate,
-  computeFixedAssetBookValue,
-  getDefaultBookAccount,
   MAX_ENTRY_IMPORT_ITEMS,
   MAX_ENTRY_IMPORT_LINES,
-  MAX_FIXED_ASSET_USEFUL_LIFE_YEARS,
   serverConflictError,
   serverNotFoundError,
   serverValidationError,
@@ -24,7 +21,7 @@ import type {
   FixedAssetDbRecord,
 } from "@rubydogjp/openkk-server-ports";
 import type {
-  FiscalPeriodDataColumn,
+  FiscalPeriodDbData,
   FiscalPeriodDbRow,
 } from "./table-types.js";
 import { validateOpeningDbRecord } from "./persistence-codec.js";
@@ -124,167 +121,21 @@ export function assertDbPeriodOwnership(
 
 export function assertDbEntryInput(
   input: EntryDbUpsertInput,
-  period: FiscalPeriodDataColumn | null,
+  period: FiscalPeriodDbData | null,
   label: string,
 ): void {
-  if (typeof input.description !== "string" || input.description.trim() === "") {
-    throw serverValidationError(`${label} description is required`, null);
-  }
-  assertIsoDate(input.date, `${label} date`);
-  if (
-    period != null &&
-    (input.date < period.startDate || input.date > period.endDate)
-  ) {
-    throw serverValidationError(
-      `${label} date ${input.date} must be within fiscal period ${period.startDate} to ${period.endDate}`,
-      "仕訳日付を会計期間内にしてください",
-    );
-  }
-  if (
-    input.localId !== null &&
-    (typeof input.localId !== "string" || input.localId.trim() === "")
-  ) {
-    throw serverValidationError(
-      `${label} localId must be a non-blank string or null`,
-      null,
-    );
-  }
-  assertUnitRate(input.businessRate, `${label} business rate`);
-  if (!Array.isArray(input.lines)) {
-    throw serverValidationError(`${label} lines must be an array`, null);
-  }
-  for (const line of input.lines) {
-    if (line == null || typeof line !== "object") {
-      throw serverValidationError(`${label} line must be an object`, null);
-    }
-    if (
-      typeof line.bookAccountId !== "string" ||
-      line.bookAccountId.trim() === ""
-    ) {
-      throw serverValidationError(`${label} line book account is required`, null);
-    }
-    if (getDefaultBookAccount(line.bookAccountId) == null) {
-      throw serverValidationError(
-        `${label} line references unknown book account: ${line.bookAccountId}`,
-        null,
-      );
-    }
-    if (
-      typeof line.partnerName !== "string" ||
-      typeof line.taxCategoryId !== "string" ||
-      typeof line.businessCategoryId !== "string"
-    ) {
-      throw serverValidationError(`${label} line text fields are invalid`, null);
-    }
-  }
-  assertEntryLinesBalanced(input.lines, label, { allowZero: false });
+  assertEntryMatchesRules(input, period, label);
 }
 
 export function assertDbFixedAssetRecord(
   asset: FixedAssetDbRecord,
-  period: FiscalPeriodDataColumn | null,
+  period: FiscalPeriodDbData | null,
 ): void {
-  if (typeof asset.name !== "string" || asset.name.trim() === "") {
-    throw serverValidationError("Fixed asset name is required", null);
-  }
-  assertIsoDate(asset.acquisitionDate, "Fixed asset acquisition date");
-  assertPositiveInteger(asset.acquisitionCost, "Fixed asset acquisition cost");
-  assertPositiveInteger(asset.usefulLife, "Fixed asset useful life");
-  if (asset.usefulLife > MAX_FIXED_ASSET_USEFUL_LIFE_YEARS) {
-    throw serverValidationError(
-      `Fixed asset useful life must not exceed ${MAX_FIXED_ASSET_USEFUL_LIFE_YEARS} years`,
-      null,
-    );
-  }
-  assertUnitRate(asset.businessRate, "Fixed asset business rate");
-  if (asset.depreciationMethod !== "straight_line") {
-    throw serverValidationError("Fixed asset depreciation method is invalid", null);
-  }
-  const account = getDefaultBookAccount(asset.bookAccountId);
-  if (
-    account == null ||
-    account.accountType !== "asset" ||
-    account.balanceSheetSection !== "fixed_asset"
-  ) {
-    throw serverValidationError(
-      `Fixed asset book account must reference a fixed-asset account: ${asset.bookAccountId}`,
-      null,
-    );
-  }
-  if (period != null && asset.acquisitionDate > period.endDate) {
-    throw serverValidationError(
-      `Fixed asset acquisition date ${asset.acquisitionDate} must not be after fiscal period end ${period.endDate}`,
-      null,
-    );
-  }
-  const isDisposalStatus = asset.status === "sold" || asset.status === "disposed";
-  if (isDisposalStatus && asset.disposalDate == null) {
-    throw serverValidationError(
-      `Fixed asset with status ${asset.status} requires a disposal date`,
-      null,
-    );
-  }
-  if (!isDisposalStatus && asset.disposalDate != null) {
-    throw serverValidationError(
-      `Fixed asset with status ${asset.status} must not have a disposal date`,
-      null,
-    );
-  }
-  if (asset.disposalDate != null) {
-    assertIsoDate(asset.disposalDate, "Fixed asset disposal date");
-    if (asset.disposalDate < asset.acquisitionDate) {
-      throw serverValidationError(
-        "Fixed asset disposal date must not be before acquisition date",
-        null,
-      );
-    }
-    if (
-      period != null &&
-      (asset.disposalDate < period.startDate ||
-        asset.disposalDate > period.endDate)
-    ) {
-      throw serverValidationError(
-        `Fixed asset disposal date ${asset.disposalDate} must be within fiscal period ${period.startDate} to ${period.endDate}`,
-        null,
-      );
-    }
-  }
-  if (asset.status === "sold") {
-    if (asset.disposalPrice == null) {
-      throw serverValidationError(
-        "Fixed asset with status sold requires a disposal price",
-        null,
-      );
-    }
-    assertNonNegativeSafeInteger(
-      asset.disposalPrice,
-      "Fixed asset disposal price",
-    );
-  } else if (asset.disposalPrice != null) {
-    throw serverValidationError(
-      `Fixed asset with status ${asset.status} must not have a disposal price`,
-      null,
-    );
-  }
-  if (
-    asset.status === "retired" &&
-    period != null &&
-    computeFixedAssetBookValue({
-      acquisitionDate: asset.acquisitionDate,
-      acquisitionCost: asset.acquisitionCost,
-      usefulLife: asset.usefulLife,
-      asOf: period.endDate,
-    }) > 1
-  ) {
-    throw serverValidationError(
-      "Fixed asset cannot be retired before it reaches memorandum value",
-      null,
-    );
-  }
+  assertFixedAssetMatchesRules(asset, period);
 }
 
 export function assertDbFiscalPeriodPatchAllowed(
-  period: FiscalPeriodDataColumn,
+  period: FiscalPeriodDbData,
   patch: FiscalPeriodDbPatchInput,
 ): void {
   if (period.archiveStatus === "archived") {
@@ -293,44 +144,7 @@ export function assertDbFiscalPeriodPatchAllowed(
       "圧縮保存済みの会計期間は変更できません",
     );
   }
-  const changedKeys = Object.entries(patch)
-    .filter(([, value]) => value !== undefined)
-    .map(([key]) => key);
-  if (period.phase === "pre_closing") {
-    throw serverConflictError(
-      "fiscal period cannot be updated from phase pre_closing",
-      "仮締め中の会計期間は変更できません",
-    );
-  }
-  const allowedKeysByPhase: Record<
-    FiscalPeriodDataColumn["phase"],
-    ReadonlySet<string>
-  > = {
-    pre_opening: new Set([
-      "name",
-      "startDate",
-      "endDate",
-      "settingsCompleted",
-      "openingBalancesCompleted",
-      "opening",
-    ]),
-    journalizing: new Set(["openingBalancesCompleted", "opening"]),
-    pre_closing: new Set(),
-    post_closing: new Set(["documentsReceivedCompleted"]),
-  };
-  const disallowedKey = changedKeys.find(
-    (key) => !allowedKeysByPhase[period.phase].has(key),
-  );
-  if (
-    disallowedKey != null ||
-    (period.phase === "post_closing" &&
-      (changedKeys.length !== 1 || patch.documentsReceivedCompleted !== true))
-  ) {
-    throw serverConflictError(
-      `fiscal period cannot update ${disallowedKey ?? "patch"} from phase ${period.phase}`,
-      "会計期間の状態が変わったため、この操作を実行できません",
-    );
-  }
+  assertFiscalPeriodPatchMatchesPhase(period, patch);
 }
 
 export function assertDbStoredEntryRecord(
@@ -420,7 +234,7 @@ export function assertDbClosingGeneratedSizeLimits(
 }
 
 export function assertDbClosingYear(
-  period: FiscalPeriodDataColumn,
+  period: FiscalPeriodDbData,
   year: number,
 ): void {
   assertPositiveInteger(year, "Closing year");
@@ -434,7 +248,7 @@ export function assertDbClosingYear(
 }
 
 export function assertDbImportedClosingState(
-  period: FiscalPeriodDataColumn,
+  period: FiscalPeriodDbData,
   preClosings: ReadonlyArray<{ year: number }>,
   closings: ReadonlyArray<{ year: number }>,
 ): void {

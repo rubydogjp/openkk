@@ -22,12 +22,12 @@ describe("archived closing reports", () => {
       const server = createOpenkkServer(await createMemoryDbAdapter(null), {
         userId: "user-1",
       });
-      const period = await server.fiscalPeriod.create({
+      const period = await server.fiscalPeriods.create({
         name: "2026年分",
         startDate: "2026-01-01",
         endDate: "2026-12-31",
       });
-      await server.fiscalPeriod.patch(period.id, {
+      await server.fiscalPeriods.patch(period.id, {
         settingsCompleted: true,
         openingBalancesCompleted: true,
       });
@@ -61,15 +61,15 @@ describe("archived closing reports", () => {
       });
       expect(preview.every((entry) => entry.description.length <= 400)).toBe(true);
       expect(preview.every((entry) => !/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(entry.description))).toBe(true);
-      await server.preClosing.run({ fiscalPeriodId: period.id, year: 2026 });
-      await server.closing.run({
+      await server.preClosings.run({ fiscalPeriodId: period.id, year: 2026 });
+      await server.closings.run({
         fiscalPeriodId: period.id,
         year: 2026,
         entries: preview.map((entry) =>
           entryRecordToImportPayload(entry, { accounts, taxes, businesses }),
         ),
       });
-      const closed = await server.fiscalPeriod.patch(period.id, {
+      const closed = await server.fiscalPeriods.patch(period.id, {
         documentsReceivedCompleted: true,
       });
       const zip = createFiscalPeriodArchiveZip(buildFiscalPeriodArchivePayload({
@@ -86,7 +86,7 @@ describe("archived closing reports", () => {
       const restoredServer = createOpenkkServer(await createMemoryDbAdapter(null), {
         userId: "user-1",
       });
-      const restored = await restoredServer.fiscalPeriod.importArchived(
+      const restored = await restoredServer.fiscalPeriods.importArchived(
         readFiscalPeriodArchiveZip(zip),
       );
       const restoredAssets = await restoredServer.fixedAssets.getAll(restored.id);

@@ -24,16 +24,16 @@ export function useOpenkkClosing(): OpenkkClosing {
   return useMemo<OpenkkClosing>(
     () => ({
       async runPreClosing(fiscalPeriodId, year) {
-        assertEditingUnlocked(config, "closing.runPreClosing");
+        assertEditingUnlocked(config.editingPolicy, "closing.runPreClosing");
         const authOperationVersion = appState.captureAuthOperationVersion();
-        const period = await backendApi.preClosing.run({ fiscalPeriodId, year });
+        const period = await backendApi.preClosings.run({ fiscalPeriodId, year });
         appState.assertAuthOperationCurrent(authOperationVersion);
         appState.syncFiscalPeriod(period);
       },
       async runFinal(fiscalPeriodId, year, entries) {
-        assertEditingUnlocked(config, "closing.runFinal");
+        assertEditingUnlocked(config.editingPolicy, "closing.runFinal");
         const authOperationVersion = appState.captureAuthOperationVersion();
-        const period = await backendApi.closing.run({
+        const period = await backendApi.closings.run({
           fiscalPeriodId,
           year,
           entries,
@@ -42,9 +42,9 @@ export function useOpenkkClosing(): OpenkkClosing {
         appState.syncFiscalPeriod(period);
       },
       async cancelPreClosing(fiscalPeriodId, year) {
-        assertEditingUnlocked(config, "closing.cancelPreClosing");
+        assertEditingUnlocked(config.editingPolicy, "closing.cancelPreClosing");
         const authOperationVersion = appState.captureAuthOperationVersion();
-        const period = await backendApi.preClosing.cancel(fiscalPeriodId, year);
+        const period = await backendApi.preClosings.cancel(fiscalPeriodId, year);
         appState.assertAuthOperationCurrent(authOperationVersion);
         appState.syncFiscalPeriod(period);
       },

@@ -63,7 +63,7 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
 
   it("unwraps HTTP response bodies for the backend port", async () => {
     const server = embeddedServer({
-      fiscalPeriod: {
+      fiscalPeriods: {
         async getAll() {
           return [
             {
@@ -89,12 +89,12 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
     });
     const api = createOpenkkEmbeddedBackendAdapter(server);
 
-    await expect(api.fiscalPeriod.getAll()).resolves.toHaveLength(1);
+    await expect(api.fiscalPeriods.getAll()).resolves.toHaveLength(1);
   });
 
   it("throws API error DTOs instead of server Error instances", async () => {
     const server = embeddedServer({
-      fiscalPeriod: {
+      fiscalPeriods: {
         async patch() {
           throw {
             messageForDeveloper: "archived period",
@@ -108,7 +108,7 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
     });
     const api = createOpenkkEmbeddedBackendAdapter(server);
 
-    await expect(api.fiscalPeriod.patch("fp-1", { name: "x" })).rejects.toEqual(
+    await expect(api.fiscalPeriods.patch("fp-1", { name: "x" })).rejects.toEqual(
       {
         messageForDeveloper: "archived period",
         messageForUser: "圧縮保存済みの会計期間は変更できません",
@@ -121,7 +121,7 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
 
   it("maps unknown server failures to HTTP 500 without exposing details", async () => {
     const server = embeddedServer({
-      fiscalPeriod: {
+      fiscalPeriods: {
         async getAll() {
           throw new Error("database password leaked here");
         },
@@ -129,7 +129,7 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
     });
     const api = createOpenkkEmbeddedBackendAdapter(server);
 
-    await expect(api.fiscalPeriod.getAll()).rejects.toEqual({
+    await expect(api.fiscalPeriods.getAll()).rejects.toEqual({
       messageForDeveloper:
         "fiscalPeriodsGetAll returned HTTP 500 without OpenkkApiErrorDto",
       messageForUser: "サーバー処理でエラーが発生しました",
@@ -141,7 +141,7 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
 
   it("preserves deliberate HTTP 500 AppError responses", async () => {
     const server = embeddedServer({
-      fiscalPeriod: {
+      fiscalPeriods: {
         async getAll() {
           throw {
             messageForDeveloper: "storage temporarily unavailable",
@@ -155,7 +155,7 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
     });
     const api = createOpenkkEmbeddedBackendAdapter(server);
 
-    await expect(api.fiscalPeriod.getAll()).rejects.toEqual({
+    await expect(api.fiscalPeriods.getAll()).rejects.toEqual({
       messageForDeveloper: "storage temporarily unavailable",
       messageForUser: "会計期間を読み込めませんでした",
       originalMessage: null,
@@ -168,10 +168,10 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
 function embeddedServer(
   overrides: Partial<{
     auth: Partial<OpenkkServerPort["auth"]>;
-    preClosing: Partial<OpenkkServerPort["preClosing"]>;
-    closing: Partial<OpenkkServerPort["closing"]>;
+    preClosings: Partial<OpenkkServerPort["preClosings"]>;
+    closings: Partial<OpenkkServerPort["closings"]>;
     entries: Partial<OpenkkServerPort["entries"]>;
-    fiscalPeriod: Partial<OpenkkServerPort["fiscalPeriod"]>;
+    fiscalPeriods: Partial<OpenkkServerPort["fiscalPeriods"]>;
     fixedAssets: Partial<OpenkkServerPort["fixedAssets"]>;
     masterData: Partial<OpenkkServerPort["masterData"]>;
   }>,
@@ -190,16 +190,16 @@ function embeddedServer(
       signOut: async () => undefined,
       ...overrides.auth,
     },
-    preClosing: {
-      get: async () => null,
+    preClosings: {
+      get: async () => false,
       run: async () => unused(),
       cancel: async () => unused(),
-      ...overrides.preClosing,
+      ...overrides.preClosings,
     },
-    closing: {
-      get: async () => null,
+    closings: {
+      get: async () => false,
       run: async () => unused(),
-      ...overrides.closing,
+      ...overrides.closings,
     },
     entries: {
       getAll: async () => [],
@@ -209,7 +209,7 @@ function embeddedServer(
       importMany: async () => ({ importedCount: 0, entries: [] }),
       ...overrides.entries,
     },
-    fiscalPeriod: {
+    fiscalPeriods: {
       getAll: async () => [],
       create: async () => unused(),
       createNext: async () => unused(),
@@ -218,7 +218,7 @@ function embeddedServer(
       archive: async () => unused(),
       purgeArchivedData: async () => unused(),
       remove: async () => undefined,
-      ...overrides.fiscalPeriod,
+      ...overrides.fiscalPeriods,
     },
     fixedAssets: {
       getAll: async () => [],

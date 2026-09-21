@@ -14,7 +14,7 @@
 | 圧縮保存 | フェーズを保持したまま `archiveStatus` を `archived` に変更し `archivedAt` を記録 |
 | ロック判定 | `buildPeriodLockMessage` / `isJournalizingActive` でステージ別の編集可否を判定 |
 | ライフサイクルポリシー | `OpenkkConfig.fiscalPeriodPolicy`（`resolveFiscalPeriodPolicy`）で `maxActivePeriods`（単一 active 強制）・`archiveRetention`（`persistent` / `ephemeral`）を宣言。既定は無制限・恒久保持 |
-| スタブ化（purge） | `ephemeral` 構成で翌期へ進む確定後に `fiscalPeriod.purgeArchivedData` が実データを削除し、`archiveDataAvailable=false` のスタブ（名称・期間・`archivedAt` のみ）を残す。`isArchivedStub` で描画分岐 |
+| スタブ化（purge） | `ephemeral` 構成で翌期へ進む確定後に `fiscalPeriods.purgeArchivedData` が実データを削除し、`archiveDataAvailable=false` のスタブ（名称・期間・`archivedAt` のみ）を残す。`isArchivedStub` で描画分岐 |
 
 ---
 
@@ -143,7 +143,7 @@
 | 通常版export smoke | `npm run test:e2e:export` | 静的成果物、OPFS初期化、複数タブ制御を検証 |
 | 全検査 | `npm run check:full` | 生成物drift、全workspace、3アプリのproduction build、上記E2E |
 
-DB アダプタを追加したら `runDbPortConformance` に通し、memory（Sim/デモ）と OPFS worker（通常版）の挙動一致を担保する。
+このリポジトリに DB アダプタを追加したら `runDbPortConformance`（`server-ports/test-support/`、npm 非公開）に通し、memory（Sim/デモ）と OPFS worker（通常版）の挙動一致を担保する。
 
 ---
 
@@ -153,7 +153,7 @@ DB アダプタを追加したら `runDbPortConformance` に通し、memory（Si
 
 | bundle | パッケージ | 表示名 (`bundleLabel`) | DB | シードデータ | 認証 |
 |---|---|---|---|---|---|
-| `sim` | `@rubydogjp/openkk-sim` (`packages/openkk_sim`) | Sim版 | memory + モック時計 | なし (任意に作成) | embedded |
+| `sim` | `@rubydogjp/openkk-sim` (`packages/openkk_sim`) | Sim版 | memory + 固定時計 | なし (任意に作成) | embedded |
 | `demo` | `@rubydogjp/openkk-demo` (`packages/openkk_demo`) | デモ版 | memory | あり (buildOpenkkDemoSeed) | embedded |
 | `original` | `@rubydogjp/openkk` (`packages/openkk`) | 無印版 | SQLite OPFS | なし | embedded |
 

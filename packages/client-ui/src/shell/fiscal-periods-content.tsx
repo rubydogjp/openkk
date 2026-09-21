@@ -36,9 +36,9 @@ export function FiscalPeriodsContent() {
   const router = useRouter();
   const appState = useOpenkkAppState();
   const openkkConfig = useOpenkkConfig();
-  const editingLocked = resolveEditingPolicy(openkkConfig).locked;
+  const editingLocked = resolveEditingPolicy(openkkConfig.editingPolicy).locked;
   const allowArchiveImport =
-    resolveFiscalPeriodPolicy(openkkConfig).allowArchiveImport !== false;
+    resolveFiscalPeriodPolicy(openkkConfig.fiscalPeriodPolicy).allowArchiveImport !== false;
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const archiveImportLock = useRef(new ExclusiveActionLock());
   const [fileMenuOpen, setFileMenuOpen] = useState(false);

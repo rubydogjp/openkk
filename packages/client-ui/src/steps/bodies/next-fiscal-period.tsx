@@ -128,8 +128,8 @@ export function NextFiscalPeriodBody({
     );
   }
 
-  const policy = resolveFiscalPeriodPolicy(config);
-  const editingLocked = resolveEditingPolicy(config).locked;
+  const policy = resolveFiscalPeriodPolicy(config.fiscalPeriodPolicy);
+  const editingLocked = resolveEditingPolicy(config.editingPolicy).locked;
   const requiresArchiveBeforeNext =
     policy.maxActivePeriods != null && policy.maxActivePeriods <= 1;
   const isEphemeral = policy.archiveRetention === "ephemeral";
@@ -241,11 +241,11 @@ export function NextFiscalPeriodBody({
     setIsArchiving(true);
     try {
       const year = Number(currentFiscalPeriod.endDate.slice(0, 4));
-      const [entries, fixedAssets, preClosing, closing] = await Promise.all([
+      const [entries, fixedAssets, preClosed, closed] = await Promise.all([
         backendApi.entries.getAll(currentFiscalPeriod.id),
         backendApi.fixedAssets.getAll(currentFiscalPeriod.id),
-        backendApi.preClosing.get(currentFiscalPeriod.id, year),
-        backendApi.closing.get(currentFiscalPeriod.id, year),
+        backendApi.preClosings.get(currentFiscalPeriod.id, year),
+        backendApi.closings.get(currentFiscalPeriod.id, year),
       ]);
       appState.assertAuthOperationCurrent(authOperationVersion);
       const payload = buildFiscalPeriodArchivePayload({
@@ -254,7 +254,7 @@ export function NextFiscalPeriodBody({
         entries: entries.map((entry) => ({ ...entry })),
         fixedAssets: fixedAssets.map((asset) => ({ ...asset })),
         closings: [
-          ...(preClosing == null
+          ...(!preClosed
             ? []
             : [
                 {
@@ -263,7 +263,7 @@ export function NextFiscalPeriodBody({
                   kind: "pre_closing",
                 },
               ]),
-          ...(closing == null
+          ...(!closed
             ? []
             : [
                 {

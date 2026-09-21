@@ -35,7 +35,7 @@ const entryColors = {
   accentFg: palette.warning,
 };
 
-export function EntriesMonthSwitcher(props: {
+function EntriesMonthSwitcher(props: {
   label: string;
   canGoPrev: boolean;
   canGoNext: boolean;

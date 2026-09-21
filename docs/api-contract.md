@@ -61,19 +61,21 @@ Missing or malformed error bodies become a safe client-side `OpenkkApiErrorDto`.
 ## Backend Port
 
 Implement `OpenkkBackendPort` to replace the backend.
-The TypeScript server exposes the same shape as `OpenkkServerPort`.
 
 ```ts
 type OpenkkBackendPort = {
   auth: AuthApi;
-  preClosing: PreClosingApi;
-  closing: ClosingApi;
+  preClosings: PreClosingsApi;
+  closings: ClosingsApi;
   entries: EntriesApi;
-  fiscalPeriod: FiscalPeriodApi;
+  fiscalPeriods: FiscalPeriodsApi;
   fixedAssets: FixedAssetsApi;
   masterData: MasterDataApi;
+  maintenance: MaintenanceApi;
 };
 ```
+
+`OpenkkServerPort` is the same shape without `maintenance`.
 
 Archived fiscal periods are read-only. Mutations against them must fail with `OpenkkApiErrorDto` and `statusCode: 409`.
 
@@ -88,11 +90,11 @@ Archived fiscal periods are read-only. Mutations against them must fail with `Op
 | closing `year` | fiscal period end year |
 | fixed-asset disposal fields | sold: date and price; disposed: date; otherwise `null` |
 
-`fiscalPeriod.archive` preserves `phase`, sets `archiveStatus` to `archived`, and stamps `archivedAt`.
+`fiscalPeriods.archive` preserves `phase`, sets `archiveStatus` to `archived`, and stamps `archivedAt`.
 
 `FiscalPeriodArchiveImportInput` creates a new active period in the archived `phase`.
 
-`fiscalPeriod.createNext` creates the next period atomically from a closed period with completed document receipt. It carries balances, selected reversals and active fixed assets from stored data. The source data must be available, and the next start date must follow the source end date.
+`fiscalPeriods.createNext` creates the next period atomically from a closed period with completed document receipt. It carries balances, selected reversals and active fixed assets from stored data. The source data must be available, and the next start date must follow the source end date.
 
 ## Fiscal Period Lifecycle Policy
 
@@ -111,7 +113,7 @@ Third-party backends declare a lifecycle policy via `OpenkkConfig.fiscalPeriodPo
 - `archiveDataAvailable` — `true` while real data is available; `false` marks a purged stub.
 - `archivedAt` — archive timestamp or `null`; active periods require `null`.
 
-`fiscalPeriod.purgeArchivedData(id)` deletes an archived period's real data
+`fiscalPeriods.purgeArchivedData(id)` deletes an archived period's real data
 (entries/lines/opening/fixed assets/closings) and returns the lightweight stub
 (`archiveDataAvailable: false`). It requires the period to be `archived` (otherwise `409`).
 `persistent` backends may return the archived record unchanged. Carryover into the next period

@@ -5,13 +5,12 @@ const BUNDLE = "sim";
 
 const env = parseOpenkkEnv(process.env.NEXT_PUBLIC_OPENKK_ENV ?? null);
 const userId = "openkk-sim-user";
-const mockToday = new Date(2026, 8, 5);
+const fixedToday = new Date(2026, 8, 5);
 
 export const openkkConfig: OpenkkConfig = {
-  clock: createFixedClock(mockToday),
+  clock: createFixedClock(fixedToday),
   env,
   bundleLabel: "Sim版",
-  debugRoutesEnabled: true,
   authMode: "embedded",
   embeddedUser: {
     kind: "embedded",
@@ -23,4 +22,5 @@ export const openkkConfig: OpenkkConfig = {
   fiscalPeriodStorageKey: `openkk.${BUNDLE}.fiscal_period_id`,
   fiscalPeriodPolicy: null,
   editingPolicy: null,
+  debugRoutesEnabled: true,
 };

@@ -41,13 +41,13 @@ export function createOpenkkEmbeddedBackendAdapter(
         await request("authSignOut", {});
       },
     },
-    preClosing: {
+    preClosings: {
       get: async (fiscalPeriodId, year) => {
         const response = await request("preClosingGet", {
           fiscalPeriodId,
           year,
         });
-        return response.preClosing;
+        return response.preClosed;
       },
       run: async (input) => {
         const response = await request("preClosingRun", input);
@@ -61,10 +61,10 @@ export function createOpenkkEmbeddedBackendAdapter(
         return response.fiscalPeriod;
       },
     },
-    closing: {
+    closings: {
       get: async (fiscalPeriodId, year) => {
         const response = await request("closingGet", { fiscalPeriodId, year });
-        return response.closing;
+        return response.closed;
       },
       run: async (input) => {
         const response = await request("closingRun", input);
@@ -97,7 +97,7 @@ export function createOpenkkEmbeddedBackendAdapter(
       importMany: async (fiscalPeriodId, entries) =>
         request("entryImportMany", { fiscalPeriodId, entries }),
     },
-    fiscalPeriod: {
+    fiscalPeriods: {
       getAll: async () => {
         const response = await request("fiscalPeriodsGetAll", {});
         return response.fiscalPeriods;
@@ -217,7 +217,7 @@ async function dispatchEmbeddedHttp(
         return {
           status: 200,
           body: {
-            preClosing: await server.preClosing.get(
+            preClosed: await server.preClosings.get(
               request.fiscalPeriodId,
               request.year,
             ),
@@ -228,7 +228,7 @@ async function dispatchEmbeddedHttp(
         const request = body as EndpointRequest<"preClosingRun">;
         return {
           status: 200,
-          body: { fiscalPeriod: await server.preClosing.run(request) },
+          body: { fiscalPeriod: await server.preClosings.run(request) },
         };
       }
       case "preClosingCancel": {
@@ -236,7 +236,7 @@ async function dispatchEmbeddedHttp(
         return {
           status: 200,
           body: {
-            fiscalPeriod: await server.preClosing.cancel(
+            fiscalPeriod: await server.preClosings.cancel(
               request.fiscalPeriodId,
               request.year,
             ),
@@ -248,7 +248,7 @@ async function dispatchEmbeddedHttp(
         return {
           status: 200,
           body: {
-            closing: await server.closing.get(
+            closed: await server.closings.get(
               request.fiscalPeriodId,
               request.year,
             ),
@@ -259,7 +259,7 @@ async function dispatchEmbeddedHttp(
         const request = body as EndpointRequest<"closingRun">;
         return {
           status: 200,
-          body: { fiscalPeriod: await server.closing.run(request) },
+          body: { fiscalPeriod: await server.closings.run(request) },
         };
       }
       case "entriesGetAll": {
@@ -314,14 +314,14 @@ async function dispatchEmbeddedHttp(
       case "fiscalPeriodsGetAll":
         return {
           status: 200,
-          body: { fiscalPeriods: await server.fiscalPeriod.getAll() },
+          body: { fiscalPeriods: await server.fiscalPeriods.getAll() },
         };
       case "fiscalPeriodCreate": {
         const request = body as EndpointRequest<"fiscalPeriodCreate">;
         return {
           status: 201,
           body: {
-            fiscalPeriod: await server.fiscalPeriod.create(request.input),
+            fiscalPeriod: await server.fiscalPeriods.create(request.input),
           },
         };
       }
@@ -329,7 +329,7 @@ async function dispatchEmbeddedHttp(
         const request = body as EndpointRequest<"fiscalPeriodNextCreate">;
         return {
           status: 201,
-          body: { fiscalPeriod: await server.fiscalPeriod.createNext(request.input) },
+          body: { fiscalPeriod: await server.fiscalPeriods.createNext(request.input) },
         };
       }
       case "fiscalPeriodImportArchived": {
@@ -337,7 +337,7 @@ async function dispatchEmbeddedHttp(
         return {
           status: 201,
           body: {
-            fiscalPeriod: await server.fiscalPeriod.importArchived(
+            fiscalPeriod: await server.fiscalPeriods.importArchived(
               request.input,
             ),
           },
@@ -348,7 +348,7 @@ async function dispatchEmbeddedHttp(
         return {
           status: 200,
           body: {
-            fiscalPeriod: await server.fiscalPeriod.patch(
+            fiscalPeriod: await server.fiscalPeriods.patch(
               request.id,
               request.input,
             ),
@@ -359,7 +359,7 @@ async function dispatchEmbeddedHttp(
         const request = body as EndpointRequest<"fiscalPeriodArchive">;
         return {
           status: 200,
-          body: { fiscalPeriod: await server.fiscalPeriod.archive(request.id) },
+          body: { fiscalPeriod: await server.fiscalPeriods.archive(request.id) },
         };
       }
       case "fiscalPeriodPurgeArchivedData": {
@@ -368,7 +368,7 @@ async function dispatchEmbeddedHttp(
         return {
           status: 200,
           body: {
-            fiscalPeriod: await server.fiscalPeriod.purgeArchivedData(
+            fiscalPeriod: await server.fiscalPeriods.purgeArchivedData(
               request.id,
             ),
           },
@@ -376,7 +376,7 @@ async function dispatchEmbeddedHttp(
       }
       case "fiscalPeriodRemove": {
         const request = body as EndpointRequest<"fiscalPeriodRemove">;
-        await server.fiscalPeriod.remove(request.id);
+        await server.fiscalPeriods.remove(request.id);
         return { status: 204, body: null };
       }
       case "fixedAssetsGetAll": {

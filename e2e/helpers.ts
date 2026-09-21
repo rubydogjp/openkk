@@ -1,6 +1,5 @@
 import { expect, type Page } from "@playwright/test";
 
-/** Creates a new fiscal period and returns to the steps page. */
 export async function createFiscalPeriod(page: Page, name: string) {
   await page.goto("/fiscal-periods");
   await page.getByRole("button", { name: "追加" }).click();
@@ -10,10 +9,6 @@ export async function createFiscalPeriod(page: Page, name: string) {
   await expect(page).toHaveURL(/\/steps/);
 }
 
-/**
- * Advances from the default "期間を開始" step all the way to the
- * "日々の仕訳" (journalizing) step with zero opening balances.
- */
 export async function advanceToJournalizing(page: Page) {
   await expectStep(page, "期間を開始");
   await clickButton(page, "開始する");
@@ -30,13 +25,7 @@ export async function expectStep(page: Page, title: string) {
   });
 }
 
-/**
- * アプリが「処理中」と申告している間は待つ。
- *
- * 締めのように待ち時間が読めない処理とアニメーションを挟む画面があり、
- * その最中は画面が描き変わり続けるため、押せた・押せないが運任せになる。
- * アプリ側が data-openkk-busy で始まりと終わりを伝えるので、それに従う。
- */
+// 締めなどアニメーション中は描き直しが続くため、アプリの申告する busy 属性に従う。
 export async function waitUntilSettled(page: Page) {
   await page.waitForSelector('html[data-openkk-busy="0"]', {
     timeout: 60_000,
@@ -54,21 +43,13 @@ export async function clickButton(page: Page, name: string) {
   await page.getByRole("button", { name }).last().click();
 }
 
-
-/**
- * 帳票は印刷用 iframe(srcdoc) で開く。ヘッドレスでは print を無効化して iframe を
- * 残し、srcdoc から帳票 HTML を読めるようにする。最初のナビゲーション前に呼ぶこと。
- */
-export async function disablePrint(page: Page) {
+export async function disablePrintBeforeFirstNavigation(page: Page) {
   await page.addInitScript(() => {
     window.print = () => {};
   });
 }
 
-/**
- * 仕訳一覧で目的の月ラベルへ移動する。開始位置に依存しないよう、最古月まで巻き戻して
- * から前進する（dev は期末月で開くため前進のみだと過去月に戻れない）。
- */
+// Sim は期末月で開くため、前進だけでは過去月に届かない。最古月まで戻してから進む。
 export async function goToMonth(page: Page, label: string) {
   const target = page.getByText(label).first();
   const prev = page.getByRole("button", { name: "前の月" });
@@ -86,10 +67,6 @@ export async function goToMonth(page: Page, label: string) {
   await expect(target).toBeVisible();
 }
 
-/**
- * 帳票タイル（ラベルで特定）の操作ボタンを押し、印刷用 iframe(srcdoc) から帳票
- * HTML を読み取って後続に影響しないよう除去する。`disablePrint` を先に呼ぶこと。
- */
 export async function readPrintedReport(
   page: Page,
   tileLabel: string,
@@ -112,7 +89,6 @@ export async function readPrintedReport(
   return html;
 }
 
-/** 帳票 HTML から表示金額（カンマ区切り）の並びを抽出する。 */
 export function extractReportAmounts(html: string): string[] {
   const text = html.replace(/<[^>]*>/g, " ");
   return (text.match(/\d{1,3}(?:,\d{3})+/g) ?? []).sort();

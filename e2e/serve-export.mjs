@@ -1,5 +1,3 @@
-// 静的 export (packages/openkk/out) を配信する最小サーバ。
-// e2e の export スモーク用。COI=1 で本番同等の COOP/COEP を付与する。
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { join, extname, normalize, dirname } from "node:path";
@@ -38,7 +36,6 @@ async function resolveFile(urlPath) {
       const s = await stat(c);
       if (s.isFile()) return c;
     } catch {
-      // try next candidate
     }
   }
   return null;

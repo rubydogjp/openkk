@@ -8,8 +8,8 @@ import { insertEntryLines } from "./entry-store.js";
 import { defaultOpening, replaceOpening, requireOpening } from "./opening-store.js";
 import {
   msToIso,
-  serializeFiscalPeriodDataColumn,
-  serializeFixedAssetDataColumn,
+  serializeFiscalPeriodDbData,
+  serializeFixedAssetDbData,
 } from "./persistence-codec.js";
 import {
   assertDbClosingYear,
@@ -52,7 +52,7 @@ function prepareAndValidateSeed(seed: DbSnapshot, now: number): DbSnapshot {
           };
     const record = { ...item, opening };
     assertDbOpeningForPeriod(opening, record);
-    serializeFiscalPeriodDataColumn(record);
+    serializeFiscalPeriodDbData(record);
     return record;
   });
 
@@ -107,7 +107,7 @@ function prepareAndValidateSeed(seed: DbSnapshot, now: number): DbSnapshot {
   for (const asset of seed.fixedAssets) {
     const period = requireSeedFiscalPeriod(periodsById, asset.fiscalPeriodId);
     assertDbStoredFixedAssetRecord(asset, period);
-    serializeFixedAssetDataColumn(asset);
+    serializeFixedAssetDbData(asset);
     if (fixedAssetIds.has(asset.id)) {
       throw serverValidationError(
         `Seed contains duplicate fixed asset id: ${asset.id}`,
@@ -201,7 +201,7 @@ async function seedStoresInner(
 ): Promise<void> {
   for (const record of seed.fiscalPeriods) {
     const seededOpening = requireOpening(record.opening, record.id);
-    const serializedRecord = serializeFiscalPeriodDataColumn(record);
+    const serializedRecord = serializeFiscalPeriodDbData(record);
     await db.exec({
       sql: `INSERT INTO fiscal_periods(id, user_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
       bind: [record.id, record.userId, serializedRecord, now, now],
@@ -230,7 +230,7 @@ async function seedStoresInner(
       bind: [
         asset.id,
         asset.fiscalPeriodId,
-        serializeFixedAssetDataColumn(asset),
+        serializeFixedAssetDbData(asset),
         now,
         now,
       ],

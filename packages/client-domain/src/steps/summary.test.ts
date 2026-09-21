@@ -9,7 +9,6 @@ import {
   computeRevenueContribution,
   parseAmount,
   parseBusinessRate,
-  summarizeOpeningBalances,
   type EntrySummaryRow,
 } from "./summary.js";
 import {
@@ -113,23 +112,6 @@ describe("summary contributions", () => {
     });
 
     expect(plTotals([compound])).toEqual({ revenue: 0, expenses: 210_000 });
-  });
-
-  it("classifies opening balance lines into assets, liabilities, and equity", () => {
-    expect(
-      summarizeOpeningBalances([
-        { accountId: "a:現金", amount: 320_000 },
-        { accountId: "a:売掛金", amount: 240_000 },
-        { accountId: "l:借入金", amount: 600_000 },
-        { accountId: "l:買掛金", amount: 120_000 },
-        { accountId: "l:元入金", amount: 1_834_000 },
-        { accountId: "l:事業主借", amount: 50_000 },
-      ]),
-    ).toEqual({
-      assets: 560_000,
-      liabilities: 720_000,
-      equity: 1_884_000,
-    });
   });
 
   it("excludes the materialized 家事按分振替 so live totals never double-count", () => {

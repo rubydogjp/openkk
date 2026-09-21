@@ -79,7 +79,6 @@ export function createLocalAuthUsecase() {
       if (!pendingCompletions.delete(completionCode)) {
         throw serverValidationError("invalid or expired auth completion code", null);
       }
-      return { userId: "local-auth-user" };
     },
     async signOut() {
       pendingAuthorizations.clear();

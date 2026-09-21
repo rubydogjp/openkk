@@ -25,44 +25,44 @@ describe("openkk server closing flow", () => {
   it("keeps pre-closing and final closing records separate", async () => {
     const server = createOpenkkServer(createMemoryDb(), { userId: "user-1" });
 
-    expect(await server.preClosing.get("fp-1", 2026)).toBeNull();
-    expect(await server.closing.get("fp-1", 2026)).toBeNull();
+    expect(await server.preClosings.get("fp-1", 2026)).toBe(false);
+    expect(await server.closings.get("fp-1", 2026)).toBe(false);
 
-    const preClosed = await server.preClosing.run({
+    const preClosed = await server.preClosings.run({
       fiscalPeriodId: "fp-1",
       year: 2026,
     });
     expect(preClosed.phase).toBe("pre_closing");
-    expect(await server.preClosing.get("fp-1", 2026)).toEqual({});
-    expect(await server.closing.get("fp-1", 2026)).toBeNull();
+    expect(await server.preClosings.get("fp-1", 2026)).toBe(true);
+    expect(await server.closings.get("fp-1", 2026)).toBe(false);
 
-    const closed = await server.closing.run({
+    const closed = await server.closings.run({
       fiscalPeriodId: "fp-1",
       year: 2026,
       entries: [],
     });
     expect(closed.phase).toBe("post_closing");
-    expect(await server.preClosing.get("fp-1", 2026)).toEqual({});
-    expect(await server.closing.get("fp-1", 2026)).toEqual({});
+    expect(await server.preClosings.get("fp-1", 2026)).toBe(true);
+    expect(await server.closings.get("fp-1", 2026)).toBe(true);
   });
 
   it("cancels only pre-closing and returns to journalizing", async () => {
     const server = createOpenkkServer(createMemoryDb(), { userId: "user-1" });
-    await server.preClosing.run({ fiscalPeriodId: "fp-1", year: 2026 });
-    const reopened = await server.preClosing.cancel("fp-1", 2026);
+    await server.preClosings.run({ fiscalPeriodId: "fp-1", year: 2026 });
+    const reopened = await server.preClosings.cancel("fp-1", 2026);
     expect(reopened.phase).toBe("journalizing");
-    expect(await server.preClosing.get("fp-1", 2026)).toBeNull();
+    expect(await server.preClosings.get("fp-1", 2026)).toBe(false);
   });
 
   it("requires the closing year to match the fiscal period end year", async () => {
     const server = createOpenkkServer(createMemoryDb(), { userId: "user-1" });
 
     await expect(
-      server.preClosing.run({ fiscalPeriodId: "fp-1", year: 2025 }),
+      server.preClosings.run({ fiscalPeriodId: "fp-1", year: 2025 }),
     ).rejects.toThrow(/must match fiscal period end year 2026/);
-    await server.preClosing.run({ fiscalPeriodId: "fp-1", year: 2026 });
+    await server.preClosings.run({ fiscalPeriodId: "fp-1", year: 2026 });
     await expect(
-      server.closing.run({ fiscalPeriodId: "fp-1", year: 2025, entries: [] }),
+      server.closings.run({ fiscalPeriodId: "fp-1", year: 2025, entries: [] }),
     ).rejects.toThrow(/must match fiscal period end year 2026/);
   });
 
@@ -70,13 +70,13 @@ describe("openkk server closing flow", () => {
     const server = createOpenkkServer(createMemoryDb(), { userId: "user-1" });
 
     await expect(
-      server.preClosing.run(
-        null as unknown as Parameters<typeof server.preClosing.run>[0],
+      server.preClosings.run(
+        null as unknown as Parameters<typeof server.preClosings.run>[0],
       ),
     ).rejects.toThrow(/Pre-closing input must be an object/);
     await expect(
-      server.closing.run(
-        null as unknown as Parameters<typeof server.closing.run>[0],
+      server.closings.run(
+        null as unknown as Parameters<typeof server.closings.run>[0],
       ),
     ).rejects.toThrow(/Closing input must be an object/);
   });
@@ -87,7 +87,7 @@ describe("openkk server closing flow", () => {
       { userId: "user-1" },
     );
     await expect(
-      settingsIncomplete.preClosing.run({ fiscalPeriodId: "fp-1", year: 2026 }),
+      settingsIncomplete.preClosings.run({ fiscalPeriodId: "fp-1", year: 2026 }),
     ).rejects.toThrow(/before settings are completed/);
 
     const openingIncomplete = createOpenkkServer(
@@ -95,14 +95,14 @@ describe("openkk server closing flow", () => {
       { userId: "user-1" },
     );
     await expect(
-      openingIncomplete.preClosing.run({ fiscalPeriodId: "fp-1", year: 2026 }),
+      openingIncomplete.preClosings.run({ fiscalPeriodId: "fp-1", year: 2026 }),
     ).rejects.toThrow(/before opening balances are completed/);
   });
 
   it("does not let a concurrent entry creation slip past pre-closing", async () => {
     const server = createOpenkkServer(createMemoryDb(), { userId: "user-1" });
     const [preClosing, entryCreate] = await Promise.allSettled([
-      server.preClosing.run({ fiscalPeriodId: "fp-1", year: 2026 }),
+      server.preClosings.run({ fiscalPeriodId: "fp-1", year: 2026 }),
       server.entries.create("fp-1", {
         date: "2026-08-31",
         description: "仮締めと競合する仕訳",
@@ -152,17 +152,17 @@ describe("openkk server closing flow", () => {
       createMemoryDb({}, { fixedAssets: [asset] }),
       { userId: "user-1" },
     );
-    await server.preClosing.run({ fiscalPeriodId: "fp-1", year: 2026 });
+    await server.preClosings.run({ fiscalPeriodId: "fp-1", year: 2026 });
 
     await expect(
-      server.closing.run({
+      server.closings.run({
         fiscalPeriodId: "fp-1",
         year: 2026,
         entries: [],
       }),
     ).rejects.toThrow(/do not match the current fiscal-period source data/);
 
-    const closed = await server.closing.run({
+    const closed = await server.closings.run({
       fiscalPeriodId: "fp-1",
       year: 2026,
       entries: [
@@ -197,25 +197,25 @@ describe("openkk server closing flow", () => {
 
   it("accepts only unique, in-period generated entries for final closing", async () => {
     const server = createOpenkkServer(createMemoryDb(), { userId: "user-1" });
-    await server.preClosing.run({ fiscalPeriodId: "fp-1", year: 2026 });
+    await server.preClosings.run({ fiscalPeriodId: "fp-1", year: 2026 });
     const generated = validClosingEntry("virtual:closing-entry");
 
     await expect(
-      server.closing.run({
+      server.closings.run({
         fiscalPeriodId: "fp-1",
         year: 2026,
         entries: [{ ...generated, localId: "ordinary-entry" }],
       }),
     ).rejects.toThrow(/must use a reserved generated localId/);
     await expect(
-      server.closing.run({
+      server.closings.run({
         fiscalPeriodId: "fp-1",
         year: 2026,
         entries: [generated, generated],
       }),
     ).rejects.toThrow(/duplicate localId/);
     await expect(
-      server.closing.run({
+      server.closings.run({
         fiscalPeriodId: "fp-1",
         year: 2026,
         entries: [{ ...generated, date: "2027-01-01" }],
@@ -227,13 +227,13 @@ describe("openkk server closing flow", () => {
     const tooManyServer = createOpenkkServer(createMemoryDb(), {
       userId: "user-1",
     });
-    await tooManyServer.preClosing.run({
+    await tooManyServer.preClosings.run({
       fiscalPeriodId: "fp-1",
       year: 2026,
     });
     const generated = validClosingEntry("virtual:closing-entry");
     await expect(
-      tooManyServer.closing.run({
+      tooManyServer.closings.run({
         fiscalPeriodId: "fp-1",
         year: 2026,
         entries: Array(MAX_ENTRY_IMPORT_ITEMS + 1).fill(generated),
@@ -243,7 +243,7 @@ describe("openkk server closing flow", () => {
     const tooManyLinesServer = createOpenkkServer(createMemoryDb(), {
       userId: "user-1",
     });
-    await tooManyLinesServer.preClosing.run({
+    await tooManyLinesServer.preClosings.run({
       fiscalPeriodId: "fp-1",
       year: 2026,
     });
@@ -262,7 +262,7 @@ describe("openkk server closing flow", () => {
       }),
     );
     await expect(
-      tooManyLinesServer.closing.run({
+      tooManyLinesServer.closings.run({
         fiscalPeriodId: "fp-1",
         year: 2026,
         entries,
@@ -279,13 +279,13 @@ describe("openkk server closing flow", () => {
     );
 
     await expect(
-      server.preClosing.run({
+      server.preClosings.run({
         fiscalPeriodId: "fp-1",
         year: 2026,
       }),
     ).rejects.toThrow(/Archived fiscal period fp-1 cannot run pre-closing/);
 
-    await expect(server.preClosing.cancel("fp-1", 2026)).rejects.toThrow(
+    await expect(server.preClosings.cancel("fp-1", 2026)).rejects.toThrow(
       /Archived fiscal period fp-1 cannot cancel pre-closing/,
     );
   });
@@ -303,7 +303,7 @@ function createMemoryDb(
   let current = fiscalPeriod({ id: "fp-1", ...fiscalPeriodOverrides });
   return {
     fiscalPeriods: {
-      async getAllByUser() {
+      async getAll() {
         return [current];
       },
       async getById(id) {
@@ -397,7 +397,7 @@ function createMemoryDb(
       },
     },
     fixedAssets: {
-      async getAllByFiscalPeriod() {
+      async getAll() {
         return sources.fixedAssets ?? [];
       },
       async getById() {
@@ -417,7 +417,7 @@ function createMemoryDb(
     },
     preClosings: {
       async get(fiscalPeriodId, year) {
-        return preClosings.has(`${fiscalPeriodId}:${year}`) ? {} : null;
+        return preClosings.has(`${fiscalPeriodId}:${year}`);
       },
       async run(fiscalPeriodId, year) {
         preClosings.add(`${fiscalPeriodId}:${year}`);
@@ -432,7 +432,7 @@ function createMemoryDb(
     },
     closings: {
       async get(fiscalPeriodId, year) {
-        return closings.has(`${fiscalPeriodId}:${year}`) ? {} : null;
+        return closings.has(`${fiscalPeriodId}:${year}`);
       },
       async run(fiscalPeriodId, year) {
         closings.add(`${fiscalPeriodId}:${year}`);
@@ -441,13 +441,13 @@ function createMemoryDb(
       },
     },
     masterData: {
-      async getAllBookAccounts(): Promise<MasterBookAccount[]> {
+      async getBookAccounts(): Promise<MasterBookAccount[]> {
         return [];
       },
-      async getAllTaxCategories(): Promise<MasterTaxCategory[]> {
+      async getTaxCategories(): Promise<MasterTaxCategory[]> {
         return [];
       },
-      async getAllBusinessCategories(): Promise<MasterBusinessCategory[]> {
+      async getBusinessCategories(): Promise<MasterBusinessCategory[]> {
         return [];
       },
     },

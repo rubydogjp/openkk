@@ -1,7 +1,5 @@
 import type {
   FiscalPeriodArchiveDbImportInput,
-  ClosingDbRecord,
-  PreClosingDbRecord,
   EntryDbRecord,
   EntryDbUpsertInput,
   FiscalPeriodDbCreateInput,
@@ -26,7 +24,7 @@ export interface OpenkkDbPort {
 }
 
 export interface FiscalPeriodsDb {
-  getAllByUser(userId: string): Promise<FiscalPeriodDbRecord[]>;
+  getAll(userId: string): Promise<FiscalPeriodDbRecord[]>;
   getById(id: string): Promise<FiscalPeriodDbRecord | null>;
   create(
     userId: string,
@@ -68,7 +66,7 @@ export interface EntriesDb {
 }
 
 export interface FixedAssetsDb {
-  getAllByFiscalPeriod(fiscalPeriodId: string): Promise<FixedAssetDbRecord[]>;
+  getAll(fiscalPeriodId: string): Promise<FixedAssetDbRecord[]>;
   getById(id: string): Promise<FixedAssetDbRecord | null>;
   create(
     userId: string,
@@ -83,7 +81,7 @@ export interface FixedAssetsDb {
 }
 
 export interface ClosingsDb {
-  get(fiscalPeriodId: string, year: number): Promise<ClosingDbRecord | null>;
+  get(fiscalPeriodId: string, year: number): Promise<boolean>;
   run(
     fiscalPeriodId: string,
     year: number,
@@ -92,13 +90,13 @@ export interface ClosingsDb {
 }
 
 export interface PreClosingsDb {
-  get(fiscalPeriodId: string, year: number): Promise<PreClosingDbRecord | null>;
+  get(fiscalPeriodId: string, year: number): Promise<boolean>;
   run(fiscalPeriodId: string, year: number): Promise<FiscalPeriodDbRecord>;
   cancel(fiscalPeriodId: string, year: number): Promise<FiscalPeriodDbRecord>;
 }
 
 export interface MasterDataDb {
-  getAllBookAccounts(): Promise<MasterBookAccountDbRecord[]>;
-  getAllTaxCategories(): Promise<MasterTaxCategoryDbRecord[]>;
-  getAllBusinessCategories(): Promise<MasterBusinessCategoryDbRecord[]>;
+  getBookAccounts(): Promise<MasterBookAccountDbRecord[]>;
+  getTaxCategories(): Promise<MasterTaxCategoryDbRecord[]>;
+  getBusinessCategories(): Promise<MasterBusinessCategoryDbRecord[]>;
 }

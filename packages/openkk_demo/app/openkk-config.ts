@@ -7,10 +7,10 @@ const BUNDLE = "demo";
 
 const env = parseOpenkkEnv(process.env.NEXT_PUBLIC_OPENKK_ENV ?? null);
 const userId = "openkk-demo-user";
-const mockToday = new Date(2026, 8, 5);
+const fixedToday = new Date(2026, 8, 5);
 
 export const openkkConfig: OpenkkConfig = {
-  clock: createFixedClock(mockToday),
+  clock: createFixedClock(fixedToday),
   env,
   bundleLabel: "デモ版",
   authMode: "embedded",

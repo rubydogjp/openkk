@@ -65,7 +65,7 @@ export function JournalizingBody({
   const { confirm, dialog } = useConfirmDialog();
   const [screenError, setScreenError] = useState<unknown>(null);
   const preClosingLock = useRef(new ExclusiveActionLock());
-  const editingLocked = resolveEditingPolicy(config).locked;
+  const editingLocked = resolveEditingPolicy(config.editingPolicy).locked;
 
   if (currentFiscalPeriod == null) {
     return (

@@ -42,7 +42,7 @@ export function OpeningCarryoverPage() {
   const assistState = useOpenkkAssist();
   const entriesState = useOpenkkEntries();
   const config = useOpenkkConfig();
-  const editingLocked = resolveEditingPolicy(config).locked;
+  const editingLocked = resolveEditingPolicy(config.editingPolicy).locked;
   const [newCarryoverDraft, setNewCarryoverDraft] =
     useState<OpeningCarryoverDraft | null>(null);
   const fiscalPeriodId = appState.currentFiscalPeriodId;

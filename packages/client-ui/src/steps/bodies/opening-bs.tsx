@@ -134,7 +134,7 @@ export function OpeningBsBody({
     );
   }
   const isNotStarted = !currentFiscalPeriod.settingsCompleted;
-  const editingLocked = resolveEditingPolicy(config).locked;
+  const editingLocked = resolveEditingPolicy(config.editingPolicy).locked;
 
   const isPeriodLocked =
     currentFiscalPeriod.phase === "post_closing" ||
@@ -237,7 +237,7 @@ export function OpeningBsBody({
 
         {!isPeriodLocked && editingLocked ? (
           <StepCallout tone="info">
-            {resolveEditingPolicy(config).lockedNotice ??
+            {resolveEditingPolicy(config.editingPolicy).lockedNotice ??
               "この環境ではデータの編集がロックされています。"}
           </StepCallout>
         ) : null}

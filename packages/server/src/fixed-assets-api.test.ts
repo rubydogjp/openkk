@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { createOpenkkServer } from "./index.js";
 import { MAX_FIXED_ASSET_USEFUL_LIFE_YEARS } from "@rubydogjp/openkk-server-domain";
 import type {
-  ClosingApiRecord,
   EntryApiRecord,
   EntryUpsertInput,
   FiscalPeriodApiRecord,
@@ -446,7 +445,7 @@ function createFixedAssetDb(
   const fixedAssets = new Map<string, FixedAssetApiRecord>();
   return {
     fiscalPeriods: {
-      async getAllByUser() {
+      async getAll() {
         return [fiscalPeriod({ id: "fp-1", ...fiscalPeriodOverrides })];
       },
       async getById(id) {
@@ -538,7 +537,7 @@ function createFixedAssetDb(
       },
     },
     fixedAssets: {
-      async getAllByFiscalPeriod(fiscalPeriodId) {
+      async getAll(fiscalPeriodId) {
         return [...fixedAssets.values()].filter(
           (asset) => asset.fiscalPeriodId === fiscalPeriodId,
         );
@@ -572,7 +571,7 @@ function createFixedAssetDb(
     },
     preClosings: {
       async get() {
-        return null;
+        return false;
       },
       async run() {
         return fiscalPeriod({ phase: "pre_closing" });
@@ -582,21 +581,21 @@ function createFixedAssetDb(
       },
     },
     closings: {
-      async get(): Promise<ClosingApiRecord | null> {
-        return null;
+      async get(): Promise<boolean> {
+        return false;
       },
       async run() {
         return fiscalPeriod({ phase: "post_closing" });
       },
     },
     masterData: {
-      async getAllBookAccounts(): Promise<MasterBookAccount[]> {
+      async getBookAccounts(): Promise<MasterBookAccount[]> {
         return [];
       },
-      async getAllTaxCategories(): Promise<MasterTaxCategory[]> {
+      async getTaxCategories(): Promise<MasterTaxCategory[]> {
         return [];
       },
-      async getAllBusinessCategories(): Promise<MasterBusinessCategory[]> {
+      async getBusinessCategories(): Promise<MasterBusinessCategory[]> {
         return [];
       },
     },

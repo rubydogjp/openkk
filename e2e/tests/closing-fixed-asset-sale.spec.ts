@@ -4,7 +4,7 @@ import {
   advanceToJournalizing,
   clickButton,
   createFiscalPeriod,
-  disablePrint,
+  disablePrintBeforeFirstNavigation,
   expectStep,
   extractReportAmounts,
   goToMonth,
@@ -22,7 +22,7 @@ test.describe("固定資産の売却 → 締めフローの帳票一貫性", () 
   test("売却の減価償却・売却益が仮帳票と確定帳票で一致して計上される", async ({
     page,
   }) => {
-    await disablePrint(page);
+    await disablePrintBeforeFirstNavigation(page);
 
     await createFiscalPeriod(page, "固定資産売却検証 2026年分");
     await advanceToJournalizing(page);

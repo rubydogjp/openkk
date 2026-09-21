@@ -32,7 +32,7 @@ export function DocumentFileList({
   );
 }
 
-export function DocumentFileTile(
+function DocumentFileTile(
   props: DocumentFileItem & {
     actionLabel: string | null;
     showDivider: boolean;

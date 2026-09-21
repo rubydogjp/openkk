@@ -25,8 +25,6 @@ export type FiscalPeriod = {
   settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
-  openingDebitTotal: number;
-  openingCreditTotal: number;
   createdAt: string;
   updatedAt: string;
   opening: FiscalPeriodOpening | null;

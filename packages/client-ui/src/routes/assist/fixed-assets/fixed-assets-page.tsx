@@ -29,7 +29,7 @@ export function FixedAssetsPage() {
   const appState = useOpenkkAppState();
   const openkkConfig = useOpenkkConfig();
   const today = useOpenkkToday();
-  const editingLocked = resolveEditingPolicy(openkkConfig).locked;
+  const editingLocked = resolveEditingPolicy(openkkConfig.editingPolicy).locked;
   const [newAssetDraft, setNewAssetDraft] =
     useState<FixedAssetDraft | null>(null);
 

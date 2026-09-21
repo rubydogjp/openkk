@@ -49,7 +49,7 @@ export function formatIsoLocalDate(date: Date): string {
   ].join("-");
 }
 
-export const WEEKDAY_LABELS_JA = ["日", "月", "火", "水", "木", "金", "土"];
+const WEEKDAY_LABELS_JA = ["日", "月", "火", "水", "木", "金", "土"];
 
 export function weekdayJa(dateText: string): string {
   const date = parseIsoLocalDate(dateText);

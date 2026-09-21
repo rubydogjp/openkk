@@ -1,19 +1,22 @@
 import { AppError } from "@rubydogjp/openkk-client-domain";
 
+import { AsyncStateVersion } from "./async-state-version.js";
+
+const AUTH = "auth";
+
 export class AuthOperationGuard {
-  private version = 0;
+  readonly #versions = new AsyncStateVersion<typeof AUTH>();
 
   capture(): number {
-    return this.version;
+    return this.#versions.capture(AUTH);
   }
 
   invalidate(): number {
-    this.version += 1;
-    return this.version;
+    return this.#versions.invalidate(AUTH);
   }
 
   isCurrent(expectedVersion: number): boolean {
-    return this.version === expectedVersion;
+    return this.#versions.isCurrent(AUTH, expectedVersion);
   }
 
   assertCurrent(expectedVersion: number): void {

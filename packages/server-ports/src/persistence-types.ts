@@ -175,9 +175,6 @@ export type FixedAssetDbPatchInput = {
   bookAccountId?: string;
 };
 
-export type PreClosingDbRecord = Record<string, never>;
-export type ClosingDbRecord = Record<string, never>;
-
 export type MasterBookAccountDbNormalBalanceSide = "debit" | "credit";
 
 export type MasterBookAccountDbBalanceSheetSection =

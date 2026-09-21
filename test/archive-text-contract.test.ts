@@ -74,7 +74,7 @@ describe("archive text preservation", () => {
       const target = createOpenkkServer(await createMemoryDbAdapter(null), {
         userId: "user-1",
       });
-      const restored = await target.fiscalPeriod.importArchived(
+      const restored = await target.fiscalPeriods.importArchived(
         readFiscalPeriodArchiveZip(createFiscalPeriodArchiveZip(payload)),
       );
       const entries = await target.entries.getAll(restored.id);
@@ -101,15 +101,15 @@ describe("archive text preservation", () => {
           userId: "user-1",
         },
       );
-      const reimported = await reimportedServer.fiscalPeriod.importArchived(
+      const reimported = await reimportedServer.fiscalPeriods.importArchived(
         readFiscalPeriodArchiveZip(createFiscalPeriodArchiveZip(reExported)),
       );
       expect(reimported.name).toBe(text);
       expect(
         await reimportedServer.entries.getAll(reimported.id),
       ).toMatchObject([{ description: text, lines }]);
-      await target.preClosing.run({ fiscalPeriodId: restored.id, year: 2026 });
-      const closed = await target.closing.run({
+      await target.preClosings.run({ fiscalPeriodId: restored.id, year: 2026 });
+      const closed = await target.closings.run({
         fiscalPeriodId: restored.id,
         year: 2026,
         entries: buildExpectedClosingEntries({

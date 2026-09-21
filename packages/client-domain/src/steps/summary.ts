@@ -48,29 +48,4 @@ export function computeExpenseContribution(
   return value;
 }
 
-export type OpeningBalanceSummary = {
-  assets: number;
-  liabilities: number;
-  equity: number;
-};
-
 export const OPENING_EQUITY_LABELS = new Set<string>(["事業主借", "元入金"]);
-
-export function summarizeOpeningBalances(
-  lines: Array<{ accountId: string; amount: number }>,
-): OpeningBalanceSummary {
-  let assets = 0;
-  let liabilities = 0;
-  let equity = 0;
-  for (const line of lines) {
-    const amount = Math.abs(line.amount);
-    if (line.accountId.startsWith("a:")) {
-      assets += amount;
-    } else if (line.accountId.startsWith("l:")) {
-      const label = line.accountId.slice(2);
-      if (OPENING_EQUITY_LABELS.has(label)) equity += amount;
-      else liabilities += amount;
-    }
-  }
-  return { assets, liabilities, equity };
-}

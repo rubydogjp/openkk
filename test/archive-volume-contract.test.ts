@@ -9,10 +9,10 @@ import { createOpenkkServer } from "../packages/server/src/index.js";
 
 it("restores an archive containing multiple entry import batches", async () => {
   const source = createOpenkkServer(await createMemoryDbAdapter(null), { userId: "user-1" });
-  const period = await source.fiscalPeriod.create({
+  const period = await source.fiscalPeriods.create({
     name: "2026年分", startDate: "2026-01-01", endDate: "2026-12-31",
   });
-  await source.fiscalPeriod.patch(period.id, {
+  await source.fiscalPeriods.patch(period.id, {
     settingsCompleted: true, openingBalancesCompleted: true,
   });
   for (const batch of [0, 1]) {
@@ -31,9 +31,9 @@ it("restores an archive containing multiple entry import batches", async () => {
       })),
     })));
   }
-  await source.preClosing.run({ fiscalPeriodId: period.id, year: 2026 });
-  await source.closing.run({ fiscalPeriodId: period.id, year: 2026, entries: [] });
-  const closed = await source.fiscalPeriod.patch(period.id, { documentsReceivedCompleted: true });
+  await source.preClosings.run({ fiscalPeriodId: period.id, year: 2026 });
+  await source.closings.run({ fiscalPeriodId: period.id, year: 2026, entries: [] });
+  const closed = await source.fiscalPeriods.patch(period.id, { documentsReceivedCompleted: true });
   const entries = await source.entries.getAll(period.id);
   const zip = createFiscalPeriodArchiveZip(buildFiscalPeriodArchivePayload({
     createdAt: "2027-01-01T00:00:00Z",
@@ -43,7 +43,7 @@ it("restores an archive containing multiple entry import batches", async () => {
     closings: ["pre_closing", "closing"].map((kind) => ({ fiscalPeriodId: period.id, year: 2026, kind })),
   }));
   const target = createOpenkkServer(await createMemoryDbAdapter(null), { userId: "user-1" });
-  const restored = await target.fiscalPeriod.importArchived(readFiscalPeriodArchiveZip(zip));
+  const restored = await target.fiscalPeriods.importArchived(readFiscalPeriodArchiveZip(zip));
   const restoredEntries = await target.entries.getAll(restored.id);
   const content = (items: typeof entries) => items.map(({ date, description, businessRate, localId, lines }) => ({
     date, description, businessRate, localId,

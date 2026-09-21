@@ -5,7 +5,10 @@ import {
   serverNotFoundError,
   serverValidationError,
 } from "@rubydogjp/openkk-server-domain";
-import type { OpenkkServerPort } from "@rubydogjp/openkk-server-ports";
+import {
+  serializePortOperations,
+  type OpenkkServerPort,
+} from "@rubydogjp/openkk-server-ports";
 import type { ServerUsecases } from "@rubydogjp/openkk-server-usecases";
 import {
   archivedFiscalPeriodError,
@@ -19,17 +22,15 @@ import {
   assertFiscalPeriodPatchInput,
   assertFiscalPeriodReadyForPreClosing,
   assertFixedAssetCreateInput,
-  assertFixedAssetDisposalConsistency,
-  assertFixedAssetEffectiveInput,
   assertFixedAssetPatchInput,
   assertNoOverlappingFiscalPeriod,
   assertNonBlankString,
   assertObject,
+  assertPatchedFixedAsset,
   assertPeriodDataAvailable,
   assertPeriodPhase,
   assertPeriodPhaseOneOf,
 } from "./validation.js";
-import { serializeDataOperations } from "./serialized-server-port.js";
 
 export type OpenkkServerConfig = {
   userId: string;
@@ -44,7 +45,7 @@ export function createOpenkkServerApi(
   const uid = config.userId;
   const getOwnedFiscalPeriod = async (fiscalPeriodId: string) => {
     assertNonBlankString(fiscalPeriodId, "Fiscal period id");
-    const period = (await usecases.fiscalPeriod.getAll(uid)).find(
+    const period = (await usecases.fiscalPeriods.getAll(uid)).find(
       (candidate) => candidate.id === fiscalPeriodId,
     );
     if (period == null) {
@@ -77,12 +78,12 @@ export function createOpenkkServerApi(
       },
       signOut: () => usecases.auth.signOut(),
     },
-    preClosing: {
+    preClosings: {
       get: async (fpId, year) => {
         const period = await getOwnedFiscalPeriod(fpId);
         assertPeriodDataAvailable(period, "read pre-closing data");
         assertClosingYear(period, year);
-        return usecases.preClosing.get(uid, fpId, year);
+        return usecases.preClosings.get(uid, fpId, year);
       },
       run: async (input) => {
         assertObject(input, "Pre-closing input");
@@ -91,21 +92,21 @@ export function createOpenkkServerApi(
         assertPeriodPhase(period, "journalizing", "run pre-closing");
         assertClosingYear(period, year);
         assertFiscalPeriodReadyForPreClosing(period);
-        return usecases.preClosing.run(uid, fiscalPeriodId, year);
+        return usecases.preClosings.run(uid, fiscalPeriodId, year);
       },
       cancel: async (fpId, year) => {
         const period = await getOwnedFiscalPeriod(fpId);
         assertPeriodPhase(period, "pre_closing", "cancel pre-closing");
         assertClosingYear(period, year);
-        return usecases.preClosing.cancel(uid, fpId, year);
+        return usecases.preClosings.cancel(uid, fpId, year);
       },
     },
-    closing: {
+    closings: {
       get: async (fpId, year) => {
         const period = await getOwnedFiscalPeriod(fpId);
         assertPeriodDataAvailable(period, "read closing data");
         assertClosingYear(period, year);
-        return usecases.closing.get(uid, fpId, year);
+        return usecases.closings.get(uid, fpId, year);
       },
       run: async (input) => {
         assertObject(input, "Closing input");
@@ -114,7 +115,7 @@ export function createOpenkkServerApi(
         assertPeriodPhase(period, "pre_closing", "run closing");
         assertClosingYear(period, year);
         assertClosingGeneratedEntries(entries, period);
-        return usecases.closing.run(uid, fiscalPeriodId, year, entries);
+        return usecases.closings.run(uid, fiscalPeriodId, year, entries);
       },
     },
     entries: {
@@ -194,23 +195,23 @@ export function createOpenkkServerApi(
         return { importedCount: entries.length, entries };
       },
     },
-    fiscalPeriod: {
-      getAll: () => usecases.fiscalPeriod.getAll(uid),
+    fiscalPeriods: {
+      getAll: () => usecases.fiscalPeriods.getAll(uid),
       create: async (input) => {
         assertFiscalPeriodCreateInput(input);
         assertNoOverlappingFiscalPeriod(
           input,
-          await usecases.fiscalPeriod.getAll(uid),
+          await usecases.fiscalPeriods.getAll(uid),
         );
-        return usecases.fiscalPeriod.create(uid, input);
+        return usecases.fiscalPeriods.create(uid, input);
       },
       createNext: async (input) => {
         assertFiscalPeriodNextCreateInput(input);
-        assertNoOverlappingFiscalPeriod(input, await usecases.fiscalPeriod.getAll(uid));
-        return usecases.fiscalPeriod.createNext(uid, input);
+        assertNoOverlappingFiscalPeriod(input, await usecases.fiscalPeriods.getAll(uid));
+        return usecases.fiscalPeriods.createNext(uid, input);
       },
       importArchived: async (input) => {
-        return usecases.fiscalPeriod.importArchived(uid, input);
+        return usecases.fiscalPeriods.importArchived(uid, input);
       },
       patch: async (id, patch) => {
         const current = await getOwnedFiscalPeriod(id);
@@ -227,7 +228,7 @@ export function createOpenkkServerApi(
             endDate: patch.endDate ?? current.endDate,
           };
           const [periods, entries, fixedAssets] = await Promise.all([
-            usecases.fiscalPeriod.getAll(uid),
+            usecases.fiscalPeriods.getAll(uid),
             usecases.entries.getAll(uid, id),
             usecases.fixedAssets.getAll(uid, id),
           ]);
@@ -241,7 +242,7 @@ export function createOpenkkServerApi(
             fixedAssets,
           );
         }
-        return usecases.fiscalPeriod.update(uid, id, patch);
+        return usecases.fiscalPeriods.update(uid, id, patch);
       },
       archive: async (id) => {
         const current = await getOwnedFiscalPeriod(id);
@@ -252,7 +253,7 @@ export function createOpenkkServerApi(
             "書類の受領を完了してから圧縮保存してください",
           );
         }
-        return usecases.fiscalPeriod.archive(uid, id);
+        return usecases.fiscalPeriods.archive(uid, id);
       },
       purgeArchivedData: async (id) => {
         const current = await getOwnedFiscalPeriod(id);
@@ -262,12 +263,12 @@ export function createOpenkkServerApi(
             "圧縮保存後の会計期間のみ実データを削除できます",
           );
         }
-        return usecases.fiscalPeriod.purgeArchivedData(uid, id);
+        return usecases.fiscalPeriods.purgeArchivedData(uid, id);
       },
       remove: async (id) => {
         const current = await getOwnedFiscalPeriod(id);
         assertPeriodPhase(current, "pre_opening", "discard");
-        await usecases.fiscalPeriod.delete(uid, id);
+        await usecases.fiscalPeriods.delete(uid, id);
       },
     },
     fixedAssets: {
@@ -297,8 +298,7 @@ export function createOpenkkServerApi(
           );
         }
         assertFixedAssetPatchInput(patch, existing);
-        assertFixedAssetDisposalConsistency(existing, patch);
-        assertFixedAssetEffectiveInput(existing, patch, period);
+        assertPatchedFixedAsset(existing, patch, period);
         return usecases.fixedAssets.update(uid, id, patch);
       },
       remove: async (fpId, id) => {
@@ -320,5 +320,14 @@ export function createOpenkkServerApi(
       getBusinessCategories: () => usecases.masterData.getBusinessCategories(),
     },
   };
-  return serializeDataOperations(api);
+  return {
+    ...api,
+    ...serializePortOperations({
+      preClosings: api.preClosings,
+      closings: api.closings,
+      entries: api.entries,
+      fiscalPeriods: api.fiscalPeriods,
+      fixedAssets: api.fixedAssets,
+    }),
+  };
 }

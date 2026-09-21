@@ -113,7 +113,7 @@ export function runDbPortConformance(
       expect(await db.fiscalPeriods.getById(created.id)).toEqual(created);
     });
 
-    it("getAllByUser filters by userId", async () => {
+    it("getAll filters by userId", async () => {
       const db = await makeDb();
       const a = await db.fiscalPeriods.create("user-A", {
         name: "A1",
@@ -127,10 +127,10 @@ export function runDbPortConformance(
       });
 
       expect(
-        (await db.fiscalPeriods.getAllByUser("user-A")).map((r) => r.id),
+        (await db.fiscalPeriods.getAll("user-A")).map((r) => r.id),
       ).toEqual([a.id]);
       expect(
-        (await db.fiscalPeriods.getAllByUser("user-B")).map((r) => r.name),
+        (await db.fiscalPeriods.getAll("user-B")).map((r) => r.name),
       ).toEqual(["B1"]);
     });
 
@@ -150,7 +150,7 @@ export function runDbPortConformance(
       ]);
 
       expect(first.id).not.toBe(second.id);
-      expect(await db.fiscalPeriods.getAllByUser("user-1")).toHaveLength(2);
+      expect(await db.fiscalPeriods.getAll("user-1")).toHaveLength(2);
     });
 
     it("rejects overlapping active periods inside the persistence transaction", async () => {
@@ -200,7 +200,7 @@ export function runDbPortConformance(
         }),
       ).rejects.toThrow(/start date must be on or before end date/);
 
-      expect(await db.fiscalPeriods.getAllByUser("user-1")).toEqual([]);
+      expect(await db.fiscalPeriods.getAll("user-1")).toEqual([]);
     });
 
     it("update only patches provided fields", async () => {
@@ -272,7 +272,7 @@ export function runDbPortConformance(
         updated.opening,
       );
       expect(
-        (await db.fiscalPeriods.getAllByUser("user-1"))[0]?.opening,
+        (await db.fiscalPeriods.getAll("user-1"))[0]?.opening,
       ).toEqual(updated.opening);
     });
 
@@ -461,9 +461,9 @@ export function runDbPortConformance(
 
       expect(await db.fiscalPeriods.getById(period.id)).toBeNull();
       expect(await db.entries.getAll(period.id)).toEqual([]);
-      expect(await db.fixedAssets.getAllByFiscalPeriod(period.id)).toEqual([]);
-      expect(await db.preClosings.get(period.id, 2026)).toBeNull();
-      expect(await db.closings.get(period.id, 2026)).toBeNull();
+      expect(await db.fixedAssets.getAll(period.id)).toEqual([]);
+      expect(await db.preClosings.get(period.id, 2026)).toBe(false);
+      expect(await db.closings.get(period.id, 2026)).toBe(false);
     });
 
     it("purgeArchivedData strips child data and leaves an archived stub", async () => {
@@ -514,8 +514,8 @@ export function runDbPortConformance(
       expect(stub.archiveDataAvailable).toBe(false);
       expect(stub.archivedAt).toEqual(expect.any(String));
       expect(await db.entries.getAll(period.id)).toEqual([]);
-      expect(await db.fixedAssets.getAllByFiscalPeriod(period.id)).toEqual([]);
-      expect(await db.preClosings.get(period.id, 2026)).toBeNull();
+      expect(await db.fixedAssets.getAll(period.id)).toEqual([]);
+      expect(await db.preClosings.get(period.id, 2026)).toBe(false);
       const reloaded = await db.fiscalPeriods.getById(period.id);
       expect(reloaded).not.toBeNull();
       expect(reloaded?.archiveDataAvailable).toBe(false);
@@ -581,21 +581,21 @@ export function runDbPortConformance(
 
       expect(imported.archiveStatus).toBe("active");
       expect(imported.phase).toBe("post_closing");
-      expect(await db.fiscalPeriods.getAllByUser("user-1")).toEqual([imported]);
+      expect(await db.fiscalPeriods.getAll("user-1")).toEqual([imported]);
       expect(await db.entries.getAll(imported.id)).toHaveLength(1);
       expect(
-        (await db.fixedAssets.getAllByFiscalPeriod(imported.id))[0],
+        (await db.fixedAssets.getAll(imported.id))[0],
       ).toMatchObject({
         name: "Imported Camera",
         status: "sold",
         disposalDate: "2026-12-01",
       });
-      expect(await db.preClosings.get(imported.id, 2026)).toEqual({});
-      expect(await db.closings.get(imported.id, 2026)).toEqual({});
+      expect(await db.preClosings.get(imported.id, 2026)).toBe(true);
+      expect(await db.closings.get(imported.id, 2026)).toBe(true);
       await expect(
         db.fiscalPeriods.importArchived("user-1", archiveInput),
       ).rejects.toThrow(/overlaps active fiscal period/);
-      expect(await db.fiscalPeriods.getAllByUser("user-1")).toHaveLength(1);
+      expect(await db.fiscalPeriods.getAll("user-1")).toHaveLength(1);
     });
 
     it("rejects an invalid archived child record without importing the period", async () => {
@@ -629,7 +629,7 @@ export function runDbPortConformance(
       await expect(
         db.fiscalPeriods.importArchived("user-1", archiveInput),
       ).rejects.toThrow(/must be within fiscal period/);
-      expect(await db.fiscalPeriods.getAllByUser("user-1")).toEqual([]);
+      expect(await db.fiscalPeriods.getAll("user-1")).toEqual([]);
 
       await expect(
         db.fiscalPeriods.importArchived("user-1", {
@@ -644,7 +644,7 @@ export function runDbPortConformance(
           closings: [{ year: 2026 }],
         }),
       ).rejects.toThrow(/must match fiscal period end year 2026/);
-      expect(await db.fiscalPeriods.getAllByUser("user-1")).toEqual([]);
+      expect(await db.fiscalPeriods.getAll("user-1")).toEqual([]);
     });
 
     it("rejects oversized archive data before importing", async () => {
@@ -681,7 +681,7 @@ export function runDbPortConformance(
         }),
       ).rejects.toThrow(/archive exceeds the size limit/);
 
-      expect(await db.fiscalPeriods.getAllByUser("user-1")).toEqual([]);
+      expect(await db.fiscalPeriods.getAll("user-1")).toEqual([]);
     });
   });
 
@@ -1118,7 +1118,7 @@ export function runDbPortConformance(
       ).rejects.toThrow(/FOREIGN KEY constraint failed/);
     });
 
-    it("create / getAllByFiscalPeriod / update / delete round-trip", async () => {
+    it("create / getAll / update / delete round-trip", async () => {
       const db = await makeDb();
       const period = await createTestFiscalPeriod(db);
       const asset = await db.fixedAssets.create("user-1", period.id, {
@@ -1132,7 +1132,7 @@ export function runDbPortConformance(
       });
 
       expect(asset.id).toMatch(/^fa_/);
-      expect(await db.fixedAssets.getAllByFiscalPeriod(period.id)).toEqual([
+      expect(await db.fixedAssets.getAll(period.id)).toEqual([
         asset,
       ]);
 
@@ -1151,7 +1151,7 @@ export function runDbPortConformance(
       });
 
       await db.fixedAssets.delete(asset.id);
-      expect(await db.fixedAssets.getAllByFiscalPeriod(period.id)).toEqual([]);
+      expect(await db.fixedAssets.getAll(period.id)).toEqual([]);
     });
 
     it("rejects inconsistent, zero-cost, and wrong-owner fixed assets", async () => {
@@ -1217,7 +1217,7 @@ export function runDbPortConformance(
       expect((await db.fiscalPeriods.getById(period.id))?.phase).toBe(
         "journalizing",
       );
-      expect(await db.preClosings.get(period.id, 2025)).toBeNull();
+      expect(await db.preClosings.get(period.id, 2025)).toBe(false);
 
       await db.preClosings.run(period.id, 2026);
       await expect(db.preClosings.cancel(period.id, 2025)).rejects.toThrow(
@@ -1229,7 +1229,7 @@ export function runDbPortConformance(
       expect((await db.fiscalPeriods.getById(period.id))?.phase).toBe(
         "pre_closing",
       );
-      expect(await db.preClosings.get(period.id, 2026)).toEqual({});
+      expect(await db.preClosings.get(period.id, 2026)).toBe(true);
     });
 
     it("rejects a seeded phase whose persisted markers are missing", async () => {
@@ -1254,7 +1254,7 @@ export function runDbPortConformance(
       ]);
 
       expect(closed.phase).toBe("post_closing");
-      expect(await db.closings.get(period.id, 2026)).toEqual({});
+      expect(await db.closings.get(period.id, 2026)).toBe(true);
       expect(
         (await db.entries.getAll(period.id)).map((entry) => entry.localId),
       ).toEqual(["virtual:final"]);
@@ -1278,7 +1278,9 @@ export function runDbPortConformance(
       ).rejects.toThrow(/cannot create fixed asset from phase post_closing/);
       await expect(
         db.fiscalPeriods.update(period.id, { name: "late rename" }),
-      ).rejects.toThrow(/cannot update name from phase post_closing/);
+      ).rejects.toThrow(
+        /only allows document receipt completion after closing/,
+      );
     });
 
     it("rejects non-generated or invalid closing entries before replacing data", async () => {
@@ -1295,7 +1297,7 @@ export function runDbPortConformance(
       expect((await db.fiscalPeriods.getById(period.id))?.phase).toBe(
         "pre_closing",
       );
-      expect(await db.closings.get(period.id, 2026)).toBeNull();
+      expect(await db.closings.get(period.id, 2026)).toBe(false);
     });
 
     it("rejects oversized generated closing batches before persistence", async () => {
@@ -1326,7 +1328,7 @@ export function runDbPortConformance(
       expect((await db.fiscalPeriods.getById(period.id))?.phase).toBe(
         "pre_closing",
       );
-      expect(await db.closings.get(period.id, 2026)).toBeNull();
+      expect(await db.closings.get(period.id, 2026)).toBe(false);
     });
 
     it.each(["cancel", "close"])(
@@ -1367,7 +1369,7 @@ export function runDbPortConformance(
       const reopened = await db.preClosings.cancel(period.id, 2026);
 
       expect(reopened.phase).toBe("journalizing");
-      expect(await db.preClosings.get(period.id, 2026)).toBeNull();
+      expect(await db.preClosings.get(period.id, 2026)).toBe(false);
       expect(await db.entries.getAll(period.id)).toEqual([]);
     });
 
@@ -1390,7 +1392,7 @@ export function runDbPortConformance(
       expect((await db.fiscalPeriods.getById(period.id))?.phase).toBe(
         "pre_closing",
       );
-      expect(await db.closings.get(period.id, 2026)).toBeNull();
+      expect(await db.closings.get(period.id, 2026)).toBe(false);
       expect(
         (await db.entries.getAll(period.id)).map((entry) => entry.localId),
       ).toEqual(["virtual:legacy"]);
@@ -1425,9 +1427,9 @@ export function runDbPortConformance(
       const db = await ctx.makeSeededAdapter(seed);
 
       expect(
-        (await db.fiscalPeriods.getAllByUser("user-1")).map((fp) => fp.id),
+        (await db.fiscalPeriods.getAll("user-1")).map((fp) => fp.id),
       ).toEqual(["fp-seed"]);
-      expect(await db.preClosings.get("fp-seed", 2026)).toBeNull();
+      expect(await db.preClosings.get("fp-seed", 2026)).toBe(false);
     });
 
     it("rejects invalid seeded child data before exposing the adapter", async () => {
@@ -1566,10 +1568,10 @@ export function runDbPortConformance(
       seed.closings = [{ fiscalPeriodId: "fp-2", year: 2027 }];
       const db = await ctx.makeSeededAdapter(seed);
 
-      expect(await db.preClosings.get("fp-1", 2026)).toEqual({});
-      expect(await db.closings.get("fp-1", 2026)).toBeNull();
-      expect(await db.preClosings.get("fp-2", 2027)).toEqual({});
-      expect(await db.closings.get("fp-2", 2027)).toEqual({});
+      expect(await db.preClosings.get("fp-1", 2026)).toBe(true);
+      expect(await db.closings.get("fp-1", 2026)).toBe(false);
+      expect(await db.preClosings.get("fp-2", 2027)).toBe(true);
+      expect(await db.closings.get("fp-2", 2027)).toBe(true);
     });
   });
 }
