@@ -1,0 +1,668 @@
+import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
+import { describe, expect, it } from "vitest";
+import {
+  computeFsAggregate,
+  isOpeningCarryoverCandidate,
+  type EntryRecord,
+} from "../packages/client-domain/src/index.js";
+import { createOpenkkEmbeddedBackendAdapter } from "../packages/embedded-backend-adapter/src/index.js";
+import { createMemoryDbAdapter } from "../packages/memory-db-adapter/src/index.js";
+import {
+  buildCarryoverOpeningBalances,
+  buildCarryoverOpeningJournals,
+  buildExpectedClosingEntries,
+  DEFAULT_BOOK_ACCOUNTS,
+  getDefaultBookAccount,
+  type CarryoverEntry,
+  type CarryoverEntryLine,
+} from "../packages/server-domain/src/index.js";
+import type {
+  OpenkkDbPort,
+  FiscalPeriodNextCreateInput,
+} from "../packages/server-ports/src/index.js";
+import { createOpenkkServer } from "../packages/server/src/index.js";
+import {
+  createSqliteDbAdapter,
+  runMigrations,
+  type SqlDb,
+} from "../packages/sqlite-adapter/src/index.js";
+
+const longText = "保存済み😀".repeat(100);
+
+function line(
+  side: "debit" | "credit",
+  bookAccountId: string,
+  amount: number,
+): CarryoverEntryLine {
+  return {
+    side,
+    bookAccountId,
+    amount,
+    partnerName: "",
+    taxCategoryId: "tax_out_of_scope",
+    businessCategoryId: "biz_none",
+  };
+}
+
+function entry(lines: CarryoverEntryLine[]): CarryoverEntry {
+  return {
+    id: "entry-1",
+    description: "期末費用",
+    businessRate: 0.3333333333333333,
+    lines,
+  };
+}
+
+function clientEntry(record: CarryoverEntry): EntryRecord {
+  return {
+    ...record,
+    fiscalPeriodId: "source",
+    date: "2026-12-31",
+    weekday: "",
+    localId: null,
+    lines: record.lines.map((item, index) => {
+      const account = getDefaultBookAccount(item.bookAccountId)!;
+      return {
+        ...item,
+        id: String(index),
+        accountName: account.name,
+        accountType: account.accountType,
+        amount: String(item.amount),
+        taxCategoryName: null,
+        businessCategoryName: null,
+      };
+    }),
+  };
+}
+
+describe("carryover calculations", () => {
+  it("agrees with financial statements for both sides of every master account", () => {
+    const openingBalanceLines = [
+      { accountId: "a:現金", amount: 100 },
+      { accountId: "l:元入金", amount: 100 },
+    ];
+    for (const account of DEFAULT_BOOK_ACCOUNTS) {
+      for (const side of ["debit", "credit"] as const) {
+        const entries = [
+          entry([
+            line(side, account.id, 200),
+            line(side === "debit" ? "credit" : "debit", "acct_cash", 200),
+          ]),
+        ];
+        const balances = buildCarryoverOpeningBalances({
+          entries,
+          openingBalanceLines,
+        });
+        const report = computeFsAggregate({
+          entries: entries.map(clientEntry),
+          openingBalanceLines,
+        });
+        expect(
+          Object.fromEntries(
+            balances.map((item) => [item.accountId, item.amount]),
+          ),
+          `${account.id}: ${side}`,
+        ).toEqual(
+          Object.fromEntries(
+            report.nextPeriodOpeningBalanceLines.map((item) => [
+              item.accountId,
+              item.amount,
+            ]),
+          ),
+        );
+      }
+    }
+  });
+
+  it.each([
+    ["sale", "acct_cash", "acct_sales"],
+    ["expense", "acct_supplies", "acct_bank"],
+    ["owner withdrawal", "acct_proprietor_withdrawal", "acct_cash"],
+    ["owner loan", "acct_cash", "acct_proprietor_loan"],
+    ["loan repayment", "acct_proprietor_loan", "acct_cash"],
+    ["withdrawal repayment", "acct_cash", "acct_proprietor_withdrawal"],
+    ["contrary asset", "acct_supplies", "acct_receivable"],
+    ["contrary liability", "acct_accrued_expense", "acct_cash"],
+    ["negative capital", "acct_supplies", "acct_accrued_expense"],
+  ])(
+    "matches the financial statement carryover for %s",
+    (_name, debit, credit) => {
+      const entries = [
+        entry([line("debit", debit!, 200), line("credit", credit!, 200)]),
+      ];
+      const openingBalanceLines = [
+        { accountId: "a:現金", amount: 100 },
+        { accountId: "l:元入金", amount: 100 },
+      ];
+      const actual = buildCarryoverOpeningBalances({
+        entries,
+        openingBalanceLines,
+      });
+      const expected = computeFsAggregate({
+        entries: entries.map(clientEntry),
+        openingBalanceLines,
+      }).nextPeriodOpeningBalanceLines;
+      const amounts = (lines: Array<{ accountId: string; amount: number }>) =>
+        Object.fromEntries(lines.map((item) => [item.accountId, item.amount]));
+      expect(amounts(actual)).toEqual(amounts(expected));
+      expect(
+        actual.reduce(
+          (total, item) =>
+            total +
+            (item.accountId.startsWith("a:") ? item.amount : -item.amount),
+          0,
+        ),
+      ).toBe(0);
+    },
+  );
+
+  it("preserves named balances beyond printed statement slots", () => {
+    const openingBalanceLines = [
+      ...Array.from({ length: 20 }, (_, index) => ({
+        accountId: `a:科目${index}`,
+        amount: 100,
+      })),
+      { accountId: "l:元入金", amount: 2000 },
+    ];
+    expect(
+      buildCarryoverOpeningBalances({ openingBalanceLines, entries: [] }),
+    ).toEqual(
+      openingBalanceLines.map((item) => ({ id: item.accountId, ...item })),
+    );
+  });
+
+  it("rejects balances outside the safe integer range", () => {
+    expect(() =>
+      buildCarryoverOpeningBalances({
+        openingBalanceLines: [
+          { accountId: "a:現金", amount: Number.MAX_SAFE_INTEGER },
+        ],
+        entries: [
+          entry([
+            line("debit", "acct_cash", 1),
+            line("credit", "acct_sales", 1),
+          ]),
+        ],
+      }),
+    ).toThrow(/safe integer/);
+  });
+
+  it("splits compound accruals without duplicating amounts or metadata", () => {
+    const record = entry([
+      {
+        ...line("debit", "acct_purchases", 168_000),
+        partnerName: "商品",
+        taxCategoryId: "",
+      },
+      {
+        ...line("debit", "acct_supplies", 42_000),
+        partnerName: "費用",
+        businessCategoryId: "独自",
+      },
+      {
+        ...line("credit", "acct_accrued_expense", 180_000),
+        partnerName: "未払先",
+      },
+      line("credit", "acct_cash", 30_000),
+    ]);
+    const journals = buildCarryoverOpeningJournals({
+      entries: [record],
+      startDate: "2027-01-01",
+    });
+    expect(isOpeningCarryoverCandidate(clientEntry(record))).toBe(true);
+    expect(journals).toHaveLength(2);
+    expect(journals.map((journal) => journal.lines[0]!.amount)).toEqual([
+      168_000, 12_000,
+    ]);
+    expect(journals[0]).toMatchObject({
+      businessRate: record.businessRate,
+      lines: [
+        {
+          side: "debit",
+          bookAccountId: "acct_accrued_expense",
+          partnerName: "未払先",
+        },
+        {
+          side: "credit",
+          bookAccountId: "acct_purchases",
+          partnerName: "商品",
+          taxCategoryId: "",
+        },
+      ],
+    });
+    expect(journals[1]!.lines[1]).toMatchObject({
+      partnerName: "費用",
+      businessCategoryId: "独自",
+    });
+  });
+
+  it("matches multiple balance lines only up to each remaining amount", () => {
+    const record = entry([
+      line("debit", "acct_supplies", 100),
+      line("debit", "acct_purchases", 100),
+      line("credit", "acct_accrued_expense", 150),
+      line("credit", "acct_liability_未払費用", 50),
+    ]);
+    const journals = buildCarryoverOpeningJournals({
+      entries: [record],
+      startDate: "2027-01-01",
+    });
+    expect(journals.map((journal) => journal.lines[0]!.amount)).toEqual([
+      100, 50, 50,
+    ]);
+  });
+
+  it.each([
+    ["acct_cash", "acct_sales"],
+    ["acct_receivable", "acct_sales"],
+    ["acct_purchases", "acct_payable"],
+    ["acct_equipment", "acct_cash"],
+  ])("rejects non-reversible entry %s / %s", (debit, credit) => {
+    const record = entry([
+      line("debit", debit, 100),
+      line("credit", credit, 100),
+    ]);
+    expect(isOpeningCarryoverCandidate(clientEntry(record))).toBe(false);
+    expect(() =>
+      buildCarryoverOpeningJournals({
+        entries: [record],
+        startDate: "2027-01-01",
+      }),
+    ).toThrow(/no reversible balance/);
+  });
+
+  it("rejects unbalanced entries", () => {
+    const record = entry([
+      line("debit", "acct_supplies", 100),
+      line("credit", "acct_accrued_expense", 99),
+    ]);
+    expect(() =>
+      buildCarryoverOpeningJournals({
+        entries: [record],
+        startDate: "2027-01-01",
+      }),
+    ).toThrow(/must equal/);
+  });
+
+  it("offers valid accruals with zero-amount lines and ignores empty pairs", () => {
+    const record = entry([
+      line("debit", "acct_supplies", 100),
+      line("credit", "acct_accrued_expense", 100),
+      line("debit", "acct_cash", 0),
+    ]);
+    expect(isOpeningCarryoverCandidate(clientEntry(record))).toBe(true);
+    expect(
+      buildCarryoverOpeningJournals({
+        entries: [record],
+        startDate: "2027-01-01",
+      }),
+    ).toHaveLength(1);
+    record.lines = [
+      line("debit", "acct_supplies", 100),
+      line("credit", "acct_cash", 100),
+      line("credit", "acct_accrued_expense", 0),
+    ];
+    expect(isOpeningCarryoverCandidate(clientEntry(record))).toBe(false);
+  });
+});
+
+async function closedSource(db: OpenkkDbPort) {
+  const server = createOpenkkServer(db, { userId: "user-1" });
+  const period = await server.fiscalPeriod.create({
+    name: "2026年",
+    startDate: "2026-01-01",
+    endDate: "2026-12-31",
+  });
+  await server.fiscalPeriod.patch(period.id, {
+    settingsCompleted: true,
+    openingBalancesCompleted: true,
+  });
+  const accrued = await db.entries.create("user-1", period.id, {
+    ...entry([
+      {
+        ...line("debit", "acct_supplies", 1000),
+        partnerName: longText,
+        taxCategoryId: longText,
+        businessCategoryId: longText,
+      },
+      line("credit", "acct_accrued_expense", 1000),
+    ]),
+    date: "2026-12-31",
+    description: longText,
+    localId: null,
+  });
+  await db.fixedAssets.create("user-1", period.id, {
+    name: longText,
+    acquisitionDate: period.startDate,
+    acquisitionCost: 120000,
+    usefulLife: 4,
+    depreciationMethod: "straight_line",
+    businessRate: 1,
+    bookAccountId: "acct_equipment",
+  });
+  const retired = await server.fixedAssets.create(period.id, {
+    name: "償却済み資産",
+    acquisitionDate: "2020-01-01",
+    acquisitionCost: 1200,
+    usefulLife: 4,
+    depreciationMethod: "straight_line",
+    businessRate: 1,
+    bookAccountId: "acct_equipment",
+  });
+  await server.fixedAssets.patch(period.id, retired.id, { status: "retired" });
+  await server.preClosing.run({ fiscalPeriodId: period.id, year: 2026 });
+  await server.closing.run({
+    fiscalPeriodId: period.id,
+    year: 2026,
+    entries: buildExpectedClosingEntries({
+      periodStartDate: period.startDate,
+      periodEndDate: period.endDate,
+      entries: await server.entries.getAll(period.id),
+      fixedAssets: await server.fixedAssets.getAll(period.id),
+      openingJournals: [],
+      bookAccounts: await server.masterData.getBookAccounts(),
+    }),
+  });
+  await server.fiscalPeriod.patch(period.id, {
+    documentsReceivedCompleted: true,
+  });
+  const input: FiscalPeriodNextCreateInput = {
+    sourceFiscalPeriodId: period.id,
+    name: "2027年",
+    startDate: "2027-01-01",
+    endDate: "2027-12-31",
+    carryBalances: true,
+    reversalEntryIds: [accrued.id],
+    carryFixedAssets: true,
+  };
+  return { server, period, accrued, input };
+}
+
+describe("atomic fiscal period carryover", () => {
+  it("preserves saved text through the backend boundary and source purge", async () => {
+    const { server, period, input } = await closedSource(
+      await createMemoryDbAdapter(null),
+    );
+    await server.fiscalPeriod.archive(period.id);
+    const backend = createOpenkkEmbeddedBackendAdapter(server);
+    const next = await backend.fiscalPeriod.createNext(input);
+    expect(next).toMatchObject({
+      phase: "pre_opening",
+      settingsCompleted: false,
+      openingBalancesCompleted: true,
+    });
+    expect(next.opening!.openingJournals[0]).toMatchObject({
+      description: `再振替: ${longText}`,
+      businessRate: 0.3333333333333333,
+      lines: [
+        { side: "debit", bookAccountId: "acct_accrued_expense" },
+        {
+          side: "credit",
+          partnerName: longText,
+          taxCategoryId: longText,
+          businessCategoryId: longText,
+        },
+      ],
+    });
+    expect(await backend.fixedAssets.getAll(next.id)).toMatchObject([
+      { name: longText, status: "active" },
+    ]);
+    await backend.fiscalPeriod.purgeArchivedData(period.id);
+    expect(
+      (await backend.fiscalPeriod.getAll()).find((item) => item.id === next.id),
+    ).toEqual(next);
+    await backend.fiscalPeriod.patch(next.id, { settingsCompleted: true });
+    await backend.preClosing.run({ fiscalPeriodId: next.id, year: 2027 });
+    const closed = await backend.closing.run({
+      fiscalPeriodId: next.id,
+      year: 2027,
+      entries: buildExpectedClosingEntries({
+        periodStartDate: next.startDate,
+        periodEndDate: next.endDate,
+        entries: [],
+        fixedAssets: await backend.fixedAssets.getAll(next.id),
+        openingJournals: next.opening!.openingJournals,
+        bookAccounts: await backend.masterData.getBookAccounts(),
+      }),
+    });
+    expect(closed.phase).toBe("post_closing");
+    expect(await backend.entries.getAll(next.id)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ description: `再振替: ${longText}` }),
+      ]),
+    );
+  });
+
+  it.each([false, true])(
+    "honors independent carryover selections (balances: %s)",
+    async (carryBalances) => {
+      const { server, input } = await closedSource(
+        await createMemoryDbAdapter(null),
+      );
+      const next = await server.fiscalPeriod.createNext({
+        ...input,
+        carryBalances,
+        reversalEntryIds: [],
+        carryFixedAssets: false,
+      });
+      expect(next.openingBalancesCompleted).toBe(carryBalances);
+      expect(next.opening!.openingBalanceLines.length > 0).toBe(carryBalances);
+      expect(next.opening!.openingJournals).toEqual([]);
+      expect(await server.fixedAssets.getAll(next.id)).toEqual([]);
+    },
+  );
+
+  it("rejects missing and duplicate source entries", async () => {
+    const { server, input } = await closedSource(
+      await createMemoryDbAdapter(null),
+    );
+    for (const reversalEntryIds of [
+      ["foreign-entry"],
+      [input.reversalEntryIds[0]!, input.reversalEntryIds[0]!],
+    ]) {
+      await expect(
+        server.fiscalPeriod.createNext({ ...input, reversalEntryIds }),
+      ).rejects.toThrow();
+    }
+    expect(await server.fiscalPeriod.getAll()).toHaveLength(1);
+  });
+
+  it("allows other fields to change while keeping stored long text", async () => {
+    const { server, input } = await closedSource(
+      await createMemoryDbAdapter(null),
+    );
+    const next = await server.fiscalPeriod.createNext(input);
+    const opening = next.opening!;
+    const journals = opening.openingJournals.map((journal) => ({
+      ...journal,
+      businessRate: 0.5,
+    }));
+    await expect(
+      server.fiscalPeriod.patch(next.id, {
+        opening: { ...opening, openingJournals: journals },
+      }),
+    ).resolves.toMatchObject({
+      opening: {
+        openingJournals: [
+          { description: `再振替: ${longText}`, businessRate: 0.5 },
+        ],
+      },
+    });
+    await expect(
+      server.fiscalPeriod.patch(next.id, {
+        opening: {
+          ...opening,
+          openingJournals: journals.map((journal) => ({
+            ...journal,
+            description: longText + "変更",
+          })),
+        },
+      }),
+    ).rejects.toThrow(/400 character limit/);
+    await server.fiscalPeriod.patch(next.id, { settingsCompleted: true });
+    const [asset] = await server.fixedAssets.getAll(next.id);
+    await expect(
+      server.fixedAssets.patch(next.id, asset!.id, {
+        name: longText,
+        businessRate: 0.5,
+      }),
+    ).resolves.toMatchObject({ name: longText, businessRate: 0.5 });
+    await expect(
+      server.fixedAssets.patch(next.id, asset!.id, { name: longText + "変更" }),
+    ).rejects.toThrow(/400 character limit/);
+  });
+
+  it("updates an imported entry without rejecting its unchanged long text", async () => {
+    const db = await createMemoryDbAdapter(null);
+    const server = createOpenkkServer(db, { userId: "user-1" });
+    const period = await db.fiscalPeriods.create("user-1", {
+      name: longText,
+      startDate: "2026-01-01",
+      endDate: "2026-12-31",
+    });
+    await server.fiscalPeriod.patch(period.id, {
+      name: longText,
+      settingsCompleted: true,
+      openingBalancesCompleted: true,
+    });
+    const stored = await db.entries.create("user-1", period.id, {
+      date: period.startDate,
+      description: longText,
+      businessRate: 1,
+      localId: null,
+      lines: [
+        line("debit", "acct_cash", 100),
+        line("credit", "acct_sales", 100),
+      ].map((item) => ({
+        ...item,
+        partnerName: longText,
+        taxCategoryId: longText,
+        businessCategoryId: longText,
+      })),
+    });
+    await expect(
+      server.entries.patch(period.id, stored.id, {
+        ...stored,
+        businessRate: 0.5,
+      }),
+    ).resolves.toMatchObject({ description: longText, businessRate: 0.5 });
+    await expect(
+      server.entries.patch(period.id, stored.id, {
+        ...stored,
+        description: longText + "変更",
+      }),
+    ).rejects.toThrow(/400 character limit/);
+    await expect(server.entries.create(period.id, stored)).rejects.toThrow(
+      /400 character limit/,
+    );
+  });
+
+  it("checks ownership, source state, dates, overlap and required options", async () => {
+    const db = await createMemoryDbAdapter(null);
+    const { server, input } = await closedSource(db);
+    await expect(
+      createOpenkkServer(db, { userId: "other" }).fiscalPeriod.createNext(
+        input,
+      ),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    await expect(
+      server.fiscalPeriod.createNext({ ...input, startDate: "2026-01-01" }),
+    ).rejects.toThrow();
+    await expect(
+      server.fiscalPeriod.createNext({
+        ...input,
+        carryBalances: null,
+      } as never),
+    ).rejects.toThrow();
+    await expect(
+      server.fiscalPeriod.createNext({
+        ...input,
+        reversalEntryIds: null,
+      } as never),
+    ).rejects.toThrow();
+    const next = await server.fiscalPeriod.createNext(input);
+    await expect(server.fiscalPeriod.createNext(input)).rejects.toThrow(
+      /overlaps/,
+    );
+    await expect(
+      server.fiscalPeriod.createNext({
+        ...input,
+        sourceFiscalPeriodId: next.id,
+        startDate: "2028-01-01",
+        endDate: "2028-12-31",
+      }),
+    ).rejects.toThrow(/closing/);
+    expect(await server.fiscalPeriod.getAll()).toHaveLength(2);
+    await server.fiscalPeriod.archive(input.sourceFiscalPeriodId);
+    await server.fiscalPeriod.purgeArchivedData(input.sourceFiscalPeriodId);
+    await expect(
+      server.fiscalPeriod.createNext({
+        ...input,
+        startDate: "2028-01-01",
+        endDate: "2028-12-31",
+      }),
+    ).rejects.toThrow(/purged/);
+  });
+
+  it("serializes concurrent requests so the next period is created once", async () => {
+    const { server, input } = await closedSource(
+      await createMemoryDbAdapter(null),
+    );
+    const results = await Promise.allSettled([
+      server.fiscalPeriod.createNext(input),
+      server.fiscalPeriod.createNext(input),
+    ]);
+    expect(results.map((result) => result.status)).toEqual([
+      "fulfilled",
+      "rejected",
+    ]);
+    expect(await server.fiscalPeriod.getAll()).toHaveLength(2);
+  });
+
+  it.each(["opening_journal_lines", "fixed_assets"])(
+    "rolls back every next-period write when %s fails",
+    async (table) => {
+      const sqlite = await sqlite3InitModule({
+        print: () => {},
+        printErr: () => {},
+      });
+      const raw = new sqlite.oo1.DB(":memory:");
+      runMigrations(raw);
+      let failWrites = false;
+      const sql: SqlDb = {
+        async exec(input) {
+          await Promise.resolve();
+          const statement = typeof input === "string" ? input : input.sql;
+          if (failWrites && statement.includes(`INSERT INTO ${table}`))
+            throw new Error("injected write failure");
+          return (raw as unknown as { exec(input: unknown): unknown }).exec(
+            input,
+          );
+        },
+      };
+      try {
+        const db = await createSqliteDbAdapter(sql, null);
+        const { server, input } = await closedSource(db);
+        const before = await server.fiscalPeriod.getAll();
+        const sourceEntries = await server.entries.getAll(
+          input.sourceFiscalPeriodId,
+        );
+        failWrites = true;
+        await expect(server.fiscalPeriod.createNext(input)).rejects.toThrow(
+          "injected write failure",
+        );
+        expect(await server.fiscalPeriod.getAll()).toEqual(before);
+        expect(await server.entries.getAll(input.sourceFiscalPeriodId)).toEqual(
+          sourceEntries,
+        );
+        failWrites = false;
+        await expect(
+          server.fiscalPeriod.createNext(input),
+        ).resolves.toMatchObject({ name: "2027年" });
+        expect(await server.fiscalPeriod.getAll()).toHaveLength(2);
+      } finally {
+        raw.close();
+      }
+    },
+  );
+});

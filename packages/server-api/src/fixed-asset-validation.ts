@@ -19,6 +19,7 @@ import {
   assertNonBlankText,
   assertObject,
   assertString,
+  assertTextChange,
 } from "./common-validation.js";
 
 export function assertFixedAssetCreateInput(
@@ -44,10 +45,14 @@ export function assertFixedAssetCreateInput(
   }
 }
 
-export function assertFixedAssetPatchInput(input: FixedAssetPatchInput): void {
+export function assertFixedAssetPatchInput(
+  input: FixedAssetPatchInput,
+  existing: FixedAssetApiRecord,
+): void {
   assertObject(input, "Fixed asset patch");
   if (input.name !== undefined) {
-    assertNonBlankText(input.name, "Fixed asset name");
+    assertNonBlankString(input.name, "Fixed asset name");
+    assertTextChange(input.name, existing.name, "Fixed asset name");
   }
   if (input.bookAccountId !== undefined) {
     assertNonBlankString(input.bookAccountId, "Fixed asset book account");

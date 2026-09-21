@@ -7,10 +7,9 @@ import {
   buildFiscalPeriodArchiveFilename,
   buildFiscalPeriodArchivePayload,
   buildNextFiscalPeriodSuggestion,
-  buildOpeningCarryoverJournalsFromReversibleEntries,
-  computeFsAggregate,
   createFiscalPeriodArchiveZip,
   hasActiveFiscalPeriodOverlap,
+  isOpeningCarryoverCandidate,
   resolveEditingPolicy,
   resolveFiscalPeriodPolicy,
   validateFiscalPeriodDates,
@@ -85,10 +84,7 @@ export function NextFiscalPeriodBody({
   const suggested = useMemo(() => {
     if (currentFiscalPeriod == null)
       return { name: "", startDate: "", endDate: "" };
-    return buildNextFiscalPeriodSuggestion({
-      startDate: currentFiscalPeriod.startDate,
-      endDate: currentFiscalPeriod.endDate,
-    });
+    return buildNextFiscalPeriodSuggestion(currentFiscalPeriod.endDate);
   }, [currentFiscalPeriod]);
 
   const [name, setName] = useState(suggested.name);
@@ -99,8 +95,8 @@ export function NextFiscalPeriodBody({
   const [isArchiving, setIsArchiving] = useState(false);
   const workflowLock = useRef(new ExclusiveActionLock());
   const [pendingAdvance, setPendingAdvance] = useState(false);
-  const [carries, setCarries] =
-    useState<CarryOptions>(DEFAULT_CARRIES);
+  const [carries, setCarries] = useState<CarryOptions>(DEFAULT_CARRIES);
+  const [reversalEntryIds, setReversalEntryIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (currentFiscalPeriod == null) return;
@@ -111,6 +107,7 @@ export function NextFiscalPeriodBody({
     setArchiveStatus(null);
     setPendingAdvance(false);
     setCarries(DEFAULT_CARRIES);
+    setReversalEntryIds([]);
     setScreenError(null);
   }, [
     currentFiscalPeriod?.id,
@@ -146,6 +143,9 @@ export function NextFiscalPeriodBody({
 
   const canEnterPage = currentFiscalPeriod.phase === "post_closing";
   const isNotStarted = !canEnterPage;
+  const reversalCandidates = entriesState
+    .listFiscalPeriodEntries(currentFiscalPeriod.id)
+    .filter(isOpeningCarryoverCandidate);
   const dateValidation = validateFiscalPeriodDates(startDate, endDate);
   const hasOverlap =
     dateValidation.ok &&
@@ -191,76 +191,17 @@ export function NextFiscalPeriodBody({
     const authOperationVersion = appState.captureAuthOperationVersion();
     setIsCreating(true);
     let createdId: string | null = null;
-    let initializationCompleted = false;
     try {
-      createdId = await appState.createFiscalPeriod(
-        {
-          name,
-          startDate,
-          endDate,
-        },
-        { select: false },
-      );
+      createdId = await appState.createNextFiscalPeriod({
+        sourceFiscalPeriodId: currentFiscalPeriod.id,
+        name,
+        startDate,
+        endDate,
+        carryBalances: carries.bs,
+        reversalEntryIds: carries.transfer ? reversalEntryIds : [],
+        carryFixedAssets: carries.fixed,
+      });
       appState.assertAuthOperationCurrent(authOperationVersion);
-      if (createdId == null) return;
-      if (carries.bs || carries.transfer) {
-        const [entries, accounts] = await Promise.all([
-          entriesState.reloadAndWait(),
-          backendApi.masterData.getBookAccounts(),
-        ]);
-        appState.assertAuthOperationCurrent(authOperationVersion);
-        const aggregate = computeFsAggregate({
-          openingBalanceLines:
-            currentFiscalPeriod.opening?.openingBalanceLines ?? [],
-          entries,
-        });
-        const openingBalanceLines = aggregate.nextPeriodOpeningBalanceLines;
-        const openingJournals = carries.transfer
-          ? buildOpeningCarryoverJournalsFromReversibleEntries({
-              entries,
-              accounts,
-              nextFiscalPeriodId: createdId,
-              nextStartDate: startDate,
-            })
-          : [];
-        await appState.updateFiscalPeriod(createdId, {
-          openingBalancesCompleted: carries.bs,
-          opening: {
-            id: `op-${createdId}`,
-            userId: currentFiscalPeriod.userId,
-            fiscalPeriodId: createdId,
-            openingBalanceLines: carries.bs
-              ? openingBalanceLines.map((line) => ({
-                  id: line.accountId,
-                  ...line,
-                }))
-              : [],
-            openingJournals,
-          },
-        });
-        appState.assertAuthOperationCurrent(authOperationVersion);
-      }
-      if (carries.fixed) {
-        const fixedAssets = await backendApi.fixedAssets.getAll(
-          currentFiscalPeriod.id,
-        );
-        appState.assertAuthOperationCurrent(authOperationVersion);
-        for (const asset of fixedAssets) {
-          if (asset.status !== "active") continue;
-          appState.assertAuthOperationCurrent(authOperationVersion);
-          await backendApi.fixedAssets.create(createdId, {
-            name: asset.name,
-            acquisitionDate: asset.acquisitionDate,
-            acquisitionCost: asset.acquisitionCost,
-            usefulLife: Math.max(1, Math.round(asset.usefulLife) || 1),
-            depreciationMethod: asset.depreciationMethod,
-            businessRate: asset.businessRate,
-            bookAccountId: asset.bookAccountId,
-          });
-          appState.assertAuthOperationCurrent(authOperationVersion);
-        }
-      }
-      initializationCompleted = true;
       if (isEphemeral && currentArchived) {
         await appState.purgeArchivedFiscalPeriod(currentFiscalPeriod.id);
         appState.assertAuthOperationCurrent(authOperationVersion);
@@ -270,29 +211,6 @@ export function NextFiscalPeriodBody({
     } catch (error) {
       if (
         createdId != null &&
-        !initializationCompleted &&
-        appState.isAuthOperationCurrent(authOperationVersion)
-      ) {
-        try {
-          await appState.discardFiscalPeriod(createdId);
-          createdId = null;
-        } catch (cleanupError) {
-          if (!appState.isAuthOperationCurrent(authOperationVersion)) return;
-          setScreenError(
-            new AppError({
-              messageForDeveloper: `next fiscal period setup and cleanup failed: ${createdId}; original=${String(error)}; cleanup=${String(cleanupError)}`,
-              messageForUser:
-                "次の期間の初期化に失敗し、作成途中の期間も自動削除できませんでした。期間一覧で不要な期間を確認してください",
-              originalMessage: String(error),
-              statusCode: null,
-              code: null,
-            }),
-          );
-          return;
-        }
-      } else if (
-        createdId != null &&
-        initializationCompleted &&
         appState.isAuthOperationCurrent(authOperationVersion)
       ) {
         appState.selectFiscalPeriod(createdId);
@@ -472,7 +390,7 @@ export function NextFiscalPeriodBody({
                   <CarryCheckboxItem
                     key={item.id}
                     inputId={`carry-${item.id}`}
-                    checked={carries[item.id] ?? false}
+                    checked={carries[item.id]}
                     onChange={() => {
                       if (!isNotStarted) toggleCarry(item.id);
                     }}
@@ -485,6 +403,43 @@ export function NextFiscalPeriodBody({
             hint={null}
           />
         </StepMetaCard>
+        {canEnterPage && carries.transfer ? (
+          <StepMetaCard>
+            <StepFormRow
+              label="再振替する仕訳"
+              divider={false}
+              control={
+                <div>
+                  {reversalCandidates.map((entry) => (
+                    <CarryCheckboxItem
+                      key={entry.id}
+                      inputId={`reversal-${entry.id}`}
+                      checked={reversalEntryIds.includes(entry.id)}
+                      onChange={() =>
+                        setReversalEntryIds((ids) =>
+                          ids.includes(entry.id)
+                            ? ids.filter((id) => id !== entry.id)
+                            : [...ids, entry.id],
+                        )
+                      }
+                      label={`${entry.date} ${entry.description}（${entry.lines
+                        .map(
+                          (line) =>
+                            `${line.side === "debit" ? "借" : "貸"}: ${line.accountName} ${line.amount}円`,
+                        )
+                        .join(" / ")}）`}
+                      disabled={editingLocked || isCreating || isArchiving}
+                    />
+                  ))}
+                  {reversalCandidates.length === 0
+                    ? "候補の仕訳はありません"
+                    : null}
+                </div>
+              }
+              hint="期末に残る未払・前払など、翌期首に戻す仕訳を選んでください。支払済み・精算済みの仕訳は選択しません。"
+            />
+          </StepMetaCard>
+        ) : null}
         {canEnterPage ? (
           <>
             {requiresArchiveBeforeNext && !currentArchived ? (
@@ -639,7 +594,11 @@ export function NextFiscalPeriodBody({
 
       {screenError != null ? (
         <div style={{ marginTop: 16 }}>
-          <AppErrorText error={screenError} style={null} fallbackUserMessage={null} />
+          <AppErrorText
+            error={screenError}
+            style={null}
+            fallbackUserMessage={null}
+          />
         </div>
       ) : null}
     </>
@@ -659,7 +618,6 @@ function CarryCheckboxItem({
   label: string;
   disabled: boolean;
 }) {
-  const isDisabled = disabled;
   return (
     <label
       htmlFor={inputId}
@@ -670,8 +628,8 @@ function CarryCheckboxItem({
         minHeight: 40,
         paddingLeft: 4,
         paddingRight: 8,
-        cursor: isDisabled ? "default" : "pointer",
-        opacity: isDisabled ? 0.55 : 1,
+        cursor: disabled ? "default" : "pointer",
+        opacity: disabled ? 0.55 : 1,
         userSelect: "none",
         borderRadius: 6,
       }}
@@ -680,7 +638,7 @@ function CarryCheckboxItem({
         id={inputId}
         type="checkbox"
         checked={checked}
-        disabled={isDisabled}
+        disabled={disabled}
         onChange={onChange}
         className="bk-checkbox-input"
       />

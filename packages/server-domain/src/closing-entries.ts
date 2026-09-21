@@ -1,5 +1,6 @@
 import type { MasterBookAccountType } from "./generated-master-data.js";
 import { serverConflictError } from "./app-error.js";
+import { MAX_TEXT_FIELD_LENGTH } from "./validation.js";
 
 export type ClosingEntryLine = {
   side: "debit" | "credit";
@@ -141,7 +142,7 @@ function buildFixedAssetEntries(
   if (depreciation > 0) {
     entries.push({
       date: endDate,
-      description: `${asset.name}の減価償却`,
+      description: fixedAssetDescription(asset.name, "の減価償却"),
       localId: `${CLOSING_GENERATED_LOCAL_ID_PREFIX}virtual-fixed-asset-${asset.id}`,
       businessRate: asset.businessRate,
       lines: [
@@ -180,7 +181,7 @@ function buildFixedAssetEntries(
     if (debits.length > 0 || credits.length > 0) {
       entries.push({
         date: endDate,
-        description: `${asset.name}の売却`,
+        description: fixedAssetDescription(asset.name, "の売却"),
         localId: `${CLOSING_GENERATED_LOCAL_ID_PREFIX}virtual-fixed-asset-sale-${asset.id}`,
         businessRate: asset.businessRate,
         lines: [...debits, ...credits],
@@ -189,7 +190,7 @@ function buildFixedAssetEntries(
   } else if (bookValue > 0) {
     entries.push({
       date: endDate,
-      description: `${asset.name}の除却`,
+      description: fixedAssetDescription(asset.name, "の除却"),
       localId: `${CLOSING_GENERATED_LOCAL_ID_PREFIX}virtual-fixed-asset-retire-${asset.id}`,
       businessRate: asset.businessRate,
       lines: [
@@ -316,7 +317,9 @@ function computeDepreciationSnapshot(input: {
   const depreciableAmount = Math.max(0, cost - (cost > 0 ? 1 : 0));
   const accumulated = Math.min(
     depreciableAmount,
-    Math.floor((depreciableAmount * elapsedMonths) / totalMonths),
+    Number(
+      (BigInt(depreciableAmount) * BigInt(elapsedMonths)) / BigInt(totalMonths),
+    ),
   );
   return {
     accumulated,
@@ -354,4 +357,12 @@ function formatIsoLocalDate(date: Date): string {
     String(date.getMonth() + 1).padStart(2, "0"),
     String(date.getDate()).padStart(2, "0"),
   ].join("-");
+}
+
+function fixedAssetDescription(name: string, suffix: string): string {
+  const maxLength = MAX_TEXT_FIELD_LENGTH - suffix.length;
+  const shortened = name.length <= maxLength
+    ? name
+    : name.slice(0, maxLength).replace(/[\uD800-\uDBFF]$/, "");
+  return `${shortened}${suffix}`;
 }

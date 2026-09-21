@@ -11,14 +11,17 @@ import {
   DEFAULT_BOOK_ACCOUNTS,
   DEFAULT_BUSINESS_CATEGORIES,
   DEFAULT_TAX_CATEGORIES,
-  bootstrapOpeningBalanceLines,
   type EntryRecord,
   type FixedAsset,
   type OpenkkConfig,
 } from "@rubydogjp/openkk-client";
 import type { DbSnapshot } from "@rubydogjp/openkk-memory-db-adapter";
 
-import { buildDemoEntries, demoFixedAssetItems } from "./demo-content";
+import {
+  buildDemoEntries,
+  demoFixedAssetItems,
+  demoOpeningBalanceLines,
+} from "./demo-content";
 
 const DEMO_SEED_TIMESTAMP = new Date(0).toISOString();
 
@@ -27,10 +30,10 @@ export function buildOpenkkDemoSeed(config: OpenkkConfig): DbSnapshot {
   return {
     fiscalPeriods: [fiscalPeriod],
     entries: buildDemoEntries().map((record) =>
-      entryRecordToApiRecord(record, fiscalPeriod.id, config.mockUserId),
+      entryRecordToApiRecord(record, fiscalPeriod.id, fiscalPeriod.userId),
     ),
     fixedAssets: demoFixedAssetItems.map((item) =>
-      fixedAssetItemToApiRecord(item, fiscalPeriod.id, config.mockUserId),
+      fixedAssetItemToApiRecord(item, fiscalPeriod.id, fiscalPeriod.userId),
     ),
     closings: [],
     preClosings: [],
@@ -42,7 +45,7 @@ function buildDemoSeedFiscalPeriod(
 ): FiscalPeriodApiRecord {
   return {
     id: "fp-2026",
-    userId: config.mockUserId,
+    userId: config.embeddedUser.id,
     name: "デモ期間2026年分",
     startDate: "2026-01-01",
     endDate: "2026-12-31",
@@ -53,11 +56,11 @@ function buildDemoSeedFiscalPeriod(
     documentsReceivedCompleted: false,
     opening: {
       id: "opening-fp-2026",
-      userId: config.mockUserId,
+      userId: config.embeddedUser.id,
       fiscalPeriodId: "fp-2026",
       createdAt: DEMO_SEED_TIMESTAMP,
       updatedAt: DEMO_SEED_TIMESTAMP,
-      openingBalanceLines: bootstrapOpeningBalanceLines,
+      openingBalanceLines: demoOpeningBalanceLines,
       openingJournals: [],
     },
     createdAt: DEMO_SEED_TIMESTAMP,

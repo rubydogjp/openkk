@@ -11,7 +11,6 @@ export const openkkConfig: OpenkkConfig = {
   clock: createFixedClock(mockToday),
   env,
   bundleLabel: "Sim版",
-  isMockMode: true,
   debugRoutesEnabled: true,
   authMode: "embedded",
   embeddedUser: {
@@ -19,9 +18,7 @@ export const openkkConfig: OpenkkConfig = {
     id: userId,
     displayName: "開発ユーザー",
   },
-  mockUserId: userId,
-  initialMockUserId: userId,
-  initialMockFiscalPeriodId: null,
+  initialFiscalPeriodId: null,
   sessionStorageKey: `openkk.${BUNDLE}.session.user_id`,
   fiscalPeriodStorageKey: `openkk.${BUNDLE}.fiscal_period_id`,
   fiscalPeriodPolicy: null,

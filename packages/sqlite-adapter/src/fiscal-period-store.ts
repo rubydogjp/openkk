@@ -1,4 +1,7 @@
 import {
+  assertFiscalPeriodCanCarryOver,
+  buildCarryoverOpeningBalances,
+  buildCarryoverOpeningJournals,
   serverConflictError,
   serverNotFoundError,
   serverValidationError,
@@ -7,10 +10,12 @@ import {
 import type {
   EntryDbRecord,
   FiscalPeriodDbRecord,
+  FiscalPeriodDbCreateInput,
   FiscalPeriodsDb,
   FixedAssetDbRecord,
 } from "@rubydogjp/openkk-server-ports";
-import { insertEntryLines } from "./entry-store.js";
+import { createEntriesDb, insertEntryLines } from "./entry-store.js";
+import { createFixedAssetsDb } from "./fixed-asset-store.js";
 import {
   defaultOpening,
   loadOpeningByFiscalPeriod,
@@ -37,7 +42,7 @@ import type { SqlDb } from "./sql-db.js";
 import { runInTransaction } from "./transaction.js";
 
 export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
-  return {
+  const periods: FiscalPeriodsDb = {
     async getAllByUser(userId) {
       const rows = (await db.exec({
         sql: `SELECT data, created_at, updated_at FROM fiscal_periods WHERE user_id = ? ORDER BY created_at ASC, id ASC`,
@@ -48,7 +53,10 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       const openings = await loadOpeningsByUser(db, userId);
       return rows.map(([data, createdAt, updatedAt]) => {
         const record = parseFiscalPeriodDataColumn(data);
-        const opening = requireOpening(openings.get(record.id) ?? null, record.id);
+        const opening = requireOpening(
+          openings.get(record.id) ?? null,
+          record.id,
+        );
         const result: FiscalPeriodDbRecord = {
           ...record,
           userId,
@@ -70,7 +78,10 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       const row = rows[0];
       if (row == null) return null;
       const record = parseFiscalPeriodDataColumn(row[1]);
-      const opening = requireOpening(await loadOpeningByFiscalPeriod(db, id), id);
+      const opening = requireOpening(
+        await loadOpeningByFiscalPeriod(db, id),
+        id,
+      );
       const result: FiscalPeriodDbRecord = {
         ...record,
         userId: row[0],
@@ -82,43 +93,69 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       return result;
     },
     async create(userId, input) {
-      const id = newId("fp");
       const now = nowMs();
-      const timestamp = msToIso(now);
-      const opening = defaultOpening(userId, id, now);
-      const record: FiscalPeriodDbRecord = {
-        id,
-        userId,
-        name: input.name,
-        startDate: input.startDate,
-        endDate: input.endDate,
-        phase: "pre_opening",
-        archiveStatus: "active",
-        settingsCompleted: false,
-        openingBalancesCompleted: false,
-        documentsReceivedCompleted: false,
-        opening,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-        archiveDataAvailable: true,
-        archivedAt: null,
-      };
-      assertDbOpeningForPeriod(opening, record);
-      const serializedRecord = serializeFiscalPeriodDataColumn(record);
-      await runInTransaction(db, async () => {
-        await assertNoOverlappingActiveFiscalPeriod(db, {
-          userId,
-          startDate: record.startDate,
-          endDate: record.endDate,
-          excludeFiscalPeriodId: null,
-        });
-        await db.exec({
-          sql: `INSERT INTO fiscal_periods(id, user_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
-          bind: [id, userId, serializedRecord, now, now],
-        });
-        await replaceOpening(db, opening, now);
-      });
+      const record = newFiscalPeriodRecord(userId, input, now);
+      await runInTransaction(db, () => insertFiscalPeriod(db, record, now));
       return record;
+    },
+    async createNext(userId, input) {
+      return runInTransaction(db, async () => {
+        const source = await periods.getById(input.sourceFiscalPeriodId);
+        if (source == null || source.userId !== userId) {
+          throw serverNotFoundError(
+            `fiscal period not found: ${input.sourceFiscalPeriodId}`,
+          );
+        }
+        assertFiscalPeriodCanCarryOver(source, input.startDate);
+        const entries = await createEntriesDb(db).getAll(source.id);
+        const entriesById = new Map(entries.map((entry) => [entry.id, entry]));
+        const selected = input.reversalEntryIds.map((id) => {
+          const entry = entriesById.get(id);
+          if (entry == null) {
+            throw serverNotFoundError(
+              `Reversal entry ${id} not found in fiscal period ${source.id}`,
+            );
+          }
+          return entry;
+        });
+        const now = nowMs();
+        const record = newFiscalPeriodRecord(userId, input, now);
+        const opening = requireOpening(record.opening, record.id);
+        opening.openingBalanceLines = input.carryBalances
+          ? buildCarryoverOpeningBalances({
+              openingBalanceLines: requireOpening(source.opening, source.id)
+                .openingBalanceLines,
+              entries,
+            })
+          : [];
+        opening.openingJournals = buildCarryoverOpeningJournals({
+          entries: selected,
+          startDate: record.startDate,
+        });
+        record.openingBalancesCompleted = input.carryBalances;
+        await insertFiscalPeriod(db, record, now);
+        if (input.carryFixedAssets) {
+          const assets = await createFixedAssetsDb(db).getAllByFiscalPeriod(
+            source.id,
+          );
+          for (const asset of assets) {
+            if (asset.status !== "active") continue;
+            await insertFixedAsset(
+              db,
+              {
+                ...asset,
+                id: newId("fa"),
+                fiscalPeriodId: record.id,
+                createdAt: record.createdAt,
+                updatedAt: record.updatedAt,
+              },
+              record,
+              now,
+            );
+          }
+        }
+        return record;
+      });
     },
     async importArchived(userId, input) {
       assertDbArchiveImportSizeLimits(input);
@@ -155,11 +192,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         archivedAt: null,
       };
       assertDbOpeningForPeriod(opening, record);
-      assertDbImportedClosingState(
-        record,
-        input.preClosings,
-        input.closings,
-      );
+      assertDbImportedClosingState(record, input.preClosings, input.closings);
       const serializedRecord = serializeFiscalPeriodDataColumn(record);
       await runInTransaction(db, async () => {
         await assertNoOverlappingActiveFiscalPeriod(db, {
@@ -170,13 +203,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         });
         await db.exec({
           sql: `INSERT INTO fiscal_periods(id, user_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
-          bind: [
-            record.id,
-            userId,
-            serializedRecord,
-            now,
-            now,
-          ],
+          bind: [record.id, userId, serializedRecord, now, now],
         });
         await replaceOpening(db, opening, now);
         for (const inputEntry of input.entries) {
@@ -231,17 +258,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
             createdAt: timestamp,
             updatedAt: timestamp,
           };
-          assertDbFixedAssetRecord(asset, record);
-          await db.exec({
-            sql: `INSERT INTO fixed_assets(id, fiscal_period_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
-            bind: [
-              id,
-              fiscalPeriodId,
-              serializeFixedAssetDataColumn(asset),
-              now,
-              now,
-            ],
-          });
+          await insertFixedAsset(db, asset, record, now);
         }
         for (const preClosing of input.preClosings) {
           await db.exec({
@@ -448,6 +465,78 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       });
     },
   };
+  return periods;
+}
+
+function newFiscalPeriodRecord(
+  userId: string,
+  input: FiscalPeriodDbCreateInput,
+  now: number,
+): FiscalPeriodDbRecord {
+  const id = newId("fp");
+  const timestamp = msToIso(now);
+  return {
+    id,
+    userId,
+    name: input.name,
+    startDate: input.startDate,
+    endDate: input.endDate,
+    phase: "pre_opening",
+    archiveStatus: "active",
+    settingsCompleted: false,
+    openingBalancesCompleted: false,
+    documentsReceivedCompleted: false,
+    opening: defaultOpening(userId, id, now),
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    archiveDataAvailable: true,
+    archivedAt: null,
+  };
+}
+
+async function insertFiscalPeriod(
+  db: SqlDb,
+  record: FiscalPeriodDbRecord,
+  now: number,
+): Promise<void> {
+  const opening = requireOpening(record.opening, record.id);
+  assertDbOpeningForPeriod(opening, record);
+  await assertNoOverlappingActiveFiscalPeriod(db, {
+    userId: record.userId,
+    startDate: record.startDate,
+    endDate: record.endDate,
+    excludeFiscalPeriodId: null,
+  });
+  await db.exec({
+    sql: `INSERT INTO fiscal_periods(id, user_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
+    bind: [
+      record.id,
+      record.userId,
+      serializeFiscalPeriodDataColumn(record),
+      now,
+      now,
+    ],
+  });
+  await replaceOpening(db, opening, now);
+}
+
+async function insertFixedAsset(
+  db: SqlDb,
+  asset: FixedAssetDbRecord,
+  period: FiscalPeriodDbRecord,
+  now: number,
+): Promise<void> {
+  assertDbFixedAssetRecord(asset, period);
+  await db.exec({
+    sql: `INSERT INTO fixed_assets(id, fiscal_period_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
+    bind: [
+      asset.id,
+      asset.fiscalPeriodId,
+      serializeFixedAssetDataColumn(asset),
+      now,
+      now,
+    ],
+  });
 }
 
 async function assertNoOverlappingActiveFiscalPeriod(

@@ -6,6 +6,18 @@ import {
 } from "./fixed-asset-depreciation.js";
 
 describe("computeStraightLineDepreciation", () => {
+  it("keeps yen precision near the largest accepted acquisition cost", () => {
+    const result = computeStraightLineDepreciation({
+      acquisitionDate: "2026-01-01",
+      acquisitionCost: 9_007_199_254_740_918,
+      usefulLife: 7,
+      asOf: new Date(2026, 5, 30),
+    });
+    expect(result.accumulated).toBe(643_371_375_338_636);
+    expect(result.currentBookValue).toBe(8_363_827_879_402_282);
+    expect(result.annualDepreciation).toBe(1_286_742_750_677_274);
+  });
+
   it("computes half-life progress and book value", () => {
     const result = computeStraightLineDepreciation({
       acquisitionDate: "2024-01-01",

@@ -78,6 +78,15 @@ test.describe("openkk closing flow", () => {
     await page.locator('button[aria-label="次の期間へ"]').first().click();
     await expectStep(page, "次の期間へ");
 
+    const reversals = page.getByRole("checkbox", { name: /秋商材の仕入と配送費/ });
+    await expect(reversals).toHaveCount(2);
+    for (const candidate of await reversals.all()) {
+      await expect(candidate).not.toBeChecked();
+      await candidate.press("Space");
+      await expect(candidate).toBeChecked();
+    }
+    await expect(page.getByRole("checkbox", { name: /支払済みの通信費/ })).not.toBeChecked();
+
     await clickButton(page, "次期を作成");
     await expectStep(page, "期間を開始");
     await clickButton(page, "開始する");
@@ -90,6 +99,7 @@ test.describe("openkk closing flow", () => {
       page.getByText(/再振替: 秋商材の仕入と配送費/).first(),
     ).toBeVisible();
     await expect(page.getByText("再振替").first()).toBeVisible();
+    await expect(page.getByText(/再振替: 支払済みの通信費/)).toHaveCount(0);
 
     await page.getByRole("link", { name: "補助" }).click();
     await page
@@ -198,7 +208,7 @@ async function importYearEntries(page: Page) {
   await page
     .locator('input[type="file"][accept*=".json"]')
     .setInputFiles(YEAR_ENTRIES_FIXTURE);
-  await expect(page.getByText(/取り込みました\(取込 13 件/)).toBeVisible();
+  await expect(page.getByText(/取り込みました\(取込 15 件/)).toBeVisible();
 }
 
 async function fillOpeningAmount(

@@ -4,6 +4,7 @@ import {
   MAX_ENTRY_IMPORT_LINES,
   MAX_ENTRY_LINES,
   MAX_FIXED_ASSET_USEFUL_LIFE_YEARS,
+  MAX_FISCAL_PERIOD_ARCHIVE_FILE_BYTES,
 } from "@rubydogjp/openkk-server-domain";
 
 import type { OpenkkDbPort } from "../src/db-adapter.js";
@@ -646,7 +647,7 @@ export function runDbPortConformance(
       expect(await db.fiscalPeriods.getAllByUser("user-1")).toEqual([]);
     });
 
-    it("rejects oversized archived child collections before importing", async () => {
+    it("rejects oversized archive data before importing", async () => {
       const db = await makeDb();
       const base: FiscalPeriodArchiveDbImportInput = {
         fiscalPeriod: {
@@ -667,7 +668,8 @@ export function runDbPortConformance(
       };
       const entry = {
         date: "2026-04-01",
-        description: "imported entry",
+        description: "a".repeat(MAX_FISCAL_PERIOD_ARCHIVE_FILE_BYTES),
+        localId: null,
         businessRate: 1,
         lines: [testEntryLine, testCreditEntryLine],
       };
@@ -675,25 +677,10 @@ export function runDbPortConformance(
       await expect(
         db.fiscalPeriods.importArchived("user-1", {
           ...base,
-          entries: Array(MAX_ENTRY_IMPORT_ITEMS + 1).fill(entry),
+          entries: [entry],
         }),
-      ).rejects.toThrow(/Archived entries exceed the 10,000 item limit/);
+      ).rejects.toThrow(/archive exceeds the size limit/);
 
-      const repeatedLines = Array(MAX_ENTRY_LINES).fill(testEntryLine);
-      await expect(
-        db.fiscalPeriods.importArchived("user-1", {
-          ...base,
-          entries: Array.from(
-            { length: MAX_ENTRY_IMPORT_LINES / MAX_ENTRY_LINES + 1 },
-            (_, index) => ({
-              ...entry,
-              localId: null,
-              description: `entry ${index}`,
-              lines: repeatedLines,
-            }),
-          ),
-        }),
-      ).rejects.toThrow(/Archived journal lines exceed the 100,000 line limit/);
       expect(await db.fiscalPeriods.getAllByUser("user-1")).toEqual([]);
     });
   });

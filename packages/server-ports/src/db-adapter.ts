@@ -5,6 +5,7 @@ import type {
   EntryDbRecord,
   EntryDbUpsertInput,
   FiscalPeriodDbCreateInput,
+  FiscalPeriodNextDbCreateInput,
   FiscalPeriodDbPatchInput,
   FiscalPeriodDbRecord,
   FixedAssetDbCreateInput,
@@ -30,6 +31,10 @@ export interface FiscalPeriodsDb {
   create(
     userId: string,
     input: FiscalPeriodDbCreateInput,
+  ): Promise<FiscalPeriodDbRecord>;
+  createNext(
+    userId: string,
+    input: FiscalPeriodNextDbCreateInput,
   ): Promise<FiscalPeriodDbRecord>;
   importArchived(
     userId: string,

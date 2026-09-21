@@ -6,7 +6,7 @@ export * from "./shared/models.js";
 export * from "./shared/bootstrap-data.js";
 export * from "./shared/period-lock.js";
 export * from "./shared/parse-utils.js";
-export * from "./shared/text-limits.js";
+export { MAX_TEXT_FIELD_LENGTH } from "./shared/text-limits.js";
 
 export * from "./entries/entries-types.js";
 export * from "./entries/import-export.js";

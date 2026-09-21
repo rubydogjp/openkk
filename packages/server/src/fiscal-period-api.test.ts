@@ -25,8 +25,6 @@ import type {
   OpenkkDbPort,
 } from "@rubydogjp/openkk-server-ports";
 
-type StoredFiscalPeriodApiRecord = FiscalPeriodApiRecord & { userId: string };
-
 describe("openkk server fiscal period API", () => {
   it("rejects invalid fiscal period dates before persisting", async () => {
     const db = createFiscalPeriodDb([]);
@@ -763,7 +761,7 @@ async function captureAsyncError(fn: () => Promise<unknown>): Promise<unknown> {
 }
 
 function createFiscalPeriodDb(
-  seed: StoredFiscalPeriodApiRecord[],
+  seed: FiscalPeriodApiRecord[],
   childSeed: Partial<{
     entries: EntryApiRecord[];
     fixedAssets: FixedAssetApiRecord[];
@@ -790,6 +788,9 @@ function createFiscalPeriodDb(
         });
         fiscalPeriods.set(record.id, record);
         return record;
+      },
+      async createNext() {
+        throw new Error("unexpected createNext call");
       },
       async importArchived(
         userId: string,
@@ -964,9 +965,9 @@ function entryLinesWithIds(
 }
 
 function fiscalPeriod(
-  overrides: Partial<StoredFiscalPeriodApiRecord>,
-): StoredFiscalPeriodApiRecord {
-  const base: StoredFiscalPeriodApiRecord = {
+  overrides: Partial<FiscalPeriodApiRecord>,
+): FiscalPeriodApiRecord {
+  const base: FiscalPeriodApiRecord = {
     id: "fp-1",
     userId: "user-1",
     name: "2026年分",

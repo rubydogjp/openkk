@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   assertClosingEntriesMatch,
   buildExpectedClosingEntries,
+  computeFixedAssetBookValue,
   type ClosingEntry,
 } from "./closing-entries.js";
 
@@ -149,5 +150,16 @@ describe("buildExpectedClosingEntries fixed-asset disposal", () => {
       expect.objectContaining({ side: "debit", amount: 108 }),
       expect.objectContaining({ side: "credit", amount: 108 }),
     ]);
+  });
+});
+
+describe("computeFixedAssetBookValue", () => {
+  it("keeps yen precision near the largest accepted acquisition cost", () => {
+    expect(computeFixedAssetBookValue({
+      acquisitionDate: "2026-01-01",
+      acquisitionCost: 9_007_199_254_740_918,
+      usefulLife: 7,
+      asOf: "2026-06-30",
+    })).toBe(8_363_827_879_402_282);
   });
 });

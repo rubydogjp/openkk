@@ -1,5 +1,4 @@
 import {
-  assertTextFieldLength,
   DEFAULT_BUSINESS_CATEGORIES,
   DEFAULT_TAX_CATEGORIES,
   serverValidationError,
@@ -183,7 +182,6 @@ function optionalText(value: unknown, label: string): string {
   if (typeof value !== "string") {
     throw serverValidationError(`${label} must be a string`, null);
   }
-  assertTextFieldLength(value, label);
   return value;
 }
 

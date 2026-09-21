@@ -1,13 +1,11 @@
 import {
   assertDateRange,
   assertEntryLinesBalanced,
-  assertTextFieldLength,
   assertOpeningBalanceAccountId,
   assertUniqueAccountIds,
   computeFixedAssetBookValue,
   getDefaultBookAccount,
-  MAX_ENTRY_IMPORT_ITEMS,
-  MAX_ENTRY_IMPORT_LINES,
+  assertFiscalPeriodArchiveSize,
   MAX_FIXED_ASSET_USEFUL_LIFE_YEARS,
   parseIsoDate,
   serverValidationError,
@@ -48,17 +46,17 @@ export function normalizeArchiveImportInput(
     archive.closings,
     "archive closings",
   );
-  assertArchiveImportSizeLimits({
-    fiscalPeriod: sourceFiscalPeriod,
-    entries: sourceEntries,
-    fixedAssets: sourceFixedAssets,
-    closings: sourceClosings,
-  });
-  const manifestFiscalPeriodId = requireString(
+  assertFiscalPeriodArchiveSize([
+    manifest, sourceFiscalPeriod, sourceEntries, sourceFixedAssets, sourceClosings,
+  ]);
+  if (sourceClosings.length > 2) {
+    throw serverValidationError("archive closings exceeds the 2 item limit", null);
+  }
+  const manifestFiscalPeriodId = requireNonBlankString(
     manifest.fiscalPeriodId,
     "archive manifest.fiscalPeriodId",
   );
-  const sourceId = requireString(
+  const sourceId = requireNonBlankString(
     sourceFiscalPeriod.id,
     "archive fiscalPeriod.id",
   );
@@ -98,7 +96,7 @@ export function normalizeArchiveImportInput(
     "archive fiscalPeriod.endDate",
   );
   assertDateRange(startDate, endDate, "archive fiscalPeriod");
-  const periodName = requireText(
+  const periodName = requireNonBlankString(
     fiscalPeriod.name,
     "archive fiscalPeriod.name",
   );
@@ -215,74 +213,6 @@ export function normalizeArchiveImportInput(
   };
 }
 
-function assertArchiveImportSizeLimits(input: {
-  fiscalPeriod: Record<string, unknown>;
-  entries: unknown[];
-  fixedAssets: unknown[];
-  closings: unknown[];
-}): void {
-  assertArchiveCollectionItemLimit(input.entries, "entries");
-  assertArchiveCollectionItemLimit(input.fixedAssets, "fixedAssets");
-  if (input.closings.length > 2) {
-    throw serverValidationError(
-      "archive closings exceeds the 2 item limit",
-      "圧縮済みファイルの決算記録件数が多すぎます",
-    );
-  }
-
-  let totalLineCount = 0;
-  for (const entry of input.entries) {
-    totalLineCount = addArchiveLineCount(totalLineCount, entry);
-  }
-
-  const opening = input.fiscalPeriod.opening;
-  if (typeof opening === "object" && opening != null && !Array.isArray(opening)) {
-    const openingRecord = opening as Record<string, unknown>;
-    const openingBalanceLines = openingRecord.openingBalanceLines;
-    if (Array.isArray(openingBalanceLines)) {
-      assertArchiveCollectionItemLimit(
-        openingBalanceLines,
-        "openingBalanceLines",
-      );
-    }
-    const openingJournals = openingRecord.openingJournals;
-    if (Array.isArray(openingJournals)) {
-      assertArchiveCollectionItemLimit(openingJournals, "openingJournals");
-      for (const journal of openingJournals) {
-        totalLineCount = addArchiveLineCount(totalLineCount, journal);
-      }
-    }
-  }
-}
-
-function assertArchiveCollectionItemLimit(
-  items: unknown[],
-  label: string,
-): void {
-  if (items.length > MAX_ENTRY_IMPORT_ITEMS) {
-    throw serverValidationError(
-      `archive ${label} exceeds the ${MAX_ENTRY_IMPORT_ITEMS.toLocaleString("en-US")} item limit`,
-      "圧縮済みファイルのデータ件数が多すぎます",
-    );
-  }
-}
-
-function addArchiveLineCount(total: number, value: unknown): number {
-  if (typeof value !== "object" || value == null || Array.isArray(value)) {
-    return total;
-  }
-  const lines = (value as Record<string, unknown>).lines;
-  if (!Array.isArray(lines)) return total;
-  const next = total + lines.length;
-  if (!Number.isSafeInteger(next) || next > MAX_ENTRY_IMPORT_LINES) {
-    throw serverValidationError(
-      `archive journal lines exceeds the ${MAX_ENTRY_IMPORT_LINES.toLocaleString("en-US")} line limit`,
-      "圧縮済みファイルの仕訳明細数が多すぎます",
-    );
-  }
-  return next;
-}
-
 function normalizeFiscalPeriodPhase(value: unknown) {
   if (
     value === "pre_opening" ||
@@ -308,7 +238,7 @@ function normalizeArchivedOpening(
     "archive openingBalanceLines",
   ).map((line) => {
     const item = objectValue(line, "archive openingBalanceLine");
-    const accountId = requireString(
+    const accountId = requireNonBlankString(
       item.accountId,
       "archive openingBalanceLine.accountId",
     );
@@ -317,7 +247,7 @@ function normalizeArchivedOpening(
       "archive openingBalanceLine.accountId",
     );
     return {
-      id: requireString(item.id, "archive openingBalanceLine.id"),
+      id: requireNonBlankString(item.id, "archive openingBalanceLine.id"),
       accountId,
       amount: requireNonNegativeNumber(
         item.amount,
@@ -335,19 +265,19 @@ function normalizeArchivedOpening(
     "archive openingJournals",
   ).map((journal) => {
     const item = objectValue(journal, "archive openingJournal");
-    const id = requireString(item.id, "archive openingJournal.id");
+    const id = requireNonBlankString(item.id, "archive openingJournal.id");
     const lines = requireArrayValue(
       item.lines,
       "archive openingJournal.lines",
     ).map((line) => {
       const lineObject = objectValue(line, "archive openingJournal.line");
       return {
-        id: requireString(
+        id: requireNonBlankString(
           lineObject.id,
           "archive openingJournal.line.id",
         ),
         side: normalizeSide(lineObject.side),
-        bookAccountId: requireString(
+        bookAccountId: requireNonBlankString(
           lineObject.bookAccountId,
           "archive openingJournal.line.bookAccountId",
         ),
@@ -355,15 +285,15 @@ function normalizeArchivedOpening(
           lineObject.amount,
           "archive openingJournal.line.amount",
         ),
-        partnerName: requireTextValue(
+        partnerName: requireString(
           lineObject.partnerName,
           "archive openingJournal.line.partnerName",
         ),
-        taxCategoryId: requireTextValue(
+        taxCategoryId: requireString(
           lineObject.taxCategoryId,
           "archive openingJournal.line.taxCategoryId",
         ),
-        businessCategoryId: requireTextValue(
+        businessCategoryId: requireString(
           lineObject.businessCategoryId,
           "archive openingJournal.line.businessCategoryId",
         ),
@@ -384,7 +314,7 @@ function normalizeArchivedOpening(
     return {
       id,
       date,
-      description: requireTextValue(
+      description: requireString(
         item.description,
         "archive openingJournal.description",
       ),
@@ -426,7 +356,7 @@ function normalizeArchivedEntry(
       null,
     );
   }
-  const description = requireText(
+  const description = requireNonBlankString(
     value.description,
     "archive entry.description",
   );
@@ -443,7 +373,7 @@ function normalizeArchivedEntry(
       const item = objectValue(line, "archive entry.line");
       return {
         side: normalizeSide(item.side),
-        bookAccountId: requireString(
+        bookAccountId: requireNonBlankString(
           item.bookAccountId,
           "archive entry.line.bookAccountId",
         ),
@@ -451,15 +381,15 @@ function normalizeArchivedEntry(
           item.amount,
           "archive entry.line.amount",
         ),
-        partnerName: requireTextValue(
+        partnerName: requireString(
           item.partnerName,
           "archive entry.line.partnerName",
         ),
-        taxCategoryId: requireTextValue(
+        taxCategoryId: requireString(
           item.taxCategoryId,
           "archive entry.line.taxCategoryId",
         ),
-        businessCategoryId: requireTextValue(
+        businessCategoryId: requireString(
           item.businessCategoryId,
           "archive entry.line.businessCategoryId",
         ),
@@ -486,7 +416,7 @@ function normalizeArchivedFixedAsset(
     "archive fixedAsset.acquisitionDate",
   );
   const status = normalizeFixedAssetStatus(
-    requireStringValue(value.status, "archive fixedAsset.status"),
+    requireString(value.status, "archive fixedAsset.status"),
   );
   if (acquisitionDate > periodEndDate) {
     throw serverValidationError(
@@ -557,7 +487,7 @@ function normalizeArchivedFixedAsset(
       null,
     );
   }
-  const bookAccountId = requireString(
+  const bookAccountId = requireNonBlankString(
     value.bookAccountId,
     "archive fixedAsset.bookAccountId",
   );
@@ -601,7 +531,7 @@ function normalizeArchivedFixedAsset(
     );
   }
   return {
-    name: requireText(value.name, "archive fixedAsset.name"),
+    name: requireNonBlankString(value.name, "archive fixedAsset.name"),
     acquisitionDate,
     acquisitionCost,
     usefulLife,
@@ -653,7 +583,7 @@ function assertSourceFiscalPeriodId(
   sourceFiscalPeriodId: string,
   label: string,
 ): void {
-  const id = requireString(value, label);
+  const id = requireNonBlankString(value, label);
   if (id !== sourceFiscalPeriodId) {
     throw serverValidationError(`${label} does not match archive fiscalPeriod`, null);
   }
@@ -839,7 +769,7 @@ function requireArrayValue(value: unknown, label: string): unknown[] {
   return value;
 }
 
-function requireString(value: unknown, label: string): string {
+function requireNonBlankString(value: unknown, label: string): string {
   if (typeof value !== "string") {
     throw serverValidationError(`${label} must be a string`, null);
   }
@@ -860,23 +790,11 @@ function requireNullableString(value: unknown, label: string): string | null {
   return value;
 }
 
-function requireText(value: unknown, label: string): string {
-  const text = requireString(value, label);
-  assertTextFieldLength(text, label);
-  return text;
-}
-
-function requireStringValue(value: unknown, label: string): string {
+function requireString(value: unknown, label: string): string {
   if (typeof value !== "string") {
     throw serverValidationError(`${label} must be a string`, null);
   }
   return value;
-}
-
-function requireTextValue(value: unknown, label: string): string {
-  const text = requireStringValue(value, label);
-  assertTextFieldLength(text, label);
-  return text;
 }
 
 function requireBoolean(value: unknown, label: string): boolean {
@@ -921,7 +839,7 @@ function requireUnitRate(value: unknown, label: string): number {
 }
 
 function requireIsoDate(value: unknown, label: string): string {
-  const text = requireString(value, label);
+  const text = requireNonBlankString(value, label);
   if (parseIsoDate(text) == null) {
     throw serverValidationError(`${label} is invalid`, null);
   }

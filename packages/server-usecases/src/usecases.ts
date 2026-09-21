@@ -1,5 +1,6 @@
 import {
   assertClosingEntriesMatch,
+  assertFiscalPeriodCanCarryOver,
   buildExpectedClosingEntries,
   serverConflictError,
   serverNotFoundError,
@@ -8,6 +9,7 @@ import type {
   EntryUpsertInput,
   FiscalPeriodArchiveImportInput,
   FiscalPeriodCreateInput,
+  FiscalPeriodNextCreateInput,
   FiscalPeriodPatchInput,
   FixedAssetCreateInput,
   FixedAssetPatchInput,
@@ -123,6 +125,15 @@ function createFiscalPeriodUsecase(db: OpenkkDbPort) {
     },
     async create(userId: string, input: FiscalPeriodCreateInput) {
       return db.fiscalPeriods.create(userId, input);
+    },
+    async createNext(userId: string, input: FiscalPeriodNextCreateInput) {
+      const source = await requireOwnedFiscalPeriod(
+        db,
+        userId,
+        input.sourceFiscalPeriodId,
+      );
+      assertFiscalPeriodCanCarryOver(source, input.startDate);
+      return db.fiscalPeriods.createNext(userId, input);
     },
     async importArchived(
       userId: string,

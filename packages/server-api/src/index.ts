@@ -11,9 +11,9 @@ import {
   archivedFiscalPeriodError,
   assertClosingGeneratedEntries,
   assertClosingYear,
-  assertEntryInput,
-  assertEntryMasterReferences,
+  assertEditableEntryInput,
   assertFiscalPeriodCreateInput,
+  assertFiscalPeriodNextCreateInput,
   assertFiscalPeriodContainsExistingData,
   assertFiscalPeriodPatchAllowed,
   assertFiscalPeriodPatchInput,
@@ -126,22 +126,20 @@ export function createOpenkkServerApi(
       create: async (fpId, input) => {
         const period = await getOwnedFiscalPeriod(fpId);
         assertPeriodPhase(period, "journalizing", "create entry");
-        assertEntryInput(input, period, false);
-        assertEntryMasterReferences(input);
+        assertEditableEntryInput(input, period, null);
         return usecases.entries.create(uid, fpId, input);
       },
       patch: async (fpId, id, input) => {
         const period = await getOwnedFiscalPeriod(fpId);
         assertPeriodPhase(period, "journalizing", "update entry");
         assertNonBlankString(id, "Entry id");
-        assertEntryInput(input, period, false);
-        assertEntryMasterReferences(input);
         const existing = await usecases.entries.getById(uid, id);
         if (existing == null || existing.fiscalPeriodId !== fpId) {
           throw serverNotFoundError(
             `Entry ${id} not found in fiscal period ${fpId}`,
           );
         }
+        assertEditableEntryInput(input, period, existing);
         return usecases.entries.update(uid, id, input);
       },
       remove: async (fpId, id) => {
@@ -190,8 +188,7 @@ export function createOpenkkServerApi(
           }
         }
         inputs.forEach((input) => {
-          assertEntryInput(input, period, false);
-          assertEntryMasterReferences(input);
+          assertEditableEntryInput(input, period, null);
         });
         const entries = await usecases.entries.importMany(uid, fpId, inputs);
         return { importedCount: entries.length, entries };
@@ -206,6 +203,11 @@ export function createOpenkkServerApi(
           await usecases.fiscalPeriod.getAll(uid),
         );
         return usecases.fiscalPeriod.create(uid, input);
+      },
+      createNext: async (input) => {
+        assertFiscalPeriodNextCreateInput(input);
+        assertNoOverlappingFiscalPeriod(input, await usecases.fiscalPeriod.getAll(uid));
+        return usecases.fiscalPeriod.createNext(uid, input);
       },
       importArchived: async (input) => {
         return usecases.fiscalPeriod.importArchived(uid, input);
@@ -288,13 +290,13 @@ export function createOpenkkServerApi(
         const period = await getOwnedFiscalPeriod(fpId);
         assertPeriodPhase(period, "journalizing", "update fixed asset");
         assertNonBlankString(id, "Fixed asset id");
-        assertFixedAssetPatchInput(patch);
         const existing = await usecases.fixedAssets.getById(uid, id);
         if (existing == null || existing.fiscalPeriodId !== fpId) {
           throw serverNotFoundError(
             `Fixed asset ${id} not found in fiscal period ${fpId}`,
           );
         }
+        assertFixedAssetPatchInput(patch, existing);
         assertFixedAssetDisposalConsistency(existing, patch);
         assertFixedAssetEffectiveInput(existing, patch, period);
         return usecases.fixedAssets.update(uid, id, patch);

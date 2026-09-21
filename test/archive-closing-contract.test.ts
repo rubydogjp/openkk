@@ -14,9 +14,11 @@ import { createMemoryDbAdapter } from "../packages/memory-db-adapter/src/index.j
 import { createOpenkkServer } from "../packages/server/src/index.js";
 
 describe("archived closing reports", () => {
-  it.each(["active", "sold", "disposed"] as const)(
-    "preserves closing amounts after restoring a %s asset",
-    async (status) => {
+  it.each((["active", "sold", "disposed"] as const).flatMap((status) =>
+    ["PC", "資".repeat(400), "😀".repeat(200)].map((name) => ({ status, name, nameLength: name.length })),
+  ))(
+    "preserves closing amounts after restoring a $status asset with a $nameLength character name",
+    async ({ status, name }) => {
       const server = createOpenkkServer(await createMemoryDbAdapter(null), {
         userId: "user-1",
       });
@@ -30,7 +32,7 @@ describe("archived closing reports", () => {
         openingBalancesCompleted: true,
       });
       let asset = await server.fixedAssets.create(period.id, {
-        name: "PC",
+        name,
         acquisitionDate: "2026-01-01",
         acquisitionCost: 120_000,
         usefulLife: 4,
@@ -57,6 +59,8 @@ describe("archived closing reports", () => {
         assets: [mapFixedAsset(asset, "工具器具備品", today, period.endDate)],
         carryovers: [],
       });
+      expect(preview.every((entry) => entry.description.length <= 400)).toBe(true);
+      expect(preview.every((entry) => !/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(entry.description))).toBe(true);
       await server.preClosing.run({ fiscalPeriodId: period.id, year: 2026 });
       await server.closing.run({
         fiscalPeriodId: period.id,

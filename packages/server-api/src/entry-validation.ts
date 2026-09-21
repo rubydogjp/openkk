@@ -2,29 +2,70 @@ import {
   assertEntryLinesBalanced,
   assertIsoDate,
   assertNonNegativeSafeInteger,
+  assertTextFieldLength,
   assertUnitRate,
   CLOSING_GENERATED_LOCAL_ID_PREFIX,
   getDefaultBookAccount,
   serverValidationError,
 } from "@rubydogjp/openkk-server-domain";
 import type {
+  EntryApiRecord,
   EntryUpsertInput,
   FiscalPeriodApiRecord,
 } from "@rubydogjp/openkk-server-ports";
 import {
   assertNonBlankString,
-  assertNonBlankText,
   assertObject,
-  assertText,
+  assertString,
 } from "./common-validation.js";
+
+export function assertEditableEntryInput(
+  input: EntryUpsertInput,
+  period: FiscalPeriodApiRecord,
+  existing: EntryApiRecord | null,
+): void {
+  assertEntryInput(input, period);
+  if (input.localId?.startsWith(CLOSING_GENERATED_LOCAL_ID_PREFIX)) {
+    throw serverValidationError(
+      `Entry localId prefix ${CLOSING_GENERATED_LOCAL_ID_PREFIX} is reserved`,
+      "この仕訳識別子は本締め用に予約されています",
+    );
+  }
+  if (input.description !== existing?.description) {
+    assertTextFieldLength(input.description, "Entry description");
+  }
+  for (const line of input.lines) {
+    if (
+      !existing?.lines.some((saved) => saved.partnerName === line.partnerName)
+    ) {
+      assertTextFieldLength(line.partnerName, "Entry line partner");
+    }
+    if (
+      !existing?.lines.some(
+        (saved) => saved.taxCategoryId === line.taxCategoryId,
+      )
+    ) {
+      assertTextFieldLength(line.taxCategoryId, "Entry line tax category");
+    }
+    if (
+      !existing?.lines.some(
+        (saved) => saved.businessCategoryId === line.businessCategoryId,
+      )
+    ) {
+      assertTextFieldLength(
+        line.businessCategoryId,
+        "Entry line business category",
+      );
+    }
+  }
+}
 
 export function assertEntryInput(
   input: EntryUpsertInput,
   period: FiscalPeriodApiRecord,
-  allowClosingGenerated: boolean,
 ): void {
   assertObject(input, "Entry input");
-  assertNonBlankText(input.description, "Entry description");
+  assertNonBlankString(input.description, "Entry description");
   assertIsoDate(input.date, "Entry date");
   if (input.date < period.startDate || input.date > period.endDate) {
     throw serverValidationError(
@@ -32,22 +73,18 @@ export function assertEntryInput(
       "仕訳日付を会計期間内にしてください",
     );
   }
-  if (
-    !allowClosingGenerated &&
-    typeof input.localId === "string" &&
-    input.localId.startsWith(CLOSING_GENERATED_LOCAL_ID_PREFIX)
-  ) {
-    throw serverValidationError(
-      `Entry localId prefix ${CLOSING_GENERATED_LOCAL_ID_PREFIX} is reserved`,
-      "この仕訳識別子は本締め用に予約されています",
-    );
-  }
   if (input.localId !== null) {
     if (typeof input.localId !== "string") {
-      throw serverValidationError("Entry localId must be a string or null", null);
+      throw serverValidationError(
+        "Entry localId must be a string or null",
+        null,
+      );
     }
     if (input.localId.trim() === "") {
-      throw serverValidationError("Entry localId is required when provided", null);
+      throw serverValidationError(
+        "Entry localId is required when provided",
+        null,
+      );
     }
   }
   assertUnitRate(input.businessRate, "Entry business rate");
@@ -59,10 +96,11 @@ export function assertEntryInput(
       throw serverValidationError("Entry line must be an object", null);
     }
     assertNonBlankString(line.bookAccountId, "Entry line book account");
-    assertText(line.partnerName, "Entry line partner");
+    assertString(line.partnerName, "Entry line partner");
     assertNonNegativeSafeInteger(line.amount, "Entry line amount");
   }
   assertEntryLinesBalanced(input.lines, "Entry", { allowZero: false });
+  assertEntryMasterReferences(input);
 }
 
 export function assertEntryMasterReferences(input: EntryUpsertInput): void {
@@ -73,7 +111,7 @@ export function assertEntryMasterReferences(input: EntryUpsertInput): void {
         "存在しない勘定科目が指定されています",
       );
     }
-    assertText(line.taxCategoryId, "Entry line tax category");
-    assertText(line.businessCategoryId, "Entry line business category");
+    assertString(line.taxCategoryId, "Entry line tax category");
+    assertString(line.businessCategoryId, "Entry line business category");
   }
 }

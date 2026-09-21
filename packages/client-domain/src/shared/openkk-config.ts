@@ -39,12 +39,9 @@ export interface OpenkkConfig {
   clock: OpenkkClock;
   env: OpenkkEnv;
   bundleLabel: string;
-  isMockMode: boolean;
   authMode: OpenkkAuthMode;
   embeddedUser: EmbeddedUser;
-  mockUserId: string;
-  initialMockUserId: string | null;
-  initialMockFiscalPeriodId: string | null;
+  initialFiscalPeriodId: string | null;
   sessionStorageKey: string;
   fiscalPeriodStorageKey: string;
   fiscalPeriodPolicy: FiscalPeriodPolicy | null;

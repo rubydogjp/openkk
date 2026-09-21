@@ -15,6 +15,7 @@ import {
   type EntryRecord,
 } from "./entry-record.js";
 import { parseIsoLocalDate } from "../shared/parse-utils.js";
+import { MAX_TEXT_FIELD_LENGTH, truncateText } from "../shared/text-limits.js";
 
 const BUSINESS_RATE_TRANSFER_ROW_ID = "business-rate-transfer";
 
@@ -180,7 +181,7 @@ function buildDepreciationEntries(input: {
   return buildFixedAssetEntriesFromLines({
     recordId: `virtual-fixed-asset-${input.asset.id}`,
     date: input.dateText,
-    description: `${input.asset.name}の減価償却`,
+    description: fixedAssetDescription(input.asset.name, "の減価償却"),
     businessRate: input.asset.businessRate,
     fiscalPeriodId: input.asset.fiscalPeriodId,
     debits: [
@@ -250,7 +251,7 @@ function buildSaleEntries(input: {
   return buildFixedAssetEntriesFromLines({
     recordId: `virtual-fixed-asset-sale-${input.asset.id}`,
     date: input.disposalDate,
-    description: `${input.asset.name}の売却`,
+    description: fixedAssetDescription(input.asset.name, "の売却"),
     businessRate: input.asset.businessRate,
     fiscalPeriodId: input.asset.fiscalPeriodId,
     debits,
@@ -267,7 +268,7 @@ function buildRetirementEntries(input: {
   return buildFixedAssetEntriesFromLines({
     recordId: `virtual-fixed-asset-retire-${input.asset.id}`,
     date: input.disposalDate,
-    description: `${input.asset.name}の除却`,
+    description: fixedAssetDescription(input.asset.name, "の除却"),
     businessRate: input.asset.businessRate,
     fiscalPeriodId: input.asset.fiscalPeriodId,
     debits: [
@@ -442,4 +443,8 @@ export function buildVirtualBusinessRateTransferRows(input: {
       assistHref: null,
     },
   }));
+}
+
+function fixedAssetDescription(name: string, suffix: string): string {
+  return `${truncateText(name, MAX_TEXT_FIELD_LENGTH - suffix.length)}${suffix}`;
 }

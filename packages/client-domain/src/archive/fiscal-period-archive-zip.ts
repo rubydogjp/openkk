@@ -21,14 +21,14 @@ const ZIP_STORE_METHOD = 0;
 const ZIP_UTF8_FLAG = 0x0800;
 const ZIP_END_SIZE = 22;
 export const MAX_FISCAL_PERIOD_ARCHIVE_BYTES = 64 * 1024 * 1024;
-const MAX_ARCHIVE_FILE_BYTES = 32 * 1024 * 1024;
+export const MAX_FISCAL_PERIOD_ARCHIVE_FILE_BYTES = 32 * 1024 * 1024;
 const MAX_ARCHIVE_FILES = 32;
 
 export function createStoredZip(files: ArchiveZipFile[]): Uint8Array {
   if (files.length > MAX_ARCHIVE_FILES) {
     throw invalidArchiveContentError("archive zip contains too many files");
   }
-  if (files.some((file) => file.bytes.length > MAX_ARCHIVE_FILE_BYTES)) {
+  if (files.some((file) => file.bytes.length > MAX_FISCAL_PERIOD_ARCHIVE_FILE_BYTES)) {
     throw invalidArchiveContentError("archive zip entry exceeds the size limit");
   }
   const localParts: Uint8Array[] = [];
@@ -174,7 +174,7 @@ export function readStoredZip(bytes: Uint8Array): Map<string, Uint8Array> {
         "archive zip stored entry size mismatch",
       );
     }
-    if (uncompressedSize > MAX_ARCHIVE_FILE_BYTES) {
+    if (uncompressedSize > MAX_FISCAL_PERIOD_ARCHIVE_FILE_BYTES) {
       throw invalidArchiveContentError(
         "archive zip entry exceeds the size limit",
       );

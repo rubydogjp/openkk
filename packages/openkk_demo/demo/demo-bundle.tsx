@@ -6,10 +6,12 @@ import {
   type FiscalPeriodSeedProvider,
   type OpenkkCalloutSlots,
   type OpenkkEditingPolicy,
-  bootstrapOpeningBalanceLines,
 } from "@rubydogjp/openkk-client";
 
-import { buildDemoSeedEntriesForFiscalPeriod } from "./demo-content";
+import {
+  buildDemoSeedEntriesForFiscalPeriod,
+  demoOpeningBalanceLines,
+} from "./demo-content";
 
 export const demoEditingPolicy: OpenkkEditingPolicy = {
   locked: true,
@@ -63,7 +65,7 @@ export const demoSeedFiscalPeriod: FiscalPeriodSeedProvider = ({
 }) =>
   isFirst
     ? {
-        openingBalanceLines: bootstrapOpeningBalanceLines,
+        openingBalanceLines: demoOpeningBalanceLines,
         entries: buildDemoSeedEntriesForFiscalPeriod(fiscalPeriod.id),
       }
     : null;

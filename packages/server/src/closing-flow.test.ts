@@ -312,6 +312,9 @@ function createMemoryDb(
       async create(_userId: string, input: FiscalPeriodCreateInput) {
         return fiscalPeriod({ ...input, id: "fp-1" });
       },
+      async createNext() {
+        throw new Error("unexpected createNext call");
+      },
       async importArchived() {
         return fiscalPeriod({ id: "fp-archive", archiveStatus: "archived" });
       },

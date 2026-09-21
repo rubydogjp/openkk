@@ -44,6 +44,7 @@ export function serializeDataOperations(
       ...api.fiscalPeriod,
       getAll: serialize(api.fiscalPeriod.getAll),
       create: serialize(api.fiscalPeriod.create),
+      createNext: serialize(api.fiscalPeriod.createNext),
       importArchived: serialize(api.fiscalPeriod.importArchived),
       patch: serialize(api.fiscalPeriod.patch),
       archive: serialize(api.fiscalPeriod.archive),

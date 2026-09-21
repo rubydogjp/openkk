@@ -37,7 +37,7 @@ async function createFileBackendApi(): Promise<OpenkkBackendPort> {
     null,
   );
   const server = createOpenkkEmbeddedBackend(db, {
-    userId: openkkConfig.mockUserId,
+    userId: openkkConfig.embeddedUser.id,
   });
   return createOpenkkEmbeddedBackendAdapter(server);
 }

@@ -106,6 +106,10 @@ export function createOpenkkEmbeddedBackendAdapter(
         const response = await request("fiscalPeriodCreate", { input });
         return response.fiscalPeriod;
       },
+      createNext: async (input) => {
+        const response = await request("fiscalPeriodNextCreate", { input });
+        return response.fiscalPeriod;
+      },
       importArchived: async (input) => {
         const response = await request("fiscalPeriodImportArchived", { input });
         return response.fiscalPeriod;
@@ -319,6 +323,13 @@ async function dispatchEmbeddedHttp(
           body: {
             fiscalPeriod: await server.fiscalPeriod.create(request.input),
           },
+        };
+      }
+      case "fiscalPeriodNextCreate": {
+        const request = body as EndpointRequest<"fiscalPeriodNextCreate">;
+        return {
+          status: 201,
+          body: { fiscalPeriod: await server.fiscalPeriod.createNext(request.input) },
         };
       }
       case "fiscalPeriodImportArchived": {

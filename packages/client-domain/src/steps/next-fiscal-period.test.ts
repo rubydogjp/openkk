@@ -1,24 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  entryRecord,
-  type EntryRecordOverrides,
-} from "../../test-support/entry-record.js";
-import { DEFAULT_BOOK_ACCOUNTS } from "../entries/default-master-data.js";
-import type { EntryRecord } from "../entries/entry-record.js";
+import { entryRecord } from "../../test-support/entry-record.js";
 import {
   buildNextFiscalPeriodSuggestion,
-  buildOpeningCarryoverJournalsFromReversibleEntries,
+  isOpeningCarryoverCandidate,
 } from "./next-fiscal-period.js";
 
 describe("buildNextFiscalPeriodSuggestion", () => {
   it("suggests the next calendar year for a calendar-year period", () => {
-    expect(
-      buildNextFiscalPeriodSuggestion({
-        startDate: "2026-01-01",
-        endDate: "2026-12-31",
-      }),
-    ).toEqual({
+    expect(buildNextFiscalPeriodSuggestion("2026-12-31")).toEqual({
       name: "2027年分",
       startDate: "2027-01-01",
       endDate: "2027-12-31",
@@ -26,12 +16,7 @@ describe("buildNextFiscalPeriodSuggestion", () => {
   });
 
   it("preserves non-calendar fiscal period month and day boundaries", () => {
-    expect(
-      buildNextFiscalPeriodSuggestion({
-        startDate: "2025-04-01",
-        endDate: "2026-03-31",
-      }),
-    ).toEqual({
+    expect(buildNextFiscalPeriodSuggestion("2026-03-31")).toEqual({
       name: "2027年分",
       startDate: "2026-04-01",
       endDate: "2027-03-31",
@@ -39,545 +24,44 @@ describe("buildNextFiscalPeriodSuggestion", () => {
   });
 
   it("starts on the day after a leap-spanning period ends", () => {
-    expect(
-      buildNextFiscalPeriodSuggestion({
-        startDate: "2024-02-29",
-        endDate: "2025-02-28",
-      }),
-    ).toEqual({
+    expect(buildNextFiscalPeriodSuggestion("2025-02-28")).toEqual({
       name: "2026年分",
       startDate: "2025-03-01",
       endDate: "2026-02-28",
     });
   });
+});
 
-  it("does not leave a gap after a short first fiscal period", () => {
+describe("isOpeningCarryoverCandidate", () => {
+  it("offers balanced accruals and excludes settlements and trade receivables", () => {
+    const base = {
+      debit: "消耗品費",
+      debitType: "expense" as const,
+      debitAmount: "1,000",
+      creditAmount: "1,000",
+    };
     expect(
-      buildNextFiscalPeriodSuggestion({
-        startDate: "2026-04-01",
-        endDate: "2026-12-31",
-      }),
-    ).toEqual({
-      name: "2027年分",
-      startDate: "2027-01-01",
-      endDate: "2027-12-31",
-    });
+      isOpeningCarryoverCandidate(
+        entryRecord({ credit: "未払金", creditType: "liability" }, base),
+      ),
+    ).toBe(true);
+    expect(
+      isOpeningCarryoverCandidate(
+        entryRecord({ credit: "普通預金", creditType: "asset" }, base),
+      ),
+    ).toBe(false);
+    expect(
+      isOpeningCarryoverCandidate(
+        entryRecord({ credit: "買掛金", creditType: "liability" }, base),
+      ),
+    ).toBe(false);
+    expect(
+      isOpeningCarryoverCandidate(
+        entryRecord(
+          { credit: "未払金", creditType: "liability", creditAmount: "999" },
+          base,
+        ),
+      ),
+    ).toBe(false);
   });
 });
-
-describe("buildOpeningCarryoverJournalsFromReversibleEntries", () => {
-  it("uses the supplied master for custom account identities", () => {
-    const journals = buildOpeningCarryoverJournalsFromReversibleEntries({
-      accounts: [
-        ...DEFAULT_BOOK_ACCOUNTS,
-        { id: "custom_expense", name: "サービス費", accountType: "expense" },
-      ],
-      nextFiscalPeriodId: "fp-next",
-      nextStartDate: "2027-01-01",
-      entries: [
-        entry({
-          debit: "サービス費",
-          debitType: "expense",
-          debitBookAccountId: "custom_expense",
-          credit: "未払金",
-          creditType: "liability",
-        }),
-      ],
-    });
-    expect(journals[0]?.lines[1]?.bookAccountId).toBe("custom_expense");
-  });
-
-  it("rejects unknown explicit accounts instead of generating a different reversal", () => {
-    expect(() =>
-      buildOpeningCarryoverJournalsFromReversibleEntries({
-        accounts: DEFAULT_BOOK_ACCOUNTS,
-        nextFiscalPeriodId: "fp-next",
-        nextStartDate: "2027-01-01",
-        entries: [
-          entry({
-            debit: "仕入",
-            debitType: "cost_of_sales",
-            debitBookAccountId: "missing",
-            credit: "未払金",
-            creditType: "liability",
-          }),
-        ],
-      }),
-    ).toThrow("Opening carryover book account cannot be resolved");
-  });
-
-  it("creates next-period reversals for accrued liability expense entries", () => {
-    const journals = buildOpeningCarryoverJournalsFromReversibleEntries({
-      accounts: DEFAULT_BOOK_ACCOUNTS,
-      nextFiscalPeriodId: "fp-2027",
-      nextStartDate: "2027-01-01",
-      entries: [
-        entry({
-          id: "accrued-purchase",
-          debit: "仕入",
-          debitType: "cost_of_sales",
-          debitAmount: "168,000",
-          credit: "未払金",
-          creditType: "liability",
-          creditAmount: "168,000",
-        }),
-      ],
-    });
-
-    expect(journals).toHaveLength(1);
-    expect(journals[0]).toMatchObject({
-      date: "2027-01-01",
-      description: "再振替: test",
-      lines: [
-        {
-          side: "debit",
-          bookAccountId: "acct_accrued_expense",
-          amount: 168_000,
-        },
-        { side: "credit", bookAccountId: "acct_purchases", amount: 168_000 },
-      ],
-    });
-  });
-
-  it("preserves an exact backend business rate in next-period reversals", () => {
-    const [journal] = buildOpeningCarryoverJournalsFromReversibleEntries({
-      accounts: DEFAULT_BOOK_ACCOUNTS,
-      nextFiscalPeriodId: "fp-2027",
-      nextStartDate: "2027-01-01",
-      entries: [
-        entry({
-          credit: "未払金",
-          creditType: "liability",
-          businessRate: 0.3333333333333333,
-        }),
-      ],
-    });
-
-    expect(journal?.businessRate).toBe(0.3333333333333333);
-  });
-
-  it("splits compound accrual entries into one reversal per profit/loss line", () => {
-    const journals = buildOpeningCarryoverJournalsFromReversibleEntries({
-      accounts: DEFAULT_BOOK_ACCOUNTS,
-      nextFiscalPeriodId: "fp-2027",
-      nextStartDate: "2027-01-01",
-      entries: [
-        entry({
-          id: "compound",
-          lines: [
-            {
-              side: "debit",
-              accountName: "仕入",
-              accountType: "cost_of_sales",
-              amount: "168,000",
-              id: null,
-              bookAccountId: null,
-              partnerName: null,
-              taxCategoryId: null,
-              taxCategoryName: null,
-              businessCategoryId: null,
-              businessCategoryName: null,
-            },
-            {
-              side: "debit",
-              accountName: "荷造運賃",
-              accountType: "expense",
-              amount: "42,000",
-              id: null,
-              bookAccountId: null,
-              partnerName: null,
-              taxCategoryId: null,
-              taxCategoryName: null,
-              businessCategoryId: null,
-              businessCategoryName: null,
-            },
-            {
-              side: "credit",
-              accountName: "未払金",
-              accountType: "liability",
-              amount: "210,000",
-              id: null,
-              bookAccountId: null,
-              partnerName: null,
-              taxCategoryId: null,
-              taxCategoryName: null,
-              businessCategoryId: null,
-              businessCategoryName: null,
-            },
-          ],
-        }),
-      ],
-    });
-
-    expect(journals).toHaveLength(2);
-    expect(journals.map((journal) => journal.lines[0]?.amount)).toEqual([
-      168_000, 42_000,
-    ]);
-    expect(journals.map((journal) => journal.lines[1]?.side)).toEqual([
-      "credit",
-      "credit",
-    ]);
-  });
-
-  it("matches multiple reversible balance lines without over-generating reversals", () => {
-    const journals = buildOpeningCarryoverJournalsFromReversibleEntries({
-      accounts: DEFAULT_BOOK_ACCOUNTS,
-      nextFiscalPeriodId: "fp-2027",
-      nextStartDate: "2027-01-01",
-      entries: [
-        entry({
-          id: "multi-balance",
-          lines: [
-            {
-              side: "debit",
-              accountName: "消耗品費",
-              accountType: "expense",
-              amount: "100,000",
-              id: null,
-              bookAccountId: null,
-              partnerName: null,
-              taxCategoryId: null,
-              taxCategoryName: null,
-              businessCategoryId: null,
-              businessCategoryName: null,
-            },
-            {
-              side: "credit",
-              accountName: "未払金",
-              accountType: "liability",
-              amount: "60,000",
-              id: null,
-              bookAccountId: null,
-              partnerName: null,
-              taxCategoryId: null,
-              taxCategoryName: null,
-              businessCategoryId: null,
-              businessCategoryName: null,
-            },
-            {
-              side: "credit",
-              accountName: "未払費用",
-              accountType: "liability",
-              amount: "40,000",
-              id: null,
-              bookAccountId: null,
-              partnerName: null,
-              taxCategoryId: null,
-              taxCategoryName: null,
-              businessCategoryId: null,
-              businessCategoryName: null,
-            },
-          ],
-        }),
-      ],
-    });
-
-    expect(journals).toHaveLength(2);
-    expect(journals.map((journal) => journal.lines[0]?.amount)).toEqual([
-      60_000, 40_000,
-    ]);
-    expect(journals.map((journal) => journal.lines[1]?.amount)).toEqual([
-      60_000, 40_000,
-    ]);
-  });
-
-  it("does not reverse unbalanced partially matched entries", () => {
-    const journals = buildOpeningCarryoverJournalsFromReversibleEntries({
-      accounts: DEFAULT_BOOK_ACCOUNTS,
-      nextFiscalPeriodId: "fp-2027",
-      nextStartDate: "2027-01-01",
-      entries: [
-        entry({
-          id: "mismatch",
-          lines: [
-            {
-              side: "debit",
-              accountName: "消耗品費",
-              accountType: "expense",
-              amount: "100,000",
-              id: null,
-              bookAccountId: null,
-              partnerName: null,
-              taxCategoryId: null,
-              taxCategoryName: null,
-              businessCategoryId: null,
-              businessCategoryName: null,
-            },
-            {
-              side: "credit",
-              accountName: "未払金",
-              accountType: "liability",
-              amount: "90,000",
-              id: null,
-              bookAccountId: null,
-              partnerName: null,
-              taxCategoryId: null,
-              taxCategoryName: null,
-              businessCategoryId: null,
-              businessCategoryName: null,
-            },
-          ],
-        }),
-      ],
-    });
-
-    expect(journals).toEqual([]);
-  });
-
-  it("reverses the matched accrual portion of a balanced mixed-settlement entry", () => {
-    const journals = buildOpeningCarryoverJournalsFromReversibleEntries({
-      accounts: DEFAULT_BOOK_ACCOUNTS,
-      nextFiscalPeriodId: "fp-2027",
-      nextStartDate: "2027-01-01",
-      entries: [
-        entry({
-          id: "partially-accrued-expense",
-          lines: [
-            {
-              side: "debit",
-              accountName: "消耗品費",
-              accountType: "expense",
-              amount: "100,000",
-              id: null,
-              bookAccountId: null,
-              partnerName: null,
-              taxCategoryId: null,
-              taxCategoryName: null,
-              businessCategoryId: null,
-              businessCategoryName: null,
-            },
-            {
-              side: "credit",
-              accountName: "未払金",
-              accountType: "liability",
-              amount: "90,000",
-              id: null,
-              bookAccountId: null,
-              partnerName: null,
-              taxCategoryId: null,
-              taxCategoryName: null,
-              businessCategoryId: null,
-              businessCategoryName: null,
-            },
-            {
-              side: "credit",
-              accountName: "現金",
-              accountType: "asset",
-              amount: "10,000",
-              id: null,
-              bookAccountId: null,
-              partnerName: null,
-              taxCategoryId: null,
-              taxCategoryName: null,
-              businessCategoryId: null,
-              businessCategoryName: null,
-            },
-          ],
-        }),
-      ],
-    });
-
-    expect(journals).toHaveLength(1);
-    expect(journals[0]?.lines).toEqual([
-      expect.objectContaining({
-        side: "debit",
-        bookAccountId: "acct_accrued_expense",
-        amount: 90_000,
-      }),
-      expect.objectContaining({
-        side: "credit",
-        bookAccountId: "acct_supplies",
-        amount: 90_000,
-      }),
-    ]);
-  });
-
-  it("does not reverse ordinary credit sales or credit purchases (売掛金 / 買掛金)", () => {
-    const journals = buildOpeningCarryoverJournalsFromReversibleEntries({
-      accounts: DEFAULT_BOOK_ACCOUNTS,
-      nextFiscalPeriodId: "fp-2027",
-      nextStartDate: "2027-01-01",
-      entries: [
-        entry({
-          id: "credit-sale",
-          debit: "売掛金",
-          debitType: "asset",
-          debitAmount: "200,000",
-          credit: "売上",
-          creditType: "revenue",
-          creditAmount: "200,000",
-        }),
-        entry({
-          id: "credit-purchase",
-          debit: "仕入",
-          debitType: "cost_of_sales",
-          debitAmount: "120,000",
-          credit: "買掛金",
-          creditType: "liability",
-          creditAmount: "120,000",
-        }),
-      ],
-    });
-
-    expect(journals).toEqual([]);
-  });
-
-  it("does not reverse ordinary cash settlement or fixed asset purchase entries", () => {
-    const journals = buildOpeningCarryoverJournalsFromReversibleEntries({
-      accounts: DEFAULT_BOOK_ACCOUNTS,
-      nextFiscalPeriodId: "fp-2027",
-      nextStartDate: "2027-01-01",
-      entries: [
-        entry({
-          id: "cash-sale",
-          debit: "普通預金",
-          debitType: "asset",
-          credit: "売上",
-          creditType: "revenue",
-        }),
-        entry({
-          id: "fixed-asset",
-          debit: "工具器具備品",
-          debitType: "asset",
-          credit: "普通預金",
-          creditType: "asset",
-        }),
-      ],
-    });
-
-    expect(journals).toEqual([]);
-  });
-
-  it("normalizes displayed category names to master IDs for carryover journals", () => {
-    const journals = buildOpeningCarryoverJournalsFromReversibleEntries({
-      accounts: DEFAULT_BOOK_ACCOUNTS,
-      nextFiscalPeriodId: "fp-2027",
-      nextStartDate: "2027-01-01",
-      entries: [
-        entry({
-          id: "display-categories",
-          partner: "取引先A",
-          taxCategory: "課税 10%",
-          businessCategory: "第5種（サービス業等）",
-          debit: "消耗品費",
-          debitType: "expense",
-          credit: "未払金",
-          creditType: "liability",
-        }),
-      ],
-    });
-
-    expect(journals[0]?.lines).toEqual([
-      expect.objectContaining({
-        partnerName: "取引先A",
-        taxCategoryId: "tax_10",
-        businessCategoryId: "biz_5",
-      }),
-      expect.objectContaining({
-        partnerName: "取引先A",
-        taxCategoryId: "tax_10",
-        businessCategoryId: "biz_5",
-      }),
-    ]);
-  });
-
-  it("preserves line-specific partner and category IDs in compound reversals", () => {
-    const journals = buildOpeningCarryoverJournalsFromReversibleEntries({
-      accounts: DEFAULT_BOOK_ACCOUNTS,
-      nextFiscalPeriodId: "fp-2027",
-      nextStartDate: "2027-01-01",
-      entries: [
-        entry({
-          id: "line-categories",
-          partner: "header partner",
-          taxCategory: "対象外",
-          businessCategory: "対象外",
-          lines: [
-            {
-              side: "debit",
-              accountName: "消耗品費",
-              accountType: "expense",
-              amount: "10,000",
-              partnerName: "expense partner",
-              taxCategoryId: "tax_8",
-              businessCategoryId: "biz_3",
-              id: null,
-              bookAccountId: null,
-              taxCategoryName: null,
-              businessCategoryName: null,
-            },
-            {
-              side: "credit",
-              accountName: "未払金",
-              accountType: "liability",
-              amount: "10,000",
-              partnerName: "liability partner",
-              taxCategoryId: "tax_non_taxable",
-              businessCategoryId: "biz_6",
-              id: null,
-              bookAccountId: null,
-              taxCategoryName: null,
-              businessCategoryName: null,
-            },
-          ],
-        }),
-      ],
-    });
-
-    expect(journals[0]?.lines).toEqual([
-      expect.objectContaining({
-        partnerName: "liability partner",
-        taxCategoryId: "tax_non_taxable",
-        businessCategoryId: "biz_6",
-      }),
-      expect.objectContaining({
-        partnerName: "expense partner",
-        taxCategoryId: "tax_8",
-        businessCategoryId: "biz_3",
-      }),
-    ]);
-  });
-
-  it("uses canonical out-of-scope IDs when legacy category fields are blank", () => {
-    const journals = buildOpeningCarryoverJournalsFromReversibleEntries({
-      accounts: DEFAULT_BOOK_ACCOUNTS,
-      nextFiscalPeriodId: "fp-2027",
-      nextStartDate: "2027-01-01",
-      entries: [
-        entry({
-          id: "blank-categories",
-          taxCategory: "",
-          businessCategory: "",
-          debit: "消耗品費",
-          debitType: "expense",
-          credit: "未払金",
-          creditType: "liability",
-        }),
-      ],
-    });
-
-    expect(journals[0]?.lines).toEqual([
-      expect.objectContaining({
-        taxCategoryId: "tax_out_of_scope",
-        businessCategoryId: "biz_none",
-      }),
-      expect.objectContaining({
-        taxCategoryId: "tax_out_of_scope",
-        businessCategoryId: "biz_none",
-      }),
-    ]);
-  });
-});
-
-function entry(overrides: EntryRecordOverrides): EntryRecord {
-  return entryRecord(overrides, {
-    fiscalPeriodId: "fp-2026",
-    date: "2026-12-31",
-    debit: "消耗品費",
-    debitType: "expense",
-    debitAmount: "10,000",
-    creditAmount: "10,000",
-    taxCategory: "対象外",
-    businessCategory: "対象外",
-  });
-}

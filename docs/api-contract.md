@@ -14,6 +14,7 @@
 ## テキスト項目の上限
 
 名称、摘要、取引先、独自カテゴリなどの自由入力は400文字まで。ID、日付、認証値は対象外。
+保存済みの文字列は、復元・本締め・翌期繰越・変更しない項目の再保存では入力上限にかかわらず保持する。
 
 ## 値の省略
 
@@ -90,6 +91,8 @@ Archived fiscal periods are read-only. Mutations against them must fail with `Op
 `fiscalPeriod.archive` preserves `phase`, sets `archiveStatus` to `archived`, and stamps `archivedAt`.
 
 `FiscalPeriodArchiveImportInput` creates a new active period in the archived `phase`.
+
+`fiscalPeriod.createNext` creates the next period atomically from a closed period with completed document receipt. It carries balances, selected reversals and active fixed assets from stored data. The source data must be available, and the next start date must follow the source end date.
 
 ## Fiscal Period Lifecycle Policy
 

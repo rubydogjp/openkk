@@ -46,7 +46,7 @@ test.describe("file import", () => {
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(JSON_FIXTURE);
 
-    await expect(page.getByText(/取り込みました\(取込 13 件/)).toBeVisible({
+    await expect(page.getByText(/取り込みました\(取込 15 件/)).toBeVisible({
       timeout: 10_000,
     });
   });

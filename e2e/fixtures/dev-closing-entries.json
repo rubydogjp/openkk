@@ -195,6 +195,36 @@
       "businessRate": "80",
       "taxCategory": "対象外",
       "businessCategory": "対象外"
+    },
+    {
+      "localId": "settled-communication-accrual",
+      "date": "2026-01-28",
+      "debit": "通信費",
+      "debitType": "expense",
+      "debitAmount": "12000",
+      "credit": "未払金",
+      "creditType": "liability",
+      "creditAmount": "12000",
+      "description": "支払済みの通信費",
+      "partner": "検証",
+      "businessRate": "100",
+      "taxCategory": "課税 10%",
+      "businessCategory": "対象外"
+    },
+    {
+      "localId": "settled-communication-payment",
+      "date": "2026-02-28",
+      "debit": "未払金",
+      "debitType": "liability",
+      "debitAmount": "12000",
+      "credit": "普通預金",
+      "creditType": "asset",
+      "creditAmount": "12000",
+      "description": "通信費の支払",
+      "partner": "検証",
+      "businessRate": "100",
+      "taxCategory": "課税 10%",
+      "businessCategory": "対象外"
     }
   ]
 }

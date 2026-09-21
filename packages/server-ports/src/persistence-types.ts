@@ -64,6 +64,16 @@ export type FiscalPeriodDbCreateInput = {
   endDate: string;
 };
 
+export type FiscalPeriodNextDbCreateInput = {
+  sourceFiscalPeriodId: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  carryBalances: boolean;
+  reversalEntryIds: string[];
+  carryFixedAssets: boolean;
+};
+
 export type FiscalPeriodOpeningDbInput = {
   id: string;
   userId: string;

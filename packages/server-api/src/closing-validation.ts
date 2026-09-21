@@ -7,10 +7,7 @@ import {
 import type {
   FiscalPeriodApiRecord,
 } from "@rubydogjp/openkk-server-ports";
-import {
-  assertEntryInput,
-  assertEntryMasterReferences,
-} from "./entry-validation.js";
+import { assertEntryInput } from "./entry-validation.js";
 
 export function assertClosingGeneratedEntries(
   entries: unknown,
@@ -68,7 +65,6 @@ export function assertClosingGeneratedEntries(
       );
     }
     localIds.add(entry.localId);
-    assertEntryInput(entry, period, true);
-    assertEntryMasterReferences(entry);
+    assertEntryInput(entry, period);
   }
 }

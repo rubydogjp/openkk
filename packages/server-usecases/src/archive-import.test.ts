@@ -3,8 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   AppError,
   MAX_ENTRY_IMPORT_ITEMS,
-  MAX_ENTRY_IMPORT_LINES,
-  MAX_ENTRY_LINES,
+  MAX_FISCAL_PERIOD_ARCHIVE_FILE_BYTES,
 } from "@rubydogjp/openkk-server-domain";
 import type { FiscalPeriodArchiveImportInput } from "@rubydogjp/openkk-server-ports";
 import { normalizeArchiveImportInput } from "./archive-import.js";
@@ -185,60 +184,28 @@ describe("normalizeArchiveImportInput", () => {
     ).toThrow(/archive must be an object/);
   });
 
-  it("rejects oversized archive collections before normalization", () => {
-    const tooManyEntries = validArchiveInput();
-    tooManyEntries.entries = Array(MAX_ENTRY_IMPORT_ITEMS + 1).fill(
-      tooManyEntries.entries[0],
-    );
-    expect(() =>
-      normalizeArchiveImportInput(tooManyEntries, "user-1"),
-    ).toThrow(/entries exceeds the 10,000 item limit/);
-
-    const tooManyAssets = validArchiveInput();
-    tooManyAssets.fixedAssets = Array(MAX_ENTRY_IMPORT_ITEMS + 1).fill(
-      tooManyAssets.fixedAssets[0],
-    );
-    expect(() =>
-      normalizeArchiveImportInput(tooManyAssets, "user-1"),
-    ).toThrow(/fixedAssets exceeds the 10,000 item limit/);
-
-    const tooManyClosings = validArchiveInput();
-    tooManyClosings.closings = Array(3).fill(tooManyClosings.closings[0]);
-    expect(() =>
-      normalizeArchiveImportInput(tooManyClosings, "user-1"),
-    ).toThrow(/closings exceeds the 2 item limit/);
-  });
-
-  it("rejects excessive aggregate journal lines before normalization", () => {
+  it("accepts archive collections larger than a single entry import batch", () => {
     const input = validArchiveInput();
-    const lines = Array(MAX_ENTRY_LINES).fill(
-      (input.entries[0]!.lines as unknown[])[0],
-    );
-    input.entries = Array(MAX_ENTRY_IMPORT_LINES / MAX_ENTRY_LINES + 1).fill({
+    input.entries = Array.from({ length: MAX_ENTRY_IMPORT_ITEMS + 1 }, (_, index) => ({
       ...input.entries[0],
-      lines,
-    });
-
-    expect(() => normalizeArchiveImportInput(input, "user-1")).toThrow(
-      /journal lines exceeds the 100,000 line limit/,
-    );
+      id: `entry-${index}`,
+    }));
+    input.fixedAssets = Array(MAX_ENTRY_IMPORT_ITEMS + 1).fill(input.fixedAssets[0]);
+    const result = normalizeArchiveImportInput(input, "user-1");
+    expect(result.entries).toHaveLength(MAX_ENTRY_IMPORT_ITEMS + 1);
+    expect(result.fixedAssets).toHaveLength(MAX_ENTRY_IMPORT_ITEMS + 1);
   });
 
-  it("includes opening journals in the aggregate archive line limit", () => {
+  it("rejects oversized archive sections before normalization", () => {
     const input = validArchiveInput();
-    input.entries = [];
-    const opening = archiveOpening(input);
-    const lines = Array(MAX_ENTRY_LINES).fill(opening.openingJournals[0]!.lines[0]);
-    opening.openingJournals = Array(
-      MAX_ENTRY_IMPORT_LINES / MAX_ENTRY_LINES + 1,
-    ).fill({
-      ...opening.openingJournals[0],
-      lines,
-    });
+    input.entries[0]!.description = "資".repeat(Math.ceil(MAX_FISCAL_PERIOD_ARCHIVE_FILE_BYTES / 3));
+    expect(() => normalizeArchiveImportInput(input, "user-1")).toThrow(/size limit/);
+  });
 
-    expect(() => normalizeArchiveImportInput(input, "user-1")).toThrow(
-      /journal lines exceeds the 100,000 line limit/,
-    );
+  it("rejects excessive closing records", () => {
+    const input = validArchiveInput();
+    input.closings = Array(3).fill(input.closings[0]);
+    expect(() => normalizeArchiveImportInput(input, "user-1")).toThrow(/closings exceeds the 2 item limit/);
   });
 
   it("rejects non-boolean lifecycle flags instead of silently clearing them", () => {

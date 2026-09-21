@@ -8,6 +8,8 @@ const SHARED_LIMITS = [
   "MAX_ENTRY_IMPORT_ITEMS",
   "MAX_ENTRY_IMPORT_LINES",
   "MAX_TEXT_FIELD_LENGTH",
+  "MAX_FISCAL_PERIOD_ARCHIVE_BYTES",
+  "MAX_FISCAL_PERIOD_ARCHIVE_FILE_BYTES",
 ] as const;
 
 describe("shared client/server limits", () => {

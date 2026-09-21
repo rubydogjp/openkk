@@ -47,16 +47,13 @@ function buildNextPeriodOpeningBalanceLines(
   };
 
   for (const { side, accountName, amount } of closingBalances) {
-    if (accountName === "事業主貸") {
-      fold("l:元入金", -amount);
-      continue;
-    }
     if (
+      accountName === "事業主貸" ||
       accountName === "事業主借" ||
       accountName === "元入金" ||
       accountName === "青色申告特別控除前の所得金額"
     ) {
-      fold("l:元入金", amount);
+      fold("l:元入金", side === "asset" ? -amount : amount);
       continue;
     }
     if (amount === 0) continue;

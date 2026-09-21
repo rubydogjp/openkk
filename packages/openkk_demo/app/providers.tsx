@@ -31,7 +31,7 @@ export function Providers(props: { children: React.ReactNode }) {
 async function createDemoBackendApi(): Promise<OpenkkBackendPort> {
   const db = await createMemoryDbAdapter(buildOpenkkDemoSeed(openkkConfig));
   const server = createOpenkkEmbeddedBackend(db, {
-    userId: openkkConfig.mockUserId,
+    userId: openkkConfig.embeddedUser.id,
   });
   return createOpenkkEmbeddedBackendAdapter(server);
 }

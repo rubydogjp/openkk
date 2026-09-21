@@ -1,5 +1,6 @@
 import {
   assertEntryLinesBalanced,
+  assertFiscalPeriodArchiveSize,
   assertIsoDate,
   assertNonNegativeSafeInteger,
   assertPositiveInteger,
@@ -39,53 +40,15 @@ export function assertDbArchiveImportSizeLimits(
   ) {
     throw serverValidationError("Archived import collections must be arrays", null);
   }
-  if (input.entries.length > MAX_ENTRY_IMPORT_ITEMS) {
-    throw serverValidationError(
-      `Archived entries exceed the ${MAX_ENTRY_IMPORT_ITEMS.toLocaleString("en-US")} item limit`,
-      null,
-    );
-  }
-  if (input.fixedAssets.length > MAX_ENTRY_IMPORT_ITEMS) {
-    throw serverValidationError(
-      `Archived fixed assets exceed the ${MAX_ENTRY_IMPORT_ITEMS.toLocaleString("en-US")} item limit`,
-      null,
-    );
-  }
+  assertFiscalPeriodArchiveSize([
+    input.fiscalPeriod, input.entries, input.fixedAssets, input.preClosings, input.closings,
+  ]);
   if (input.preClosings.length > 1 || input.closings.length > 1) {
     throw serverValidationError(
       "Archived closing collections must contain at most one record each",
       null,
     );
   }
-  let totalLineCount = 0;
-  for (const entry of input.entries) {
-    if (typeof entry === "object" && entry != null && Array.isArray(entry.lines)) {
-      totalLineCount = addArchiveLineCount(totalLineCount, entry.lines.length);
-    }
-  }
-  for (const journal of input.fiscalPeriod.opening?.openingJournals ?? []) {
-    if (
-      typeof journal === "object" &&
-      journal != null &&
-      Array.isArray(journal.lines)
-    ) {
-      totalLineCount = addArchiveLineCount(
-        totalLineCount,
-        journal.lines.length,
-      );
-    }
-  }
-}
-
-function addArchiveLineCount(total: number, count: number): number {
-  const next = total + count;
-  if (!Number.isSafeInteger(next) || next > MAX_ENTRY_IMPORT_LINES) {
-    throw serverValidationError(
-      `Archived journal lines exceed the ${MAX_ENTRY_IMPORT_LINES.toLocaleString("en-US")} line limit`,
-      null,
-    );
-  }
-  return next;
 }
 
 export function assertDbOpeningForPeriod(

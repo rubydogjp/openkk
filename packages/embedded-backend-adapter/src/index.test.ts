@@ -212,6 +212,7 @@ function embeddedServer(
     fiscalPeriod: {
       getAll: async () => [],
       create: async () => unused(),
+      createNext: async () => unused(),
       importArchived: async () => unused(),
       patch: async () => unused(),
       archive: async () => unused(),

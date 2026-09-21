@@ -137,6 +137,16 @@ export type FiscalPeriodCreateInput = {
   endDate: string;
 };
 
+export type FiscalPeriodNextCreateInput = {
+  sourceFiscalPeriodId: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  carryBalances: boolean;
+  reversalEntryIds: string[];
+  carryFixedAssets: boolean;
+};
+
 export type FiscalPeriodPatchInput = Partial<{
   name: string;
   startDate: string;
@@ -299,6 +309,10 @@ export type FiscalPeriodCreateRequest = { input: FiscalPeriodCreateInput };
 export type FiscalPeriodCreateResponse = {
   fiscalPeriod: FiscalPeriodApiRecord;
 };
+export type FiscalPeriodNextCreateRequest = { input: FiscalPeriodNextCreateInput };
+export type FiscalPeriodNextCreateResponse = {
+  fiscalPeriod: FiscalPeriodApiRecord;
+};
 export type FiscalPeriodImportArchivedRequest = {
   input: FiscalPeriodArchiveImportInput;
 };
@@ -439,6 +453,11 @@ export type OpenkkHttpEndpointSpecs = {
   fiscalPeriodCreate: OpenkkHttpEndpointSpec<
     FiscalPeriodCreateRequest,
     FiscalPeriodCreateResponse,
+    201
+  >;
+  fiscalPeriodNextCreate: OpenkkHttpEndpointSpec<
+    FiscalPeriodNextCreateRequest,
+    FiscalPeriodNextCreateResponse,
     201
   >;
   fiscalPeriodImportArchived: OpenkkHttpEndpointSpec<
@@ -587,6 +606,11 @@ export const OPENKK_HTTP_ENDPOINTS = {
     path: "/fiscal-periods",
     successStatus: 201,
   },
+  fiscalPeriodNextCreate: {
+    method: "POST",
+    path: "/fiscal-periods/create-next",
+    successStatus: 201,
+  },
   fiscalPeriodImportArchived: {
     method: "POST",
     path: "/fiscal-periods/import-archived",
@@ -710,6 +734,7 @@ export interface EntriesApi {
 export interface FiscalPeriodApi {
   getAll(): Promise<FiscalPeriodApiRecord[]>;
   create(input: FiscalPeriodCreateInput): Promise<FiscalPeriodApiRecord>;
+  createNext(input: FiscalPeriodNextCreateInput): Promise<FiscalPeriodApiRecord>;
   importArchived(
     input: FiscalPeriodArchiveImportInput,
   ): Promise<FiscalPeriodApiRecord>;
