@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { runMigrations, type MigrationDb } from "./migrate.js";
-import {
-  SCHEMA_MIGRATIONS,
-  SCHEMA_VERSION,
-  SQLITE_TABLE_NAMES,
-} from "./schema.js";
+import { SCHEMA_MIGRATIONS, SCHEMA_VERSION } from "./schema.js";
 
 describe("SQLite schema", () => {
   it("keeps the normalized schema at version 4", () => {
@@ -15,13 +11,6 @@ describe("SQLite schema", () => {
   it("keeps migration versions unique, ordered, and contiguous", () => {
     const versions = SCHEMA_MIGRATIONS.map(({ version }) => version);
     expect(versions).toEqual(versions.map((_, index) => index + 1));
-  });
-
-  it("creates every documented table", () => {
-    const sql = SCHEMA_MIGRATIONS.map(({ sql }) => sql).join("\n");
-    for (const table of SQLITE_TABLE_NAMES) {
-      expect(sql).toContain(`CREATE TABLE ${table}`);
-    }
   });
 });
 

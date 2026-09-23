@@ -1,21 +1,27 @@
 import { serverConflictError, serverValidationError } from "./app-error.js";
+import type {
+  FiscalPeriodArchiveStatus,
+  FiscalPeriodPhase,
+} from "./models.js";
 import { requireObject } from "./validation.js";
 
-export type FiscalPeriodRulePhase =
-  | "pre_opening"
-  | "journalizing"
-  | "pre_closing"
-  | "post_closing";
+export const FISCAL_PERIOD_PATCH_KEYS = [
+  "name",
+  "startDate",
+  "endDate",
+  "openingBalancesCompleted",
+  "documentsReceivedCompleted",
+  "opening",
+] as const;
 
 const PATCHABLE_KEYS_BY_PHASE: Record<
-  FiscalPeriodRulePhase,
+  FiscalPeriodPhase,
   ReadonlySet<string>
 > = {
   pre_opening: new Set([
     "name",
     "startDate",
     "endDate",
-    "settingsCompleted",
     "openingBalancesCompleted",
     "opening",
   ]),
@@ -25,7 +31,7 @@ const PATCHABLE_KEYS_BY_PHASE: Record<
 };
 
 export function assertFiscalPeriodPatchMatchesPhase(
-  fiscalPeriod: { id: string; phase: FiscalPeriodRulePhase },
+  fiscalPeriod: { id: string; phase: FiscalPeriodPhase },
   patch: unknown,
 ): void {
   const changes = requireObject(patch, "Fiscal period patch");
@@ -60,8 +66,7 @@ export function assertFiscalPeriodPatchMatchesPhase(
 }
 
 export type FiscalPeriodLifecycleFlags = {
-  phase: FiscalPeriodRulePhase;
-  settingsCompleted: boolean;
+  phase: FiscalPeriodPhase;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
 };
@@ -70,14 +75,6 @@ export function assertFiscalPeriodLifecycleFlags(
   state: FiscalPeriodLifecycleFlags,
   label: string,
 ): void {
-  if (state.settingsCompleted === (state.phase === "pre_opening")) {
-    throw serverValidationError(
-      state.phase === "pre_opening"
-        ? `${label} pre_opening phase must not have settingsCompleted`
-        : `${label} ${state.phase} phase requires settingsCompleted`,
-      null,
-    );
-  }
   if (
     (state.phase === "pre_closing" || state.phase === "post_closing") &&
     !state.openingBalancesCompleted
@@ -101,7 +98,7 @@ export type FiscalPeriodClosingMarkers = {
 };
 
 export function assertFiscalPeriodClosingMarkers(
-  phase: FiscalPeriodRulePhase,
+  phase: FiscalPeriodPhase,
   markers: FiscalPeriodClosingMarkers,
   label: string,
 ): void {
@@ -128,8 +125,7 @@ export function assertFiscalPeriodClosingMarkers(
 }
 
 export type FiscalPeriodArchiveState = {
-  archiveStatus: "active" | "archived";
-  archiveDataAvailable: boolean;
+  archiveStatus: FiscalPeriodArchiveStatus;
   archivedAt: string | null;
 };
 
@@ -137,12 +133,6 @@ export function assertFiscalPeriodArchiveState(
   state: FiscalPeriodArchiveState,
   label: string,
 ): void {
-  if (!state.archiveDataAvailable && state.archiveStatus !== "archived") {
-    throw serverValidationError(
-      `${label} purged data requires archived status`,
-      null,
-    );
-  }
   if (state.archiveStatus === "active" && state.archivedAt !== null) {
     throw serverValidationError(
       `${label} active fiscal period must not have archivedAt`,

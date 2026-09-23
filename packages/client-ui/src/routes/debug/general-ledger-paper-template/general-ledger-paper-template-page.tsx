@@ -7,8 +7,6 @@ import { PreviewScaffold } from "../../../print/preview-scaffold.js";
 import {
   buildGeneralLedgerBody,
   buildGeneralLedgerDocument,
-} from "@rubydogjp/openkk-client-domain";
-import {
   GENERAL_LEDGER_EXAMPLE_ENTRIES,
   GENERAL_LEDGER_EXAMPLE_FP_NAME,
   GENERAL_LEDGER_EXAMPLE_OPENING_BALANCE_LINES,

@@ -4,11 +4,11 @@ import {
   assertClosingEntriesMatch,
   buildExpectedClosingEntries,
   computeFixedAssetBookValue,
-  type ClosingEntry,
 } from "./closing-entries.js";
+import type { Entry } from "./models.js";
 
 describe("assertClosingEntriesMatch", () => {
-  const entry: ClosingEntry = {
+  const entry: Entry = {
     date: "2026-12-31",
     description: "決算仕訳",
     localId: "virtual:entry",
@@ -57,6 +57,7 @@ describe("buildExpectedClosingEntries fixed-asset disposal", () => {
           acquisitionDate: "2025-01-01",
           acquisitionCost: 1_200_000,
           usefulLife: 5,
+          depreciationMethod: "straight_line",
           businessRate: 1,
           status: "sold",
           disposalDate: "2026-06-15",
@@ -102,6 +103,7 @@ describe("buildExpectedClosingEntries fixed-asset disposal", () => {
           acquisitionDate: "2023-01-01",
           acquisitionCost: 1_200_000,
           usefulLife: 4,
+          depreciationMethod: "straight_line",
           businessRate: 1,
           status: "retired",
           disposalDate: null,
@@ -137,6 +139,7 @@ describe("buildExpectedClosingEntries fixed-asset disposal", () => {
           acquisitionDate: "2025-12-01",
           acquisitionCost: 217,
           usefulLife: 2,
+          depreciationMethod: "straight_line",
           businessRate: 1,
           status: "active",
           disposalDate: null,

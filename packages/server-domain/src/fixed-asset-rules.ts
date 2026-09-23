@@ -1,6 +1,7 @@
 import { serverValidationError } from "./app-error.js";
 import { computeFixedAssetBookValue } from "./closing-entries.js";
 import { getDefaultBookAccount } from "./master-data.js";
+import type { FixedAsset, FixedAssetStatus } from "./models.js";
 import {
   assertIsoDate,
   assertNonNegativeSafeInteger,
@@ -10,36 +11,34 @@ import {
   requireObject,
 } from "./validation.js";
 
-export type FixedAssetRuleStatus = "active" | "sold" | "disposed" | "retired";
+export const FIXED_ASSET_PATCH_KEYS = [
+  "name",
+  "acquisitionDate",
+  "acquisitionCost",
+  "usefulLife",
+  "depreciationMethod",
+  "businessRate",
+  "status",
+  "disposalDate",
+  "disposalPrice",
+  "bookAccountId",
+] as const;
 
-export type FixedAssetRuleInput = {
-  name: string;
-  acquisitionDate: string;
-  acquisitionCost: number;
-  usefulLife: number;
-  depreciationMethod: "straight_line";
-  businessRate: number;
-  status: FixedAssetRuleStatus;
-  disposalDate: string | null;
-  disposalPrice: number | null;
-  bookAccountId: string;
-};
-
-const FIXED_ASSET_STATUSES: ReadonlyArray<FixedAssetRuleStatus> = [
+const FIXED_ASSET_STATUSES: ReadonlyArray<FixedAssetStatus> = [
   "active",
   "sold",
   "disposed",
   "retired",
 ];
 
-function isFixedAssetStatus(value: unknown): value is FixedAssetRuleStatus {
+function isFixedAssetStatus(value: unknown): value is FixedAssetStatus {
   return FIXED_ASSET_STATUSES.some((status) => status === value);
 }
 
 export function assertFixedAssetMatchesRules(
   asset: unknown,
   period: { startDate: string; endDate: string } | null,
-): asserts asset is FixedAssetRuleInput {
+): asserts asset is FixedAsset {
   const value = requireObject(asset, "Fixed asset");
   if (typeof value.name !== "string" || value.name.trim() === "") {
     throw serverValidationError(
@@ -110,7 +109,7 @@ export function assertFixedAssetMatchesRules(
 }
 
 function assertFixedAssetDisposal(asset: {
-  status: FixedAssetRuleStatus;
+  status: FixedAssetStatus;
   acquisitionDate: string;
   disposalDate: unknown;
   disposalPrice: unknown;

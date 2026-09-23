@@ -45,13 +45,31 @@ export function createOpenkkServerApi(
   const uid = config.userId;
   const getOwnedFiscalPeriod = async (fiscalPeriodId: string) => {
     assertNonBlankString(fiscalPeriodId, "Fiscal period id");
-    const period = (await usecases.fiscalPeriods.getAll(uid)).find(
-      (candidate) => candidate.id === fiscalPeriodId,
-    );
+    const period = await usecases.fiscalPeriods.getById(uid, fiscalPeriodId);
     if (period == null) {
       throw serverNotFoundError(`Fiscal period ${fiscalPeriodId} not found`);
     }
     return period;
+  };
+  const getOwnedEntry = async (fiscalPeriodId: string, id: string) => {
+    assertNonBlankString(id, "Entry id");
+    const entry = await usecases.entries.getById(uid, id);
+    if (entry == null || entry.fiscalPeriodId !== fiscalPeriodId) {
+      throw serverNotFoundError(
+        `Entry ${id} not found in fiscal period ${fiscalPeriodId}`,
+      );
+    }
+    return entry;
+  };
+  const getOwnedFixedAsset = async (fiscalPeriodId: string, id: string) => {
+    assertNonBlankString(id, "Fixed asset id");
+    const asset = await usecases.fixedAssets.getById(uid, id);
+    if (asset == null || asset.fiscalPeriodId !== fiscalPeriodId) {
+      throw serverNotFoundError(
+        `Fixed asset ${id} not found in fiscal period ${fiscalPeriodId}`,
+      );
+    }
+    return asset;
   };
   const api: OpenkkServerPort = {
     auth: {
@@ -139,26 +157,14 @@ export function createOpenkkServerApi(
       patch: async (fpId, id, input) => {
         const period = await getOwnedFiscalPeriod(fpId);
         assertPeriodPhase(period, "journalizing", "update entry");
-        assertNonBlankString(id, "Entry id");
-        const existing = await usecases.entries.getById(uid, id);
-        if (existing == null || existing.fiscalPeriodId !== fpId) {
-          throw serverNotFoundError(
-            `Entry ${id} not found in fiscal period ${fpId}`,
-          );
-        }
+        const existing = await getOwnedEntry(fpId, id);
         assertEditableEntryInput(input, period, existing);
         return usecases.entries.update(uid, id, input);
       },
       remove: async (fpId, id) => {
         const period = await getOwnedFiscalPeriod(fpId);
         assertPeriodPhase(period, "journalizing", "delete entry");
-        assertNonBlankString(id, "Entry id");
-        const existing = await usecases.entries.getById(uid, id);
-        if (existing == null || existing.fiscalPeriodId !== fpId) {
-          throw serverNotFoundError(
-            `Entry ${id} not found in fiscal period ${fpId}`,
-          );
-        }
+        await getOwnedEntry(fpId, id);
         await usecases.entries.delete(uid, id);
       },
       importMany: async (fpId, inputs) => {
@@ -208,7 +214,7 @@ export function createOpenkkServerApi(
       },
       patch: async (id, patch) => {
         const current = await getOwnedFiscalPeriod(id);
-        if (current.archiveStatus === "archived") {
+        if (current.archiveStatus !== "active") {
           throw archivedFiscalPeriodError(
             `Archived fiscal period ${id} cannot be updated`,
           );
@@ -237,6 +243,11 @@ export function createOpenkkServerApi(
         }
         return usecases.fiscalPeriods.update(uid, id, patch);
       },
+      start: async (id) => {
+        const current = await getOwnedFiscalPeriod(id);
+        assertPeriodPhase(current, "pre_opening", "start");
+        return usecases.fiscalPeriods.start(uid, id);
+      },
       archive: async (id) => {
         const current = await getOwnedFiscalPeriod(id);
         assertPeriodPhase(current, "post_closing", "archive");
@@ -250,7 +261,7 @@ export function createOpenkkServerApi(
       },
       purgeArchivedData: async (id) => {
         const current = await getOwnedFiscalPeriod(id);
-        if (current.archiveStatus !== "archived") {
+        if (current.archiveStatus === "active") {
           throw serverConflictError(
             `Fiscal period ${id} must be archived before purging data`,
             "圧縮保存後の会計期間のみ実データを削除できます",
@@ -283,13 +294,7 @@ export function createOpenkkServerApi(
       patch: async (fpId, id, patch) => {
         const period = await getOwnedFiscalPeriod(fpId);
         assertPeriodPhase(period, "journalizing", "update fixed asset");
-        assertNonBlankString(id, "Fixed asset id");
-        const existing = await usecases.fixedAssets.getById(uid, id);
-        if (existing == null || existing.fiscalPeriodId !== fpId) {
-          throw serverNotFoundError(
-            `Fixed asset ${id} not found in fiscal period ${fpId}`,
-          );
-        }
+        const existing = await getOwnedFixedAsset(fpId, id);
         assertFixedAssetPatchInput(patch, existing);
         assertPatchedFixedAsset(existing, patch, period);
         return usecases.fixedAssets.update(uid, id, patch);
@@ -297,13 +302,7 @@ export function createOpenkkServerApi(
       remove: async (fpId, id) => {
         const period = await getOwnedFiscalPeriod(fpId);
         assertPeriodPhase(period, "journalizing", "delete fixed asset");
-        assertNonBlankString(id, "Fixed asset id");
-        const existing = await usecases.fixedAssets.getById(uid, id);
-        if (existing == null || existing.fiscalPeriodId !== fpId) {
-          throw serverNotFoundError(
-            `Fixed asset ${id} not found in fiscal period ${fpId}`,
-          );
-        }
+        await getOwnedFixedAsset(fpId, id);
         await usecases.fixedAssets.delete(uid, id);
       },
     },

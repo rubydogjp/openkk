@@ -40,6 +40,7 @@ export function isValidSuccessBody(
     case "fiscalPeriodNextCreate":
     case "fiscalPeriodImportArchived":
     case "fiscalPeriodPatch":
+    case "fiscalPeriodStart":
     case "fiscalPeriodArchive":
     case "fiscalPeriodPurgeArchivedData":
       return isObject(body) && isFiscalPeriod(body.fiscalPeriod);
@@ -111,34 +112,19 @@ function isFiscalPeriod(value: unknown): boolean {
       ["pre_opening", "journalizing", "pre_closing", "post_closing"].includes(
         String(value.phase),
       ) &&
-      ["active", "archived"].includes(String(value.archiveStatus)) &&
-      typeof value.archiveDataAvailable === "boolean" &&
+      ["active", "archived", "purged"].includes(String(value.archiveStatus)) &&
       isNullableIsoTimestamp(value.archivedAt) &&
-      typeof value.settingsCompleted === "boolean" &&
       typeof value.openingBalancesCompleted === "boolean" &&
       typeof value.documentsReceivedCompleted === "boolean"
     )
   ) {
     return false;
   }
-  return isOpening(value.opening, value);
+  return isOpening(value.opening);
 }
 
-function isOpening(
-  value: unknown,
-  fiscalPeriod: Record<string, unknown>,
-): boolean {
+function isOpening(value: unknown): boolean {
   if (!isObject(value)) return false;
-  if (
-    !hasNonBlankStrings(value, ["id", "userId", "fiscalPeriodId"]) ||
-    !hasStrings(value, ["createdAt", "updatedAt"]) ||
-    !isIsoTimestamp(value.createdAt) ||
-    !isIsoTimestamp(value.updatedAt) ||
-    value.userId !== fiscalPeriod.userId ||
-    value.fiscalPeriodId !== fiscalPeriod.id
-  ) {
-    return false;
-  }
   const balanceLines = value.openingBalanceLines;
   const journals = value.openingJournals;
   if (

@@ -15,12 +15,15 @@ import type {
   EntryRecord,
 } from "@rubydogjp/openkk-client-domain";
 import type {
-  MasterBookAccount,
-  MasterBusinessCategory,
-  MasterTaxCategory,
+  MasterBookAccountApiRecord,
+  MasterBusinessCategoryApiRecord,
+  MasterTaxCategoryApiRecord,
 } from "@rubydogjp/openkk-client-ports";
 
-const accounts: Pick<MasterBookAccount, "id" | "name" | "accountType">[] = [
+const accounts: Pick<
+  MasterBookAccountApiRecord,
+  "id" | "name" | "accountType"
+>[] = [
   {
     id: "acct_cost_of_sales_商品仕入高",
     name: "仕入",
@@ -30,11 +33,11 @@ const accounts: Pick<MasterBookAccount, "id" | "name" | "accountType">[] = [
   { id: "acct_accrued_expense", name: "未払金", accountType: "liability" },
 ];
 
-const taxes: Pick<MasterTaxCategory, "id" | "name">[] = [
+const taxes: Pick<MasterTaxCategoryApiRecord, "id" | "name">[] = [
   { id: "tax_10", name: "課税 10%" },
   { id: "tax_8", name: "軽減税率 8%" },
 ];
-const businesses: Pick<MasterBusinessCategory, "id" | "name">[] = [
+const businesses: Pick<MasterBusinessCategoryApiRecord, "id" | "name">[] = [
   { id: "biz_service", name: "第5種（サービス業等）" },
   { id: "biz_retail", name: "第2種（小売業等）" },
 ];

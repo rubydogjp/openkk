@@ -4,17 +4,10 @@ import {
   type EntryLine,
   type EntryRecord,
 } from "../entries/entry-record.js";
+import type { BookAccountType } from "../entries/book-account.js";
 import { parseAmount } from "../shared/parse-utils.js";
 import { buildPrintDocument, escapeHtml as esc } from "./print-shell.js";
 import { formatEntryMetadata } from "./entry-metadata.js";
-
-type AccountType =
-  | "asset"
-  | "liability"
-  | "equity"
-  | "revenue"
-  | "expense"
-  | "cost_of_sales";
 
 function parseNum(str: string): number {
   return parseAmount(str);
@@ -39,11 +32,11 @@ function fmtMonthLabel(monthKey: string): string {
     : "日付未設定";
 }
 
-function isDebitNormal(type: AccountType): boolean {
+function isDebitNormal(type: BookAccountType): boolean {
   return type === "asset" || type === "expense" || type === "cost_of_sales";
 }
 
-function isBalanceSheetAccount(type: AccountType): boolean {
+function isBalanceSheetAccount(type: BookAccountType): boolean {
   return type === "asset" || type === "liability" || type === "equity";
 }
 
@@ -88,7 +81,7 @@ type LedgerLine = {
 type AccountLedger = {
   accountKey: string;
   accountName: string;
-  accountType: AccountType;
+  accountType: BookAccountType;
   openingBalance: number;
   debitNormal: boolean;
   lines: LedgerLine[];
@@ -98,7 +91,7 @@ type AccountLedger = {
 type AccountIdentity = {
   key: string;
   name: string;
-  type: AccountType;
+  type: BookAccountType;
 };
 
 function buildLedger(
@@ -186,7 +179,7 @@ export function buildGeneralLedgerBody(
         encounterOrder.push({
           key,
           name: line.accountName,
-          type: line.accountType as AccountType,
+          type: line.accountType,
         });
       }
     }
@@ -396,7 +389,7 @@ function chunkLedgerLines(lines: LedgerLine[]): LedgerLine[][] {
   return chunks.length === 0 ? [[]] : chunks;
 }
 
-function accountTypeLabel(type: AccountType): string {
+function accountTypeLabel(type: BookAccountType): string {
   if (type === "asset") return "資産";
   if (type === "liability") return "負債";
   if (type === "equity") return "純資産";

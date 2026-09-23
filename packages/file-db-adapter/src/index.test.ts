@@ -97,7 +97,7 @@ describe("createFileDbAdapter — behavior parity over the worker proxy", () => 
       startDate: "2026-01-01",
       endDate: "2026-12-31",
     });
-    return db.fiscalPeriods.update(created.id, { settingsCompleted: true });
+    return db.fiscalPeriods.start(created.id);
   }
 
   function entryInput(localId: string) {

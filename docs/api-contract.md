@@ -6,7 +6,7 @@
 |---|---|---|
 | Client backend | `@rubydogjp/openkk-client-ports` | `OpenkkBackendPort`, `*Request`, `*Response`, `*ApiRecord`, `*Input`, `OpenkkApiErrorDto` |
 | TypeScript server | `@rubydogjp/openkk-server-ports` | `OpenkkServerPort`, `*Request`, `*Response`, `*ApiRecord`, `*Input`, `OpenkkApiErrorDto` |
-| Server storage | `@rubydogjp/openkk-server-ports` | `OpenkkDbPort`, `*DbRecord`, `*DbInput` |
+| Server storage | `@rubydogjp/openkk-server-ports` | `OpenkkDbPort`, `*DbRecord`, `*Db*Input` |
 | Errors | `@rubydogjp/openkk-*-domain` | `AppError`, `AppErrorLike` |
 
 `client-*` and `server-*` define the contract independently.
@@ -30,10 +30,8 @@ PATCH 入力だけは「未指定 = 変更しない」を表すため省略可�
 | `*ApiRecord` | API result record |
 | `*Input` | operation input |
 | `*DbRecord` | storage record |
-| `*DbInput` | storage input |
+| `*Db*Input` | storage input |
 | `OpenkkApiErrorDto` | error JSON |
-
-Do not use `RequestDto` or `ResponseDto`.
 
 ## HTTP Metadata
 
@@ -91,6 +89,8 @@ Archived fiscal periods are read-only. Mutations against them must fail with `Op
 | closing `year` | fiscal period end year |
 | fixed-asset disposal fields | sold: date and price; disposed: date; otherwise `null` |
 
+`fiscalPeriods.start` moves a `pre_opening` period to `journalizing`.
+
 `fiscalPeriods.archive` preserves `phase`, sets `archiveStatus` to `archived`, and stamps `archivedAt`.
 
 `FiscalPeriodArchiveImportInput` creates a new active period in the archived `phase`.
@@ -105,20 +105,16 @@ Third-party backends declare a lifecycle policy via `OpenkkConfig.fiscalPeriodPo
 | Field | Default | Meaning |
 |---|---|---|
 | `maxActivePeriods` | `null` | Max non-archived periods. `null` = unlimited. `1` blocks creating a next period until the current one is archived. |
-| `archiveRetention` | `"persistent"` | `"persistent"` keeps archived data forever. `"ephemeral"` purges archived data when advancing to the next period (stub remains). |
+| `archiveRetention` | `"persistent"` | `"persistent"` keeps archived data forever. `"ephemeral"` purges archived data when advancing to the next period. |
 | `ephemeralArchiveWarning` | `null` | Warning text override; `null` uses the default text. |
 | `allowArchiveImport` | `true` | Allow importing archived periods. |
 
-`FiscalPeriodApiRecord` carries two required lifecycle fields:
-
-- `archiveDataAvailable` — `true` while real data is available; `false` marks a purged stub.
-- `archivedAt` — archive timestamp or `null`; active periods require `null`.
+`archiveStatus` is `active`, `archived`, or `purged`. `archivedAt` is `null` while `active`.
 
 `opening` is always present: a period without opening balances carries an empty one.
 
-`fiscalPeriods.purgeArchivedData(id)` deletes an archived period's real data
-(entries/lines/fixed assets/closings), empties its opening, and returns the lightweight stub
-(`archiveDataAvailable: false`). It requires the period to be `archived` (otherwise `409`).
+`fiscalPeriods.purgeArchivedData(id)` deletes an archived period's entries, fixed assets,
+closings and opening, and returns it as `purged`. An `active` period fails with `409`.
 `persistent` backends may return the archived record unchanged. Carryover into the next period
 must be committed **before** purge so the new period never depends on purged data.
 

@@ -76,7 +76,7 @@ export function NextFiscalPeriodBody({
   const appState = useOpenkkAppState();
   const entriesState = useOpenkkEntries();
   const [screenError, setScreenError] = useState<unknown>(null);
-  const [archiveStatus, setArchiveStatus] = useState<string | null>(null);
+  const [archiveMessage, setArchiveMessage] = useState<string | null>(null);
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (period) => period.id === appState.currentFiscalPeriodId,
   );
@@ -104,7 +104,7 @@ export function NextFiscalPeriodBody({
     setStartDate(suggested.startDate);
     setEndDate(suggested.endDate);
     setNameEdited(false);
-    setArchiveStatus(null);
+    setArchiveMessage(null);
     setPendingAdvance(false);
     setCarries(DEFAULT_CARRIES);
     setReversalEntryIds([]);
@@ -133,7 +133,7 @@ export function NextFiscalPeriodBody({
   const requiresArchiveBeforeNext =
     policy.maxActivePeriods != null && policy.maxActivePeriods <= 1;
   const isEphemeral = policy.archiveRetention === "ephemeral";
-  const currentArchived = currentFiscalPeriod.archiveStatus === "archived";
+  const currentArchived = currentFiscalPeriod.archiveStatus !== "active";
   const activePeriodCount = appState.fiscalPeriods.filter(
     (period) => period.archiveStatus === "active",
   ).length;
@@ -170,7 +170,7 @@ export function NextFiscalPeriodBody({
   const canArchive =
     canEnterPage &&
     currentFiscalPeriod.documentsReceivedCompleted &&
-    currentFiscalPeriod.archiveStatus !== "archived" &&
+    currentFiscalPeriod.archiveStatus === "active" &&
     !editingLocked &&
     !isArchiving &&
     !isCreating;
@@ -282,7 +282,7 @@ export function NextFiscalPeriodBody({
       );
       await appState.archiveFiscalPeriod(currentFiscalPeriod.id);
       appState.assertAuthOperationCurrent(authOperationVersion);
-      setArchiveStatus("圧縮保存しました");
+      setArchiveMessage("圧縮保存しました");
       setScreenError(null);
     } catch (error) {
       if (!appState.isAuthOperationCurrent(authOperationVersion)) return;
@@ -562,7 +562,7 @@ export function NextFiscalPeriodBody({
             gap: 12,
           }}
         >
-          {archiveStatus != null ? (
+          {archiveMessage != null ? (
             <span
               style={{
                 fontSize: fontSize.sm,
@@ -570,7 +570,7 @@ export function NextFiscalPeriodBody({
                 color: palette.success,
               }}
             >
-              {archiveStatus}
+              {archiveMessage}
             </span>
           ) : null}
           {editingLocked ? (
@@ -582,7 +582,7 @@ export function NextFiscalPeriodBody({
               variant="success"
               icon={null}
             >
-              {currentFiscalPeriod.archiveStatus === "archived"
+              {currentFiscalPeriod.archiveStatus !== "active"
                 ? "圧縮保存済み"
                 : isArchiving
                   ? "保存中"

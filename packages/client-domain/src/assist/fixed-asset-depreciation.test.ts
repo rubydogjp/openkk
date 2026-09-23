@@ -137,7 +137,6 @@ describe("computePeriodDepreciation", () => {
   });
 
   it("prorates the acquisition year by months in service (取得月算入)", () => {
-    // 2026-04 取得 → 4〜12月の 9 ヶ月分。
     expect(
       computePeriodDepreciation({
         acquisitionDate: "2026-04-10",
@@ -150,7 +149,6 @@ describe("computePeriodDepreciation", () => {
   });
 
   it("prorates the disposal year up to the disposal month", () => {
-    // 2024-01 取得・2026-06 処分 → 当期は 1〜6月の 6 ヶ月分。
     expect(
       computePeriodDepreciation({
         acquisitionDate: "2024-01-01",

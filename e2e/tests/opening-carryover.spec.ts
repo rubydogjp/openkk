@@ -3,6 +3,7 @@ import {
   advanceToJournalizing,
   clickButton,
   createFiscalPeriod,
+  goToMonth,
 } from "../helpers";
 
 test.describe("opening carryover (再振替)", () => {
@@ -17,18 +18,7 @@ test.describe("opening carryover (再振替)", () => {
   }) => {
     await expect(page.getByRole("button", { name: "追加" })).toBeVisible();
 
-    await page.getByRole("button", { name: "追加" }).click();
-    const drawer = page.getByRole("dialog", { name: "仕訳の新規作成" });
-    await expect(drawer).toBeVisible();
-
-    // 追加時に既定の勘定科目・日付が入った再振替が生成される。日付・科目は
-    // ボタン/ピッカー UI のため既定値を使い、摘要と金額だけ編集する。
-    await drawer.getByLabel("摘要").fill("再振替テスト: 未払費用");
-    await drawer.getByLabel("借方金額").first().fill("30000");
-    await drawer.getByLabel("貸方金額").last().fill("30000");
-    await clickButton(page, "作成");
-
-    await expect(drawer).not.toBeVisible({ timeout: 5_000 });
+    await addCarryover(page, "再振替テスト: 未払費用", "30000");
     await expect(page.getByText("再振替テスト: 未払費用")).toBeVisible();
   });
 
@@ -98,7 +88,6 @@ test.describe("opening carryover (再振替)", () => {
     const drawer = page.getByRole("dialog", { name: "仕訳の編集" });
     await expect(drawer).toBeVisible();
 
-    // exact: true で footer の「削除」のみを対象に（行削除「この行を削除」と区別）
     await drawer.getByRole("button", { name: "削除", exact: true }).click();
     const confirmDialog = page.getByRole("dialog", { name: "仕訳の削除確認" });
     await expect(confirmDialog).toBeVisible();
@@ -115,11 +104,7 @@ test.describe("opening carryover (再振替)", () => {
     await addCarryover(page, "仕訳一覧確認用の再振替", "50000");
 
     await page.getByRole("link", { name: "仕訳" }).click();
-    // 再振替（仮想行）は期首=2026年1月に表示される。既定表示月(9月)から戻る。
-    for (let i = 0; i < 8; i += 1) {
-      await page.getByRole("button", { name: "前の月" }).click();
-    }
-    await expect(page.getByText("2026年1月")).toBeVisible();
+    await goToMonth(page, "2026年1月");
     await expect(page.getByText("仕訳一覧確認用の再振替")).toBeVisible();
 
     await expect(page.getByText("再振替").first()).toBeVisible();
@@ -138,7 +123,6 @@ async function addCarryover(page: Page, description: string, amount: string) {
   await page.getByRole("button", { name: "追加" }).click();
   const drawer = page.getByRole("dialog", { name: "仕訳の新規作成" });
   await expect(drawer).toBeVisible();
-  // 日付・勘定科目は既定値を使う（ボタン/ピッカー UI のため）。
   await drawer.getByLabel("摘要").fill(description);
   await drawer.getByLabel("借方金額").first().fill(amount);
   await drawer.getByLabel("貸方金額").last().fill(amount);

@@ -5,13 +5,14 @@ import {
 } from "@rubydogjp/openkk-server-domain";
 
 import type {
+  ClosingMarkerDbImportInput,
+  ClosingMarkerDbRecord,
   DbSnapshot,
   FiscalPeriodDbRecord,
 } from "@rubydogjp/openkk-server-ports";
 import { insertEntryLines } from "./entry-store.js";
 import { replaceOpening } from "./opening-store.js";
 import {
-  msToIso,
   serializeFiscalPeriodDbData,
   serializeFixedAssetDbData,
 } from "./persistence-codec.js";
@@ -28,13 +29,13 @@ import { runInTransaction } from "./transaction.js";
 
 export async function seedStores(db: SqlDb, seed: DbSnapshot): Promise<void> {
   const now = nowMs();
-  const preparedSeed = prepareAndValidateSeed(seed, now);
+  const preparedSeed = prepareAndValidateSeed(seed);
   await runInTransaction(db, async () => {
     await seedStoresInner(db, preparedSeed, now);
   });
 }
 
-function prepareAndValidateSeed(seed: unknown, now: number): DbSnapshot {
+function prepareAndValidateSeed(seed: unknown): DbSnapshot {
   const value = requireObject(seed, "Seed");
   if (
     !Array.isArray(value.fiscalPeriods) ||
@@ -46,23 +47,19 @@ function prepareAndValidateSeed(seed: unknown, now: number): DbSnapshot {
     throw serverValidationError("Seed collections must be arrays", null);
   }
 
-  const fiscalPeriods = value.fiscalPeriods.map((item) => {
-    if (item.opening == null) {
-      throw serverValidationError(
-        `Seed fiscal period requires opening data: ${String(item.id)}`,
-        null,
-      );
-    }
-    const opening = {
-      ...item.opening,
-      createdAt: msToIso(now),
-      updatedAt: msToIso(now),
-    };
-    const record = { ...item, opening };
-    assertDbOpeningForPeriod(opening, record);
-    serializeFiscalPeriodDbData(record);
-    return record;
-  });
+  const fiscalPeriods: FiscalPeriodDbRecord[] = value.fiscalPeriods.map(
+    (record) => {
+      if (record.opening == null) {
+        throw serverValidationError(
+          `Seed fiscal period requires opening data: ${String(record.id)}`,
+          null,
+        );
+      }
+      assertDbOpeningForPeriod(record.opening, record);
+      serializeFiscalPeriodDbData(record);
+      return record;
+    },
+  );
 
   const periodsById = new Map<string, FiscalPeriodDbRecord>();
   const activePeriodsByUser = new Map<string, FiscalPeriodDbRecord[]>();
@@ -127,7 +124,7 @@ function prepareAndValidateSeed(seed: unknown, now: number): DbSnapshot {
   for (const period of periodsById.values()) {
     const preClosings = preClosingsByPeriod.get(period.id) ?? [];
     const closings = closingsByPeriod.get(period.id) ?? [];
-    if (period.archiveDataAvailable === false) {
+    if (period.archiveStatus === "purged") {
       const hasArchivedData =
         value.entries.some((entry) => entry.fiscalPeriodId === period.id) ||
         value.fixedAssets.some((asset) => asset.fiscalPeriodId === period.id) ||
@@ -171,10 +168,10 @@ function requireSeedFiscalPeriod(
 
 function groupSeedClosingRows(
   periodsById: ReadonlyMap<string, FiscalPeriodDbRecord>,
-  rows: ReadonlyArray<{ fiscalPeriodId: string; year: number }>,
+  rows: ReadonlyArray<ClosingMarkerDbRecord>,
   label: string,
-): Map<string, Array<{ year: number }>> {
-  const grouped = new Map<string, Array<{ year: number }>>();
+): Map<string, ClosingMarkerDbImportInput[]> {
+  const grouped = new Map<string, ClosingMarkerDbImportInput[]>();
   for (const row of rows) {
     const period = requireSeedFiscalPeriod(periodsById, row.fiscalPeriodId);
     assertDbClosingYear(period, row.year);
@@ -202,7 +199,7 @@ async function seedStoresInner(
       sql: `INSERT INTO fiscal_periods(id, user_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
       bind: [record.id, record.userId, serializedRecord, now, now],
     });
-    await replaceOpening(db, record.opening, now);
+    await replaceOpening(db, record.id, record.opening);
   }
   for (const entry of seed.entries) {
     await db.exec({

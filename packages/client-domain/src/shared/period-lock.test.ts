@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildPeriodLockMessage, isJournalizingActive } from "./period-lock.js";
+import { buildPeriodLockMessage } from "./period-lock.js";
 import type { FiscalPeriod } from "./models.js";
 
 function period(overrides: Partial<FiscalPeriod> = {}): FiscalPeriod {
@@ -12,53 +12,18 @@ function period(overrides: Partial<FiscalPeriod> = {}): FiscalPeriod {
     endDate: "2026-12-31",
     phase: "journalizing",
     archiveStatus: "active",
-    archiveDataAvailable: true,
-    settingsCompleted: true,
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,
     createdAt: "1970-01-01T00:00:00.000Z",
     updatedAt: "1970-01-01T00:00:00.000Z",
     archivedAt: null,
     opening: {
-      id: "op-fp-1",
-      userId: "user-1",
-      fiscalPeriodId: "fp-1",
-      createdAt: "1970-01-01T00:00:00.000Z",
-      updatedAt: "1970-01-01T00:00:00.000Z",
       openingBalanceLines: [],
       openingJournals: [],
     },
   };
   return Object.assign(base, overrides);
 }
-
-describe("isJournalizingActive", () => {
-  it("returns false for null", () => {
-    expect(isJournalizingActive(null)).toBe(false);
-  });
-
-  it("returns false when stage is pre_opening", () => {
-    expect(isJournalizingActive(period({ phase: "pre_opening" }))).toBe(false);
-  });
-
-  it("returns false when stage is post_closing", () => {
-    expect(isJournalizingActive(period({ phase: "post_closing" }))).toBe(false);
-  });
-
-  it("returns false when pre-closing", () => {
-    expect(isJournalizingActive(period({ phase: "pre_closing" }))).toBe(false);
-  });
-
-  it("returns false when archived", () => {
-    expect(isJournalizingActive(period({ archiveStatus: "archived" }))).toBe(
-      false,
-    );
-  });
-
-  it("returns true when journalizing", () => {
-    expect(isJournalizingActive(period({ phase: "journalizing" }))).toBe(true);
-  });
-});
 
 describe("buildPeriodLockMessage", () => {
   it("returns locked message when period is null", () => {
@@ -67,12 +32,12 @@ describe("buildPeriodLockMessage", () => {
     expect(msg?.title).toBeTruthy();
   });
 
-  it("returns locked message when stage is pre_opening", () => {
+  it("returns locked message when phase is pre_opening", () => {
     const msg = buildPeriodLockMessage(period({ phase: "pre_opening" }), null);
     expect(msg).not.toBeNull();
   });
 
-  it("returns locked message when stage is post_closing", () => {
+  it("returns locked message when phase is post_closing", () => {
     const msg = buildPeriodLockMessage(period({ phase: "post_closing" }), null);
     expect(msg).not.toBeNull();
   });

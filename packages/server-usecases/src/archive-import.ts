@@ -1,8 +1,5 @@
 import {
-  assertCompletedOpening,
   assertDateRange,
-  assertEntryLineMatchesRules,
-  assertEntryLinesBalanced,
   assertEntryMatchesRules,
   assertFiscalPeriodArchiveSize,
   assertFiscalPeriodClosingMarkers,
@@ -10,15 +7,16 @@ import {
   assertFixedAssetMatchesRules,
   assertIsoDate,
   assertNonNegativeSafeInteger,
-  assertOpeningBalanceAccountId,
+  assertOpeningMatchesRules,
   assertPositiveInteger,
-  assertUniqueIds,
   assertUniqueStrings,
   assertUnitRate,
   requireObject,
   serverValidationError,
-  type FiscalPeriodRulePhase,
-  type OpeningRuleJournal,
+  type EntrySide,
+  type FiscalPeriodPhase,
+  type FixedAssetStatus,
+  type Opening,
 } from "@rubydogjp/openkk-server-domain";
 import type {
   EntryUpsertInput,
@@ -87,15 +85,8 @@ export function normalizeArchiveImportInput(
   };
   const { fiscalPeriod, entries, fixedAssets, closings } =
     archiveVersion === 1
-      ? migrateFiscalPeriodArchiveV1(content, sourceId)
+      ? migrateFiscalPeriodArchiveV1(content)
       : content;
-  const sourceOpening = fiscalPeriod.opening;
-  if (sourceOpening === undefined) {
-    throw serverValidationError(
-      "archive fiscalPeriod.opening must be null or an object",
-      null,
-    );
-  }
   const startDate = requireIsoDate(
     fiscalPeriod.startDate,
     "archive fiscalPeriod.startDate",
@@ -155,10 +146,6 @@ export function normalizeArchiveImportInput(
     null,
   );
   const phase = normalizeFiscalPeriodPhase(fiscalPeriod.phase);
-  const settingsCompleted = requireBoolean(
-    fiscalPeriod.settingsCompleted,
-    "archive fiscalPeriod.settingsCompleted",
-  );
   const openingBalancesCompleted = requireBoolean(
     fiscalPeriod.openingBalancesCompleted,
     "archive fiscalPeriod.openingBalancesCompleted",
@@ -167,10 +154,11 @@ export function normalizeArchiveImportInput(
     fiscalPeriod.documentsReceivedCompleted,
     "archive fiscalPeriod.documentsReceivedCompleted",
   );
-  const normalizedOpening =
-    sourceOpening == null
-      ? null
-      : normalizeArchivedOpening(sourceOpening, startDate, endDate);
+  const normalizedOpening = normalizeArchivedOpening(
+    fiscalPeriod.opening,
+    { startDate, endDate },
+    openingBalancesCompleted,
+  );
   const normalizedFixedAssets = fixedAssets.map((fixedAsset) =>
     normalizeArchivedFixedAsset(
       requireObject(fixedAsset, "archive fixedAsset"),
@@ -187,10 +175,8 @@ export function normalizeArchiveImportInput(
     .map(({ year }) => ({ year }));
   assertArchiveLifecycle({
     phase,
-    settingsCompleted,
     openingBalancesCompleted,
     documentsReceivedCompleted,
-    opening: normalizedOpening,
     preClosingCount: importedPreClosings.length,
     closingCount: importedClosings.length,
   });
@@ -200,13 +186,9 @@ export function normalizeArchiveImportInput(
       startDate,
       endDate,
       phase,
-      settingsCompleted,
       openingBalancesCompleted,
       documentsReceivedCompleted,
-      opening: normalizedOpening ?? {
-        openingBalanceLines: [],
-        openingJournals: [],
-      },
+      opening: normalizedOpening,
     },
     entries: normalizedEntries,
     fixedAssets: normalizedFixedAssets,
@@ -215,7 +197,7 @@ export function normalizeArchiveImportInput(
   };
 }
 
-function normalizeFiscalPeriodPhase(value: unknown) {
+function normalizeFiscalPeriodPhase(value: unknown): FiscalPeriodPhase {
   if (
     value === "pre_opening" ||
     value === "journalizing" ||
@@ -229,107 +211,32 @@ function normalizeFiscalPeriodPhase(value: unknown) {
 
 function normalizeArchivedOpening(
   value: unknown,
-  periodStartDate: string,
-  periodEndDate: string,
-) {
-  const opening = requireObject(value, "archive opening");
-  const openingBalanceLines = requireArrayValue(
-    opening.openingBalanceLines,
-    "archive openingBalanceLines",
-  ).map((line) => {
-    const item = requireObject(line, "archive openingBalanceLine");
-    const accountId = requireNonBlankString(
-      item.accountId,
-      "archive openingBalanceLine.accountId",
-    );
-    assertOpeningBalanceAccountId(
-      accountId,
-      "archive openingBalanceLine.accountId",
-    );
-    return {
-      id: requireNonBlankString(item.id, "archive openingBalanceLine.id"),
-      accountId,
-      amount: requireNonNegativeNumber(
-        item.amount,
-        "archive openingBalanceLine.amount",
-      ),
-    };
-  });
-  assertUniqueStrings(
-    openingBalanceLines.map((line) => line.accountId),
-    "archive openingBalanceLine accountId",
-    "同じ勘定科目の期首残高が重複しています",
-  );
-  assertUniqueIds(openingBalanceLines, "archive openingBalanceLines", null);
-  const openingJournals = requireArrayValue(
-    opening.openingJournals,
-    "archive openingJournals",
-  ).map((journal) => {
-    const item = requireObject(journal, "archive openingJournal");
-    const id = requireNonBlankString(item.id, "archive openingJournal.id");
-    const lines = requireArrayValue(
-      item.lines,
-      "archive openingJournal.lines",
-    ).map((line) => {
-      const lineObject = requireObject(line, "archive openingJournal.line");
-      return {
-        id: requireNonBlankString(
-          lineObject.id,
-          "archive openingJournal.line.id",
-        ),
-        side: normalizeSide(lineObject.side),
-        bookAccountId: requireNonBlankString(
-          lineObject.bookAccountId,
-          "archive openingJournal.line.bookAccountId",
-        ),
-        amount: requireNonNegativeNumber(
-          lineObject.amount,
-          "archive openingJournal.line.amount",
-        ),
-        partnerName: requireString(
-          lineObject.partnerName,
-          "archive openingJournal.line.partnerName",
-        ),
-        taxCategoryId: requireString(
-          lineObject.taxCategoryId,
-          "archive openingJournal.line.taxCategoryId",
-        ),
-        businessCategoryId: requireString(
-          lineObject.businessCategoryId,
-          "archive openingJournal.line.businessCategoryId",
-        ),
-      };
-    });
-    assertUniqueIds(lines, `archive openingJournal ${id} lines`, null);
-    assertEntryLinesBalanced(lines, "archive openingJournal", {
-      allowZero: true,
-    });
-    const date = requireIsoDate(item.date, "archive openingJournal.date");
-    if (date < periodStartDate || date > periodEndDate) {
-      throw serverValidationError(
-        `archive openingJournal.date must be within fiscal period ${periodStartDate} to ${periodEndDate}`,
-        null,
-      );
-    }
-    for (const line of lines) {
-      assertEntryLineMatchesRules(line, "archive openingJournal");
-    }
-    return {
-      id,
-      date,
-      description: requireString(
-        item.description,
-        "archive openingJournal.description",
-      ),
-      businessRate: requireUnitRate(
-        item.businessRate,
-        "archive openingJournal.businessRate",
-      ),
-      lines,
-    };
-  });
-  assertUniqueIds(openingJournals, "archive openingJournals", null);
-  return { openingBalanceLines, openingJournals };
+  period: { startDate: string; endDate: string },
+  completed: boolean,
+): Opening {
+  assertOpeningMatchesRules(value, period, "archive opening", { completed });
+  return {
+    openingBalanceLines: value.openingBalanceLines.map((line) => ({
+      id: line.id,
+      accountId: line.accountId,
+      amount: line.amount,
+    })),
+    openingJournals: value.openingJournals.map((journal) => ({
+      id: journal.id,
+      date: journal.date,
+      description: journal.description,
+      businessRate: journal.businessRate,
+      lines: journal.lines.map((line) => ({
+        id: line.id,
+        side: line.side,
+        bookAccountId: line.bookAccountId,
+        amount: line.amount,
+        partnerName: line.partnerName,
+        taxCategoryId: line.taxCategoryId,
+        businessCategoryId: line.businessCategoryId,
+      })),
+    })),
+  };
 }
 
 function normalizeArchivedEntry(
@@ -365,7 +272,7 @@ function normalizeArchivedEntry(
           item.bookAccountId,
           "archive entry.line.bookAccountId",
         ),
-        amount: requireNonNegativeNumber(
+        amount: requireNonNegativeSafeInteger(
           item.amount,
           "archive entry.line.amount",
         ),
@@ -427,7 +334,7 @@ function normalizeArchivedFixedAsset(
   const disposalPrice =
     value.disposalPrice === null
       ? null
-      : requireNonNegativeNumber(
+      : requireNonNegativeSafeInteger(
           value.disposalPrice,
           "archive fixedAsset.disposalPrice",
         );
@@ -495,14 +402,9 @@ function assertSourceFiscalPeriodId(
 }
 
 function assertArchiveLifecycle(input: {
-  phase: FiscalPeriodRulePhase;
-  settingsCompleted: boolean;
+  phase: FiscalPeriodPhase;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
-  opening: {
-    openingBalanceLines: ReadonlyArray<{ accountId: string; amount: number }>;
-    openingJournals: ReadonlyArray<OpeningRuleJournal>;
-  } | null;
   preClosingCount: number;
   closingCount: number;
 }): void {
@@ -515,24 +417,14 @@ function assertArchiveLifecycle(input: {
     },
     "archive",
   );
-  if (!input.openingBalancesCompleted) return;
-  if (input.opening == null) {
-    throw serverValidationError(
-      "archive completed opening balances require opening data",
-      null,
-    );
-  }
-  assertCompletedOpening(input.opening, "archive opening");
 }
 
-function normalizeSide(value: unknown): "debit" | "credit" {
+function normalizeSide(value: unknown): EntrySide {
   if (value === "debit" || value === "credit") return value;
   throw serverValidationError("archive line side is invalid", null);
 }
 
-function normalizeFixedAssetStatus(
-  value: string,
-): "active" | "sold" | "disposed" | "retired" {
+function normalizeFixedAssetStatus(value: string): FixedAssetStatus {
   if (
     value === "active" ||
     value === "sold" ||
@@ -586,7 +478,7 @@ function requireBoolean(value: unknown, label: string): boolean {
   return value;
 }
 
-function requireNonNegativeNumber(value: unknown, label: string): number {
+function requireNonNegativeSafeInteger(value: unknown, label: string): number {
   assertNonNegativeSafeInteger(value, label);
   return value;
 }

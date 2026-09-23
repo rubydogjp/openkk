@@ -1,6 +1,3 @@
-// 上書きの方法は docs/theming.md を参照。
-// 数値トークンは単位付きの文字列なので、`${spacing.s12}px` のように単位を足さないこと。
-
 const slate = {
   white: "#FFFFFF",
   s50: "#F6F9FC",

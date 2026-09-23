@@ -4,7 +4,7 @@ export type FiscalPeriodDbPhase =
   | "pre_closing"
   | "post_closing";
 
-export type FiscalPeriodDbArchiveStatus = "active" | "archived";
+export type FiscalPeriodDbArchiveStatus = "active" | "archived" | "purged";
 
 export type EntryDbSide = "debit" | "credit";
 
@@ -16,13 +16,7 @@ export type MasterBookAccountDbAccountType =
   | "cost_of_sales"
   | "expense";
 
-export type OpeningBalanceLineDbRecord = {
-  id: string;
-  accountId: string;
-  amount: number;
-};
-
-export type OpeningJournalLineDbRecord = {
+export type EntryLineDbRecord = {
   id: string;
   side: EntryDbSide;
   bookAccountId: string;
@@ -32,20 +26,21 @@ export type OpeningJournalLineDbRecord = {
   businessCategoryId: string;
 };
 
+export type OpeningBalanceLineDbRecord = {
+  id: string;
+  accountId: string;
+  amount: number;
+};
+
 export type OpeningJournalDbRecord = {
   id: string;
   date: string;
   description: string;
   businessRate: number;
-  lines: OpeningJournalLineDbRecord[];
+  lines: EntryLineDbRecord[];
 };
 
 export type FiscalPeriodOpeningDbRecord = {
-  id: string;
-  userId: string;
-  fiscalPeriodId: string;
-  createdAt: string;
-  updatedAt: string;
   openingBalanceLines: OpeningBalanceLineDbRecord[];
   openingJournals: OpeningJournalDbRecord[];
 };
@@ -58,9 +53,7 @@ export type FiscalPeriodDbRecord = {
   endDate: string;
   phase: FiscalPeriodDbPhase;
   archiveStatus: FiscalPeriodDbArchiveStatus;
-  archiveDataAvailable: boolean;
   archivedAt: string | null;
-  settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
   opening: FiscalPeriodOpeningDbRecord;
@@ -84,35 +77,16 @@ export type FiscalPeriodNextDbCreateInput = {
   carryFixedAssets: boolean;
 };
 
-export type FiscalPeriodOpeningDbInput = {
-  id: string;
-  userId: string;
-  fiscalPeriodId: string;
-  openingBalanceLines: OpeningBalanceLineDbRecord[];
-  openingJournals: OpeningJournalDbRecord[];
-};
-
 export type FiscalPeriodDbPatchInput = {
   name?: string;
   startDate?: string;
   endDate?: string;
-  settingsCompleted?: boolean;
   openingBalancesCompleted?: boolean;
   documentsReceivedCompleted?: boolean;
-  opening?: FiscalPeriodOpeningDbInput;
+  opening?: FiscalPeriodOpeningDbRecord;
 };
 
-export type EntryDbLine = {
-  id: string;
-  side: EntryDbSide;
-  bookAccountId: string;
-  amount: number;
-  partnerName: string;
-  taxCategoryId: string;
-  businessCategoryId: string;
-};
-
-export type EntryDbLineInput = {
+export type EntryLineDbInput = {
   side: EntryDbSide;
   bookAccountId: string;
   amount: number;
@@ -129,7 +103,7 @@ export type EntryDbRecord = {
   description: string;
   localId: string | null;
   businessRate: number;
-  lines: EntryDbLine[];
+  lines: EntryLineDbRecord[];
   createdAt: string;
   updatedAt: string;
 };
@@ -139,7 +113,7 @@ export type EntryDbUpsertInput = {
   description: string;
   localId: string | null;
   businessRate: number;
-  lines: EntryDbLineInput[];
+  lines: EntryLineDbInput[];
 };
 
 export type FixedAssetDbStatus = "active" | "sold" | "disposed" | "retired";
@@ -237,34 +211,37 @@ export type FixedAssetDbImportInput = {
   bookAccountId: string;
 };
 
-export type FiscalPeriodArchiveDbImportOpening = {
-  openingBalanceLines: OpeningBalanceLineDbRecord[];
-  openingJournals: OpeningJournalDbRecord[];
-};
-
-export type FiscalPeriodArchiveDbImportPeriod = {
+export type FiscalPeriodDbImportInput = {
   name: string;
   startDate: string;
   endDate: string;
   phase: FiscalPeriodDbPhase;
-  settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
-  opening: FiscalPeriodArchiveDbImportOpening;
+  opening: FiscalPeriodOpeningDbRecord;
+};
+
+export type ClosingMarkerDbRecord = {
+  fiscalPeriodId: string;
+  year: number;
+};
+
+export type ClosingMarkerDbImportInput = {
+  year: number;
 };
 
 export type FiscalPeriodArchiveDbImportInput = {
-  fiscalPeriod: FiscalPeriodArchiveDbImportPeriod;
+  fiscalPeriod: FiscalPeriodDbImportInput;
   entries: EntryDbUpsertInput[];
   fixedAssets: FixedAssetDbImportInput[];
-  preClosings: Array<{ year: number }>;
-  closings: Array<{ year: number }>;
+  preClosings: ClosingMarkerDbImportInput[];
+  closings: ClosingMarkerDbImportInput[];
 };
 
 export type DbSnapshot = {
   fiscalPeriods: FiscalPeriodDbRecord[];
   entries: EntryDbRecord[];
   fixedAssets: FixedAssetDbRecord[];
-  preClosings: Array<{ fiscalPeriodId: string; year: number }>;
-  closings: Array<{ fiscalPeriodId: string; year: number }>;
+  preClosings: ClosingMarkerDbRecord[];
+  closings: ClosingMarkerDbRecord[];
 };

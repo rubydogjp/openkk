@@ -117,10 +117,34 @@ describe("SQLite v1 to v4 migration", () => {
       disposalPrice: 0,
       bookAccountId: "acct_equipment",
     };
-    db.exec({
-      sql: `INSERT INTO fiscal_periods VALUES(?, ?, ?, 1, 1)`,
-      bind: [period.id, "user-1", JSON.stringify(period)],
-    });
+    const purgedPeriod = {
+      id: "fp-purged",
+      name: "FY2025",
+      startDate: "2025-01-01",
+      endDate: "2025-12-31",
+      stage: "post_closing",
+      archived: true,
+      archiveDataAvailable: false,
+      settingsCompleted: true,
+      openingBalancesCompleted: true,
+      documentsReceivedCompleted: true,
+    };
+    const startedPeriod = {
+      id: "fp-started",
+      name: "FY2027",
+      startDate: "2027-01-01",
+      endDate: "2027-12-31",
+      archived: false,
+      settingsCompleted: true,
+      openingBalancesCompleted: false,
+      documentsReceivedCompleted: false,
+    };
+    for (const item of [period, purgedPeriod, startedPeriod]) {
+      db.exec({
+        sql: `INSERT INTO fiscal_periods VALUES(?, ?, ?, 1, 1)`,
+        bind: [item.id, "user-1", JSON.stringify(item)],
+      });
+    }
     db.exec({
       sql: `INSERT INTO entries VALUES(?, ?, ?, ?, 1, 1)`,
       bind: [entry.id, period.id, entry.date, JSON.stringify(entry)],
@@ -181,9 +205,21 @@ describe("SQLite v1 to v4 migration", () => {
     ).toBe("active");
     expect(
       db.selectValue(
-        `SELECT json_extract(data, '$.archiveDataAvailable') FROM fiscal_periods WHERE id='fp-1'`,
+        `SELECT json_extract(data, '$.archiveStatus') FROM fiscal_periods WHERE id='fp-purged'`,
       ),
-    ).toBe(1);
+    ).toBe("purged");
+    expect(
+      db.selectValue(
+        `SELECT json_extract(data, '$.phase') FROM fiscal_periods WHERE id='fp-started'`,
+      ),
+    ).toBe("journalizing");
+    expect(
+      db.selectValue(
+        `SELECT COUNT(*) FROM fiscal_periods
+          WHERE json_type(data, '$.archiveDataAvailable') IS NOT NULL
+             OR json_type(data, '$.settingsCompleted') IS NOT NULL`,
+      ),
+    ).toBe(0);
     expect(
       db.selectValue(
         `SELECT COUNT(*) FROM pre_closings WHERE fiscal_period_id='fp-1'`,
@@ -195,21 +231,18 @@ describe("SQLite v1 to v4 migration", () => {
       ),
     ).toBe(0);
     expect(
-      db.selectValue(`SELECT id FROM openings WHERE fiscal_period_id='fp-1'`),
-    ).toBe("opening-1");
-    expect(
       db.selectValue(
-        `SELECT account_id FROM opening_balance_lines WHERE opening_id='opening-1'`,
+        `SELECT account_id FROM opening_balance_lines WHERE fiscal_period_id='fp-1'`,
       ),
     ).toBe("a:現金");
     expect(
       db.selectValue(
-        `SELECT id FROM opening_journals WHERE opening_id='opening-1'`,
+        `SELECT id FROM opening_journals WHERE fiscal_period_id='fp-1'`,
       ),
     ).toBe("journal-1");
     expect(
       db.selectValue(
-        `SELECT id FROM opening_journal_lines WHERE opening_id='opening-1'`,
+        `SELECT id FROM opening_journal_lines WHERE fiscal_period_id='fp-1'`,
       ),
     ).toBe("journal-line-1");
     expect(
@@ -239,7 +272,7 @@ describe("SQLite v1 to v4 migration", () => {
     ).toBe("tax_out_of_scope");
     expect(
       db.selectValue(
-        `SELECT tax_category_id FROM opening_journal_lines WHERE opening_id='opening-1' AND position=0`,
+        `SELECT tax_category_id FROM opening_journal_lines WHERE fiscal_period_id='fp-1' AND position=0`,
       ),
     ).toBe("tax_out_of_scope");
     expect(
@@ -249,7 +282,7 @@ describe("SQLite v1 to v4 migration", () => {
     ).toBe("custom-tax");
     expect(
       db.selectValue(
-        `SELECT business_category_id FROM opening_journal_lines WHERE opening_id='opening-1' AND position=1`,
+        `SELECT business_category_id FROM opening_journal_lines WHERE fiscal_period_id='fp-1' AND position=1`,
       ),
     ).toBe("custom-business");
     const sync = db as unknown as { exec(arg: unknown): unknown };
@@ -287,7 +320,6 @@ describe("SQLite v1 to v4 migration", () => {
     ).toThrow(/CHECK constraint failed/);
     db.exec(`DELETE FROM fiscal_periods WHERE id='fp-1'`);
     expect(db.selectValue(`SELECT COUNT(*) FROM entries`)).toBe(0);
-    expect(db.selectValue(`SELECT COUNT(*) FROM openings`)).toBe(0);
     expect(db.selectValue(`SELECT COUNT(*) FROM opening_balance_lines`)).toBe(
       0,
     );
@@ -296,6 +328,68 @@ describe("SQLite v1 to v4 migration", () => {
       0,
     );
     expect(db.selectValue(`SELECT COUNT(*) FROM entry_lines`)).toBe(0);
+  });
+
+  it("clears disposal fields that the fixed asset status does not use", async () => {
+    const db = await createVersion1Db();
+    db.exec({
+      sql: `INSERT INTO fiscal_periods VALUES(?, ?, ?, 1, 1)`,
+      bind: [
+        "fp-1",
+        "user-1",
+        JSON.stringify({
+          id: "fp-1",
+          name: "FY2026",
+          startDate: "2026-01-01",
+          endDate: "2026-12-31",
+          stage: "journalizing",
+          archived: false,
+          settingsCompleted: true,
+          openingBalancesCompleted: true,
+          documentsReceivedCompleted: false,
+        }),
+      ],
+    });
+    const assets = [
+      { id: "asset-sold", status: "sold", disposalPrice: 5000 },
+      { id: "asset-disposed", status: "disposed", disposalPrice: 5000 },
+      { id: "asset-retired", status: "retired", disposalPrice: 0 },
+      { id: "asset-active", status: "active", disposalPrice: 5000 },
+    ];
+    for (const asset of assets) {
+      db.exec({
+        sql: `INSERT INTO fixed_assets VALUES(?, ?, ?, 1, 1)`,
+        bind: [
+          asset.id,
+          "fp-1",
+          JSON.stringify({
+            ...asset,
+            disposalDate: "2026-06-30",
+            fiscalPeriodId: "fp-1",
+            name: "PC",
+            acquisitionDate: "2026-01-01",
+            acquisitionCost: 100_000,
+            usefulLife: 4,
+            depreciationMethod: "straight_line",
+            businessRate: 1,
+            bookAccountId: "acct_equipment",
+          }),
+        ],
+      });
+    }
+
+    runMigrations(db);
+
+    const disposal = (id: string) =>
+      db.selectArray(
+        `SELECT json_extract(data, '$.disposalDate'), json_extract(data, '$.disposalPrice')
+          FROM fixed_assets WHERE id = ?`,
+        [id],
+      );
+    expect(disposal("asset-sold")).toEqual(["2026-06-30", 5000]);
+    expect(disposal("asset-disposed")).toEqual(["2026-06-30", null]);
+    expect(disposal("asset-retired")).toEqual([null, null]);
+    expect(disposal("asset-active")).toEqual([null, null]);
   });
 
   it("rolls back instead of accepting malformed stored JSON", async () => {

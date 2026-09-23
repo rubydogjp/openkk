@@ -26,9 +26,7 @@ describe("SQLite persistence codecs", () => {
         endDate: "2026-12-31",
         phase: "pre_opening",
         archiveStatus: "archived",
-        archiveDataAvailable: true,
         archivedAt: "2026-12-31T00:00:00.000Z",
-        settingsCompleted: false,
         openingBalancesCompleted: false,
         documentsReceivedCompleted: false,
       }),
@@ -55,21 +53,14 @@ describe("SQLite persistence codecs", () => {
       endDate: "2026-12-31",
       phase: "pre_opening",
       archiveStatus: "active",
-      settingsCompleted: false,
       openingBalancesCompleted: false,
       documentsReceivedCompleted: false,
       createdAt: "1970-01-01T00:00:00.000Z",
       updatedAt: "1970-01-01T00:00:00.000Z",
       opening: {
-        id: "opening-1",
-        userId: "user-1",
-        fiscalPeriodId: "fp-1",
-        createdAt: "1970-01-01T00:00:00.000Z",
-        updatedAt: "1970-01-01T00:00:00.000Z",
         openingBalanceLines: [],
         openingJournals: [],
       },
-      archiveDataAvailable: true,
       archivedAt: null,
     };
     const json = serializeFiscalPeriodDbData(record);
@@ -87,10 +78,8 @@ describe("SQLite persistence codecs", () => {
       "inconsistent lifecycle fields",
       { phase: "pre_closing", openingBalancesCompleted: false },
     ],
-    [
-      "an active purged-data marker",
-      { archiveDataAvailable: false, archiveStatus: "active" },
-    ],
+    ["an unknown archive status", { archiveStatus: "deleted" }],
+    ["an active archive timestamp", { archivedAt: "2026-12-31T00:00:00.000Z" }],
     ["a missing archivedAt field", { archivedAt: undefined }],
   ])("rejects a fiscal period with %s", (_label, patch) => {
     expect(() =>
@@ -102,9 +91,7 @@ describe("SQLite persistence codecs", () => {
           endDate: "2026-12-31",
           phase: "journalizing",
           archiveStatus: "active",
-          archiveDataAvailable: true,
           archivedAt: null,
-          settingsCompleted: true,
           openingBalancesCompleted: true,
           documentsReceivedCompleted: false,
           ...patch,
@@ -116,23 +103,6 @@ describe("SQLite persistence codecs", () => {
   it("rejects malformed opening records before normalized persistence", () => {
     expect(() =>
       validateOpeningDbRecord({
-        id: "opening-1",
-        userId: "user-1",
-        fiscalPeriodId: "fp-1",
-        createdAt: "not-a-timestamp",
-        updatedAt: "1970-01-01T00:00:00.000Z",
-        openingBalanceLines: [],
-        openingJournals: [],
-      }),
-    ).toThrow(/createdAt must be an ISO timestamp/);
-
-    expect(() =>
-      validateOpeningDbRecord({
-        id: "opening-1",
-        userId: "user-1",
-        fiscalPeriodId: "fp-1",
-        createdAt: "1970-01-01T00:00:00.000Z",
-        updatedAt: "1970-01-01T00:00:00.000Z",
         openingBalanceLines: [],
         openingJournals: [
           {
@@ -168,7 +138,7 @@ describe("SQLite persistence codecs", () => {
           amount: 0,
         }),
       }),
-    ).toThrow(/Opening balance lines exceed the 10,000 item limit/);
+    ).toThrow(/Stored opening balance lines exceed the 10,000 item limit/);
 
     expect(() =>
       validateOpeningDbRecord({
@@ -181,7 +151,7 @@ describe("SQLite persistence codecs", () => {
           lines: [],
         }),
       }),
-    ).toThrow(/Opening journals exceed the 10,000 item limit/);
+    ).toThrow(/Stored opening journals exceed the 10,000 item limit/);
   });
 
   it("rejects excessive aggregate opening lines before JSON serialization", () => {
@@ -209,7 +179,7 @@ describe("SQLite persistence codecs", () => {
 
     expect(() =>
       validateOpeningDbRecord({ ...opening, openingJournals }),
-    ).toThrow(/Opening journal lines exceed the 100,000 line limit/);
+    ).toThrow(/Stored opening journal lines exceed the 100,000 line limit/);
   });
 
   it("rejects zero-cost fixed assets loaded from SQLite", () => {
@@ -236,11 +206,6 @@ describe("SQLite persistence codecs", () => {
 
 function validOpening(): FiscalPeriodOpeningDbRecord {
   return {
-    id: "opening-1",
-    userId: "user-1",
-    fiscalPeriodId: "fp-1",
-    createdAt: "1970-01-01T00:00:00.000Z",
-    updatedAt: "1970-01-01T00:00:00.000Z",
     openingBalanceLines: [],
     openingJournals: [],
   };

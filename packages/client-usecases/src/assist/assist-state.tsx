@@ -37,16 +37,11 @@ import {
   parseAmount,
   AppError,
   type BookAccount,
-} from "@rubydogjp/openkk-client-domain";
-
-import type {
-  FixedAsset,
-  FixedAssetDraft,
-} from "@rubydogjp/openkk-client-domain";
-import type { BookAccountType } from "@rubydogjp/openkk-client-domain";
-import type {
-  OpeningCarryoverRecord,
-  OpeningCarryoverDraft,
+  type BookAccountType,
+  type FixedAsset,
+  type FixedAssetDraft,
+  type OpeningCarryoverDraft,
+  type OpeningCarryoverRecord,
 } from "@rubydogjp/openkk-client-domain";
 
 type AssistState = {
@@ -413,7 +408,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
             };
             return {
               opening: {
-                ...currentOpening,
+                openingBalanceLines: currentOpening.openingBalanceLines,
                 openingJournals: [
                   ...currentOpening.openingJournals,
                   newJournal,
@@ -460,7 +455,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
             };
             return {
               opening: {
-                ...currentOpening,
+                openingBalanceLines: currentOpening.openingBalanceLines,
                 openingJournals: journals.map((journal) =>
                   journal.id === carryoverId ? nextJournal : journal,
                 ),
@@ -513,7 +508,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
             if (nextJournals.length === journals.length) return null;
             return {
               opening: {
-                ...currentOpening,
+                openingBalanceLines: currentOpening.openingBalanceLines,
                 openingJournals: nextJournals,
               },
             };
@@ -558,8 +553,6 @@ function openingCarryoverAccountResolutionError(operation: string): AppError {
     code: null,
   });
 }
-
-export { fixedAssetDraftToPatch, nextOpeningCarryoverId };
 
 export function useOpenkkAssist() {
   const value = useContext(AssistContext);

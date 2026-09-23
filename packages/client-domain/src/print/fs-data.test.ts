@@ -11,9 +11,9 @@ describe("computeFsAggregate", () => {
   it("builds profit-and-loss and balance-sheet values from real entries", () => {
     const aggregate = computeFsAggregate({
       openingBalanceLines: [
-        { accountId: "a:普通預金", amount: 50_000 },
-        { accountId: "l:借入金", amount: 20_000 },
-        { accountId: "l:元入金", amount: 30_000 },
+        { id: "a:普通預金", accountId: "a:普通預金", amount: 50_000 },
+        { id: "l:借入金", accountId: "l:借入金", amount: 20_000 },
+        { id: "l:元入金", accountId: "l:元入金", amount: 30_000 },
       ],
       entries: [
         entry({
@@ -109,7 +109,6 @@ describe("computeFsAggregate", () => {
       liabilityClosing: 110_000,
     });
 
-    // 締め画面の概要図はこの summary から描く（確定帳票と同じ集計）。
     expect(aggregate.summary).toEqual({
       revenue: 100_000,
       expenses: 40_000,
@@ -126,8 +125,8 @@ describe("computeFsAggregate", () => {
   it("includes every line in a compound journal entry", () => {
     const aggregate = computeFsAggregate({
       openingBalanceLines: [
-        { accountId: "a:普通預金", amount: 300_000 },
-        { accountId: "l:元入金", amount: 300_000 },
+        { id: "a:普通預金", accountId: "a:普通預金", amount: 300_000 },
+        { id: "l:元入金", accountId: "l:元入金", amount: 300_000 },
       ],
       entries: [
         entry({
@@ -279,7 +278,7 @@ describe("computeFsAggregate", () => {
     expect(displayedAssetClosing).toBe(totalRow?.assetClosing);
   });
 
-  it("displays and carries non-standard liability accounts", () => {
+  it("displays non-standard liability accounts", () => {
     const aggregate = computeFsAggregate({
       openingBalanceLines: [],
       entries: [
@@ -297,12 +296,6 @@ describe("computeFsAggregate", () => {
     expect(
       aggregate.bsRows.find((row) => row.liabilityLabel === "未払費用"),
     ).toMatchObject({ liabilityClosing: 100_000 });
-    expect(aggregate.nextPeriodOpeningBalanceLines).toEqual(
-      expect.arrayContaining([
-        { accountId: "a:現金", amount: 100_000 },
-        { accountId: "l:未払費用", amount: 100_000 },
-      ]),
-    );
   });
 
   it("folds liability write-in overflow into その他 without losing totals", () => {
@@ -333,81 +326,11 @@ describe("computeFsAggregate", () => {
     expect(aggregate.bsRows.at(-1)?.liabilityClosing).toBe(14_000);
   });
 
-  it("keeps every account identity when display rows overflow", () => {
-    const entries = Array.from({ length: 14 }, (_, index) =>
-      entry({
-        id: `identity-${index + 1}`,
-        debit: `任意資産${(index % 7) + 1}`,
-        debitType: "asset",
-        debitAmount: "1,000",
-        credit: `任意負債${index + 1}`,
-        creditType: "liability",
-        creditAmount: "1,000",
-      }),
-    );
-    const aggregate = computeFsAggregate({
-      openingBalanceLines: [],
-      entries,
-    });
-    const opening = aggregate.nextPeriodOpeningBalanceLines;
-
-    expect(aggregate.bsRows.some((row) => row.assetLabel === "その他")).toBe(
-      true,
-    );
-    expect(
-      aggregate.bsRows.some((row) => row.liabilityLabel === "その他"),
-    ).toBe(true);
-    expect(opening.map((line) => line.accountId)).not.toContain("a:その他");
-    expect(opening.map((line) => line.accountId)).not.toContain("l:その他");
-    for (let index = 1; index <= 7; index += 1) {
-      expect(opening).toContainEqual({
-        accountId: `a:任意資産${index}`,
-        amount: 2_000,
-      });
-    }
-    for (let index = 1; index <= 14; index += 1) {
-      expect(opening).toContainEqual({
-        accountId: `l:任意負債${index}`,
-        amount: 1_000,
-      });
-    }
-    expect(sumByPrefix(opening, "a:")).toBe(sumByPrefix(opening, "l:"));
-  });
-
-  it("keeps source account names instead of balance-sheet display aliases", () => {
+  it("shows contrary asset balances on the liability side", () => {
     const aggregate = computeFsAggregate({
       openingBalanceLines: [
-        { accountId: "a:普通預金", amount: 100_000 },
-        { accountId: "a:商品", amount: 200_000 },
-        { accountId: "a:前払費用", amount: 300_000 },
-        { accountId: "l:長期借入金", amount: 250_000 },
-        { accountId: "l:元入金", amount: 350_000 },
-      ],
-      entries: [],
-    });
-
-    expect(aggregate.nextPeriodOpeningBalanceLines).toEqual(
-      expect.arrayContaining([
-        { accountId: "a:普通預金", amount: 100_000 },
-        { accountId: "a:商品", amount: 200_000 },
-        { accountId: "a:前払費用", amount: 300_000 },
-        { accountId: "l:長期借入金", amount: 250_000 },
-        { accountId: "l:元入金", amount: 350_000 },
-      ]),
-    );
-    expect(aggregate.nextPeriodOpeningBalanceLines.map((line) => line.accountId))
-      .not.toContain("a:その他の預金");
-    expect(aggregate.nextPeriodOpeningBalanceLines.map((line) => line.accountId))
-      .not.toContain("a:棚卸資産");
-    expect(aggregate.nextPeriodOpeningBalanceLines.map((line) => line.accountId))
-      .not.toContain("l:借入金");
-  });
-
-  it("reclassifies contrary asset balances so carry-forward remains balanced", () => {
-    const aggregate = computeFsAggregate({
-      openingBalanceLines: [
-        { accountId: "a:現金", amount: 100_000 },
-        { accountId: "l:借入金", amount: 100_000 },
+        { id: "a:現金", accountId: "a:現金", amount: 100_000 },
+        { id: "l:借入金", accountId: "l:借入金", amount: 100_000 },
       ],
       entries: [
         entry({
@@ -424,15 +347,6 @@ describe("computeFsAggregate", () => {
     expect(
       aggregate.bsRows.find((row) => row.liabilityLabel === "現金"),
     ).toMatchObject({ liabilityClosing: 50_000 });
-    const opening = aggregate.nextPeriodOpeningBalanceLines;
-    expect(opening).toEqual(
-      expect.arrayContaining([
-        { accountId: "a:事業主貸", amount: 150_000 },
-        { accountId: "l:借入金", amount: 100_000 },
-        { accountId: "l:現金", amount: 50_000 },
-      ]),
-    );
-    expect(sumByPrefix(opening, "a:")).toBe(sumByPrefix(opening, "l:"));
   });
 
   it("routes 専従者給与 and 貸倒引当金 繰入/戻入 to rows 34/37/38/39/42", () => {
@@ -446,7 +360,7 @@ describe("computeFsAggregate", () => {
         creditAmount: amount,
       });
     const aggregate = computeFsAggregate({
-      openingBalanceLines: [{ accountId: "a:普通預金", amount: 1_000_000 }],
+      openingBalanceLines: [{ id: "a:普通預金", accountId: "a:普通預金", amount: 1_000_000 }],
       entries: [
         entry({
           debit: "普通預金",
@@ -505,11 +419,11 @@ describe("computeFsAggregate", () => {
     );
   });
 
-  it("balances the BS and carries forward 貸倒引当金 as a contra-asset (credit side)", () => {
+  it("shows 貸倒引当金 as a contra-asset on the credit side in both columns", () => {
     const aggregate = computeFsAggregate({
       openingBalanceLines: [
-        { accountId: "a:普通預金", amount: 500_000 },
-        { accountId: "l:元入金", amount: 500_000 },
+        { id: "a:普通預金", accountId: "a:普通預金", amount: 500_000 },
+        { id: "l:元入金", accountId: "l:元入金", amount: 500_000 },
       ],
       entries: [
         entry({
@@ -536,13 +450,12 @@ describe("computeFsAggregate", () => {
     expect(totalRow?.assetClosing).toBe(500_000);
     expect(totalRow?.liabilityClosing).toBe(500_000);
 
-    const opening = aggregate.nextPeriodOpeningBalanceLines;
-    expect(opening).toEqual(
-      expect.arrayContaining([{ accountId: "l:貸倒引当金", amount: 30_000 }]),
-    );
-
     const next = computeFsAggregate({
-      openingBalanceLines: opening,
+      openingBalanceLines: [
+        { id: "a:普通預金", accountId: "a:普通預金", amount: 500_000 },
+        { id: "l:元入金", accountId: "l:元入金", amount: 470_000 },
+        { id: "l:貸倒引当金", accountId: "l:貸倒引当金", amount: 30_000 },
+      ],
       entries: [],
     });
     const nextAllowanceRow = next.bsRows.find(
@@ -558,8 +471,8 @@ describe("computeFsAggregate", () => {
   it("preserves a contrary debit balance of 貸倒引当金 on the asset side", () => {
     const aggregate = computeFsAggregate({
       openingBalanceLines: [
-        { accountId: "a:普通預金", amount: 500_000 },
-        { accountId: "l:元入金", amount: 500_000 },
+        { id: "a:普通預金", accountId: "a:普通預金", amount: 500_000 },
+        { id: "l:元入金", accountId: "l:元入金", amount: 500_000 },
       ],
       entries: [
         entry({
@@ -576,168 +489,9 @@ describe("computeFsAggregate", () => {
     expect(
       aggregate.bsRows.find((row) => row.assetLabel === "貸倒引当金"),
     ).toMatchObject({ assetClosing: 20_000 });
-    const opening = aggregate.nextPeriodOpeningBalanceLines;
-    expect(opening).toEqual(
-      expect.arrayContaining([
-        { accountId: "a:貸倒引当金", amount: 20_000 },
-        { accountId: "l:元入金", amount: 500_000 },
-      ]),
-    );
-    expect(sumByPrefix(opening, "a:")).toBe(sumByPrefix(opening, "l:"));
   });
 
-  it("builds next-period opening balance lines from closing balances", () => {
-    const aggregate = computeFsAggregate({
-      openingBalanceLines: [{ accountId: "a:普通預金", amount: 50_000 }],
-      entries: [
-        entry({
-          debit: "普通預金",
-          debitType: "asset",
-          debitAmount: "100,000",
-          credit: "売上",
-          creditType: "revenue",
-          creditAmount: "100,000",
-        }),
-      ],
-    });
-
-    expect(aggregate.nextPeriodOpeningBalanceLines).toEqual(
-      expect.arrayContaining([
-        { accountId: "a:普通預金", amount: 150_000 },
-        { accountId: "l:元入金", amount: 100_000 },
-      ]),
-    );
-    expect(aggregate.nextPeriodOpeningBalanceLines).not.toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ accountId: "a:合計" }),
-        expect.objectContaining({
-          accountId: "l:青色申告特別控除前の所得金額",
-        }),
-      ]),
-    );
-  });
-
-  it("carries forward a balanced opening even in a loss-making year", () => {
-    const aggregate = computeFsAggregate({
-      openingBalanceLines: [
-        { accountId: "a:現金", amount: 500_000 },
-        { accountId: "l:元入金", amount: 500_000 },
-      ],
-      entries: [
-        entry({
-          debit: "通信費",
-          debitType: "expense",
-          debitAmount: "100,000",
-          credit: "現金",
-          creditType: "asset",
-          creditAmount: "100,000",
-        }),
-      ],
-    });
-
-    const opening = aggregate.nextPeriodOpeningBalanceLines;
-    expect(opening).toEqual(
-      expect.arrayContaining([
-        { accountId: "a:現金", amount: 400_000 },
-        { accountId: "l:元入金", amount: 400_000 },
-      ]),
-    );
-    const assets = sumByPrefix(opening, "a:");
-    const liabilitiesAndEquity = sumByPrefix(opening, "l:");
-    expect(assets).toBe(liabilitiesAndEquity);
-  });
-
-  it("carries a negative net capital forward as 事業主貸", () => {
-    const aggregate = computeFsAggregate({
-      openingBalanceLines: [
-        { accountId: "a:現金", amount: 100_000 },
-        { accountId: "l:借入金", amount: 100_000 },
-      ],
-      entries: [
-        entry({
-          debit: "通信費",
-          debitType: "expense",
-          debitAmount: "150,000",
-          credit: "現金",
-          creditType: "asset",
-          creditAmount: "150,000",
-        }),
-        entry({
-          debit: "現金",
-          debitType: "asset",
-          debitAmount: "100,000",
-          credit: "元入金",
-          creditType: "equity",
-          creditAmount: "100,000",
-        }),
-      ],
-    });
-
-    const opening = aggregate.nextPeriodOpeningBalanceLines;
-    expect(opening).toEqual(
-      expect.arrayContaining([
-        { accountId: "a:現金", amount: 50_000 },
-        { accountId: "a:事業主貸", amount: 50_000 },
-        { accountId: "l:借入金", amount: 100_000 },
-      ]),
-    );
-    expect(sumByPrefix(opening, "a:")).toBe(sumByPrefix(opening, "l:"));
-  });
-
-  it("folds owner-draw / owner-deposit / profit into 元入金 on carry-forward", () => {
-    const aggregate = computeFsAggregate({
-      openingBalanceLines: [
-        { accountId: "a:現金", amount: 1_000_000 },
-        { accountId: "l:元入金", amount: 1_000_000 },
-      ],
-      entries: [
-        entry({
-          debit: "事業主貸",
-          debitType: "asset",
-          debitAmount: "50,000",
-          credit: "現金",
-          creditType: "asset",
-          creditAmount: "50,000",
-        }),
-        entry({
-          debit: "現金",
-          debitType: "asset",
-          debitAmount: "30,000",
-          credit: "事業主借",
-          creditType: "liability",
-          creditAmount: "30,000",
-        }),
-        entry({
-          debit: "現金",
-          debitType: "asset",
-          debitAmount: "200,000",
-          credit: "売上",
-          creditType: "revenue",
-          creditAmount: "200,000",
-        }),
-      ],
-    });
-
-    const opening = aggregate.nextPeriodOpeningBalanceLines;
-    expect(opening).toEqual(
-      expect.arrayContaining([
-        { accountId: "a:現金", amount: 1_180_000 },
-        { accountId: "l:元入金", amount: 1_180_000 },
-      ]),
-    );
-    expect(opening.map((line) => line.accountId)).not.toContain("a:事業主貸");
-    expect(opening.map((line) => line.accountId)).not.toContain("l:事業主借");
-  });
 });
-
-function sumByPrefix(
-  lines: Array<{ accountId: string; amount: number }>,
-  prefix: string,
-): number {
-  return lines
-    .filter((line) => line.accountId.startsWith(prefix))
-    .reduce((total, line) => total + line.amount, 0);
-}
 
 function entry(overrides: EntryRecordOverrides): EntryRecord {
   return entryRecord(overrides);

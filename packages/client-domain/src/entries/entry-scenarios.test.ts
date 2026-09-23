@@ -215,7 +215,6 @@ describe("entry scenario rows", () => {
       yearMonth: "2026-06",
     });
 
-    // (1) 期首〜処分日（1〜6月）の当期償却費。
     expect(
       rows.filter((row) => row.recordId === "virtual-fixed-asset-sold"),
     ).toEqual([
@@ -227,7 +226,6 @@ describe("entry scenario rows", () => {
         creditAmount: "120,000",
       }),
     ]);
-    // (2) 処分日簿価 600,001 で資産を除き、売却益 99,999 を計上。
     expect(
       rows.filter((row) => row.recordId === "virtual-fixed-asset-sale-sold"),
     ).toEqual([
@@ -278,7 +276,6 @@ describe("entry scenario rows", () => {
         creditAmount: "120,000",
       }),
     ]);
-    // 残存簿価 600,001 を固定資産除却損として計上。
     expect(
       rows.filter(
         (row) => row.recordId === "virtual-fixed-asset-retire-scrapped",

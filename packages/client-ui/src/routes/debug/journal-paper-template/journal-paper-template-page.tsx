@@ -7,8 +7,6 @@ import { PreviewScaffold } from "../../../print/preview-scaffold.js";
 import {
   buildJournalBody,
   buildJournalDocument,
-} from "@rubydogjp/openkk-client-domain";
-import {
   JOURNAL_EXAMPLE_ENTRIES,
   JOURNAL_EXAMPLE_FP_NAME,
 } from "@rubydogjp/openkk-client-domain";

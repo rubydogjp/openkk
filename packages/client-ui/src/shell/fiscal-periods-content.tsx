@@ -6,11 +6,11 @@ import { useRouter } from "next/navigation.js";
 import {
   AppError,
   assertFiscalPeriodArchiveByteLength,
-  isArchivedStub,
   readFiscalPeriodArchiveZip,
   resolveEditingPolicy,
   resolveFiscalPeriodPolicy,
   type FiscalPeriod,
+  type FiscalPeriodPhase,
 } from "@rubydogjp/openkk-client-domain";
 import {
   useOpenkkAppState,
@@ -340,11 +340,11 @@ function FiscalPeriodRow({
   showDivider: boolean;
   onSelect: () => void;
 }) {
-  const stub = isArchivedStub(period);
+  const purged = period.archiveStatus === "purged";
   const showOpeningBsChip =
-    period.archiveStatus !== "archived" &&
+    period.archiveStatus === "active" &&
     !period.openingBalancesCompleted &&
-    period.settingsCompleted;
+    period.phase !== "pre_opening";
 
   const content = (
     <>
@@ -353,7 +353,7 @@ function FiscalPeriodRow({
           style={{
             fontSize: fontSize.md,
             fontWeight: fontWeight.bold,
-            color: stub ? palette.textLabel : palette.text,
+            color: purged ? palette.textLabel : palette.text,
             lineHeight: 1.4,
           }}
         >
@@ -368,7 +368,7 @@ function FiscalPeriodRow({
         >
           {period.startDate} 〜 {period.endDate}
         </div>
-        {stub && period.archivedAt != null ? (
+        {purged && period.archivedAt != null ? (
           <div
             style={{
               marginTop: 4,
@@ -399,14 +399,14 @@ function FiscalPeriodRow({
       >
         <InlineChip
           label={
-            stub
+            purged
               ? "圧縮保存済み（削除）"
               : period.archiveStatus === "archived"
                 ? "圧縮保存済み"
-                : stageLabel(period.phase)
+                : phaseLabel(period.phase)
           }
           background={
-            stub
+            purged
               ? palette.formGroupBg
               : period.archiveStatus === "archived"
                 ? "#DCFCE7"
@@ -415,7 +415,7 @@ function FiscalPeriodRow({
                   : palette.formGroupBg
           }
           foreground={
-            stub
+            purged
               ? palette.textSoft
               : period.archiveStatus === "archived"
                 ? palette.success
@@ -424,7 +424,7 @@ function FiscalPeriodRow({
                   : palette.textLabel
           }
         />
-        {stub ? null : (
+        {purged ? null : (
           <div
             style={{
               fontSize: fontSize.xl,
@@ -452,7 +452,7 @@ function FiscalPeriodRow({
     gap: 16,
   };
 
-  if (stub) {
+  if (purged) {
     return (
       <div
         className="bk-fp-row"
@@ -631,9 +631,7 @@ function InlineChip({
   );
 }
 
-function stageLabel(
-  phase: "pre_opening" | "journalizing" | "pre_closing" | "post_closing",
-) {
+function phaseLabel(phase: FiscalPeriodPhase) {
   if (phase === "pre_opening") return "開始前";
   if (phase === "journalizing") return "記帳中";
   if (phase === "pre_closing") return "仮締め済み";

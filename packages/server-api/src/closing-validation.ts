@@ -3,9 +3,9 @@ import {
   assertEntryCollectionLineLimit,
   assertEntryMatchesRules,
   assertUniqueStrings,
-  CLOSING_GENERATED_LOCAL_ID_PREFIX,
   requireObject,
   serverValidationError,
+  VIRTUAL_ENTRY_LOCAL_ID_PREFIX,
 } from "@rubydogjp/openkk-server-domain";
 import type {
   EntryUpsertInput,
@@ -36,7 +36,7 @@ export function assertClosingGeneratedEntries(
     const entry = requireObject(item, "Closing entry");
     if (
       typeof entry.localId !== "string" ||
-      !entry.localId.startsWith(CLOSING_GENERATED_LOCAL_ID_PREFIX)
+      !entry.localId.startsWith(VIRTUAL_ENTRY_LOCAL_ID_PREFIX)
     ) {
       throw serverValidationError(
         "Closing entries must use a reserved generated localId",

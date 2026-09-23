@@ -1,5 +1,5 @@
 import type {
-  EntryApiLine,
+  EntryLineApiRecord,
   EntryApiRecord,
   FiscalPeriodApiRecord,
   FixedAssetApiRecord,
@@ -51,21 +51,14 @@ function buildDemoSeedFiscalPeriod(
     endDate: "2026-12-31",
     phase: "pre_opening",
     archiveStatus: "active",
-    settingsCompleted: false,
     openingBalancesCompleted: false,
     documentsReceivedCompleted: false,
     opening: {
-      id: "opening-fp-2026",
-      userId: config.embeddedUser.id,
-      fiscalPeriodId: "fp-2026",
-      createdAt: DEMO_SEED_TIMESTAMP,
-      updatedAt: DEMO_SEED_TIMESTAMP,
       openingBalanceLines: demoOpeningBalanceLines,
       openingJournals: [],
     },
     createdAt: DEMO_SEED_TIMESTAMP,
     updatedAt: DEMO_SEED_TIMESTAMP,
-    archiveDataAvailable: true,
     archivedAt: null,
   };
 }
@@ -83,7 +76,7 @@ function entryRecordToApiRecord(
     description: record.description,
     localId: record.localId,
     businessRate: record.businessRate,
-    lines: record.lines.map((line, index): EntryApiLine => {
+    lines: record.lines.map((line, index): EntryLineApiRecord => {
       const bookAccountId = resolveBookAccountId({
         explicitId: line.bookAccountId,
         accountName: line.accountName,

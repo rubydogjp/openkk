@@ -89,8 +89,8 @@ async function archivedPeriod(): Promise<Uint8Array> {
     startDate: "2026-01-01",
     endDate: "2026-12-31",
   });
+  await server.fiscalPeriods.start(period.id);
   await server.fiscalPeriods.patch(period.id, {
-    settingsCompleted: true,
     openingBalancesCompleted: true,
   });
   await db.entries.create(period.userId, period.id, {

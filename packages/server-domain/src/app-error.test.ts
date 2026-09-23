@@ -3,24 +3,6 @@ import { describe, expect, it } from "vitest";
 import { AppError } from "./app-error.js";
 
 describe("server AppError", () => {
-  it("round-trips through the API error DTO shape", () => {
-    const error = new AppError({
-      messageForDeveloper: "developer detail",
-      messageForUser: "ユーザー向け",
-      originalMessage: "raw failure",
-      statusCode: 400,
-      code: null,
-    });
-
-    expect(AppError.fromJson(error.toJson()).toJson()).toEqual({
-      messageForDeveloper: "developer detail",
-      messageForUser: "ユーザー向け",
-      originalMessage: "raw failure",
-      statusCode: 400,
-      code: null,
-    });
-  });
-
   it("keeps structurally compatible API error DTOs", () => {
     const dto = {
       messageForDeveloper: "remote validation failed",
@@ -36,17 +18,7 @@ describe("server AppError", () => {
       statusCode: null,
     });
 
-    expect(error.toJson()).toEqual(dto);
-  });
-
-  it("rejects malformed API error JSON", () => {
-    expect(() =>
-      AppError.fromJson({
-        messageForUser: "missing developer message",
-        originalMessage: null,
-        statusCode: 400,
-      }),
-    ).toThrow(/invalid AppError JSON/);
+    expect(error).toMatchObject(dto);
   });
 
   it("wraps circular objects without throwing a second error", () => {

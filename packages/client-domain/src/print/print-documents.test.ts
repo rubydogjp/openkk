@@ -410,7 +410,9 @@ describe("print documents", () => {
 
   it("renders financial statement values computed from supplied entries", () => {
     const aggregate = computeFsAggregate({
-      openingBalanceLines: [{ accountId: "a:普通預金", amount: 50_000 }],
+      openingBalanceLines: [
+        { id: "a:普通預金", accountId: "a:普通預金", amount: 50_000 },
+      ],
       entries: [entry({})],
     });
     const html = buildFinancialStatementsDocument({

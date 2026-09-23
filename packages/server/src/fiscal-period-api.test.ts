@@ -18,10 +18,10 @@ import type {
   FixedAssetApiRecord,
   FixedAssetCreateInput,
   FixedAssetPatchInput,
-  MasterBookAccount,
-  MasterBusinessCategory,
-  MasterTaxCategory,
-  OpeningApiRecord,
+  MasterBookAccountDbRecord,
+  MasterBusinessCategoryDbRecord,
+  MasterTaxCategoryDbRecord,
+  FiscalPeriodOpeningApiRecord,
   OpenkkDbPort,
 } from "@rubydogjp/openkk-server-ports";
 
@@ -48,14 +48,12 @@ describe("openkk server fiscal period API", () => {
         userId: "user-1",
         name: "user-1 period",
         phase: "pre_opening",
-        settingsCompleted: false,
       }),
       fiscalPeriod({
         id: "fp-user-2",
         userId: "user-2",
         name: "user-2 period",
         phase: "pre_opening",
-        settingsCompleted: false,
       }),
     ]);
     const server = createOpenkkServer(db, { userId: "user-1" });
@@ -80,7 +78,6 @@ describe("openkk server fiscal period API", () => {
         id: "fp-user-1",
         userId: "user-1",
         phase: "pre_opening",
-        settingsCompleted: false,
       }),
     ]);
     const server = createOpenkkServer(db, { userId: "user-1" });
@@ -100,14 +97,8 @@ describe("openkk server fiscal period API", () => {
         id: "fp-user-1",
         userId: "user-1",
         phase: "pre_opening",
-        settingsCompleted: false,
         openingBalancesCompleted: false,
         opening: {
-          id: "op-fp-user-1",
-          userId: "user-1",
-          fiscalPeriodId: "fp-user-1",
-          createdAt: TEST_TIMESTAMP,
-          updatedAt: TEST_TIMESTAMP,
           openingBalanceLines: [],
           openingJournals: [
             openingJournal({
@@ -137,7 +128,6 @@ describe("openkk server fiscal period API", () => {
       id: "fp-user-1",
       userId: "user-1",
       phase: "pre_opening",
-      settingsCompleted: false,
     });
     const db = createFiscalPeriodDb([period], {
       entries: [
@@ -163,7 +153,6 @@ describe("openkk server fiscal period API", () => {
       id: "fp-user-1",
       userId: "user-1",
       phase: "pre_opening",
-      settingsCompleted: false,
     });
     const assets = [
       fixedAsset({
@@ -195,7 +184,6 @@ describe("openkk server fiscal period API", () => {
       id: "fp-user-1",
       userId: "user-1",
       phase: "pre_opening",
-      settingsCompleted: false,
     });
     const db = createFiscalPeriodDb([period], {
       fixedAssets: [
@@ -213,27 +201,21 @@ describe("openkk server fiscal period API", () => {
     ).resolves.toMatchObject({ startDate: "2026-02-01" });
   });
 
-  it("rejects null lifecycle fields and mismatched opening ownership", async () => {
+  it("rejects null lifecycle fields", async () => {
     const db = createFiscalPeriodDb([
       fiscalPeriod({
         id: "fp-user-1",
         userId: "user-1",
         phase: "pre_opening",
-        settingsCompleted: false,
       }),
     ]);
     const server = createOpenkkServer(db, { userId: "user-1" });
 
     await expect(
       server.fiscalPeriods.patch("fp-user-1", {
-        settingsCompleted: null,
+        openingBalancesCompleted: null,
       } as unknown as FiscalPeriodPatchInput),
-    ).rejects.toThrow(/settingsCompleted must be a boolean/);
-    await expect(
-      server.fiscalPeriods.patch("fp-user-1", {
-        opening: openingPatch({ userId: "another-user" }),
-      }),
-    ).rejects.toThrow(/Opening ownership must match/);
+    ).rejects.toThrow(/openingBalancesCompleted must be a boolean/);
   });
 
   it("allows next-period opening balances to be carried before settings start", async () => {
@@ -242,7 +224,6 @@ describe("openkk server fiscal period API", () => {
         id: "fp-user-1",
         userId: "user-1",
         phase: "pre_opening",
-        settingsCompleted: false,
         openingBalancesCompleted: false,
       }),
     ]);
@@ -259,7 +240,6 @@ describe("openkk server fiscal period API", () => {
     });
 
     expect(updated.phase).toBe("pre_opening");
-    expect(updated.settingsCompleted).toBe(false);
     expect(updated.openingBalancesCompleted).toBe(true);
   });
 
@@ -272,10 +252,8 @@ describe("openkk server fiscal period API", () => {
     await expect(
       server.fiscalPeriods.patch("fp-started", { endDate: "2026-11-30" }),
     ).rejects.toThrow(/cannot update endDate from phase journalizing/);
-    await expect(
-      server.fiscalPeriods.patch("fp-started", { settingsCompleted: false }),
-    ).rejects.toThrow(
-      /cannot update settingsCompleted from phase journalizing/,
+    await expect(server.fiscalPeriods.start("fp-started")).rejects.toThrow(
+      /cannot start from phase journalizing/,
     );
 
     expect((await db.fiscalPeriods.getById("fp-started"))?.endDate).toBe(
@@ -364,7 +342,6 @@ describe("openkk server fiscal period API", () => {
         id: "fp-setup",
         userId: "user-1",
         phase: "pre_opening",
-        settingsCompleted: false,
       }),
       fiscalPeriod({ id: "fp-started", userId: "user-1" }),
       fiscalPeriod({
@@ -417,7 +394,6 @@ describe("openkk server fiscal period API", () => {
         id: "fp-user-1",
         userId: "user-1",
         phase: "pre_opening",
-        settingsCompleted: false,
         openingBalancesCompleted: false,
       }),
     ]);
@@ -571,7 +547,7 @@ describe("openkk server fiscal period API", () => {
           ],
         }),
       }),
-    ).rejects.toThrow(/Opening balance amount must be a non-negative/);
+    ).rejects.toThrow(/Opening balance line amount must be a non-negative/);
   });
 
   it("rejects an opening patch with duplicate opening balance accountIds", async () => {
@@ -691,7 +667,6 @@ describe("openkk server fiscal period API", () => {
         startDate: "2026-01-01",
         endDate: "2026-12-31",
         phase: "post_closing",
-        settingsCompleted: true,
         openingBalancesCompleted: true,
         documentsReceivedCompleted: true,
         opening: {
@@ -785,11 +760,6 @@ function createFiscalPeriodDb(
           userId,
           ...rest,
           opening: {
-            id: `op-${id}`,
-            userId,
-            fiscalPeriodId: id,
-            createdAt: TEST_TIMESTAMP,
-            updatedAt: TEST_TIMESTAMP,
             openingBalanceLines: opening?.openingBalanceLines ?? [],
             openingJournals: opening?.openingJournals ?? [],
           },
@@ -807,13 +777,19 @@ function createFiscalPeriodDb(
           ...(opening != null
             ? {
                 opening: {
+                  ...current.opening,
                   ...opening,
-                  createdAt: TEST_TIMESTAMP,
-                  updatedAt: TEST_TIMESTAMP,
                 },
               }
             : {}),
         });
+        fiscalPeriods.set(id, updated);
+        return updated;
+      },
+      async start(id: string) {
+        const current = fiscalPeriods.get(id);
+        if (current == null) throw new Error(`fiscal period not found: ${id}`);
+        const updated = fiscalPeriod({ ...current, phase: "journalizing" });
         fiscalPeriods.set(id, updated);
         return updated;
       },
@@ -829,8 +805,7 @@ function createFiscalPeriodDb(
         if (current == null) throw new Error(`fiscal period not found: ${id}`);
         const updated = fiscalPeriod({
           ...current,
-          archiveStatus: "archived",
-          archiveDataAvailable: false,
+          archiveStatus: "purged",
         });
         fiscalPeriods.set(id, updated);
         return updated;
@@ -926,13 +901,15 @@ function createFiscalPeriodDb(
       },
     },
     masterData: {
-      async getBookAccounts(): Promise<MasterBookAccount[]> {
+      async getBookAccounts(): Promise<MasterBookAccountDbRecord[]> {
         return [];
       },
-      async getTaxCategories(): Promise<MasterTaxCategory[]> {
+      async getTaxCategories(): Promise<MasterTaxCategoryDbRecord[]> {
         return [];
       },
-      async getBusinessCategories(): Promise<MasterBusinessCategory[]> {
+      async getBusinessCategories(): Promise<
+        MasterBusinessCategoryDbRecord[]
+      > {
         return [];
       },
     },
@@ -958,44 +935,28 @@ function fiscalPeriod(
     endDate: "2026-12-31",
     phase: "journalizing",
     archiveStatus: "active",
-    settingsCompleted: true,
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,
-    opening: emptyOpening("fp-1", "user-1"),
+    opening: emptyOpening(),
     createdAt: TEST_TIMESTAMP,
     updatedAt: TEST_TIMESTAMP,
-    archiveDataAvailable: true,
     archivedAt: null,
   };
   const period = Object.assign(base, overrides);
   return {
     ...period,
-    opening: overrides.opening ?? emptyOpening(period.id, period.userId),
+    opening: overrides.opening ?? emptyOpening(),
   };
 }
 
-function emptyOpening(
-  fiscalPeriodId: string,
-  userId: string,
-): OpeningApiRecord {
-  return {
-    id: `op-${fiscalPeriodId}`,
-    userId,
-    fiscalPeriodId,
-    createdAt: TEST_TIMESTAMP,
-    updatedAt: TEST_TIMESTAMP,
-    openingBalanceLines: [],
-    openingJournals: [],
-  };
+function emptyOpening(): FiscalPeriodOpeningApiRecord {
+  return { openingBalanceLines: [], openingJournals: [] };
 }
 
 type OpeningPatch = NonNullable<FiscalPeriodPatchInput["opening"]>;
 
 function openingPatch(overrides: Partial<OpeningPatch>): OpeningPatch {
   const base: OpeningPatch = {
-    id: "op-fp-user-1",
-    userId: "user-1",
-    fiscalPeriodId: "fp-user-1",
     openingBalanceLines: [],
     openingJournals: [],
   };

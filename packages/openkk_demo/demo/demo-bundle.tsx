@@ -3,7 +3,7 @@ import {
   palette,
   type BrandConfig,
   type FiscalPeriodPolicy,
-  type FiscalPeriodSeedProvider,
+  type FiscalPeriodSeeder,
   type OpenkkCalloutSlots,
   type OpenkkEditingPolicy,
 } from "@rubydogjp/openkk-client";
@@ -59,7 +59,7 @@ export const demoCalloutSlots: OpenkkCalloutSlots = {
   ),
 };
 
-export const demoSeedFiscalPeriod: FiscalPeriodSeedProvider = ({
+export const demoSeedFiscalPeriod: FiscalPeriodSeeder = ({
   fiscalPeriod,
   isFirst,
 }) =>

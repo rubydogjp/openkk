@@ -1,21 +1,13 @@
 import {
   assertDateRange,
-  assertEntryCollectionItemLimit,
-  assertEntryCollectionLineLimit,
-  assertEntryLinesBalanced,
   assertFiscalPeriodArchiveState,
   assertFiscalPeriodLifecycleFlags,
-  assertOpeningBalanceAccountId,
-  assertUniqueIds,
-  assertUniqueStrings,
+  assertOpeningMatchesRules,
   parseIsoDate,
   requireObject,
   serverValidationError,
 } from "@rubydogjp/openkk-server-domain";
-import type {
-  FiscalPeriodOpeningDbRecord,
-  OpeningJournalLineDbRecord,
-} from "@rubydogjp/openkk-server-ports";
+import type { FiscalPeriodOpeningDbRecord } from "@rubydogjp/openkk-server-ports";
 import type {
   FiscalPeriodDbData,
   FixedAssetDbData,
@@ -23,10 +15,6 @@ import type {
 
 export function msToIso(ms: number): string {
   return new Date(ms).toISOString();
-}
-
-export function isoToMs(iso: string): number {
-  return new Date(iso).getTime();
 }
 
 export function parseFiscalPeriodDbData(
@@ -46,8 +34,8 @@ export function parseFiscalPeriodDbData(
     const archiveStatus = enumValue(value, "archiveStatus", [
       "active",
       "archived",
+      "purged",
     ]);
-    const settingsCompleted = booleanValue(value, "settingsCompleted");
     const openingBalancesCompleted = booleanValue(
       value,
       "openingBalancesCompleted",
@@ -56,23 +44,18 @@ export function parseFiscalPeriodDbData(
       value,
       "documentsReceivedCompleted",
     );
-    const archiveDataAvailable = booleanValue(
-      value,
-      "archiveDataAvailable",
-    );
     const archivedAt = nullableValue(value, "archivedAt", isoTimestamp);
     assertDateRange(startDate, endDate, "fiscal period");
     assertFiscalPeriodLifecycleFlags(
       {
         phase,
-        settingsCompleted,
         openingBalancesCompleted,
         documentsReceivedCompleted,
       },
       "fiscal period",
     );
     assertFiscalPeriodArchiveState(
-      { archiveStatus, archiveDataAvailable, archivedAt },
+      { archiveStatus, archivedAt },
       "fiscal period",
     );
     return {
@@ -82,9 +65,7 @@ export function parseFiscalPeriodDbData(
       endDate,
       phase,
       archiveStatus,
-      archiveDataAvailable,
       archivedAt,
-      settingsCompleted,
       openingBalancesCompleted,
       documentsReceivedCompleted,
     };
@@ -101,9 +82,7 @@ export function serializeFiscalPeriodDbData(
     endDate: value.endDate,
     phase: value.phase,
     archiveStatus: value.archiveStatus,
-    archiveDataAvailable: value.archiveDataAvailable,
     archivedAt: value.archivedAt,
-    settingsCompleted: value.settingsCompleted,
     openingBalancesCompleted: value.openingBalancesCompleted,
     documentsReceivedCompleted: value.documentsReceivedCompleted,
   };
@@ -113,7 +92,9 @@ export function serializeFiscalPeriodDbData(
 export function validateOpeningDbRecord(
   opening: FiscalPeriodOpeningDbRecord,
 ): void {
-  validateOpening(requireObject(opening, "opening"));
+  assertOpeningMatchesRules(opening, null, "Stored opening", {
+    completed: false,
+  });
 }
 
 export function parseFixedAssetDbData(json: string): FixedAssetDbData {
@@ -176,76 +157,6 @@ export function serializeFixedAssetDbData(
     bookAccountId: value.bookAccountId,
   };
   return serializeRecord(data, parseFixedAssetDbData);
-}
-
-function validateOpening(value: Record<string, unknown>): void {
-  nonBlankString(value, "id");
-  nonBlankString(value, "userId");
-  nonBlankString(value, "fiscalPeriodId");
-  isoTimestamp(value, "createdAt");
-  isoTimestamp(value, "updatedAt");
-  const openingBalanceLines = arrayValue(value, "openingBalanceLines");
-  const openingJournals = arrayValue(value, "openingJournals");
-  assertEntryCollectionItemLimit(
-    openingBalanceLines,
-    "Opening balance lines",
-    null,
-  );
-  assertEntryCollectionItemLimit(openingJournals, "Opening journals", null);
-  assertEntryCollectionLineLimit(
-    openingJournals,
-    "Opening journal lines",
-    null,
-  );
-  const validatedOpeningBalanceLines = openingBalanceLines.map((item) => {
-    const line = requireObject(item, "opening balance line");
-    const id = nonBlankString(line, "id");
-    const accountId = nonBlankString(line, "accountId");
-    assertOpeningBalanceAccountId(
-      accountId,
-      "opening balance accountId",
-    );
-    return { id, accountId, amount: nonNegativeInteger(line, "amount") };
-  });
-  assertUniqueIds(
-    validatedOpeningBalanceLines,
-    "opening balance lines",
-    null,
-  );
-  assertUniqueStrings(
-    validatedOpeningBalanceLines.map((line) => line.accountId),
-    "opening balance accountId",
-    "同じ勘定科目の期首残高が重複しています",
-  );
-  openingJournals.forEach((item) => {
-    const journal = requireObject(item, "opening journal");
-    nonBlankString(journal, "id");
-    isoDate(journal, "date");
-    stringValue(journal, "description");
-    unitRate(journal, "businessRate");
-    const lines = arrayValue(journal, "lines");
-    const validatedLines = lines.map(parseOpeningJournalLine);
-    assertUniqueIds(validatedLines, "opening journal lines", null);
-    assertEntryLinesBalanced(
-      validatedLines,
-      "opening journal",
-      { allowZero: true },
-    );
-  });
-  assertUniqueIds(openingJournals, "opening journals", null);
-}
-
-function parseOpeningJournalLine(value: unknown): OpeningJournalLineDbRecord {
-  const line = requireObject(value, "opening journal line");
-  return {
-    id: nonBlankString(line, "id"),
-    side: enumValue(line, "side", ["debit", "credit"]),
-    bookAccountId: nonBlankString(line, "bookAccountId"),
-    amount: nonNegativeInteger(line, "amount"),
-    partnerName: stringValue(line, "partnerName"),
-    taxCategoryId: stringValue(line, "taxCategoryId"),
-    businessCategoryId: stringValue(line, "businessCategoryId"),
-  };
 }
 
 function decodeRecord<Output>(
@@ -385,10 +296,4 @@ function enumValue<const Value extends string>(
     }
   }
   throw serverValidationError(`${key} has an unsupported value`, null);
-}
-
-function arrayValue(record: Record<string, unknown>, key: string): unknown[] {
-  const value = record[key];
-  if (!Array.isArray(value)) throw serverValidationError(`${key} must be an array`, null);
-  return value;
 }

@@ -15,9 +15,9 @@ import type {
   FixedAssetApiRecord,
   FixedAssetCreateInput,
   FixedAssetPatchInput,
-  MasterBookAccount,
-  MasterBusinessCategory,
-  MasterTaxCategory,
+  MasterBookAccountDbRecord,
+  MasterBusinessCategoryDbRecord,
+  MasterTaxCategoryDbRecord,
   OpenkkDbPort,
 } from "@rubydogjp/openkk-server-ports";
 
@@ -81,15 +81,7 @@ describe("openkk server closing flow", () => {
     ).rejects.toThrow(/Closing input must be an object/);
   });
 
-  it("requires settings and opening balances before pre-closing", async () => {
-    const settingsIncomplete = createOpenkkServer(
-      createMemoryDb({ settingsCompleted: false }),
-      { userId: "user-1" },
-    );
-    await expect(
-      settingsIncomplete.preClosings.run({ fiscalPeriodId: "fp-1", year: 2026 }),
-    ).rejects.toThrow(/before settings are completed/);
-
+  it("requires opening balances before pre-closing", async () => {
     const openingIncomplete = createOpenkkServer(
       createMemoryDb({ openingBalancesCompleted: false }),
       { userId: "user-1" },
@@ -327,13 +319,16 @@ function createMemoryDb(
           ...(opening != null
             ? {
                 opening: {
+                  ...current.opening,
                   ...opening,
-                  createdAt: TEST_TIMESTAMP,
-                  updatedAt: TEST_TIMESTAMP,
                 },
               }
             : {}),
         });
+        return current;
+      },
+      async start() {
+        current = { ...current, phase: "journalizing" };
         return current;
       },
       async archive() {
@@ -343,8 +338,7 @@ function createMemoryDb(
       async purgeArchivedData() {
         current = {
           ...current,
-          archiveStatus: "archived",
-          archiveDataAvailable: false,
+          archiveStatus: "purged",
         };
         return current;
       },
@@ -441,13 +435,15 @@ function createMemoryDb(
       },
     },
     masterData: {
-      async getBookAccounts(): Promise<MasterBookAccount[]> {
+      async getBookAccounts(): Promise<MasterBookAccountDbRecord[]> {
         return [];
       },
-      async getTaxCategories(): Promise<MasterTaxCategory[]> {
+      async getTaxCategories(): Promise<MasterTaxCategoryDbRecord[]> {
         return [];
       },
-      async getBusinessCategories(): Promise<MasterBusinessCategory[]> {
+      async getBusinessCategories(): Promise<
+        MasterBusinessCategoryDbRecord[]
+      > {
         return [];
       },
     },
@@ -467,7 +463,6 @@ function fiscalPeriod(
     endDate: "2026-12-31",
     phase: "journalizing",
     archiveStatus: "active",
-    settingsCompleted: true,
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,
     createdAt: TEST_TIMESTAMP,
@@ -478,11 +473,6 @@ function fiscalPeriod(
     opening:
       overrides.opening === undefined
         ? {
-            id: `op-${period.id}`,
-            userId: period.userId,
-            fiscalPeriodId: period.id,
-            createdAt: TEST_TIMESTAMP,
-            updatedAt: TEST_TIMESTAMP,
             openingBalanceLines: [],
             openingJournals: [],
           }

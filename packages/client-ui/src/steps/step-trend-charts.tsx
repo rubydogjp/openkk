@@ -21,7 +21,7 @@ const profitColor = "#444B55";
 
 type TrendChartMode = "current" | "completed" | "not-started";
 
-export function Step3TrendChart(props: {
+export function JournalizingCurrentTrendChart(props: {
   points: StepTrendPoint[];
   detailsHref: string | null;
 }) {

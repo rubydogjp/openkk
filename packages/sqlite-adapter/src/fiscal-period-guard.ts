@@ -21,7 +21,7 @@ export async function assertDbFiscalPeriodAllows(
   if (row == null) return null;
   const period = { ...parseFiscalPeriodDbData(row[1]), userId: row[0] };
   if (
-    period.archiveStatus === "archived" ||
+    period.archiveStatus !== "active" ||
     !allowedPhases.includes(period.phase)
   ) {
     throw serverConflictError(

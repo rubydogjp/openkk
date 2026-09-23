@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation.js";
 import {
   AppError,
   resolveEditingPolicy,
+  isCurrentMonthWithinFiscalPeriod,
+  type StepTrendPoint,
 } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text.js";
 import {
@@ -19,13 +21,11 @@ import { fontSize, fontWeight, palette } from "../../shared/design-tokens.js";
 import { useConfirmDialog } from "../../shared/confirm-dialog.js";
 import { LockButton } from "../../shared/locked-action.js";
 import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
-import { isCurrentMonthWithinFiscalPeriod } from "@rubydogjp/openkk-client-domain";
 import {
   JournalizingNotStartedTrendChart,
   JournalizingCompletedTrendChart,
-  Step3TrendChart,
+  JournalizingCurrentTrendChart,
 } from "../step-trend-charts.js";
-import type { StepTrendPoint } from "@rubydogjp/openkk-client-domain";
 import {
   StepDivider,
   StepCallout,
@@ -215,7 +215,7 @@ export function JournalizingBody({
               <StepDivider marginY={null} />
               <section>
                 <StepSectionLabel>記録中</StepSectionLabel>
-                <Step3TrendChart
+                <JournalizingCurrentTrendChart
                   points={trendPoints}
                   detailsHref="/steps/journalizing/analytics"
                 />

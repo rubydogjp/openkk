@@ -1,5 +1,6 @@
 import { serverValidationError } from "./app-error.js";
 import { getDefaultBookAccount } from "./master-data.js";
+import type { Entry, EntryLine } from "./models.js";
 import {
   assertEntryLinesBalanced,
   assertIsoDate,
@@ -7,28 +8,11 @@ import {
   requireObject,
 } from "./validation.js";
 
-export type EntryRuleLine = {
-  side: "debit" | "credit";
-  bookAccountId: string;
-  amount: number;
-  partnerName: string;
-  taxCategoryId: string;
-  businessCategoryId: string;
-};
-
-export type EntryRuleInput = {
-  date: string;
-  description: string;
-  localId: string | null;
-  businessRate: number;
-  lines: EntryRuleLine[];
-};
-
 export function assertEntryMatchesRules(
   entry: unknown,
   period: { startDate: string; endDate: string } | null,
   label: string,
-): asserts entry is EntryRuleInput {
+): asserts entry is Entry {
   const value = requireObject(entry, label);
   if (
     typeof value.description !== "string" ||
@@ -68,7 +52,7 @@ export function assertEntryMatchesRules(
 export function assertEntryLineMatchesRules(
   line: unknown,
   label: string,
-): asserts line is EntryRuleLine {
+): asserts line is EntryLine {
   const value = requireObject(line, `${label} line`);
   if (
     typeof value.bookAccountId !== "string" ||

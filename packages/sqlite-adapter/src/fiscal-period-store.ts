@@ -1,12 +1,13 @@
 import {
+  applyPatch,
   assertEntryMatchesRules,
   assertFiscalPeriodCanCarryOver,
   assertFixedAssetMatchesRules,
   buildCarryoverOpeningBalances,
   buildCarryoverOpeningJournals,
+  FISCAL_PERIOD_PATCH_KEYS,
   serverConflictError,
   serverNotFoundError,
-  serverValidationError,
 } from "@rubydogjp/openkk-server-domain";
 
 import type {
@@ -19,10 +20,13 @@ import type {
 import { createEntriesDb, insertEntryLines } from "./entry-store.js";
 import { createFixedAssetsDb } from "./fixed-asset-store.js";
 import {
-  defaultOpening,
-  loadOpeningByFiscalPeriod,
+  findFiscalPeriodRecord,
+  requireFiscalPeriodRecord,
+} from "./fiscal-period-record.js";
+import { transitionFiscalPeriod } from "./fiscal-period-transition.js";
+import {
+  emptyOpening,
   loadOpeningsByUser,
-  requireOpening,
   replaceOpening,
 } from "./opening-store.js";
 import {
@@ -53,10 +57,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       const openings = await loadOpeningsByUser(db, userId);
       return rows.map(([data, createdAt, updatedAt]) => {
         const record = parseFiscalPeriodDbData(data);
-        const opening = requireOpening(
-          openings.get(record.id) ?? null,
-          record.id,
-        );
+        const opening = openings.get(record.id) ?? emptyOpening();
         const result: FiscalPeriodDbRecord = {
           ...record,
           userId,
@@ -69,28 +70,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       });
     },
     async getById(id) {
-      const rows = (await db.exec({
-        sql: `SELECT user_id, data, created_at, updated_at FROM fiscal_periods WHERE id = ?`,
-        bind: [id],
-        returnValue: "resultRows",
-        rowMode: "array",
-      })) as Array<[string, string, number, number]>;
-      const row = rows[0];
-      if (row == null) return null;
-      const record = parseFiscalPeriodDbData(row[1]);
-      const opening = requireOpening(
-        await loadOpeningByFiscalPeriod(db, id),
-        id,
-      );
-      const result: FiscalPeriodDbRecord = {
-        ...record,
-        userId: row[0],
-        createdAt: msToIso(row[2]),
-        updatedAt: msToIso(row[3]),
-        opening,
-      };
-      assertDbOpeningForPeriod(opening, result);
-      return result;
+      return findFiscalPeriodRecord(db, id);
     },
     async create(userId, input) {
       const now = nowMs();
@@ -161,15 +141,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       const fiscalPeriodId = newId("fp");
       const now = nowMs();
       const timestamp = msToIso(now);
-      const opening: FiscalPeriodDbRecord["opening"] = {
-        id: `op-${fiscalPeriodId}`,
-        userId,
-        fiscalPeriodId,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-        openingBalanceLines: input.fiscalPeriod.opening.openingBalanceLines,
-        openingJournals: input.fiscalPeriod.opening.openingJournals,
-      };
+      const opening = input.fiscalPeriod.opening;
       const record: FiscalPeriodDbRecord = {
         id: fiscalPeriodId,
         userId,
@@ -178,15 +150,13 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         endDate: input.fiscalPeriod.endDate,
         phase: input.fiscalPeriod.phase,
         archiveStatus: "active",
-        settingsCompleted: input.fiscalPeriod.settingsCompleted,
+        archivedAt: null,
         openingBalancesCompleted: input.fiscalPeriod.openingBalancesCompleted,
         documentsReceivedCompleted:
           input.fiscalPeriod.documentsReceivedCompleted,
         opening,
         createdAt: timestamp,
         updatedAt: timestamp,
-        archiveDataAvailable: true,
-        archivedAt: null,
       };
       assertDbOpeningForPeriod(opening, record);
       assertDbImportedClosingState(record, input.preClosings, input.closings);
@@ -202,7 +172,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
           sql: `INSERT INTO fiscal_periods(id, user_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
           bind: [record.id, userId, serializedRecord, now, now],
         });
-        await replaceOpening(db, opening, now);
+        await replaceOpening(db, fiscalPeriodId, opening);
         for (const inputEntry of input.entries) {
           assertEntryMatchesRules(inputEntry, record, "Archived entry");
           const id = newId("entry");
@@ -274,78 +244,19 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
     },
     async update(id, patch) {
       return runInTransaction(db, async () => {
-        const rows = (await db.exec({
-          sql: `SELECT user_id, data, created_at FROM fiscal_periods WHERE id = ?`,
-          bind: [id],
-          returnValue: "resultRows",
-          rowMode: "array",
-        })) as Array<[string, string, number]>;
-        const row = rows[0];
-        if (row == null)
-          throw serverNotFoundError(`fiscal period not found: ${id}`);
+        const current = await requireFiscalPeriodRecord(db, id);
+        assertDbFiscalPeriodPatchAllowed(current, patch);
         const now = nowMs();
-        const timestamp = msToIso(now);
-        const stored = parseFiscalPeriodDbData(row[1]);
-        assertDbFiscalPeriodPatchAllowed(stored, patch);
-        const existingOpening = requireOpening(
-          await loadOpeningByFiscalPeriod(db, id),
-          id,
+        const updated = applyPatch(
+          { ...current, updatedAt: msToIso(now) },
+          patch,
+          FISCAL_PERIOD_PATCH_KEYS,
         );
-        const existing: FiscalPeriodDbRecord = {
-          ...stored,
-          userId: row[0],
-          createdAt: msToIso(row[2]),
-          updatedAt: timestamp,
-          opening: existingOpening,
-        };
-        if (
-          patch.opening !== undefined &&
-          (patch.opening.id !== existingOpening.id ||
-            patch.opening.userId !== row[0] ||
-            patch.opening.fiscalPeriodId !== id)
-        ) {
-          throw serverValidationError(
-            "Opening identity and ownership must match the fiscal period",
-            "期首データの識別子と会計期間情報が一致しません",
-          );
-        }
-        const normalizedOpening =
-          patch.opening === undefined
-            ? existingOpening
-            : {
-                ...patch.opening,
-                userId: row[0],
-                fiscalPeriodId: id,
-                createdAt: existingOpening.createdAt,
-                updatedAt: timestamp,
-              };
-        const updated = {
-          ...existing,
-          ...(patch.name !== undefined ? { name: patch.name } : {}),
-          ...(patch.startDate !== undefined
-            ? { startDate: patch.startDate }
-            : {}),
-          ...(patch.endDate !== undefined ? { endDate: patch.endDate } : {}),
-          ...(patch.settingsCompleted !== undefined
-            ? { settingsCompleted: patch.settingsCompleted }
-            : {}),
-          ...(patch.openingBalancesCompleted !== undefined
-            ? { openingBalancesCompleted: patch.openingBalancesCompleted }
-            : {}),
-          ...(patch.documentsReceivedCompleted !== undefined
-            ? { documentsReceivedCompleted: patch.documentsReceivedCompleted }
-            : {}),
-          ...(patch.settingsCompleted === true &&
-          existing.phase === "pre_opening"
-            ? { phase: "journalizing" as const }
-            : {}),
-          opening: normalizedOpening,
-        };
-        assertDbOpeningForPeriod(normalizedOpening, updated);
+        assertDbOpeningForPeriod(updated.opening, updated);
         const serializedRecord = serializeFiscalPeriodDbData(updated);
         if (patch.startDate !== undefined || patch.endDate !== undefined) {
           await assertNoOverlappingActiveFiscalPeriod(db, {
-            userId: row[0],
+            userId: updated.userId,
             startDate: updated.startDate,
             endDate: updated.endDate,
             excludeFiscalPeriodId: id,
@@ -356,26 +267,25 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
           bind: [serializedRecord, now, id],
         });
         if (patch.opening !== undefined) {
-          await replaceOpening(db, normalizedOpening, now);
+          await replaceOpening(db, id, updated.opening);
         }
         return updated;
       });
     },
+    async start(id) {
+      return transitionFiscalPeriod(
+        db,
+        id,
+        "pre_opening",
+        "journalizing",
+        async () => {},
+      );
+    },
     async archive(id) {
-      const updated = await runInTransaction(db, async () => {
-        const rows = (await db.exec({
-          sql: `SELECT user_id, data, created_at FROM fiscal_periods WHERE id = ?`,
-          bind: [id],
-          returnValue: "resultRows",
-          rowMode: "array",
-        })) as Array<[string, string, number]>;
-        const row = rows[0];
-        if (row == null)
-          throw serverNotFoundError(`fiscal period not found: ${id}`);
-        const now = nowMs();
-        const current = parseFiscalPeriodDbData(row[1]);
+      return runInTransaction(db, async () => {
+        const current = await requireFiscalPeriodRecord(db, id);
         if (
-          current.archiveStatus === "archived" ||
+          current.archiveStatus !== "active" ||
           current.phase !== "post_closing" ||
           !current.documentsReceivedCompleted
         ) {
@@ -384,12 +294,11 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
             "本締めと書類受領が完了した会計期間のみ圧縮保存できます",
           );
         }
-        const updated = {
+        const now = nowMs();
+        const updated: FiscalPeriodDbRecord = {
           ...current,
-          userId: row[0],
-          createdAt: msToIso(row[2]),
           updatedAt: msToIso(now),
-          archiveStatus: "archived" as const,
+          archiveStatus: "archived",
           archivedAt: msToIso(now),
         };
         await db.exec({
@@ -398,37 +307,23 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         });
         return updated;
       });
-      return {
-        ...updated,
-        opening: requireOpening(await loadOpeningByFiscalPeriod(db, id), id),
-      };
     },
     async purgeArchivedData(id) {
-      const rows = (await db.exec({
-        sql: `SELECT user_id, data, created_at FROM fiscal_periods WHERE id = ?`,
-        bind: [id],
-        returnValue: "resultRows",
-        rowMode: "array",
-      })) as Array<[string, string, number]>;
-      const row = rows[0];
-      if (row == null)
-        throw serverNotFoundError(`fiscal period not found: ${id}`);
-      const current = parseFiscalPeriodDbData(row[1]);
-      if (current.archiveStatus !== "archived") {
-        throw serverConflictError(
-          `fiscal period must be archived before purge: ${id}`,
-          "圧縮保存後の会計期間のみ実データを削除できます",
-        );
-      }
-      const now = nowMs();
-      const updated = {
-        ...current,
-        userId: row[0],
-        createdAt: msToIso(row[2]),
-        updatedAt: msToIso(now),
-        archiveDataAvailable: false,
-      };
-      await runInTransaction(db, async () => {
+      return runInTransaction(db, async () => {
+        const current = await requireFiscalPeriodRecord(db, id);
+        if (current.archiveStatus === "active") {
+          throw serverConflictError(
+            `fiscal period must be archived before purge: ${id}`,
+            "圧縮保存後の会計期間のみ実データを削除できます",
+          );
+        }
+        const now = nowMs();
+        const updated: FiscalPeriodDbRecord = {
+          ...current,
+          updatedAt: msToIso(now),
+          archiveStatus: "purged",
+          opening: emptyOpening(),
+        };
         await db.exec({
           sql: `DELETE FROM entries WHERE fiscal_period_id = ?`,
           bind: [id],
@@ -445,16 +340,13 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
           sql: `DELETE FROM closings WHERE fiscal_period_id = ?`,
           bind: [id],
         });
-        await replaceOpening(db, defaultOpening(row[0], id, now), now);
+        await replaceOpening(db, id, updated.opening);
         await db.exec({
           sql: `UPDATE fiscal_periods SET data = ?, updated_at = ? WHERE id = ?`,
           bind: [serializeFiscalPeriodDbData(updated), now, id],
         });
+        return updated;
       });
-      return {
-        ...updated,
-        opening: requireOpening(await loadOpeningByFiscalPeriod(db, id), id),
-      };
     },
     async delete(id) {
       await db.exec({
@@ -481,14 +373,12 @@ function newFiscalPeriodRecord(
     endDate: input.endDate,
     phase: "pre_opening",
     archiveStatus: "active",
-    settingsCompleted: false,
+    archivedAt: null,
     openingBalancesCompleted: false,
     documentsReceivedCompleted: false,
-    opening: defaultOpening(userId, id, now),
+    opening: emptyOpening(),
     createdAt: timestamp,
     updatedAt: timestamp,
-    archiveDataAvailable: true,
-    archivedAt: null,
   };
 }
 
@@ -515,7 +405,7 @@ async function insertFiscalPeriod(
       now,
     ],
   });
-  await replaceOpening(db, opening, now);
+  await replaceOpening(db, record.id, opening);
 }
 
 async function insertFixedAsset(

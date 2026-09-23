@@ -12,8 +12,9 @@ it("restores an archive containing multiple entry import batches", async () => {
   const period = await source.fiscalPeriods.create({
     name: "2026年分", startDate: "2026-01-01", endDate: "2026-12-31",
   });
+  await source.fiscalPeriods.start(period.id);
   await source.fiscalPeriods.patch(period.id, {
-    settingsCompleted: true, openingBalancesCompleted: true,
+    openingBalancesCompleted: true,
   });
   for (const batch of [0, 1]) {
     await source.entries.importMany(period.id, Array.from({ length: 5_001 }, (_, index) => ({

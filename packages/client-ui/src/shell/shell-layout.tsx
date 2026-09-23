@@ -1,56 +1,30 @@
 "use client";
 
-import Link from "next/link.js";
 import { usePathname, useRouter } from "next/navigation.js";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import {
   useOpenkkAppState,
-  useBrandConfig,
   useMaintenance,
   useOpenkkConfig,
 } from "@rubydogjp/openkk-client-usecases";
-import {
-  AppError,
-  userCanSignOut,
-  userEmail,
-} from "@rubydogjp/openkk-client-domain";
 
 import {
   fontSize,
   fontWeight,
   palette,
   radii,
-  shadows,
   sizes,
-  spacing,
-  typography,
 } from "../shared/design-tokens.js";
 import { normalizePathname } from "../shared/pathname.js";
 import "../shared/pwa-install.js";
 import { DataLoadErrorBanner } from "./data-load-error-banner.js";
 import { AppErrorText } from "../shared/app-error-text.js";
-import {
-  useDismissibleLayer,
-  usePopoverLifecycle,
-} from "../shared/dismissible-layer.js";
-import { ExclusiveActionLock } from "../shared/exclusive-action-lock.js";
-import { openExternalUrl } from "../shared/external-navigation.js";
+import { useDismissibleLayer } from "../shared/dismissible-layer.js";
 import { MaintenanceScreen } from "./maintenance-content.js";
 import { ArchivedFiscalPeriodScreen } from "../routes/steps/archived-fiscal-period-screen.js";
 import { FiscalPeriodsContent } from "./fiscal-periods-content.js";
 import { SignInContent } from "./sign-in-content.js";
-import {
-  AssistIcon,
-  CheckIcon,
-  ChevronDownIcon,
-  ExternalLinkIcon,
-  JournalIcon,
-  LoginIcon,
-  LogoutIcon,
-  PersonIcon,
-  StepsIcon,
-} from "../shared/icons.js";
 import {
   ARCHIVED_WORKSPACE_PATH,
   FISCAL_PERIOD_PICKER_PATH,
@@ -59,45 +33,14 @@ import {
   shouldRedirectMissingFiscalPeriod,
   type ShellContentMode,
 } from "./shell-content-mode.js";
-
-const PALETTE = {
-  sidebarBg: palette.chromeSurface,
-
-  sidebarBorder: palette.borderHeavy,
-  brandGradient: `linear-gradient(135deg, ${palette.brandInk} 0%, #334155 100%)`,
-  brandFg: palette.surface,
-  titleColor: palette.text,
-  subtitleColor: palette.textLabel,
-  navText: palette.textSoft,
-  navIcon: palette.textLabel,
-  navIconActive: palette.textSoft,
-  navActiveBg: palette.surfaceTint ?? palette.hoverSubtle,
-  navActiveText: palette.text,
-  navHoverBg: palette.hoverSubtle,
-  userAvatarBg: palette.textSoft,
-  menuDanger: palette.danger,
-  menuLink: palette.action,
-  menuTextActive: palette.textSoft,
-  menuTextDisabled: palette.textMuted,
-  menuIconActive: palette.textLabel,
-  menuIconDisabled: palette.textMuted,
-  menuDivider: palette.borderSubtle,
-  menuBorder: palette.borderSubtle,
-};
-
-const SIDEBAR_WIDTH = sizes.shell.sidebarWidth;
-
-type NavEntry = {
-  href: string;
-  label: string;
-  Icon: (props: { size: number; color: string }) => ReactNode;
-};
-
-const navItems: NavEntry[] = [
-  { href: "/steps", label: "手順", Icon: StepsIcon },
-  { href: "/entries", label: "仕訳", Icon: JournalIcon },
-  { href: "/assist", label: "補助", Icon: AssistIcon },
-];
+import { ShellAccountMenu } from "./shell-account-menu.js";
+import { ShellFiscalPeriodMenu } from "./shell-fiscal-period-menu.js";
+import { ShellNav } from "./shell-nav.js";
+import {
+  SHELL_PALETTE as PALETTE,
+  SHELL_SIDEBAR_WIDTH as SIDEBAR_WIDTH,
+} from "./shell-palette.js";
+import { useShellAuthActions } from "./use-shell-auth-actions.js";
 
 export function OpenkkShellLayout(props: { children: React.ReactNode }) {
   const pathname = normalizePathname(usePathname());
@@ -174,7 +117,7 @@ export function OpenkkShellLayout(props: { children: React.ReactNode }) {
   }
 
   return (
-    <ShellChrome pathname={pathname} router={router} contentMode={contentMode}>
+    <ShellChrome pathname={pathname} contentMode={contentMode}>
       {contentMode === "sign-in" ? (
         <SignInContent />
       ) : contentMode === "fiscal-periods" ? (
@@ -190,44 +133,21 @@ export function OpenkkShellLayout(props: { children: React.ReactNode }) {
 
 function ShellChrome({
   pathname,
-  router,
   contentMode,
   children,
 }: {
   pathname: string;
-  router: ReturnType<typeof useRouter>;
   contentMode: Exclude<ShellContentMode, "loading">;
   children: ReactNode;
 }) {
   const appState = useOpenkkAppState();
   const openkkConfig = useOpenkkConfig();
-  const brandConfig = useBrandConfig();
-  const marketingSiteUrl = brandConfig.marketingSiteUrl;
-  const productSiteUrl = brandConfig.productSiteUrl;
-  const session = appState.session;
   const hasPeriod =
     appState.currentFiscalPeriodId != null &&
     appState.currentFiscalPeriodId !== "";
-
   const navEnabled = contentMode !== "sign-in" && hasPeriod;
-  const workspaceEnabled = navEnabled;
   const hasSession = contentMode !== "sign-in";
-
-  const [menuOpen, setMenuOpen] = useState(false);
-  const { containerRef: accountMenuContainerRef, popupRef: menuRef } =
-    usePopoverLifecycle<HTMLDivElement, HTMLDivElement>({
-      open: menuOpen,
-      onDismiss: () => setMenuOpen(false),
-    });
-
-  const [workspaceOpen, setWorkspaceOpen] = useState(false);
-  const {
-    containerRef: workspaceMenuContainerRef,
-    popupRef: workspaceMenuRef,
-  } = usePopoverLifecycle<HTMLDivElement, HTMLDivElement>({
-    open: workspaceOpen,
-    onDismiss: () => setWorkspaceOpen(false),
-  });
+  const auth = useShellAuthActions();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const sidebarRef = useDismissibleLayer<HTMLElement>({
@@ -238,84 +158,10 @@ function ShellChrome({
     focusOnOpen: true,
     restoreFocus: true,
   });
-  const [authActionError, setAuthActionError] = useState<unknown>(null);
-  const [authActionPending, setAuthActionPending] = useState(false);
-  const authActionLock = useRef(new ExclusiveActionLock());
 
   useEffect(() => {
     setDrawerOpen(false);
   }, [pathname]);
-
-  useEffect(() => {
-    setMenuOpen(false);
-    setWorkspaceOpen(false);
-  }, [pathname]);
-
-  const currentFiscalPeriod = appState.fiscalPeriods.find(
-    (p) => p.id === appState.currentFiscalPeriodId,
-  );
-
-  const fiscalPeriodLabel = currentFiscalPeriod?.name ?? "期間 未選択";
-  const displayName = session?.user.displayName ?? "";
-  const email = session != null ? userEmail(session.user) : null;
-  const canSignOut = session != null && userCanSignOut(session.user);
-
-  async function handleSignInClick() {
-    const release = authActionLock.current.tryAcquire();
-    if (release == null) return;
-    setAuthActionError(null);
-    if (openkkConfig.authMode === "embedded") {
-      appState.signInAsEmbeddedUser();
-      release();
-      return;
-    }
-    setAuthActionPending(true);
-    let navigationStarted = false;
-    try {
-      const redirectUrl = `${window.location.origin}/auth/result`;
-      const result = await appState.startSignIn(redirectUrl);
-      window.location.href = result.authUrl;
-      navigationStarted = true;
-    } catch (error) {
-      setAuthActionError(
-        AppError.from(error, {
-          fallbackUserMessage: "サインインを開始できませんでした",
-          fallbackDeveloperMessage: "shell: startSignIn failed",
-          statusCode: null,
-        }),
-      );
-    } finally {
-      if (!navigationStarted) {
-        setAuthActionPending(false);
-        release();
-      }
-    }
-  }
-
-  async function handleSignOut() {
-    const release = authActionLock.current.tryAcquire();
-    if (release == null) return;
-    setMenuOpen(false);
-    setAuthActionError(null);
-    setAuthActionPending(true);
-    try {
-      await appState.signOut();
-    } catch (error) {
-      setAuthActionError(
-        AppError.from(error, {
-          fallbackUserMessage:
-            "この端末ではサインアウトしましたが、サーバーへの通知に失敗しました",
-          fallbackDeveloperMessage:
-            "shell: remote signOut failed after clearing local session",
-          statusCode: null,
-        }),
-      );
-    } finally {
-      setAuthActionPending(false);
-      release();
-    }
-    router.push("/");
-  }
 
   return (
     <>
@@ -452,516 +298,18 @@ function ShellChrome({
             </div>
           </div>
 
-          <div
-            ref={workspaceMenuContainerRef}
-            style={{ padding: "0 8px 8px", position: "relative" }}
-          >
-            <button
-              type="button"
-              className="bk-ws-trigger"
-              disabled={!workspaceEnabled}
-              onClick={() => {
-                if (!workspaceEnabled) return;
-                setWorkspaceOpen((v) => !v);
-              }}
-              aria-haspopup="menu"
-              aria-expanded={workspaceOpen}
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "8px 10px",
-                borderRadius: 8,
-                border: "none",
-                background: workspaceOpen ? PALETTE.navHoverBg : "transparent",
-                cursor: workspaceEnabled ? "pointer" : "default",
-                opacity: workspaceEnabled ? 1 : 0.55,
-                textAlign: "left",
-              }}
-            >
-              <div
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  fontSize: fontSize.base,
-                  fontWeight: fontWeight.semibold,
-                  color: PALETTE.titleColor,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                {fiscalPeriodLabel}
-              </div>
-              {workspaceEnabled ? (
-                <ChevronDownIcon size={12} color={PALETTE.subtitleColor} />
-              ) : null}
-            </button>
-
-            {workspaceOpen ? (
-              <div
-                ref={workspaceMenuRef}
-                role="menu"
-                tabIndex={-1}
-                style={{
-                  position: "absolute",
-                  left: 8,
-                  right: 8,
-                  top: "100%",
-                  background: palette.surface,
-                  border: `1px solid ${PALETTE.menuBorder}`,
-                  borderRadius: 12,
-                  boxShadow: shadows.popup,
-                  zIndex: 100,
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    padding: "10px 14px 6px",
-                    fontSize: fontSize.xs,
-                    fontWeight: fontWeight.bold,
-                    color: palette.textLabel,
-                    letterSpacing: "0.06em",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  期間
-                </div>
-                {appState.fiscalPeriods.length === 0 ? (
-                  <div
-                    style={{
-                      padding: "8px 14px 12px",
-                      fontSize: fontSize.sm,
-                      color: palette.textLabel,
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    期間がまだありません。下の「リストを開く」から作成してください。
-                  </div>
-                ) : (
-                  <div style={{ padding: "0 0 4px" }}>
-                    {appState.fiscalPeriods.map((p) => {
-                      const isCurrent = p.id === appState.currentFiscalPeriodId;
-                      return (
-                        <button
-                          key={p.id}
-                          type="button"
-                          role="menuitem"
-                          className="bk-menu-item"
-                          onClick={() => {
-                            appState.selectFiscalPeriod(p.id);
-                            setWorkspaceOpen(false);
-                            router.push("/steps");
-                          }}
-                          style={{
-                            width: "100%",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: 10,
-                            padding: "8px 14px",
-                            border: "none",
-                            background: "transparent",
-                            cursor: "pointer",
-                            textAlign: "left",
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontSize: fontSize.base,
-                              fontWeight: isCurrent
-                                ? fontWeight.bold
-                                : fontWeight.medium,
-                              color: palette.text,
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              flex: 1,
-                              minWidth: 0,
-                            }}
-                          >
-                            {p.name}
-                          </span>
-                          {isCurrent ? (
-                            <CheckIcon size={14} color={palette.brand} />
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-                <div
-                  style={{
-                    borderTop: `1px solid ${PALETTE.menuDivider}`,
-                    padding: "4px 0 6px",
-                  }}
-                >
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="bk-menu-item"
-                    onClick={() => {
-                      setWorkspaceOpen(false);
-                      router.push("/fiscal-periods");
-                    }}
-                    style={{
-                      width: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      padding: "8px 14px",
-                      border: "none",
-                      background: "transparent",
-                      cursor: "pointer",
-                      textAlign: "left",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: fontSize.base,
-                        fontWeight: fontWeight.semibold,
-                        color: palette.brand,
-                      }}
-                    >
-                      リストを開く
-                    </span>
-                  </button>
-                </div>
-              </div>
-            ) : null}
-          </div>
-
-          <div style={{ padding: "6px 8px 0", display: "grid", gap: 2 }}>
-            {navItems.map((item) => {
-              const selected =
-                navEnabled &&
-                (pathname === item.href ||
-                  pathname.startsWith(item.href + "/"));
-              const commonStyle = {
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-
-                padding: "10px 12px",
-                borderRadius: 8,
-                background: selected ? PALETTE.navActiveBg : "transparent",
-                color: selected ? PALETTE.navActiveText : PALETTE.navText,
-                fontSize: fontSize.base,
-                fontWeight: selected ? fontWeight.bold : fontWeight.medium,
-                textDecoration: "none",
-                opacity: navEnabled ? 1 : 0.45,
-              };
-              if (!navEnabled) {
-                return (
-                  <div
-                    key={item.href}
-                    aria-disabled
-                    style={{ ...commonStyle, cursor: "default" }}
-                  >
-                    <item.Icon size={16} color={PALETTE.navIcon} />
-                    <span>{item.label}</span>
-                  </div>
-                );
-              }
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={selected ? "bk-nav-item-active" : "bk-nav-item"}
-                  style={{ ...commonStyle, cursor: "pointer" }}
-                >
-                  <item.Icon
-                    size={16}
-                    color={selected ? PALETTE.navIconActive : PALETTE.navIcon}
-                  />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
+          <ShellFiscalPeriodMenu pathname={pathname} enabled={navEnabled} />
+          <ShellNav pathname={pathname} enabled={navEnabled} />
 
           <div style={{ flex: 1 }} />
 
-          <div
-            ref={accountMenuContainerRef}
-            style={{ padding: 8, position: "relative" }}
-          >
-            {hasSession && marketingSiteUrl != null ? (
-              <button
-                type="button"
-                onClick={() => openExternalUrl(marketingSiteUrl, null)}
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                  marginBottom: 6,
-                  padding: "10px 12px",
-                  borderRadius: 8,
-                  border: "none",
-                  background: palette.text,
-                  color: palette.surface,
-                  cursor: "pointer",
-                  fontSize: fontSize.base,
-                  fontWeight: fontWeight.bold,
-                }}
-              >
-                <ExternalLinkIcon size={14} color={palette.surface} />
-                <span>公式サイト</span>
-              </button>
-            ) : null}
-            {hasSession ? (
-              <>
-                <button
-                  type="button"
-                  aria-label="アカウントメニュー"
-                  aria-haspopup="menu"
-                  aria-expanded={menuOpen}
-                  className="bk-user-trigger"
-                  onClick={() => setMenuOpen((v) => !v)}
-                  style={{
-                    width: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "8px 10px",
-                    borderRadius: 8,
-                    border: "none",
-                    background: menuOpen ? PALETTE.navHoverBg : "transparent",
-                    cursor: "pointer",
-                    textAlign: "left",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 30,
-                      height: 30,
-                      borderRadius: 999,
-                      background: PALETTE.userAvatarBg,
-                      display: "grid",
-                      placeItems: "center",
-                      flexShrink: 0,
-                      overflow: "hidden",
-                    }}
-                  >
-                    {brandConfig.accountIconUrl != null ? (
-                      <img
-                        src={brandConfig.accountIconUrl}
-                        alt=""
-                        width={20}
-                        height={20}
-                        style={{ filter: "grayscale(1)" }}
-                      />
-                    ) : (
-                      <PersonIcon size={18} color="#DADCE0" />
-                    )}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: fontSize.base,
-                        fontWeight: fontWeight.semibold,
-                        color: PALETTE.titleColor,
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {displayName}
-                    </div>
-                    {email !== "" && (
-                      <div
-                        style={{
-                          fontSize: fontSize.xs,
-                          color: PALETTE.subtitleColor,
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {email}
-                      </div>
-                    )}
-                  </div>
-                  <ChevronDownIcon size={14} color={PALETTE.subtitleColor} />
-                </button>
-
-                {menuOpen && (
-                  <div
-                    ref={menuRef}
-                    role="menu"
-                    tabIndex={-1}
-                    style={{
-                      position: "absolute",
-                      left: 8,
-                      right: 8,
-                      bottom: 62,
-                      background: palette.surface,
-                      border: `1px solid ${PALETTE.menuBorder}`,
-                      borderRadius: 12,
-                      boxShadow: shadows.popup,
-                      zIndex: 100,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div
-                      style={{
-                        padding: "14px 14px 12px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 12,
-                        borderBottom: `1px solid ${PALETTE.menuDivider}`,
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: sizes.field.height,
-                          height: sizes.field.height,
-                          borderRadius: 999,
-                          background: PALETTE.userAvatarBg,
-                          display: "grid",
-                          placeItems: "center",
-                          flexShrink: 0,
-                          overflow: "hidden",
-                        }}
-                      >
-                        {brandConfig.accountIconUrl != null ? (
-                          <img
-                            src={brandConfig.accountIconUrl}
-                            alt=""
-                            width={24}
-                            height={24}
-                            style={{ filter: "grayscale(1)" }}
-                          />
-                        ) : (
-                          <PersonIcon size={22} color="#DADCE0" />
-                        )}
-                      </div>
-                      <div style={{ minWidth: 0 }}>
-                        <div
-                          style={{
-                            fontSize: fontSize.md,
-                            fontWeight: fontWeight.bold,
-                            color: PALETTE.titleColor,
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                          }}
-                        >
-                          {displayName}
-                        </div>
-                        {email != null && (
-                          <div
-                            style={{
-                              marginTop: 2,
-                              fontSize: fontSize.sm,
-                              color: PALETTE.subtitleColor,
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                            }}
-                          >
-                            {email}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div style={{ padding: "6px 0" }}>
-                      <MenuButton
-                        icon={
-                          <PersonIcon
-                            size={18}
-                            color={PALETTE.menuIconDisabled}
-                          />
-                        }
-                        label="プロフィール"
-                        labelColor={PALETTE.menuTextDisabled}
-                        disabled
-                        onClick={() => {}}
-                      />
-                    </div>
-
-                    <div
-                      style={{
-                        borderTop: `1px solid ${PALETTE.menuDivider}`,
-                        padding: "6px 0 8px",
-                      }}
-                    >
-                      {productSiteUrl != null && (
-                        <MenuButton
-                          icon={
-                            <ExternalLinkIcon
-                              size={18}
-                              color={PALETTE.menuLink}
-                            />
-                          }
-                          label="公式サイト"
-                          labelColor={PALETTE.menuLink}
-                          onClick={() => {
-                            setMenuOpen(false);
-                            openExternalUrl(productSiteUrl, null);
-                          }}
-                          disabled={false}
-                        />
-                      )}
-                      <MenuButton
-                        icon={
-                          <LogoutIcon
-                            size={18}
-                            color={
-                              canSignOut
-                                ? PALETTE.menuIconActive
-                                : PALETTE.menuIconDisabled
-                            }
-                          />
-                        }
-                        label="サインアウト"
-                        labelColor={
-                          canSignOut
-                            ? PALETTE.menuTextActive
-                            : PALETTE.menuTextDisabled
-                        }
-                        disabled={!canSignOut || authActionPending}
-                        onClick={() => void handleSignOut()}
-                      />
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <button
-                type="button"
-                onClick={handleSignInClick}
-                disabled={authActionPending}
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: spacing.s8,
-                  height: sizes.button.ctaHeight,
-                  minWidth: sizes.button.ctaMinWidth,
-                  padding: `0 ${spacing.s12}`,
-                  borderRadius: radii.sm,
-                  border: "none",
-                  background: palette.brand,
-                  color: palette.surface,
-                  cursor: authActionPending ? "default" : "pointer",
-                  opacity: authActionPending ? 0.65 : 1,
-                  ...typography.control,
-                  fontWeight: fontWeight.bold,
-                  boxShadow: shadows.primaryButton,
-                }}
-              >
-                <LoginIcon size={16} color={palette.surface} />
-                <span>ログイン</span>
-              </button>
-            )}
-          </div>
+          <ShellAccountMenu
+            pathname={pathname}
+            hasSession={hasSession}
+            authActionPending={auth.authActionPending}
+            onSignIn={auth.signIn}
+            onSignOut={auth.signOut}
+          />
         </aside>
 
         <div
@@ -975,7 +323,7 @@ function ShellChrome({
             background: palette.surface,
           }}
         >
-          {authActionError != null ? (
+          {auth.authActionError != null ? (
             <div
               role="alert"
               style={{
@@ -984,7 +332,7 @@ function ShellChrome({
                 borderBottom: `1px solid ${palette.dangerBorder}`,
               }}
             >
-              <AppErrorText error={authActionError} style={null} fallbackUserMessage={null} />
+              <AppErrorText error={auth.authActionError} style={null} fallbackUserMessage={null} />
             </div>
           ) : null}
           <DataLoadErrorBanner />
@@ -992,45 +340,5 @@ function ShellChrome({
         </div>
       </main>
     </>
-  );
-}
-
-function MenuButton(props: {
-  icon: ReactNode;
-  label: string;
-  labelColor: string;
-  disabled: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="menuitem"
-      disabled={props.disabled}
-      onClick={props.onClick}
-      className="bk-menu-item"
-      style={{
-        width: "100%",
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        padding: "8px 16px",
-        border: "none",
-        background: "transparent",
-        cursor: props.disabled ? "default" : "pointer",
-        textAlign: "left",
-      }}
-    >
-      {props.icon}
-      <span
-        style={{
-          fontSize: fontSize.base,
-          fontWeight: fontWeight.medium,
-          color: props.labelColor,
-        }}
-      >
-        {props.label}
-      </span>
-    </button>
   );
 }

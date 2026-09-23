@@ -47,7 +47,7 @@ describe("deriveSteps", () => {
 
 function deriveFromFlags(flags: boolean[]) {
   return deriveSteps({
-    settingsCompleted: flags[0]!,
+    started: flags[0]!,
     openingBalancesCompleted: flags[1]!,
     hasAnyClosing: flags[2]!,
     hasFinalClosing: flags[3]!,

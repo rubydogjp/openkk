@@ -14,11 +14,11 @@ import {
   type OpeningCarryoverRecord,
 } from "@rubydogjp/openkk-client-domain";
 import type {
+  EntryLineApiRecord,
   FixedAssetApiRecord,
   FixedAssetApiStatus,
   FixedAssetPatchInput,
   OpeningJournalApiRecord,
-  OpeningJournalLineApiRecord,
 } from "@rubydogjp/openkk-client-ports";
 
 export function upsertFixedAsset(
@@ -98,7 +98,7 @@ export function buildOpeningJournalLines(
     taxCategories: ReadonlyArray<{ id: string; name: string }>;
     businessCategories: ReadonlyArray<{ id: string; name: string }>;
   },
-): OpeningJournalLineApiRecord[] | null {
+): EntryLineApiRecord[] | null {
   for (const line of draft.lines) {
     if (line.id != null && line.id.trim() === "") {
       throw new Error("opening carryover line id must not be blank");
@@ -250,11 +250,8 @@ function mapFixedAssetStatusLabel(
 
 function mapFixedAssetStatusApi(
   statusLabel: FixedAssetStatus,
-): "active" | "sold" | "disposed" | "retired" {
-  const statuses: Record<
-    FixedAssetStatus,
-    "active" | "sold" | "disposed" | "retired"
-  > = {
+): FixedAssetApiStatus {
+  const statuses: Record<FixedAssetStatus, FixedAssetApiStatus> = {
     償却中: "active",
     完了: "retired",
     売却済: "sold",

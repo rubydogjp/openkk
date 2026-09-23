@@ -123,6 +123,10 @@ function createFiscalPeriodsUsecase(db: OpenkkDbPort) {
     async getAll(userId: string) {
       return db.fiscalPeriods.getAll(userId);
     },
+    async getById(userId: string, id: string) {
+      const period = await db.fiscalPeriods.getById(id);
+      return period?.userId === userId ? period : null;
+    },
     async create(userId: string, input: FiscalPeriodCreateInput) {
       return db.fiscalPeriods.create(userId, input);
     },
@@ -157,6 +161,10 @@ function createFiscalPeriodsUsecase(db: OpenkkDbPort) {
     async update(userId: string, id: string, patch: FiscalPeriodPatchInput) {
       await requireOwnedFiscalPeriod(db, userId, id);
       return db.fiscalPeriods.update(id, patch);
+    },
+    async start(userId: string, id: string) {
+      await requireOwnedFiscalPeriod(db, userId, id);
+      return db.fiscalPeriods.start(id);
     },
     async archive(userId: string, id: string) {
       await requireOwnedFiscalPeriod(db, userId, id);

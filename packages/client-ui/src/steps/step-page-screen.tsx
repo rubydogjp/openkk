@@ -19,8 +19,10 @@ import { FiscalPeriodSettingsBody } from "./bodies/fiscal-period-settings.js";
 import { JournalizingBody } from "./bodies/journalizing.js";
 import { NextFiscalPeriodBody } from "./bodies/next-fiscal-period.js";
 import { OpeningBsBody } from "./bodies/opening-bs.js";
-import type { StepItem } from "@rubydogjp/openkk-client-domain";
-import { type StepTrendPoint } from "@rubydogjp/openkk-client-domain";
+import {
+  type StepItem,
+  type StepTrendPoint,
+} from "@rubydogjp/openkk-client-domain";
 import { StatusChip } from "./step-ui.js";
 
 const STEP_PATHS: Record<number, string> = {

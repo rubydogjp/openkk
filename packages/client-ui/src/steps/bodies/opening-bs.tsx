@@ -133,7 +133,7 @@ export function OpeningBsBody({
       <div style={{ color: palette.textLabel }}>期間を選択してください</div>
     );
   }
-  const isNotStarted = !currentFiscalPeriod.settingsCompleted;
+  const isNotStarted = currentFiscalPeriod.phase === "pre_opening";
   const editingLocked = resolveEditingPolicy(config.editingPolicy).locked;
 
   const isPeriodLocked =
@@ -179,8 +179,8 @@ export function OpeningBsBody({
           return {
             openingBalancesCompleted: true,
             opening: {
-              ...latestPeriod.opening,
               openingBalanceLines: lines,
+              openingJournals: latestPeriod.opening.openingJournals,
             },
           };
         },

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { buildYearMonthRange, compareYearMonth, parseYearMonth } from "./year-month.js";
+import {
+  buildYearMonthRange,
+  compareYearMonth,
+  formatYearMonthKey,
+  parseYearMonth,
+} from "./year-month.js";
 
 describe("parseYearMonth", () => {
   it("parses YYYY-MM string", () => {
@@ -36,34 +41,35 @@ describe("buildYearMonthRange", () => {
   it("returns a single month when start equals end", () => {
     const range = buildYearMonthRange({ year: 2026, month: 6 }, { year: 2026, month: 6 });
     expect(range).toHaveLength(1);
-    expect(range[0]).toEqual({ year: 2026, month: 6, key: "2026-06" });
+    expect(range[0]).toEqual({ year: 2026, month: 6 });
   });
 
   it("returns months within the same year", () => {
     const range = buildYearMonthRange({ year: 2026, month: 1 }, { year: 2026, month: 3 });
     expect(range).toHaveLength(3);
-    expect(range.map((m) => m.key)).toEqual(["2026-01", "2026-02", "2026-03"]);
+    expect(range.map(formatYearMonthKey)).toEqual(["2026-01", "2026-02", "2026-03"]);
   });
 
   it("crosses a year boundary correctly", () => {
     const range = buildYearMonthRange({ year: 2025, month: 11 }, { year: 2026, month: 2 });
-    expect(range.map((m) => m.key)).toEqual(["2025-11", "2025-12", "2026-01", "2026-02"]);
+    expect(range.map(formatYearMonthKey)).toEqual(["2025-11", "2025-12", "2026-01", "2026-02"]);
   });
 
   it("produces a 12-month range for a full year", () => {
     const range = buildYearMonthRange({ year: 2026, month: 1 }, { year: 2026, month: 12 });
     expect(range).toHaveLength(12);
-    expect(range[0]?.key).toBe("2026-01");
-    expect(range[11]?.key).toBe("2026-12");
+    expect(range[0]).toEqual({ year: 2026, month: 1 });
+    expect(range[11]).toEqual({ year: 2026, month: 12 });
   });
 
   it("returns empty array when end is before start", () => {
     const range = buildYearMonthRange({ year: 2026, month: 6 }, { year: 2026, month: 3 });
     expect(range).toHaveLength(0);
   });
+});
 
-  it("zero-pads single-digit months in the key", () => {
-    const range = buildYearMonthRange({ year: 2026, month: 9 }, { year: 2026, month: 9 });
-    expect(range[0]?.key).toBe("2026-09");
+describe("formatYearMonthKey", () => {
+  it("zero-pads single-digit months", () => {
+    expect(formatYearMonthKey({ year: 2026, month: 9 })).toBe("2026-09");
   });
 });

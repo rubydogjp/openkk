@@ -12,14 +12,6 @@ export type AppErrorFromOptions = {
   statusCode: number | null;
 };
 
-export type AppErrorPatch = {
-  messageForDeveloper?: string;
-  messageForUser?: string;
-  originalMessage?: string | null;
-  statusCode?: number | null;
-  code?: string | null;
-};
-
 export class AppError extends Error implements AppErrorLike {
   readonly messageForDeveloper: string;
   readonly messageForUser: string;
@@ -48,40 +40,8 @@ export class AppError extends Error implements AppErrorLike {
         "AppError.from: non-AppError was wrapped for safe handling",
       messageForUser: options.fallbackUserMessage ?? "エラーが発生しました",
       originalMessage: stringifyOriginalMessage(error),
-      statusCode: options.statusCode ?? null,
+      statusCode: options.statusCode,
       code: null,
-    });
-  }
-
-  static fromJson(json: Record<string, unknown>): AppError {
-    if (!isAppErrorLike(json)) {
-      throw new Error("AppError.fromJson: invalid AppError JSON");
-    }
-    return new AppError(json);
-  }
-
-  toJson(): AppErrorLike {
-    return {
-      messageForDeveloper: this.messageForDeveloper,
-      messageForUser: this.messageForUser,
-      originalMessage: this.originalMessage,
-      statusCode: this.statusCode,
-      code: this.code,
-    };
-  }
-
-  copyWith(params: AppErrorPatch): AppError {
-    return new AppError({
-      messageForDeveloper:
-        params.messageForDeveloper ?? this.messageForDeveloper,
-      messageForUser: params.messageForUser ?? this.messageForUser,
-      originalMessage:
-        params.originalMessage === undefined
-          ? this.originalMessage
-          : params.originalMessage,
-      statusCode:
-        params.statusCode === undefined ? this.statusCode : params.statusCode,
-      code: params.code === undefined ? this.code : params.code,
     });
   }
 
@@ -90,26 +50,8 @@ export class AppError extends Error implements AppErrorLike {
   }
 }
 
-export function jsonToAppError(json: Record<string, unknown>): AppError {
-  try {
-    return AppError.fromJson(json);
-  } catch (error) {
-    return new AppError({
-      messageForDeveloper: `jsonToAppError.error jsonMap: ${safeDiagnosticText(json)}`,
-      messageForUser: "エラー情報の解析に失敗しました",
-      originalMessage: stringifyOriginalMessage(error),
-      statusCode: null,
-      code: null,
-    });
-  }
-}
-
 function validStatusCode(value: unknown): value is number | null {
   return value === null || (typeof value === "number" && Number.isFinite(value));
-}
-
-function safeDiagnosticText(value: unknown): string {
-  return stringifyOriginalMessage(value) ?? "null";
 }
 
 function stringifyOriginalMessage(error: unknown): string | null {

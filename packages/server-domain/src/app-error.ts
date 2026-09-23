@@ -41,26 +41,9 @@ export class AppError extends Error implements AppErrorLike {
       messageForUser:
         options.fallbackUserMessage ?? "サーバー処理でエラーが発生しました",
       originalMessage: stringifyOriginalMessage(error),
-      statusCode: options.statusCode ?? null,
+      statusCode: options.statusCode,
       code: null,
     });
-  }
-
-  static fromJson(json: Record<string, unknown>): AppError {
-    if (!isAppErrorLike(json)) {
-      throw new Error("AppError.fromJson: invalid AppError JSON");
-    }
-    return new AppError(json);
-  }
-
-  toJson(): AppErrorLike {
-    return {
-      messageForDeveloper: this.messageForDeveloper,
-      messageForUser: this.messageForUser,
-      originalMessage: this.originalMessage,
-      statusCode: this.statusCode,
-      code: this.code,
-    };
   }
 }
 

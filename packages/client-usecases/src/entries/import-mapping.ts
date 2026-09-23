@@ -7,7 +7,7 @@ import {
   type EntryRecord,
 } from "@rubydogjp/openkk-client-domain";
 import type {
-  EntryApiLineInput,
+  EntryLineInput,
   EntryUpsertInput,
 } from "@rubydogjp/openkk-client-ports";
 
@@ -21,7 +21,7 @@ export function entryRecordToImportPayload(
   entry: EntryRecord,
   master: ImportMaster,
 ): EntryUpsertInput {
-  const lines = entry.lines.map((line): EntryApiLineInput => {
+  const lines = entry.lines.map((line): EntryLineInput => {
     const bookAccountId = resolveBookAccountId({
       explicitId: line.bookAccountId,
       accountName: line.accountName,

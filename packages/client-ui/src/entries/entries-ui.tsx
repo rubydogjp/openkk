@@ -2,6 +2,7 @@
 
 import { ClosedPeriodLock } from "../shared/closed-period-lock.js";
 import { useDismissibleLayer } from "../shared/dismissible-layer.js";
+import { DrawerFrame } from "../shared/drawer-frame.js";
 import { AssistIcon, PlusIcon } from "../shared/icons.js";
 import { CompactLockButton } from "../shared/locked-action.js";
 import {
@@ -14,13 +15,10 @@ import {
   fontWeight,
   palette,
   radii,
-  shadows,
   sizes,
   spacing,
 } from "../shared/design-tokens.js";
-import type {
-  EntryPreviewRow,
-} from "@rubydogjp/openkk-client-domain";
+import type { EntryPreviewRow } from "@rubydogjp/openkk-client-domain";
 
 export {
   AccountChip,
@@ -267,171 +265,134 @@ export function VirtualEntryDrawer(props: {
     props.rows == null || props.rows.length === 0 ? [props.row] : props.rows;
   const assistHref = virtual.assistHref;
   return (
-    <>
-      <div
-        onClick={props.onClose}
+    <DrawerFrame
+      label="補助仕訳の詳細"
+      drawerRef={drawerRef}
+      onBackdropClick={props.onClose}
+    >
+      <header
         style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(15, 23, 42, 0.32)",
-          zIndex: 9998,
-        }}
-      />
-      <aside
-        ref={drawerRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="補助仕訳の詳細"
-        tabIndex={-1}
-        style={{
-          position: "fixed",
-          top: 0,
-          right: 0,
-          width: sizes.drawer.width,
-          maxWidth: "100vw",
-          height: "100vh",
-          background: palette.surface,
-          zIndex: 9999,
-          boxShadow: shadows.drawer,
+          height: sizes.drawer.headerHeight,
+          padding: "0 20px",
+          borderBottom: `1px solid ${palette.borderStrong}`,
           display: "flex",
-          flexDirection: "column",
-          animation: "bk-drawer-slide-in 220ms cubic-bezier(0.2, 0, 0, 1)",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexShrink: 0,
         }}
-        onClick={(event) => event.stopPropagation()}
       >
-        <style>{`
-          @keyframes bk-drawer-slide-in {
-            from { transform: translateX(100%); }
-            to { transform: translateX(0); }
-          }
-        `}</style>
-        <header
-          style={{
-            height: sizes.drawer.headerHeight,
-            padding: "0 20px",
-            borderBottom: `1px solid ${palette.borderStrong}`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexShrink: 0,
-          }}
-        >
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 10,
-              fontSize: fontSize.lg,
-              fontWeight: fontWeight.bold,
-              color: palette.text,
-            }}
-          >
-            <AssistIcon size={18} color={palette.text} />
-            補助 / {virtual.label}
-          </div>
-          <button
-            type="button"
-            onClick={props.onClose}
-            aria-label="閉じる"
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: radii.sm,
-              border: `1px solid ${palette.borderStrong}`,
-              background: palette.surface,
-              color: palette.text,
-              cursor: "pointer",
-              fontSize: fontSize.lg,
-              lineHeight: 1,
-            }}
-          >
-            ×
-          </button>
-        </header>
         <div
           style={{
-            flex: 1,
-            overflow: "auto",
-            padding: "20px",
-            display: "flex",
-            flexDirection: "column",
-            gap: 16,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
+            fontSize: fontSize.lg,
+            fontWeight: fontWeight.bold,
+            color: palette.text,
           }}
         >
-          <div
-            style={{
-              border: `1px solid ${palette.actionBorder}`,
-              background: palette.actionBg,
-              borderRadius: radii.md,
-              padding: "14px 16px",
-              color: palette.text,
-              fontSize: fontSize.base,
-              lineHeight: 1.7,
-            }}
-          >
-            この仕訳は補助機能によって提案された仮想的なものです。本締めの手順で実体化されます。
-          </div>
-          <div
-            style={{
-              border: `1px solid ${palette.borderStrong}`,
-              borderRadius: radii.md,
-              overflow: "hidden",
-            }}
-          >
-            <VirtualEntrySummaryRow
-              label="摘要"
-              value={props.row.description}
-            />
-            {rows.map((row, index) => {
-              const suffix = rows.length > 1 ? ` ${index + 1}` : "";
-              return (
-                <div key={`${row.recordId ?? row.date}-${index}`}>
-                  <VirtualEntrySummaryRow
-                    label={`借方${suffix}`}
-                    value={row.debit}
-                  />
-                  <VirtualEntrySummaryRow
-                    label={`借方金額${suffix}`}
-                    value={row.debitAmount}
-                  />
-                  <VirtualEntrySummaryRow
-                    label={`貸方${suffix}`}
-                    value={row.credit}
-                  />
-                  <VirtualEntrySummaryRow
-                    label={`貸方金額${suffix}`}
-                    value={row.creditAmount}
-                  />
-                </div>
-              );
-            })}
-          </div>
-          {assistHref != null ? (
-            <button
-              type="button"
-              onClick={() => props.onOpenAssist(assistHref)}
-              style={{
-                height: sizes.button.ctaHeight,
-                borderRadius: radii.sm,
-                border: "none",
-                background: palette.action,
-                color: palette.surface,
-                fontSize: fontSize.base,
-                fontWeight: fontWeight.bold,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: spacing.s8,
-              }}
-            >
-              <AssistIcon size={18} color={palette.surface} />
-              補助 / {virtual.label}画面へ
-            </button>
-          ) : null}
+          <AssistIcon size={18} color={palette.text} />
+          補助 / {virtual.label}
         </div>
-      </aside>
-    </>
+        <button
+          type="button"
+          onClick={props.onClose}
+          aria-label="閉じる"
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: radii.sm,
+            border: `1px solid ${palette.borderStrong}`,
+            background: palette.surface,
+            color: palette.text,
+            cursor: "pointer",
+            fontSize: fontSize.lg,
+            lineHeight: 1,
+          }}
+        >
+          ×
+        </button>
+      </header>
+      <div
+        style={{
+          flex: 1,
+          overflow: "auto",
+          padding: "20px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 16,
+        }}
+      >
+        <div
+          style={{
+            border: `1px solid ${palette.actionBorder}`,
+            background: palette.actionBg,
+            borderRadius: radii.md,
+            padding: "14px 16px",
+            color: palette.text,
+            fontSize: fontSize.base,
+            lineHeight: 1.7,
+          }}
+        >
+          この仕訳は補助機能によって提案された仮想的なものです。本締めの手順で実体化されます。
+        </div>
+        <div
+          style={{
+            border: `1px solid ${palette.borderStrong}`,
+            borderRadius: radii.md,
+            overflow: "hidden",
+          }}
+        >
+          <VirtualEntrySummaryRow label="摘要" value={props.row.description} />
+          {rows.map((row, index) => {
+            const suffix = rows.length > 1 ? ` ${index + 1}` : "";
+            return (
+              <div key={`${row.recordId ?? row.date}-${index}`}>
+                <VirtualEntrySummaryRow
+                  label={`借方${suffix}`}
+                  value={row.debit}
+                />
+                <VirtualEntrySummaryRow
+                  label={`借方金額${suffix}`}
+                  value={row.debitAmount}
+                />
+                <VirtualEntrySummaryRow
+                  label={`貸方${suffix}`}
+                  value={row.credit}
+                />
+                <VirtualEntrySummaryRow
+                  label={`貸方金額${suffix}`}
+                  value={row.creditAmount}
+                />
+              </div>
+            );
+          })}
+        </div>
+        {assistHref != null ? (
+          <button
+            type="button"
+            onClick={() => props.onOpenAssist(assistHref)}
+            style={{
+              height: sizes.button.ctaHeight,
+              borderRadius: radii.sm,
+              border: "none",
+              background: palette.action,
+              color: palette.surface,
+              fontSize: fontSize.base,
+              fontWeight: fontWeight.bold,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: spacing.s8,
+            }}
+          >
+            <AssistIcon size={18} color={palette.surface} />
+            補助 / {virtual.label}画面へ
+          </button>
+        ) : null}
+      </div>
+    </DrawerFrame>
   );
 }
 
@@ -537,4 +498,3 @@ function ToolbarPrimaryButton({
     </button>
   );
 }
-

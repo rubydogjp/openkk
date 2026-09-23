@@ -1,18 +1,9 @@
 import {
-  assertCompletedOpening,
   assertDateRange,
-  assertEntryCollectionItemLimit,
-  assertEntryCollectionLineLimit,
-  assertEntryLineMatchesRules,
-  assertEntryLinesBalanced,
-  assertIsoDate,
   assertNonBlankString,
-  assertNonNegativeSafeInteger,
-  assertOpeningBalanceAccountId,
+  assertOpeningMatchesRules,
   assertPositiveInteger,
-  assertUniqueIds,
   assertUniqueStrings,
-  assertUnitRate,
   MAX_ENTRY_IMPORT_ITEMS,
   requireObject,
   serverConflictError,
@@ -24,7 +15,7 @@ import type {
   FiscalPeriodApiRecord,
   FiscalPeriodCreateInput,
   FiscalPeriodNextCreateInput,
-  FiscalPeriodOpeningInput,
+  FiscalPeriodOpeningApiRecord,
   FiscalPeriodPatchInput,
   FixedAssetApiRecord,
 } from "@rubydogjp/openkk-server-ports";
@@ -39,10 +30,7 @@ export function assertPeriodDataAvailable(
   period: FiscalPeriodApiRecord,
   operation: string,
 ): void {
-  if (
-    period.archiveStatus === "archived" &&
-    period.archiveDataAvailable === false
-  ) {
+  if (period.archiveStatus === "purged") {
     throw serverConflictError(
       `Fiscal period ${period.id} cannot ${operation} after archived data was purged`,
       "この会計期間の実データは削除済みです",
@@ -54,7 +42,7 @@ function assertMutableFiscalPeriod(
   period: FiscalPeriodApiRecord,
   operation: string,
 ): void {
-  if (period.archiveStatus === "archived") {
+  if (period.archiveStatus !== "active") {
     throw archivedFiscalPeriodError(
       `Archived fiscal period ${period.id} cannot ${operation}`,
     );
@@ -66,13 +54,7 @@ export function assertPeriodPhase(
   expectedPhase: FiscalPeriodApiPhase,
   operation: string,
 ): void {
-  assertMutableFiscalPeriod(period, operation);
-  if (period.phase !== expectedPhase) {
-    throw serverConflictError(
-      `Fiscal period ${period.id} cannot ${operation} from phase ${period.phase}`,
-      "会計期間の状態が変わったため、この操作を実行できません",
-    );
-  }
+  assertPeriodPhaseOneOf(period, [expectedPhase], operation);
 }
 
 export function assertPeriodPhaseOneOf(
@@ -106,26 +88,15 @@ export function assertClosingYear(
 export function assertFiscalPeriodReadyForPreClosing(
   period: FiscalPeriodApiRecord,
 ): void {
-  if (!period.settingsCompleted) {
-    throw serverConflictError(
-      `Fiscal period ${period.id} cannot run pre-closing before settings are completed`,
-      "会計期間の設定を完了してから仮締めしてください",
-    );
-  }
   if (!period.openingBalancesCompleted) {
     throw serverConflictError(
       `Fiscal period ${period.id} cannot run pre-closing before opening balances are completed`,
       "期首残高を完了してから仮締めしてください",
     );
   }
-  for (const journal of period.opening.openingJournals) {
-    assertEntryLinesBalanced(journal.lines, "Opening journal", {
-      allowZero: false,
-    });
-    for (const line of journal.lines) {
-      assertEntryLineMatchesRules(line, "Opening journal");
-    }
-  }
+  assertOpeningMatchesRules(period.opening, period, "Opening", {
+    completed: true,
+  });
 }
 
 export function archivedFiscalPeriodError(messageForDeveloper: string) {
@@ -255,10 +226,6 @@ export function assertFiscalPeriodPatchInput(
     assertString(value.endDate, "Fiscal period end date");
   }
   assertOptionalBoolean(
-    value.settingsCompleted,
-    "Fiscal period settingsCompleted",
-  );
-  assertOptionalBoolean(
     value.openingBalancesCompleted,
     "Fiscal period openingBalancesCompleted",
   );
@@ -271,154 +238,36 @@ export function assertFiscalPeriodPatchInput(
   const endDate =
     value.endDate === undefined ? current.endDate : value.endDate;
   assertDateRange(startDate, endDate, "Fiscal period");
-  const openingWillBeCompleted =
-    value.openingBalancesCompleted === true ||
-    (value.openingBalancesCompleted === undefined &&
-      current.openingBalancesCompleted);
-
-  const patchedOpening = value.opening;
-  let opening: FiscalPeriodOpeningInput | null = null;
-  if (patchedOpening !== undefined) {
-    assertOpeningPatchInput(patchedOpening, {
-      current,
-      startDate,
-      endDate,
-      openingWillBeCompleted,
-    });
-    opening = patchedOpening;
+  const opening = value.opening === undefined ? current.opening : value.opening;
+  assertOpeningMatchesRules(opening, { startDate, endDate }, "Opening", {
+    completed:
+      typeof value.openingBalancesCompleted === "boolean"
+        ? value.openingBalancesCompleted
+        : current.openingBalancesCompleted,
+  });
+  if (value.opening !== undefined) {
+    assertOpeningTextChanges(opening, current.opening);
   }
-  const effectiveOpening = opening ?? current.opening;
-  for (const journal of effectiveOpening.openingJournals) {
-    if (journal.date < startDate || journal.date > endDate) {
-      throw serverValidationError(
-        `Opening journal date ${journal.date} must be within fiscal period ${startDate} to ${endDate}`,
-        "期首仕訳の日付を会計期間内にしてください",
-      );
-    }
-  }
-  const mustValidateCompletedOpening =
-    value.openingBalancesCompleted === true ||
-    (current.openingBalancesCompleted && opening != null);
-  if (!mustValidateCompletedOpening) return;
-  assertCompletedOpening(effectiveOpening, "Opening");
 }
 
-function assertOpeningPatchInput(
-  opening: unknown,
-  context: {
-    current: FiscalPeriodApiRecord;
-    startDate: string;
-    endDate: string;
-    openingWillBeCompleted: boolean;
-  },
-): asserts opening is FiscalPeriodOpeningInput {
-  const { current, startDate, endDate, openingWillBeCompleted } = context;
-  const value = requireObject(opening, "Opening data");
-  if (
-    !Array.isArray(value.openingBalanceLines) ||
-    !Array.isArray(value.openingJournals)
-  ) {
-    throw serverValidationError("Opening data must contain line arrays", null);
-  }
-  assertEntryCollectionItemLimit(
-    value.openingBalanceLines,
-    "Opening balance lines",
-    "期首残高の明細件数が多すぎます",
-  );
-  assertEntryCollectionItemLimit(
-    value.openingJournals,
-    "Opening journals",
-    "期首再振替の件数が多すぎます",
-  );
-  assertEntryCollectionLineLimit(
-    value.openingJournals,
-    "Opening journal lines",
-    "期首再振替の明細数が多すぎます",
-  );
-  assertNonBlankString(value.id, "Opening id");
-  assertNonBlankString(value.userId, "Opening user id");
-  assertNonBlankString(value.fiscalPeriodId, "Opening fiscal period id");
-  if (value.id !== current.opening.id) {
-    throw serverValidationError(
-      `Opening id ${value.id} must match existing opening ${current.opening.id}`,
-      "期首データの識別子が一致しません",
-    );
-  }
-  if (
-    value.userId !== current.userId ||
-    value.fiscalPeriodId !== current.id
-  ) {
-    throw serverValidationError(
-      "Opening ownership must match the fiscal period",
-      "期首データの会計期間情報が一致しません",
-    );
-  }
-  for (const item of value.openingBalanceLines) {
-    const line = requireObject(item, "Opening balance line");
-    assertNonBlankString(line.accountId, "Opening balance account");
-    assertOpeningBalanceAccountId(line.accountId, "Opening balance accountId");
-    assertNonBlankString(line.id, "Opening balance line id");
-    assertNonNegativeSafeInteger(line.amount, "Opening balance amount");
-  }
-  assertUniqueStrings(
-    value.openingBalanceLines.map((line) => line.accountId),
-    "Opening balance accountId",
-    "同じ勘定科目の期首残高が重複しています",
-  );
-  assertUniqueIds(
-    value.openingBalanceLines,
-    "Opening balance line",
-    "同じ識別子のデータが重複しています",
-  );
-  assertUniqueIds(
-    value.openingJournals,
-    "Opening journal",
-    "同じ識別子のデータが重複しています",
-  );
+function assertOpeningTextChanges(
+  opening: FiscalPeriodOpeningApiRecord,
+  current: FiscalPeriodOpeningApiRecord,
+): void {
   const savedJournals = new Map(
-    current.opening.openingJournals.map((journal) => [journal.id, journal]),
+    current.openingJournals.map((journal) => [journal.id, journal]),
   );
-  for (const item of value.openingJournals) {
-    const journal = requireObject(item, "Opening journal");
-    if (!Array.isArray(journal.lines)) {
-      throw serverValidationError(
-        "Opening journal must contain a lines array",
-        null,
-      );
-    }
-    assertNonBlankString(journal.id, "Opening journal id");
+  for (const journal of opening.openingJournals) {
     const savedJournal = savedJournals.get(journal.id) ?? null;
     assertTextFieldChange(
       journal.description,
       savedJournal?.description ?? null,
       "Opening journal description",
     );
-    if (openingWillBeCompleted) {
-      assertNonBlankString(journal.description, "Opening journal description");
-    }
-    assertIsoDate(journal.date, "Opening journal date");
-    if (journal.date < startDate || journal.date > endDate) {
-      throw serverValidationError(
-        `Opening journal date ${journal.date} must be within fiscal period ${startDate} to ${endDate}`,
-        "期首仕訳の日付を会計期間内にしてください",
-      );
-    }
-    assertUnitRate(journal.businessRate, "Opening journal business rate");
-    assertUniqueIds(
-      journal.lines,
-      `Opening journal ${journal.id} line`,
-      "同じ識別子のデータが重複しています",
-    );
     const savedLines = new Map(
       savedJournal?.lines.map((line) => [line.id, line]) ?? [],
     );
-    for (const lineItem of journal.lines) {
-      const line = requireObject(lineItem, "Opening journal line");
-      assertNonBlankString(
-        line.bookAccountId,
-        "Opening journal line book account",
-      );
-      assertNonBlankString(line.id, "Opening journal line id");
+    for (const line of journal.lines) {
       const savedLine = savedLines.get(line.id) ?? null;
       assertTextFieldChange(
         line.partnerName,
@@ -435,13 +284,6 @@ function assertOpeningPatchInput(
         savedLine?.businessCategoryId ?? null,
         "Opening journal line business category",
       );
-      assertNonNegativeSafeInteger(line.amount, "Opening journal line amount");
-    }
-    assertEntryLinesBalanced(journal.lines, "Opening journal", {
-      allowZero: !openingWillBeCompleted,
-    });
-    for (const line of journal.lines) {
-      assertEntryLineMatchesRules(line, "Opening journal");
     }
   }
 }

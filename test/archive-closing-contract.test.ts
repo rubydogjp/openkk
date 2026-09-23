@@ -27,8 +27,8 @@ describe("archived closing reports", () => {
         startDate: "2026-01-01",
         endDate: "2026-12-31",
       });
+      await server.fiscalPeriods.start(period.id);
       await server.fiscalPeriods.patch(period.id, {
-        settingsCompleted: true,
         openingBalancesCompleted: true,
       });
       let asset = await server.fixedAssets.create(period.id, {

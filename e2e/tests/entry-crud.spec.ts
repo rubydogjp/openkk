@@ -10,6 +10,7 @@ test.describe("entry CRUD", () => {
     await createFiscalPeriod(page, `仕訳CRUD検証 ${Date.now()}`);
     await advanceToJournalizing(page);
     await page.getByRole("link", { name: "仕訳" }).click();
+    await expect(page).toHaveURL(/\/entries\/?/);
   });
 
   test("manually creates an entry and it appears in the list", async ({

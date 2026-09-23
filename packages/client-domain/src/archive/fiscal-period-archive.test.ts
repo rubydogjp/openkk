@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import { AppError } from "../shared/app-error.js";
 import {
   assertFiscalPeriodArchiveByteLength,
+  MAX_FISCAL_PERIOD_ARCHIVE_BYTES,
+} from "./fiscal-period-archive-zip.js";
+import {
   FISCAL_PERIOD_ARCHIVE_FORMAT,
   FISCAL_PERIOD_ARCHIVE_VERSION,
-  MAX_FISCAL_PERIOD_ARCHIVE_BYTES,
   buildFiscalPeriodArchiveFilename,
   buildFiscalPeriodArchivePayload,
   createFiscalPeriodArchiveZip,

@@ -42,6 +42,7 @@ export interface FiscalPeriodsDb {
     id: string,
     patch: FiscalPeriodDbPatchInput,
   ): Promise<FiscalPeriodDbRecord>;
+  start(id: string): Promise<FiscalPeriodDbRecord>;
   archive(id: string): Promise<FiscalPeriodDbRecord>;
   purgeArchivedData(id: string): Promise<FiscalPeriodDbRecord>;
   delete(id: string): Promise<void>;
@@ -57,7 +58,6 @@ export interface EntriesDb {
   ): Promise<EntryDbRecord>;
   update(id: string, input: EntryDbUpsertInput): Promise<EntryDbRecord>;
   delete(id: string): Promise<void>;
-  /** Skips `localId` values already present in the fiscal period. */
   importMany(
     userId: string,
     fiscalPeriodId: string,

@@ -1,4 +1,5 @@
 import type { EntryRecord } from "../entries/entry-record.js";
+import type { FiscalPeriodOpeningBalanceLine } from "../shared/models.js";
 import { parseAmount } from "../shared/parse-utils.js";
 import { OPENING_EQUITY_LABELS } from "../steps/summary.js";
 
@@ -26,61 +27,8 @@ export type FsAggregate = {
   amounts: Record<number, number | null>;
   bsRows: FsBsRow[];
   expenseWriteIns: FsExpenseWriteIn[];
-  nextPeriodOpeningBalanceLines: OpeningBalanceLine[];
   summary: FsSummary;
 };
-
-export type OpeningBalanceLine = { accountId: string; amount: number };
-
-type ClosingBalance = {
-  side: "asset" | "liability";
-  accountName: string;
-  amount: number;
-};
-
-function buildNextPeriodOpeningBalanceLines(
-  closingBalances: Iterable<ClosingBalance>,
-): OpeningBalanceLine[] {
-  const amounts = new Map<string, number>();
-  const fold = (accountId: string, amount: number) => {
-    amounts.set(accountId, (amounts.get(accountId) ?? 0) + amount);
-  };
-
-  for (const { side, accountName, amount } of closingBalances) {
-    if (
-      accountName === "事業主貸" ||
-      accountName === "事業主借" ||
-      accountName === "元入金" ||
-      accountName === "青色申告特別控除前の所得金額"
-    ) {
-      fold("l:元入金", side === "asset" ? -amount : amount);
-      continue;
-    }
-    if (amount === 0) continue;
-    const prefix = side === "asset" ? "a" : "l";
-    if (amount > 0) {
-      fold(`${prefix}:${accountName}`, amount);
-    } else {
-      fold(
-        `${prefix === "a" ? "l" : "a"}:${accountName}`,
-        Math.abs(amount),
-      );
-    }
-  }
-
-  const carriedCapital = amounts.get("l:元入金") ?? 0;
-  if (carriedCapital < 0) {
-    amounts.delete("l:元入金");
-    fold("a:事業主貸", Math.abs(carriedCapital));
-  }
-
-  return [...amounts.entries()]
-    .filter(([, amount]) => amount > 0)
-    .map(([accountId, amount]) => ({
-      accountId,
-      amount,
-    }));
-}
 
 function add(map: Map<string, number>, name: string, delta: number) {
   if (!name) return;
@@ -112,7 +60,7 @@ export function computeFsAggregate({
   openingBalanceLines,
 }: {
   entries: EntryRecord[];
-  openingBalanceLines: OpeningBalanceLine[];
+  openingBalanceLines: FiscalPeriodOpeningBalanceLine[];
 }): FsAggregate {
   const revenueByName = new Map<string, number>();
   const expenseByName = new Map<string, number>();
@@ -489,34 +437,6 @@ export function computeFsAggregate({
     profit +
     allowanceClosing;
 
-  const nextPeriodOpeningBalanceLines = buildNextPeriodOpeningBalanceLines([
-    ...[...assetClosingByName].map(([accountName, amount]) => ({
-      side: "asset" as const,
-      accountName,
-      amount,
-    })),
-    ...[...liabilityClosingByName].map(([accountName, amount]) => ({
-      side: "liability" as const,
-      accountName,
-      amount,
-    })),
-    ...[...equityClosingByName].map(([accountName, amount]) => ({
-      side: "liability" as const,
-      accountName,
-      amount,
-    })),
-    {
-      side: "liability",
-      accountName: ALLOWANCE_FOR_DOUBTFUL,
-      amount: allowanceClosing,
-    },
-    {
-      side: "liability",
-      accountName: "青色申告特別控除前の所得金額",
-      amount: profit,
-    },
-  ]);
-
   const r = (
     al: string,
     ao: number | null,
@@ -715,7 +635,6 @@ export function computeFsAggregate({
     amounts,
     bsRows,
     expenseWriteIns,
-    nextPeriodOpeningBalanceLines,
     summary,
   };
 }

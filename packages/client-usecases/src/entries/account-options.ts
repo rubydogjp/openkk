@@ -1,6 +1,6 @@
 import type {
-  MasterBookAccount,
-  MasterBookAccountBalanceSheetSection,
+  MasterBookAccountApiRecord,
+  MasterBookAccountApiBalanceSheetSection,
 } from "@rubydogjp/openkk-client-ports";
 import type { BookAccountType } from "@rubydogjp/openkk-client-domain";
 
@@ -9,11 +9,11 @@ export type EntryMasterAccountOption = {
   name: string;
   selectionLabel: string;
   accountType: BookAccountType;
-  balanceSheetSection: MasterBookAccountBalanceSheetSection;
+  balanceSheetSection: MasterBookAccountApiBalanceSheetSection;
 };
 
 const BALANCE_SHEET_SECTION_LABELS: Record<
-  MasterBookAccountBalanceSheetSection,
+  MasterBookAccountApiBalanceSheetSection,
   string
 > = {
   current_asset: "流動資産",
@@ -26,9 +26,9 @@ const BALANCE_SHEET_SECTION_LABELS: Record<
 };
 
 export function buildEntryMasterAccountOptions(
-  accounts: ReadonlyArray<MasterBookAccount>,
+  accounts: ReadonlyArray<MasterBookAccountApiRecord>,
 ): EntryMasterAccountOption[] {
-  const groupedAccounts = new Map<string, MasterBookAccount[]>();
+  const groupedAccounts = new Map<string, MasterBookAccountApiRecord[]>();
   for (const account of accounts) {
     const key = `${account.accountType}:${account.name}`;
     const group = groupedAccounts.get(key) ?? [];
@@ -49,8 +49,8 @@ export function buildEntryMasterAccountOptions(
 }
 
 function accountDisambiguation(
-  account: MasterBookAccount,
-  group: ReadonlyArray<MasterBookAccount>,
+  account: MasterBookAccountApiRecord,
+  group: ReadonlyArray<MasterBookAccountApiRecord>,
 ): string {
   if (group.length <= 1) return "";
   const sectionLabel = BALANCE_SHEET_SECTION_LABELS[account.balanceSheetSection];

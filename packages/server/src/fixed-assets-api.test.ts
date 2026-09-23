@@ -11,10 +11,10 @@ import type {
   FixedAssetApiRecord,
   FixedAssetCreateInput,
   FixedAssetPatchInput,
-  MasterBookAccount,
-  MasterBusinessCategory,
-  MasterTaxCategory,
-  OpeningApiRecord,
+  MasterBookAccountDbRecord,
+  MasterBusinessCategoryDbRecord,
+  MasterTaxCategoryDbRecord,
+  FiscalPeriodOpeningApiRecord,
   OpenkkDbPort,
 } from "@rubydogjp/openkk-server-ports";
 
@@ -469,15 +469,12 @@ function createFixedAssetDb(
           id,
           ...rest,
           ...(opening != null
-            ? {
-                opening: {
-                  ...opening,
-                  createdAt: TEST_TIMESTAMP,
-                  updatedAt: TEST_TIMESTAMP,
-                },
-              }
+            ? { opening: { ...fiscalPeriod({ id }).opening, ...opening } }
             : {}),
         });
+      },
+      async start(id: string) {
+        return fiscalPeriod({ id, phase: "journalizing" });
       },
       async archive(id: string) {
         return fiscalPeriod({ id, archiveStatus: "archived" });
@@ -485,8 +482,7 @@ function createFixedAssetDb(
       async purgeArchivedData(id: string) {
         return fiscalPeriod({
           id,
-          archiveStatus: "archived",
-          archiveDataAvailable: false,
+          archiveStatus: "purged",
         });
       },
       async delete() {},
@@ -590,13 +586,15 @@ function createFixedAssetDb(
       },
     },
     masterData: {
-      async getBookAccounts(): Promise<MasterBookAccount[]> {
+      async getBookAccounts(): Promise<MasterBookAccountDbRecord[]> {
         return [];
       },
-      async getTaxCategories(): Promise<MasterTaxCategory[]> {
+      async getTaxCategories(): Promise<MasterTaxCategoryDbRecord[]> {
         return [];
       },
-      async getBusinessCategories(): Promise<MasterBusinessCategory[]> {
+      async getBusinessCategories(): Promise<
+        MasterBusinessCategoryDbRecord[]
+      > {
         return [];
       },
     },
@@ -622,35 +620,22 @@ function fiscalPeriod(
     endDate: "2026-12-31",
     phase: "journalizing",
     archiveStatus: "active",
-    settingsCompleted: true,
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,
-    opening: emptyOpening("fp-1", "user-1"),
+    opening: emptyOpening(),
     createdAt: TEST_TIMESTAMP,
     updatedAt: TEST_TIMESTAMP,
-    archiveDataAvailable: true,
     archivedAt: null,
   };
   const period = Object.assign(base, overrides);
   return {
     ...period,
-    opening: overrides.opening ?? emptyOpening(period.id, period.userId),
+    opening: overrides.opening ?? emptyOpening(),
   };
 }
 
-function emptyOpening(
-  fiscalPeriodId: string,
-  userId: string,
-): OpeningApiRecord {
-  return {
-    id: `op-${fiscalPeriodId}`,
-    userId,
-    fiscalPeriodId,
-    createdAt: TEST_TIMESTAMP,
-    updatedAt: TEST_TIMESTAMP,
-    openingBalanceLines: [],
-    openingJournals: [],
-  };
+function emptyOpening(): FiscalPeriodOpeningApiRecord {
+  return { openingBalanceLines: [], openingJournals: [] };
 }
 
 function entry(overrides: Partial<EntryApiRecord>): EntryApiRecord {

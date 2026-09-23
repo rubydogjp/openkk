@@ -7,6 +7,10 @@ import { AmountInput } from "../shared/amount-field.js";
 import { DatePickerButton } from "../shared/date-picker.js";
 import { ExclusiveActionLock } from "../shared/exclusive-action-lock.js";
 import { useModalLifecycle } from "../shared/dismissible-layer.js";
+import {
+  DRAWER_SLIDE_IN_ANIMATION,
+  DRAWER_SLIDE_IN_KEYFRAMES,
+} from "../shared/drawer-frame.js";
 import { debugAppError } from "../shared/app-error-text.js";
 import { safeUserErrorMessage } from "../shared/safe-error-message.js";
 import {
@@ -24,6 +28,8 @@ import {
   type QuickGuidePage,
   mergeOptions,
   type QuickGuideTemplate,
+  MAX_ENTRY_LINES,
+  parseAmount,
 } from "@rubydogjp/openkk-client-domain";
 import { QuickGuidePanel, QuickGuideTriggerButton } from "./quick-guide-panel.js";
 import {
@@ -54,10 +60,6 @@ import type {
   EntryMasterCategoryOption,
   EntrySuggestions,
 } from "@rubydogjp/openkk-client-usecases";
-import {
-  MAX_ENTRY_LINES,
-  parseAmount,
-} from "@rubydogjp/openkk-client-domain";
 import {
   validateEntryAmounts,
   validateBusinessRate,
@@ -432,15 +434,12 @@ export function EntryEditDrawer(props: {
           zIndex: 50,
           display: "flex",
           flexDirection: "column",
-          animation: "bk-drawer-slide-in 220ms cubic-bezier(0.2, 0, 0, 1)",
+          animation: DRAWER_SLIDE_IN_ANIMATION,
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <style>{`
-          @keyframes bk-drawer-slide-in {
-            from { transform: translateX(100%); }
-            to { transform: translateX(0); }
-          }
+          ${DRAWER_SLIDE_IN_KEYFRAMES}
           .bk-d-input { box-shadow: ${shadows.inputInset}; }
           .bk-d-input:focus {
             border-color: ${entryDrawerColors.blue} !important;
@@ -452,7 +451,7 @@ export function EntryEditDrawer(props: {
 
         <header
           style={{
-            height: 52,
+            height: sizes.drawer.headerHeight,
             padding: "0 20px",
             background: entryDrawerColors.bg,
             borderBottom: `1px solid ${entryDrawerColors.border}`,

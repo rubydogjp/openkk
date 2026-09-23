@@ -1,15 +1,10 @@
 import { AppError } from "../shared/app-error.js";
 import {
-  assertFiscalPeriodArchiveByteLength,
   createStoredZip,
   invalidArchiveContentError,
-  MAX_FISCAL_PERIOD_ARCHIVE_BYTES,
-  MAX_FISCAL_PERIOD_ARCHIVE_FILE_BYTES,
   readStoredZip,
   type ArchiveZipFile,
 } from "./fiscal-period-archive-zip.js";
-
-export { assertFiscalPeriodArchiveByteLength, MAX_FISCAL_PERIOD_ARCHIVE_BYTES, MAX_FISCAL_PERIOD_ARCHIVE_FILE_BYTES };
 
 export const FISCAL_PERIOD_ARCHIVE_FORMAT = "openkk.fiscal-period-archive";
 export const FISCAL_PERIOD_ARCHIVE_VERSION = 2;

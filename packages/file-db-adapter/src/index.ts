@@ -39,7 +39,6 @@ async function createWorkerSqlDb(
     else entry.reject(new Error(response.error));
   };
 
-  // Worker failures have no matching response for pending requests.
   function failWorker(reason: string): void {
     if (fatalError != null) return;
     const error = new Error(reason);
@@ -75,7 +74,6 @@ async function createWorkerSqlDb(
   return { exec: (arg) => send("exec", arg) };
 }
 
-// SAHPool permits one handle per file.
 let cachedAdapter: Promise<OpenkkDbPort> | null = null;
 let cachedAdapterKey: string | null = null;
 

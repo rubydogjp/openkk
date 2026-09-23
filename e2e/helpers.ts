@@ -25,7 +25,6 @@ export async function expectStep(page: Page, title: string) {
   });
 }
 
-// 締めなどアニメーション中は描き直しが続くため、アプリの申告する busy 属性に従う。
 export async function waitUntilSettled(page: Page) {
   await page.waitForSelector('html[data-openkk-busy="0"]', {
     timeout: 60_000,
@@ -49,7 +48,6 @@ export async function disablePrintBeforeFirstNavigation(page: Page) {
   });
 }
 
-// Sim は期末月で開くため、前進だけでは過去月に届かない。最古月まで戻してから進む。
 export async function goToMonth(page: Page, label: string) {
   const target = page.getByText(label).first();
   const prev = page.getByRole("button", { name: "前の月" });

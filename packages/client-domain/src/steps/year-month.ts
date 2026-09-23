@@ -12,15 +12,19 @@ export function compareYearMonth(left: YearMonth, right: YearMonth): number {
   return left.month - right.month;
 }
 
+export function formatYearMonthKey(value: YearMonth): string {
+  return `${value.year}-${String(value.month).padStart(2, "0")}`;
+}
+
 export function buildYearMonthRange(
   start: YearMonth,
   end: YearMonth,
-): Array<YearMonth & { key: string }> {
-  const months: Array<YearMonth & { key: string }> = [];
+): YearMonth[] {
+  const months: YearMonth[] = [];
   let year = start.year;
   let month = start.month;
   while (year < end.year || (year === end.year && month <= end.month)) {
-    months.push({ year, month, key: `${year}-${String(month).padStart(2, "0")}` });
+    months.push({ year, month });
     month += 1;
     if (month > 12) {
       month = 1;

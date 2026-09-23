@@ -47,14 +47,14 @@ function StepsStepperHost({ pathname }: { pathname: string }) {
   }
 
   if (
-    currentFiscalPeriod.archiveStatus === "archived" &&
+    currentFiscalPeriod.archiveStatus !== "active" &&
     pathname !== "/steps/next-fiscal-period"
   ) {
     return <ArchivedFiscalPeriodScreen fiscalPeriod={currentFiscalPeriod} />;
   }
 
   const steps = deriveSteps({
-    settingsCompleted: currentFiscalPeriod.settingsCompleted,
+    started: currentFiscalPeriod.phase !== "pre_opening",
     openingBalancesCompleted: currentFiscalPeriod.openingBalancesCompleted,
     hasAnyClosing:
       currentFiscalPeriod.phase === "pre_closing" ||

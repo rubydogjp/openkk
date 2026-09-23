@@ -7,8 +7,6 @@ import { PreviewScaffold } from "../../../print/preview-scaffold.js";
 import {
   buildFinancialStatementsBody,
   buildFinancialStatementsDocument,
-} from "@rubydogjp/openkk-client-domain";
-import {
   FINANCIAL_STATEMENTS_EXAMPLE_AMOUNTS,
   FINANCIAL_STATEMENTS_EXAMPLE_BS_ROWS,
   FINANCIAL_STATEMENTS_EXAMPLE_FP_NAME,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { AppError, jsonToAppError, type AppErrorPatch } from "./app-error.js";
+import { AppError } from "./app-error.js";
 
 describe("AppError", () => {
   it("keeps existing client AppError instances", () => {
@@ -57,70 +57,5 @@ describe("AppError", () => {
     expect(appError.messageForUser).toBe("fallback user");
     expect(appError.originalMessage).toBe("raw failure");
     expect(appError.statusCode).toBe(500);
-  });
-
-  it("copyWith can clear originalMessage / statusCode to null", () => {
-    const original = new AppError({
-      messageForDeveloper: "developer",
-      messageForUser: "ユーザー向け",
-      originalMessage: "raw",
-      statusCode: 409,
-      code: null,
-    });
-
-    const cleared = original.copyWith({
-      originalMessage: null,
-      statusCode: null,
-    });
-    expect(cleared.originalMessage).toBeNull();
-    expect(cleared.statusCode).toBeNull();
-    expect(cleared.messageForDeveloper).toBe("developer");
-    expect(cleared.messageForUser).toBe("ユーザー向け");
-    const same = original.copyWith({});
-    expect(same.originalMessage).toBe("raw");
-    expect(same.statusCode).toBe(409);
-  });
-
-  it("copyWith ignores undefined values for every required field", () => {
-    const original = new AppError({
-      messageForDeveloper: "developer",
-      messageForUser: "ユーザー向け",
-      originalMessage: "raw",
-      statusCode: 409,
-      code: null,
-    });
-    const copied = original.copyWith({
-      messageForDeveloper: undefined,
-      messageForUser: undefined,
-      originalMessage: undefined,
-      statusCode: undefined,
-      code: undefined,
-    } as unknown as AppErrorPatch);
-
-    expect(copied.toJson()).toEqual(original.toJson());
-  });
-
-  it("rejects malformed API error JSON", () => {
-    const appError = jsonToAppError({
-      messageForUser: "missing developer message",
-      originalMessage: null,
-      statusCode: 400,
-    });
-
-    expect(appError.messageForDeveloper).toContain("jsonToAppError.error");
-    expect(appError.messageForUser).toBe("エラー情報の解析に失敗しました");
-    expect(appError.originalMessage).toContain("invalid AppError JSON");
-  });
-
-  it("returns a valid AppError for circular malformed JSON", () => {
-    const circular: Record<string, unknown> = {};
-    circular.self = circular;
-
-    const appError = jsonToAppError(circular);
-
-    expect(appError).toBeInstanceOf(AppError);
-    expect(appError.messageForDeveloper).toContain("<unprintable>");
-    expect(appError.messageForUser).toBe("エラー情報の解析に失敗しました");
-    expect(appError.originalMessage).toContain("invalid AppError JSON");
   });
 });

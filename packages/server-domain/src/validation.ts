@@ -1,4 +1,5 @@
 import { serverValidationError } from "./app-error.js";
+import type { EntrySide } from "./models.js";
 
 export const MAX_ENTRY_IMPORT_ITEMS = 10_000;
 export const MAX_ENTRY_IMPORT_LINES = 100_000;
@@ -6,7 +7,7 @@ export const MAX_ENTRY_LINES = 1_000;
 export const MAX_FIXED_ASSET_USEFUL_LIFE_YEARS = 100;
 export const MAX_TEXT_FIELD_LENGTH = 400;
 
-export type EntryLineBalance = { side: "debit" | "credit"; amount: number };
+type EntryLineBalance = { side: EntrySide; amount: number };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (typeof value !== "object" || value == null || Array.isArray(value)) {
@@ -256,85 +257,6 @@ export function assertEntryLinesBalanced(
     throw serverValidationError(
       `${label} debit total (${debitTotal}) must equal credit total (${creditTotal})`,
       "借方と貸方の合計を一致させてください",
-    );
-  }
-}
-
-export function assertOpeningBalanceAccountId(
-  accountId: string,
-  label: string,
-): void {
-  const hasValidPrefix =
-    accountId.startsWith("a:") || accountId.startsWith("l:");
-  const accountName = accountId.slice(2);
-  if (
-    !hasValidPrefix ||
-    accountName.trim() === "" ||
-    accountName !== accountName.trim()
-  ) {
-    throw serverValidationError(
-      `${label} must contain an a: or l: prefix and a non-blank account name: ${accountId}`,
-      "期首残高の勘定科目が不正です",
-    );
-  }
-}
-
-export type OpeningRuleJournal = {
-  description: string;
-  lines: ReadonlyArray<EntryLineBalance>;
-};
-
-export function assertCompletedOpening(
-  opening: {
-    openingBalanceLines: ReadonlyArray<{ accountId: string; amount: number }>;
-    openingJournals: ReadonlyArray<OpeningRuleJournal>;
-  },
-  label: string,
-): void {
-  for (const journal of opening.openingJournals) {
-    if (journal.description.trim() === "") {
-      throw serverValidationError(
-        `${label} journal description is required`,
-        "期首仕訳の摘要を入力してください",
-      );
-    }
-    assertEntryLinesBalanced(journal.lines, `${label} journal`, {
-      allowZero: false,
-    });
-  }
-  assertOpeningBalancesBalanced(
-    opening.openingBalanceLines,
-    `${label} balances`,
-  );
-}
-
-function assertOpeningBalancesBalanced(
-  lines: ReadonlyArray<{ accountId: string; amount: number }>,
-  label: string,
-): void {
-  let assetTotal = 0;
-  let liabilityAndEquityTotal = 0;
-  for (const line of lines) {
-    assertOpeningBalanceAccountId(line.accountId, `${label} accountId`);
-    if (line.accountId.startsWith("a:")) {
-      assetTotal += line.amount;
-    } else {
-      liabilityAndEquityTotal += line.amount;
-    }
-    if (
-      !Number.isSafeInteger(assetTotal) ||
-      !Number.isSafeInteger(liabilityAndEquityTotal)
-    ) {
-      throw serverValidationError(
-        `${label} totals exceed the safe integer range`,
-        "期首残高の合計金額が大きすぎます",
-      );
-    }
-  }
-  if (assetTotal !== liabilityAndEquityTotal) {
-    throw serverValidationError(
-      `${label} must balance: assets ${assetTotal}, liabilities and equity ${liabilityAndEquityTotal}`,
-      "期首残高の資産合計と負債・元入金合計を一致させてください",
     );
   }
 }

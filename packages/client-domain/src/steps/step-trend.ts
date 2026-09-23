@@ -1,9 +1,13 @@
+import type { EntryRecord } from "../entries/entry-record.js";
 import {
   computeExpenseContribution,
   computeRevenueContribution,
-  type EntrySummaryRow,
 } from "./summary.js";
-import { buildYearMonthRange, parseYearMonth } from "./year-month.js";
+import {
+  buildYearMonthRange,
+  formatYearMonthKey,
+  parseYearMonth,
+} from "./year-month.js";
 
 export type StepTrendPoint = {
   label: string;
@@ -15,7 +19,7 @@ export type StepTrendPoint = {
 };
 
 export function buildStepTrendPoints(input: {
-  entries: Array<EntrySummaryRow & { date: string }>;
+  entries: EntryRecord[];
   startDate: string;
   endDate: string;
   today: Date;
@@ -26,7 +30,7 @@ export function buildStepTrendPoints(input: {
   );
   const totals = new Map<string, { revenue: number; expenses: number }>();
   for (const month of months) {
-    totals.set(month.key, { revenue: 0, expenses: 0 });
+    totals.set(formatYearMonthKey(month), { revenue: 0, expenses: 0 });
   }
   for (const entry of input.entries) {
     const key = entry.date.slice(0, 7);
@@ -36,15 +40,19 @@ export function buildStepTrendPoints(input: {
     bucket.revenue += computeRevenueContribution(entry, rate);
     bucket.expenses += computeExpenseContribution(entry, rate);
   }
-  const todayKey = `${input.today.getFullYear()}-${String(input.today.getMonth() + 1).padStart(2, "0")}`;
+  const todayKey = formatYearMonthKey({
+    year: input.today.getFullYear(),
+    month: input.today.getMonth() + 1,
+  });
   return months.map((month) => {
-    const total = totals.get(month.key) ?? { revenue: 0, expenses: 0 };
+    const key = formatYearMonthKey(month);
+    const total = totals.get(key) ?? { revenue: 0, expenses: 0 };
     return {
       label: `${month.month}月`,
       revenue: total.revenue,
       expenses: total.expenses,
       profit: total.revenue - total.expenses,
-      isCurrent: month.key === todayKey,
+      isCurrent: key === todayKey,
     };
   });
 }

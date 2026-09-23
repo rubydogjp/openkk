@@ -75,7 +75,7 @@ export function FiscalPeriodSettingsBody({
   const canSave = useMemo(() => {
     return (
       currentFiscalPeriod != null &&
-      !currentFiscalPeriod.settingsCompleted &&
+      currentFiscalPeriod.phase === "pre_opening" &&
       !editingLocked &&
       name.trim() !== "" &&
       startDate.trim() !== "" &&
@@ -104,7 +104,7 @@ export function FiscalPeriodSettingsBody({
   const isPeriodLocked =
     currentFiscalPeriod.phase === "post_closing" ||
     currentFiscalPeriod.phase === "pre_closing";
-  const isStarted = currentFiscalPeriod.settingsCompleted;
+  const isStarted = currentFiscalPeriod.phase !== "pre_opening";
   const isReadOnly = isStarted || isPeriodLocked || editingLocked;
   const lockMessage = editingLocked
     ? (resolveEditingPolicy(config.editingPolicy).lockedNotice ??
@@ -137,21 +137,17 @@ export function FiscalPeriodSettingsBody({
     try {
       const updated = await appState.updateFiscalPeriod(
         currentFiscalPeriod.id,
-        {
-          name,
-          startDate,
-          endDate,
-          settingsCompleted: true,
-        },
+        { name, startDate, endDate },
       );
       if (!updated) return;
+      await appState.startFiscalPeriod(currentFiscalPeriod.id);
       setScreenError(null);
     } catch (error) {
       setScreenError(
         AppError.from(error, {
-          fallbackUserMessage: "期間の更新に失敗しました",
+          fallbackUserMessage: "期間の開始に失敗しました",
           fallbackDeveloperMessage:
-            "steps/fiscal-period-settings: updateFiscalPeriod failed",
+            "steps/fiscal-period-settings: start failed",
           statusCode: null,
         }),
       );

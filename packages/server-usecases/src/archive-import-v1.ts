@@ -1,205 +1,100 @@
-import {
-  DEFAULT_BUSINESS_CATEGORIES,
-  DEFAULT_TAX_CATEGORIES,
-  requireObject,
-  serverValidationError,
-} from "@rubydogjp/openkk-server-domain";
+import { requireObject } from "@rubydogjp/openkk-server-domain";
 import type { FiscalPeriodArchiveContent } from "./archive-import.js";
+
+const TAX_CATEGORY_IDS: Readonly<Record<string, string>> = {
+  "課税 10%": "tax_10",
+  "軽減税率 8%": "tax_8",
+  免税: "tax_exempt",
+  非課税: "tax_non_taxable",
+  対象外: "tax_out_of_scope",
+};
+
+const BUSINESS_CATEGORY_IDS: Readonly<Record<string, string>> = {
+  "第1種（卸売業）": "biz_1",
+  "第2種（小売業等）": "biz_2",
+  "第3種（製造業等）": "biz_3",
+  "第4種（その他）": "biz_4",
+  "第5種（サービス業等）": "biz_5",
+  "第6種（不動産業）": "biz_6",
+  対象外: "biz_none",
+};
 
 export function migrateFiscalPeriodArchiveV1(
   content: FiscalPeriodArchiveContent,
-  sourceFiscalPeriodId: string,
 ): FiscalPeriodArchiveContent {
   return {
     fiscalPeriod: {
       ...content.fiscalPeriod,
+      phase: migratePhase(content.fiscalPeriod),
       opening: migrateOpening(content.fiscalPeriod.opening),
     },
     entries: content.entries.map((value) => {
       const entry = requireObject(value, "archive entry");
       return {
         ...entry,
-        fiscalPeriodId: childFiscalPeriodId(
-          entry.fiscalPeriodId,
-          sourceFiscalPeriodId,
-        ),
-        localId: migrateEntryLocalId(entry.localId, entry.id),
-        lines: legacyArray(entry.lines, "archive entry.lines").map((line) =>
-          migrateEntryLine(line, "archive entry.line"),
-        ),
+        localId:
+          typeof entry.localId === "string" && entry.localId.trim() === ""
+            ? null
+            : entry.localId,
+        lines: mapArray(entry.lines, migrateLine),
       };
     }),
     fixedAssets: content.fixedAssets.map((value) => {
       const asset = requireObject(value, "archive fixedAsset");
-      const status = asset.status == null ? "active" : asset.status;
       return {
         ...asset,
-        fiscalPeriodId: childFiscalPeriodId(
-          asset.fiscalPeriodId,
-          sourceFiscalPeriodId,
-        ),
-        status,
         disposalDate:
-          asset.disposalDate == null || asset.disposalDate === ""
-            ? null
-            : asset.disposalDate,
-        disposalPrice:
-          asset.disposalPrice == null ||
-          (status !== "sold" && asset.disposalPrice === 0)
-            ? null
-            : asset.disposalPrice,
+          asset.status === "sold" || asset.status === "disposed"
+            ? asset.disposalDate
+            : null,
+        disposalPrice: asset.status === "sold" ? asset.disposalPrice : null,
       };
     }),
-    closings: content.closings.map((value) => {
-      const closing = requireObject(value, "archive closing");
-      return {
-        ...closing,
-        fiscalPeriodId: childFiscalPeriodId(
-          closing.fiscalPeriodId,
-          sourceFiscalPeriodId,
-        ),
-      };
-    }),
+    closings: content.closings,
   };
 }
 
-function migrateOpening(value: unknown): Record<string, unknown> | null {
-  if (value == null) return null;
+function migratePhase(fiscalPeriod: Record<string, unknown>): unknown {
+  return fiscalPeriod.phase === "pre_opening" &&
+    fiscalPeriod.settingsCompleted === true
+    ? "journalizing"
+    : fiscalPeriod.phase;
+}
+
+function migrateOpening(value: unknown): Record<string, unknown> {
+  if (value == null) return { openingBalanceLines: [], openingJournals: [] };
   const opening = requireObject(value, "archive opening");
   return {
     ...opening,
-    openingBalanceLines: legacyArray(
-      opening.openingBalanceLines,
-      "archive openingBalanceLines",
-    ),
-    openingJournals: legacyArray(
-      opening.openingJournals,
-      "archive openingJournals",
-    ).map((value) => {
+    openingBalanceLines: opening.openingBalanceLines ?? [],
+    openingJournals: mapArray(opening.openingJournals ?? [], (value) => {
       const journal = requireObject(value, "archive openingJournal");
-      const id = requireNonBlankString(journal.id, "archive openingJournal.id");
-      return {
-        ...journal,
-        lines: legacyArray(
-          journal.lines,
-          "archive openingJournal.lines",
-        ).map((line, index) => {
-          const lineRecord = requireObject(
-            line,
-            "archive openingJournal.line",
-          );
-          return {
-            ...migrateEntryLineRecord(
-              lineRecord,
-              "archive openingJournal.line",
-            ),
-            id: optionalId(
-              lineRecord.id,
-              `${id}-line-${index + 1}`,
-              "archive openingJournal.line.id",
-            ),
-          };
-        }),
-      };
+      return { ...journal, lines: mapArray(journal.lines, migrateLine) };
     }),
   };
 }
 
-function migrateEntryLine(
-  value: unknown,
-  label: string,
-): Record<string, unknown> {
-  return migrateEntryLineRecord(requireObject(value, label), label);
-}
-
-function migrateEntryLineRecord(
-  line: Record<string, unknown>,
-  label: string,
-): Record<string, unknown> {
+function migrateLine(value: unknown): unknown {
+  const line = requireObject(value, "archive line");
   return {
     ...line,
-    partnerName: optionalText(line.partnerName, `${label}.partnerName`),
-    taxCategoryId: categoryId(
-      line.taxCategoryId,
-      `${label}.taxCategoryId`,
-      DEFAULT_TAX_CATEGORIES,
-    ),
+    taxCategoryId: categoryId(line.taxCategoryId, TAX_CATEGORY_IDS),
     businessCategoryId: categoryId(
       line.businessCategoryId,
-      `${label}.businessCategoryId`,
-      DEFAULT_BUSINESS_CATEGORIES,
+      BUSINESS_CATEGORY_IDS,
     ),
   };
 }
 
 function categoryId(
   value: unknown,
-  label: string,
-  categories: ReadonlyArray<{ id: string; name: string }>,
-): string {
-  const text = optionalText(value, label);
-  if (text === "") return "";
-  return (
-    categories.find(
-      (category) => category.id === text || category.name === text,
-    )?.id ?? text
-  );
-}
-
-function childFiscalPeriodId(
-  value: unknown,
-  sourceFiscalPeriodId: string,
+  idsByName: Readonly<Record<string, string>>,
 ): unknown {
-  return value == null ? sourceFiscalPeriodId : value;
+  return typeof value === "string" && Object.hasOwn(idsByName, value)
+    ? idsByName[value]
+    : value;
 }
 
-function optionalId(value: unknown, fallback: string, label: string): string {
-  if (value == null || value === "") return fallback;
-  if (typeof value !== "string") {
-    throw serverValidationError(`${label} must be a string`, null);
-  }
-  return value.trim() === "" ? fallback : value;
-}
-
-function migrateEntryLocalId(
-  value: unknown,
-  archivedEntryId: unknown,
-): string | null {
-  if (value != null) {
-    if (typeof value !== "string") {
-      throw serverValidationError("archive entry.localId must be a string", null);
-    }
-    if (value.trim() !== "") return value;
-  }
-  if (archivedEntryId == null) return null;
-  if (typeof archivedEntryId !== "string") {
-    throw serverValidationError("archive entry.id must be a string", null);
-  }
-  return archivedEntryId.trim() === "" ? null : `archive:${archivedEntryId}`;
-}
-
-function optionalText(value: unknown, label: string): string {
-  if (value == null) return "";
-  if (typeof value !== "string") {
-    throw serverValidationError(`${label} must be a string`, null);
-  }
-  return value;
-}
-
-function legacyArray(value: unknown, label: string): unknown[] {
-  if (value == null) return [];
-  if (!Array.isArray(value)) {
-    throw serverValidationError(`${label} must be an array`, null);
-  }
-  return value;
-}
-
-function requireNonBlankString(value: unknown, label: string): string {
-  if (typeof value !== "string") {
-    throw serverValidationError(`${label} must be a string`, null);
-  }
-  if (value.trim() === "") {
-    throw serverValidationError(`${label} is required`, null);
-  }
-  return value;
+function mapArray(value: unknown, map: (item: unknown) => unknown): unknown {
+  return Array.isArray(value) ? value.map(map) : value;
 }

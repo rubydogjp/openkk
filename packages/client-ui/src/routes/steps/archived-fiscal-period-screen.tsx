@@ -9,7 +9,6 @@ import {
   buildFiscalPeriodArchiveFilename,
   buildFiscalPeriodArchivePayload,
   createFiscalPeriodArchiveZip,
-  isArchivedStub,
   type FiscalPeriod,
 } from "@rubydogjp/openkk-client-domain";
 import {
@@ -44,7 +43,7 @@ export function ArchivedFiscalPeriodScreen({
   const [isDownloading, setIsDownloading] = useState(false);
   const downloadLock = useRef(new ExclusiveActionLock());
   const [screenError, setScreenError] = useState<unknown>(null);
-  const archivePayloadPurged = isArchivedStub(fiscalPeriod);
+  const archivePayloadPurged = fiscalPeriod.archiveStatus === "purged";
 
   const handleDownload = async () => {
     const release = downloadLock.current.tryAcquire();

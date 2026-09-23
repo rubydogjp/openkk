@@ -28,8 +28,8 @@ describe("archive text preservation", () => {
         taxCategoryId: text,
         businessCategoryId: text,
       }));
+      await db.fiscalPeriods.start(period.id);
       period = await db.fiscalPeriods.update(period.id, {
-        settingsCompleted: true,
         openingBalancesCompleted: true,
         opening: {
           ...period.opening,

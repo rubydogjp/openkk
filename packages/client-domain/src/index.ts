@@ -23,6 +23,11 @@ export * from "./assist/fixed-asset-depreciation.js";
 export * from "./assist/opening-carryover.js";
 
 export * from "./archive/fiscal-period-archive.js";
+export {
+  assertFiscalPeriodArchiveByteLength,
+  MAX_FISCAL_PERIOD_ARCHIVE_BYTES,
+  MAX_FISCAL_PERIOD_ARCHIVE_FILE_BYTES,
+} from "./archive/fiscal-period-archive-zip.js";
 
 export * from "./steps/period-check.js";
 export * from "./steps/step-derivation.js";

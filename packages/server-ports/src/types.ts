@@ -34,11 +34,11 @@ export type FiscalPeriodApiPhase =
   | "pre_closing"
   | "post_closing";
 
-export type FiscalPeriodApiArchiveStatus = "active" | "archived";
+export type FiscalPeriodApiArchiveStatus = "active" | "archived" | "purged";
 
 export type FixedAssetApiStatus = "active" | "sold" | "disposed" | "retired";
 
-export type MasterBookAccountAccountType =
+export type MasterBookAccountApiAccountType =
   | "asset"
   | "liability"
   | "equity"
@@ -46,7 +46,7 @@ export type MasterBookAccountAccountType =
   | "cost_of_sales"
   | "expense";
 
-export type EntryApiLine = {
+export type EntryLineApiRecord = {
   id: string;
   side: EntryApiSide;
   bookAccountId: string;
@@ -56,7 +56,7 @@ export type EntryApiLine = {
   businessCategoryId: string;
 };
 
-export type EntryApiLineInput = {
+export type EntryLineInput = {
   side: EntryApiSide;
   bookAccountId: string;
   amount: number;
@@ -73,7 +73,7 @@ export type EntryApiRecord = {
   description: string;
   localId: string | null;
   businessRate: number;
-  lines: EntryApiLine[];
+  lines: EntryLineApiRecord[];
   createdAt: string;
   updatedAt: string;
 };
@@ -83,7 +83,7 @@ export type EntryUpsertInput = {
   description: string;
   localId: string | null;
   businessRate: number;
-  lines: EntryApiLineInput[];
+  lines: EntryLineInput[];
 };
 
 export type OpeningBalanceLineApiRecord = {
@@ -92,38 +92,15 @@ export type OpeningBalanceLineApiRecord = {
   amount: number;
 };
 
-export type OpeningJournalLineApiRecord = {
-  id: string;
-  side: EntryApiSide;
-  bookAccountId: string;
-  amount: number;
-  partnerName: string;
-  taxCategoryId: string;
-  businessCategoryId: string;
-};
-
 export type OpeningJournalApiRecord = {
   id: string;
   date: string;
   description: string;
   businessRate: number;
-  lines: OpeningJournalLineApiRecord[];
+  lines: EntryLineApiRecord[];
 };
 
-export type OpeningApiRecord = {
-  id: string;
-  userId: string;
-  fiscalPeriodId: string;
-  createdAt: string;
-  updatedAt: string;
-  openingBalanceLines: OpeningBalanceLineApiRecord[];
-  openingJournals: OpeningJournalApiRecord[];
-};
-
-export type FiscalPeriodOpeningInput = {
-  id: string;
-  userId: string;
-  fiscalPeriodId: string;
+export type FiscalPeriodOpeningApiRecord = {
   openingBalanceLines: OpeningBalanceLineApiRecord[];
   openingJournals: OpeningJournalApiRecord[];
 };
@@ -136,12 +113,10 @@ export type FiscalPeriodApiRecord = {
   endDate: string;
   phase: FiscalPeriodApiPhase;
   archiveStatus: FiscalPeriodApiArchiveStatus;
-  archiveDataAvailable: boolean;
   archivedAt: string | null;
-  settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
-  opening: OpeningApiRecord;
+  opening: FiscalPeriodOpeningApiRecord;
   createdAt: string;
   updatedAt: string;
 };
@@ -166,10 +141,9 @@ export type FiscalPeriodPatchInput = {
   name?: string;
   startDate?: string;
   endDate?: string;
-  settingsCompleted?: boolean;
   openingBalancesCompleted?: boolean;
   documentsReceivedCompleted?: boolean;
-  opening?: FiscalPeriodOpeningInput;
+  opening?: FiscalPeriodOpeningApiRecord;
 };
 
 export type FiscalPeriodArchiveImportInput = {
@@ -221,9 +195,9 @@ export type FixedAssetPatchInput = {
   bookAccountId?: string;
 };
 
-export type MasterBookAccountNormalBalanceSide = "debit" | "credit";
+export type MasterBookAccountApiNormalBalanceSide = "debit" | "credit";
 
-export type MasterBookAccountBalanceSheetSection =
+export type MasterBookAccountApiBalanceSheetSection =
   | "current_asset"
   | "fixed_asset"
   | "deferred_asset"
@@ -232,20 +206,20 @@ export type MasterBookAccountBalanceSheetSection =
   | "equity"
   | "none";
 
-export type MasterBookAccount = {
+export type MasterBookAccountApiRecord = {
   id: string;
   name: string;
   description: string;
   kana: string;
-  normalBalanceSide: MasterBookAccountNormalBalanceSide;
-  accountType: MasterBookAccountAccountType;
-  balanceSheetSection: MasterBookAccountBalanceSheetSection;
+  normalBalanceSide: MasterBookAccountApiNormalBalanceSide;
+  accountType: MasterBookAccountApiAccountType;
+  balanceSheetSection: MasterBookAccountApiBalanceSheetSection;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
 };
 
-export type MasterTaxCategory = {
+export type MasterTaxCategoryApiRecord = {
   id: string;
   name: string;
   rate: number;
@@ -253,7 +227,7 @@ export type MasterTaxCategory = {
   updatedAt: string;
 };
 
-export type MasterBusinessCategory = {
+export type MasterBusinessCategoryApiRecord = {
   id: string;
   name: string;
   createdAt: string;
@@ -333,6 +307,8 @@ export type FiscalPeriodPatchRequest = {
   input: FiscalPeriodPatchInput;
 };
 export type FiscalPeriodPatchResponse = { fiscalPeriod: FiscalPeriodApiRecord };
+export type FiscalPeriodStartRequest = { id: string };
+export type FiscalPeriodStartResponse = { fiscalPeriod: FiscalPeriodApiRecord };
 export type FiscalPeriodArchiveRequest = { id: string };
 export type FiscalPeriodArchiveResponse = {
   fiscalPeriod: FiscalPeriodApiRecord;
@@ -361,14 +337,16 @@ export type FixedAssetRemoveRequest = { fiscalPeriodId: string; id: string };
 export type FixedAssetRemoveResponse = OpenkkNoContentResponse;
 
 export type MasterBookAccountsRequest = OpenkkEmptyRequest;
-export type MasterBookAccountsResponse = { bookAccounts: MasterBookAccount[] };
+export type MasterBookAccountsResponse = {
+  bookAccounts: MasterBookAccountApiRecord[];
+};
 export type MasterTaxCategoriesRequest = OpenkkEmptyRequest;
 export type MasterTaxCategoriesResponse = {
-  taxCategories: MasterTaxCategory[];
+  taxCategories: MasterTaxCategoryApiRecord[];
 };
 export type MasterBusinessCategoriesRequest = OpenkkEmptyRequest;
 export type MasterBusinessCategoriesResponse = {
-  businessCategories: MasterBusinessCategory[];
+  businessCategories: MasterBusinessCategoryApiRecord[];
 };
 
 export type OpenkkHttpEndpointSpec<
@@ -477,6 +455,11 @@ export type OpenkkHttpEndpointSpecs = {
   fiscalPeriodPatch: OpenkkHttpEndpointSpec<
     FiscalPeriodPatchRequest,
     FiscalPeriodPatchResponse,
+    200
+  >;
+  fiscalPeriodStart: OpenkkHttpEndpointSpec<
+    FiscalPeriodStartRequest,
+    FiscalPeriodStartResponse,
     200
   >;
   fiscalPeriodArchive: OpenkkHttpEndpointSpec<
@@ -630,6 +613,11 @@ export const OPENKK_HTTP_ENDPOINTS = {
     path: "/fiscal-periods/{id}",
     successStatus: 200,
   },
+  fiscalPeriodStart: {
+    method: "POST",
+    path: "/fiscal-periods/{id}/start",
+    successStatus: 200,
+  },
   fiscalPeriodArchive: {
     method: "POST",
     path: "/fiscal-periods/{id}/archive",
@@ -726,7 +714,6 @@ export interface EntriesApi {
     input: EntryUpsertInput,
   ): Promise<EntryApiRecord>;
   remove(fiscalPeriodId: string, id: string): Promise<void>;
-  /** Skips `localId` values already present in the fiscal period. */
   importMany(
     fiscalPeriodId: string,
     entries: EntryUpsertInput[],
@@ -740,6 +727,7 @@ export interface FiscalPeriodsApi {
   importArchived(
     input: FiscalPeriodArchiveImportInput,
   ): Promise<FiscalPeriodApiRecord>;
+  start(id: string): Promise<FiscalPeriodApiRecord>;
   archive(id: string): Promise<FiscalPeriodApiRecord>;
   purgeArchivedData(id: string): Promise<FiscalPeriodApiRecord>;
   patch(
@@ -764,9 +752,9 @@ export interface FixedAssetsApi {
 }
 
 export interface MasterDataApi {
-  getBookAccounts(): Promise<MasterBookAccount[]>;
-  getTaxCategories(): Promise<MasterTaxCategory[]>;
-  getBusinessCategories(): Promise<MasterBusinessCategory[]>;
+  getBookAccounts(): Promise<MasterBookAccountApiRecord[]>;
+  getTaxCategories(): Promise<MasterTaxCategoryApiRecord[]>;
+  getBusinessCategories(): Promise<MasterBusinessCategoryApiRecord[]>;
 }
 
 export interface OpenkkServerPort {

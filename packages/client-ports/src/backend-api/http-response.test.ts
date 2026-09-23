@@ -125,7 +125,7 @@ describe("resolveOpenkkHttpResponse", () => {
       resolveOpenkkHttpResponse("fiscalPeriodsGetAll", {
         status: 200,
         body: {
-          fiscalPeriods: [{ ...fiscalPeriod(), settingsCompleted: "yes" }],
+          fiscalPeriods: [{ ...fiscalPeriod(), openingBalancesCompleted: "yes" }],
         },
       }),
     );
@@ -163,11 +163,11 @@ describe("resolveOpenkkHttpResponse", () => {
     }
   });
 
-  it("rejects blank identifiers and invalid timestamps", () => {
+  it("rejects blank identifiers, invalid timestamps, and unknown archive states", () => {
     const invalidPeriods = [
       { ...fiscalPeriod(), id: " " },
       { ...fiscalPeriod(), updatedAt: "not-a-timestamp" },
-      { ...fiscalPeriod(), archiveDataAvailable: "yes" },
+      { ...fiscalPeriod(), archiveStatus: "deleted" },
       { ...fiscalPeriod(), archivedAt: "not-a-timestamp" },
     ];
 
@@ -407,37 +407,11 @@ describe("resolveOpenkkHttpResponse", () => {
               {
                 ...fiscalPeriod(),
                 opening: {
-                  id: "opening-1",
-                  userId: "user-1",
-                  fiscalPeriodId: "fp-1",
-                  createdAt: "2026-01-01T00:00:00.000Z",
-                  updatedAt: "2026-01-01T00:00:00.000Z",
                   openingBalanceLines: [
                     { id: "line-1", accountId: "a:", amount: 1000 },
                   ],
                   openingJournals: [],
                 },
-              },
-            ],
-          },
-        }),
-      ),
-    ).toMatchObject({
-      messageForDeveloper:
-        "fiscalPeriodsGetAll returned a malformed success response",
-    });
-  });
-
-  it("rejects opening data owned by a different fiscal period", () => {
-    expect(
-      captureError(() =>
-        resolveOpenkkHttpResponse("fiscalPeriodsGetAll", {
-          status: 200,
-          body: {
-            fiscalPeriods: [
-              {
-                ...fiscalPeriod(),
-                opening: openingResponse({ fiscalPeriodId: "fp-other" }),
               },
             ],
           },
@@ -706,9 +680,7 @@ function fiscalPeriod() {
     endDate: "2026-12-31",
     phase: "pre_opening",
     archiveStatus: "active",
-    archiveDataAvailable: true,
     archivedAt: null,
-    settingsCompleted: false,
     openingBalancesCompleted: false,
     documentsReceivedCompleted: false,
     opening: openingResponse(),
@@ -788,11 +760,6 @@ function bookAccountResponse() {
 
 function openingResponse(overrides: Record<string, unknown> = {}) {
   return {
-    id: "opening-1",
-    userId: "user-1",
-    fiscalPeriodId: "fp-1",
-    createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z",
     openingBalanceLines: [],
     openingJournals: [],
     ...overrides,

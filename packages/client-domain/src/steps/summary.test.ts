@@ -58,7 +58,6 @@ describe("summary contributions", () => {
   });
 
   it("routes the home-use portion out of the expense contribution (家事按分)", () => {
-    // 20,000 の事業割合 50% → 事業分 10,000 のみが費用、残り 10,000 は事業主貸(資産)。
     const expense = computeExpenseContribution(
       entry({ debitType: "expense", debitAmount: "20,000" }),
       parseBusinessRate("50"),

@@ -1,21 +1,5 @@
 import type { FiscalPeriod } from "./models.js";
 
-export function isJournalizingActive(
-  period: FiscalPeriod | null,
-): boolean {
-  if (period == null) return false;
-  return period.archiveStatus === "active" && period.phase === "journalizing";
-}
-
-export function isArchivedStub(
-  period: FiscalPeriod | null,
-): boolean {
-  if (period == null) return false;
-  return (
-    period.archiveStatus === "archived" && period.archiveDataAvailable === false
-  );
-}
-
 export type PeriodLockMessage = { title: string; description: string };
 
 export function buildPeriodLockMessage(
@@ -25,7 +9,7 @@ export function buildPeriodLockMessage(
   if (period == null) {
     return { title: "ロックされています", description: "期間が未選択です" };
   }
-  if (period.archiveStatus === "archived") {
+  if (period.archiveStatus !== "active") {
     return {
       title: "圧縮保存済みです",
       description: "圧縮保存済みの会計期間は編集できません",

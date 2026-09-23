@@ -7,6 +7,7 @@ import { useConfirmDialog } from "../shared/confirm-dialog.js";
 import { LockButton } from "../shared/locked-action.js";
 import { ExclusiveActionLock } from "../shared/exclusive-action-lock.js";
 import { useModalLifecycle } from "../shared/dismissible-layer.js";
+import { DrawerFrame } from "../shared/drawer-frame.js";
 import { debugAppError } from "../shared/app-error-text.js";
 import { safeUserErrorMessage } from "../shared/safe-error-message.js";
 import {
@@ -14,7 +15,6 @@ import {
   fontWeight,
   palette,
   radii,
-  shadows,
   sizes,
   typography,
 } from "../shared/design-tokens.js";
@@ -168,45 +168,11 @@ export function FixedAssetEditDrawer({
     <>
       <FormStyles />
 
-      <div
-        onClick={requestClose}
-        style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(15, 23, 42, 0.32)",
-          zIndex: 9998,
-        }}
-      />
-
-      <aside
-        ref={drawerRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={mode === "create" ? "固定資産の追加" : "固定資産の編集"}
-        tabIndex={-1}
-        style={{
-          position: "fixed",
-          top: 0,
-          right: 0,
-          width: sizes.drawer.width,
-          maxWidth: "100vw",
-          height: "100vh",
-          background: palette.surface,
-          zIndex: 9999,
-          boxShadow: shadows.drawer,
-          display: "flex",
-          flexDirection: "column",
-          animation: "bk-drawer-slide-in 220ms cubic-bezier(0.2, 0, 0, 1)",
-        }}
-        onClick={(e) => e.stopPropagation()}
+      <DrawerFrame
+        label={mode === "create" ? "固定資産の追加" : "固定資産の編集"}
+        drawerRef={drawerRef}
+        onBackdropClick={requestClose}
       >
-        <style>{`
-          @keyframes bk-drawer-slide-in {
-            from { transform: translateX(100%); }
-            to { transform: translateX(0); }
-          }
-        `}</style>
-
         <header
           style={{
             height: sizes.drawer.headerHeight,
@@ -398,7 +364,7 @@ export function FixedAssetEditDrawer({
             )}
           </div>
         </footer>
-      </aside>
+      </DrawerFrame>
       {dialog}
     </>
   );
@@ -490,10 +456,7 @@ function UsefulLifeInput({
         onChange(
           Number.isNaN(next)
             ? 0
-            : Math.min(
-                MAX_FIXED_ASSET_USEFUL_LIFE_YEARS,
-                Math.max(0, next),
-              ),
+            : Math.min(MAX_FIXED_ASSET_USEFUL_LIFE_YEARS, Math.max(0, next)),
         );
       }}
       style={{ ...controlStyle, width: "100%" }}
@@ -597,18 +560,11 @@ function StatusField({
   value: FixedAssetStatus;
   onChange: (value: FixedAssetStatus) => void;
 }) {
-  const options: FixedAssetStatus[] = [
-    "償却中",
-    "完了",
-    "売却済",
-    "廃棄済",
-  ];
+  const options: FixedAssetStatus[] = ["償却中", "完了", "売却済", "廃棄済"];
   return (
     <select
       value={value}
-      onChange={(event) =>
-        onChange(event.target.value as FixedAssetStatus)
-      }
+      onChange={(event) => onChange(event.target.value as FixedAssetStatus)}
       style={{
         height: sizes.field.height,
         boxSizing: "border-box",

@@ -1,5 +1,7 @@
 import {
+  applyPatch,
   assertFixedAssetMatchesRules,
+  FIXED_ASSET_PATCH_KEYS,
   serverNotFoundError,
 } from "@rubydogjp/openkk-server-domain";
 
@@ -136,35 +138,7 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
           ["journalizing"],
           "update fixed asset",
         );
-        const updated: FixedAssetDbRecord = {
-          ...existing,
-          ...(patch.name !== undefined ? { name: patch.name } : {}),
-          ...(patch.acquisitionDate !== undefined
-            ? { acquisitionDate: patch.acquisitionDate }
-            : {}),
-          ...(patch.acquisitionCost !== undefined
-            ? { acquisitionCost: patch.acquisitionCost }
-            : {}),
-          ...(patch.usefulLife !== undefined
-            ? { usefulLife: patch.usefulLife }
-            : {}),
-          ...(patch.depreciationMethod !== undefined
-            ? { depreciationMethod: patch.depreciationMethod }
-            : {}),
-          ...(patch.businessRate !== undefined
-            ? { businessRate: patch.businessRate }
-            : {}),
-          ...(patch.status !== undefined ? { status: patch.status } : {}),
-          ...(patch.disposalDate !== undefined
-            ? { disposalDate: patch.disposalDate }
-            : {}),
-          ...(patch.disposalPrice !== undefined
-            ? { disposalPrice: patch.disposalPrice }
-            : {}),
-          ...(patch.bookAccountId !== undefined
-            ? { bookAccountId: patch.bookAccountId }
-            : {}),
-        };
+        const updated = applyPatch(existing, patch, FIXED_ASSET_PATCH_KEYS);
         assertFixedAssetMatchesRules(updated, period);
         await db.exec({
           sql: `UPDATE fixed_assets SET data = ?, updated_at = ? WHERE id = ?`,

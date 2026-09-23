@@ -1,5 +1,4 @@
 import {
-  assertCompletedOpening,
   assertEntryCollectionItemLimit,
   assertEntryCollectionLineLimit,
   assertEntryMatchesRules,
@@ -7,6 +6,7 @@ import {
   assertFiscalPeriodClosingMarkers,
   assertFiscalPeriodPatchMatchesPhase,
   assertFixedAssetMatchesRules,
+  assertOpeningMatchesRules,
   assertPositiveInteger,
   assertUniqueIds,
   isNonBlankString,
@@ -17,6 +17,7 @@ import {
 } from "@rubydogjp/openkk-server-domain";
 
 import type {
+  ClosingMarkerDbImportInput,
   EntryDbRecord,
   EntryDbUpsertInput,
   FiscalPeriodArchiveDbImportInput,
@@ -28,7 +29,6 @@ import type {
   FiscalPeriodDbData,
   OwnedFiscalPeriodDbData,
 } from "./table-types.js";
-import { validateOpeningDbRecord } from "./persistence-codec.js";
 
 export function assertDbArchiveImportSizeLimits(
   input: unknown,
@@ -62,28 +62,11 @@ export function assertDbArchiveImportSizeLimits(
 
 export function assertDbOpeningForPeriod(
   opening: FiscalPeriodOpeningDbRecord,
-  period: OwnedFiscalPeriodDbData,
+  period: FiscalPeriodDbData,
 ): void {
-  validateOpeningDbRecord(opening);
-  if (
-    opening.userId !== period.userId ||
-    opening.fiscalPeriodId !== period.id
-  ) {
-    throw serverValidationError(
-      "Opening ownership must match the fiscal period",
-      "期首データの会計期間情報が一致しません",
-    );
-  }
-  for (const journal of opening.openingJournals) {
-    if (journal.date < period.startDate || journal.date > period.endDate) {
-      throw serverValidationError(
-        `Opening journal date ${journal.date} must be within fiscal period ${period.startDate} to ${period.endDate}`,
-        "期首仕訳の日付を会計期間内にしてください",
-      );
-    }
-  }
-  if (!period.openingBalancesCompleted) return;
-  assertCompletedOpening(opening, "Opening");
+  assertOpeningMatchesRules(opening, period, "Opening", {
+    completed: period.openingBalancesCompleted,
+  });
 }
 
 export function assertDbPeriodOwnership(
@@ -99,7 +82,7 @@ export function assertDbFiscalPeriodPatchAllowed(
   period: FiscalPeriodDbData,
   patch: FiscalPeriodDbPatchInput,
 ): void {
-  if (period.archiveStatus === "archived") {
+  if (period.archiveStatus !== "active") {
     throw serverConflictError(
       `archived fiscal period cannot be updated: ${period.id}`,
       "圧縮保存済みの会計期間は変更できません",
@@ -176,8 +159,8 @@ export function assertDbClosingYear(
 
 export function assertDbImportedClosingState(
   period: FiscalPeriodDbData,
-  preClosings: ReadonlyArray<{ year: number }>,
-  closings: ReadonlyArray<{ year: number }>,
+  preClosings: ReadonlyArray<ClosingMarkerDbImportInput>,
+  closings: ReadonlyArray<ClosingMarkerDbImportInput>,
 ): void {
   for (const row of [...preClosings, ...closings]) {
     assertDbClosingYear(period, row.year);

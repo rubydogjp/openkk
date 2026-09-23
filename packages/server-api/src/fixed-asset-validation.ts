@@ -1,5 +1,7 @@
 import {
+  applyPatch,
   assertFixedAssetMatchesRules,
+  FIXED_ASSET_PATCH_KEYS,
   requireObject,
 } from "@rubydogjp/openkk-server-domain";
 import type {
@@ -41,35 +43,7 @@ export function assertPatchedFixedAsset(
   period: FiscalPeriodApiRecord,
 ): void {
   assertFixedAssetMatchesRules(
-    {
-      ...existing,
-      ...(patch.name !== undefined ? { name: patch.name } : {}),
-      ...(patch.acquisitionDate !== undefined
-        ? { acquisitionDate: patch.acquisitionDate }
-        : {}),
-      ...(patch.acquisitionCost !== undefined
-        ? { acquisitionCost: patch.acquisitionCost }
-        : {}),
-      ...(patch.usefulLife !== undefined
-        ? { usefulLife: patch.usefulLife }
-        : {}),
-      ...(patch.depreciationMethod !== undefined
-        ? { depreciationMethod: patch.depreciationMethod }
-        : {}),
-      ...(patch.businessRate !== undefined
-        ? { businessRate: patch.businessRate }
-        : {}),
-      ...(patch.status !== undefined ? { status: patch.status } : {}),
-      ...(patch.disposalDate !== undefined
-        ? { disposalDate: patch.disposalDate }
-        : {}),
-      ...(patch.disposalPrice !== undefined
-        ? { disposalPrice: patch.disposalPrice }
-        : {}),
-      ...(patch.bookAccountId !== undefined
-        ? { bookAccountId: patch.bookAccountId }
-        : {}),
-    },
+    applyPatch(existing, patch, FIXED_ASSET_PATCH_KEYS),
     period,
   );
 }

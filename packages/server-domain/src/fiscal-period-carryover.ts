@@ -1,45 +1,23 @@
 import { serverConflictError, serverValidationError } from "./app-error.js";
 import { getDefaultBookAccount } from "./master-data.js";
+import type {
+  Entry,
+  EntryLine,
+  EntryLineRecord,
+  EntryRecord,
+  FiscalPeriodArchiveStatus,
+  FiscalPeriodPhase,
+  OpeningBalanceLine,
+  OpeningJournal,
+} from "./models.js";
 import { assertEntryLinesBalanced } from "./validation.js";
-
-export type CarryoverEntryLine = {
-  side: "debit" | "credit";
-  bookAccountId: string;
-  amount: number;
-  partnerName: string;
-  taxCategoryId: string;
-  businessCategoryId: string;
-};
-
-export type CarryoverEntry = {
-  id: string;
-  description: string;
-  businessRate: number;
-  lines: CarryoverEntryLine[];
-};
-
-export type CarryoverOpeningJournal = {
-  id: string;
-  date: string;
-  description: string;
-  businessRate: number;
-  lines: {
-    id: string;
-    side: "debit" | "credit";
-    bookAccountId: string;
-    amount: number;
-    partnerName: string;
-    taxCategoryId: string;
-    businessCategoryId: string;
-  }[];
-};
 
 export function assertFiscalPeriodCanCarryOver(
   source: {
     endDate: string;
-    phase: string;
+    phase: FiscalPeriodPhase;
     documentsReceivedCompleted: boolean;
-    archiveDataAvailable: boolean;
+    archiveStatus: FiscalPeriodArchiveStatus;
   },
   nextStartDate: string,
 ): void {
@@ -49,7 +27,7 @@ export function assertFiscalPeriodCanCarryOver(
       "本締めと書類の受領を完了してから次の期間を作成してください",
     );
   }
-  if (!source.archiveDataAvailable) {
+  if (source.archiveStatus === "purged") {
     throw serverConflictError(
       "Cannot carry over a fiscal period whose data was purged",
       "この会計期間の実データは削除済みです",
@@ -64,9 +42,9 @@ export function assertFiscalPeriodCanCarryOver(
 }
 
 export function buildCarryoverOpeningBalances(input: {
-  openingBalanceLines: ReadonlyArray<{ accountId: string; amount: number }>;
-  entries: ReadonlyArray<CarryoverEntry>;
-}): Array<{ id: string; accountId: string; amount: number }> {
+  openingBalanceLines: ReadonlyArray<OpeningBalanceLine>;
+  entries: ReadonlyArray<Entry>;
+}): OpeningBalanceLine[] {
   const balances = new Map<string, bigint>();
   const add = (name: string, amount: bigint) => {
     const account = CAPITAL_ACCOUNTS.has(name) ? "元入金" : name;
@@ -108,9 +86,9 @@ export function buildCarryoverOpeningBalances(input: {
 }
 
 export function buildCarryoverOpeningJournals(input: {
-  entries: ReadonlyArray<CarryoverEntry>;
+  entries: ReadonlyArray<EntryRecord>;
   startDate: string;
-}): CarryoverOpeningJournal[] {
+}): OpeningJournal[] {
   return input.entries.flatMap((entry) => {
     assertEntryLinesBalanced(entry.lines, "Carryover entry", {
       allowZero: false,
@@ -130,7 +108,7 @@ export function buildCarryoverOpeningJournals(input: {
         PROFIT_LOSS_TYPES.has(requireAccount(line.bookAccountId).accountType),
       )
       .map((line) => ({ line, remaining: line.amount }));
-    const journals: CarryoverOpeningJournal[] = [];
+    const journals: OpeningJournal[] = [];
     for (const balance of balances) {
       for (const counterpart of profitLoss) {
         if (balance.remaining === 0) break;
@@ -165,7 +143,11 @@ export function buildCarryoverOpeningJournals(input: {
   });
 }
 
-function reverseLine(id: string, line: CarryoverEntryLine, amount: number) {
+function reverseLine(
+  id: string,
+  line: EntryLine,
+  amount: number,
+): EntryLineRecord {
   return {
     id,
     side: line.side === "debit" ? ("credit" as const) : ("debit" as const),

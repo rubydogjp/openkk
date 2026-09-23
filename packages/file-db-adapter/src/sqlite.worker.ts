@@ -21,7 +21,6 @@ const ctx = self as unknown as {
 
 let db: SyncDb | null = null;
 
-// SAHPool permits one tab to hold the database connection.
 async function acquireSingleTabLock(name: string): Promise<boolean> {
   if (typeof navigator === "undefined" || navigator.locks == null) return true;
   return new Promise<boolean>((resolve) => {

@@ -16,9 +16,12 @@ import {
   importEntriesFromCsv,
   importEntriesFromJson,
   buildPeriodLockMessage,
+  compareYearMonth,
   formatIsoLocalDate,
+  parseYearMonth,
   resolveEditingPolicy,
   type EntryPreviewRow,
+  type YearMonth,
 } from "@rubydogjp/openkk-client-domain";
 import {
   useOpenkkAppState,
@@ -40,11 +43,6 @@ import { entryRecordToDraft } from "../../entries/entry-edit-model.js";
 import { downloadBytes } from "../../shared/download.js";
 import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 
-type YearMonthValue = {
-  year: number;
-  month: number;
-};
-
 export function EntriesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -58,7 +56,7 @@ export function EntriesPage() {
     (period) => period.id === appState.currentFiscalPeriodId,
   );
   const fiscalPeriodId = appState.currentFiscalPeriodId;
-  const [displayedMonth, setDisplayedMonth] = useState<YearMonthValue>(() =>
+  const [displayedMonth, setDisplayedMonth] = useState<YearMonth>(() =>
     clampMonthToPeriod(
       {
         year: today.getFullYear(),
@@ -215,7 +213,7 @@ export function EntriesPage() {
   const drawerVirtualEntry = drawerVirtualRows[0] ?? null;
 
   const navigateWithMonth = useCallback(
-    (month: YearMonthValue) => {
+    (month: YearMonth) => {
       const nextMonth = clampMonthToPeriod(
         month,
         currentFiscalPeriod?.startDate ?? null,
@@ -540,26 +538,11 @@ export function EntriesPage() {
   );
 }
 
-function parseYearMonth(dateText: string): YearMonthValue {
-  const [yearText, monthText] = dateText.split("-");
-  return {
-    year: Number(yearText),
-    month: Number(monthText),
-  };
-}
-
-function compareYearMonth(left: YearMonthValue, right: YearMonthValue): number {
-  if (left.year !== right.year) {
-    return left.year - right.year;
-  }
-  return left.month - right.month;
-}
-
 function clampMonthToPeriod(
-  month: YearMonthValue,
+  month: YearMonth,
   startDate: string | null,
   endDate: string | null,
-): YearMonthValue {
+): YearMonth {
   const startMonth = startDate == null ? null : parseYearMonth(startDate);
   const endMonth = endDate == null ? null : parseYearMonth(endDate);
 
@@ -572,7 +555,7 @@ function clampMonthToPeriod(
   return month;
 }
 
-function shiftMonth(month: YearMonthValue, offset: number): YearMonthValue {
+function shiftMonth(month: YearMonth, offset: number): YearMonth {
   const nextDate = new Date(month.year, month.month - 1 + offset, 1);
   return {
     year: nextDate.getFullYear(),
@@ -580,7 +563,7 @@ function shiftMonth(month: YearMonthValue, offset: number): YearMonthValue {
   };
 }
 
-function formatYearMonth(month: YearMonthValue): string {
+function formatYearMonth(month: YearMonth): string {
   return `${month.year}-${String(month.month).padStart(2, "0")}`;
 }
 
@@ -634,7 +617,7 @@ function buildNewEntryDraft(
 
 function resolveNewEntryDefaultDate(input: {
   today: Date;
-  displayedMonth: YearMonthValue;
+  displayedMonth: YearMonth;
   periodStartDate: string | null;
   periodEndDate: string | null;
 }): string {
@@ -673,7 +656,7 @@ function isDateWithinRange(
   return true;
 }
 
-function parseMonthParam(value: string | null): YearMonthValue | null {
+function parseMonthParam(value: string | null): YearMonth | null {
   if (value == null) return null;
   const matched = value.match(/^(\d{4})-(\d{2})$/);
   if (matched == null) return null;

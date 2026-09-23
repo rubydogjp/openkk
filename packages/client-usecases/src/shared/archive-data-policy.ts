@@ -1,17 +1,11 @@
-export type ArchiveDataPeriod = {
-  id: string;
-  archiveStatus: "active" | "archived";
-  archiveDataAvailable: boolean;
-};
+import type { FiscalPeriodArchiveStatus } from "@rubydogjp/openkk-client-domain";
 
 export function isSelectedFiscalPeriodDataPurged(
-  periods: ReadonlyArray<ArchiveDataPeriod>,
+  periods: ReadonlyArray<{ id: string; archiveStatus: FiscalPeriodArchiveStatus }>,
   currentFiscalPeriodId: string | null,
 ): boolean {
   return periods.some(
     (period) =>
-      period.id === currentFiscalPeriodId &&
-      period.archiveStatus === "archived" &&
-      period.archiveDataAvailable === false,
+      period.id === currentFiscalPeriodId && period.archiveStatus === "purged",
   );
 }

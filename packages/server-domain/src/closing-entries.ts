@@ -1,51 +1,14 @@
-import type { MasterBookAccountType } from "./generated-master-data.js";
 import { serverConflictError } from "./app-error.js";
+import type {
+  BookAccount,
+  Entry,
+  EntryLine,
+  FixedAssetRecord,
+  OpeningJournal,
+} from "./models.js";
 import { MAX_TEXT_FIELD_LENGTH } from "./validation.js";
 
-export type ClosingEntryLine = {
-  side: "debit" | "credit";
-  bookAccountId: string;
-  amount: number;
-  partnerName: string;
-  taxCategoryId: string;
-  businessCategoryId: string;
-};
-
-export type ClosingEntry = {
-  date: string;
-  description: string;
-  localId: string | null;
-  businessRate: number;
-  lines: ClosingEntryLine[];
-};
-
-export type ClosingFixedAsset = {
-  id: string;
-  name: string;
-  acquisitionDate: string;
-  acquisitionCost: number;
-  usefulLife: number;
-  businessRate: number;
-  status: "active" | "sold" | "disposed" | "retired";
-  disposalDate: string | null;
-  disposalPrice: number | null;
-  bookAccountId: string;
-};
-
-export type ClosingBookAccount = {
-  id: string;
-  accountType: MasterBookAccountType;
-};
-
-export type ClosingOpeningJournal = {
-  id: string;
-  date: string;
-  description: string;
-  businessRate: number;
-  lines: ClosingEntryLine[];
-};
-
-export const CLOSING_GENERATED_LOCAL_ID_PREFIX = "virtual:";
+export const VIRTUAL_ENTRY_LOCAL_ID_PREFIX = "virtual:";
 const TAX_OUT_OF_SCOPE = "tax_out_of_scope";
 const BUSINESS_NONE = "biz_none";
 const DEPRECIATION_EXPENSE = "acct_depreciation";
@@ -59,16 +22,16 @@ const OWNER_LOAN = "acct_proprietor_loan";
 export function buildExpectedClosingEntries(input: {
   periodStartDate: string;
   periodEndDate: string;
-  entries: ClosingEntry[];
-  fixedAssets: ClosingFixedAsset[];
-  openingJournals: ClosingOpeningJournal[];
-  bookAccounts: ClosingBookAccount[];
-}): ClosingEntry[] {
+  entries: Entry[];
+  fixedAssets: Array<FixedAssetRecord>;
+  openingJournals: OpeningJournal[];
+  bookAccounts: BookAccount[];
+}): Entry[] {
   const openingEntries = input.openingJournals.map(
-    (journal): ClosingEntry => ({
+    (journal): Entry => ({
       date: journal.date,
       description: journal.description,
-      localId: `${CLOSING_GENERATED_LOCAL_ID_PREFIX}virtual-opening-carryover-${journal.id}`,
+      localId: `${VIRTUAL_ENTRY_LOCAL_ID_PREFIX}virtual-opening-carryover-${journal.id}`,
       businessRate: journal.businessRate,
       lines: journal.lines.map((line) => ({ ...line })),
     }),
@@ -79,7 +42,7 @@ export function buildExpectedClosingEntries(input: {
   const assistEntries = [...openingEntries, ...fixedAssetEntries];
   const ordinaryEntries = input.entries.filter(
     (entry) =>
-      !entry.localId?.startsWith(CLOSING_GENERATED_LOCAL_ID_PREFIX),
+      !entry.localId?.startsWith(VIRTUAL_ENTRY_LOCAL_ID_PREFIX),
   );
   const transfer = buildBusinessRateTransfer({
     date: input.periodEndDate,
@@ -90,10 +53,10 @@ export function buildExpectedClosingEntries(input: {
 }
 
 export function assertClosingEntriesMatch(
-  actual: ClosingEntry[],
-  expected: ClosingEntry[],
+  actual: Entry[],
+  expected: Entry[],
 ): void {
-  const canonicalEntries = (entries: ClosingEntry[]) =>
+  const canonicalEntries = (entries: Entry[]) =>
     entries.map((entry) => JSON.stringify({
       date: entry.date,
       description: entry.description,
@@ -122,16 +85,16 @@ export function assertClosingEntriesMatch(
 }
 
 function buildFixedAssetEntries(
-  asset: ClosingFixedAsset,
+  asset: FixedAssetRecord,
   periodStartDate: string,
   periodEndDate: string,
-): ClosingEntry[] {
+): Entry[] {
   const endDate =
     asset.status === "active" || asset.status === "retired"
       ? periodEndDate
       : asset.disposalDate;
   if (endDate == null) return [];
-  const entries: ClosingEntry[] = [];
+  const entries: Entry[] = [];
   const depreciation = computePeriodDepreciation({
     acquisitionDate: asset.acquisitionDate,
     acquisitionCost: asset.acquisitionCost,
@@ -143,7 +106,7 @@ function buildFixedAssetEntries(
     entries.push({
       date: endDate,
       description: fixedAssetDescription(asset.name, "の減価償却"),
-      localId: `${CLOSING_GENERATED_LOCAL_ID_PREFIX}virtual-fixed-asset-${asset.id}`,
+      localId: `${VIRTUAL_ENTRY_LOCAL_ID_PREFIX}virtual-fixed-asset-${asset.id}`,
       businessRate: asset.businessRate,
       lines: [
         line("debit", DEPRECIATION_EXPENSE, depreciation),
@@ -182,7 +145,7 @@ function buildFixedAssetEntries(
       entries.push({
         date: endDate,
         description: fixedAssetDescription(asset.name, "の売却"),
-        localId: `${CLOSING_GENERATED_LOCAL_ID_PREFIX}virtual-fixed-asset-sale-${asset.id}`,
+        localId: `${VIRTUAL_ENTRY_LOCAL_ID_PREFIX}virtual-fixed-asset-sale-${asset.id}`,
         businessRate: asset.businessRate,
         lines: [...debits, ...credits],
       });
@@ -191,7 +154,7 @@ function buildFixedAssetEntries(
     entries.push({
       date: endDate,
       description: fixedAssetDescription(asset.name, "の除却"),
-      localId: `${CLOSING_GENERATED_LOCAL_ID_PREFIX}virtual-fixed-asset-retire-${asset.id}`,
+      localId: `${VIRTUAL_ENTRY_LOCAL_ID_PREFIX}virtual-fixed-asset-retire-${asset.id}`,
       businessRate: asset.businessRate,
       lines: [
         line("debit", ASSET_RETIREMENT_LOSS, bookValue),
@@ -204,9 +167,9 @@ function buildFixedAssetEntries(
 
 function buildBusinessRateTransfer(input: {
   date: string;
-  entries: ClosingEntry[];
-  bookAccounts: ClosingBookAccount[];
-}): ClosingEntry | null {
+  entries: Entry[];
+  bookAccounts: BookAccount[];
+}): Entry | null {
   const accountTypeById = new Map(
     input.bookAccounts.map((account) => [account.id, account.accountType]),
   );
@@ -236,7 +199,7 @@ function buildBusinessRateTransfer(input: {
       );
     }
   }
-  const lines: ClosingEntryLine[] = [];
+  const lines: EntryLine[] = [];
   for (const [bookAccountId, signedAmount] of delta) {
     const amount = Math.round(signedAmount);
     if (amount === 0) continue;
@@ -248,17 +211,17 @@ function buildBusinessRateTransfer(input: {
   return {
     date: input.date,
     description: "家事按分の振替",
-    localId: `${CLOSING_GENERATED_LOCAL_ID_PREFIX}business-rate-transfer`,
+    localId: `${VIRTUAL_ENTRY_LOCAL_ID_PREFIX}business-rate-transfer`,
     businessRate: 1,
     lines,
   };
 }
 
 function line(
-  side: ClosingEntryLine["side"],
+  side: EntryLine["side"],
   bookAccountId: string,
   amount: number,
-): ClosingEntryLine {
+): EntryLine {
   return {
     side,
     bookAccountId,

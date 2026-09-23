@@ -95,10 +95,11 @@ export function CreateFiscalPeriodPage() {
     if (release == null) return;
     setIsCreating(true);
     try {
-      const createdId = await appState.createFiscalPeriod(
-        { name, startDate, endDate },
-        null,
-      );
+      const createdId = await appState.createFiscalPeriod({
+        name,
+        startDate,
+        endDate,
+      });
       if (createdId == null) return;
       setScreenError(null);
       router.push("/steps");

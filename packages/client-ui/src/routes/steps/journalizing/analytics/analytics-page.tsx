@@ -15,6 +15,7 @@ import {
   buildAnalyticsEntries,
   buildYearMonthRange,
   compareYearMonth,
+  formatYearMonthKey,
   parseYearMonth,
 } from "@rubydogjp/openkk-client-domain";
 import {
@@ -66,7 +67,7 @@ export function JournalizingAnalyticsPage() {
       carryovers: assistState.listOpeningCarryovers(currentFiscalPeriod.id),
     });
     return months.map((yearMonth) => {
-      const monthKey = yearMonth.key;
+      const monthKey = formatYearMonthKey(yearMonth);
       const monthRecords = effectiveEntries.filter((entry) =>
         entry.date.startsWith(monthKey),
       );

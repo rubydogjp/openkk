@@ -8,14 +8,14 @@ export type StepItem = {
 };
 
 export function deriveSteps(input: {
-  settingsCompleted: boolean;
+  started: boolean;
   openingBalancesCompleted: boolean;
   hasAnyClosing: boolean;
   hasFinalClosing: boolean;
   hasReceivedDocuments: boolean;
 }): StepItem[] {
   const statuses = deriveContiguousStepStatuses([
-    input.settingsCompleted,
+    input.started,
     input.openingBalancesCompleted,
     input.hasAnyClosing,
     input.hasFinalClosing,

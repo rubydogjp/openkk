@@ -18,7 +18,6 @@ describe("normalizeArchiveImportInput", () => {
       startDate: "2026-01-01",
       endDate: "2026-12-31",
       phase: "post_closing",
-      settingsCompleted: true,
       openingBalancesCompleted: true,
       documentsReceivedCompleted: true,
     });
@@ -90,21 +89,9 @@ describe("normalizeArchiveImportInput", () => {
 
     expect(normalized.fiscalPeriod).toMatchObject({
       phase: "pre_opening",
-      settingsCompleted: false,
       openingBalancesCompleted: true,
     });
     expect(normalized.fiscalPeriod.opening).toBeDefined();
-  });
-
-  it("rejects completed opening balances without opening data", () => {
-    const input = validArchiveInput();
-    configureArchivePhase(input, "pre_opening");
-    input.fiscalPeriod.openingBalancesCompleted = true;
-    input.fiscalPeriod.opening = null;
-
-    expect(() => normalizeArchiveImportInput(input)).toThrow(
-      /completed opening balances require opening data/,
-    );
   });
 
   it("rejects fiscal period id mismatch", () => {
@@ -206,10 +193,10 @@ describe("normalizeArchiveImportInput", () => {
 
   it("rejects non-boolean lifecycle flags instead of silently clearing them", () => {
     const input = validArchiveInput();
-    input.fiscalPeriod.settingsCompleted = "true";
+    input.fiscalPeriod.documentsReceivedCompleted = "true";
 
     expect(() => normalizeArchiveImportInput(input)).toThrow(
-      /settingsCompleted must be a boolean/,
+      /documentsReceivedCompleted must be a boolean/,
     );
   });
 
@@ -260,7 +247,7 @@ describe("normalizeArchiveImportInput", () => {
     openingLine.id = { corrupted: true };
     expect(() =>
       normalizeArchiveImportInput(invalidLineId),
-    ).toThrow(/openingJournal\.line\.id must be a string/);
+    ).toThrow(/archive opening journal line id is required/);
 
     const invalidStatus = validArchiveInput();
     invalidStatus.fixedAssets[0]!.status = 1;
@@ -274,7 +261,7 @@ describe("normalizeArchiveImportInput", () => {
     delete missingOpening.fiscalPeriod.opening;
     expect(() =>
       normalizeArchiveImportInput(missingOpening),
-    ).toThrow(/opening must be null or an object/);
+    ).toThrow(/archive opening must be an object/);
 
     const missingLocalId = validArchiveInput();
     delete missingLocalId.entries[0]!.localId;
@@ -458,7 +445,7 @@ describe("normalizeArchiveImportInput", () => {
 
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).messageForDeveloper).toContain(
-      "archive openingJournal debit total",
+      "archive opening journal debit total",
     );
   });
 
@@ -499,15 +486,7 @@ describe("normalizeArchiveImportInput", () => {
     ]);
   });
 
-  it("requires opening data and finalized journals whenever opening balances are completed", () => {
-    const missingOpening = validArchiveInput();
-    configureArchivePhase(missingOpening, "journalizing");
-    missingOpening.fiscalPeriod.openingBalancesCompleted = true;
-    missingOpening.fiscalPeriod.opening = null;
-    expect(() =>
-      normalizeArchiveImportInput(missingOpening),
-    ).toThrow(/completed opening balances require opening data/);
-
+  it("requires finalized journals whenever opening balances are completed", () => {
     const zeroJournal = validArchiveInput();
     configureArchivePhase(zeroJournal, "pre_opening");
     zeroJournal.fiscalPeriod.openingBalancesCompleted = true;
@@ -551,7 +530,7 @@ describe("normalizeArchiveImportInput", () => {
 
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).messageForDeveloper).toContain(
-      "archive openingBalanceLine.amount",
+      "archive opening balance line amount",
     );
   });
 
@@ -569,7 +548,7 @@ describe("normalizeArchiveImportInput", () => {
 
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).messageForDeveloper).toContain(
-      "archive openingBalanceLine accountId has a duplicate value",
+      "archive opening balance accountId has a duplicate value",
     );
   });
 
@@ -587,7 +566,7 @@ describe("normalizeArchiveImportInput", () => {
     archiveOpening(duplicateBalanceId).openingBalanceLines[1]!.id = "cash";
     expect(() =>
       normalizeArchiveImportInput(duplicateBalanceId),
-    ).toThrow(/openingBalanceLines has a duplicate id/);
+    ).toThrow(/archive opening balance line has a duplicate id/);
 
     const duplicateJournalId = validArchiveInput();
     const opening = archiveOpening(duplicateJournalId);
@@ -597,7 +576,7 @@ describe("normalizeArchiveImportInput", () => {
     });
     expect(() =>
       normalizeArchiveImportInput(duplicateJournalId),
-    ).toThrow(/openingJournals has a duplicate id/);
+    ).toThrow(/archive opening journal has a duplicate id/);
 
     const duplicateLineId = validArchiveInput();
     const journal = archiveOpening(duplicateLineId).openingJournals[0]!;
@@ -605,7 +584,7 @@ describe("normalizeArchiveImportInput", () => {
     journal.lines[1]!.id = "same-line";
     expect(() =>
       normalizeArchiveImportInput(duplicateLineId),
-    ).toThrow(/lines has a duplicate id/);
+    ).toThrow(/archive opening journal carry-1 line has a duplicate id/);
   });
 
   it("normalizes category display names from legacy archives to master IDs", () => {
@@ -637,19 +616,6 @@ describe("normalizeArchiveImportInput", () => {
     });
   });
 
-  it("validates master references even when a legacy entry has no identifier", () => {
-    const input = validArchiveInput();
-    input.manifest.version = 1;
-    delete input.entries[0]!.id;
-    delete input.entries[0]!.localId;
-    const lines = input.entries[0]!.lines as Array<Record<string, unknown>>;
-    lines[0]!.bookAccountId = "unknown-account";
-
-    expect(() => normalizeArchiveImportInput(input)).toThrow(
-      /archive entry line references unknown book account/,
-    );
-  });
-
   it("rejects child records that identify a different fiscal period", () => {
     const input = validArchiveInput();
     input.entries[0]!.fiscalPeriodId = "another-period";
@@ -659,12 +625,54 @@ describe("normalizeArchiveImportInput", () => {
     );
   });
 
-  it("reads legacy fixed asset disposal sentinels as null", () => {
+  it("reads a missing opening in legacy archives as empty", () => {
+    const input = validArchiveInput();
+    input.manifest.version = 1;
+    configureArchivePhase(input, "journalizing");
+    input.fiscalPeriod.opening = null;
+
+    const normalized = normalizeArchiveImportInput(input);
+
+    expect(normalized.fiscalPeriod.opening).toEqual({
+      openingBalanceLines: [],
+      openingJournals: [],
+    });
+  });
+
+  it("reads a started pre_opening period from legacy archives as journalizing", () => {
+    const input = validArchiveInput();
+    input.manifest.version = 1;
+    configureArchivePhase(input, "pre_opening");
+    input.fiscalPeriod.settingsCompleted = true;
+
+    const normalized = normalizeArchiveImportInput(input);
+
+    expect(normalized.fiscalPeriod.phase).toBe("journalizing");
+  });
+
+  it("keeps an unstarted pre_opening period from legacy archives", () => {
+    const input = validArchiveInput();
+    input.manifest.version = 1;
+    configureArchivePhase(input, "pre_opening");
+    input.fiscalPeriod.settingsCompleted = false;
+
+    const normalized = normalizeArchiveImportInput(input);
+
+    expect(normalized.fiscalPeriod.phase).toBe("pre_opening");
+  });
+
+  it("clears legacy disposal fields that the fixed asset status does not use", () => {
     const input = validArchiveInput();
     input.manifest.version = 1;
     input.fixedAssets[0]!.status = "active";
-    input.fixedAssets[0]!.disposalDate = "";
+    input.fixedAssets[0]!.disposalDate = "2026-12-01";
     input.fixedAssets[0]!.disposalPrice = 0;
+    input.fixedAssets.push({
+      ...input.fixedAssets[0]!,
+      id: "asset-disposed",
+      status: "disposed",
+      disposalPrice: 5000,
+    });
 
     const normalized = normalizeArchiveImportInput(input);
 
@@ -673,6 +681,21 @@ describe("normalizeArchiveImportInput", () => {
       disposalDate: null,
       disposalPrice: null,
     });
+    expect(normalized.fixedAssets[1]).toMatchObject({
+      status: "disposed",
+      disposalDate: "2026-12-01",
+      disposalPrice: null,
+    });
+  });
+
+  it("reads a blank legacy entry localId as null", () => {
+    const input = validArchiveInput();
+    input.manifest.version = 1;
+    input.entries[0]!.localId = "";
+
+    const normalized = normalizeArchiveImportInput(input);
+
+    expect(normalized.entries[0]?.localId).toBeNull();
   });
 
   it("rejects fixed asset useful lives beyond the supported calculation range", () => {
@@ -726,7 +749,6 @@ function validArchiveInput(): FiscalPeriodArchiveImportInput {
       startDate: "2026-01-01",
       endDate: "2026-12-31",
       phase: "post_closing",
-      settingsCompleted: true,
       openingBalancesCompleted: true,
       documentsReceivedCompleted: true,
       opening: {
@@ -827,7 +849,6 @@ function configureArchivePhase(
   phase: "pre_opening" | "journalizing" | "pre_closing" | "post_closing",
 ) {
   input.fiscalPeriod.phase = phase;
-  input.fiscalPeriod.settingsCompleted = phase !== "pre_opening";
   input.fiscalPeriod.openingBalancesCompleted =
     phase === "pre_closing" || phase === "post_closing";
   input.fiscalPeriod.documentsReceivedCompleted = phase === "post_closing";

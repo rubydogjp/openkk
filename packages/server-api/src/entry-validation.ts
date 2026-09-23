@@ -1,8 +1,8 @@
 import {
   assertEntryMatchesRules,
   assertTextFieldLength,
-  CLOSING_GENERATED_LOCAL_ID_PREFIX,
   serverValidationError,
+  VIRTUAL_ENTRY_LOCAL_ID_PREFIX,
 } from "@rubydogjp/openkk-server-domain";
 import type {
   EntryApiRecord,
@@ -16,9 +16,9 @@ export function assertEditableEntryInput(
   existing: EntryApiRecord | null,
 ): asserts input is EntryUpsertInput {
   assertEntryMatchesRules(input, period, "Entry");
-  if (input.localId?.startsWith(CLOSING_GENERATED_LOCAL_ID_PREFIX)) {
+  if (input.localId?.startsWith(VIRTUAL_ENTRY_LOCAL_ID_PREFIX)) {
     throw serverValidationError(
-      `Entry localId prefix ${CLOSING_GENERATED_LOCAL_ID_PREFIX} is reserved`,
+      `Entry localId prefix ${VIRTUAL_ENTRY_LOCAL_ID_PREFIX} is reserved`,
       "この仕訳識別子は本締め用に予約されています",
     );
   }

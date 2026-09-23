@@ -10,7 +10,20 @@ import {
   type ReactNode,
 } from "react";
 
-import { AppError } from "@rubydogjp/openkk-client-domain";
+import {
+  AppError,
+  formatAmount,
+  parseAmount,
+  resolveCategoryId,
+  resolveBookAccountId,
+  recordToPreviewRows,
+  draftBusinessRate,
+  weekdayJa,
+  type EntryRecord,
+  type EntryLine,
+  type BookAccountType,
+  type EntryPreviewRow,
+} from "@rubydogjp/openkk-client-domain";
 import { useOpenkkAppState } from "../shared/openkk-app-state.js";
 import { useBackendApi } from "../shared/backend-api-context.js";
 import { useOpenkkConfig } from "../shared/openkk-config-context.js";
@@ -34,26 +47,13 @@ import {
 
 import type {
   EntryApiRecord,
-  EntryApiLineInput,
+  EntryLineInput,
   EntryUpsertInput,
-  MasterBookAccount,
-  MasterBusinessCategory,
-  MasterTaxCategory,
+  MasterBookAccountApiRecord,
+  MasterBusinessCategoryApiRecord,
+  MasterTaxCategoryApiRecord,
 } from "@rubydogjp/openkk-client-ports";
 
-import {
-  formatAmount,
-  parseAmount,
-  resolveCategoryId,
-  resolveBookAccountId,
-  recordToPreviewRows,
-  draftBusinessRate,
-  weekdayJa,
-  type EntryRecord,
-  type EntryLine,
-  type BookAccountType,
-} from "@rubydogjp/openkk-client-domain";
-import type { EntryPreviewRow } from "@rubydogjp/openkk-client-domain";
 
 export type EntryDraft = {
   date: string;
@@ -121,10 +121,14 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
   const config = useOpenkkConfig();
 
   const [records, setRecords] = useState<EntryRecord[]>([]);
-  const [bookAccounts, setBookAccounts] = useState<MasterBookAccount[]>([]);
-  const [taxCategories, setTaxCategories] = useState<MasterTaxCategory[]>([]);
+  const [bookAccounts, setBookAccounts] = useState<
+    MasterBookAccountApiRecord[]
+  >([]);
+  const [taxCategories, setTaxCategories] = useState<
+    MasterTaxCategoryApiRecord[]
+  >([]);
   const [businessCategories, setBusinessCategories] = useState<
-    MasterBusinessCategory[]
+    MasterBusinessCategoryApiRecord[]
   >([]);
   const [masterLoadError, setMasterLoadError] = useState<unknown>(null);
   const [entriesLoadError, setEntriesLoadError] = useState<unknown>(null);
@@ -237,30 +241,26 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
         name: category.name,
       }));
 
+    const listMonthEntries = (fiscalPeriodId: string, yearMonth: string) =>
+      records
+        .filter(
+          (record) =>
+            record.fiscalPeriodId === fiscalPeriodId &&
+            record.date.startsWith(yearMonth),
+        )
+        .sort((left, right) => left.date.localeCompare(right.date));
+
     return {
       listFiscalPeriodEntries(fiscalPeriodId) {
         return records
           .filter((record) => record.fiscalPeriodId === fiscalPeriodId)
           .sort((left, right) => left.date.localeCompare(right.date));
       },
-      listMonthEntries(fiscalPeriodId, yearMonth) {
-        return records
-          .filter(
-            (record) =>
-              record.fiscalPeriodId === fiscalPeriodId &&
-              record.date.startsWith(yearMonth),
-          )
-          .sort((left, right) => left.date.localeCompare(right.date));
-      },
+      listMonthEntries,
       listMonthRows(fiscalPeriodId, yearMonth) {
-        return records
-          .filter(
-            (record) =>
-              record.fiscalPeriodId === fiscalPeriodId &&
-              record.date.startsWith(yearMonth),
-          )
-          .sort((left, right) => left.date.localeCompare(right.date))
-          .flatMap(recordToPreviewRows);
+        return listMonthEntries(fiscalPeriodId, yearMonth).flatMap(
+          recordToPreviewRows,
+        );
       },
       getEntry(entryId) {
         return records.find((record) => record.id === entryId) ?? null;
@@ -536,9 +536,9 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
 function mapRemoteEntryToRecord(input: {
   entry: EntryApiRecord;
   fiscalPeriodId: string;
-  accounts: MasterBookAccount[];
-  taxes: MasterTaxCategory[];
-  businesses: MasterBusinessCategory[];
+  accounts: MasterBookAccountApiRecord[];
+  taxes: MasterTaxCategoryApiRecord[];
+  businesses: MasterBusinessCategoryApiRecord[];
 }): EntryRecord {
   const lines: EntryLine[] = input.entry.lines.map((line): EntryLine => ({
     side: line.side,
@@ -571,13 +571,16 @@ function mapRemoteEntryToRecord(input: {
 
 function mapBookAccountName(
   id: string | null,
-  accounts: MasterBookAccount[],
+  accounts: MasterBookAccountApiRecord[],
 ): string {
   if (id == null || id.length === 0) return "";
   return accounts.find((account) => account.id === id)?.name ?? id;
 }
 
-function mapTaxName(idOrName: string, categories: MasterTaxCategory[]): string {
+function mapTaxName(
+  idOrName: string,
+  categories: MasterTaxCategoryApiRecord[],
+): string {
   if (idOrName.length === 0) return "対象外";
   return (
     categories.find((category) => category.id === idOrName)?.name ??
@@ -588,7 +591,7 @@ function mapTaxName(idOrName: string, categories: MasterTaxCategory[]): string {
 
 function mapBusinessName(
   idOrName: string,
-  categories: MasterBusinessCategory[],
+  categories: MasterBusinessCategoryApiRecord[],
 ): string {
   if (idOrName.length === 0) return "対象外";
   return (
@@ -600,7 +603,7 @@ function mapBusinessName(
 
 function mapAccountType(
   id: string | null,
-  accounts: MasterBookAccount[],
+  accounts: MasterBookAccountApiRecord[],
   fallback: BookAccountType,
 ): BookAccountType {
   if (id == null) return fallback;
@@ -611,12 +614,12 @@ function mapAccountType(
 function buildEntryApiLinesFromDraft(
   draft: EntryDraft,
   master: {
-    accounts: MasterBookAccount[];
-    taxes: MasterTaxCategory[];
-    businesses: MasterBusinessCategory[];
+    accounts: MasterBookAccountApiRecord[];
+    taxes: MasterTaxCategoryApiRecord[];
+    businesses: MasterBusinessCategoryApiRecord[];
   },
   errorContext: { messageForDeveloper: string; messageForUser: string },
-): EntryApiLineInput[] {
+): EntryLineInput[] {
   return draft.lines.map((line) => {
     const bookAccountId = resolveBookAccountId({
       explicitId: line.bookAccountId,

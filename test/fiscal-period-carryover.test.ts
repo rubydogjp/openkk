@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   computeFsAggregate,
   isOpeningCarryoverCandidate,
-  type EntryRecord,
+  type EntryRecord as ClientEntryRecord,
+  type FsBsRow,
 } from "../packages/client-domain/src/index.js";
 import { createOpenkkEmbeddedBackendAdapter } from "../packages/embedded-backend-adapter/src/index.js";
 import { createMemoryDbAdapter } from "../packages/memory-db-adapter/src/index.js";
@@ -13,8 +14,9 @@ import {
   buildExpectedClosingEntries,
   DEFAULT_BOOK_ACCOUNTS,
   getDefaultBookAccount,
-  type CarryoverEntry,
-  type CarryoverEntryLine,
+  type EntryLine,
+  type EntryRecord,
+  type OpeningBalanceLine,
 } from "../packages/server-domain/src/index.js";
 import type {
   OpenkkDbPort,
@@ -33,7 +35,7 @@ function line(
   side: "debit" | "credit",
   bookAccountId: string,
   amount: number,
-): CarryoverEntryLine {
+): EntryLine {
   return {
     side,
     bookAccountId,
@@ -44,27 +46,26 @@ function line(
   };
 }
 
-function entry(lines: CarryoverEntryLine[]): CarryoverEntry {
+function entry(lines: EntryLine[]): EntryRecord {
   return {
     id: "entry-1",
+    date: "2026-12-31",
     description: "期末費用",
+    localId: null,
     businessRate: 0.3333333333333333,
-    lines,
+    lines: lines.map((item, index) => ({ ...item, id: String(index) })),
   };
 }
 
-function clientEntry(record: CarryoverEntry): EntryRecord {
+function clientEntry(record: EntryRecord): ClientEntryRecord {
   return {
     ...record,
     fiscalPeriodId: "source",
-    date: "2026-12-31",
     weekday: "",
-    localId: null,
-    lines: record.lines.map((item, index) => {
+    lines: record.lines.map((item) => {
       const account = getDefaultBookAccount(item.bookAccountId)!;
       return {
         ...item,
-        id: String(index),
         accountName: account.name,
         accountType: account.accountType,
         amount: String(item.amount),
@@ -75,12 +76,72 @@ function clientEntry(record: CarryoverEntry): EntryRecord {
   };
 }
 
+function balance(accountId: string, amount: number): OpeningBalanceLine {
+  return { id: accountId, accountId, amount };
+}
+
+const CAPITAL_ROW_LABELS = new Set([
+  "事業主貸",
+  "事業主借",
+  "元入金",
+  "青色申告特別控除前の所得金額",
+  "合計",
+]);
+
+function balanceSheetAmounts(
+  rows: FsBsRow[],
+  column: "opening" | "closing",
+): Record<string, number> {
+  const amounts: Record<string, number> = {};
+  const add = (side: "a" | "l", label: string, amount: number | null) => {
+    if (CAPITAL_ROW_LABELS.has(label) || amount == null || amount === 0) return;
+    const carriedSide = amount > 0 ? side : side === "a" ? "l" : "a";
+    amounts[`${carriedSide}:${label}`] = Math.abs(amount);
+  };
+  for (const row of rows) {
+    add(
+      "a",
+      row.assetLabel,
+      column === "opening" ? row.assetOpening : row.assetClosing,
+    );
+    add(
+      "l",
+      row.liabilityLabel,
+      column === "opening" ? row.liabilityOpening : row.liabilityClosing,
+    );
+  }
+  return amounts;
+}
+
+function assertCarriesClosingBalanceSheet(
+  entries: EntryRecord[],
+  openingBalanceLines: OpeningBalanceLine[],
+  label: string,
+): void {
+  const closing = computeFsAggregate({
+    entries: entries.map(clientEntry),
+    openingBalanceLines,
+  });
+  const carried = buildCarryoverOpeningBalances({
+    entries,
+    openingBalanceLines,
+  });
+  const next = computeFsAggregate({ entries: [], openingBalanceLines: carried });
+  expect(balanceSheetAmounts(next.bsRows, "opening"), label).toEqual(
+    balanceSheetAmounts(closing.bsRows, "closing"),
+  );
+  expect(
+    carried.reduce(
+      (total, item) =>
+        total + (item.accountId.startsWith("a:") ? item.amount : -item.amount),
+      0,
+    ),
+    label,
+  ).toBe(0);
+}
+
 describe("carryover calculations", () => {
-  it("agrees with financial statements for both sides of every master account", () => {
-    const openingBalanceLines = [
-      { accountId: "a:現金", amount: 100 },
-      { accountId: "l:元入金", amount: 100 },
-    ];
+  it("opens the next period with the closing balance sheet for both sides of every master account", () => {
     for (const account of DEFAULT_BOOK_ACCOUNTS) {
       for (const side of ["debit", "credit"] as const) {
         const entries = [
@@ -89,26 +150,10 @@ describe("carryover calculations", () => {
             line(side === "debit" ? "credit" : "debit", "acct_cash", 200),
           ]),
         ];
-        const balances = buildCarryoverOpeningBalances({
+        assertCarriesClosingBalanceSheet(
           entries,
-          openingBalanceLines,
-        });
-        const report = computeFsAggregate({
-          entries: entries.map(clientEntry),
-          openingBalanceLines,
-        });
-        expect(
-          Object.fromEntries(
-            balances.map((item) => [item.accountId, item.amount]),
-          ),
+          [balance("a:現金", 100), balance("l:元入金", 100)],
           `${account.id}: ${side}`,
-        ).toEqual(
-          Object.fromEntries(
-            report.nextPeriodOpeningBalanceLines.map((item) => [
-              item.accountId,
-              item.amount,
-            ]),
-          ),
         );
       }
     }
@@ -150,58 +195,91 @@ describe("carryover calculations", () => {
     ["contrary liability", "acct_accrued_expense", "acct_cash"],
     ["negative capital", "acct_supplies", "acct_accrued_expense"],
   ])(
-    "matches the financial statement carryover for %s",
+    "opens the next period with the closing balance sheet for %s",
     (_name, debit, credit) => {
-      const entries = [
-        entry([line("debit", debit!, 200), line("credit", credit!, 200)]),
-      ];
-      const openingBalanceLines = [
-        { accountId: "a:現金", amount: 100 },
-        { accountId: "l:元入金", amount: 100 },
-      ];
+      assertCarriesClosingBalanceSheet(
+        [entry([line("debit", debit!, 200), line("credit", credit!, 200)])],
+        [balance("a:現金", 100), balance("l:元入金", 100)],
+        _name,
+      );
+    },
+  );
+
+  it.each([
+    [
+      "profit into 元入金",
+      [balance("a:普通預金", 50_000)],
+      [[line("debit", "acct_bank", 100_000), line("credit", "acct_sales", 100_000)]],
+      [balance("a:普通預金", 150_000), balance("l:元入金", 100_000)],
+    ],
+    [
+      "a loss into 元入金",
+      [balance("a:現金", 500_000), balance("l:元入金", 500_000)],
+      [[line("debit", "acct_communication", 100_000), line("credit", "acct_cash", 100_000)]],
+      [balance("a:現金", 400_000), balance("l:元入金", 400_000)],
+    ],
+    [
+      "negative capital as 事業主貸",
+      [balance("a:現金", 100_000), balance("l:長期借入金", 100_000)],
+      [
+        [line("debit", "acct_communication", 150_000), line("credit", "acct_cash", 150_000)],
+        [line("debit", "acct_cash", 100_000), line("credit", "acct_capital", 100_000)],
+      ],
+      [
+        balance("a:現金", 50_000),
+        balance("l:長期借入金", 100_000),
+        balance("a:事業主貸", 50_000),
+      ],
+    ],
+    [
+      "owner draws, deposits and profit into 元入金",
+      [balance("a:現金", 1_000_000), balance("l:元入金", 1_000_000)],
+      [
+        [line("debit", "acct_proprietor_withdrawal", 50_000), line("credit", "acct_cash", 50_000)],
+        [line("debit", "acct_cash", 30_000), line("credit", "acct_proprietor_loan", 30_000)],
+        [line("debit", "acct_cash", 200_000), line("credit", "acct_sales", 200_000)],
+      ],
+      [balance("a:現金", 1_180_000), balance("l:元入金", 1_180_000)],
+    ],
+    [
+      "a contrary asset balance on the liability side",
+      [balance("a:現金", 100_000), balance("l:長期借入金", 100_000)],
+      [[line("debit", "acct_communication", 150_000), line("credit", "acct_cash", 150_000)]],
+      [
+        balance("l:現金", 50_000),
+        balance("l:長期借入金", 100_000),
+        balance("a:事業主貸", 150_000),
+      ],
+    ],
+  ] as const)(
+    "carries %s",
+    (_name, openingBalanceLines, lines, expected) => {
       const actual = buildCarryoverOpeningBalances({
-        entries,
         openingBalanceLines,
+        entries: lines.map((entryLines, index) => ({
+          ...entry([...entryLines]),
+          id: `entry-${index + 1}`,
+        })),
       });
-      const expected = computeFsAggregate({
-        entries: entries.map(clientEntry),
-        openingBalanceLines,
-      }).nextPeriodOpeningBalanceLines;
-      const amounts = (lines: Array<{ accountId: string; amount: number }>) =>
-        Object.fromEntries(lines.map((item) => [item.accountId, item.amount]));
-      expect(amounts(actual)).toEqual(amounts(expected));
-      expect(
-        actual.reduce(
-          (total, item) =>
-            total +
-            (item.accountId.startsWith("a:") ? item.amount : -item.amount),
-          0,
-        ),
-      ).toBe(0);
+      expect(actual).toEqual(expect.arrayContaining([...expected]));
+      expect(actual).toHaveLength(expected.length);
     },
   );
 
   it("preserves named balances beyond printed statement slots", () => {
     const openingBalanceLines = [
-      ...Array.from({ length: 20 }, (_, index) => ({
-        accountId: `a:科目${index}`,
-        amount: 100,
-      })),
-      { accountId: "l:元入金", amount: 2000 },
+      ...Array.from({ length: 20 }, (_, index) => balance(`a:科目${index}`, 100)),
+      balance("l:元入金", 2000),
     ];
     expect(
       buildCarryoverOpeningBalances({ openingBalanceLines, entries: [] }),
-    ).toEqual(
-      openingBalanceLines.map((item) => ({ id: item.accountId, ...item })),
-    );
+    ).toEqual(openingBalanceLines);
   });
 
   it("rejects balances outside the safe integer range", () => {
     expect(() =>
       buildCarryoverOpeningBalances({
-        openingBalanceLines: [
-          { accountId: "a:現金", amount: Number.MAX_SAFE_INTEGER },
-        ],
+        openingBalanceLines: [balance("a:現金", Number.MAX_SAFE_INTEGER)],
         entries: [
           entry([
             line("debit", "acct_cash", 1),
@@ -322,12 +400,12 @@ describe("carryover calculations", () => {
         startDate: "2027-01-01",
       }),
     ).toHaveLength(1);
-    record.lines = [
+    const zeroLineRecord = entry([
       line("debit", "acct_supplies", 100),
       line("credit", "acct_cash", 100),
       line("credit", "acct_accrued_expense", 0),
-    ];
-    expect(isOpeningCarryoverCandidate(clientEntry(record))).toBe(false);
+    ]);
+    expect(isOpeningCarryoverCandidate(clientEntry(zeroLineRecord))).toBe(false);
   });
 });
 
@@ -338,8 +416,8 @@ async function closedSource(db: OpenkkDbPort) {
     startDate: "2026-01-01",
     endDate: "2026-12-31",
   });
+  await server.fiscalPeriods.start(period.id);
   await server.fiscalPeriods.patch(period.id, {
-    settingsCompleted: true,
     openingBalancesCompleted: true,
   });
   const accrued = await db.entries.create("user-1", period.id, {
@@ -413,7 +491,6 @@ describe("atomic fiscal period carryover", () => {
     const next = await backend.fiscalPeriods.createNext(input);
     expect(next).toMatchObject({
       phase: "pre_opening",
-      settingsCompleted: false,
       openingBalancesCompleted: true,
     });
     expect(next.opening.openingJournals[0]).toMatchObject({
@@ -436,7 +513,7 @@ describe("atomic fiscal period carryover", () => {
     expect(
       (await backend.fiscalPeriods.getAll()).find((item) => item.id === next.id),
     ).toEqual(next);
-    await backend.fiscalPeriods.patch(next.id, { settingsCompleted: true });
+    await backend.fiscalPeriods.start(next.id);
     await backend.preClosings.run({ fiscalPeriodId: next.id, year: 2027 });
     const closed = await backend.closings.run({
       fiscalPeriodId: next.id,
@@ -531,7 +608,7 @@ describe("atomic fiscal period carryover", () => {
         },
       }),
     ).rejects.toThrow(/400 character limit/);
-    await server.fiscalPeriods.patch(next.id, { settingsCompleted: true });
+    await server.fiscalPeriods.start(next.id);
     const [asset] = await server.fixedAssets.getAll(next.id);
     await expect(
       server.fixedAssets.patch(next.id, asset!.id, {
@@ -554,9 +631,9 @@ describe("atomic fiscal period carryover", () => {
     });
     await server.fiscalPeriods.patch(period.id, {
       name: longText,
-      settingsCompleted: true,
       openingBalancesCompleted: true,
     });
+    await server.fiscalPeriods.start(period.id);
     const stored = await db.entries.create("user-1", period.id, {
       date: period.startDate,
       description: longText,

@@ -33,13 +33,9 @@ describe("isCurrentMonthWithinFiscalPeriod", () => {
   });
 
   it("is inclusive on both boundary months", () => {
-    // start month boundary
     expect(isCurrentMonthWithinFiscalPeriod("2026-03-01", "2026-09-30", new Date(2026, 2, 1))).toBe(true);
-    // end month boundary
     expect(isCurrentMonthWithinFiscalPeriod("2026-03-01", "2026-09-30", new Date(2026, 8, 30))).toBe(true);
-    // one month before start
     expect(isCurrentMonthWithinFiscalPeriod("2026-03-01", "2026-09-30", new Date(2026, 1, 28))).toBe(false);
-    // one month after end
     expect(isCurrentMonthWithinFiscalPeriod("2026-03-01", "2026-09-30", new Date(2026, 9, 1))).toBe(false);
   });
 });

@@ -10,7 +10,7 @@ export type FiscalPeriodPhase =
   | "pre_closing"
   | "post_closing";
 
-export type FiscalPeriodArchiveStatus = "active" | "archived";
+export type FiscalPeriodArchiveStatus = "active" | "archived" | "purged";
 
 export type FiscalPeriod = {
   id: string;
@@ -20,9 +20,7 @@ export type FiscalPeriod = {
   endDate: string;
   phase: FiscalPeriodPhase;
   archiveStatus: FiscalPeriodArchiveStatus;
-  archiveDataAvailable: boolean;
   archivedAt: string | null;
-  settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
   createdAt: string;
@@ -55,11 +53,6 @@ export type FiscalPeriodOpeningJournal = {
 };
 
 export type FiscalPeriodOpening = {
-  id: string;
-  userId: string;
-  fiscalPeriodId: string;
-  createdAt: string;
-  updatedAt: string;
   openingBalanceLines: FiscalPeriodOpeningBalanceLine[];
   openingJournals: FiscalPeriodOpeningJournal[];
 };

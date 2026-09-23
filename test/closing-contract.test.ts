@@ -16,8 +16,8 @@ describe("client/server closing contract", () => {
       startDate: "2026-01-01",
       endDate: "2026-12-31",
     });
+    await server.fiscalPeriods.start(period.id);
     await server.fiscalPeriods.patch(period.id, {
-      settingsCompleted: true,
       openingBalancesCompleted: true,
     });
     await server.fixedAssets.create(period.id, {
@@ -76,13 +76,10 @@ describe("client/server closing contract", () => {
           },
         ],
       };
+      await server.fiscalPeriods.start(period.id);
       await server.fiscalPeriods.patch(period.id, {
-        settingsCompleted: true,
         openingBalancesCompleted: true,
         opening: {
-          id: period.opening.id,
-          userId: period.userId,
-          fiscalPeriodId: period.id,
           openingBalanceLines: [],
           openingJournals: [journal],
         },

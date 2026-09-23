@@ -3,20 +3,6 @@ export type SchemaMigration = {
   sql: string;
 };
 
-export const SQLITE_TABLE_NAMES = [
-  "openkk_meta",
-  "fiscal_periods",
-  "openings",
-  "opening_balance_lines",
-  "opening_journals",
-  "opening_journal_lines",
-  "entries",
-  "entry_lines",
-  "fixed_assets",
-  "pre_closings",
-  "closings",
-] as const;
-
 const MIGRATION_V1: SchemaMigration = {
   version: 1,
   sql: `
@@ -405,60 +391,152 @@ ALTER TABLE entry_lines_v3 RENAME TO entry_lines;
 const MIGRATION_V4: SchemaMigration = {
   version: 4,
   sql: `
-UPDATE entry_lines
-SET tax_category_id = CASE tax_category_id
-  WHEN '課税 10%' THEN 'tax_10'
-  WHEN '軽減税率 8%' THEN 'tax_8'
-  WHEN '免税' THEN 'tax_exempt'
-  WHEN '非課税' THEN 'tax_non_taxable'
-  WHEN '対象外' THEN 'tax_out_of_scope'
-  ELSE tax_category_id
-END;
+CREATE TEMP TABLE openkk_v4_tax_category_ids (name TEXT PRIMARY KEY, id TEXT NOT NULL);
+INSERT INTO openkk_v4_tax_category_ids(name, id) VALUES
+  ('課税 10%', 'tax_10'),
+  ('軽減税率 8%', 'tax_8'),
+  ('免税', 'tax_exempt'),
+  ('非課税', 'tax_non_taxable'),
+  ('対象外', 'tax_out_of_scope');
 
-UPDATE entry_lines
-SET business_category_id = CASE business_category_id
-  WHEN '第1種（卸売業）' THEN 'biz_1'
-  WHEN '第2種（小売業等）' THEN 'biz_2'
-  WHEN '第3種（製造業等）' THEN 'biz_3'
-  WHEN '第4種（その他）' THEN 'biz_4'
-  WHEN '第5種（サービス業等）' THEN 'biz_5'
-  WHEN '第6種（不動産業）' THEN 'biz_6'
-  WHEN '対象外' THEN 'biz_none'
-  ELSE business_category_id
-END;
+CREATE TEMP TABLE openkk_v4_business_category_ids (name TEXT PRIMARY KEY, id TEXT NOT NULL);
+INSERT INTO openkk_v4_business_category_ids(name, id) VALUES
+  ('第1種（卸売業）', 'biz_1'),
+  ('第2種（小売業等）', 'biz_2'),
+  ('第3種（製造業等）', 'biz_3'),
+  ('第4種（その他）', 'biz_4'),
+  ('第5種（サービス業等）', 'biz_5'),
+  ('第6種（不動産業）', 'biz_6'),
+  ('対象外', 'biz_none');
 
-UPDATE opening_journal_lines
-SET tax_category_id = CASE tax_category_id
-  WHEN '課税 10%' THEN 'tax_10'
-  WHEN '軽減税率 8%' THEN 'tax_8'
-  WHEN '免税' THEN 'tax_exempt'
-  WHEN '非課税' THEN 'tax_non_taxable'
-  WHEN '対象外' THEN 'tax_out_of_scope'
-  ELSE tax_category_id
-END;
+CREATE TEMP TABLE openkk_v4_fiscal_periods AS SELECT * FROM fiscal_periods;
+CREATE TEMP TABLE openkk_v4_opening_balance_lines AS
+SELECT o.fiscal_period_id, line.id, line.account_id, line.amount, line.position
+FROM opening_balance_lines line
+JOIN openings o ON o.id = line.opening_id;
+CREATE TEMP TABLE openkk_v4_opening_journals AS
+SELECT o.fiscal_period_id, journal.id, journal.date, journal.description,
+  journal.business_rate, journal.position
+FROM opening_journals journal
+JOIN openings o ON o.id = journal.opening_id;
+CREATE TEMP TABLE openkk_v4_opening_journal_lines AS
+SELECT o.fiscal_period_id, line.opening_journal_id, line.id, line.side,
+  line.book_account_id, line.amount, line.partner_name, line.tax_category_id,
+  line.business_category_id, line.position
+FROM opening_journal_lines line
+JOIN openings o ON o.id = line.opening_id;
+CREATE TEMP TABLE openkk_v4_entries AS SELECT * FROM entries;
+CREATE TEMP TABLE openkk_v4_entry_lines AS SELECT * FROM entry_lines;
+CREATE TEMP TABLE openkk_v4_fixed_assets AS SELECT * FROM fixed_assets;
+CREATE TEMP TABLE openkk_v4_pre_closings AS SELECT * FROM pre_closings;
+CREATE TEMP TABLE openkk_v4_closings AS SELECT * FROM closings;
 
-UPDATE opening_journal_lines
-SET business_category_id = CASE business_category_id
-  WHEN '第1種（卸売業）' THEN 'biz_1'
-  WHEN '第2種（小売業等）' THEN 'biz_2'
-  WHEN '第3種（製造業等）' THEN 'biz_3'
-  WHEN '第4種（その他）' THEN 'biz_4'
-  WHEN '第5種（サービス業等）' THEN 'biz_5'
-  WHEN '第6種（不動産業）' THEN 'biz_6'
-  WHEN '対象外' THEN 'biz_none'
-  ELSE business_category_id
-END;
+DROP TABLE opening_journal_lines;
+DROP TABLE opening_journals;
+DROP TABLE opening_balance_lines;
+DROP TABLE openings;
+DROP TABLE entry_lines;
+DROP TABLE entries;
+DROP TABLE fixed_assets;
+DROP TABLE pre_closings;
+DROP TABLE closings;
+DROP TABLE fiscal_periods;
 
-UPDATE fiscal_periods
-SET data = json_set(data, '$.archiveDataAvailable', json('true'))
-WHERE json_type(data, '$.archiveDataAvailable') IS NULL
-   OR json_type(data, '$.archiveDataAvailable') = 'null';
+CREATE TABLE fiscal_periods (
+  id         TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL,
+  data       TEXT NOT NULL CHECK (
+    json_valid(data)
+    AND json_type(data, '$.id') IS 'text'
+    AND json_extract(data, '$.id') = id
+    AND json_type(data, '$.name') IS 'text'
+    AND json_type(data, '$.startDate') IS 'text'
+    AND json_type(data, '$.endDate') IS 'text'
+    AND json_type(data, '$.phase') IS 'text'
+    AND json_extract(data, '$.phase') IN ('pre_opening', 'journalizing', 'pre_closing', 'post_closing')
+    AND json_type(data, '$.archiveStatus') IS 'text'
+    AND json_extract(data, '$.archiveStatus') IN ('active', 'archived', 'purged')
+    AND (json_type(data, '$.archivedAt') IS 'text' OR json_type(data, '$.archivedAt') IS 'null')
+    AND (json_type(data, '$.openingBalancesCompleted') IS 'true' OR json_type(data, '$.openingBalancesCompleted') IS 'false')
+    AND (json_type(data, '$.documentsReceivedCompleted') IS 'true' OR json_type(data, '$.documentsReceivedCompleted') IS 'false')
+  ),
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX idx_fiscal_periods_user_created_id
+  ON fiscal_periods(user_id, created_at, id);
 
-UPDATE fiscal_periods
-SET data = json_set(data, '$.archivedAt', json('null'))
-WHERE json_type(data, '$.archivedAt') IS NULL;
+CREATE TABLE opening_balance_lines (
+  fiscal_period_id TEXT NOT NULL REFERENCES fiscal_periods(id) ON DELETE CASCADE,
+  id               TEXT NOT NULL,
+  account_id       TEXT NOT NULL,
+  amount           REAL NOT NULL CHECK (amount >= 0),
+  position         INTEGER NOT NULL CHECK (position >= 0),
+  PRIMARY KEY (fiscal_period_id, id),
+  UNIQUE (fiscal_period_id, account_id)
+);
+CREATE INDEX idx_opening_balance_lines_order
+  ON opening_balance_lines(fiscal_period_id, position, id);
 
-CREATE TABLE fixed_assets_v4 (
+CREATE TABLE opening_journals (
+  fiscal_period_id TEXT NOT NULL REFERENCES fiscal_periods(id) ON DELETE CASCADE,
+  id               TEXT NOT NULL,
+  date             TEXT NOT NULL CHECK (date = date(date)),
+  description      TEXT NOT NULL,
+  business_rate    REAL NOT NULL CHECK (business_rate BETWEEN 0 AND 1),
+  position         INTEGER NOT NULL CHECK (position >= 0),
+  PRIMARY KEY (fiscal_period_id, id)
+);
+CREATE INDEX idx_opening_journals_order
+  ON opening_journals(fiscal_period_id, position, id);
+
+CREATE TABLE opening_journal_lines (
+  fiscal_period_id       TEXT NOT NULL,
+  opening_journal_id     TEXT NOT NULL,
+  id                     TEXT NOT NULL,
+  side                   TEXT NOT NULL CHECK (side IN ('debit', 'credit')),
+  book_account_id        TEXT NOT NULL,
+  amount                 REAL NOT NULL CHECK (amount >= 0),
+  partner_name           TEXT NOT NULL,
+  tax_category_id        TEXT NOT NULL,
+  business_category_id   TEXT NOT NULL,
+  position               INTEGER NOT NULL CHECK (position >= 0),
+  PRIMARY KEY (fiscal_period_id, opening_journal_id, id),
+  FOREIGN KEY (fiscal_period_id, opening_journal_id)
+    REFERENCES opening_journals(fiscal_period_id, id) ON DELETE CASCADE
+);
+CREATE INDEX idx_opening_journal_lines_order
+  ON opening_journal_lines(fiscal_period_id, opening_journal_id, position, id);
+
+CREATE TABLE entries (
+  id               TEXT PRIMARY KEY,
+  fiscal_period_id TEXT NOT NULL REFERENCES fiscal_periods(id) ON DELETE CASCADE,
+  date             TEXT NOT NULL CHECK (date = date(date)),
+  local_id         TEXT CHECK (local_id IS NULL OR length(trim(local_id)) > 0),
+  description      TEXT NOT NULL,
+  business_rate    REAL NOT NULL CHECK (business_rate BETWEEN 0 AND 1),
+  created_at       INTEGER NOT NULL,
+  updated_at       INTEGER NOT NULL
+);
+CREATE INDEX idx_entries_fp_date_created_id
+  ON entries(fiscal_period_id, date, created_at, id);
+CREATE UNIQUE INDEX idx_entries_fp_local_id
+  ON entries(fiscal_period_id, local_id) WHERE local_id IS NOT NULL;
+
+CREATE TABLE entry_lines (
+  entry_id               TEXT NOT NULL REFERENCES entries(id) ON DELETE CASCADE,
+  id                     TEXT NOT NULL,
+  side                   TEXT NOT NULL CHECK (side IN ('debit', 'credit')),
+  book_account_id        TEXT NOT NULL,
+  amount                 REAL NOT NULL CHECK (amount >= 0),
+  partner_name           TEXT NOT NULL,
+  tax_category_id        TEXT NOT NULL,
+  business_category_id   TEXT NOT NULL,
+  position               INTEGER NOT NULL CHECK (position >= 0),
+  PRIMARY KEY (entry_id, position)
+);
+
+CREATE TABLE fixed_assets (
   id               TEXT PRIMARY KEY,
   fiscal_period_id TEXT NOT NULL REFERENCES fiscal_periods(id) ON DELETE CASCADE,
   data             TEXT NOT NULL CHECK (
@@ -492,46 +570,65 @@ CREATE TABLE fixed_assets_v4 (
   created_at       INTEGER NOT NULL,
   updated_at       INTEGER NOT NULL
 );
-INSERT INTO fixed_assets_v4
-SELECT id, fiscal_period_id,
-  CASE
-    WHEN json_extract(normalized_data, '$.status') <> 'sold'
-      AND json_extract(normalized_data, '$.disposalPrice') = 0
-      THEN json_set(normalized_data, '$.disposalPrice', NULL)
-    ELSE normalized_data
-  END,
-  created_at, updated_at
-FROM (
-  SELECT id, fiscal_period_id,
-    CASE
-      WHEN json_extract(data, '$.disposalDate') = ''
-        THEN json_set(data, '$.disposalDate', NULL)
-      ELSE data
-    END AS normalized_data,
-    created_at, updated_at
-  FROM fixed_assets
-);
-DROP TABLE fixed_assets;
-ALTER TABLE fixed_assets_v4 RENAME TO fixed_assets;
 CREATE INDEX idx_fixed_assets_fp_created_id
   ON fixed_assets(fiscal_period_id, created_at, id);
 
-CREATE TEMP TABLE openkk_entries_v4 AS SELECT * FROM entries;
-CREATE TEMP TABLE openkk_entry_lines_v4 AS SELECT * FROM entry_lines;
-
-DROP TABLE entry_lines;
-DROP TABLE entries;
-
-CREATE TABLE entries (
-  id               TEXT PRIMARY KEY,
+CREATE TABLE pre_closings (
   fiscal_period_id TEXT NOT NULL REFERENCES fiscal_periods(id) ON DELETE CASCADE,
-  date             TEXT NOT NULL CHECK (date = date(date)),
-  local_id         TEXT CHECK (local_id IS NULL OR length(trim(local_id)) > 0),
-  description      TEXT NOT NULL,
-  business_rate    REAL NOT NULL CHECK (business_rate BETWEEN 0 AND 1),
-  created_at       INTEGER NOT NULL,
-  updated_at       INTEGER NOT NULL
+  year             INTEGER NOT NULL CHECK (year BETWEEN 1 AND 9999),
+  PRIMARY KEY (fiscal_period_id, year)
 );
+
+CREATE TABLE closings (
+  fiscal_period_id TEXT NOT NULL REFERENCES fiscal_periods(id) ON DELETE CASCADE,
+  year             INTEGER NOT NULL CHECK (year BETWEEN 1 AND 9999),
+  PRIMARY KEY (fiscal_period_id, year)
+);
+
+INSERT INTO fiscal_periods(id, user_id, data, created_at, updated_at)
+SELECT
+  id,
+  user_id,
+  json_set(
+    json_remove(data, '$.archiveDataAvailable', '$.settingsCompleted'),
+    '$.phase', CASE
+      WHEN json_extract(data, '$.phase') = 'pre_opening'
+        AND json_extract(data, '$.settingsCompleted') = 1
+        THEN 'journalizing'
+      ELSE json_extract(data, '$.phase')
+    END,
+    '$.archiveStatus', CASE
+      WHEN json_extract(data, '$.archiveDataAvailable') = 0 THEN 'purged'
+      ELSE json_extract(data, '$.archiveStatus')
+    END,
+    '$.archivedAt', json_extract(data, '$.archivedAt')
+  ),
+  created_at,
+  updated_at
+FROM openkk_v4_fiscal_periods;
+
+INSERT INTO opening_balance_lines(fiscal_period_id, id, account_id, amount, position)
+SELECT fiscal_period_id, id, account_id, amount, position
+FROM openkk_v4_opening_balance_lines;
+
+INSERT INTO opening_journals(fiscal_period_id, id, date, description, business_rate, position)
+SELECT fiscal_period_id, id, date, description, business_rate, position
+FROM openkk_v4_opening_journals;
+
+INSERT INTO opening_journal_lines(
+  fiscal_period_id, opening_journal_id, id, side, book_account_id, amount,
+  partner_name, tax_category_id, business_category_id, position
+)
+SELECT
+  line.fiscal_period_id, line.opening_journal_id, line.id, line.side,
+  line.book_account_id, line.amount, line.partner_name,
+  COALESCE(tax.id, line.tax_category_id),
+  COALESCE(business.id, line.business_category_id),
+  line.position
+FROM openkk_v4_opening_journal_lines line
+LEFT JOIN openkk_v4_tax_category_ids tax ON tax.name = line.tax_category_id
+LEFT JOIN openkk_v4_business_category_ids business ON business.name = line.business_category_id;
+
 INSERT INTO entries(
   id, fiscal_period_id, date, local_id, description, business_rate, created_at, updated_at
 )
@@ -544,35 +641,49 @@ SELECT
   business_rate,
   created_at,
   updated_at
-FROM openkk_entries_v4;
-CREATE INDEX idx_entries_fp_date_created_id
-  ON entries(fiscal_period_id, date, created_at, id);
-CREATE UNIQUE INDEX idx_entries_fp_local_id
-  ON entries(fiscal_period_id, local_id) WHERE local_id IS NOT NULL;
+FROM openkk_v4_entries;
 
-CREATE TABLE entry_lines (
-  entry_id               TEXT NOT NULL REFERENCES entries(id) ON DELETE CASCADE,
-  id                     TEXT NOT NULL,
-  side                   TEXT NOT NULL CHECK (side IN ('debit', 'credit')),
-  book_account_id        TEXT NOT NULL,
-  amount                 REAL NOT NULL CHECK (amount >= 0),
-  partner_name           TEXT NOT NULL,
-  tax_category_id        TEXT NOT NULL,
-  business_category_id   TEXT NOT NULL,
-  position               INTEGER NOT NULL CHECK (position >= 0),
-  PRIMARY KEY (entry_id, position)
-);
 INSERT INTO entry_lines(
   entry_id, id, side, book_account_id, amount, partner_name,
   tax_category_id, business_category_id, position
 )
 SELECT
-  entry_id, id, side, book_account_id, amount, partner_name,
-  tax_category_id, business_category_id, position
-FROM openkk_entry_lines_v4;
+  line.entry_id, line.id, line.side, line.book_account_id, line.amount,
+  line.partner_name,
+  COALESCE(tax.id, line.tax_category_id),
+  COALESCE(business.id, line.business_category_id),
+  line.position
+FROM openkk_v4_entry_lines line
+LEFT JOIN openkk_v4_tax_category_ids tax ON tax.name = line.tax_category_id
+LEFT JOIN openkk_v4_business_category_ids business ON business.name = line.business_category_id;
 
-DROP TABLE openkk_entry_lines_v4;
-DROP TABLE openkk_entries_v4;
+INSERT INTO fixed_assets(id, fiscal_period_id, data, created_at, updated_at)
+SELECT id, fiscal_period_id,
+  CASE json_extract(data, '$.status')
+    WHEN 'sold' THEN data
+    WHEN 'disposed' THEN json_set(data, '$.disposalPrice', NULL)
+    ELSE json_set(data, '$.disposalDate', NULL, '$.disposalPrice', NULL)
+  END,
+  created_at, updated_at
+FROM openkk_v4_fixed_assets;
+
+INSERT INTO pre_closings(fiscal_period_id, year)
+SELECT fiscal_period_id, year FROM openkk_v4_pre_closings;
+
+INSERT INTO closings(fiscal_period_id, year)
+SELECT fiscal_period_id, year FROM openkk_v4_closings;
+
+DROP TABLE openkk_v4_closings;
+DROP TABLE openkk_v4_pre_closings;
+DROP TABLE openkk_v4_fixed_assets;
+DROP TABLE openkk_v4_entry_lines;
+DROP TABLE openkk_v4_entries;
+DROP TABLE openkk_v4_opening_journal_lines;
+DROP TABLE openkk_v4_opening_journals;
+DROP TABLE openkk_v4_opening_balance_lines;
+DROP TABLE openkk_v4_fiscal_periods;
+DROP TABLE openkk_v4_business_category_ids;
+DROP TABLE openkk_v4_tax_category_ids;
 `.trim(),
 };
 

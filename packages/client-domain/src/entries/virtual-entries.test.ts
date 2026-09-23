@@ -401,7 +401,6 @@ describe("buildClosingVirtualEntries / 家事按分の振替", () => {
     const transfer = entries.find(
       (entry) => entry.localId === "virtual:business-rate-transfer",
     );
-    // 減価償却費 240,000 の個人分 120,000 が 事業主貸 へ振り替わる。
     const lines = transfer!.lines;
     const ownerDraw = lines.find((line) => line.accountName === "事業主貸");
     const depreciation = lines.find(

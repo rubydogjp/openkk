@@ -56,22 +56,14 @@ export function runDbPortConformance(
       startDate: "2026-01-01",
       endDate: "2026-12-31",
     });
+    await db.fiscalPeriods.start(created.id);
     return db.fiscalPeriods.update(created.id, {
-      settingsCompleted: true,
       openingBalancesCompleted: true,
     });
   }
 
-  function emptyOpening(fiscalPeriodId: string) {
-    return {
-      id: `op-${fiscalPeriodId}`,
-      userId: "user-1",
-      fiscalPeriodId,
-      createdAt: "1970-01-01T00:00:00.000Z",
-      updatedAt: "1970-01-01T00:00:00.000Z",
-      openingBalanceLines: [],
-      openingJournals: [],
-    };
+  function emptyOpening() {
+    return { openingBalanceLines: [], openingJournals: [] };
   }
 
   function seedWithPeriods(...ids: string[]): DbSnapshot {
@@ -84,12 +76,10 @@ export function runDbPortConformance(
         endDate: "2026-12-31",
         phase: "journalizing",
         archiveStatus: "active",
-        archiveDataAvailable: true,
         archivedAt: null,
-        settingsCompleted: true,
         openingBalancesCompleted: true,
         documentsReceivedCompleted: false,
-        opening: emptyOpening(id),
+        opening: emptyOpening(),
         createdAt: "1970-01-01T00:00:00.000Z",
         updatedAt: "1970-01-01T00:00:00.000Z",
       })),
@@ -112,13 +102,7 @@ export function runDbPortConformance(
       expect(created.id).toMatch(/^fp_/);
       expect(created.name).toBe("FY2026");
       expect(created.phase).toBe("pre_opening");
-      expect(created.settingsCompleted).toBe(false);
       expect(created.opening).toEqual({
-        id: `op-${created.id}`,
-        userId: "user-1",
-        fiscalPeriodId: created.id,
-        createdAt: expect.any(String),
-        updatedAt: expect.any(String),
         openingBalanceLines: [],
         openingJournals: [],
       });
@@ -225,12 +209,27 @@ export function runDbPortConformance(
 
       const updated = await db.fiscalPeriods.update(created.id, {
         name: "Renamed",
-        settingsCompleted: true,
       });
       expect(updated.name).toBe("Renamed");
-      expect(updated.settingsCompleted).toBe(true);
+      expect(updated.phase).toBe("pre_opening");
       expect(updated.startDate).toBe("2026-01-01");
       expect(updated.endDate).toBe("2026-12-31");
+    });
+
+    it("start moves a pre-opening period to journalizing only once", async () => {
+      const db = await makeDb();
+      const created = await db.fiscalPeriods.create("user-1", {
+        name: "FY2026",
+        startDate: "2026-01-01",
+        endDate: "2026-12-31",
+      });
+
+      const started = await db.fiscalPeriods.start(created.id);
+      expect(started.phase).toBe("journalizing");
+      expect((await db.fiscalPeriods.getById(created.id))?.phase).toBe(
+        "journalizing",
+      );
+      await expect(db.fiscalPeriods.start(created.id)).rejects.toThrow();
     });
 
     it("round-trips normalized opening data", async () => {
@@ -272,14 +271,9 @@ export function runDbPortConformance(
         ],
       };
 
-      await new Promise((resolve) => setTimeout(resolve, 2));
       const updated = await db.fiscalPeriods.update(period.id, { opening });
 
-      expect(updated.opening).toEqual({
-        ...opening,
-        updatedAt: updated.opening.updatedAt,
-      });
-      expect(updated.opening.createdAt).toBe(opening.createdAt);
+      expect(updated.opening).toEqual(opening);
       expect((await db.fiscalPeriods.getById(period.id))?.opening).toEqual(
         updated.opening,
       );
@@ -359,7 +353,7 @@ export function runDbPortConformance(
       expect(await db.fiscalPeriods.getById(period.id)).toEqual(period);
     });
 
-    it("rejects opening identity, range, and completed-balance inconsistencies atomically", async () => {
+    it("rejects opening range and completed-balance inconsistencies atomically", async () => {
       const db = await makeDb();
       const period = await db.fiscalPeriods.create("user-1", {
         name: "FY2026",
@@ -389,11 +383,6 @@ export function runDbPortConformance(
       };
       const withOpening = await db.fiscalPeriods.update(period.id, { opening });
 
-      await expect(
-        db.fiscalPeriods.update(period.id, {
-          opening: { ...opening, id: "replacement-opening" },
-        }),
-      ).rejects.toThrow(/identity and ownership/);
       await expect(
         db.fiscalPeriods.update(period.id, { startDate: "2026-02-01" }),
       ).rejects.toThrow(/Opening journal date .* must be within fiscal period/);
@@ -447,8 +436,8 @@ export function runDbPortConformance(
         startDate: "2026-01-01",
         endDate: "2026-12-31",
       });
+      await db.fiscalPeriods.start(period.id);
       await db.fiscalPeriods.update(period.id, {
-        settingsCompleted: true,
         openingBalancesCompleted: true,
       });
       await db.entries.create("user-1", period.id, {
@@ -478,15 +467,15 @@ export function runDbPortConformance(
       expect(await db.closings.get(period.id, 2026)).toBe(false);
     });
 
-    it("purgeArchivedData strips child data and leaves an archived stub", async () => {
+    it("purgeArchivedData strips child data and marks the period purged", async () => {
       const db = await makeDb();
       const period = await db.fiscalPeriods.create("user-1", {
         name: "FY2026",
         startDate: "2026-01-01",
         endDate: "2026-12-31",
       });
+      await db.fiscalPeriods.start(period.id);
       await db.fiscalPeriods.update(period.id, {
-        settingsCompleted: true,
         openingBalancesCompleted: true,
         opening: {
           ...period.opening,
@@ -520,17 +509,16 @@ export function runDbPortConformance(
       });
       await db.fiscalPeriods.archive(period.id);
 
-      const stub = await db.fiscalPeriods.purgeArchivedData(period.id);
+      const purged = await db.fiscalPeriods.purgeArchivedData(period.id);
 
-      expect(stub.archiveStatus).toBe("archived");
-      expect(stub.archiveDataAvailable).toBe(false);
-      expect(stub.archivedAt).toEqual(expect.any(String));
+      expect(purged.archiveStatus).toBe("purged");
+      expect(purged.archivedAt).toEqual(expect.any(String));
       expect(await db.entries.getAll(period.id)).toEqual([]);
       expect(await db.fixedAssets.getAll(period.id)).toEqual([]);
       expect(await db.preClosings.get(period.id, 2026)).toBe(false);
       const reloaded = await db.fiscalPeriods.getById(period.id);
       expect(reloaded).not.toBeNull();
-      expect(reloaded?.archiveDataAvailable).toBe(false);
+      expect(reloaded?.archiveStatus).toBe("purged");
       expect(reloaded?.opening.openingBalanceLines ?? []).toEqual([]);
     });
 
@@ -554,7 +542,6 @@ export function runDbPortConformance(
           startDate: "2026-01-01",
           endDate: "2026-12-31",
           phase: "post_closing",
-          settingsCompleted: true,
           openingBalancesCompleted: true,
           documentsReceivedCompleted: true,
           opening: { openingBalanceLines: [], openingJournals: [] },
@@ -617,7 +604,6 @@ export function runDbPortConformance(
           startDate: "2026-01-01",
           endDate: "2026-12-31",
           phase: "journalizing",
-          settingsCompleted: true,
           openingBalancesCompleted: true,
           documentsReceivedCompleted: false,
           opening: { openingBalanceLines: [], openingJournals: [] },
@@ -665,7 +651,6 @@ export function runDbPortConformance(
           startDate: "2026-01-01",
           endDate: "2026-12-31",
           phase: "journalizing",
-          settingsCompleted: true,
           openingBalancesCompleted: false,
           documentsReceivedCompleted: false,
           opening: { openingBalanceLines: [], openingJournals: [] },
@@ -844,8 +829,8 @@ export function runDbPortConformance(
         startDate: "2027-01-01",
         endDate: "2027-12-31",
       });
+      await db.fiscalPeriods.start(secondCreated.id);
       const secondPeriod = await db.fiscalPeriods.update(secondCreated.id, {
-        settingsCompleted: true,
         openingBalancesCompleted: true,
       });
       const original = await db.entries.create("user-1", firstPeriod.id, {
@@ -1254,7 +1239,7 @@ export function runDbPortConformance(
       const db = await makeDb();
       const period = await createTestFiscalPeriod(db);
       await db.entries.importMany("user-1", period.id, [
-        testEntryInput("virtual:legacy", "legacy generated entry"),
+        testEntryInput("virtual:stored", "stored generated entry"),
       ]);
       await db.preClosings.run(period.id, 2026);
 
@@ -1367,11 +1352,11 @@ export function runDbPortConformance(
       },
     );
 
-    it("removes legacy generated entries when pre-closing is cancelled", async () => {
+    it("removes stored generated entries when pre-closing is cancelled", async () => {
       const db = await makeDb();
       const period = await createTestFiscalPeriod(db);
       await db.entries.importMany("user-1", period.id, [
-        testEntryInput("virtual:legacy", "legacy generated entry"),
+        testEntryInput("virtual:stored", "stored generated entry"),
       ]);
       await db.preClosings.run(period.id, 2026);
 
@@ -1386,7 +1371,7 @@ export function runDbPortConformance(
       const db = await makeDb();
       const period = await createTestFiscalPeriod(db);
       await db.entries.importMany("user-1", period.id, [
-        testEntryInput("virtual:legacy", "legacy generated entry"),
+        testEntryInput("virtual:stored", "stored generated entry"),
       ]);
       await db.preClosings.run(period.id, 2026);
       const duplicate = testEntryInput(
@@ -1404,7 +1389,7 @@ export function runDbPortConformance(
       expect(await db.closings.get(period.id, 2026)).toBe(false);
       expect(
         (await db.entries.getAll(period.id)).map((entry) => entry.localId),
-      ).toEqual(["virtual:legacy"]);
+      ).toEqual(["virtual:stored"]);
     });
 
     it("loads stable seed records", async () => {
@@ -1418,13 +1403,11 @@ export function runDbPortConformance(
             endDate: "2026-12-31",
             phase: "pre_opening",
             archiveStatus: "active",
-            settingsCompleted: false,
             openingBalancesCompleted: false,
             documentsReceivedCompleted: false,
-            opening: emptyOpening("fp-seed"),
+            opening: emptyOpening(),
             createdAt: "1970-01-01T00:00:00.000Z",
             updatedAt: "1970-01-01T00:00:00.000Z",
-            archiveDataAvailable: true,
             archivedAt: null,
           },
         ],

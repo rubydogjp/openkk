@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { buildEntryMasterAccountOptions } from "./account-options.js";
-import type { MasterBookAccount } from "@rubydogjp/openkk-client-ports";
+import type {
+  MasterBookAccountApiRecord,
+} from "@rubydogjp/openkk-client-ports";
 
 describe("buildEntryMasterAccountOptions", () => {
   it("labels same-name accounts with their balance-sheet section", () => {
@@ -48,9 +50,9 @@ describe("buildEntryMasterAccountOptions", () => {
 });
 
 function account(
-  overrides: Partial<MasterBookAccount>,
-): MasterBookAccount {
-  const base: MasterBookAccount = {
+  overrides: Partial<MasterBookAccountApiRecord>,
+): MasterBookAccountApiRecord {
+  const base: MasterBookAccountApiRecord = {
     id: "allowance",
     name: "貸倒引当金",
     description: "",

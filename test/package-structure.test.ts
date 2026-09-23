@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
+import { runMigrations } from "@rubydogjp/openkk-sqlite-adapter";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
@@ -356,60 +358,25 @@ describe("openkk workspace structure", () => {
     expect(sqliteAdapter).not.toMatch(/ApiRecord/);
   });
 
-  it("documents every SQLite table", () => {
-    const schema = fs.readFileSync(
-      path.join(packagesDir, "sqlite-adapter/src/schema.ts"),
-      "utf8",
+  it("documents exactly the migrated SQLite tables", async () => {
+    const sqlite3 = await sqlite3InitModule({
+      print: () => undefined,
+      printErr: () => undefined,
+    });
+    const db = new sqlite3.oo1.DB(":memory:");
+    runMigrations(db);
+    const tables = db.selectValues(
+      `SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`,
     );
     const schemaDoc = fs.readFileSync(
       path.join(rootDir, "docs/database-schema.md"),
       "utf8",
     );
-    const tableNamesDeclaration =
-      schema.match(/SQLITE_TABLE_NAMES = \[([\s\S]*?)\] as const/)?.[1] ?? "";
-    const tables = [...tableNamesDeclaration.matchAll(/"([a-z0-9_]+)"/g)].map(
-      (match) => match[1]!,
-    );
+    const documented = [...schemaDoc.matchAll(/^  ([a-z0-9_]+) \{$/gm)]
+      .map((match) => match[1]!)
+      .sort();
 
-    expect(tables.length).toBeGreaterThan(0);
-    for (const table of tables) expect(schemaDoc).toContain(`${table} {`);
-  });
-
-  it("keeps opening data normalized in SQLite", () => {
-    const schema = fs.readFileSync(
-      path.join(packagesDir, "sqlite-adapter/src/schema.ts"),
-      "utf8",
-    );
-    const adapter = fs.readFileSync(
-      path.join(packagesDir, "sqlite-adapter/src/adapter.ts"),
-      "utf8",
-    );
-    const fiscalPeriodStore = fs.readFileSync(
-      path.join(packagesDir, "sqlite-adapter/src/fiscal-period-store.ts"),
-      "utf8",
-    );
-
-    expect(schema).toMatch(/json_remove\(data, '\$\.opening'/);
-    expect(schema).toContain("json_type(data, '$.opening') IS NULL");
-    expect(adapter).toContain("createFiscalPeriodsDb");
-    expect(fiscalPeriodStore).toContain("loadOpeningByFiscalPeriod");
-    expect(fiscalPeriodStore).toContain("replaceOpening");
-  });
-
-  it("keeps entry lines normalized in SQLite", () => {
-    const schema = fs.readFileSync(
-      path.join(packagesDir, "sqlite-adapter/src/schema.ts"),
-      "utf8",
-    );
-    const entryStore = fs.readFileSync(
-      path.join(packagesDir, "sqlite-adapter/src/entry-store.ts"),
-      "utf8",
-    );
-
-    expect(schema).toContain("CREATE TABLE entry_lines");
-    expect(schema).not.toContain("json_type(data, '$.lines')");
-    expect(entryStore).toContain("LEFT JOIN entry_lines");
-    expect(entryStore).toContain("insertEntryLines");
+    expect(documented).toEqual(tables);
   });
 });
 
@@ -512,6 +479,10 @@ function exportedTypeNames(file: string): Set<string> {
   );
 }
 
+const LEADING_UNION_PIPE = /([:=(<{,])\|/g;
+const TRAILING_SEMICOLON = /;(\}|$)/g;
+const TRAILING_COMMA = /,(\)|\}|>|\]|$)/g;
+
 function typeBodies(file: string): Map<string, string> {
   const text = fs
     .readFileSync(file, "utf8")
@@ -531,12 +502,9 @@ function typeBodies(file: string): Map<string, string> {
     const normalized = text
       .slice(re.lastIndex, i - 1)
       .replace(/\s+/g, "")
-      // 先頭ユニオンパイプの整形差（`:|"a"|"b"` と `:"a"|"b"`）を吸収する。
-      .replace(/([:=(<{,])\|/g, "$1")
-      // 末尾セミコロンの有無（`X;}` と `X}`、行末 `X;`）を吸収する。
-      .replace(/;(\}|$)/g, "$1")
-      // 末尾カンマの有無（`(a:string,)` と `(a:string)` 等）を吸収する。
-      .replace(/,(\)|\}|>|\]|$)/g, "$1");
+      .replace(LEADING_UNION_PIPE, "$1")
+      .replace(TRAILING_SEMICOLON, "$1")
+      .replace(TRAILING_COMMA, "$1");
     bodies.set(name, normalized);
   }
   return bodies;
