@@ -1,17 +1,17 @@
 import Link from "next/link.js";
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties } from "react";
 
 import {
   fontSize,
   fontWeight,
   palette,
   radii,
-  shadows,
   sizes,
   spacing,
   tokenDefaults,
   typography,
 } from "../../../shared/design-tokens.js";
+import { Card, Section } from "../debug-ui.js";
 import { DocumentFileList } from "../../../shared/document-file-tile.js";
 
 type InventoryItem = {
@@ -1478,55 +1478,6 @@ export function LayoutSizesPage() {
 
       </div>
     </main>
-  );
-}
-
-function Section({
-  title,
-  lead,
-  children,
-}: {
-  title: string;
-  lead: string;
-  children: ReactNode;
-}) {
-  return (
-    <section style={{ marginTop: spacing.s32 }}>
-      <h2 style={{ ...typography.contentTitle, margin: 0 }}>{title}</h2>
-      <p
-        style={{
-          ...typography.body,
-          color: palette.textSoft,
-          margin: "6px 0 14px",
-        }}
-      >
-        {lead}
-      </p>
-      {children}
-    </section>
-  );
-}
-
-function Card({
-  children,
-  style,
-}: {
-  children: ReactNode;
-  style: CSSProperties | null;
-}) {
-  return (
-    <div
-      style={{
-        background: palette.surface,
-        border: `1px solid ${palette.borderSubtle}`,
-        borderRadius: radii.lg,
-        boxShadow: shadows.card,
-        padding: spacing.s16,
-        ...style,
-      }}
-    >
-      {children}
-    </div>
   );
 }
 

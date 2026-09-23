@@ -381,6 +381,22 @@ describe("resolveOpenkkHttpResponse", () => {
     });
   });
 
+  it("rejects a fiscal period response without opening data", () => {
+    expect(
+      captureError(() =>
+        resolveOpenkkHttpResponse("fiscalPeriodsGetAll", {
+          status: 200,
+          body: {
+            fiscalPeriods: [{ ...fiscalPeriod(), opening: null }],
+          },
+        }),
+      ),
+    ).toMatchObject({
+      messageForDeveloper:
+        "fiscalPeriodsGetAll returned a malformed success response",
+    });
+  });
+
   it("rejects an opening balance response with an empty account label", () => {
     expect(
       captureError(() =>
@@ -634,13 +650,14 @@ describe("isMaintenanceModeError", () => {
     expect(isMaintenanceModeError(error)).toBe(false);
   });
 
-  it("falls back to a 503 whose developer message names the code", () => {
+  it("ignores a 503 that only names the code in its developer message", () => {
     expect(
       isMaintenanceModeError({
         statusCode: 503,
         messageForDeveloper: `aborted by ${MAINTENANCE_MODE_ERROR_CODE}`,
+        code: null,
       }),
-    ).toBe(true);
+    ).toBe(false);
   });
 });
 
@@ -694,7 +711,7 @@ function fiscalPeriod() {
     settingsCompleted: false,
     openingBalancesCompleted: false,
     documentsReceivedCompleted: false,
-    opening: null,
+    opening: openingResponse(),
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
   };

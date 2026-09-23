@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation.js";
 
 import { StepCallout } from "../../steps/step-ui.js";
+import { AssistIcon } from "../../shared/icons.js";
 import {
   fontSize,
   fontWeight,
@@ -127,24 +128,3 @@ export function AssistPage() {
   );
 }
 
-function AssistIcon({ size, color }: { size: number; color: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        width: size,
-        height: size,
-        display: "block",
-        backgroundColor: color,
-        maskImage: "url('/icons/assist.svg')",
-        maskPosition: "center",
-        maskRepeat: "no-repeat",
-        maskSize: "contain",
-        WebkitMaskImage: "url('/icons/assist.svg')",
-        WebkitMaskPosition: "center",
-        WebkitMaskRepeat: "no-repeat",
-        WebkitMaskSize: "contain",
-      }}
-    />
-  );
-}

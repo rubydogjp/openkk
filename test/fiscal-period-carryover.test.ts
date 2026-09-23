@@ -416,7 +416,7 @@ describe("atomic fiscal period carryover", () => {
       settingsCompleted: false,
       openingBalancesCompleted: true,
     });
-    expect(next.opening!.openingJournals[0]).toMatchObject({
+    expect(next.opening.openingJournals[0]).toMatchObject({
       description: `再振替: ${longText}`,
       businessRate: 0.3333333333333333,
       lines: [
@@ -446,7 +446,7 @@ describe("atomic fiscal period carryover", () => {
         periodEndDate: next.endDate,
         entries: [],
         fixedAssets: await backend.fixedAssets.getAll(next.id),
-        openingJournals: next.opening!.openingJournals,
+        openingJournals: next.opening.openingJournals,
         bookAccounts: await backend.masterData.getBookAccounts(),
       }),
     });
@@ -471,8 +471,8 @@ describe("atomic fiscal period carryover", () => {
         carryFixedAssets: false,
       });
       expect(next.openingBalancesCompleted).toBe(carryBalances);
-      expect(next.opening!.openingBalanceLines.length > 0).toBe(carryBalances);
-      expect(next.opening!.openingJournals).toEqual([]);
+      expect(next.opening.openingBalanceLines.length > 0).toBe(carryBalances);
+      expect(next.opening.openingJournals).toEqual([]);
       expect(await server.fixedAssets.getAll(next.id)).toEqual([]);
     },
   );
@@ -481,13 +481,20 @@ describe("atomic fiscal period carryover", () => {
     const { server, input } = await closedSource(
       await createMemoryDbAdapter(null),
     );
-    for (const reversalEntryIds of [
-      ["foreign-entry"],
-      [input.reversalEntryIds[0]!, input.reversalEntryIds[0]!],
-    ]) {
+    for (const [reversalEntryIds, message] of [
+      [["foreign-entry"], /Reversal entry foreign-entry not found/],
+      [
+        [input.reversalEntryIds[0]!, input.reversalEntryIds[0]!],
+        /Reversal entry id has a duplicate value/,
+      ],
+      [[""], /Reversal entry id is required/],
+    ] as const) {
       await expect(
-        server.fiscalPeriods.createNext({ ...input, reversalEntryIds }),
-      ).rejects.toThrow();
+        server.fiscalPeriods.createNext({
+          ...input,
+          reversalEntryIds: [...reversalEntryIds],
+        }),
+      ).rejects.toThrow(message);
     }
     expect(await server.fiscalPeriods.getAll()).toHaveLength(1);
   });
@@ -497,7 +504,7 @@ describe("atomic fiscal period carryover", () => {
       await createMemoryDbAdapter(null),
     );
     const next = await server.fiscalPeriods.createNext(input);
-    const opening = next.opening!;
+    const opening = next.opening;
     const journals = opening.openingJournals.map((journal) => ({
       ...journal,
       businessRate: 0.5,

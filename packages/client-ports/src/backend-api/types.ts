@@ -31,6 +31,24 @@ export type AuthSignOutResponse = OpenkkNoContentResponse;
 
 export type EntryApiSide = "debit" | "credit";
 
+export type FiscalPeriodApiPhase =
+  | "pre_opening"
+  | "journalizing"
+  | "pre_closing"
+  | "post_closing";
+
+export type FiscalPeriodApiArchiveStatus = "active" | "archived";
+
+export type FixedAssetApiStatus = "active" | "sold" | "disposed" | "retired";
+
+export type MasterBookAccountAccountType =
+  | "asset"
+  | "liability"
+  | "equity"
+  | "revenue"
+  | "cost_of_sales"
+  | "expense";
+
 export type EntryApiLine = {
   id: string;
   side: EntryApiSide;
@@ -79,7 +97,7 @@ export type OpeningBalanceLineApiRecord = {
 
 export type OpeningJournalLineApiRecord = {
   id: string;
-  side: "debit" | "credit";
+  side: EntryApiSide;
   bookAccountId: string;
   amount: number;
   partnerName: string;
@@ -119,14 +137,14 @@ export type FiscalPeriodApiRecord = {
   name: string;
   startDate: string;
   endDate: string;
-  phase: "pre_opening" | "journalizing" | "pre_closing" | "post_closing";
-  archiveStatus: "active" | "archived";
+  phase: FiscalPeriodApiPhase;
+  archiveStatus: FiscalPeriodApiArchiveStatus;
   archiveDataAvailable: boolean;
   archivedAt: string | null;
   settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
-  opening: OpeningApiRecord | null;
+  opening: OpeningApiRecord;
   createdAt: string;
   updatedAt: string;
 };
@@ -147,15 +165,15 @@ export type FiscalPeriodNextCreateInput = {
   carryFixedAssets: boolean;
 };
 
-export type FiscalPeriodPatchInput = Partial<{
-  name: string;
-  startDate: string;
-  endDate: string;
-  settingsCompleted: boolean;
-  openingBalancesCompleted: boolean;
-  documentsReceivedCompleted: boolean;
-  opening: FiscalPeriodOpeningInput;
-}>;
+export type FiscalPeriodPatchInput = {
+  name?: string;
+  startDate?: string;
+  endDate?: string;
+  settingsCompleted?: boolean;
+  openingBalancesCompleted?: boolean;
+  documentsReceivedCompleted?: boolean;
+  opening?: FiscalPeriodOpeningInput;
+};
 
 export type FiscalPeriodArchiveImportInput = {
   manifest: Record<string, unknown>;
@@ -175,7 +193,7 @@ export type FixedAssetApiRecord = {
   usefulLife: number;
   depreciationMethod: "straight_line";
   businessRate: number;
-  status: "active" | "sold" | "disposed" | "retired";
+  status: FixedAssetApiStatus;
   disposalDate: string | null;
   disposalPrice: number | null;
   bookAccountId: string;
@@ -200,7 +218,7 @@ export type FixedAssetPatchInput = {
   usefulLife?: number;
   depreciationMethod?: "straight_line";
   businessRate?: number;
-  status?: "active" | "sold" | "disposed" | "retired";
+  status?: FixedAssetApiStatus;
   disposalDate?: string | null;
   disposalPrice?: number | null;
   bookAccountId?: string;
@@ -223,13 +241,7 @@ export type MasterBookAccount = {
   description: string;
   kana: string;
   normalBalanceSide: MasterBookAccountNormalBalanceSide;
-  accountType:
-    | "asset"
-    | "liability"
-    | "equity"
-    | "revenue"
-    | "cost_of_sales"
-    | "expense";
+  accountType: MasterBookAccountAccountType;
   balanceSheetSection: MasterBookAccountBalanceSheetSection;
   sortOrder: number;
   createdAt: string;
@@ -685,10 +697,9 @@ export const OPENKK_HTTP_ENDPOINTS = {
 
 export interface AuthApi {
   startSession(redirectUrl: string): Promise<StartAuthSessionResponse>;
-  completeSession(input: {
-    state: string;
-    code: string;
-  }): Promise<CompleteAuthSessionResponse>;
+  completeSession(
+    input: CompleteAuthSessionRequest,
+  ): Promise<CompleteAuthSessionResponse>;
   redeemCompletionCode(
     completionCode: string,
   ): Promise<RedeemCompletionCodeResponse>;
@@ -702,10 +713,7 @@ export interface ClosingsApi {
 
 export interface PreClosingsApi {
   get(fiscalPeriodId: string, year: number): Promise<boolean>;
-  run(input: {
-    fiscalPeriodId: string;
-    year: number;
-  }): Promise<FiscalPeriodApiRecord>;
+  run(input: PreClosingRunRequest): Promise<FiscalPeriodApiRecord>;
   cancel(fiscalPeriodId: string, year: number): Promise<FiscalPeriodApiRecord>;
 }
 

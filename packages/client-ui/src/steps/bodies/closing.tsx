@@ -19,17 +19,17 @@ import {
 } from "@rubydogjp/openkk-client-usecases";
 import { formatDateButtonLabel } from "../../shared/date-picker.js";
 import { palette } from "../../shared/design-tokens.js";
+import { CheckCircleIcon } from "../../shared/icons.js";
 import { useConfirmDialog } from "../../shared/confirm-dialog.js";
 import { PlBsDiagramSection } from "../../shared/pl-bs-diagram.js";
 import { DocumentFileList } from "../../shared/document-file-tile.js";
 import { useStepDocumentPrinters } from "../use-step-document-printers.js";
 import { ClosingExplainerAnimation } from "../closing-animation.js";
-import { LockButton } from "../../shared/lock-icon.js";
+import { LockButton } from "../../shared/locked-action.js";
 import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 import {
   ActionChoiceCard,
   ActionGrid,
-  CheckCircleIcon,
   StepDivider,
   StepCallout,
   StepMetaCard,
@@ -81,8 +81,7 @@ export function ClosingBody({
     });
     return computeFsAggregate({
       entries,
-      openingBalanceLines:
-        currentFiscalPeriod.opening?.openingBalanceLines ?? [],
+      openingBalanceLines: currentFiscalPeriod.opening.openingBalanceLines,
     }).summary;
   }, [currentFiscalPeriod, entriesState, assistState]);
 
@@ -312,7 +311,7 @@ export function ClosingBody({
                 }
               />
               <ActionChoiceCard
-                icon={<CheckCircleIcon color={palette.success} />}
+                icon={<CheckCircleIcon size={16} color={palette.success} />}
                 title="本締めを実行する"
                 description="書類に問題がなかった場合、本締めを実行します。仕訳データは確定され、編集ができなくなります。"
                 action={

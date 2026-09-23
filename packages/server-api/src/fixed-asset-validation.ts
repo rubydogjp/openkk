@@ -1,5 +1,6 @@
 import {
   assertFixedAssetMatchesRules,
+  requireObject,
 } from "@rubydogjp/openkk-server-domain";
 import type {
   FiscalPeriodApiRecord,
@@ -8,30 +9,29 @@ import type {
   FixedAssetPatchInput,
 } from "@rubydogjp/openkk-server-ports";
 import {
-  assertNonBlankText,
-  assertObject,
-  assertTextChange,
+  assertNonBlankTextField,
+  assertTextFieldChange,
 } from "./common-validation.js";
 
 export function assertFixedAssetCreateInput(
-  input: FixedAssetCreateInput,
+  input: unknown,
   period: FiscalPeriodApiRecord,
-): void {
-  assertObject(input, "Fixed asset input");
-  assertNonBlankText(input.name, "Fixed asset name");
+): asserts input is FixedAssetCreateInput {
+  const value = requireObject(input, "Fixed asset input");
+  assertNonBlankTextField(value.name, "Fixed asset name");
   assertFixedAssetMatchesRules(
-    { ...input, status: "active", disposalDate: null, disposalPrice: null },
+    { ...value, status: "active", disposalDate: null, disposalPrice: null },
     period,
   );
 }
 
 export function assertFixedAssetPatchInput(
-  patch: FixedAssetPatchInput,
+  patch: unknown,
   existing: FixedAssetApiRecord,
-): void {
-  assertObject(patch, "Fixed asset patch");
-  if (patch.name !== undefined) {
-    assertTextChange(patch.name, existing.name, "Fixed asset name");
+): asserts patch is FixedAssetPatchInput {
+  const value = requireObject(patch, "Fixed asset patch");
+  if (value.name !== undefined) {
+    assertTextFieldChange(value.name, existing.name, "Fixed asset name");
   }
 }
 
@@ -42,23 +42,33 @@ export function assertPatchedFixedAsset(
 ): void {
   assertFixedAssetMatchesRules(
     {
-      name: patch.name ?? existing.name,
-      acquisitionDate: patch.acquisitionDate ?? existing.acquisitionDate,
-      acquisitionCost: patch.acquisitionCost ?? existing.acquisitionCost,
-      usefulLife: patch.usefulLife ?? existing.usefulLife,
-      depreciationMethod:
-        patch.depreciationMethod ?? existing.depreciationMethod,
-      businessRate: patch.businessRate ?? existing.businessRate,
-      status: patch.status ?? existing.status,
-      disposalDate:
-        patch.disposalDate === undefined
-          ? existing.disposalDate
-          : patch.disposalDate,
-      disposalPrice:
-        patch.disposalPrice === undefined
-          ? existing.disposalPrice
-          : patch.disposalPrice,
-      bookAccountId: patch.bookAccountId ?? existing.bookAccountId,
+      ...existing,
+      ...(patch.name !== undefined ? { name: patch.name } : {}),
+      ...(patch.acquisitionDate !== undefined
+        ? { acquisitionDate: patch.acquisitionDate }
+        : {}),
+      ...(patch.acquisitionCost !== undefined
+        ? { acquisitionCost: patch.acquisitionCost }
+        : {}),
+      ...(patch.usefulLife !== undefined
+        ? { usefulLife: patch.usefulLife }
+        : {}),
+      ...(patch.depreciationMethod !== undefined
+        ? { depreciationMethod: patch.depreciationMethod }
+        : {}),
+      ...(patch.businessRate !== undefined
+        ? { businessRate: patch.businessRate }
+        : {}),
+      ...(patch.status !== undefined ? { status: patch.status } : {}),
+      ...(patch.disposalDate !== undefined
+        ? { disposalDate: patch.disposalDate }
+        : {}),
+      ...(patch.disposalPrice !== undefined
+        ? { disposalPrice: patch.disposalPrice }
+        : {}),
+      ...(patch.bookAccountId !== undefined
+        ? { bookAccountId: patch.bookAccountId }
+        : {}),
     },
     period,
   );

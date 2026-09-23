@@ -16,7 +16,7 @@ import {
   useOpenkkToday,
 } from "@rubydogjp/openkk-client-usecases";
 import { AppErrorText } from "../../../shared/app-error-text.js";
-import { LockButton } from "../../../shared/lock-icon.js";
+import { LockButton } from "../../../shared/locked-action.js";
 import { ExclusiveActionLock } from "../../../shared/exclusive-action-lock.js";
 import {
   fontSize,

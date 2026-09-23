@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  applyFiscalPeriodUpdate,
-} from "./openkk-app-state.js";
+import { applyFiscalPeriodUpdate } from "./openkk-app-state.js";
 import type { FiscalPeriod } from "@rubydogjp/openkk-client-domain";
 import type { FiscalPeriodApiRecord } from "@rubydogjp/openkk-client-ports";
 
@@ -70,7 +68,15 @@ function period(overrides: Partial<FiscalPeriod> = {}): FiscalPeriod {
     createdAt: "1970-01-01T00:00:00.000Z",
     updatedAt: "1970-01-01T00:00:00.000Z",
     archivedAt: null,
-    opening: null,
+    opening: {
+      id: "op-fp-1",
+      userId: "user-1",
+      fiscalPeriodId: "fp-1",
+      createdAt: "1970-01-01T00:00:00.000Z",
+      updatedAt: "1970-01-01T00:00:00.000Z",
+      openingBalanceLines: [],
+      openingJournals: [],
+    },
   };
   return Object.assign(base, overrides);
 }
@@ -89,7 +95,15 @@ function remotePeriod(
     settingsCompleted: true,
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,
-    opening: null,
+    opening: {
+      id: "op-fp-1",
+      userId: "user-1",
+      fiscalPeriodId: "fp-1",
+      createdAt: "1970-01-01T00:00:00.000Z",
+      updatedAt: "1970-01-01T00:00:00.000Z",
+      openingBalanceLines: [],
+      openingJournals: [],
+    },
     createdAt: "1970-01-01T00:00:00.000Z",
     updatedAt: "1970-01-01T00:00:00.000Z",
     archiveDataAvailable: true,

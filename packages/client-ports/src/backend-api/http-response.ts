@@ -1,6 +1,5 @@
 import {
   MAINTENANCE_MODE_ERROR_CODE,
-  MAINTENANCE_MODE_STATUS,
   OPENKK_HTTP_ENDPOINTS,
   type OpenkkApiErrorDto,
   type OpenkkHttpEndpointKey,
@@ -90,17 +89,8 @@ export function isOpenkkApiErrorDto(
 
 export function isMaintenanceModeError(error: unknown): boolean {
   if (typeof error !== "object" || error == null) return false;
-  const candidate = error as Record<string, unknown>;
-  if (candidate.code === MAINTENANCE_MODE_ERROR_CODE) return true;
   return (
-    candidate.statusCode === MAINTENANCE_MODE_STATUS &&
-    isMaintenanceMessage(candidate.messageForDeveloper)
-  );
-}
-
-function isMaintenanceMessage(value: unknown): boolean {
-  return (
-    typeof value === "string" && value.includes(MAINTENANCE_MODE_ERROR_CODE)
+    (error as Record<string, unknown>).code === MAINTENANCE_MODE_ERROR_CODE
   );
 }
 

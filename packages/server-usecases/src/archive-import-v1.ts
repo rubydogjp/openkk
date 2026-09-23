@@ -1,6 +1,7 @@
 import {
   DEFAULT_BUSINESS_CATEGORIES,
   DEFAULT_TAX_CATEGORIES,
+  requireObject,
   serverValidationError,
 } from "@rubydogjp/openkk-server-domain";
 import type { FiscalPeriodArchiveContent } from "./archive-import.js";
@@ -15,7 +16,7 @@ export function migrateFiscalPeriodArchiveV1(
       opening: migrateOpening(content.fiscalPeriod.opening),
     },
     entries: content.entries.map((value) => {
-      const entry = objectValue(value, "archive entry");
+      const entry = requireObject(value, "archive entry");
       return {
         ...entry,
         fiscalPeriodId: childFiscalPeriodId(
@@ -29,7 +30,7 @@ export function migrateFiscalPeriodArchiveV1(
       };
     }),
     fixedAssets: content.fixedAssets.map((value) => {
-      const asset = objectValue(value, "archive fixedAsset");
+      const asset = requireObject(value, "archive fixedAsset");
       const status = asset.status == null ? "active" : asset.status;
       return {
         ...asset,
@@ -50,7 +51,7 @@ export function migrateFiscalPeriodArchiveV1(
       };
     }),
     closings: content.closings.map((value) => {
-      const closing = objectValue(value, "archive closing");
+      const closing = requireObject(value, "archive closing");
       return {
         ...closing,
         fiscalPeriodId: childFiscalPeriodId(
@@ -64,7 +65,7 @@ export function migrateFiscalPeriodArchiveV1(
 
 function migrateOpening(value: unknown): Record<string, unknown> | null {
   if (value == null) return null;
-  const opening = objectValue(value, "archive opening");
+  const opening = requireObject(value, "archive opening");
   return {
     ...opening,
     openingBalanceLines: legacyArray(
@@ -75,15 +76,15 @@ function migrateOpening(value: unknown): Record<string, unknown> | null {
       opening.openingJournals,
       "archive openingJournals",
     ).map((value) => {
-      const journal = objectValue(value, "archive openingJournal");
-      const id = requiredString(journal.id, "archive openingJournal.id");
+      const journal = requireObject(value, "archive openingJournal");
+      const id = requireNonBlankString(journal.id, "archive openingJournal.id");
       return {
         ...journal,
         lines: legacyArray(
           journal.lines,
           "archive openingJournal.lines",
         ).map((line, index) => {
-          const lineRecord = objectValue(
+          const lineRecord = requireObject(
             line,
             "archive openingJournal.line",
           );
@@ -108,7 +109,7 @@ function migrateEntryLine(
   value: unknown,
   label: string,
 ): Record<string, unknown> {
-  return migrateEntryLineRecord(objectValue(value, label), label);
+  return migrateEntryLineRecord(requireObject(value, label), label);
 }
 
 function migrateEntryLineRecord(
@@ -193,14 +194,7 @@ function legacyArray(value: unknown, label: string): unknown[] {
   return value;
 }
 
-function objectValue(value: unknown, label: string): Record<string, unknown> {
-  if (typeof value !== "object" || value == null || Array.isArray(value)) {
-    throw serverValidationError(`${label} must be an object`, null);
-  }
-  return value as Record<string, unknown>;
-}
-
-function requiredString(value: unknown, label: string): string {
+function requireNonBlankString(value: unknown, label: string): string {
   if (typeof value !== "string") {
     throw serverValidationError(`${label} must be a string`, null);
   }

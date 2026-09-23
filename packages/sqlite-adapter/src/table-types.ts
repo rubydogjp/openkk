@@ -18,21 +18,8 @@ export type FiscalPeriodDbData = {
   documentsReceivedCompleted: boolean;
 };
 
-export type FiscalPeriodDbRow = {
-  id: string;
+export type OwnedFiscalPeriodDbData = FiscalPeriodDbData & {
   userId: string;
-  name: string;
-  startDate: string;
-  endDate: string;
-  phase: FiscalPeriodDbPhase;
-  archiveStatus: FiscalPeriodDbArchiveStatus;
-  archiveDataAvailable: boolean;
-  archivedAt: string | null;
-  settingsCompleted: boolean;
-  openingBalancesCompleted: boolean;
-  documentsReceivedCompleted: boolean;
-  createdAt: string;
-  updatedAt: string;
 };
 
 export type FixedAssetDbData = {

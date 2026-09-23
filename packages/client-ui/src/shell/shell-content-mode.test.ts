@@ -125,7 +125,15 @@ function period(overrides: Partial<FiscalPeriod> = {}): FiscalPeriod {
     createdAt: "1970-01-01T00:00:00.000Z",
     updatedAt: "1970-01-01T00:00:00.000Z",
     archivedAt: null,
-    opening: null,
+    opening: {
+      id: "op-fp-1",
+      userId: "user-1",
+      fiscalPeriodId: "fp-1",
+      createdAt: "1970-01-01T00:00:00.000Z",
+      updatedAt: "1970-01-01T00:00:00.000Z",
+      openingBalanceLines: [],
+      openingJournals: [],
+    },
   };
   return Object.assign(base, overrides);
 }

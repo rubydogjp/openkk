@@ -35,9 +35,12 @@ import { useBackendApi } from "./backend-api-context.js";
 import { useOpenkkConfig } from "./openkk-config-context.js";
 import { entryRecordToImportPayload } from "../entries/import-mapping.js";
 import { assertEditingUnlocked } from "./editing-policy.js";
-import { AsyncStateVersion } from "./async-state-version.js";
+import {
+  AsyncStateVersion,
+  KeyedAsyncStateVersion,
+} from "./async-state-version.js";
 import { AsyncMutationQueue } from "./async-mutation-queue.js";
-import { AuthOperationGuard } from "./auth-operation-guard.js";
+import { assertAuthUnchanged } from "./auth-operation-guard.js";
 import {
   browserLocalStorage,
   readStoredUser,
@@ -112,10 +115,10 @@ export function OpenkkAppStateProvider(props: {
   const config = useOpenkkConfig();
   const backendApi = useBackendApi();
   const seedFiscalPeriod = props.seedFiscalPeriod;
-  const authOperationGuard = useRef(new AuthOperationGuard());
+  const authVersion = useRef(new AsyncStateVersion());
   const authMutationQueue = useRef(new AsyncMutationQueue());
   const fiscalPeriodMutationQueue = useRef(new AsyncMutationQueue());
-  const fiscalPeriodListVersion = useRef(new AsyncStateVersion<string>());
+  const fiscalPeriodListVersion = useRef(new KeyedAsyncStateVersion<string>());
 
   const [isReady, setIsReady] = useState<boolean>(false);
 
@@ -134,7 +137,7 @@ export function OpenkkAppStateProvider(props: {
   >(() => buildBootstrapFiscalPeriodId(config));
   useEffect(() => {
     return () => {
-      authOperationGuard.current.invalidate();
+      authVersion.current.invalidate();
     };
   }, []);
   useEffect(() => {
@@ -233,13 +236,13 @@ export function OpenkkAppStateProvider(props: {
     return {
       session: user == null ? null : { user },
       captureAuthOperationVersion() {
-        return authOperationGuard.current.capture();
+        return authVersion.current.capture();
       },
       isAuthOperationCurrent(expectedVersion) {
-        return authOperationGuard.current.isCurrent(expectedVersion);
+        return authVersion.current.isCurrent(expectedVersion);
       },
       assertAuthOperationCurrent(expectedVersion) {
-        authOperationGuard.current.assertCurrent(expectedVersion);
+        assertAuthUnchanged(authVersion.current, expectedVersion);
       },
       fiscalPeriods,
       currentFiscalPeriodId,
@@ -250,11 +253,11 @@ export function OpenkkAppStateProvider(props: {
       },
       async createFiscalPeriod(input, options) {
         assertEditingUnlocked(config.editingPolicy, "appState.createFiscalPeriod");
-        const operationVersion = authOperationGuard.current.capture();
+        const operationVersion = authVersion.current.capture();
         return await fiscalPeriodMutationQueue.current.run(async () => {
-          authOperationGuard.current.assertCurrent(operationVersion);
+          assertAuthUnchanged(authVersion.current, operationVersion);
           const created = await backendApi.fiscalPeriods.create(input);
-          authOperationGuard.current.assertCurrent(operationVersion);
+          assertAuthUnchanged(authVersion.current, operationVersion);
           try {
             const seed =
               seedFiscalPeriod?.({
@@ -265,14 +268,14 @@ export function OpenkkAppStateProvider(props: {
             if (seed != null) {
               final = await backendApi.fiscalPeriods.patch(created.id, {
                 opening: {
-                  id: `op-${created.id}`,
+                  id: created.opening.id,
                   userId: created.userId,
                   fiscalPeriodId: created.id,
                   openingBalanceLines: seed.openingBalanceLines,
                   openingJournals: [],
                 },
               });
-              authOperationGuard.current.assertCurrent(operationVersion);
+              assertAuthUnchanged(authVersion.current, operationVersion);
               if (seed.entries.length > 0) {
                 await backendApi.entries.importMany(
                   created.id,
@@ -280,7 +283,7 @@ export function OpenkkAppStateProvider(props: {
                     entryRecordToImportInput(record),
                   ),
                 );
-                authOperationGuard.current.assertCurrent(operationVersion);
+                assertAuthUnchanged(authVersion.current, operationVersion);
               }
             }
             fiscalPeriodListVersion.current.invalidate("all");
@@ -296,7 +299,7 @@ export function OpenkkAppStateProvider(props: {
             }
             return final.id;
           } catch (error) {
-            authOperationGuard.current.assertCurrent(operationVersion);
+            assertAuthUnchanged(authVersion.current, operationVersion);
             try {
               await backendApi.fiscalPeriods.remove(created.id);
             } catch (cleanupError) {
@@ -308,11 +311,11 @@ export function OpenkkAppStateProvider(props: {
       },
       async createNextFiscalPeriod(input) {
         assertEditingUnlocked(config.editingPolicy, "appState.createNextFiscalPeriod");
-        const operationVersion = authOperationGuard.current.capture();
+        const operationVersion = authVersion.current.capture();
         return await fiscalPeriodMutationQueue.current.run(async () => {
-          authOperationGuard.current.assertCurrent(operationVersion);
+          assertAuthUnchanged(authVersion.current, operationVersion);
           const created = await backendApi.fiscalPeriods.createNext(input);
-          authOperationGuard.current.assertCurrent(operationVersion);
+          assertAuthUnchanged(authVersion.current, operationVersion);
           fiscalPeriodListVersion.current.invalidate("all");
           fiscalPeriodsRef.current = applyFiscalPeriodUpdate(
             fiscalPeriodsRef.current,
@@ -326,12 +329,12 @@ export function OpenkkAppStateProvider(props: {
       },
       async importArchivedFiscalPeriod(payload) {
         assertEditingUnlocked(config.editingPolicy, "appState.importArchivedFiscalPeriod");
-        const operationVersion = authOperationGuard.current.capture();
+        const operationVersion = authVersion.current.capture();
         return await fiscalPeriodMutationQueue.current.run(async () => {
-          authOperationGuard.current.assertCurrent(operationVersion);
+          assertAuthUnchanged(authVersion.current, operationVersion);
           const imported =
             await backendApi.fiscalPeriods.importArchived(payload);
-          authOperationGuard.current.assertCurrent(operationVersion);
+          assertAuthUnchanged(authVersion.current, operationVersion);
           fiscalPeriodListVersion.current.invalidate("all");
           fiscalPeriodsRef.current = applyFiscalPeriodUpdate(
             fiscalPeriodsRef.current,
@@ -345,9 +348,9 @@ export function OpenkkAppStateProvider(props: {
       },
       async updateFiscalPeriod(fiscalPeriodId, input) {
         assertEditingUnlocked(config.editingPolicy, "appState.updateFiscalPeriod");
-        const operationVersion = authOperationGuard.current.capture();
+        const operationVersion = authVersion.current.capture();
         return await fiscalPeriodMutationQueue.current.run(async () => {
-          authOperationGuard.current.assertCurrent(operationVersion);
+          assertAuthUnchanged(authVersion.current, operationVersion);
           const current = fiscalPeriodsRef.current.find(
             (period) => period.id === fiscalPeriodId,
           );
@@ -358,7 +361,7 @@ export function OpenkkAppStateProvider(props: {
             fiscalPeriodId,
             resolved,
           );
-          authOperationGuard.current.assertCurrent(operationVersion);
+          assertAuthUnchanged(authVersion.current, operationVersion);
           fiscalPeriodListVersion.current.invalidate("all");
           fiscalPeriodsRef.current = applyFiscalPeriodUpdate(
             fiscalPeriodsRef.current,
@@ -372,12 +375,12 @@ export function OpenkkAppStateProvider(props: {
       },
       async archiveFiscalPeriod(fiscalPeriodId) {
         assertEditingUnlocked(config.editingPolicy, "appState.archiveFiscalPeriod");
-        const operationVersion = authOperationGuard.current.capture();
+        const operationVersion = authVersion.current.capture();
         return await fiscalPeriodMutationQueue.current.run(async () => {
-          authOperationGuard.current.assertCurrent(operationVersion);
+          assertAuthUnchanged(authVersion.current, operationVersion);
           const archived =
             await backendApi.fiscalPeriods.archive(fiscalPeriodId);
-          authOperationGuard.current.assertCurrent(operationVersion);
+          assertAuthUnchanged(authVersion.current, operationVersion);
           fiscalPeriodListVersion.current.invalidate("all");
           fiscalPeriodsRef.current = applyFiscalPeriodUpdate(
             fiscalPeriodsRef.current,
@@ -391,12 +394,12 @@ export function OpenkkAppStateProvider(props: {
       },
       async purgeArchivedFiscalPeriod(fiscalPeriodId) {
         assertEditingUnlocked(config.editingPolicy, "appState.purgeArchivedFiscalPeriod");
-        const operationVersion = authOperationGuard.current.capture();
+        const operationVersion = authVersion.current.capture();
         return await fiscalPeriodMutationQueue.current.run(async () => {
-          authOperationGuard.current.assertCurrent(operationVersion);
+          assertAuthUnchanged(authVersion.current, operationVersion);
           const purged =
             await backendApi.fiscalPeriods.purgeArchivedData(fiscalPeriodId);
-          authOperationGuard.current.assertCurrent(operationVersion);
+          assertAuthUnchanged(authVersion.current, operationVersion);
           fiscalPeriodListVersion.current.invalidate("all");
           fiscalPeriodsRef.current = applyFiscalPeriodUpdate(
             fiscalPeriodsRef.current,
@@ -410,11 +413,11 @@ export function OpenkkAppStateProvider(props: {
       },
       async discardFiscalPeriod(fiscalPeriodId) {
         assertEditingUnlocked(config.editingPolicy, "appState.discardFiscalPeriod");
-        const operationVersion = authOperationGuard.current.capture();
+        const operationVersion = authVersion.current.capture();
         await fiscalPeriodMutationQueue.current.run(async () => {
-          authOperationGuard.current.assertCurrent(operationVersion);
+          assertAuthUnchanged(authVersion.current, operationVersion);
           await backendApi.fiscalPeriods.remove(fiscalPeriodId);
-          authOperationGuard.current.assertCurrent(operationVersion);
+          assertAuthUnchanged(authVersion.current, operationVersion);
           fiscalPeriodListVersion.current.invalidate("all");
           fiscalPeriodsRef.current = fiscalPeriodsRef.current.filter(
             (period) => period.id !== fiscalPeriodId,
@@ -439,7 +442,7 @@ export function OpenkkAppStateProvider(props: {
         setFiscalPeriods((current) => applyFiscalPeriodUpdate(current, period));
       },
       signInAsEmbeddedUser() {
-        authOperationGuard.current.invalidate();
+        authVersion.current.invalidate();
         fiscalPeriodsRef.current = [];
         setFiscalPeriods([]);
         setFiscalPeriodLoadError(null);
@@ -448,12 +451,12 @@ export function OpenkkAppStateProvider(props: {
         setFiscalPeriodReloadNonce((nonce) => nonce + 1);
       },
       async signOut() {
-        const operationVersion = authOperationGuard.current.invalidate();
+        const operationVersion = authVersion.current.invalidate();
         return await authMutationQueue.current.run(async () => {
           try {
             await backendApi.auth.signOut();
           } finally {
-            if (authOperationGuard.current.isCurrent(operationVersion)) {
+            if (authVersion.current.isCurrent(operationVersion)) {
               fiscalPeriodListVersion.current.invalidate("all");
               fiscalPeriodsRef.current = [];
               setFiscalPeriods([]);
@@ -466,27 +469,27 @@ export function OpenkkAppStateProvider(props: {
         });
       },
       async startSignIn(redirectUrl) {
-        const operationVersion = authOperationGuard.current.capture();
+        const operationVersion = authVersion.current.capture();
         return await authMutationQueue.current.run(async () => {
-          authOperationGuard.current.assertCurrent(operationVersion);
+          assertAuthUnchanged(authVersion.current, operationVersion);
           const started = await backendApi.auth.startSession(redirectUrl);
-          authOperationGuard.current.assertCurrent(operationVersion);
+          assertAuthUnchanged(authVersion.current, operationVersion);
           return started;
         });
       },
       async completeSignIn({ state, code }) {
-        const operationVersion = authOperationGuard.current.invalidate();
+        const operationVersion = authVersion.current.invalidate();
         return await authMutationQueue.current.run(async () => {
-          authOperationGuard.current.assertCurrent(operationVersion);
+          assertAuthUnchanged(authVersion.current, operationVersion);
           const completed = await backendApi.auth.completeSession({
             state,
             code,
           });
-          authOperationGuard.current.assertCurrent(operationVersion);
+          assertAuthUnchanged(authVersion.current, operationVersion);
           const token = await backendApi.auth.redeemCompletionCode(
             completed.completionCode,
           );
-          authOperationGuard.current.assertCurrent(operationVersion);
+          assertAuthUnchanged(authVersion.current, operationVersion);
           const signedInUser: CustomUser = {
             kind: "custom",
             id: token.userId,
@@ -564,38 +567,33 @@ function mapRemoteFiscalPeriod(period: FiscalPeriodApiRecord): FiscalPeriod {
     documentsReceivedCompleted: period.documentsReceivedCompleted,
     createdAt: period.createdAt,
     updatedAt: period.updatedAt,
-    opening:
-      period.opening == null
-        ? null
-        : {
-            id: period.opening.id,
-            userId: period.opening.userId,
-            fiscalPeriodId: period.opening.fiscalPeriodId,
-            createdAt: period.opening.createdAt,
-            updatedAt: period.opening.updatedAt,
-            openingBalanceLines: period.opening.openingBalanceLines.map(
-              (line) => ({
-                id: line.id,
-                accountId: line.accountId,
-                amount: line.amount,
-              }),
-            ),
-            openingJournals: period.opening.openingJournals.map((journal) => ({
-              id: journal.id,
-              date: journal.date,
-              description: journal.description,
-              businessRate: journal.businessRate,
-              lines: journal.lines.map((line) => ({
-                id: line.id,
-                side: line.side,
-                bookAccountId: line.bookAccountId,
-                amount: line.amount,
-                partnerName: line.partnerName,
-                taxCategoryId: line.taxCategoryId,
-                businessCategoryId: line.businessCategoryId,
-              })),
-            })),
-          },
+    opening: {
+      id: period.opening.id,
+      userId: period.opening.userId,
+      fiscalPeriodId: period.opening.fiscalPeriodId,
+      createdAt: period.opening.createdAt,
+      updatedAt: period.opening.updatedAt,
+      openingBalanceLines: period.opening.openingBalanceLines.map((line) => ({
+        id: line.id,
+        accountId: line.accountId,
+        amount: line.amount,
+      })),
+      openingJournals: period.opening.openingJournals.map((journal) => ({
+        id: journal.id,
+        date: journal.date,
+        description: journal.description,
+        businessRate: journal.businessRate,
+        lines: journal.lines.map((line) => ({
+          id: line.id,
+          side: line.side,
+          bookAccountId: line.bookAccountId,
+          amount: line.amount,
+          partnerName: line.partnerName,
+          taxCategoryId: line.taxCategoryId,
+          businessCategoryId: line.businessCategoryId,
+        })),
+      })),
+    },
   };
 }
 

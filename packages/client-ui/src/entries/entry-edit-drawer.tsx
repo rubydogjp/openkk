@@ -37,7 +37,6 @@ import {
   ActionRowButton,
   BalanceIndicator,
   CardDivider,
-  CloseIcon,
   DeleteConfirmDialog,
   SuggestionInput,
   TextFieldInput,
@@ -48,6 +47,7 @@ import {
   primaryButtonStyle,
   secondaryButtonStyle,
 } from "./entry-edit-controls.js";
+import { CloseIcon } from "../shared/icons.js";
 import type {
   EntryDraft,
   EntryMasterAccountOption,
@@ -493,7 +493,7 @@ export function EntryEditDrawer(props: {
               flexShrink: 0,
             }}
           >
-            <CloseIcon />
+            <CloseIcon size={18} color="currentColor" />
           </button>
         </header>
 

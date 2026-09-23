@@ -133,7 +133,9 @@ export function entryLineAccountKey(line: EntryLine): string {
     : `id:${line.bookAccountId}`;
 }
 
-export const BUSINESS_RATE_TRANSFER_LOCAL_ID = "virtual:business-rate-transfer";
+export const VIRTUAL_ENTRY_LOCAL_ID_PREFIX = "virtual:";
+
+export const BUSINESS_RATE_TRANSFER_LOCAL_ID = `${VIRTUAL_ENTRY_LOCAL_ID_PREFIX}business-rate-transfer`;
 
 export function excludeBusinessRateTransfer<T extends { localId: string | null }>(
   entries: T[],

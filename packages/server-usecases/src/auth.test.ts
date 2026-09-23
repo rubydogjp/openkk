@@ -44,15 +44,15 @@ describe("local auth use case", () => {
   it("rejects malformed runtime values with validation errors", async () => {
     const auth = createServerUsecases({} as OpenkkDbPort).auth;
 
-    await expect(
-      auth.startSession(null as unknown as string),
-    ).rejects.toThrow(/redirect URL is required/);
-    await expect(
-      auth.completeSession(null as unknown as string, "code"),
-    ).rejects.toThrow(/state and code are required/);
-    await expect(
-      auth.redeemCompletionCode(null as unknown as string),
-    ).rejects.toThrow(/completion code is required/);
+    await expect(auth.startSession(null)).rejects.toThrow(
+      /auth redirect URL is required/,
+    );
+    await expect(auth.completeSession(null, "code")).rejects.toThrow(
+      /auth state is required/,
+    );
+    await expect(auth.redeemCompletionCode(null)).rejects.toThrow(
+      /auth completion code is required/,
+    );
   });
 
   it("bounds pending authorization requests and evicts the oldest", async () => {

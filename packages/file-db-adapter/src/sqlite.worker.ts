@@ -1,7 +1,5 @@
 import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
-import {
-  runMigrations,
-} from "@rubydogjp/openkk-sqlite-adapter";
+import { runMigrations } from "@rubydogjp/openkk-sqlite-adapter";
 
 type ExecArg =
   | string

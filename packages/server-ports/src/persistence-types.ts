@@ -6,6 +6,16 @@ export type FiscalPeriodDbPhase =
 
 export type FiscalPeriodDbArchiveStatus = "active" | "archived";
 
+export type EntryDbSide = "debit" | "credit";
+
+export type MasterBookAccountDbAccountType =
+  | "asset"
+  | "liability"
+  | "equity"
+  | "revenue"
+  | "cost_of_sales"
+  | "expense";
+
 export type OpeningBalanceLineDbRecord = {
   id: string;
   accountId: string;
@@ -14,7 +24,7 @@ export type OpeningBalanceLineDbRecord = {
 
 export type OpeningJournalLineDbRecord = {
   id: string;
-  side: "debit" | "credit";
+  side: EntryDbSide;
   bookAccountId: string;
   amount: number;
   partnerName: string;
@@ -53,7 +63,7 @@ export type FiscalPeriodDbRecord = {
   settingsCompleted: boolean;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
-  opening: FiscalPeriodOpeningDbRecord | null;
+  opening: FiscalPeriodOpeningDbRecord;
   createdAt: string;
   updatedAt: string;
 };
@@ -82,19 +92,19 @@ export type FiscalPeriodOpeningDbInput = {
   openingJournals: OpeningJournalDbRecord[];
 };
 
-export type FiscalPeriodDbPatchInput = Partial<{
-  name: string;
-  startDate: string;
-  endDate: string;
-  settingsCompleted: boolean;
-  openingBalancesCompleted: boolean;
-  documentsReceivedCompleted: boolean;
-  opening: FiscalPeriodOpeningDbInput;
-}>;
+export type FiscalPeriodDbPatchInput = {
+  name?: string;
+  startDate?: string;
+  endDate?: string;
+  settingsCompleted?: boolean;
+  openingBalancesCompleted?: boolean;
+  documentsReceivedCompleted?: boolean;
+  opening?: FiscalPeriodOpeningDbInput;
+};
 
 export type EntryDbLine = {
   id: string;
-  side: "debit" | "credit";
+  side: EntryDbSide;
   bookAccountId: string;
   amount: number;
   partnerName: string;
@@ -103,7 +113,7 @@ export type EntryDbLine = {
 };
 
 export type EntryDbLineInput = {
-  side: "debit" | "credit";
+  side: EntryDbSide;
   bookAccountId: string;
   amount: number;
   partnerName: string;
@@ -192,13 +202,7 @@ export type MasterBookAccountDbRecord = {
   description: string;
   kana: string;
   normalBalanceSide: MasterBookAccountDbNormalBalanceSide;
-  accountType:
-    | "asset"
-    | "liability"
-    | "equity"
-    | "revenue"
-    | "cost_of_sales"
-    | "expense";
+  accountType: MasterBookAccountDbAccountType;
   balanceSheetSection: MasterBookAccountDbBalanceSheetSection;
   sortOrder: number;
   createdAt: string;
@@ -233,18 +237,24 @@ export type FixedAssetDbImportInput = {
   bookAccountId: string;
 };
 
+export type FiscalPeriodArchiveDbImportOpening = {
+  openingBalanceLines: OpeningBalanceLineDbRecord[];
+  openingJournals: OpeningJournalDbRecord[];
+};
+
+export type FiscalPeriodArchiveDbImportPeriod = {
+  name: string;
+  startDate: string;
+  endDate: string;
+  phase: FiscalPeriodDbPhase;
+  settingsCompleted: boolean;
+  openingBalancesCompleted: boolean;
+  documentsReceivedCompleted: boolean;
+  opening: FiscalPeriodArchiveDbImportOpening;
+};
+
 export type FiscalPeriodArchiveDbImportInput = {
-  fiscalPeriod: {
-    name: string;
-    startDate: string;
-    endDate: string;
-    phase: FiscalPeriodDbPhase;
-    archiveStatus: "active";
-    settingsCompleted: boolean;
-    openingBalancesCompleted: boolean;
-    documentsReceivedCompleted: boolean;
-    opening: FiscalPeriodOpeningDbInput | null;
-  };
+  fiscalPeriod: FiscalPeriodArchiveDbImportPeriod;
   entries: EntryDbUpsertInput[];
   fixedAssets: FixedAssetDbImportInput[];
   preClosings: Array<{ year: number }>;

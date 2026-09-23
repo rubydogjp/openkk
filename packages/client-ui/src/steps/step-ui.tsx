@@ -441,21 +441,6 @@ export function UndoIcon({ color }: { color: string }) {
   );
 }
 
-export function CheckCircleIcon({ color }: { color: string }) {
-  return (
-    <svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="9.5" stroke={color} strokeWidth="1.8" />
-      <path
-        d="M7.5 12l3 3 6-6"
-        stroke={color}
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 export function PlayIcon({ color }: { color: string }) {
   return (
     <svg width={12} height={12} viewBox="0 0 24 24" fill={color} aria-hidden>

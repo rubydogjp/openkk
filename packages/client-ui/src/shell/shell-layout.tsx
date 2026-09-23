@@ -50,7 +50,7 @@ import {
   LogoutIcon,
   PersonIcon,
   StepsIcon,
-} from "./shell-icons.js";
+} from "../shared/icons.js";
 import {
   ARCHIVED_WORKSPACE_PATH,
   FISCAL_PERIOD_PICKER_PATH,

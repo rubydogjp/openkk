@@ -1,12 +1,8 @@
 import { serverConflictError } from "@rubydogjp/openkk-server-domain";
 
-import type {
-  FiscalPeriodDbPhase,
-} from "@rubydogjp/openkk-server-ports";
-import type {
-  FiscalPeriodDbRow,
-} from "./table-types.js";
-import { msToIso, parseFiscalPeriodDbData } from "./persistence-codec.js";
+import type { FiscalPeriodDbPhase } from "@rubydogjp/openkk-server-ports";
+import type { OwnedFiscalPeriodDbData } from "./table-types.js";
+import { parseFiscalPeriodDbData } from "./persistence-codec.js";
 import type { SqlDb } from "./sql-db.js";
 
 export async function assertDbFiscalPeriodAllows(
@@ -14,21 +10,16 @@ export async function assertDbFiscalPeriodAllows(
   fiscalPeriodId: string,
   allowedPhases: FiscalPeriodDbPhase[],
   operation: string,
-): Promise<FiscalPeriodDbRow | null> {
+): Promise<OwnedFiscalPeriodDbData | null> {
   const rows = (await db.exec({
-    sql: `SELECT user_id, data, created_at, updated_at FROM fiscal_periods WHERE id = ?`,
+    sql: `SELECT user_id, data FROM fiscal_periods WHERE id = ?`,
     bind: [fiscalPeriodId],
     returnValue: "resultRows",
     rowMode: "array",
-  })) as Array<[string, string, number, number]>;
+  })) as Array<[string, string]>;
   const row = rows[0];
   if (row == null) return null;
-  const period = {
-    ...parseFiscalPeriodDbData(row[1]),
-    userId: row[0],
-    createdAt: msToIso(row[2]),
-    updatedAt: msToIso(row[3]),
-  };
+  const period = { ...parseFiscalPeriodDbData(row[1]), userId: row[0] };
   if (
     period.archiveStatus === "archived" ||
     !allowedPhases.includes(period.phase)

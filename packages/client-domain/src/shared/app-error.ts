@@ -28,29 +28,20 @@ export class AppError extends Error implements AppErrorLike {
   readonly code: string | null;
 
   constructor(params: AppErrorLike) {
-    const normalized = normalizeAppErrorLike(params);
-    super(normalized.messageForDeveloper);
+    super(params.messageForDeveloper);
     this.name = "AppError";
-    this.messageForDeveloper = normalized.messageForDeveloper;
-    this.messageForUser = normalized.messageForUser;
-    this.originalMessage = normalized.originalMessage;
-    this.statusCode = normalized.statusCode;
-    this.code = normalized.code;
+    this.messageForDeveloper = params.messageForDeveloper;
+    this.messageForUser = params.messageForUser;
+    this.originalMessage = params.originalMessage;
+    this.statusCode = params.statusCode;
+    this.code = params.code;
   }
 
   static from(error: unknown, options: AppErrorFromOptions): AppError {
     if (error instanceof AppError) {
       return error;
     }
-    if (isAppErrorLike(error)) {
-      return new AppError({
-        messageForDeveloper: error.messageForDeveloper,
-        messageForUser: error.messageForUser,
-        originalMessage: error.originalMessage,
-        statusCode: error.statusCode,
-        code: error.code,
-      });
-    }
+    if (isAppErrorLike(error)) return new AppError(error);
     return new AppError({
       messageForDeveloper:
         options.fallbackDeveloperMessage ??
@@ -66,13 +57,7 @@ export class AppError extends Error implements AppErrorLike {
     if (!isAppErrorLike(json)) {
       throw new Error("AppError.fromJson: invalid AppError JSON");
     }
-    return new AppError({
-      messageForDeveloper: json.messageForDeveloper,
-      messageForUser: json.messageForUser,
-      originalMessage: json.originalMessage,
-      statusCode: json.statusCode,
-      code: json.code,
-    });
+    return new AppError(json);
   }
 
   toJson(): AppErrorLike {
@@ -88,24 +73,15 @@ export class AppError extends Error implements AppErrorLike {
   copyWith(params: AppErrorPatch): AppError {
     return new AppError({
       messageForDeveloper:
-        typeof params.messageForDeveloper === "string"
-          ? params.messageForDeveloper
-          : this.messageForDeveloper,
-      messageForUser:
-        typeof params.messageForUser === "string"
-          ? params.messageForUser
-          : this.messageForUser,
+        params.messageForDeveloper ?? this.messageForDeveloper,
+      messageForUser: params.messageForUser ?? this.messageForUser,
       originalMessage:
-        typeof params.originalMessage === "string" ||
-        params.originalMessage === null
-          ? params.originalMessage
-          : this.originalMessage,
+        params.originalMessage === undefined
+          ? this.originalMessage
+          : params.originalMessage,
       statusCode:
-        validStatusCode(params.statusCode) ? params.statusCode : this.statusCode,
-      code:
-        typeof params.code === "string" || params.code === null
-          ? params.code
-          : this.code,
+        params.statusCode === undefined ? this.statusCode : params.statusCode,
+      code: params.code === undefined ? this.code : params.code,
     });
   }
 
@@ -126,29 +102,6 @@ export function jsonToAppError(json: Record<string, unknown>): AppError {
       code: null,
     });
   }
-}
-
-function normalizeAppErrorLike(value: AppErrorLike): AppErrorLike {
-  const candidate: Record<string, unknown> = isObject(value) ? value : {};
-  return {
-    messageForDeveloper:
-      typeof candidate.messageForDeveloper === "string"
-        ? candidate.messageForDeveloper
-        : "AppError: invalid developer message",
-    messageForUser:
-      typeof candidate.messageForUser === "string"
-        ? candidate.messageForUser
-        : "エラーが発生しました",
-    originalMessage:
-      typeof candidate.originalMessage === "string" ||
-      candidate.originalMessage === null
-        ? candidate.originalMessage
-        : null,
-    statusCode: validStatusCode(candidate.statusCode)
-      ? candidate.statusCode
-      : null,
-    code: typeof candidate.code === "string" ? candidate.code : null,
-  };
 }
 
 function validStatusCode(value: unknown): value is number | null {

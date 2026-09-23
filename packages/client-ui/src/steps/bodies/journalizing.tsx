@@ -17,7 +17,7 @@ import {
 } from "@rubydogjp/openkk-client-usecases";
 import { fontSize, fontWeight, palette } from "../../shared/design-tokens.js";
 import { useConfirmDialog } from "../../shared/confirm-dialog.js";
-import { LockButton } from "../../shared/lock-icon.js";
+import { LockButton } from "../../shared/locked-action.js";
 import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 import { isCurrentMonthWithinFiscalPeriod } from "@rubydogjp/openkk-client-domain";
 import {

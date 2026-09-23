@@ -1,5 +1,7 @@
 import {
+  assertEntryMatchesRules,
   assertFiscalPeriodCanCarryOver,
+  assertFixedAssetMatchesRules,
   buildCarryoverOpeningBalances,
   buildCarryoverOpeningJournals,
   serverConflictError,
@@ -31,9 +33,7 @@ import {
 } from "./persistence-codec.js";
 import {
   assertDbArchiveImportSizeLimits,
-  assertDbEntryInput,
   assertDbFiscalPeriodPatchAllowed,
-  assertDbFixedAssetRecord,
   assertDbImportedClosingState,
   assertDbOpeningForPeriod,
 } from "./record-validation.js";
@@ -120,11 +120,10 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         });
         const now = nowMs();
         const record = newFiscalPeriodRecord(userId, input, now);
-        const opening = requireOpening(record.opening, record.id);
+        const opening = record.opening;
         opening.openingBalanceLines = input.carryBalances
           ? buildCarryoverOpeningBalances({
-              openingBalanceLines: requireOpening(source.opening, source.id)
-                .openingBalanceLines,
+              openingBalanceLines: source.opening.openingBalanceLines,
               entries,
             })
           : [];
@@ -162,17 +161,15 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       const fiscalPeriodId = newId("fp");
       const now = nowMs();
       const timestamp = msToIso(now);
-      const opening: FiscalPeriodDbRecord["opening"] =
-        input.fiscalPeriod.opening == null
-          ? defaultOpening(userId, fiscalPeriodId, now)
-          : {
-              ...input.fiscalPeriod.opening,
-              id: `op-${fiscalPeriodId}`,
-              userId,
-              fiscalPeriodId,
-              createdAt: timestamp,
-              updatedAt: timestamp,
-            };
+      const opening: FiscalPeriodDbRecord["opening"] = {
+        id: `op-${fiscalPeriodId}`,
+        userId,
+        fiscalPeriodId,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        openingBalanceLines: input.fiscalPeriod.opening.openingBalanceLines,
+        openingJournals: input.fiscalPeriod.opening.openingJournals,
+      };
       const record: FiscalPeriodDbRecord = {
         id: fiscalPeriodId,
         userId,
@@ -207,7 +204,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         });
         await replaceOpening(db, opening, now);
         for (const inputEntry of input.entries) {
-          assertDbEntryInput(inputEntry, record, "Archived entry");
+          assertEntryMatchesRules(inputEntry, record, "Archived entry");
           const id = newId("entry");
           const entry: EntryDbRecord = {
             id,
@@ -301,16 +298,6 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
           updatedAt: timestamp,
           opening: existingOpening,
         };
-        const normalizedOpening =
-          patch.opening === undefined
-            ? existingOpening
-            : {
-                ...patch.opening,
-                userId: row[0],
-                fiscalPeriodId: id,
-                createdAt: existingOpening.createdAt,
-                updatedAt: timestamp,
-              };
         if (
           patch.opening !== undefined &&
           (patch.opening.id !== existingOpening.id ||
@@ -322,18 +309,30 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
             "期首データの識別子と会計期間情報が一致しません",
           );
         }
+        const normalizedOpening =
+          patch.opening === undefined
+            ? existingOpening
+            : {
+                ...patch.opening,
+                userId: row[0],
+                fiscalPeriodId: id,
+                createdAt: existingOpening.createdAt,
+                updatedAt: timestamp,
+              };
         const updated = {
           ...existing,
-          ...(patch.name != null ? { name: patch.name } : {}),
-          ...(patch.startDate != null ? { startDate: patch.startDate } : {}),
-          ...(patch.endDate != null ? { endDate: patch.endDate } : {}),
-          ...(patch.settingsCompleted != null
+          ...(patch.name !== undefined ? { name: patch.name } : {}),
+          ...(patch.startDate !== undefined
+            ? { startDate: patch.startDate }
+            : {}),
+          ...(patch.endDate !== undefined ? { endDate: patch.endDate } : {}),
+          ...(patch.settingsCompleted !== undefined
             ? { settingsCompleted: patch.settingsCompleted }
             : {}),
-          ...(patch.openingBalancesCompleted != null
+          ...(patch.openingBalancesCompleted !== undefined
             ? { openingBalancesCompleted: patch.openingBalancesCompleted }
             : {}),
-          ...(patch.documentsReceivedCompleted != null
+          ...(patch.documentsReceivedCompleted !== undefined
             ? { documentsReceivedCompleted: patch.documentsReceivedCompleted }
             : {}),
           ...(patch.settingsCompleted === true &&
@@ -391,7 +390,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
           createdAt: msToIso(row[2]),
           updatedAt: msToIso(now),
           archiveStatus: "archived" as const,
-          archivedAt: current.archivedAt ?? msToIso(now),
+          archivedAt: msToIso(now),
         };
         await db.exec({
           sql: `UPDATE fiscal_periods SET data = ?, updated_at = ? WHERE id = ?`,
@@ -428,7 +427,6 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         createdAt: msToIso(row[2]),
         updatedAt: msToIso(now),
         archiveDataAvailable: false,
-        archivedAt: current.archivedAt ?? msToIso(now),
       };
       await runInTransaction(db, async () => {
         await db.exec({
@@ -499,7 +497,7 @@ async function insertFiscalPeriod(
   record: FiscalPeriodDbRecord,
   now: number,
 ): Promise<void> {
-  const opening = requireOpening(record.opening, record.id);
+  const opening = record.opening;
   assertDbOpeningForPeriod(opening, record);
   await assertNoOverlappingActiveFiscalPeriod(db, {
     userId: record.userId,
@@ -526,7 +524,7 @@ async function insertFixedAsset(
   period: FiscalPeriodDbRecord,
   now: number,
 ): Promise<void> {
-  assertDbFixedAssetRecord(asset, period);
+  assertFixedAssetMatchesRules(asset, period);
   await db.exec({
     sql: `INSERT INTO fixed_assets(id, fiscal_period_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
     bind: [

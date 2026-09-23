@@ -1,4 +1,7 @@
-import { serverValidationError } from "@rubydogjp/openkk-server-domain";
+import {
+  assertNonBlankString,
+  serverValidationError,
+} from "@rubydogjp/openkk-server-domain";
 
 const LOCAL_AUTH_COMPLETION_PREFIX = "local-auth-completion:";
 const LOCAL_AUTH_TTL_MS = 10 * 60 * 1000;
@@ -17,10 +20,8 @@ export function createLocalAuthUsecase() {
     }
   };
   return {
-    async startSession(redirectUrl: string) {
-      if (typeof redirectUrl !== "string" || redirectUrl.trim() === "") {
-        throw serverValidationError("auth redirect URL is required", null);
-      }
+    async startSession(redirectUrl: unknown) {
+      assertNonBlankString(redirectUrl, "auth redirect URL");
       let target: URL;
       try {
         target = new URL(redirectUrl);
@@ -46,15 +47,9 @@ export function createLocalAuthUsecase() {
       target.searchParams.set("code", code);
       return { authUrl: target.toString() };
     },
-    async completeSession(state: string, code: string) {
-      if (
-        typeof state !== "string" ||
-        typeof code !== "string" ||
-        state.trim() === "" ||
-        code.trim() === ""
-      ) {
-        throw serverValidationError("auth state and code are required", null);
-      }
+    async completeSession(state: unknown, code: unknown) {
+      assertNonBlankString(state, "auth state");
+      assertNonBlankString(code, "auth code");
       pruneExpired();
       const key = authorizationKey(state, code);
       if (!pendingAuthorizations.delete(key)) {
@@ -68,13 +63,8 @@ export function createLocalAuthUsecase() {
       );
       return { completionCode };
     },
-    async redeemCompletionCode(completionCode: string) {
-      if (
-        typeof completionCode !== "string" ||
-        completionCode.trim() === ""
-      ) {
-        throw serverValidationError("auth completion code is required", null);
-      }
+    async redeemCompletionCode(completionCode: unknown) {
+      assertNonBlankString(completionCode, "auth completion code");
       pruneExpired();
       if (!pendingCompletions.delete(completionCode)) {
         throw serverValidationError("invalid or expired auth completion code", null);

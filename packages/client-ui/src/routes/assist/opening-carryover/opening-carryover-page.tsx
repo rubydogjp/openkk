@@ -26,6 +26,8 @@ import { AssistBreadcrumb } from "../../../assist/assist-breadcrumb.js";
 import { buildNewOpeningCarryoverDraft } from "../../../assist/opening-carryover-draft.js";
 import { ClosedPeriodLock } from "../../../shared/closed-period-lock.js";
 import { isoDateToWeekday } from "../../../shared/date-picker.js";
+import { PlusIcon } from "../../../shared/icons.js";
+import { CompactLockButton } from "../../../shared/locked-action.js";
 import {
   fontSize,
   fontWeight,
@@ -149,7 +151,7 @@ export function OpeningCarryoverPage() {
           }}
         >
           {isReadOnlyPeriod || editingLocked ? (
-            <LockedCarryoverButton
+            <CompactLockButton
               label={isReadOnlyPeriod ? "記録終了" : "編集ロック"}
             />
           ) : lockMessage == null && fiscalPeriodId != null ? (
@@ -281,82 +283,8 @@ function AddCarryoverButton({ onClick }: { onClick: () => void }) {
         boxShadow: "0 1px 2px rgba(37, 99, 235, 0.18)",
       }}
     >
-      <PlusGlyph /> 追加
+      <PlusIcon size={12} color="currentColor" /> 追加
     </button>
-  );
-}
-
-function LockedCarryoverButton({ label }: { label: string }) {
-  return (
-    <button
-      type="button"
-      disabled
-      style={{
-        height: sizes.button.compactHeight,
-        minWidth: sizes.button.compactIconTextMinWidth,
-        padding: "0 14px",
-        borderRadius: radii.sm,
-        border: `1px solid ${palette.borderStrong}`,
-        background: palette.surface,
-        color: palette.textSoft,
-        fontSize: fontSize.base,
-        fontWeight: fontWeight.bold,
-        cursor: "default",
-        display: "inline-flex",
-        alignItems: "center",
-        gap: spacing.s6,
-      }}
-    >
-      <LockGlyph /> {label}
-    </button>
-  );
-}
-
-function PlusGlyph() {
-  return (
-    <svg width={12} height={12} viewBox="0 0 24 24" fill="none">
-      <line
-        x1="12"
-        y1="5"
-        x2="12"
-        y2="19"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-      />
-      <line
-        x1="5"
-        y1="12"
-        x2="19"
-        y2="12"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function LockGlyph() {
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        width: 15,
-        height: 15,
-        display: "block",
-        flexShrink: 0,
-        backgroundColor: "currentColor",
-        maskImage: "url('/icons/lock.svg')",
-        maskPosition: "center",
-        maskRepeat: "no-repeat",
-        maskSize: "contain",
-        WebkitMaskImage: "url('/icons/lock.svg')",
-        WebkitMaskPosition: "center",
-        WebkitMaskRepeat: "no-repeat",
-        WebkitMaskSize: "contain",
-      }}
-    />
   );
 }
 

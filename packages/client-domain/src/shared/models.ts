@@ -27,7 +27,7 @@ export type FiscalPeriod = {
   documentsReceivedCompleted: boolean;
   createdAt: string;
   updatedAt: string;
-  opening: FiscalPeriodOpening | null;
+  opening: FiscalPeriodOpening;
 };
 
 export type FiscalPeriodOpeningBalanceLine = {

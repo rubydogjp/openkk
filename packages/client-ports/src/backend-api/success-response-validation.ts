@@ -121,7 +121,7 @@ function isFiscalPeriod(value: unknown): boolean {
   ) {
     return false;
   }
-  return value.opening === null || isOpening(value.opening, value);
+  return isOpening(value.opening, value);
 }
 
 function isOpening(

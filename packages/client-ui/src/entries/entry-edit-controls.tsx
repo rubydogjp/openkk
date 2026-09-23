@@ -28,6 +28,12 @@ import {
   usePopoverLifecycle,
 } from "../shared/dismissible-layer.js";
 import {
+  CheckIcon,
+  MinusIcon,
+  PlusIcon,
+  WarningIcon,
+} from "../shared/icons.js";
+import {
   EntryAccountIcon,
   entryAccountPalette,
 } from "./entry-account-visual.js";
@@ -427,7 +433,7 @@ export function SuggestionInput({
                 justifyContent: "center",
               }}
             >
-              <CheckIcon />
+              <CheckIcon size={14} color="currentColor" />
             </button>
           </div>
           <div style={{ maxHeight: 260, overflow: "auto", padding: "4px 0" }}>
@@ -525,7 +531,7 @@ export function BalanceIndicator({
           gap: 6,
         }}
       >
-        <CheckIcon /> 貸借一致 ¥{debitAmt.toLocaleString()}
+        <CheckIcon size={14} color="currentColor" /> 貸借一致 ¥{debitAmt.toLocaleString()}
       </div>
     );
   }
@@ -540,7 +546,7 @@ export function BalanceIndicator({
         gap: 6,
       }}
     >
-      <WarnIcon /> 差額 ¥{Math.abs(debitAmt - creditAmt).toLocaleString()}
+      <WarningIcon size={14} color="currentColor" /> 差額 ¥{Math.abs(debitAmt - creditAmt).toLocaleString()}
     </div>
   );
 }
@@ -578,7 +584,7 @@ export function ValidationCard({
           color: entryDrawerColors.red,
         }}
       >
-        <WarnIcon /> 入力内容を確認してください
+        <WarningIcon size={14} color="currentColor" /> 入力内容を確認してください
       </div>
       {messages.map((message, index) => (
         <div
@@ -847,7 +853,11 @@ export function ActionRowButton({
           flexShrink: 0,
         }}
       >
-        {variant === "add" ? <PlusIcon /> : <MinusIcon />}
+        {variant === "add" ? (
+          <PlusIcon size={12} color="currentColor" />
+        ) : (
+          <MinusIcon size={12} color="currentColor" />
+        )}
       </span>
       {hasLabel ? (
         <span
@@ -864,105 +874,3 @@ export function ActionRowButton({
   );
 }
 
-function CheckIcon() {
-  return (
-    <svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-      <polyline
-        points="5 12 10 17 19 7"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-export function CloseIcon() {
-  return (
-    <svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-      <line
-        x1="6"
-        y1="6"
-        x2="18"
-        y2="18"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-      />
-      <line
-        x1="18"
-        y1="6"
-        x2="6"
-        y2="18"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function WarnIcon() {
-  return (
-    <svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-      <path
-        d="M12 3l10 18H2L12 3z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <line
-        x1="12"
-        y1="10"
-        x2="12"
-        y2="14"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <circle cx="12" cy="17" r="1" fill="currentColor" />
-    </svg>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg width={12} height={12} viewBox="0 0 24 24" fill="none">
-      <line
-        x1="12"
-        y1="5"
-        x2="12"
-        y2="19"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-      />
-      <line
-        x1="5"
-        y1="12"
-        x2="19"
-        y2="12"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function MinusIcon() {
-  return (
-    <svg width={12} height={12} viewBox="0 0 24 24" fill="none">
-      <line
-        x1="5"
-        y1="12"
-        x2="19"
-        y2="12"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}

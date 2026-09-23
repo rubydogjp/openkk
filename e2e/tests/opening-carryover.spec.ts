@@ -114,7 +114,6 @@ test.describe("opening carryover (再振替)", () => {
   }) => {
     await addCarryover(page, "仕訳一覧確認用の再振替", "50000");
 
-    // navigate to the entries page and verify the virtual row is visible in January
     await page.getByRole("link", { name: "仕訳" }).click();
     // 再振替（仮想行）は期首=2026年1月に表示される。既定表示月(9月)から戻る。
     for (let i = 0; i < 8; i += 1) {
@@ -123,7 +122,6 @@ test.describe("opening carryover (再振替)", () => {
     await expect(page.getByText("2026年1月")).toBeVisible();
     await expect(page.getByText("仕訳一覧確認用の再振替")).toBeVisible();
 
-    // virtual rows show the "再振替" badge
     await expect(page.getByText("再振替").first()).toBeVisible();
   });
 });

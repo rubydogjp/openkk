@@ -32,7 +32,7 @@ describe("archive text preservation", () => {
         settingsCompleted: true,
         openingBalancesCompleted: true,
         opening: {
-          ...period.opening!,
+          ...period.opening,
           openingJournals: [
             {
               id: "journal-1",
@@ -81,7 +81,7 @@ describe("archive text preservation", () => {
       const fixedAssets = await target.fixedAssets.getAll(restored.id);
 
       expect(restored.name).toBe(text);
-      expect(restored.opening!.openingJournals[0]).toMatchObject({
+      expect(restored.opening.openingJournals[0]).toMatchObject({
         description: text,
         lines,
       });
@@ -117,7 +117,7 @@ describe("archive text preservation", () => {
           periodEndDate: restored.endDate,
           entries,
           fixedAssets,
-          openingJournals: restored.opening!.openingJournals,
+          openingJournals: restored.opening.openingJournals,
           bookAccounts: await target.masterData.getBookAccounts(),
         }),
       });

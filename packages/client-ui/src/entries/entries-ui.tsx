@@ -2,6 +2,8 @@
 
 import { ClosedPeriodLock } from "../shared/closed-period-lock.js";
 import { useDismissibleLayer } from "../shared/dismissible-layer.js";
+import { AssistIcon, PlusIcon } from "../shared/icons.js";
+import { CompactLockButton } from "../shared/locked-action.js";
 import {
   EntryFileActionsButton,
   type EntryFileKind,
@@ -183,7 +185,7 @@ export function EntriesScreen(props: {
               />
             ) : null}
             {isReadOnly ? (
-              <ToolbarLockedButton />
+              <CompactLockButton label="記録終了" />
             ) : props.onAddEntry ? (
               <ToolbarPrimaryButton label="追加" onClick={props.onAddEntry} />
             ) : null}
@@ -324,7 +326,7 @@ export function VirtualEntryDrawer(props: {
               color: palette.text,
             }}
           >
-            <AssistGlyph color={null} />
+            <AssistIcon size={18} color={palette.text} />
             補助 / {virtual.label}
           </div>
           <button
@@ -423,7 +425,7 @@ export function VirtualEntryDrawer(props: {
                 gap: spacing.s8,
               }}
             >
-              <AssistGlyph color={palette.surface} />
+              <AssistIcon size={18} color={palette.surface} />
               補助 / {virtual.label}画面へ
             </button>
           ) : null}
@@ -468,28 +470,6 @@ function VirtualEntrySummaryRow(props: { label: string; value: string }) {
         {props.value}
       </div>
     </div>
-  );
-}
-
-function AssistGlyph({ color }: { color: string | null }) {
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        width: 18,
-        height: 18,
-        display: "inline-block",
-        backgroundColor: color ?? palette.text,
-        maskImage: "url('/icons/assist.svg')",
-        maskRepeat: "no-repeat",
-        maskPosition: "center",
-        maskSize: "contain",
-        WebkitMaskImage: "url('/icons/assist.svg')",
-        WebkitMaskRepeat: "no-repeat",
-        WebkitMaskPosition: "center",
-        WebkitMaskSize: "contain",
-      }}
-    />
   );
 }
 
@@ -553,81 +533,8 @@ function ToolbarPrimaryButton({
         boxShadow: "0 1px 2px rgba(37, 99, 235, 0.18)",
       }}
     >
-      <PlusIcon /> {label}
+      <PlusIcon size={14} color="currentColor" /> {label}
     </button>
   );
 }
 
-function ToolbarLockedButton() {
-  return (
-    <button
-      type="button"
-      disabled
-      style={{
-        height: sizes.button.compactHeight,
-        minWidth: sizes.button.compactIconTextMinWidth,
-        padding: "0 14px",
-        borderRadius: radii.sm,
-        border: `1px solid ${palette.borderStrong}`,
-        background: palette.surface,
-        color: palette.textSoft,
-        fontSize: fontSize.base,
-        fontWeight: fontWeight.bold,
-        cursor: "default",
-        display: "inline-flex",
-        alignItems: "center",
-        gap: spacing.s6,
-      }}
-    >
-      <LockIcon /> 記録終了
-    </button>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-      <line
-        x1="12"
-        y1="5"
-        x2="12"
-        y2="19"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-      />
-      <line
-        x1="5"
-        y1="12"
-        x2="19"
-        y2="12"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function LockIcon() {
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        width: 15,
-        height: 15,
-        display: "block",
-        flexShrink: 0,
-        backgroundColor: "currentColor",
-        maskImage: "url('/icons/lock.svg')",
-        maskPosition: "center",
-        maskRepeat: "no-repeat",
-        maskSize: "contain",
-        WebkitMaskImage: "url('/icons/lock.svg')",
-        WebkitMaskPosition: "center",
-        WebkitMaskRepeat: "no-repeat",
-        WebkitMaskSize: "contain",
-      }}
-    />
-  );
-}

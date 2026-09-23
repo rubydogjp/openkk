@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { fontSize, fontWeight, palette } from "../shared/design-tokens.js";
+import { MaskIcon } from "../shared/icons.js";
 
 export function ClosingExplainerAnimation({
   onCompleted,
@@ -180,7 +181,7 @@ function ClosingAnimFrame({ t, w }: { t: number; w: number }) {
               transform: angle !== 0 ? `rotate(${angle}rad)` : undefined,
             }}
           >
-            <AccountIcon icon={visual.icon} color={visual.color} size={10} />
+            <MaskIcon src={visual.icon} color={visual.color} size={10} />
             <span>{label}</span>
           </div>
         );
@@ -211,7 +212,7 @@ function ClosingAnimFrame({ t, w }: { t: number; w: number }) {
                 opacity: profitOp,
               }}
             >
-              <AccountIcon icon={profit.icon} color={profit.color} size={10} />
+              <MaskIcon src={profit.icon} color={profit.color} size={10} />
               <span>利益</span>
             </div>
           ))}
@@ -238,36 +239,13 @@ function ClosingAnimFrame({ t, w }: { t: number; w: number }) {
                 opacity: profitOp,
               }}
             >
-              <AccountIcon icon={equity.icon} color={equity.color} size={10} />
+              <MaskIcon src={equity.icon} color={equity.color} size={10} />
               <span>剰余金</span>
             </div>
           ))}
         </>
       ) : null}
     </div>
-  );
-}
-
-function AccountIcon({ icon, color, size }: { icon: string; color: string; size: number }) {
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        width: size,
-        height: size,
-        display: "block",
-        flexShrink: 0,
-        backgroundColor: color,
-        maskImage: `url('${icon}')`,
-        maskPosition: "center",
-        maskRepeat: "no-repeat",
-        maskSize: "contain",
-        WebkitMaskImage: `url('${icon}')`,
-        WebkitMaskPosition: "center",
-        WebkitMaskRepeat: "no-repeat",
-        WebkitMaskSize: "contain",
-      }}
-    />
   );
 }
 

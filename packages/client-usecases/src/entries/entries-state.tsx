@@ -16,7 +16,7 @@ import { useBackendApi } from "../shared/backend-api-context.js";
 import { useOpenkkConfig } from "../shared/openkk-config-context.js";
 import { assertEditingUnlocked } from "../shared/editing-policy.js";
 import { isSelectedFiscalPeriodDataPurged } from "../shared/archive-data-policy.js";
-import { AsyncStateVersion } from "../shared/async-state-version.js";
+import { KeyedAsyncStateVersion } from "../shared/async-state-version.js";
 import { KeyedAsyncMutationQueue } from "../shared/async-mutation-queue.js";
 import {
   buildEntryMasterAccountOptions,
@@ -42,6 +42,7 @@ import type {
 } from "@rubydogjp/openkk-client-ports";
 
 import {
+  formatAmount,
   parseAmount,
   resolveCategoryId,
   resolveBookAccountId,
@@ -128,7 +129,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
   const [masterLoadError, setMasterLoadError] = useState<unknown>(null);
   const [entriesLoadError, setEntriesLoadError] = useState<unknown>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
-  const periodVersions = useRef(new AsyncStateVersion<string>());
+  const periodVersions = useRef(new KeyedAsyncStateVersion<string>());
   const entryMutationQueue = useRef(new KeyedAsyncMutationQueue<string>());
   const currentFiscalPeriodDataPurged = isSelectedFiscalPeriodDataPurged(
     appState.fiscalPeriods,
@@ -543,7 +544,7 @@ function mapRemoteEntryToRecord(input: {
     side: line.side,
     accountName: mapBookAccountName(line.bookAccountId, input.accounts),
     accountType: mapAccountType(line.bookAccountId, input.accounts, "asset"),
-    amount: formatAmount(line.amount),
+    amount: formatAmount(Math.abs(line.amount)),
     bookAccountId: line.bookAccountId,
     partnerName: line.partnerName,
     taxCategoryId: line.taxCategoryId,
@@ -605,10 +606,6 @@ function mapAccountType(
   if (id == null) return fallback;
   return (accounts.find((account) => account.id === id)?.accountType ??
     fallback) as BookAccountType;
-}
-
-function formatAmount(value: number): string {
-  return new Intl.NumberFormat("ja-JP").format(Math.abs(value));
 }
 
 function buildEntryApiLinesFromDraft(

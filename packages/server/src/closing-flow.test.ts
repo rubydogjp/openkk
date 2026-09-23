@@ -213,7 +213,7 @@ describe("openkk server closing flow", () => {
         year: 2026,
         entries: [generated, generated],
       }),
-    ).rejects.toThrow(/duplicate localId/);
+    ).rejects.toThrow(/Closing entry localId has a duplicate value/);
     await expect(
       server.closings.run({
         fiscalPeriodId: "fp-1",
@@ -470,7 +470,6 @@ function fiscalPeriod(
     settingsCompleted: true,
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,
-    opening: null,
     createdAt: TEST_TIMESTAMP,
     updatedAt: TEST_TIMESTAMP,
   } as FiscalPeriodApiRecord, overrides);

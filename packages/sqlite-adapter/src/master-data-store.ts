@@ -18,15 +18,15 @@ export function createMasterDataDb(): MasterDataDb {
   return {
     async getBookAccounts() {
       return DEFAULT_BOOK_ACCOUNTS.map(
-        (a): MasterBookAccountDbRecord => ({
-          id: a.id,
-          name: a.name,
-          description: a.description,
-          kana: a.kana,
-          normalBalanceSide: a.normalBalanceSide,
-          accountType: a.accountType,
-          balanceSheetSection: a.balanceSheetSection,
-          sortOrder: a.sortOrder,
+        (account): MasterBookAccountDbRecord => ({
+          id: account.id,
+          name: account.name,
+          description: account.description,
+          kana: account.kana,
+          normalBalanceSide: account.normalBalanceSide,
+          accountType: account.accountType,
+          balanceSheetSection: account.balanceSheetSection,
+          sortOrder: account.sortOrder,
           createdAt: MASTER_RECORD_TIMESTAMP,
           updatedAt: MASTER_RECORD_TIMESTAMP,
         }),
@@ -34,10 +34,10 @@ export function createMasterDataDb(): MasterDataDb {
     },
     async getTaxCategories() {
       return DEFAULT_TAX_CATEGORIES.map(
-        (c): MasterTaxCategoryDbRecord => ({
-          id: c.id,
-          name: c.name,
-          rate: c.rate,
+        (category): MasterTaxCategoryDbRecord => ({
+          id: category.id,
+          name: category.name,
+          rate: category.rate,
           createdAt: MASTER_RECORD_TIMESTAMP,
           updatedAt: MASTER_RECORD_TIMESTAMP,
         }),
@@ -45,9 +45,9 @@ export function createMasterDataDb(): MasterDataDb {
     },
     async getBusinessCategories() {
       return DEFAULT_BUSINESS_CATEGORIES.map(
-        (c): MasterBusinessCategoryDbRecord => ({
-          id: c.id,
-          name: c.name,
+        (category): MasterBusinessCategoryDbRecord => ({
+          id: category.id,
+          name: category.name,
           createdAt: MASTER_RECORD_TIMESTAMP,
           updatedAt: MASTER_RECORD_TIMESTAMP,
         }),

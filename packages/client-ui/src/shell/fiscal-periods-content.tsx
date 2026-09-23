@@ -17,10 +17,11 @@ import {
   useOpenkkConfig,
 } from "@rubydogjp/openkk-client-usecases";
 import { AppErrorText } from "../shared/app-error-text.js";
-import { LockButton } from "../shared/lock-icon.js";
+import { LockButton } from "../shared/locked-action.js";
 import { ExclusiveActionLock } from "../shared/exclusive-action-lock.js";
 import { usePopoverLifecycle } from "../shared/dismissible-layer.js";
 import { formatCalendarDate } from "../shared/calendar-date.js";
+import { PlusIcon } from "../shared/icons.js";
 import {
   fontSize,
   fontWeight,
@@ -37,8 +38,9 @@ export function FiscalPeriodsContent() {
   const appState = useOpenkkAppState();
   const openkkConfig = useOpenkkConfig();
   const editingLocked = resolveEditingPolicy(openkkConfig.editingPolicy).locked;
-  const allowArchiveImport =
-    resolveFiscalPeriodPolicy(openkkConfig.fiscalPeriodPolicy).allowArchiveImport !== false;
+  const allowArchiveImport = resolveFiscalPeriodPolicy(
+    openkkConfig.fiscalPeriodPolicy,
+  ).allowArchiveImport;
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const archiveImportLock = useRef(new ExclusiveActionLock());
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
@@ -595,34 +597,9 @@ function AddPeriodButton({ onClick }: { onClick: () => void }) {
         boxShadow: shadows.primaryButton,
       }}
     >
-      <PlusGlyph />
+      <PlusIcon size={12} color="currentColor" />
       追加
     </button>
-  );
-}
-
-function PlusGlyph() {
-  return (
-    <svg width={12} height={12} viewBox="0 0 24 24" fill="none">
-      <line
-        x1="12"
-        y1="5"
-        x2="12"
-        y2="19"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-      />
-      <line
-        x1="5"
-        y1="12"
-        x2="19"
-        y2="12"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-      />
-    </svg>
   );
 }
 

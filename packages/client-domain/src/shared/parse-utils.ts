@@ -5,6 +5,10 @@ export function parseAmount(value: string | number): number {
   return Number.isFinite(parsed) ? Math.round(parsed) : 0;
 }
 
+export function formatAmount(value: number): string {
+  return new Intl.NumberFormat("ja-JP").format(value);
+}
+
 export function parseBusinessRate(value: string): number {
   if (value.trim() === "") return 1;
   const n = Number(value);

@@ -4,6 +4,7 @@ import {
   assertEntryLinesBalanced,
   assertIsoDate,
   assertUnitRate,
+  requireObject,
 } from "./validation.js";
 
 export type EntryRuleLine = {
@@ -24,67 +25,66 @@ export type EntryRuleInput = {
 };
 
 export function assertEntryMatchesRules(
-  entry: EntryRuleInput,
+  entry: unknown,
   period: { startDate: string; endDate: string } | null,
   label: string,
-): void {
+): asserts entry is EntryRuleInput {
+  const value = requireObject(entry, label);
   if (
-    typeof entry.description !== "string" ||
-    entry.description.trim() === ""
+    typeof value.description !== "string" ||
+    value.description.trim() === ""
   ) {
     throw serverValidationError(`${label} description is required`, null);
   }
-  assertIsoDate(entry.date, `${label} date`);
+  assertIsoDate(value.date, `${label} date`);
   if (
     period != null &&
-    (entry.date < period.startDate || entry.date > period.endDate)
+    (value.date < period.startDate || value.date > period.endDate)
   ) {
     throw serverValidationError(
-      `${label} date ${entry.date} must be within fiscal period ${period.startDate} to ${period.endDate}`,
+      `${label} date ${value.date} must be within fiscal period ${period.startDate} to ${period.endDate}`,
       "仕訳日付を会計期間内にしてください",
     );
   }
   if (
-    entry.localId !== null &&
-    (typeof entry.localId !== "string" || entry.localId.trim() === "")
+    value.localId !== null &&
+    (typeof value.localId !== "string" || value.localId.trim() === "")
   ) {
     throw serverValidationError(
       `${label} localId must be a non-blank string or null`,
       null,
     );
   }
-  assertUnitRate(entry.businessRate, `${label} business rate`);
-  if (!Array.isArray(entry.lines)) {
+  assertUnitRate(value.businessRate, `${label} business rate`);
+  if (!Array.isArray(value.lines)) {
     throw serverValidationError(`${label} lines must be an array`, null);
   }
-  for (const line of entry.lines) {
+  for (const line of value.lines) {
     assertEntryLineMatchesRules(line, label);
   }
-  assertEntryLinesBalanced(entry.lines, label, { allowZero: false });
+  assertEntryLinesBalanced(value.lines, label, { allowZero: false });
 }
 
 export function assertEntryLineMatchesRules(
-  line: EntryRuleLine,
+  line: unknown,
   label: string,
-): void {
-  if (line == null || typeof line !== "object") {
-    throw serverValidationError(`${label} line must be an object`, null);
-  }
+): asserts line is EntryRuleLine {
+  const value = requireObject(line, `${label} line`);
   if (
-    typeof line.bookAccountId !== "string" ||
-    line.bookAccountId.trim() === ""
+    typeof value.bookAccountId !== "string" ||
+    value.bookAccountId.trim() === ""
   ) {
     throw serverValidationError(`${label} line book account is required`, null);
   }
-  if (getDefaultBookAccount(line.bookAccountId) == null) {
+  if (getDefaultBookAccount(value.bookAccountId) == null) {
     throw serverValidationError(
-      `${label} line references unknown book account: ${line.bookAccountId}`,
+      `${label} line references unknown book account: ${value.bookAccountId}`,
       "存在しない勘定科目が指定されています",
     );
   }
-  assertLineText(line.partnerName, `${label} line partner`);
-  assertLineText(line.taxCategoryId, `${label} line tax category`);
-  assertLineText(line.businessCategoryId, `${label} line business category`);
+  assertLineText(value.partnerName, `${label} line partner`);
+  assertLineText(value.taxCategoryId, `${label} line tax category`);
+  assertLineText(value.businessCategoryId, `${label} line business category`);
 }
 
 function assertLineText(value: unknown, label: string): void {

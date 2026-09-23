@@ -62,6 +62,18 @@ export function runDbPortConformance(
     });
   }
 
+  function emptyOpening(fiscalPeriodId: string) {
+    return {
+      id: `op-${fiscalPeriodId}`,
+      userId: "user-1",
+      fiscalPeriodId,
+      createdAt: "1970-01-01T00:00:00.000Z",
+      updatedAt: "1970-01-01T00:00:00.000Z",
+      openingBalanceLines: [],
+      openingJournals: [],
+    };
+  }
+
   function seedWithPeriods(...ids: string[]): DbSnapshot {
     return {
       fiscalPeriods: ids.map((id) => ({
@@ -77,7 +89,7 @@ export function runDbPortConformance(
         settingsCompleted: true,
         openingBalancesCompleted: true,
         documentsReceivedCompleted: false,
-        opening: null,
+        opening: emptyOpening(id),
         createdAt: "1970-01-01T00:00:00.000Z",
         updatedAt: "1970-01-01T00:00:00.000Z",
       })),
@@ -225,7 +237,7 @@ export function runDbPortConformance(
       const db = await makeDb();
       const period = await createTestFiscalPeriod(db);
       const opening = {
-        ...period.opening!,
+        ...period.opening,
         openingBalanceLines: [
           { id: "balance-1", accountId: "a:現金", amount: 1000 },
           { id: "balance-2", accountId: "l:元入金", amount: 1000 },
@@ -265,9 +277,9 @@ export function runDbPortConformance(
 
       expect(updated.opening).toEqual({
         ...opening,
-        updatedAt: updated.opening!.updatedAt,
+        updatedAt: updated.opening.updatedAt,
       });
-      expect(updated.opening!.createdAt).toBe(opening.createdAt);
+      expect(updated.opening.createdAt).toBe(opening.createdAt);
       expect((await db.fiscalPeriods.getById(period.id))?.opening).toEqual(
         updated.opening,
       );
@@ -284,7 +296,7 @@ export function runDbPortConformance(
         endDate: "2026-12-31",
       });
       const draftOpening = {
-        ...period.opening!,
+        ...period.opening,
         openingBalanceLines: [],
         openingJournals: [
           {
@@ -303,7 +315,7 @@ export function runDbPortConformance(
       const withDraft = await db.fiscalPeriods.update(period.id, {
         opening: draftOpening,
       });
-      expect(withDraft.opening?.openingJournals?.[0]?.description).toBe("");
+      expect(withDraft.opening.openingJournals[0]?.description).toBe("");
 
       await expect(
         db.fiscalPeriods.update(period.id, {
@@ -329,7 +341,7 @@ export function runDbPortConformance(
       const db = await makeDb();
       const period = await createTestFiscalPeriod(db);
       const invalidOpening = {
-        ...period.opening!,
+        ...period.opening,
         openingBalanceLines: [
           { id: "balance-1", accountId: "a:現金", amount: 1000 },
           { id: "balance-2", accountId: "a:現金", amount: 2000 },
@@ -342,7 +354,7 @@ export function runDbPortConformance(
           openingBalancesCompleted: true,
           opening: invalidOpening,
         }),
-      ).rejects.toThrow(/duplicate accountId|must be unique/);
+      ).rejects.toThrow(/duplicate|must be unique/);
 
       expect(await db.fiscalPeriods.getById(period.id)).toEqual(period);
     });
@@ -371,7 +383,7 @@ export function runDbPortConformance(
         ],
       };
       const opening = {
-        ...period.opening!,
+        ...period.opening,
         openingBalanceLines: [],
         openingJournals: [balancedJournal],
       };
@@ -477,7 +489,7 @@ export function runDbPortConformance(
         settingsCompleted: true,
         openingBalancesCompleted: true,
         opening: {
-          ...period.opening!,
+          ...period.opening,
           openingBalanceLines: [
             { id: "balance-1", accountId: "a:現金", amount: 1000 },
             { id: "balance-2", accountId: "l:元入金", amount: 1000 },
@@ -519,7 +531,7 @@ export function runDbPortConformance(
       const reloaded = await db.fiscalPeriods.getById(period.id);
       expect(reloaded).not.toBeNull();
       expect(reloaded?.archiveDataAvailable).toBe(false);
-      expect(reloaded?.opening?.openingBalanceLines ?? []).toEqual([]);
+      expect(reloaded?.opening.openingBalanceLines ?? []).toEqual([]);
     });
 
     it("purgeArchivedData rejects a period that is not archived", async () => {
@@ -542,11 +554,10 @@ export function runDbPortConformance(
           startDate: "2026-01-01",
           endDate: "2026-12-31",
           phase: "post_closing",
-          archiveStatus: "active",
           settingsCompleted: true,
           openingBalancesCompleted: true,
           documentsReceivedCompleted: true,
-          opening: null,
+          opening: { openingBalanceLines: [], openingJournals: [] },
         },
         entries: [
           {
@@ -606,11 +617,10 @@ export function runDbPortConformance(
           startDate: "2026-01-01",
           endDate: "2026-12-31",
           phase: "journalizing",
-          archiveStatus: "active",
           settingsCompleted: true,
           openingBalancesCompleted: true,
           documentsReceivedCompleted: false,
-          opening: null,
+          opening: { openingBalanceLines: [], openingJournals: [] },
         },
         entries: [
           {
@@ -655,11 +665,10 @@ export function runDbPortConformance(
           startDate: "2026-01-01",
           endDate: "2026-12-31",
           phase: "journalizing",
-          archiveStatus: "active",
           settingsCompleted: true,
           openingBalancesCompleted: false,
           documentsReceivedCompleted: false,
-          opening: null,
+          opening: { openingBalanceLines: [], openingJournals: [] },
         },
         entries: [],
         fixedAssets: [],
@@ -1237,7 +1246,7 @@ export function runDbPortConformance(
       seed.fiscalPeriods[0]!.phase = "pre_closing";
 
       await expect(ctx.makeSeededAdapter(seed)).rejects.toThrow(
-        /inconsistent with phase pre_closing/,
+        /pre_closing phase requires only a pre-closing record/,
       );
     });
 
@@ -1412,7 +1421,7 @@ export function runDbPortConformance(
             settingsCompleted: false,
             openingBalancesCompleted: false,
             documentsReceivedCompleted: false,
-            opening: null,
+            opening: emptyOpening("fp-seed"),
             createdAt: "1970-01-01T00:00:00.000Z",
             updatedAt: "1970-01-01T00:00:00.000Z",
             archiveDataAvailable: true,

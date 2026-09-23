@@ -1,5 +1,6 @@
 import {
   computeStraightLineDepreciation,
+  formatAmount,
   parseAmount,
   parseIsoLocalDate,
   resolveCategoryId,
@@ -14,6 +15,7 @@ import {
 } from "@rubydogjp/openkk-client-domain";
 import type {
   FixedAssetApiRecord,
+  FixedAssetApiStatus,
   FixedAssetPatchInput,
   OpeningJournalApiRecord,
   OpeningJournalLineApiRecord,
@@ -67,7 +69,7 @@ export function mapOpeningJournalToRecord(
     side: line.side,
     accountName: accountNameById[line.bookAccountId] ?? line.bookAccountId,
     accountType: accountTypeById[line.bookAccountId] ?? "asset",
-    amount: formatAmount(line.amount),
+    amount: formatAmount(Math.abs(line.amount)),
     bookAccountId: line.bookAccountId,
     partnerName: line.partnerName,
     taxCategoryId: line.taxCategoryId,
@@ -234,14 +236,10 @@ function requireDraftValue(value: string | null, field: string): string {
   return value;
 }
 
-function formatAmount(value: number): string {
-  return new Intl.NumberFormat("ja-JP").format(Math.abs(value));
-}
-
 function mapFixedAssetStatusLabel(
-  status: FixedAssetApiRecord["status"],
+  status: FixedAssetApiStatus,
 ): FixedAssetStatus {
-  const labels: Record<FixedAssetApiRecord["status"], FixedAssetStatus> = {
+  const labels: Record<FixedAssetApiStatus, FixedAssetStatus> = {
     active: "償却中",
     sold: "売却済",
     disposed: "廃棄済",

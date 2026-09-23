@@ -55,7 +55,7 @@ function createClosingsUsecase(db: OpenkkDbPort) {
         periodEndDate: period.endDate,
         entries: persistedEntries,
         fixedAssets,
-        openingJournals: period.opening?.openingJournals ?? [],
+        openingJournals: period.opening.openingJournals,
         bookAccounts,
       });
       assertClosingEntriesMatch(entries, expectedEntries);
@@ -139,7 +139,7 @@ function createFiscalPeriodsUsecase(db: OpenkkDbPort) {
       userId: string,
       input: FiscalPeriodArchiveImportInput,
     ) {
-      const normalized = normalizeArchiveImportInput(input, userId);
+      const normalized = normalizeArchiveImportInput(input);
       const overlap = (await db.fiscalPeriods.getAll(userId)).find(
         (period) =>
           period.archiveStatus === "active" &&

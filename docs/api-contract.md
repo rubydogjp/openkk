@@ -55,6 +55,7 @@ type OpenkkApiErrorDto = {
 ```
 
 Typical status codes: `400`, `404`, `409`, or `null`.
+Maintenance mode is `MAINTENANCE_MODE_STATUS` (503) with `code: MAINTENANCE_MODE_ERROR_CODE`; `isMaintenanceModeError` reads that `code`.
 For HTTP errors, the HTTP status overrides `OpenkkApiErrorDto.statusCode`.
 Missing or malformed error bodies become a safe client-side `OpenkkApiErrorDto`.
 
@@ -113,8 +114,10 @@ Third-party backends declare a lifecycle policy via `OpenkkConfig.fiscalPeriodPo
 - `archiveDataAvailable` — `true` while real data is available; `false` marks a purged stub.
 - `archivedAt` — archive timestamp or `null`; active periods require `null`.
 
+`opening` is always present: a period without opening balances carries an empty one.
+
 `fiscalPeriods.purgeArchivedData(id)` deletes an archived period's real data
-(entries/lines/opening/fixed assets/closings) and returns the lightweight stub
+(entries/lines/fixed assets/closings), empties its opening, and returns the lightweight stub
 (`archiveDataAvailable: false`). It requires the period to be `archived` (otherwise `409`).
 `persistent` backends may return the archived record unchanged. Carryover into the next period
 must be committed **before** purge so the new period never depends on purged data.

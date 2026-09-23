@@ -18,7 +18,7 @@ import {
   type FixedAssetDraft,
 } from "@rubydogjp/openkk-client-domain";
 import { ClosedPeriodLock } from "../../../shared/closed-period-lock.js";
-import { LockButton } from "../../../shared/lock-icon.js";
+import { LockButton } from "../../../shared/locked-action.js";
 import { FixedAssetEditDrawer } from "../../../assist/fixed-asset-edit-drawer.js";
 import { FixedAssetsScreen } from "../../../assist/fixed-assets-screen.js";
 

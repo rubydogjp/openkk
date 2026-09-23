@@ -39,22 +39,22 @@ const MaintenanceContext = createContext<MaintenanceState | null>(null);
 export function OpenkkMaintenanceProvider(props: { children: ReactNode }) {
   const api = useBackendApi();
   const [status, setStatus] = useState<MaintenanceStatus | null>(null);
-  const refreshVersions = useRef(new AsyncStateVersion<"maintenance">());
+  const refreshVersions = useRef(new AsyncStateVersion());
   const isActive = status?.enabled === true;
 
   const refreshStatus = useCallback(async () => {
-    const refreshVersion = refreshVersions.current.invalidate("maintenance");
+    const refreshVersion = refreshVersions.current.invalidate();
     try {
       const fetched = await api.maintenance.get();
       if (
-        !refreshVersions.current.isCurrent("maintenance", refreshVersion)
+        !refreshVersions.current.isCurrent(refreshVersion)
       ) {
         return;
       }
       setStatus(fetched.enabled ? fetched : null);
     } catch (error) {
       if (
-        refreshVersions.current.isCurrent("maintenance", refreshVersion) &&
+        refreshVersions.current.isCurrent(refreshVersion) &&
         isMaintenanceModeError(error)
       ) {
         setStatus((prev) => prev ?? FALLBACK_MAINTENANCE_STATUS);
@@ -74,7 +74,7 @@ export function OpenkkMaintenanceProvider(props: { children: ReactNode }) {
 
   useEffect(
     () => () => {
-      refreshVersions.current.invalidate("maintenance");
+      refreshVersions.current.invalidate();
     },
     [],
   );

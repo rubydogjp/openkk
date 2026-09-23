@@ -19,6 +19,7 @@ import type {
   MasterBookAccount,
   MasterBusinessCategory,
   MasterTaxCategory,
+  OpeningApiRecord,
   OpenkkDbPort,
 } from "@rubydogjp/openkk-server-ports";
 
@@ -751,13 +752,32 @@ function fiscalPeriod(
     settingsCompleted: true,
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,
-    opening: null,
+    opening: emptyOpening("fp-1", "user-1"),
     createdAt: TEST_TIMESTAMP,
     updatedAt: TEST_TIMESTAMP,
     archiveDataAvailable: true,
     archivedAt: null,
   };
-  return Object.assign(base, overrides);
+  const period = Object.assign(base, overrides);
+  return {
+    ...period,
+    opening: overrides.opening ?? emptyOpening(period.id, period.userId),
+  };
+}
+
+function emptyOpening(
+  fiscalPeriodId: string,
+  userId: string,
+): OpeningApiRecord {
+  return {
+    id: `op-${fiscalPeriodId}`,
+    userId,
+    fiscalPeriodId,
+    createdAt: TEST_TIMESTAMP,
+    updatedAt: TEST_TIMESTAMP,
+    openingBalanceLines: [],
+    openingJournals: [],
+  };
 }
 
 function entry(overrides: Partial<EntryApiRecord>): EntryApiRecord {

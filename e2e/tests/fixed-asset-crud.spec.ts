@@ -52,7 +52,6 @@ test.describe("fixed asset CRUD", () => {
   test("edits an existing fixed asset and the change is reflected", async ({
     page,
   }) => {
-    // add an asset first
     await addFixedAsset(page, "編集前の資産名", "200000");
 
     await page.getByText("編集前の資産名").click();

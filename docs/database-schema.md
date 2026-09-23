@@ -99,8 +99,8 @@ erDiagram
 Openingと仕訳明細は子テーブルへ正規化する。仮締めと本締めも別テーブルで管理する。
 
 会計期間の型は読み込む範囲で3段に分かれる。`FiscalPeriodDbData` は `data` 列の中身、
-`FiscalPeriodDbRow` は行そのもの（`user_id` と時刻を含む）、`FiscalPeriodDbRecord` は
-Opening まで読んだ全体。子テーブルを持たない固定資産は `FixedAssetDbData` と
+`OwnedFiscalPeriodDbData` は所有者を加えた形、`FiscalPeriodDbRecord` は Opening と
+時刻まで読んだ全体。子テーブルを持たない固定資産は `FixedAssetDbData` と
 `FixedAssetDbRecord` の2段。
 
 子テーブルの外部キーは期間・Opening削除時に `ON DELETE CASCADE` で削除される。残る `data` 列は `json_valid` と主要列との一致をCHECK制約で検証する。

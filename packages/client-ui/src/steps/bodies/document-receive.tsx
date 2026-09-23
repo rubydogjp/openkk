@@ -13,7 +13,7 @@ import {
 } from "@rubydogjp/openkk-client-usecases";
 import { palette } from "../../shared/design-tokens.js";
 import { DocumentFileList } from "../../shared/document-file-tile.js";
-import { LockButton } from "../../shared/lock-icon.js";
+import { LockButton } from "../../shared/locked-action.js";
 import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 import { useStepDocumentPrinters } from "../use-step-document-printers.js";
 import {

@@ -1,4 +1,5 @@
 import {
+  assertEntryMatchesRules,
   CLOSING_GENERATED_LOCAL_ID_PREFIX,
   serverConflictError,
   serverNotFoundError,
@@ -13,9 +14,7 @@ import type {
   FiscalPeriodDbRecord,
   PreClosingsDb,
 } from "@rubydogjp/openkk-server-ports";
-import type {
-  FiscalPeriodDbData,
-} from "./table-types.js";
+import type { FiscalPeriodDbData } from "./table-types.js";
 import { insertEntryLines, insertImportedEntries } from "./entry-store.js";
 import {
   loadOpeningByFiscalPeriod,
@@ -29,7 +28,6 @@ import {
 import {
   assertDbClosingGeneratedSizeLimits,
   assertDbClosingYear,
-  assertDbEntryInput,
   assertDbOpeningForPeriod,
 } from "./record-validation.js";
 import { newId, nowMs } from "./runtime.js";
@@ -148,7 +146,7 @@ async function replaceClosingGeneratedEntries(
   period: FiscalPeriodDbData,
 ): Promise<void> {
   for (const input of inputs) {
-    assertDbEntryInput(input, period, "Closing entry");
+    assertEntryMatchesRules(input, period, "Closing entry");
     if (
       typeof input.localId !== "string" ||
       !input.localId.startsWith(CLOSING_GENERATED_LOCAL_ID_PREFIX)
@@ -216,7 +214,7 @@ async function transitionFiscalPeriod(
     period: FiscalPeriodDbData,
   ) => Promise<void>,
 ): Promise<FiscalPeriodDbRecord> {
-  const updated = await runInTransaction(db, async () => {
+  return runInTransaction(db, async () => {
     const rows = (await db.exec({
       sql: `SELECT user_id, data, created_at FROM fiscal_periods WHERE id = ?`,
       bind: [fiscalPeriodId],
@@ -261,5 +259,4 @@ async function transitionFiscalPeriod(
     });
     return updated;
   });
-  return updated;
 }

@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 
 import { ConfirmDialogResolver } from "./confirm-dialog-resolver.js";
 import { useModalLifecycle } from "./dismissible-layer.js";
+import { CheckCircleIcon, ErrorIcon, WarningIcon } from "./icons.js";
 import { fontSize, fontWeight, palette, radii, shadows, sizes, typography } from "./design-tokens.js";
 
 export type ConfirmDialogTone = "confirm" | "warning" | "danger" | "success";
@@ -246,58 +247,3 @@ const confirmBaseStyle = {
   cursor: "pointer",
 } as const;
 
-function CheckCircleIcon({ size, color }: { size: number; color: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="9.5" stroke={color} strokeWidth="1.6" />
-      <path
-        d="M7.5 12l3.2 3.2 5.8-6.4"
-        stroke={color}
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function WarningIcon({ size, color }: { size: number; color: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <path
-        d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
-        stroke={color}
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-      <line
-        x1="12"
-        y1="9"
-        x2="12"
-        y2="13"
-        stroke={color}
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-      <circle cx="12" cy="17" r="0.8" fill={color} />
-    </svg>
-  );
-}
-
-function ErrorIcon({ size, color }: { size: number; color: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="9.5" stroke={color} strokeWidth="1.6" />
-      <line
-        x1="12"
-        y1="8"
-        x2="12"
-        y2="13"
-        stroke={color}
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-      <circle cx="12" cy="16.5" r="0.8" fill={color} />
-    </svg>
-  );
-}

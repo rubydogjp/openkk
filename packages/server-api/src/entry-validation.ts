@@ -9,14 +9,13 @@ import type {
   EntryUpsertInput,
   FiscalPeriodApiRecord,
 } from "@rubydogjp/openkk-server-ports";
-import { assertObject } from "./common-validation.js";
 
 export function assertEditableEntryInput(
-  input: EntryUpsertInput,
+  input: unknown,
   period: FiscalPeriodApiRecord,
   existing: EntryApiRecord | null,
-): void {
-  assertEntryInput(input, period);
+): asserts input is EntryUpsertInput {
+  assertEntryMatchesRules(input, period, "Entry");
   if (input.localId?.startsWith(CLOSING_GENERATED_LOCAL_ID_PREFIX)) {
     throw serverValidationError(
       `Entry localId prefix ${CLOSING_GENERATED_LOCAL_ID_PREFIX} is reserved`,
@@ -50,12 +49,4 @@ export function assertEditableEntryInput(
       );
     }
   }
-}
-
-export function assertEntryInput(
-  input: EntryUpsertInput,
-  period: FiscalPeriodApiRecord,
-): void {
-  assertObject(input, "Entry input");
-  assertEntryMatchesRules(input, period, "Entry");
 }

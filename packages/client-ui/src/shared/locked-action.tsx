@@ -2,23 +2,25 @@
 
 import type { CSSProperties } from "react";
 
-import { palette, radii, sizes, spacing, typography } from "./design-tokens.js";
+import {
+  fontSize,
+  fontWeight,
+  palette,
+  radii,
+  sizes,
+  spacing,
+  typography,
+} from "./design-tokens.js";
+import { LockIcon } from "./icons.js";
 
-export function LockIcon({
-  size,
-  opacity,
-}: {
-  size: number | null;
-  opacity: number | null;
-}) {
-  const iconSize = size ?? 20;
+export function LockedActionIcon({ size }: { size: number }) {
   return (
     <svg
-      width={iconSize}
-      height={iconSize}
+      width={size}
+      height={size}
       viewBox="0 0 248 248"
       xmlns="http://www.w3.org/2000/svg"
-      style={{ opacity: opacity ?? 1, display: "block" }}
+      style={{ display: "block" }}
       aria-hidden="true"
     >
       <g transform="translate(-516 -236)">
@@ -59,8 +61,34 @@ export function LockButton({
         ...style,
       }}
     >
-      <LockIcon size={18} opacity={null} />
+      <LockedActionIcon size={18} />
       <span>{label ?? "この操作はできません"}</span>
+    </button>
+  );
+}
+
+export function CompactLockButton({ label }: { label: string }) {
+  return (
+    <button
+      type="button"
+      disabled
+      style={{
+        height: sizes.button.compactHeight,
+        minWidth: sizes.button.compactIconTextMinWidth,
+        padding: "0 14px",
+        borderRadius: radii.sm,
+        border: `1px solid ${palette.borderStrong}`,
+        background: palette.surface,
+        color: palette.textSoft,
+        fontSize: fontSize.base,
+        fontWeight: fontWeight.bold,
+        cursor: "default",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: spacing.s6,
+      }}
+    >
+      <LockIcon size={15} color="currentColor" /> {label}
     </button>
   );
 }

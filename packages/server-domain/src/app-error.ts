@@ -20,14 +20,13 @@ export class AppError extends Error implements AppErrorLike {
   readonly code: string | null;
 
   constructor(params: AppErrorLike) {
-    const normalized = normalizeAppErrorLike(params);
-    super(normalized.messageForDeveloper);
+    super(params.messageForDeveloper);
     this.name = "AppError";
-    this.messageForDeveloper = normalized.messageForDeveloper;
-    this.messageForUser = normalized.messageForUser;
-    this.originalMessage = normalized.originalMessage;
-    this.statusCode = normalized.statusCode;
-    this.code = normalized.code;
+    this.messageForDeveloper = params.messageForDeveloper;
+    this.messageForUser = params.messageForUser;
+    this.originalMessage = params.originalMessage;
+    this.statusCode = params.statusCode;
+    this.code = params.code;
   }
 
   static from(error: unknown, options: AppErrorFromOptions): AppError {
@@ -51,13 +50,7 @@ export class AppError extends Error implements AppErrorLike {
     if (!isAppErrorLike(json)) {
       throw new Error("AppError.fromJson: invalid AppError JSON");
     }
-    return new AppError({
-      messageForDeveloper: json.messageForDeveloper,
-      messageForUser: json.messageForUser,
-      originalMessage: json.originalMessage,
-      statusCode: json.statusCode,
-      code: json.code,
-    });
+    return new AppError(json);
   }
 
   toJson(): AppErrorLike {
@@ -117,29 +110,6 @@ function stringifyOriginalMessage(error: unknown): string | null {
   } catch {
     return "<unprintable>";
   }
-}
-
-function normalizeAppErrorLike(value: AppErrorLike): AppErrorLike {
-  const candidate: Record<string, unknown> = isObject(value) ? value : {};
-  return {
-    messageForDeveloper:
-      typeof candidate.messageForDeveloper === "string"
-        ? candidate.messageForDeveloper
-        : "Server AppError: invalid developer message",
-    messageForUser:
-      typeof candidate.messageForUser === "string"
-        ? candidate.messageForUser
-        : "サーバー処理でエラーが発生しました",
-    originalMessage:
-      typeof candidate.originalMessage === "string" ||
-      candidate.originalMessage === null
-        ? candidate.originalMessage
-        : null,
-    statusCode: validStatusCode(candidate.statusCode)
-      ? candidate.statusCode
-      : null,
-    code: typeof candidate.code === "string" ? candidate.code : null,
-  };
 }
 
 function validStatusCode(value: unknown): value is number | null {

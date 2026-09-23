@@ -12,19 +12,18 @@ import {
   buildBusinessRateTransferEntry,
   excludeBusinessRateTransfer,
   recordToPreviewRows,
+  VIRTUAL_ENTRY_LOCAL_ID_PREFIX,
   type EntryRecord,
 } from "./entry-record.js";
-import { parseIsoLocalDate } from "../shared/parse-utils.js";
+import { formatAmount, parseIsoLocalDate } from "../shared/parse-utils.js";
 import { MAX_TEXT_FIELD_LENGTH, truncateText } from "../shared/text-limits.js";
 
 const BUSINESS_RATE_TRANSFER_ROW_ID = "business-rate-transfer";
 
-const MATERIALIZED_VIRTUAL_LOCAL_ID_PREFIX = "virtual:";
-
 function isMaterializedVirtualEntry(entry: EntryRecord): boolean {
   return (
     entry.localId != null &&
-    entry.localId.startsWith(MATERIALIZED_VIRTUAL_LOCAL_ID_PREFIX)
+    entry.localId.startsWith(VIRTUAL_ENTRY_LOCAL_ID_PREFIX)
   );
 }
 
@@ -47,7 +46,7 @@ function openingCarryoverEntry(record: OpeningCarryoverRecord): EntryRecord {
     lines: record.lines.map((line) => ({ ...line, id: null })),
     description: record.description,
     businessRate: record.businessRate,
-    localId: `virtual:${id}`,
+    localId: `${VIRTUAL_ENTRY_LOCAL_ID_PREFIX}${id}`,
   };
 }
 
@@ -290,10 +289,6 @@ function buildRetirementEntries(input: {
   });
 }
 
-function formatAmount(value: number): string {
-  return new Intl.NumberFormat("ja-JP").format(value);
-}
-
 type FixedAssetEntryLineInput = {
   accountName: string;
   accountType: BookAccountType;
@@ -319,7 +314,7 @@ function buildFixedAssetEntriesFromLines(input: {
       weekday: "",
       description: input.description,
       businessRate: input.businessRate,
-      localId: `virtual:${input.recordId}`,
+      localId: `${VIRTUAL_ENTRY_LOCAL_ID_PREFIX}${input.recordId}`,
       lines: [
         ...input.debits.map((line) => ({ ...line, side: "debit" as const })),
         ...input.credits.map((line) => ({ ...line, side: "credit" as const })),

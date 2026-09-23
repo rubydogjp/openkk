@@ -28,7 +28,7 @@ import {
   palette,
   rings,
 } from "../../shared/design-tokens.js";
-import { LockButton } from "../../shared/lock-icon.js";
+import { LockButton } from "../../shared/locked-action.js";
 import { downloadBytes } from "../../shared/download.js";
 import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 import {

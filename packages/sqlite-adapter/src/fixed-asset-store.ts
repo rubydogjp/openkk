@@ -1,4 +1,7 @@
-import { serverNotFoundError } from "@rubydogjp/openkk-server-domain";
+import {
+  assertFixedAssetMatchesRules,
+  serverNotFoundError,
+} from "@rubydogjp/openkk-server-domain";
 
 import type {
   FixedAssetDbRecord,
@@ -11,10 +14,7 @@ import {
   parseFixedAssetDbData,
   serializeFixedAssetDbData,
 } from "./persistence-codec.js";
-import {
-  assertDbFixedAssetRecord,
-  assertDbPeriodOwnership,
-} from "./record-validation.js";
+import { assertDbPeriodOwnership } from "./record-validation.js";
 import { newId, nowMs } from "./runtime.js";
 import type { SqlDb } from "./sql-db.js";
 import { runInTransaction } from "./transaction.js";
@@ -31,22 +31,19 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
         returnValue: "resultRows",
         rowMode: "array",
       })) as Array<[string, string, number, number, string]>;
-      return rows.map(
-        ([data, userId, createdAt, updatedAt, periodData]) => {
-          const asset: FixedAssetDbRecord = {
-            ...parseFixedAssetDbData(data),
-            userId,
-            createdAt: msToIso(createdAt),
-            updatedAt: msToIso(updatedAt),
-          };
-          const period = {
-            ...parseFiscalPeriodDbData(periodData),
-            userId,
-          };
-          assertDbFixedAssetRecord(asset, period);
-          return asset;
-        },
-      );
+      const firstRow = rows[0];
+      if (firstRow == null) return [];
+      const period = parseFiscalPeriodDbData(firstRow[4]);
+      return rows.map(([data, userId, createdAt, updatedAt]) => {
+        const asset: FixedAssetDbRecord = {
+          ...parseFixedAssetDbData(data),
+          userId,
+          createdAt: msToIso(createdAt),
+          updatedAt: msToIso(updatedAt),
+        };
+        assertFixedAssetMatchesRules(asset, period);
+        return asset;
+      });
     },
     async getById(id) {
       const rows = (await db.exec({
@@ -66,11 +63,7 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
         createdAt: msToIso(row[2]),
         updatedAt: msToIso(row[3]),
       };
-      const period = {
-        ...parseFiscalPeriodDbData(row[4]),
-        userId: row[1],
-      };
-      assertDbFixedAssetRecord(asset, period);
+      assertFixedAssetMatchesRules(asset, parseFiscalPeriodDbData(row[4]));
       return asset;
     },
     async create(userId, fiscalPeriodId, input) {
@@ -102,7 +95,7 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
           "create fixed asset",
         );
         assertDbPeriodOwnership(userId, period);
-        assertDbFixedAssetRecord(record, period);
+        assertFixedAssetMatchesRules(record, period);
         await db.exec({
           sql: `INSERT INTO fixed_assets(id, fiscal_period_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
           bind: [
@@ -172,7 +165,7 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
             ? { bookAccountId: patch.bookAccountId }
             : {}),
         };
-        assertDbFixedAssetRecord(updated, period);
+        assertFixedAssetMatchesRules(updated, period);
         await db.exec({
           sql: `UPDATE fixed_assets SET data = ?, updated_at = ? WHERE id = ?`,
           bind: [serializeFixedAssetDbData(updated), now, id],

@@ -1,16 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { AuthOperationGuard } from "./auth-operation-guard.js";
+import { AsyncStateVersion } from "./async-state-version.js";
+import { assertAuthUnchanged } from "./auth-operation-guard.js";
 
-describe("AuthOperationGuard", () => {
+describe("assertAuthUnchanged", () => {
   it("rejects an operation after the user session changes", () => {
-    const guard = new AuthOperationGuard();
-    const version = guard.capture();
+    const versions = new AsyncStateVersion();
+    const version = versions.capture();
 
-    expect(() => guard.assertCurrent(version)).not.toThrow();
-    guard.invalidate();
-    expect(guard.isCurrent(version)).toBe(false);
-    expect(() => guard.assertCurrent(version)).toThrow(
+    expect(() => assertAuthUnchanged(versions, version)).not.toThrow();
+    versions.invalidate();
+
+    expect(() => assertAuthUnchanged(versions, version)).toThrow(
       /Authentication operation was superseded/,
     );
   });

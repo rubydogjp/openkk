@@ -1,6 +1,9 @@
 import {
-  MAX_ENTRY_IMPORT_ITEMS,
-  MAX_ENTRY_IMPORT_LINES,
+  assertEntryCollectionItemLimit,
+  assertEntryCollectionLineLimit,
+  assertFiscalPeriodPatchMatchesPhase,
+  assertNonBlankString,
+  requireObject,
   serverConflictError,
   serverNotFoundError,
   serverValidationError,
@@ -18,14 +21,11 @@ import {
   assertFiscalPeriodCreateInput,
   assertFiscalPeriodNextCreateInput,
   assertFiscalPeriodContainsExistingData,
-  assertFiscalPeriodPatchAllowed,
   assertFiscalPeriodPatchInput,
   assertFiscalPeriodReadyForPreClosing,
   assertFixedAssetCreateInput,
   assertFixedAssetPatchInput,
   assertNoOverlappingFiscalPeriod,
-  assertNonBlankString,
-  assertObject,
   assertPatchedFixedAsset,
   assertPeriodDataAvailable,
   assertPeriodPhase,
@@ -60,10 +60,10 @@ export function createOpenkkServerApi(
         return usecases.auth.startSession(redirectUrl);
       },
       completeSession: (input) => {
-        assertObject(input, "Auth completion input");
-        assertNonBlankString(input.state, "Auth state");
-        assertNonBlankString(input.code, "Auth code");
-        return usecases.auth.completeSession(input.state, input.code);
+        const { state, code } = requireObject(input, "Auth completion input");
+        assertNonBlankString(state, "Auth state");
+        assertNonBlankString(code, "Auth code");
+        return usecases.auth.completeSession(state, code);
       },
       redeemCompletionCode: async (code) => {
         assertNonBlankString(code, "Auth completion code");
@@ -86,8 +86,11 @@ export function createOpenkkServerApi(
         return usecases.preClosings.get(uid, fpId, year);
       },
       run: async (input) => {
-        assertObject(input, "Pre-closing input");
-        const { fiscalPeriodId, year } = input;
+        const { fiscalPeriodId, year } = requireObject(
+          input,
+          "Pre-closing input",
+        );
+        assertNonBlankString(fiscalPeriodId, "Fiscal period id");
         const period = await getOwnedFiscalPeriod(fiscalPeriodId);
         assertPeriodPhase(period, "journalizing", "run pre-closing");
         assertClosingYear(period, year);
@@ -109,8 +112,11 @@ export function createOpenkkServerApi(
         return usecases.closings.get(uid, fpId, year);
       },
       run: async (input) => {
-        assertObject(input, "Closing input");
-        const { fiscalPeriodId, year, entries } = input;
+        const { fiscalPeriodId, year, entries } = requireObject(
+          input,
+          "Closing input",
+        );
+        assertNonBlankString(fiscalPeriodId, "Fiscal period id");
         const period = await getOwnedFiscalPeriod(fiscalPeriodId);
         assertPeriodPhase(period, "pre_closing", "run closing");
         assertClosingYear(period, year);
@@ -165,32 +171,19 @@ export function createOpenkkServerApi(
         if (!Array.isArray(inputs)) {
           throw serverValidationError("Entry import input must be an array", null);
         }
-        if (inputs.length > MAX_ENTRY_IMPORT_ITEMS) {
-          throw serverValidationError(
-            `Entry import exceeds the ${MAX_ENTRY_IMPORT_ITEMS} item limit`,
-            "一度に取り込める仕訳件数を超えています。ファイルを分割してください",
-          );
-        }
-        let importLineCount = 0;
+        assertEntryCollectionItemLimit(
+          inputs,
+          "Imported entries",
+          "一度に取り込める仕訳件数を超えています。ファイルを分割してください",
+        );
+        assertEntryCollectionLineLimit(
+          inputs,
+          "Imported entries",
+          "一度に取り込める仕訳明細数を超えています。ファイルを分割してください",
+        );
         for (const input of inputs) {
-          assertObject(input, "Entry input");
-          if (!Array.isArray(input.lines)) {
-            throw serverValidationError("Entry lines must be an array", null);
-          }
-          importLineCount += input.lines.length;
-          if (
-            !Number.isSafeInteger(importLineCount) ||
-            importLineCount > MAX_ENTRY_IMPORT_LINES
-          ) {
-            throw serverValidationError(
-              `Entry import exceeds the ${MAX_ENTRY_IMPORT_LINES.toLocaleString("en-US")} line limit`,
-              "一度に取り込める仕訳明細数を超えています。ファイルを分割してください",
-            );
-          }
-        }
-        inputs.forEach((input) => {
           assertEditableEntryInput(input, period, null);
-        });
+        }
         const entries = await usecases.entries.importMany(uid, fpId, inputs);
         return { importedCount: entries.length, entries };
       },
@@ -220,7 +213,7 @@ export function createOpenkkServerApi(
             `Archived fiscal period ${id} cannot be updated`,
           );
         }
-        assertFiscalPeriodPatchAllowed(current, patch);
+        assertFiscalPeriodPatchMatchesPhase(current, patch);
         assertFiscalPeriodPatchInput(current, patch);
         if (patch.startDate != null || patch.endDate != null) {
           const effectivePeriod = {

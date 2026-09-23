@@ -18,7 +18,7 @@ import {
 } from "../shared/openkk-config-context.js";
 import { assertEditingUnlocked } from "../shared/editing-policy.js";
 import { isSelectedFiscalPeriodDataPurged } from "../shared/archive-data-policy.js";
-import { AsyncStateVersion } from "../shared/async-state-version.js";
+import { KeyedAsyncStateVersion } from "../shared/async-state-version.js";
 import { KeyedAsyncMutationQueue } from "../shared/async-mutation-queue.js";
 import {
   buildOpeningJournalLines,
@@ -108,7 +108,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
     useState<unknown>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
   const selectedFiscalPeriodId = useRef(appState.currentFiscalPeriodId);
-  const periodVersions = useRef(new AsyncStateVersion<string>());
+  const periodVersions = useRef(new KeyedAsyncStateVersion<string>());
   const assetMutationQueue = useRef(new KeyedAsyncMutationQueue<string>());
   selectedFiscalPeriodId.current = appState.currentFiscalPeriodId;
   const currentFiscalPeriod = appState.fiscalPeriods.find(
@@ -342,7 +342,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         const period = appState.fiscalPeriods.find(
           (p) => p.id === fiscalPeriodId,
         );
-        const journals = period?.opening?.openingJournals ?? [];
+        const journals = period?.opening.openingJournals ?? [];
         return journals
           .map((journal) =>
             mapOpeningJournalToRecord(
@@ -366,7 +366,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         const period = appState.fiscalPeriods.find(
           (p) => p.id === fiscalPeriodId,
         );
-        const journals = period?.opening?.openingJournals ?? [];
+        const journals = period?.opening.openingJournals ?? [];
         const journal = journals.find((item) => item.id === carryoverId);
         if (journal == null) return null;
         return mapOpeningJournalToRecord(
@@ -383,14 +383,12 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         const period = appState.fiscalPeriods.find(
           (p) => p.id === fiscalPeriodId,
         );
-        const opening = period?.opening;
-        if (period == null || opening == null) return null;
+        if (period == null) return null;
         let nextId: string | null = null;
         const updated = await appState.updateFiscalPeriod(
           fiscalPeriodId,
           (currentPeriod) => {
             const currentOpening = currentPeriod.opening;
-            if (currentOpening == null) return null;
             const generatedId = nextOpeningCarryoverId(
               fiscalPeriodId,
               currentOpening.openingJournals,
@@ -433,13 +431,11 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         const period = appState.fiscalPeriods.find(
           (p) => p.id === fiscalPeriodId,
         );
-        const opening = period?.opening;
-        if (period == null || opening == null) return false;
+        if (period == null) return false;
         return await appState.updateFiscalPeriod(
           fiscalPeriodId,
           (currentPeriod) => {
             const currentOpening = currentPeriod.opening;
-            if (currentOpening == null) return null;
             const journals = currentOpening.openingJournals;
             const target = journals.find(
               (journal) => journal.id === carryoverId,
@@ -505,13 +501,11 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         const period = appState.fiscalPeriods.find(
           (p) => p.id === fiscalPeriodId,
         );
-        const opening = period?.opening;
-        if (period == null || opening == null) return false;
+        if (period == null) return false;
         return await appState.updateFiscalPeriod(
           fiscalPeriodId,
           (currentPeriod) => {
             const currentOpening = currentPeriod.opening;
-            if (currentOpening == null) return null;
             const journals = currentOpening.openingJournals;
             const nextJournals = journals.filter(
               (journal) => journal.id !== carryoverId,

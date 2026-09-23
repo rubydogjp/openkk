@@ -28,7 +28,7 @@ import {
   spacing,
   typography,
 } from "../../shared/design-tokens.js";
-import { LockButton, LockIcon } from "../../shared/lock-icon.js";
+import { LockButton, LockedActionIcon } from "../../shared/locked-action.js";
 import { FormStyles } from "../../shared/form-fields.js";
 import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 import {
@@ -67,7 +67,7 @@ export function OpeningBsBody({
   );
 
   const openingBalanceLines =
-    currentFiscalPeriod?.opening?.openingBalanceLines ?? [];
+    currentFiscalPeriod?.opening.openingBalanceLines ?? [];
   const [amounts, setAmounts] = useState<Record<string, string>>(() =>
     buildInitialAmounts(openingBalanceLines),
   );
@@ -176,16 +176,10 @@ export function OpeningBsBody({
       const updated = await appState.updateFiscalPeriod(
         currentFiscalPeriod.id,
         (latestPeriod) => {
-          const latestOpening = latestPeriod.opening ?? {
-            id: `op-${currentFiscalPeriod.id}`,
-            userId: currentFiscalPeriod.userId,
-            fiscalPeriodId: currentFiscalPeriod.id,
-            openingJournals: [],
-          };
           return {
             openingBalancesCompleted: true,
             opening: {
-              ...latestOpening,
+              ...latestPeriod.opening,
               openingBalanceLines: lines,
             },
           };
@@ -479,7 +473,7 @@ function SavedCommentSection({
               gap: spacing.s8,
             }}
           >
-            {editingLocked ? <LockIcon size={18} opacity={null} /> : null}
+            {editingLocked ? <LockedActionIcon size={18} /> : null}
             <span>編集する</span>
           </button>
         </div>

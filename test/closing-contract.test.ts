@@ -80,7 +80,7 @@ describe("client/server closing contract", () => {
         settingsCompleted: true,
         openingBalancesCompleted: true,
         opening: {
-          id: period.opening!.id,
+          id: period.opening.id,
           userId: period.userId,
           fiscalPeriodId: period.id,
           openingBalanceLines: [],

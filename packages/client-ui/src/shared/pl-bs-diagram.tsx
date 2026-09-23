@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 
 import { fontFamily, fontSize, fontWeight, palette } from "./design-tokens.js";
+import { MaskIcon } from "./icons.js";
 import {
   resolveEquityBlock,
   resolveProfitBlock,
@@ -246,31 +247,9 @@ function DiagramLabel(props: { icon: string; color: string; label: string }) {
         color: props.color,
       }}
     >
-      <AccountIcon icon={props.icon} color={props.color} size={14} />
+      <MaskIcon src={props.icon} color={props.color} size={14} />
       <span>{props.label}</span>
     </span>
   );
 }
 
-function AccountIcon(props: { icon: string; color: string; size: number }) {
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        width: props.size,
-        height: props.size,
-        display: "block",
-        flexShrink: 0,
-        backgroundColor: props.color,
-        maskImage: `url('${props.icon}')`,
-        maskPosition: "center",
-        maskRepeat: "no-repeat",
-        maskSize: "contain",
-        WebkitMaskImage: `url('${props.icon}')`,
-        WebkitMaskPosition: "center",
-        WebkitMaskRepeat: "no-repeat",
-        WebkitMaskSize: "contain",
-      }}
-    />
-  );
-}

@@ -1,4 +1,4 @@
-export class AsyncStateVersion<Key> {
+export class KeyedAsyncStateVersion<Key> {
   readonly #versions = new Map<Key, number>();
 
   capture(key: Key): number {
@@ -13,5 +13,21 @@ export class AsyncStateVersion<Key> {
 
   isCurrent(key: Key, capturedVersion: number): boolean {
     return this.capture(key) === capturedVersion;
+  }
+}
+
+export class AsyncStateVersion {
+  readonly #versions = new KeyedAsyncStateVersion<null>();
+
+  capture(): number {
+    return this.#versions.capture(null);
+  }
+
+  invalidate(): number {
+    return this.#versions.invalidate(null);
+  }
+
+  isCurrent(capturedVersion: number): boolean {
+    return this.#versions.isCurrent(null, capturedVersion);
   }
 }

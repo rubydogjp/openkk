@@ -4,7 +4,7 @@ import { useMemo, useRef, useState, type ReactNode } from "react";
 
 import { AmountInput } from "../shared/amount-field.js";
 import { useConfirmDialog } from "../shared/confirm-dialog.js";
-import { LockButton } from "../shared/lock-icon.js";
+import { LockButton } from "../shared/locked-action.js";
 import { ExclusiveActionLock } from "../shared/exclusive-action-lock.js";
 import { useModalLifecycle } from "../shared/dismissible-layer.js";
 import { debugAppError } from "../shared/app-error-text.js";

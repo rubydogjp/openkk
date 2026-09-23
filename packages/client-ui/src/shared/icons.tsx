@@ -1,3 +1,44 @@
+"use client";
+
+export function MaskIcon({
+  src,
+  size,
+  color,
+}: {
+  src: string;
+  size: number;
+  color: string;
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        width: size,
+        height: size,
+        display: "block",
+        flexShrink: 0,
+        backgroundColor: color,
+        maskImage: `url('${src}')`,
+        maskPosition: "center",
+        maskRepeat: "no-repeat",
+        maskSize: "contain",
+        WebkitMaskImage: `url('${src}')`,
+        WebkitMaskPosition: "center",
+        WebkitMaskRepeat: "no-repeat",
+        WebkitMaskSize: "contain",
+      }}
+    />
+  );
+}
+
+export function AssistIcon({ size, color }: { size: number; color: string }) {
+  return <MaskIcon src="/icons/assist.svg" size={size} color={color} />;
+}
+
+export function LockIcon({ size, color }: { size: number; color: string }) {
+  return <MaskIcon src="/icons/lock.svg" size={size} color={color} />;
+}
+
 export function StepsIcon({ size, color }: { size: number; color: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -53,28 +94,6 @@ export function JournalIcon({ size, color }: { size: number; color: string }) {
         strokeLinecap="round"
       />
     </svg>
-  );
-}
-
-export function AssistIcon({ size, color }: { size: number; color: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        width: size,
-        height: size,
-        display: "block",
-        backgroundColor: color,
-        maskImage: "url('/icons/assist.svg')",
-        maskPosition: "center",
-        maskRepeat: "no-repeat",
-        maskSize: "contain",
-        WebkitMaskImage: "url('/icons/assist.svg')",
-        WebkitMaskPosition: "center",
-        WebkitMaskRepeat: "no-repeat",
-        WebkitMaskSize: "contain",
-      }}
-    />
   );
 }
 
@@ -150,7 +169,13 @@ export function LoginIcon({ size, color }: { size: number; color: string }) {
   );
 }
 
-export function ExternalLinkIcon({ size, color }: { size: number; color: string }) {
+export function ExternalLinkIcon({
+  size,
+  color,
+}: {
+  size: number;
+  color: string;
+}) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <path
@@ -179,7 +204,13 @@ export function ExternalLinkIcon({ size, color }: { size: number; color: string 
   );
 }
 
-export function ChevronDownIcon({ size, color }: { size: number; color: string }) {
+export function ChevronDownIcon({
+  size,
+  color,
+}: {
+  size: number;
+  color: string;
+}) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <polyline
@@ -202,6 +233,134 @@ export function CheckIcon({ size, color }: { size: number; color: string }) {
         strokeWidth="2.2"
         strokeLinecap="round"
         strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function CheckCircleIcon({
+  size,
+  color,
+}: {
+  size: number;
+  color: string;
+}) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="9.5" stroke={color} strokeWidth="1.6" />
+      <path
+        d="M7.5 12l3.2 3.2 5.8-6.4"
+        stroke={color}
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function WarningIcon({ size, color }: { size: number; color: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path
+        d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+        stroke={color}
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <line
+        x1="12"
+        y1="9"
+        x2="12"
+        y2="13"
+        stroke={color}
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+      <circle cx="12" cy="17" r="0.8" fill={color} />
+    </svg>
+  );
+}
+
+export function ErrorIcon({ size, color }: { size: number; color: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="9.5" stroke={color} strokeWidth="1.6" />
+      <line
+        x1="12"
+        y1="8"
+        x2="12"
+        y2="13"
+        stroke={color}
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+      <circle cx="12" cy="16.5" r="0.8" fill={color} />
+    </svg>
+  );
+}
+
+export function PlusIcon({ size, color }: { size: number; color: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <line
+        x1="12"
+        y1="5"
+        x2="12"
+        y2="19"
+        stroke={color}
+        strokeWidth="2.4"
+        strokeLinecap="round"
+      />
+      <line
+        x1="5"
+        y1="12"
+        x2="19"
+        y2="12"
+        stroke={color}
+        strokeWidth="2.4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+export function MinusIcon({ size, color }: { size: number; color: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <line
+        x1="5"
+        y1="12"
+        x2="19"
+        y2="12"
+        stroke={color}
+        strokeWidth="2.4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+export function CloseIcon({ size, color }: { size: number; color: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <line
+        x1="6"
+        y1="6"
+        x2="18"
+        y2="18"
+        stroke={color}
+        strokeWidth="2.2"
+        strokeLinecap="round"
+      />
+      <line
+        x1="18"
+        y1="6"
+        x2="6"
+        y2="18"
+        stroke={color}
+        strokeWidth="2.2"
+        strokeLinecap="round"
       />
     </svg>
   );

@@ -21,6 +21,7 @@ import type {
   MasterBookAccount,
   MasterBusinessCategory,
   MasterTaxCategory,
+  OpeningApiRecord,
   OpenkkDbPort,
 } from "@rubydogjp/openkk-server-ports";
 
@@ -553,7 +554,7 @@ describe("openkk server fiscal period API", () => {
           ],
         }),
       }),
-    ).rejects.toThrow(/Opening journal ids must contain objects/);
+    ).rejects.toThrow(/Opening journal must be an object/);
   });
 
   it("rejects an opening patch with a negative opening balance amount", async () => {
@@ -588,7 +589,7 @@ describe("openkk server fiscal period API", () => {
           ],
         }),
       }),
-    ).rejects.toThrow(/duplicate accountId/);
+    ).rejects.toThrow(/Opening balance accountId has a duplicate value/);
   });
 
   it("rejects opening balance IDs without a visible account name", async () => {
@@ -631,24 +632,6 @@ describe("openkk server fiscal period API", () => {
         }),
       }),
     ).rejects.toThrow(/Opening balances must balance/);
-  });
-
-  it("rejects completing opening balances without opening data", async () => {
-    const db = createFiscalPeriodDb([
-      fiscalPeriod({
-        id: "fp-user-1",
-        userId: "user-1",
-        openingBalancesCompleted: false,
-        opening: null,
-      }),
-    ]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
-
-    await expect(
-      server.fiscalPeriods.patch("fp-user-1", {
-        openingBalancesCompleted: true,
-      }),
-    ).rejects.toThrow(/Completed opening balances require opening data/);
   });
 
   it("rejects an opening journal outside its fiscal period", async () => {
@@ -796,19 +779,20 @@ function createFiscalPeriodDb(
         input: FiscalPeriodArchiveDbImportInput,
       ) {
         const { opening, ...rest } = input.fiscalPeriod;
+        const id = `fp-${fiscalPeriods.size + 1}`;
         const record = fiscalPeriod({
-          id: `fp-${fiscalPeriods.size + 1}`,
+          id,
           userId,
           ...rest,
-          ...(opening != null
-            ? {
-                opening: {
-                  ...opening,
-                  createdAt: TEST_TIMESTAMP,
-                  updatedAt: TEST_TIMESTAMP,
-                },
-              }
-            : {}),
+          opening: {
+            id: `op-${id}`,
+            userId,
+            fiscalPeriodId: id,
+            createdAt: TEST_TIMESTAMP,
+            updatedAt: TEST_TIMESTAMP,
+            openingBalanceLines: opening?.openingBalanceLines ?? [],
+            openingJournals: opening?.openingJournals ?? [],
+          },
         });
         fiscalPeriods.set(record.id, record);
         return record;
@@ -977,13 +961,32 @@ function fiscalPeriod(
     settingsCompleted: true,
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,
-    opening: null,
+    opening: emptyOpening("fp-1", "user-1"),
     createdAt: TEST_TIMESTAMP,
     updatedAt: TEST_TIMESTAMP,
     archiveDataAvailable: true,
     archivedAt: null,
   };
-  return Object.assign(base, overrides);
+  const period = Object.assign(base, overrides);
+  return {
+    ...period,
+    opening: overrides.opening ?? emptyOpening(period.id, period.userId),
+  };
+}
+
+function emptyOpening(
+  fiscalPeriodId: string,
+  userId: string,
+): OpeningApiRecord {
+  return {
+    id: `op-${fiscalPeriodId}`,
+    userId,
+    fiscalPeriodId,
+    createdAt: TEST_TIMESTAMP,
+    updatedAt: TEST_TIMESTAMP,
+    openingBalanceLines: [],
+    openingJournals: [],
+  };
 }
 
 type OpeningPatch = NonNullable<FiscalPeriodPatchInput["opening"]>;
