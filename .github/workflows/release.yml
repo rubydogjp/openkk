@@ -41,8 +41,8 @@ jobs:
 
       - name: Publish (dry run)
         if: github.ref_type != 'tag' || inputs.dry_run
-        run: npm publish --workspaces --access public --dry-run
+        run: node scripts/publish-workspaces.mjs --dry-run
 
       - name: Publish
         if: github.ref_type == 'tag' && !inputs.dry_run
-        run: npm publish --workspaces --access public
+        run: node scripts/publish-workspaces.mjs

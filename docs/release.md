@@ -36,6 +36,7 @@ GitHub Secrets に登録するものは無い。
 4. `Release` workflow がタグ一致の検証 → 生成物検証 → build → lint → unit/E2E test
    → 本番依存監査 → `npm publish` を実行する。
    provenance は OIDC 経由の publish で自動的に付く。
+   npm に同じバージョンが既にあるパッケージは飛ばすので、途中で失敗しても再実行できる。
 
 内容だけ先に確認したい場合は `Release` workflow を手動実行する。
 `dry_run` が既定で有効なので、publish せずに配布物を確認できる。
@@ -62,7 +63,7 @@ npm run setup-trusted-publishing
 ## 新しいパッケージを追加したとき
 
 Trusted Publishing は**既に npm 上に存在するパッケージにしか設定できない**。
-新しく公開するパッケージは、初回だけ手元から publish して登録する。
+新しく公開するパッケージは、バージョンを上げた後に初回だけ手元から publish して登録する。
 
 ```
 npm login
