@@ -205,7 +205,7 @@ function embeddedServer(
     entries: {
       getAll: async () => [],
       create: async () => unused(),
-      patch: async () => unused(),
+      update: async () => unused(),
       remove: async () => undefined,
       importMany: async () => ({ importedCount: 0, entries: [] }),
       ...overrides.entries,

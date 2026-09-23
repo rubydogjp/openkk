@@ -8,7 +8,6 @@ import {
   recordToPreviewRows,
   type EntryRecord,
   buildPeriodLockMessage,
-  resolveEditingPolicy,
   type OpeningCarryoverDraft,
   type OpeningCarryoverRecord,
 } from "@rubydogjp/openkk-client-domain";
@@ -44,7 +43,7 @@ export function OpeningCarryoverPage() {
   const assistState = useOpenkkAssist();
   const entriesState = useOpenkkEntries();
   const config = useOpenkkConfig();
-  const editingLocked = resolveEditingPolicy(config.editingPolicy).locked;
+  const editingLocked = config.editingPolicy.locked;
   const [newCarryoverDraft, setNewCarryoverDraft] =
     useState<OpeningCarryoverDraft | null>(null);
   const fiscalPeriodId = appState.currentFiscalPeriodId;

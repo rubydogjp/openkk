@@ -344,8 +344,8 @@ describe("openkk workspace structure", () => {
       path.join(packagesDir, "server-ports/src/persistence-types.ts"),
       "utf8",
     );
-    const dbAdapter = fs.readFileSync(
-      path.join(packagesDir, "server-ports/src/db-adapter.ts"),
+    const dbPort = fs.readFileSync(
+      path.join(packagesDir, "server-ports/src/db-port.ts"),
       "utf8",
     );
     const sqliteAdapter = fs.readFileSync(
@@ -354,7 +354,7 @@ describe("openkk workspace structure", () => {
     );
 
     expect(persistenceTypes).not.toMatch(/Api(?:Record|Request|Response)/);
-    expect(dbAdapter).toContain('from "./persistence-types.js"');
+    expect(dbPort).toContain('from "./persistence-types.js"');
     expect(sqliteAdapter).not.toMatch(/ApiRecord/);
   });
 

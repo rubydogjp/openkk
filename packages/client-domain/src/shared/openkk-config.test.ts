@@ -1,14 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createFixedClock, createSystemClock } from "./openkk-config.js";
 
 describe("OpenkkClock", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("reads the current date each time from a system clock", () => {
-    let current = new Date(2026, 8, 5, 23, 59);
-    const clock = createSystemClock(() => current);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 8, 5, 23, 59));
+    const clock = createSystemClock();
 
     expect(clock.today().getDate()).toBe(5);
-    current = new Date(2026, 8, 6, 0, 1);
+    vi.setSystemTime(new Date(2026, 8, 6, 0, 1));
     expect(clock.today().getDate()).toBe(6);
   });
 

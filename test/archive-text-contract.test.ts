@@ -108,11 +108,11 @@ describe("archive text preservation", () => {
       expect(
         await reimportedServer.entries.getAll(reimported.id),
       ).toMatchObject([{ description: text, lines }]);
-      await target.preClosings.run({ fiscalPeriodId: restored.id, year: 2026 });
-      const closed = await target.closings.run({
-        fiscalPeriodId: restored.id,
-        year: 2026,
-        entries: buildExpectedClosingEntries({
+      await target.preClosings.run(restored.id, 2026);
+      const closed = await target.closings.run(
+        restored.id,
+        2026,
+        buildExpectedClosingEntries({
           periodStartDate: restored.startDate,
           periodEndDate: restored.endDate,
           entries,
@@ -120,7 +120,7 @@ describe("archive text preservation", () => {
           openingJournals: restored.opening.openingJournals,
           bookAccounts: await target.masterData.getBookAccounts(),
         }),
-      });
+      );
       expect(closed.phase).toBe("post_closing");
       expect(await target.entries.getAll(restored.id)).toEqual(
         expect.arrayContaining([

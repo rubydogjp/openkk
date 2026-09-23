@@ -34,7 +34,8 @@ export function createOpenkkEmbeddedBackendAdapter(
     auth: {
       startSession: async (redirectUrl) =>
         request("authStartSession", { redirectUrl }),
-      completeSession: async (input) => request("authCompleteSession", input),
+      completeSession: async (state, code) =>
+        request("authCompleteSession", { state, code }),
       redeemCompletionCode: async (completionCode) =>
         request("authRedeemCompletionCode", { completionCode }),
       signOut: async () => {
@@ -49,8 +50,11 @@ export function createOpenkkEmbeddedBackendAdapter(
         });
         return response.preClosed;
       },
-      run: async (input) => {
-        const response = await request("preClosingRun", input);
+      run: async (fiscalPeriodId, year) => {
+        const response = await request("preClosingRun", {
+          fiscalPeriodId,
+          year,
+        });
         return response.fiscalPeriod;
       },
       cancel: async (fiscalPeriodId, year) => {
@@ -66,8 +70,12 @@ export function createOpenkkEmbeddedBackendAdapter(
         const response = await request("closingGet", { fiscalPeriodId, year });
         return response.closed;
       },
-      run: async (input) => {
-        const response = await request("closingRun", input);
+      run: async (fiscalPeriodId, year, entries) => {
+        const response = await request("closingRun", {
+          fiscalPeriodId,
+          year,
+          entries,
+        });
         return response.fiscalPeriod;
       },
     },
@@ -83,8 +91,8 @@ export function createOpenkkEmbeddedBackendAdapter(
         });
         return response.entry;
       },
-      patch: async (fiscalPeriodId, id, input) => {
-        const response = await request("entryPatch", {
+      update: async (fiscalPeriodId, id, input) => {
+        const response = await request("entryUpdate", {
           fiscalPeriodId,
           id,
           input,
@@ -203,7 +211,7 @@ async function dispatchEmbeddedHttp(
         const request = body as EndpointRequest<"authCompleteSession">;
         return {
           status: 200,
-          body: await server.auth.completeSession(request),
+          body: await server.auth.completeSession(request.state, request.code),
         };
       }
       case "authRedeemCompletionCode": {
@@ -232,7 +240,12 @@ async function dispatchEmbeddedHttp(
         const request = body as EndpointRequest<"preClosingRun">;
         return {
           status: 200,
-          body: { fiscalPeriod: await server.preClosings.run(request) },
+          body: {
+            fiscalPeriod: await server.preClosings.run(
+              request.fiscalPeriodId,
+              request.year,
+            ),
+          },
         };
       }
       case "preClosingCancel": {
@@ -263,7 +276,13 @@ async function dispatchEmbeddedHttp(
         const request = body as EndpointRequest<"closingRun">;
         return {
           status: 200,
-          body: { fiscalPeriod: await server.closings.run(request) },
+          body: {
+            fiscalPeriod: await server.closings.run(
+              request.fiscalPeriodId,
+              request.year,
+              request.entries,
+            ),
+          },
         };
       }
       case "entriesGetAll": {
@@ -287,12 +306,12 @@ async function dispatchEmbeddedHttp(
           },
         };
       }
-      case "entryPatch": {
-        const request = body as EndpointRequest<"entryPatch">;
+      case "entryUpdate": {
+        const request = body as EndpointRequest<"entryUpdate">;
         return {
           status: 200,
           body: {
-            entry: await server.entries.patch(
+            entry: await server.entries.update(
               request.fiscalPeriodId,
               request.id,
               request.input,

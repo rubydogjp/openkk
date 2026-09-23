@@ -10,13 +10,13 @@ import type {
   EntriesDb,
   EntryDbRecord,
 } from "@rubydogjp/openkk-server-ports";
-import type { OwnedFiscalPeriodDbData } from "./table-types.js";
-import { assertDbFiscalPeriodAllows } from "./fiscal-period-guard.js";
-import { msToIso, parseFiscalPeriodDbData } from "./persistence-codec.js";
+import type { FiscalPeriodDbData } from "./table-types.js";
 import {
-  assertDbPeriodOwnership,
-  assertDbStoredEntryRecord,
-} from "./record-validation.js";
+  assertDbFiscalPeriodAllows,
+  assertDbOwnedFiscalPeriodAllows,
+} from "./fiscal-period-guard.js";
+import { msToIso, parseFiscalPeriodDbData } from "./persistence-codec.js";
+import { assertDbStoredEntryRecord } from "./record-validation.js";
 import { newId, nowMs } from "./runtime.js";
 import type { SqlDb } from "./sql-db.js";
 import { runInTransaction } from "./transaction.js";
@@ -54,13 +54,13 @@ export function createEntriesDb(db: SqlDb): EntriesDb {
         updatedAt: timestamp,
       };
       await runInTransaction(db, async () => {
-        const period = await assertDbFiscalPeriodAllows(
+        const period = await assertDbOwnedFiscalPeriodAllows(
           db,
+          userId,
           fiscalPeriodId,
           ["journalizing"],
           "create entry",
         );
-        assertDbPeriodOwnership(userId, period);
         assertEntryMatchesRules(input, period, "Entry");
         await db.exec({
           sql: `INSERT INTO entries(id, fiscal_period_id, date, local_id, description, business_rate, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -152,13 +152,13 @@ export function createEntriesDb(db: SqlDb): EntriesDb {
       const now = nowMs();
       const timestamp = msToIso(now);
       return runInTransaction(db, async () => {
-        const period = await assertDbFiscalPeriodAllows(
+        const period = await assertDbOwnedFiscalPeriodAllows(
           db,
+          userId,
           fiscalPeriodId,
           ["pre_opening", "journalizing"],
           "import entries",
         );
-        assertDbPeriodOwnership(userId, period);
         for (const input of inputs) {
           assertEntryMatchesRules(input, period, "Entry");
         }
@@ -233,7 +233,7 @@ async function loadEntries(
     rowMode: "object",
   })) as EntryRow[];
   const records = new Map<string, EntryDbRecord>();
-  const periods = new Map<string, OwnedFiscalPeriodDbData>();
+  const periods = new Map<string, FiscalPeriodDbData>();
   for (const row of rows) {
     let record = records.get(row.id);
     if (record == null) {
@@ -252,10 +252,10 @@ async function loadEntries(
       records.set(record.id, record);
     }
     if (!periods.has(row.fiscal_period_id)) {
-      periods.set(row.fiscal_period_id, {
-        ...parseFiscalPeriodDbData(row.fiscal_period_data),
-        userId: row.user_id,
-      });
+      periods.set(
+        row.fiscal_period_id,
+        parseFiscalPeriodDbData(row.fiscal_period_data),
+      );
     }
     if (row.side == null) continue;
     if (

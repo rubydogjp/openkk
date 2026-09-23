@@ -12,7 +12,6 @@ import {
   isNonBlankString,
   requireObject,
   serverConflictError,
-  serverNotFoundError,
   serverValidationError,
 } from "@rubydogjp/openkk-server-domain";
 
@@ -25,10 +24,7 @@ import type {
   FiscalPeriodOpeningDbRecord,
   FixedAssetDbRecord,
 } from "@rubydogjp/openkk-server-ports";
-import type {
-  FiscalPeriodDbData,
-  OwnedFiscalPeriodDbData,
-} from "./table-types.js";
+import type { FiscalPeriodDbData } from "./table-types.js";
 
 export function assertDbArchiveImportSizeLimits(
   input: unknown,
@@ -69,15 +65,6 @@ export function assertDbOpeningForPeriod(
   });
 }
 
-export function assertDbPeriodOwnership(
-  userId: string,
-  period: OwnedFiscalPeriodDbData | null,
-): void {
-  if (period != null && period.userId !== userId) {
-    throw serverNotFoundError(`fiscal period not found: ${period.id}`);
-  }
-}
-
 export function assertDbFiscalPeriodPatchAllowed(
   period: FiscalPeriodDbData,
   patch: FiscalPeriodDbPatchInput,
@@ -93,15 +80,13 @@ export function assertDbFiscalPeriodPatchAllowed(
 
 export function assertDbStoredEntryRecord(
   record: unknown,
-  period: OwnedFiscalPeriodDbData,
+  period: FiscalPeriodDbData,
 ): asserts record is EntryDbRecord {
   const value = requireObject(record, "Stored entry");
   const id = value.id;
   if (
     !isNonBlankString(id) ||
     !isNonBlankString(value.userId) ||
-    !isNonBlankString(value.fiscalPeriodId) ||
-    value.userId !== period.userId ||
     value.fiscalPeriodId !== period.id
   ) {
     throw serverValidationError(
@@ -115,14 +100,12 @@ export function assertDbStoredEntryRecord(
 
 export function assertDbStoredFixedAssetRecord(
   asset: unknown,
-  period: OwnedFiscalPeriodDbData,
+  period: FiscalPeriodDbData,
 ): asserts asset is FixedAssetDbRecord {
   const value = requireObject(asset, "Stored fixed asset");
   if (
     !isNonBlankString(value.id) ||
     !isNonBlankString(value.userId) ||
-    !isNonBlankString(value.fiscalPeriodId) ||
-    value.userId !== period.userId ||
     value.fiscalPeriodId !== period.id
   ) {
     throw serverValidationError(

@@ -9,14 +9,16 @@ import type {
   FixedAssetDbRecord,
   FixedAssetsDb,
 } from "@rubydogjp/openkk-server-ports";
-import { assertDbFiscalPeriodAllows } from "./fiscal-period-guard.js";
+import {
+  assertDbFiscalPeriodAllows,
+  assertDbOwnedFiscalPeriodAllows,
+} from "./fiscal-period-guard.js";
 import {
   msToIso,
   parseFiscalPeriodDbData,
   parseFixedAssetDbData,
   serializeFixedAssetDbData,
 } from "./persistence-codec.js";
-import { assertDbPeriodOwnership } from "./record-validation.js";
 import { newId, nowMs } from "./runtime.js";
 import type { SqlDb } from "./sql-db.js";
 import { runInTransaction } from "./transaction.js";
@@ -90,13 +92,13 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
         updatedAt: timestamp,
       };
       await runInTransaction(db, async () => {
-        const period = await assertDbFiscalPeriodAllows(
+        const period = await assertDbOwnedFiscalPeriodAllows(
           db,
+          userId,
           fiscalPeriodId,
           ["pre_opening", "journalizing"],
           "create fixed asset",
         );
-        assertDbPeriodOwnership(userId, period);
         assertFixedAssetMatchesRules(record, period);
         await db.exec({
           sql: `INSERT INTO fixed_assets(id, fiscal_period_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,

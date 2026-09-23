@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import {
   AppError,
-  resolveEditingPolicy,
   type BookAccountType,
 } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text.js";
@@ -134,7 +133,7 @@ export function OpeningBsBody({
     );
   }
   const isNotStarted = currentFiscalPeriod.phase === "pre_opening";
-  const editingLocked = resolveEditingPolicy(config.editingPolicy).locked;
+  const editingLocked = config.editingPolicy.locked;
 
   const isPeriodLocked =
     currentFiscalPeriod.phase === "post_closing" ||
@@ -231,7 +230,7 @@ export function OpeningBsBody({
 
         {!isPeriodLocked && editingLocked ? (
           <StepCallout tone="info">
-            {resolveEditingPolicy(config.editingPolicy).lockedNotice ??
+            {config.editingPolicy.lockedNotice ??
               "この環境ではデータの編集がロックされています。"}
           </StepCallout>
         ) : null}

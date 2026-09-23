@@ -24,7 +24,7 @@ import type {
 } from "@rubydogjp/openkk-server-ports";
 
 describe("openkk server entries API", () => {
-  it.each(["create", "patch", "importMany"] as const)(
+  it.each(["create", "update", "importMany"] as const)(
     "rejects an omitted localId before %s persists data",
     async (operation) => {
       const server = createOpenkkServer(createEntryDb(), { userId: "user-1" });
@@ -35,8 +35,8 @@ describe("openkk server entries API", () => {
       const result =
         operation === "create"
           ? server.entries.create("fp-1", input)
-          : operation === "patch"
-            ? server.entries.patch("fp-1", original.id, input)
+          : operation === "update"
+            ? server.entries.update("fp-1", original.id, input)
             : server.entries.importMany("fp-1", [input]);
 
       await expect(result).rejects.toMatchObject({ statusCode: 400 });
@@ -393,7 +393,7 @@ describe("openkk server entries API", () => {
       server.entries.create("fp-1", validEntryInput({ localId: "new" })),
     ).rejects.toThrow(/cannot create entry from phase post_closing/);
     await expect(
-      server.entries.patch(
+      server.entries.update(
         "fp-1",
         existing.id,
         validEntryInput({ localId: "existing" }),

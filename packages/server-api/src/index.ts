@@ -3,7 +3,6 @@ import {
   assertEntryCollectionLineLimit,
   assertFiscalPeriodPatchMatchesPhase,
   assertNonBlankString,
-  requireObject,
   serverConflictError,
   serverNotFoundError,
   serverValidationError,
@@ -13,24 +12,26 @@ import {
   type OpenkkServerPort,
 } from "@rubydogjp/openkk-server-ports";
 import type { ServerUsecases } from "@rubydogjp/openkk-server-usecases";
+import { assertClosingGeneratedEntries } from "./closing-validation.js";
+import { assertEditableEntryInput } from "./entry-validation.js";
 import {
   archivedFiscalPeriodError,
-  assertClosingGeneratedEntries,
   assertClosingYear,
-  assertEditableEntryInput,
   assertFiscalPeriodCreateInput,
   assertFiscalPeriodNextCreateInput,
   assertFiscalPeriodContainsExistingData,
   assertFiscalPeriodPatchInput,
   assertFiscalPeriodReadyForPreClosing,
-  assertFixedAssetCreateInput,
-  assertFixedAssetPatchInput,
   assertNoOverlappingFiscalPeriod,
-  assertPatchedFixedAsset,
   assertPeriodDataAvailable,
   assertPeriodPhase,
   assertPeriodPhaseOneOf,
-} from "./validation.js";
+} from "./fiscal-period-validation.js";
+import {
+  assertFixedAssetCreateInput,
+  assertFixedAssetPatchInput,
+  assertPatchedFixedAsset,
+} from "./fixed-asset-validation.js";
 
 export type OpenkkServerConfig = {
   userId: string;
@@ -77,8 +78,7 @@ export function createOpenkkServerApi(
         assertNonBlankString(redirectUrl, "Auth redirect URL");
         return usecases.auth.startSession(redirectUrl);
       },
-      completeSession: (input) => {
-        const { state, code } = requireObject(input, "Auth completion input");
+      completeSession: (state, code) => {
         assertNonBlankString(state, "Auth state");
         assertNonBlankString(code, "Auth code");
         return usecases.auth.completeSession(state, code);
@@ -103,17 +103,12 @@ export function createOpenkkServerApi(
         assertClosingYear(period, year);
         return usecases.preClosings.get(uid, fpId, year);
       },
-      run: async (input) => {
-        const { fiscalPeriodId, year } = requireObject(
-          input,
-          "Pre-closing input",
-        );
-        assertNonBlankString(fiscalPeriodId, "Fiscal period id");
-        const period = await getOwnedFiscalPeriod(fiscalPeriodId);
+      run: async (fpId, year) => {
+        const period = await getOwnedFiscalPeriod(fpId);
         assertPeriodPhase(period, "journalizing", "run pre-closing");
         assertClosingYear(period, year);
         assertFiscalPeriodReadyForPreClosing(period);
-        return usecases.preClosings.run(uid, fiscalPeriodId, year);
+        return usecases.preClosings.run(uid, fpId, year);
       },
       cancel: async (fpId, year) => {
         const period = await getOwnedFiscalPeriod(fpId);
@@ -129,17 +124,12 @@ export function createOpenkkServerApi(
         assertClosingYear(period, year);
         return usecases.closings.get(uid, fpId, year);
       },
-      run: async (input) => {
-        const { fiscalPeriodId, year, entries } = requireObject(
-          input,
-          "Closing input",
-        );
-        assertNonBlankString(fiscalPeriodId, "Fiscal period id");
-        const period = await getOwnedFiscalPeriod(fiscalPeriodId);
+      run: async (fpId, year, entries) => {
+        const period = await getOwnedFiscalPeriod(fpId);
         assertPeriodPhase(period, "pre_closing", "run closing");
         assertClosingYear(period, year);
         assertClosingGeneratedEntries(entries, period);
-        return usecases.closings.run(uid, fiscalPeriodId, year, entries);
+        return usecases.closings.run(uid, fpId, year, entries);
       },
     },
     entries: {
@@ -154,7 +144,7 @@ export function createOpenkkServerApi(
         assertEditableEntryInput(input, period, null);
         return usecases.entries.create(uid, fpId, input);
       },
-      patch: async (fpId, id, input) => {
+      update: async (fpId, id, input) => {
         const period = await getOwnedFiscalPeriod(fpId);
         assertPeriodPhase(period, "journalizing", "update entry");
         const existing = await getOwnedEntry(fpId, id);

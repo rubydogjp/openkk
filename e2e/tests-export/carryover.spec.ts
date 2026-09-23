@@ -120,11 +120,11 @@ async function archivedPeriod(): Promise<Uint8Array> {
     bookAccountId: "acct_equipment",
   });
   const fixedAssets = await server.fixedAssets.getAll(period.id);
-  await server.preClosings.run({ fiscalPeriodId: period.id, year: 2026 });
-  await server.closings.run({
-    fiscalPeriodId: period.id,
-    year: 2026,
-    entries: buildExpectedClosingEntries({
+  await server.preClosings.run(period.id, 2026);
+  await server.closings.run(
+    period.id,
+    2026,
+    buildExpectedClosingEntries({
       periodStartDate: period.startDate,
       periodEndDate: period.endDate,
       entries: await server.entries.getAll(period.id),
@@ -132,7 +132,7 @@ async function archivedPeriod(): Promise<Uint8Array> {
       openingJournals: [],
       bookAccounts: await server.masterData.getBookAccounts(),
     }),
-  });
+  );
   period = await server.fiscalPeriods.patch(period.id, {
     documentsReceivedCompleted: true,
   });

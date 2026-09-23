@@ -47,7 +47,7 @@ export function isValidSuccessBody(
     case "entriesGetAll":
       return isObject(body) && isEntryRecordArray(body.entries);
     case "entryCreate":
-    case "entryPatch":
+    case "entryUpdate":
       return isObject(body) && isEntry(body.entry);
     case "entryImportMany":
       return (

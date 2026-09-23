@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation.js";
 
 import {
   AppError,
-  resolveEditingPolicy,
   isCurrentMonthWithinFiscalPeriod,
   type StepTrendPoint,
 } from "@rubydogjp/openkk-client-domain";
@@ -65,7 +64,7 @@ export function JournalizingBody({
   const { confirm, dialog } = useConfirmDialog();
   const [screenError, setScreenError] = useState<unknown>(null);
   const preClosingLock = useRef(new ExclusiveActionLock());
-  const editingLocked = resolveEditingPolicy(config.editingPolicy).locked;
+  const editingLocked = config.editingPolicy.locked;
 
   if (currentFiscalPeriod == null) {
     return (

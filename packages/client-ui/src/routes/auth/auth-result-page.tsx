@@ -40,7 +40,7 @@ export function AuthResultPage() {
 
     void (async () => {
       try {
-        await appState.completeSignIn({ state, code });
+        await appState.completeSignIn(state, code);
         window.location.replace("/fiscal-periods");
       } catch (error) {
         setScreenError(

@@ -453,11 +453,11 @@ async function closedSource(db: OpenkkDbPort) {
     bookAccountId: "acct_equipment",
   });
   await server.fixedAssets.patch(period.id, retired.id, { status: "retired" });
-  await server.preClosings.run({ fiscalPeriodId: period.id, year: 2026 });
-  await server.closings.run({
-    fiscalPeriodId: period.id,
-    year: 2026,
-    entries: buildExpectedClosingEntries({
+  await server.preClosings.run(period.id, 2026);
+  await server.closings.run(
+    period.id,
+    2026,
+    buildExpectedClosingEntries({
       periodStartDate: period.startDate,
       periodEndDate: period.endDate,
       entries: await server.entries.getAll(period.id),
@@ -465,7 +465,7 @@ async function closedSource(db: OpenkkDbPort) {
       openingJournals: [],
       bookAccounts: await server.masterData.getBookAccounts(),
     }),
-  });
+  );
   await server.fiscalPeriods.patch(period.id, {
     documentsReceivedCompleted: true,
   });
@@ -514,11 +514,11 @@ describe("atomic fiscal period carryover", () => {
       (await backend.fiscalPeriods.getAll()).find((item) => item.id === next.id),
     ).toEqual(next);
     await backend.fiscalPeriods.start(next.id);
-    await backend.preClosings.run({ fiscalPeriodId: next.id, year: 2027 });
-    const closed = await backend.closings.run({
-      fiscalPeriodId: next.id,
-      year: 2027,
-      entries: buildExpectedClosingEntries({
+    await backend.preClosings.run(next.id, 2027);
+    const closed = await backend.closings.run(
+      next.id,
+      2027,
+      buildExpectedClosingEntries({
         periodStartDate: next.startDate,
         periodEndDate: next.endDate,
         entries: [],
@@ -526,7 +526,7 @@ describe("atomic fiscal period carryover", () => {
         openingJournals: next.opening.openingJournals,
         bookAccounts: await backend.masterData.getBookAccounts(),
       }),
-    });
+    );
     expect(closed.phase).toBe("post_closing");
     expect(await backend.entries.getAll(next.id)).toEqual(
       expect.arrayContaining([
@@ -650,13 +650,13 @@ describe("atomic fiscal period carryover", () => {
       })),
     });
     await expect(
-      server.entries.patch(period.id, stored.id, {
+      server.entries.update(period.id, stored.id, {
         ...stored,
         businessRate: 0.5,
       }),
     ).resolves.toMatchObject({ description: longText, businessRate: 0.5 });
     await expect(
-      server.entries.patch(period.id, stored.id, {
+      server.entries.update(period.id, stored.id, {
         ...stored,
         description: longText + "変更",
       }),

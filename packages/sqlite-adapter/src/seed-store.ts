@@ -92,6 +92,7 @@ function prepareAndValidateSeed(seed: unknown): DbSnapshot {
   for (const entry of value.entries) {
     const period = requireSeedFiscalPeriod(periodsById, entry.fiscalPeriodId);
     assertDbStoredEntryRecord(entry, period);
+    assertSeedOwner(entry, period);
     if (entry.localId == null) continue;
     const scopedLocalId = `${entry.fiscalPeriodId}\u0000${entry.localId}`;
     if (entryLocalIds.has(scopedLocalId)) {
@@ -107,6 +108,7 @@ function prepareAndValidateSeed(seed: unknown): DbSnapshot {
   for (const asset of value.fixedAssets) {
     const period = requireSeedFiscalPeriod(periodsById, asset.fiscalPeriodId);
     assertDbStoredFixedAssetRecord(asset, period);
+    assertSeedOwner(asset, period);
     serializeFixedAssetDbData(asset);
   }
   assertUniqueIds(value.fixedAssets, "Seed fixed asset", null);
@@ -164,6 +166,18 @@ function requireSeedFiscalPeriod(
     );
   }
   return period;
+}
+
+function assertSeedOwner(
+  record: { id: string; userId: string },
+  period: FiscalPeriodDbRecord,
+): void {
+  if (record.userId !== period.userId) {
+    throw serverValidationError(
+      `Seed record owner does not match fiscal period ${period.id}: ${record.id}`,
+      null,
+    );
+  }
 }
 
 function groupSeedClosingRows(

@@ -38,7 +38,7 @@ type CustomUser = {
 1. **`authMode: "custom"`** を `OpenkkConfig` に設定する。
 2. **`OpenkkBackendPort.auth` を実装したクライアントアダプタ** を用意し、独自バックエンドへ接続する。TypeScriptサーバーでは `OpenkkServerPort.auth` が同じ契約を持つ。実装するメソッド:
    - `startSession(redirectUrl)` → 外部認証 URL を発行（`{ authUrl }`）。
-   - `completeSession({ state, code })` → 認証完了し `{ completionCode }` を返す。
+   - `completeSession(state, code)` → 認証完了し `{ completionCode }` を返す。
    - `redeemCompletionCode(completionCode)` → `RedeemCompletionCodeResponse` を返す。未設定の `displayName` / `email` / `iconUrl` / `authProvider` は `null` にする。
    - `signOut()` → サーバ側セッション/Cookie を破棄。
 3. クライアントの状態管理（`openkk-app-state`）が以下を自動で駆動する。実装不要。

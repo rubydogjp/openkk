@@ -14,7 +14,6 @@ import {
   capFixedAssetPreviewDate,
   fixedAssetToDraft,
   formatIsoLocalDate,
-  resolveEditingPolicy,
   type FixedAssetDraft,
 } from "@rubydogjp/openkk-client-domain";
 import { ClosedPeriodLock } from "../../../shared/closed-period-lock.js";
@@ -29,7 +28,7 @@ export function FixedAssetsPage() {
   const appState = useOpenkkAppState();
   const openkkConfig = useOpenkkConfig();
   const today = useOpenkkToday();
-  const editingLocked = resolveEditingPolicy(openkkConfig.editingPolicy).locked;
+  const editingLocked = openkkConfig.editingPolicy.locked;
   const [newAssetDraft, setNewAssetDraft] =
     useState<FixedAssetDraft | null>(null);
 

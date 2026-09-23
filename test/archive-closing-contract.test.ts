@@ -61,14 +61,14 @@ describe("archived closing reports", () => {
       });
       expect(preview.every((entry) => entry.description.length <= 400)).toBe(true);
       expect(preview.every((entry) => !/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(entry.description))).toBe(true);
-      await server.preClosings.run({ fiscalPeriodId: period.id, year: 2026 });
-      await server.closings.run({
-        fiscalPeriodId: period.id,
-        year: 2026,
-        entries: preview.map((entry) =>
+      await server.preClosings.run(period.id, 2026);
+      await server.closings.run(
+        period.id,
+        2026,
+        preview.map((entry) =>
           entryRecordToImportPayload(entry, { accounts, taxes, businesses }),
         ),
-      });
+      );
       const closed = await server.fiscalPeriods.patch(period.id, {
         documentsReceivedCompleted: true,
       });

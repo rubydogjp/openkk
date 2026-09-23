@@ -29,7 +29,7 @@ describe("client/server closing contract", () => {
       businessRate: 1,
       bookAccountId: "acct_equipment",
     });
-    await server.preClosings.run({ fiscalPeriodId: period.id, year: 2026 });
+    await server.preClosings.run(period.id, 2026);
 
     await expect(
       createServerUsecases(db).closings.run("user-1", period.id, 2026, []),
@@ -104,12 +104,8 @@ describe("client/server closing contract", () => {
         carryovers: [carryover],
       }).map((entry) => entryRecordToImportPayload(entry, { accounts, taxes, businesses }));
 
-      await server.preClosings.run({ fiscalPeriodId: period.id, year: 2026 });
-      const closed = await server.closings.run({
-        fiscalPeriodId: period.id,
-        year: 2026,
-        entries,
-      });
+      await server.preClosings.run(period.id, 2026);
+      const closed = await server.closings.run(period.id, 2026, entries);
 
       expect(closed.phase).toBe("post_closing");
       const saved = await server.entries.getAll(period.id);

@@ -6,8 +6,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AppError,
   hasActiveFiscalPeriodOverlap,
-  resolveEditingPolicy,
-  resolveFiscalPeriodPolicy,
   validateFiscalPeriodDates,
 } from "@rubydogjp/openkk-client-domain";
 import {
@@ -49,7 +47,7 @@ export function CreateFiscalPeriodPage() {
   const [screenError, setScreenError] = useState<unknown>(null);
   const [isCreating, setIsCreating] = useState(false);
   const createLock = useRef(new ExclusiveActionLock());
-  const editingLocked = resolveEditingPolicy(openkkConfig.editingPolicy).locked;
+  const editingLocked = openkkConfig.editingPolicy.locked;
 
   useEffect(() => {
     if (nameEdited) return;
@@ -76,7 +74,7 @@ export function CreateFiscalPeriodPage() {
       null,
     );
   const maxActivePeriods =
-    resolveFiscalPeriodPolicy(openkkConfig.fiscalPeriodPolicy).maxActivePeriods;
+    openkkConfig.fiscalPeriodPolicy.maxActivePeriods;
   const atPeriodLimit =
     maxActivePeriods != null &&
     appState.fiscalPeriods.filter((period) => period.archiveStatus === "active")

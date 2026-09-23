@@ -26,18 +26,18 @@ export function useOpenkkClosing(): OpenkkClosing {
       async runPreClosing(fiscalPeriodId, year) {
         assertEditingUnlocked(config.editingPolicy, "closing.runPreClosing");
         const authOperationVersion = appState.captureAuthOperationVersion();
-        const period = await backendApi.preClosings.run({ fiscalPeriodId, year });
+        const period = await backendApi.preClosings.run(fiscalPeriodId, year);
         appState.assertAuthOperationCurrent(authOperationVersion);
         appState.syncFiscalPeriod(period);
       },
       async runFinal(fiscalPeriodId, year, entries) {
         assertEditingUnlocked(config.editingPolicy, "closing.runFinal");
         const authOperationVersion = appState.captureAuthOperationVersion();
-        const period = await backendApi.closings.run({
+        const period = await backendApi.closings.run(
           fiscalPeriodId,
           year,
           entries,
-        });
+        );
         appState.assertAuthOperationCurrent(authOperationVersion);
         appState.syncFiscalPeriod(period);
       },

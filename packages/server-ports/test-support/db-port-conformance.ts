@@ -7,7 +7,7 @@ import {
   MAX_FISCAL_PERIOD_ARCHIVE_FILE_BYTES,
 } from "@rubydogjp/openkk-server-domain";
 
-import type { OpenkkDbPort } from "../src/db-adapter.js";
+import type { OpenkkDbPort } from "../src/db-port.js";
 import type { DbSnapshot, FiscalPeriodArchiveDbImportInput } from "../src/persistence-types.js";
 
 export type DbPortConformanceContext = {
@@ -711,7 +711,7 @@ export function runDbPortConformance(
           lines: [testEntryLine, testCreditEntryLine],
           localId: null,
         }),
-      ).rejects.toThrow(/FOREIGN KEY constraint failed/);
+      ).rejects.toThrow(/fiscal period not found/);
     });
 
     it("enforces balanced integer entries and period dates at the persistence boundary", async () => {
@@ -1109,7 +1109,7 @@ export function runDbPortConformance(
           businessRate: 1,
           bookAccountId: "acct_equipment",
         }),
-      ).rejects.toThrow(/FOREIGN KEY constraint failed/);
+      ).rejects.toThrow(/fiscal period not found/);
     });
 
     it("create / getAll / update / delete round-trip", async () => {
@@ -1502,7 +1502,7 @@ export function runDbPortConformance(
         userId: "user-2",
       }));
       await expect(ctx.makeSeededAdapter(wrongOwner)).rejects.toThrow(
-        /Stored entry identity is invalid/,
+        /Seed record owner does not match/,
       );
 
       await expect(

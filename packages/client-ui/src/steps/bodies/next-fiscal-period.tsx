@@ -10,8 +10,6 @@ import {
   createFiscalPeriodArchiveZip,
   hasActiveFiscalPeriodOverlap,
   isOpeningCarryoverCandidate,
-  resolveEditingPolicy,
-  resolveFiscalPeriodPolicy,
   validateFiscalPeriodDates,
 } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text.js";
@@ -128,8 +126,8 @@ export function NextFiscalPeriodBody({
     );
   }
 
-  const policy = resolveFiscalPeriodPolicy(config.fiscalPeriodPolicy);
-  const editingLocked = resolveEditingPolicy(config.editingPolicy).locked;
+  const policy = config.fiscalPeriodPolicy;
+  const editingLocked = config.editingPolicy.locked;
   const requiresArchiveBeforeNext =
     policy.maxActivePeriods != null && policy.maxActivePeriods <= 1;
   const isEphemeral = policy.archiveRetention === "ephemeral";

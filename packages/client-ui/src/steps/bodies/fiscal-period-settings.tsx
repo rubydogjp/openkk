@@ -5,7 +5,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AppError,
   hasActiveFiscalPeriodOverlap,
-  resolveEditingPolicy,
   validateFiscalPeriodDates,
 } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text.js";
@@ -38,7 +37,7 @@ export function FiscalPeriodSettingsBody({
 }) {
   const appState = useOpenkkAppState();
   const config = useOpenkkConfig();
-  const editingLocked = resolveEditingPolicy(config.editingPolicy).locked;
+  const editingLocked = config.editingPolicy.locked;
   const { confirm, dialog } = useConfirmDialog();
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (period) => period.id === appState.currentFiscalPeriodId,
@@ -107,7 +106,7 @@ export function FiscalPeriodSettingsBody({
   const isStarted = currentFiscalPeriod.phase !== "pre_opening";
   const isReadOnly = isStarted || isPeriodLocked || editingLocked;
   const lockMessage = editingLocked
-    ? (resolveEditingPolicy(config.editingPolicy).lockedNotice ??
+    ? (config.editingPolicy.lockedNotice ??
       "この環境ではデータの編集がロックされています。")
     : isPeriodLocked
       ? "仮締め以降のため変更できません。"

@@ -1,4 +1,9 @@
-import { createFixedClock, type OpenkkConfig } from "@rubydogjp/openkk-client";
+import {
+  createFixedClock,
+  DEFAULT_EDITING_POLICY,
+  DEFAULT_FISCAL_PERIOD_POLICY,
+  type OpenkkConfig,
+} from "@rubydogjp/openkk-client";
 import { parseOpenkkEnv } from "@rubydogjp/openkk-frontend";
 
 const BUNDLE = "sim";
@@ -20,7 +25,7 @@ export const openkkConfig: OpenkkConfig = {
   initialFiscalPeriodId: null,
   sessionStorageKey: `openkk.${BUNDLE}.session.user_id`,
   fiscalPeriodStorageKey: `openkk.${BUNDLE}.fiscal_period_id`,
-  fiscalPeriodPolicy: null,
-  editingPolicy: null,
+  fiscalPeriodPolicy: DEFAULT_FISCAL_PERIOD_POLICY,
+  editingPolicy: DEFAULT_EDITING_POLICY,
   debugRoutesEnabled: true,
 };

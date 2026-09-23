@@ -91,10 +91,7 @@ type OpenkkAppState = {
 
   startSignIn: (redirectUrl: string) => Promise<{ authUrl: string }>;
 
-  completeSignIn: (input: {
-    state: string;
-    code: string;
-  }) => Promise<OpenkkUser>;
+  completeSignIn: (state: string, code: string) => Promise<OpenkkUser>;
   selectFiscalPeriod: (fiscalPeriodId: string) => void;
   clearFiscalPeriod: () => void;
 };
@@ -473,14 +470,11 @@ export function OpenkkAppStateProvider(props: {
           return started;
         });
       },
-      async completeSignIn({ state, code }) {
+      async completeSignIn(state, code) {
         const operationVersion = authVersion.current.invalidate();
         return await authMutationQueue.current.run(async () => {
           assertAuthUnchanged(authVersion.current, operationVersion);
-          const completed = await backendApi.auth.completeSession({
-            state,
-            code,
-          });
+          const completed = await backendApi.auth.completeSession(state, code);
           assertAuthUnchanged(authVersion.current, operationVersion);
           const token = await backendApi.auth.redeemCompletionCode(
             completed.completionCode,
@@ -494,7 +488,7 @@ export function OpenkkAppStateProvider(props: {
               token.email == null || token.email.trim() === ""
                 ? null
                 : token.email.trim(),
-            iconUrl: token.iconUrl ?? null,
+            iconUrl: token.iconUrl,
             authProvider: token.authProvider ?? "custom",
           };
           fiscalPeriodListVersion.current.invalidate("all");

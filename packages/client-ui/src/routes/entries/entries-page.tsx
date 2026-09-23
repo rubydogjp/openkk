@@ -19,7 +19,6 @@ import {
   compareYearMonth,
   formatIsoLocalDate,
   parseYearMonth,
-  resolveEditingPolicy,
   type EntryPreviewRow,
   type YearMonth,
 } from "@rubydogjp/openkk-client-domain";
@@ -51,7 +50,7 @@ export function EntriesPage() {
   const today = useOpenkkToday();
   const entriesState = useOpenkkEntries();
   const assistState = useOpenkkAssist();
-  const editingLocked = resolveEditingPolicy(openkkConfig.editingPolicy).locked;
+  const editingLocked = openkkConfig.editingPolicy.locked;
   const currentFiscalPeriod = appState.fiscalPeriods.find(
     (period) => period.id === appState.currentFiscalPeriodId,
   );

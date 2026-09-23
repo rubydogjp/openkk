@@ -6,7 +6,6 @@ import {
   AppError,
   buildClosingVirtualEntries,
   computeFsAggregate,
-  resolveEditingPolicy,
   withClosingVirtualEntries,
 } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text.js";
@@ -49,7 +48,7 @@ export function ClosingBody({
 }) {
   const appState = useOpenkkAppState();
   const config = useOpenkkConfig();
-  const editingLocked = resolveEditingPolicy(config.editingPolicy).locked;
+  const editingLocked = config.editingPolicy.locked;
   const entriesState = useOpenkkEntries();
   const assistState = useOpenkkAssist();
   const closingApi = useOpenkkClosing();

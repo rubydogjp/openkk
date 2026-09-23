@@ -53,7 +53,7 @@ type OpenkkApiErrorDto = {
 ```
 
 Typical status codes: `400`, `404`, `409`, or `null`.
-Maintenance mode is `MAINTENANCE_MODE_STATUS` (503) with `code: MAINTENANCE_MODE_ERROR_CODE`; `isMaintenanceModeError` reads that `code`.
+Maintenance mode uses `code: MAINTENANCE_MODE_ERROR_CODE`; `isMaintenanceModeError` reads that `code`.
 For HTTP errors, the HTTP status overrides `OpenkkApiErrorDto.statusCode`.
 Missing or malformed error bodies become a safe client-side `OpenkkApiErrorDto`.
 
@@ -99,8 +99,8 @@ Archived fiscal periods are read-only. Mutations against them must fail with `Op
 
 ## Fiscal Period Lifecycle Policy
 
-Third-party backends declare a lifecycle policy via `OpenkkConfig.fiscalPeriodPolicy`
-(resolve it with `resolveFiscalPeriodPolicy`). Defaults preserve plain-OpenKK behaviour.
+Third-party backends declare a lifecycle policy via `OpenkkConfig.fiscalPeriodPolicy`.
+`DEFAULT_FISCAL_PERIOD_POLICY` preserves plain-OpenKK behaviour.
 
 | Field | Default | Meaning |
 |---|---|---|

@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { AppError } from "@rubydogjp/openkk-client-domain";
+import {
+  AppError,
+  DEFAULT_EDITING_POLICY,
+} from "@rubydogjp/openkk-client-domain";
 
 import { assertEditingUnlocked } from "./editing-policy.js";
 
 describe("assertEditingUnlocked", () => {
   it("allows mutations when editing is not locked", () => {
-    expect(() => assertEditingUnlocked(null, "entries.create")).not.toThrow();
+    expect(() =>
+      assertEditingUnlocked(DEFAULT_EDITING_POLICY, "entries.create"),
+    ).not.toThrow();
   });
 
   it("rejects mutations with the configured notice when locked", () => {

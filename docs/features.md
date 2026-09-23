@@ -13,7 +13,7 @@
 | 期間フェーズ | `pre_opening` → `journalizing` → `pre_closing` → `post_closing` |
 | 圧縮保存 | フェーズを保持したまま `archiveStatus` を `archived` に変更し `archivedAt` を記録 |
 | ロック判定 | `buildPeriodLockMessage` でステージ別の編集可否を判定 |
-| ライフサイクルポリシー | `OpenkkConfig.fiscalPeriodPolicy`（`resolveFiscalPeriodPolicy`）で `maxActivePeriods`（単一 active 強制）・`archiveRetention`（`persistent` / `ephemeral`）を宣言。既定は無制限・恒久保持 |
+| ライフサイクルポリシー | `OpenkkConfig.fiscalPeriodPolicy` で `maxActivePeriods`（単一 active 強制）・`archiveRetention`（`persistent` / `ephemeral`）を宣言。既定値 `DEFAULT_FISCAL_PERIOD_POLICY` は無制限・恒久保持 |
 | 実データ削除（purge） | `ephemeral` 構成で翌期へ進む確定後に `fiscalPeriods.purgeArchivedData` が実データを削除し、名称・期間・`archivedAt` だけを残して `archiveStatus` を `purged` にする |
 
 ---

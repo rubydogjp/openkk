@@ -267,12 +267,12 @@ export type EntryCreateRequest = {
   input: EntryUpsertInput;
 };
 export type EntryCreateResponse = { entry: EntryApiRecord };
-export type EntryPatchRequest = {
+export type EntryUpdateRequest = {
   fiscalPeriodId: string;
   id: string;
   input: EntryUpsertInput;
 };
-export type EntryPatchResponse = { entry: EntryApiRecord };
+export type EntryUpdateResponse = { entry: EntryApiRecord };
 export type EntryRemoveRequest = { fiscalPeriodId: string; id: string };
 export type EntryRemoveResponse = OpenkkNoContentResponse;
 export type EntryImportManyRequest = {
@@ -417,9 +417,9 @@ export type OpenkkHttpEndpointSpecs = {
     EntryCreateResponse,
     201
   >;
-  entryPatch: OpenkkHttpEndpointSpec<
-    EntryPatchRequest,
-    EntryPatchResponse,
+  entryUpdate: OpenkkHttpEndpointSpec<
+    EntryUpdateRequest,
+    EntryUpdateResponse,
     200
   >;
   entryRemove: OpenkkHttpEndpointSpec<
@@ -573,7 +573,7 @@ export const OPENKK_HTTP_ENDPOINTS = {
     path: "/fiscal-periods/{fiscalPeriodId}/entries",
     successStatus: 201,
   },
-  entryPatch: {
+  entryUpdate: {
     method: "PUT",
     path: "/fiscal-periods/{fiscalPeriodId}/entries/{id}",
     successStatus: 200,
@@ -683,7 +683,8 @@ export const OPENKK_HTTP_ENDPOINTS = {
 export interface AuthApi {
   startSession(redirectUrl: string): Promise<StartAuthSessionResponse>;
   completeSession(
-    input: CompleteAuthSessionRequest,
+    state: string,
+    code: string,
   ): Promise<CompleteAuthSessionResponse>;
   redeemCompletionCode(
     completionCode: string,
@@ -693,12 +694,16 @@ export interface AuthApi {
 
 export interface ClosingsApi {
   get(fiscalPeriodId: string, year: number): Promise<boolean>;
-  run(input: ClosingRunRequest): Promise<FiscalPeriodApiRecord>;
+  run(
+    fiscalPeriodId: string,
+    year: number,
+    entries: EntryUpsertInput[],
+  ): Promise<FiscalPeriodApiRecord>;
 }
 
 export interface PreClosingsApi {
   get(fiscalPeriodId: string, year: number): Promise<boolean>;
-  run(input: PreClosingRunRequest): Promise<FiscalPeriodApiRecord>;
+  run(fiscalPeriodId: string, year: number): Promise<FiscalPeriodApiRecord>;
   cancel(fiscalPeriodId: string, year: number): Promise<FiscalPeriodApiRecord>;
 }
 
@@ -708,7 +713,7 @@ export interface EntriesApi {
     fiscalPeriodId: string,
     input: EntryUpsertInput,
   ): Promise<EntryApiRecord>;
-  patch(
+  update(
     fiscalPeriodId: string,
     id: string,
     input: EntryUpsertInput,

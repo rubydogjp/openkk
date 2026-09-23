@@ -49,17 +49,15 @@ export interface OpenkkConfig {
   initialFiscalPeriodId: string | null;
   sessionStorageKey: string;
   fiscalPeriodStorageKey: string;
-  fiscalPeriodPolicy: FiscalPeriodPolicy | null;
-  editingPolicy: OpenkkEditingPolicy | null;
+  fiscalPeriodPolicy: FiscalPeriodPolicy;
+  editingPolicy: OpenkkEditingPolicy;
   debugRoutesEnabled: boolean;
 }
 
-export function createSystemClock(
-  currentDate: (() => Date) | null,
-): OpenkkClock {
+export function createSystemClock(): OpenkkClock {
   return {
     kind: "system",
-    today: () => new Date(currentDate?.() ?? Date.now()),
+    today: () => new Date(),
   };
 }
 
@@ -69,16 +67,4 @@ export function createFixedClock(today: Date): OpenkkClock {
     kind: "fixed",
     today: () => new Date(timestamp),
   };
-}
-
-export function resolveEditingPolicy(
-  policy: OpenkkEditingPolicy | null,
-): OpenkkEditingPolicy {
-  return policy ?? DEFAULT_EDITING_POLICY;
-}
-
-export function resolveFiscalPeriodPolicy(
-  policy: FiscalPeriodPolicy | null,
-): FiscalPeriodPolicy {
-  return policy ?? DEFAULT_FISCAL_PERIOD_POLICY;
 }

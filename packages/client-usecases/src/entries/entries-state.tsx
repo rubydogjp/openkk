@@ -328,7 +328,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
           appState.assertAuthOperationCurrent(authOperationVersion);
           periodVersions.current.invalidate(currentRecord.fiscalPeriodId);
           try {
-            const patched = await backendApi.entries.patch(
+            const updated = await backendApi.entries.update(
               currentRecord.fiscalPeriodId,
               entryId,
               {
@@ -344,7 +344,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
               upsertEntryRecord(
                 current,
                 mapRemoteEntryToRecord({
-                  entry: patched,
+                  entry: updated,
                   fiscalPeriodId: currentRecord.fiscalPeriodId,
                   accounts: bookAccounts,
                   taxes: taxCategories,

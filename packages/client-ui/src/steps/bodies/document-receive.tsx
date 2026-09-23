@@ -2,10 +2,7 @@
 
 import { useRef, useState } from "react";
 
-import {
-  AppError,
-  resolveEditingPolicy,
-} from "@rubydogjp/openkk-client-domain";
+import { AppError } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text.js";
 import {
   useOpenkkAppState,
@@ -31,7 +28,7 @@ export function DocumentReceiveBody({
 }) {
   const appState = useOpenkkAppState();
   const config = useOpenkkConfig();
-  const editingLocked = resolveEditingPolicy(config.editingPolicy).locked;
+  const editingLocked = config.editingPolicy.locked;
   const [screenError, setScreenError] = useState<unknown>(null);
   const [isCompleting, setIsCompleting] = useState(false);
   const completeLock = useRef(new ExclusiveActionLock());
