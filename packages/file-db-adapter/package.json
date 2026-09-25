@@ -1,6 +1,6 @@
 {
   "name": "@rubydogjp/openkk-file-db-adapter",
-  "version": "26.1.12",
+  "version": "26.2.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -16,8 +16,8 @@
   },
   "dependencies": {
     "@sqlite.org/sqlite-wasm": "^3.50.0-build1",
-    "@rubydogjp/openkk-server-ports": "^26.1.12",
-    "@rubydogjp/openkk-sqlite-adapter": "^26.1.12"
+    "@rubydogjp/openkk-server-ports": "^26.2.0",
+    "@rubydogjp/openkk-sqlite-adapter": "^26.2.0"
   },
   "devDependencies": {
     "typescript": "^5.8.3"
