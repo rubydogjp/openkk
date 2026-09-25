@@ -56,6 +56,7 @@ npm run setup-trusted-publishing
 
 `npm trust` は 1 件ごとに 2FA を求めるが、最初の認証画面で
 「次の 5 分間はスキップ」を選べば残りはそのまま通る。
+既に設定済みのパッケージは npm が E409 を返すので skip として扱う。
 途中で失敗しても、再実行すれば残りが処理される。
 
 設定内容は `npm trust list <package>` で確認できる。

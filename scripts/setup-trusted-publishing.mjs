@@ -2,7 +2,7 @@
 
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { execFileSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import path from "node:path";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -39,24 +39,12 @@ console.log("");
 const failed = [];
 
 for (const name of targets) {
-  try {
-    execFileSync(
-      "npm",
-      [
-        "trust",
-        "github",
-        name,
-        "--file",
-        WORKFLOW_FILE,
-        "--repo",
-        repo,
-        "--allow-publish",
-        "--yes",
-      ],
-      { cwd: root, stdio: "inherit" },
-    );
+  const { status, stderr } = await trust(name);
+  if (status === 0) {
     console.log(`  ok   ${name}`);
-  } catch {
+  } else if (/\bE409\b/.test(stderr)) {
+    console.log(`  skip ${name} (設定済み)`);
+  } else {
     failed.push(name);
     console.log(`  FAIL ${name}`);
   }
@@ -73,3 +61,30 @@ if (failed.length > 0) {
 
 console.log("");
 console.log("完了。npm trust list <package> で確認できます。");
+
+function trust(name) {
+  return new Promise((resolve) => {
+    const child = spawn(
+      "npm",
+      [
+        "trust",
+        "github",
+        name,
+        "--file",
+        WORKFLOW_FILE,
+        "--repo",
+        repo,
+        "--allow-publish",
+        "--yes",
+      ],
+      { cwd: root, stdio: ["inherit", "inherit", "pipe"] },
+    );
+    let stderr = "";
+    child.stderr.on("data", (chunk) => {
+      process.stderr.write(chunk);
+      stderr += chunk;
+    });
+    child.on("error", (error) => resolve({ status: null, stderr: String(error) }));
+    child.on("close", (status) => resolve({ status, stderr }));
+  });
+}
