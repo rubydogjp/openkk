@@ -102,6 +102,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
   const [fixedAssetsLoadError, setFixedAssetsLoadError] =
     useState<unknown>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
+  const sessionUserId = appState.session?.user.id ?? null;
   const selectedFiscalPeriodId = useRef(appState.currentFiscalPeriodId);
   const periodVersions = useRef(new KeyedAsyncStateVersion<string>());
   const assetMutationQueue = useRef(new KeyedAsyncMutationQueue<string>());
@@ -120,6 +121,10 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
   );
 
   useEffect(() => {
+    if (sessionUserId == null) {
+      setMasterLoadError(null);
+      return;
+    }
     let cancelled = false;
     void (async () => {
       try {
@@ -164,7 +169,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [reloadNonce]);
+  }, [reloadNonce, sessionUserId]);
 
   useEffect(() => {
     const fiscalPeriodId = appState.currentFiscalPeriodId;

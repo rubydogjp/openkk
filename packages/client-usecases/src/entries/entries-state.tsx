@@ -133,6 +133,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
   const [masterLoadError, setMasterLoadError] = useState<unknown>(null);
   const [entriesLoadError, setEntriesLoadError] = useState<unknown>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
+  const sessionUserId = appState.session?.user.id ?? null;
   const periodVersions = useRef(new KeyedAsyncStateVersion<string>());
   const entryMutationQueue = useRef(new KeyedAsyncMutationQueue<string>());
   const currentFiscalPeriodDataPurged = isSelectedFiscalPeriodDataPurged(
@@ -141,6 +142,10 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
   );
 
   useEffect(() => {
+    if (sessionUserId == null) {
+      setMasterLoadError(null);
+      return;
+    }
     let cancelled = false;
     void (async () => {
       try {
@@ -163,7 +168,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [reloadNonce]);
+  }, [reloadNonce, sessionUserId]);
 
   useEffect(() => {
     const fiscalPeriodId = appState.currentFiscalPeriodId;
