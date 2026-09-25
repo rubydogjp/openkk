@@ -40,7 +40,7 @@ export function JournalizingBody({
 }: {
   onSwitchToStep: ((no: number) => void) | null;
   onBusyChange: ((busy: boolean) => void) | null;
-  trendPoints: StepTrendPoint[] | null;
+  trendPoints: StepTrendPoint[];
 }) {
   const router = useRouter();
   const config = useOpenkkConfig();
@@ -164,7 +164,7 @@ export function JournalizingBody({
       {isPreClosed ? (
         <section>
           <StepSectionLabel>記録終了</StepSectionLabel>
-          {trendPoints != null && trendPoints.length > 0 ? (
+          {trendPoints.length > 0 ? (
             <JournalizingCompletedTrendChart points={trendPoints} />
           ) : null}
           <div
@@ -209,7 +209,7 @@ export function JournalizingBody({
             </div>
           </StepCallout>
 
-          {trendPoints != null && trendPoints.length > 0 ? (
+          {trendPoints.length > 0 ? (
             <>
               <StepDivider marginY={null} />
               <section>

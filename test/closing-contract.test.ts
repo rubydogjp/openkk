@@ -80,8 +80,8 @@ describe("client/server closing contract", () => {
       await server.fiscalPeriods.patch(period.id, {
         openingBalancesCompleted: true,
         opening: {
-          openingBalanceLines: [],
-          openingJournals: [journal],
+          balanceLines: [],
+          journals: [journal],
         },
       });
       const accounts = await server.masterData.getBookAccounts();

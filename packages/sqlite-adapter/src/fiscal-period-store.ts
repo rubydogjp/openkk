@@ -101,13 +101,13 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         const now = nowMs();
         const record = newFiscalPeriodRecord(userId, input, now);
         const opening = record.opening;
-        opening.openingBalanceLines = input.carryBalances
+        opening.balanceLines = input.carryBalances
           ? buildCarryoverOpeningBalances({
-              openingBalanceLines: source.opening.openingBalanceLines,
+              openingBalanceLines: source.opening.balanceLines,
               entries,
             })
           : [];
-        opening.openingJournals = buildCarryoverOpeningJournals({
+        opening.journals = buildCarryoverOpeningJournals({
           entries: selected,
           startDate: record.startDate,
         });
@@ -242,7 +242,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       });
       return record;
     },
-    async update(id, patch) {
+    async patch(id, patch) {
       return runInTransaction(db, async () => {
         const current = await requireFiscalPeriodRecord(db, id);
         assertDbFiscalPeriodPatchAllowed(current, patch);
@@ -348,7 +348,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         return updated;
       });
     },
-    async delete(id) {
+    async remove(id) {
       await db.exec({
         sql: `DELETE FROM fiscal_periods WHERE id = ?`,
         bind: [id],

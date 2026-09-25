@@ -245,7 +245,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
           draft.account,
           bookAccounts,
         );
-        if (accountId == null || accountId.length === 0) {
+        if (accountId == null) {
           throw new AppError({
             messageForDeveloper: "assist.addFixedAsset: accountId missing",
             messageForUser: "勘定科目が解決できないため保存できませんでした",
@@ -297,7 +297,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
           draft.account,
           bookAccounts,
         );
-        if (accountId == null || accountId.length === 0) {
+        if (accountId == null) {
           throw new AppError({
             messageForDeveloper: "assist.updateFixedAsset: accountId missing",
             messageForUser: "勘定科目が解決できないため保存できませんでした",
@@ -337,7 +337,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         const period = appState.fiscalPeriods.find(
           (p) => p.id === fiscalPeriodId,
         );
-        const journals = period?.opening.openingJournals ?? [];
+        const journals = period?.opening.journals ?? [];
         return journals
           .map((journal) =>
             mapOpeningJournalToRecord(
@@ -357,11 +357,11 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
       },
       getOpeningCarryover(carryoverId) {
         const fiscalPeriodId = appState.currentFiscalPeriodId;
-        if (fiscalPeriodId == null || fiscalPeriodId.length === 0) return null;
+        if (fiscalPeriodId == null) return null;
         const period = appState.fiscalPeriods.find(
           (p) => p.id === fiscalPeriodId,
         );
-        const journals = period?.opening.openingJournals ?? [];
+        const journals = period?.opening.journals ?? [];
         const journal = journals.find((item) => item.id === carryoverId);
         if (journal == null) return null;
         return mapOpeningJournalToRecord(
@@ -386,7 +386,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
             const currentOpening = currentPeriod.opening;
             const generatedId = nextOpeningCarryoverId(
               fiscalPeriodId,
-              currentOpening.openingJournals,
+              currentOpening.journals,
             );
             nextId = generatedId;
             const lines = buildOpeningJournalLines(generatedId, draft, {
@@ -408,9 +408,9 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
             };
             return {
               opening: {
-                openingBalanceLines: currentOpening.openingBalanceLines,
-                openingJournals: [
-                  ...currentOpening.openingJournals,
+                balanceLines: currentOpening.balanceLines,
+                journals: [
+                  ...currentOpening.journals,
                   newJournal,
                 ],
               },
@@ -422,7 +422,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
       async updateOpeningCarryover(carryoverId, draft) {
         assertEditingUnlocked(config.editingPolicy, "assist.updateOpeningCarryover");
         const fiscalPeriodId = appState.currentFiscalPeriodId;
-        if (fiscalPeriodId == null || fiscalPeriodId.length === 0) return false;
+        if (fiscalPeriodId == null) return false;
         const period = appState.fiscalPeriods.find(
           (p) => p.id === fiscalPeriodId,
         );
@@ -431,7 +431,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
           fiscalPeriodId,
           (currentPeriod) => {
             const currentOpening = currentPeriod.opening;
-            const journals = currentOpening.openingJournals;
+            const journals = currentOpening.journals;
             const target = journals.find(
               (journal) => journal.id === carryoverId,
             );
@@ -455,8 +455,8 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
             };
             return {
               opening: {
-                openingBalanceLines: currentOpening.openingBalanceLines,
-                openingJournals: journals.map((journal) =>
+                balanceLines: currentOpening.balanceLines,
+                journals: journals.map((journal) =>
                   journal.id === carryoverId ? nextJournal : journal,
                 ),
               },
@@ -492,7 +492,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
       async deleteOpeningCarryover(carryoverId) {
         assertEditingUnlocked(config.editingPolicy, "assist.deleteOpeningCarryover");
         const fiscalPeriodId = appState.currentFiscalPeriodId;
-        if (fiscalPeriodId == null || fiscalPeriodId.length === 0) return false;
+        if (fiscalPeriodId == null) return false;
         const period = appState.fiscalPeriods.find(
           (p) => p.id === fiscalPeriodId,
         );
@@ -501,15 +501,15 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
           fiscalPeriodId,
           (currentPeriod) => {
             const currentOpening = currentPeriod.opening;
-            const journals = currentOpening.openingJournals;
+            const journals = currentOpening.journals;
             const nextJournals = journals.filter(
               (journal) => journal.id !== carryoverId,
             );
             if (nextJournals.length === journals.length) return null;
             return {
               opening: {
-                openingBalanceLines: currentOpening.openingBalanceLines,
-                openingJournals: nextJournals,
+                balanceLines: currentOpening.balanceLines,
+                journals: nextJournals,
               },
             };
           },

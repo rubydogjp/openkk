@@ -54,8 +54,8 @@ function buildDemoSeedFiscalPeriod(
     openingBalancesCompleted: false,
     documentsReceivedCompleted: false,
     opening: {
-      openingBalanceLines: demoOpeningBalanceLines,
-      openingJournals: [],
+      balanceLines: demoOpeningBalanceLines,
+      journals: [],
     },
     createdAt: DEMO_SEED_TIMESTAMP,
     updatedAt: DEMO_SEED_TIMESTAMP,

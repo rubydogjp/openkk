@@ -5,7 +5,7 @@ export function replaceFiscalPeriodEntryRecords(
   fiscalPeriodId: string | null,
   nextRecords: EntryRecord[],
 ): EntryRecord[] {
-  if (fiscalPeriodId == null || fiscalPeriodId.length === 0) return [];
+  if (fiscalPeriodId == null) return [];
   return [
     ...current.filter((record) => record.fiscalPeriodId !== fiscalPeriodId),
     ...nextRecords,

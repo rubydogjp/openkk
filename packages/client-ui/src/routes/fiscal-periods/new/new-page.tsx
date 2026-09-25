@@ -187,8 +187,8 @@ export function CreateFiscalPeriodPage() {
               atPeriodLimit
                 ? "有効な会計期間の上限に達しているため、新しい期間は作成できません。"
                 : editingLocked
-                  ? "この環境ではデータの編集がロックされています。"
-                : null
+                  ? openkkConfig.editingPolicy.lockedNotice
+                  : null
             }
           />
         </StepMetaCard>

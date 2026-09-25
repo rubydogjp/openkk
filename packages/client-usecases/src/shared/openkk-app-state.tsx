@@ -26,7 +26,7 @@ import {
   type FiscalPeriodArchivePayload,
   type CustomUser,
   type FiscalPeriod,
-  type FiscalPeriodOpeningBalanceLine,
+  type OpeningBalanceLine,
   type OpenkkUser,
   type Session,
 } from "@rubydogjp/openkk-client-domain";
@@ -99,7 +99,7 @@ type OpenkkAppState = {
 const OpenkkAppStateContext = createContext<OpenkkAppState | null>(null);
 
 export type FiscalPeriodSeed = {
-  openingBalanceLines: FiscalPeriodOpeningBalanceLine[];
+  openingBalanceLines: OpeningBalanceLine[];
   entries: EntryRecord[];
 };
 
@@ -154,7 +154,7 @@ export function OpenkkAppStateProvider(props: {
       if (restored != null) setUser(restored);
     }
     const storedFp = safeStorageGet(storage, config.fiscalPeriodStorageKey);
-    if (storedFp != null) setCurrentFiscalPeriodId(storedFp);
+    if (storedFp != null && storedFp !== "") setCurrentFiscalPeriodId(storedFp);
     setIsReady(true);
   }, []);
 
@@ -181,7 +181,7 @@ export function OpenkkAppStateProvider(props: {
         setFiscalPeriods(mapped);
         setFiscalPeriodLoadError(null);
         setCurrentFiscalPeriodId((current) => {
-          if (current == null || current === "") return current;
+          if (current == null) return current;
           return mapped.some((period) => period.id === current)
             ? current
             : buildBootstrapFiscalPeriodId(config);
@@ -221,7 +221,7 @@ export function OpenkkAppStateProvider(props: {
     }
 
     const storage = browserLocalStorage();
-    if (currentFiscalPeriodId == null || currentFiscalPeriodId === "") {
+    if (currentFiscalPeriodId == null) {
       safeStorageRemove(storage, config.fiscalPeriodStorageKey);
     } else {
       safeStorageSet(
@@ -289,8 +289,8 @@ export function OpenkkAppStateProvider(props: {
             if (seed != null) {
               final = await backendApi.fiscalPeriods.patch(created.id, {
                 opening: {
-                  openingBalanceLines: seed.openingBalanceLines,
-                  openingJournals: [],
+                  balanceLines: seed.openingBalanceLines,
+                  journals: [],
                 },
               });
               assertAuthUnchanged(authVersion.current, operationVersion);

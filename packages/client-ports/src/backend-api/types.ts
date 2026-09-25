@@ -103,8 +103,8 @@ export type OpeningJournalApiRecord = {
 };
 
 export type FiscalPeriodOpeningApiRecord = {
-  openingBalanceLines: OpeningBalanceLineApiRecord[];
-  openingJournals: OpeningJournalApiRecord[];
+  balanceLines: OpeningBalanceLineApiRecord[];
+  journals: OpeningJournalApiRecord[];
 };
 
 export type FiscalPeriodApiRecord = {
@@ -724,7 +724,7 @@ export interface EntriesApi {
   importMany(
     fiscalPeriodId: string,
     entries: EntryUpsertInput[],
-  ): Promise<{ importedCount: number; entries: EntryApiRecord[] }>;
+  ): Promise<EntryImportManyResponse>;
 }
 
 export interface FiscalPeriodsApi {

@@ -38,14 +38,14 @@ export interface FiscalPeriodsDb {
     userId: string,
     input: FiscalPeriodArchiveDbImportInput,
   ): Promise<FiscalPeriodDbRecord>;
-  update(
+  patch(
     id: string,
     patch: FiscalPeriodDbPatchInput,
   ): Promise<FiscalPeriodDbRecord>;
   start(id: string): Promise<FiscalPeriodDbRecord>;
   archive(id: string): Promise<FiscalPeriodDbRecord>;
   purgeArchivedData(id: string): Promise<FiscalPeriodDbRecord>;
-  delete(id: string): Promise<void>;
+  remove(id: string): Promise<void>;
 }
 
 export interface EntriesDb {
@@ -57,7 +57,7 @@ export interface EntriesDb {
     input: EntryDbUpsertInput,
   ): Promise<EntryDbRecord>;
   update(id: string, input: EntryDbUpsertInput): Promise<EntryDbRecord>;
-  delete(id: string): Promise<void>;
+  remove(id: string): Promise<void>;
   importMany(
     userId: string,
     fiscalPeriodId: string,
@@ -73,11 +73,11 @@ export interface FixedAssetsDb {
     fiscalPeriodId: string,
     input: FixedAssetDbCreateInput,
   ): Promise<FixedAssetDbRecord>;
-  update(
+  patch(
     id: string,
     patch: FixedAssetDbPatchInput,
   ): Promise<FixedAssetDbRecord>;
-  delete(id: string): Promise<void>;
+  remove(id: string): Promise<void>;
 }
 
 export interface ClosingsDb {

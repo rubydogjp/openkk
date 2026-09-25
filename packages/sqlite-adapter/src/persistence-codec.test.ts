@@ -58,8 +58,8 @@ describe("SQLite persistence codecs", () => {
       createdAt: "1970-01-01T00:00:00.000Z",
       updatedAt: "1970-01-01T00:00:00.000Z",
       opening: {
-        openingBalanceLines: [],
-        openingJournals: [],
+        balanceLines: [],
+        journals: [],
       },
       archivedAt: null,
     };
@@ -103,8 +103,8 @@ describe("SQLite persistence codecs", () => {
   it("rejects malformed opening records before normalized persistence", () => {
     expect(() =>
       validateOpeningDbRecord({
-        openingBalanceLines: [],
-        openingJournals: [
+        balanceLines: [],
+        journals: [
           {
             id: "journal-1",
             date: "2026-01-01",
@@ -132,7 +132,7 @@ describe("SQLite persistence codecs", () => {
     expect(() =>
       validateOpeningDbRecord({
         ...opening,
-        openingBalanceLines: Array(MAX_ENTRY_IMPORT_ITEMS + 1).fill({
+        balanceLines: Array(MAX_ENTRY_IMPORT_ITEMS + 1).fill({
           id: "balance",
           accountId: "a:現金",
           amount: 0,
@@ -143,7 +143,7 @@ describe("SQLite persistence codecs", () => {
     expect(() =>
       validateOpeningDbRecord({
         ...opening,
-        openingJournals: Array(MAX_ENTRY_IMPORT_ITEMS + 1).fill({
+        journals: Array(MAX_ENTRY_IMPORT_ITEMS + 1).fill({
           id: "journal",
           date: "2026-01-01",
           description: "",
@@ -178,7 +178,7 @@ describe("SQLite persistence codecs", () => {
     );
 
     expect(() =>
-      validateOpeningDbRecord({ ...opening, openingJournals }),
+      validateOpeningDbRecord({ ...opening, journals: openingJournals }),
     ).toThrow(/Stored opening journal lines exceed the 100,000 line limit/);
   });
 
@@ -206,7 +206,7 @@ describe("SQLite persistence codecs", () => {
 
 function validOpening(): FiscalPeriodOpeningDbRecord {
   return {
-    openingBalanceLines: [],
-    openingJournals: [],
+    balanceLines: [],
+    journals: [],
   };
 }

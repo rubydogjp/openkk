@@ -113,7 +113,7 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
       });
       return record;
     },
-    async update(id, patch) {
+    async patch(id, patch) {
       return runInTransaction(db, async () => {
         const rows = (await db.exec({
           sql: `SELECT fa.data, fp.user_id, fa.created_at
@@ -149,7 +149,7 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
         return updated;
       });
     },
-    async delete(id) {
+    async remove(id) {
       await runInTransaction(db, async () => {
         const rows = (await db.exec({
           sql: `SELECT fiscal_period_id FROM fixed_assets WHERE id = ?`,

@@ -130,8 +130,8 @@ describe("JSON export/import round-trip", () => {
     expect(parsed.entries[0]?.localId).toBe("entry-xyz");
   });
 
-  it("falls back to id when a persisted localId is blank", () => {
-    const e = entry({ id: "entry-blank", localId: "" });
+  it("falls back to id when an entry has no localId", () => {
+    const e = entry({ id: "entry-blank", localId: null });
     const json = exportEntriesAsJson([e]);
     const parsed = JSON.parse(json) as { entries: Array<{ localId: string }> };
     expect(parsed.entries[0]?.localId).toBe("entry-blank");
@@ -471,7 +471,7 @@ describe("importEntriesFromJson — error handling", () => {
     expect(imported[0]?.businessRate).toBe(1);
   });
 
-  it("rejects an invalid exact business rate", () => {
+  it("rejects an invalid businessRateRatio", () => {
     const payload = JSON.parse(exportEntriesAsJson([entry()])) as {
       entries: Array<{ businessRateRatio: unknown }>;
     };
@@ -482,7 +482,7 @@ describe("importEntriesFromJson — error handling", () => {
         text: JSON.stringify(payload),
         fiscalPeriodId: "fp-1",
       }),
-    ).toThrow(/row 1: invalid exact business rate/);
+    ).toThrow(/row 1: invalid businessRateRatio/);
   });
 
   it("rejects compound totals outside the safe integer range", () => {

@@ -1,6 +1,6 @@
 import { serverValidationError } from "./app-error.js";
 import { assertEntryLineMatchesRules } from "./entry-rules.js";
-import type { Opening, OpeningBalanceLine } from "./models.js";
+import type { FiscalPeriodOpening, OpeningBalanceLine } from "./models.js";
 import {
   assertEntryCollectionItemLimit,
   assertEntryCollectionLineLimit,
@@ -21,46 +21,46 @@ export function assertOpeningMatchesRules(
   period: { startDate: string; endDate: string } | null,
   label: string,
   options: { completed: boolean },
-): asserts opening is Opening {
+): asserts opening is FiscalPeriodOpening {
   const value = requireObject(opening, label);
-  const { openingBalanceLines, openingJournals } = value;
-  if (!Array.isArray(openingBalanceLines) || !Array.isArray(openingJournals)) {
+  const { balanceLines, journals } = value;
+  if (!Array.isArray(balanceLines) || !Array.isArray(journals)) {
     throw serverValidationError(`${label} must contain line arrays`, null);
   }
   assertEntryCollectionItemLimit(
-    openingBalanceLines,
+    balanceLines,
     `${label} balance lines`,
     "期首残高の明細件数が多すぎます",
   );
   assertEntryCollectionItemLimit(
-    openingJournals,
+    journals,
     `${label} journals`,
     "期首再振替の件数が多すぎます",
   );
   assertEntryCollectionLineLimit(
-    openingJournals,
+    journals,
     `${label} journal lines`,
     "期首再振替の明細数が多すぎます",
   );
-  for (const line of openingBalanceLines) {
+  for (const line of balanceLines) {
     assertOpeningBalanceLine(line, `${label} balance line`);
   }
   assertUniqueIds(
-    openingBalanceLines,
+    balanceLines,
     `${label} balance line`,
     DUPLICATE_ID_MESSAGE,
   );
   assertUniqueStrings(
-    openingBalanceLines.map((line) => line.accountId),
+    balanceLines.map((line) => line.accountId),
     `${label} balance accountId`,
     "同じ勘定科目の期首残高が重複しています",
   );
-  for (const journal of openingJournals) {
+  for (const journal of journals) {
     assertOpeningJournal(journal, period, `${label} journal`, options);
   }
-  assertUniqueIds(openingJournals, `${label} journal`, DUPLICATE_ID_MESSAGE);
+  assertUniqueIds(journals, `${label} journal`, DUPLICATE_ID_MESSAGE);
   if (options.completed) {
-    assertOpeningBalancesBalanced(openingBalanceLines, `${label} balances`);
+    assertOpeningBalancesBalanced(balanceLines, `${label} balances`);
   }
 }
 

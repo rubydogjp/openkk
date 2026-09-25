@@ -1,5 +1,5 @@
 import type { EntryRecord } from "../entries/entry-record.js";
-import type { FiscalPeriodOpeningBalanceLine } from "../shared/models.js";
+import type { OpeningBalanceLine } from "../shared/models.js";
 import { parseAmount } from "../shared/parse-utils.js";
 import { OPENING_EQUITY_LABELS } from "../steps/summary.js";
 
@@ -60,7 +60,7 @@ export function computeFsAggregate({
   openingBalanceLines,
 }: {
   entries: EntryRecord[];
-  openingBalanceLines: FiscalPeriodOpeningBalanceLine[];
+  openingBalanceLines: OpeningBalanceLine[];
 }): FsAggregate {
   const revenueByName = new Map<string, number>();
   const expenseByName = new Map<string, number>();

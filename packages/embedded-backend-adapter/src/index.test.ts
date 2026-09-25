@@ -77,8 +77,8 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
               openingBalancesCompleted: false,
               documentsReceivedCompleted: false,
               opening: {
-                openingBalanceLines: [],
-                openingJournals: [],
+                balanceLines: [],
+                journals: [],
               },
               createdAt: "1970-01-01T00:00:00.000Z",
               updatedAt: "1970-01-01T00:00:00.000Z",

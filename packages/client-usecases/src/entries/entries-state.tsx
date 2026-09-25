@@ -460,7 +460,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
       async reloadAndWait() {
         const authOperationVersion = appState.captureAuthOperationVersion();
         const fiscalPeriodId = appState.currentFiscalPeriodId;
-        if (fiscalPeriodId == null || fiscalPeriodId.length === 0) {
+        if (fiscalPeriodId == null) {
           setRecords([]);
           setEntriesLoadError(null);
           return [];
@@ -548,9 +548,9 @@ function mapRemoteEntryToRecord(input: {
     bookAccountId: line.bookAccountId,
     partnerName: line.partnerName,
     taxCategoryId: line.taxCategoryId,
-    taxCategoryName: mapTaxName(line.taxCategoryId, input.taxes),
+    taxCategoryName: mapCategoryName(line.taxCategoryId, input.taxes),
     businessCategoryId: line.businessCategoryId,
-    businessCategoryName: mapBusinessName(
+    businessCategoryName: mapCategoryName(
       line.businessCategoryId,
       input.businesses,
     ),
@@ -570,43 +570,25 @@ function mapRemoteEntryToRecord(input: {
 }
 
 function mapBookAccountName(
-  id: string | null,
+  id: string,
   accounts: MasterBookAccountApiRecord[],
 ): string {
-  if (id == null || id.length === 0) return "";
   return accounts.find((account) => account.id === id)?.name ?? id;
 }
 
-function mapTaxName(
-  idOrName: string,
-  categories: MasterTaxCategoryApiRecord[],
+function mapCategoryName(
+  id: string,
+  categories: ReadonlyArray<{ id: string; name: string }>,
 ): string {
-  if (idOrName.length === 0) return "対象外";
-  return (
-    categories.find((category) => category.id === idOrName)?.name ??
-    categories.find((category) => category.name === idOrName)?.name ??
-    idOrName
-  );
-}
-
-function mapBusinessName(
-  idOrName: string,
-  categories: MasterBusinessCategoryApiRecord[],
-): string {
-  if (idOrName.length === 0) return "対象外";
-  return (
-    categories.find((category) => category.id === idOrName)?.name ??
-    categories.find((category) => category.name === idOrName)?.name ??
-    idOrName
-  );
+  if (id.length === 0) return "対象外";
+  return categories.find((category) => category.id === id)?.name ?? id;
 }
 
 function mapAccountType(
-  id: string | null,
+  id: string,
   accounts: MasterBookAccountApiRecord[],
   fallback: BookAccountType,
 ): BookAccountType {
-  if (id == null) return fallback;
   return (accounts.find((account) => account.id === id)?.accountType ??
     fallback) as BookAccountType;
 }

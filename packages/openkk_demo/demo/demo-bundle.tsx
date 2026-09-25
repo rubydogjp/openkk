@@ -1,11 +1,12 @@
 import {
+  DEFAULT_FISCAL_PERIOD_POLICY,
   fontWeight,
   palette,
   type BrandConfig,
   type FiscalPeriodPolicy,
   type FiscalPeriodSeeder,
   type OpenkkCalloutSlots,
-  type OpenkkEditingPolicy,
+  type EditingPolicy,
 } from "@rubydogjp/openkk-client";
 
 import {
@@ -13,16 +14,14 @@ import {
   demoOpeningBalanceLines,
 } from "./demo-content";
 
-export const demoEditingPolicy: OpenkkEditingPolicy = {
+export const demoEditingPolicy: EditingPolicy = {
   locked: true,
   lockedNotice: "デモ版ではこの操作はできません",
 };
 
 export const demoFiscalPeriodPolicy: FiscalPeriodPolicy = {
+  ...DEFAULT_FISCAL_PERIOD_POLICY,
   maxActivePeriods: 1,
-  archiveRetention: "persistent",
-  ephemeralArchiveWarning: null,
-  allowArchiveImport: true,
 };
 
 export const demoBrandConfig: BrandConfig = {

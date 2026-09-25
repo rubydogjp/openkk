@@ -563,7 +563,7 @@ function createEntryDb(
       async importArchived() {
         return fiscalPeriod({ id: "fp-archive", archiveStatus: "archived" });
       },
-      async update(id: string, patch: FiscalPeriodPatchInput) {
+      async patch(id: string, patch: FiscalPeriodPatchInput) {
         const { opening, ...rest } = patch;
         return fiscalPeriod({
           id,
@@ -585,7 +585,7 @@ function createEntryDb(
           archiveStatus: "purged",
         });
       },
-      async delete() {},
+      async remove() {},
     },
     entries: {
       async getAll(fiscalPeriodId) {
@@ -623,7 +623,7 @@ function createEntryDb(
         entries.set(id, updated);
         return updated;
       },
-      async delete(id: string) {
+      async remove(id: string) {
         entries.delete(id);
       },
       async importMany(
@@ -656,10 +656,10 @@ function createEntryDb(
       ) {
         return fixedAsset({ id: "asset-1", fiscalPeriodId, ...input });
       },
-      async update(id: string, patch: FixedAssetPatchInput) {
+      async patch(id: string, patch: FixedAssetPatchInput) {
         return fixedAsset({ id, fiscalPeriodId: "fp-1", ...changedFields(patch) });
       },
-      async delete() {},
+      async remove() {},
     },
     preClosings: {
       async get() {
@@ -760,7 +760,7 @@ function fiscalPeriod(
 }
 
 function emptyOpening(): FiscalPeriodOpeningApiRecord {
-  return { openingBalanceLines: [], openingJournals: [] };
+  return { balanceLines: [], journals: [] };
 }
 
 function entry(overrides: Partial<EntryApiRecord>): EntryApiRecord {

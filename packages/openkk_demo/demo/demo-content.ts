@@ -3,10 +3,10 @@ import type {
   EntryLine,
   EntryRecord,
   FixedAsset,
-  FiscalPeriodOpeningBalanceLine,
+  OpeningBalanceLine,
 } from "@rubydogjp/openkk-client";
 
-export const demoOpeningBalanceLines: FiscalPeriodOpeningBalanceLine[] = [
+export const demoOpeningBalanceLines: OpeningBalanceLine[] = [
   { id: "cash", accountId: "a:現金", amount: 320000 },
   { id: "bank", accountId: "a:その他の預金", amount: 1800000 },
   { id: "receivable", accountId: "a:売掛金", amount: 240000 },

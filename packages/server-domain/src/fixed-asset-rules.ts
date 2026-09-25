@@ -37,7 +37,7 @@ function isFixedAssetStatus(value: unknown): value is FixedAssetStatus {
 
 export function assertFixedAssetMatchesRules(
   asset: unknown,
-  period: { startDate: string; endDate: string } | null,
+  period: { startDate: string; endDate: string },
 ): asserts asset is FixedAsset {
   const value = requireObject(asset, "Fixed asset");
   if (typeof value.name !== "string" || value.name.trim() === "") {
@@ -75,7 +75,6 @@ export function assertFixedAssetMatchesRules(
     disposalDate: value.disposalDate,
     disposalPrice: value.disposalPrice,
   });
-  if (period == null) return;
   if (value.acquisitionDate > period.endDate) {
     throw serverValidationError(
       `Fixed asset acquisition date ${value.acquisitionDate} must not be after fiscal period end ${period.endDate}`,

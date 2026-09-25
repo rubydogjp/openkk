@@ -10,7 +10,7 @@ import {
 
 export function assertEntryMatchesRules(
   entry: unknown,
-  period: { startDate: string; endDate: string } | null,
+  period: { startDate: string; endDate: string },
   label: string,
 ): asserts entry is Entry {
   const value = requireObject(entry, label);
@@ -21,10 +21,7 @@ export function assertEntryMatchesRules(
     throw serverValidationError(`${label} description is required`, null);
   }
   assertIsoDate(value.date, `${label} date`);
-  if (
-    period != null &&
-    (value.date < period.startDate || value.date > period.endDate)
-  ) {
+  if (value.date < period.startDate || value.date > period.endDate) {
     throw serverValidationError(
       `${label} date ${value.date} must be within fiscal period ${period.startDate} to ${period.endDate}`,
       "仕訳日付を会計期間内にしてください",

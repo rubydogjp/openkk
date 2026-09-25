@@ -247,7 +247,7 @@ export function EntriesScreen(props: {
 
 export function VirtualEntryDrawer(props: {
   row: EntryPreviewRow;
-  rows: EntryPreviewRow[] | null;
+  rows: EntryPreviewRow[];
   onClose: () => void;
   onOpenAssist: (href: string) => void;
 }) {
@@ -261,8 +261,7 @@ export function VirtualEntryDrawer(props: {
     restoreFocus: true,
   });
   if (virtual == null) return null;
-  const rows =
-    props.rows == null || props.rows.length === 0 ? [props.row] : props.rows;
+  const rows = props.rows.length === 0 ? [props.row] : props.rows;
   const assistHref = virtual.assistHref;
   return (
     <DrawerFrame
@@ -347,7 +346,7 @@ export function VirtualEntryDrawer(props: {
           {rows.map((row, index) => {
             const suffix = rows.length > 1 ? ` ${index + 1}` : "";
             return (
-              <div key={`${row.recordId ?? row.date}-${index}`}>
+              <div key={`${row.recordId}-${index}`}>
                 <VirtualEntrySummaryRow
                   label={`借方${suffix}`}
                   value={row.debit}

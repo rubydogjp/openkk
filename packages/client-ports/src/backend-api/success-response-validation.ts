@@ -125,8 +125,8 @@ function isFiscalPeriod(value: unknown): boolean {
 
 function isOpening(value: unknown): boolean {
   if (!isObject(value)) return false;
-  const balanceLines = value.openingBalanceLines;
-  const journals = value.openingJournals;
+  const balanceLines = value.balanceLines;
+  const journals = value.journals;
   if (
     !Array.isArray(balanceLines) ||
     !Array.isArray(journals) ||

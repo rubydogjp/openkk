@@ -159,14 +159,14 @@ describe("createFileDbAdapter — behavior parity over the worker proxy", () => 
     await db.entries.create("user-1", fp.id, entryInput("x"));
     expect(await db.entries.getAll(fp.id)).toHaveLength(1);
 
-    await db.fiscalPeriods.delete(fp.id);
+    await db.fiscalPeriods.remove(fp.id);
     expect(await db.entries.getAll(fp.id)).toEqual([]);
   });
 
   it("rejects a transition on a missing fiscal period", async () => {
     const db = await makeDb();
     await expect(
-      db.fiscalPeriods.update("does-not-exist", { name: "x" }),
+      db.fiscalPeriods.patch("does-not-exist", { name: "x" }),
     ).rejects.toThrow(/fiscal period not found/i);
   });
 });

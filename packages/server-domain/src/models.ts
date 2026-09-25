@@ -60,9 +60,9 @@ export type OpeningJournal = {
   lines: EntryLineRecord[];
 };
 
-export type Opening = {
-  openingBalanceLines: OpeningBalanceLine[];
-  openingJournals: OpeningJournal[];
+export type FiscalPeriodOpening = {
+  balanceLines: OpeningBalanceLine[];
+  journals: OpeningJournal[];
 };
 
 export type FixedAssetStatus = "active" | "sold" | "disposed" | "retired";

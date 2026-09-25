@@ -7,7 +7,7 @@ import { validateOpeningDbRecord } from "./persistence-codec.js";
 import type { SqlDb } from "./sql-db.js";
 
 export function emptyOpening(): FiscalPeriodOpeningDbRecord {
-  return { openingBalanceLines: [], openingJournals: [] };
+  return { balanceLines: [], journals: [] };
 }
 
 export async function loadOpeningsByUser(
@@ -40,14 +40,14 @@ export async function replaceOpening(
       bind: [fiscalPeriodId],
     });
   }
-  for (const [position, line] of opening.openingBalanceLines.entries()) {
+  for (const [position, line] of opening.balanceLines.entries()) {
     await db.exec({
       sql: `INSERT INTO opening_balance_lines(fiscal_period_id, id, account_id, amount, position)
         VALUES(?, ?, ?, ?, ?)`,
       bind: [fiscalPeriodId, line.id, line.accountId, line.amount, position],
     });
   }
-  for (const [position, journal] of opening.openingJournals.entries()) {
+  for (const [position, journal] of opening.journals.entries()) {
     await db.exec({
       sql: `INSERT INTO opening_journals(
         fiscal_period_id, id, date, description, business_rate, position
@@ -110,7 +110,7 @@ async function loadOpenings(
     rowMode: "array",
   })) as Array<[string, string, string, number]>;
   for (const [fiscalPeriodId, id, accountId, amount] of balanceRows) {
-    openingFor(fiscalPeriodId).openingBalanceLines.push({
+    openingFor(fiscalPeriodId).balanceLines.push({
       id,
       accountId,
       amount,
@@ -144,7 +144,7 @@ async function loadOpenings(
       lines: [],
     };
     journals.set(journalKey(fiscalPeriodId, id), journal);
-    openingFor(fiscalPeriodId).openingJournals.push(journal);
+    openingFor(fiscalPeriodId).journals.push(journal);
   }
 
   const lineRows = (await db.exec({

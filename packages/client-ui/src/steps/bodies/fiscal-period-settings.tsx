@@ -106,8 +106,7 @@ export function FiscalPeriodSettingsBody({
   const isStarted = currentFiscalPeriod.phase !== "pre_opening";
   const isReadOnly = isStarted || isPeriodLocked || editingLocked;
   const lockMessage = editingLocked
-    ? (config.editingPolicy.lockedNotice ??
-      "この環境ではデータの編集がロックされています。")
+    ? config.editingPolicy.lockedNotice
     : isPeriodLocked
       ? "仮締め以降のため変更できません。"
       : isStarted

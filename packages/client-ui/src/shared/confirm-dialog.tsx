@@ -246,4 +246,3 @@ const confirmBaseStyle = {
   fontWeight: fontWeight.bold,
   cursor: "pointer",
 } as const;
-

@@ -41,8 +41,8 @@ export type OpeningJournalDbRecord = {
 };
 
 export type FiscalPeriodOpeningDbRecord = {
-  openingBalanceLines: OpeningBalanceLineDbRecord[];
-  openingJournals: OpeningJournalDbRecord[];
+  balanceLines: OpeningBalanceLineDbRecord[];
+  journals: OpeningJournalDbRecord[];
 };
 
 export type FiscalPeriodDbRecord = {

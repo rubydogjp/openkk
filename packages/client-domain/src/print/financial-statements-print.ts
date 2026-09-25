@@ -2,10 +2,10 @@ import type { FsBsRow, FsExpenseWriteIn } from "./fs-data.js";
 import { buildPrintDocument, escapeHtml as esc } from "./print-shell.js";
 
 function writeInLabelOverrides(
-  writeIns: ReadonlyArray<FsExpenseWriteIn> | null,
+  writeIns: ReadonlyArray<FsExpenseWriteIn>,
 ): Record<number, string> {
   const overrides: Record<number, string> = {};
-  (writeIns ?? []).slice(0, 4).forEach((writeIn, slot) => {
+  writeIns.slice(0, 4).forEach((writeIn, slot) => {
     overrides[27 + slot] = writeIn.label;
   });
   return overrides;
@@ -233,7 +233,7 @@ export type FinancialStatementsArgs = {
   fpName: string;
   amounts: Record<number, number | null>;
   bsRows: ReadonlyArray<FsBsRow>;
-  expenseWriteIns: ReadonlyArray<FsExpenseWriteIn> | null;
+  expenseWriteIns: ReadonlyArray<FsExpenseWriteIn>;
 };
 
 const FS_PAGE_W = 1123;

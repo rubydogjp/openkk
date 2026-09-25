@@ -65,14 +65,12 @@ export function assertFiscalPeriodPatchMatchesPhase(
   }
 }
 
-export type FiscalPeriodLifecycleFlags = {
-  phase: FiscalPeriodPhase;
-  openingBalancesCompleted: boolean;
-  documentsReceivedCompleted: boolean;
-};
-
 export function assertFiscalPeriodLifecycleFlags(
-  state: FiscalPeriodLifecycleFlags,
+  state: {
+    phase: FiscalPeriodPhase;
+    openingBalancesCompleted: boolean;
+    documentsReceivedCompleted: boolean;
+  },
   label: string,
 ): void {
   if (
@@ -92,14 +90,9 @@ export function assertFiscalPeriodLifecycleFlags(
   }
 }
 
-export type FiscalPeriodClosingMarkers = {
-  hasPreClosing: boolean;
-  hasClosing: boolean;
-};
-
 export function assertFiscalPeriodClosingMarkers(
   phase: FiscalPeriodPhase,
-  markers: FiscalPeriodClosingMarkers,
+  markers: { hasPreClosing: boolean; hasClosing: boolean },
   label: string,
 ): void {
   if (phase === "post_closing") {
@@ -124,13 +117,11 @@ export function assertFiscalPeriodClosingMarkers(
   }
 }
 
-export type FiscalPeriodArchiveState = {
-  archiveStatus: FiscalPeriodArchiveStatus;
-  archivedAt: string | null;
-};
-
 export function assertFiscalPeriodArchiveState(
-  state: FiscalPeriodArchiveState,
+  state: {
+    archiveStatus: FiscalPeriodArchiveStatus;
+    archivedAt: string | null;
+  },
   label: string,
 ): void {
   if (state.archiveStatus === "active" && state.archivedAt !== null) {

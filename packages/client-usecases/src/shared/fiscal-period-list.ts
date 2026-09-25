@@ -16,12 +16,12 @@ export function mapRemoteFiscalPeriod(period: FiscalPeriodApiRecord): FiscalPeri
     createdAt: period.createdAt,
     updatedAt: period.updatedAt,
     opening: {
-      openingBalanceLines: period.opening.openingBalanceLines.map((line) => ({
+      balanceLines: period.opening.balanceLines.map((line) => ({
         id: line.id,
         accountId: line.accountId,
         amount: line.amount,
       })),
-      openingJournals: period.opening.openingJournals.map((journal) => ({
+      journals: period.opening.journals.map((journal) => ({
         id: journal.id,
         date: journal.date,
         description: journal.description,

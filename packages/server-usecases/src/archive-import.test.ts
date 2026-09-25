@@ -242,7 +242,7 @@ describe("normalizeArchiveImportInput", () => {
     ).toThrow(/entry\.localId must be a string or null/);
 
     const invalidLineId = validArchiveInput();
-    const openingLine = archiveOpening(invalidLineId).openingJournals[0]!
+    const openingLine = archiveOpening(invalidLineId).journals[0]!
       .lines[0]! as { id: unknown };
     openingLine.id = { corrupted: true };
     expect(() =>
@@ -437,7 +437,7 @@ describe("normalizeArchiveImportInput", () => {
 
   it("rejects an unbalanced archived opening journal", () => {
     const input = validArchiveInput();
-    archiveOpening(input).openingJournals[0]!.lines[1]!.amount = 900;
+    archiveOpening(input).journals[0]!.lines[1]!.amount = 900;
 
     const error = captureError(() =>
       normalizeArchiveImportInput(input),
@@ -454,12 +454,12 @@ describe("normalizeArchiveImportInput", () => {
     configureArchivePhase(input, "pre_opening");
     const journal = (
       input.fiscalPeriod.opening as {
-        openingJournals: Array<{
+        journals: Array<{
           description: string;
           lines: Array<{ amount: number }>;
         }>;
       }
-    ).openingJournals[0]!;
+    ).journals[0]!;
     journal.description = "";
     journal.lines.forEach((line) => {
       line.amount = 0;
@@ -467,7 +467,7 @@ describe("normalizeArchiveImportInput", () => {
 
     const normalized = normalizeArchiveImportInput(input);
 
-    expect(normalized.fiscalPeriod.opening.openingJournals[0]).toMatchObject({
+    expect(normalized.fiscalPeriod.opening.journals[0]).toMatchObject({
       description: "",
       lines: [{ amount: 0 }, { amount: 0 }],
     });
@@ -476,11 +476,11 @@ describe("normalizeArchiveImportInput", () => {
   it("restores incomplete opening-balance drafts without forcing them to balance", () => {
     const input = validArchiveInput();
     configureArchivePhase(input, "pre_opening");
-    archiveOpening(input).openingBalanceLines[1]!.amount = 900;
+    archiveOpening(input).balanceLines[1]!.amount = 900;
 
     const normalized = normalizeArchiveImportInput(input);
 
-    expect(normalized.fiscalPeriod.opening.openingBalanceLines).toEqual([
+    expect(normalized.fiscalPeriod.opening.balanceLines).toEqual([
       { id: "cash", accountId: "a:現金", amount: 1000 },
       { id: "capital", accountId: "l:元入金", amount: 900 },
     ]);
@@ -490,7 +490,7 @@ describe("normalizeArchiveImportInput", () => {
     const zeroJournal = validArchiveInput();
     configureArchivePhase(zeroJournal, "pre_opening");
     zeroJournal.fiscalPeriod.openingBalancesCompleted = true;
-    archiveOpening(zeroJournal).openingJournals[0]!.lines.forEach((line) => {
+    archiveOpening(zeroJournal).journals[0]!.lines.forEach((line) => {
       line.amount = 0;
     });
     expect(() => normalizeArchiveImportInput(zeroJournal)).toThrow(
@@ -500,7 +500,7 @@ describe("normalizeArchiveImportInput", () => {
     const blankDescription = validArchiveInput();
     configureArchivePhase(blankDescription, "pre_opening");
     blankDescription.fiscalPeriod.openingBalancesCompleted = true;
-    archiveOpening(blankDescription).openingJournals[0]!.description = "";
+    archiveOpening(blankDescription).journals[0]!.description = "";
     expect(() =>
       normalizeArchiveImportInput(blankDescription),
     ).toThrow(/description is required/);
@@ -522,7 +522,7 @@ describe("normalizeArchiveImportInput", () => {
 
   it("rejects a negative archived opening balance amount", () => {
     const input = validArchiveInput();
-    archiveOpening(input).openingBalanceLines[0]!.amount = -100;
+    archiveOpening(input).balanceLines[0]!.amount = -100;
 
     const error = captureError(() =>
       normalizeArchiveImportInput(input),
@@ -536,7 +536,7 @@ describe("normalizeArchiveImportInput", () => {
 
   it("rejects duplicate archived opening balance accountIds", () => {
     const input = validArchiveInput();
-    archiveOpening(input).openingBalanceLines.push({
+    archiveOpening(input).balanceLines.push({
       id: "cash-2",
       accountId: "a:現金",
       amount: 500,
@@ -554,7 +554,7 @@ describe("normalizeArchiveImportInput", () => {
 
   it("rejects an archived opening balance without a visible account name", () => {
     const input = validArchiveInput();
-    archiveOpening(input).openingBalanceLines[0]!.accountId = "a:   ";
+    archiveOpening(input).balanceLines[0]!.accountId = "a:   ";
 
     expect(() => normalizeArchiveImportInput(input)).toThrow(
       /prefix and a non-blank account name/,
@@ -563,23 +563,23 @@ describe("normalizeArchiveImportInput", () => {
 
   it("rejects duplicate opening record IDs before reaching SQLite", () => {
     const duplicateBalanceId = validArchiveInput();
-    archiveOpening(duplicateBalanceId).openingBalanceLines[1]!.id = "cash";
+    archiveOpening(duplicateBalanceId).balanceLines[1]!.id = "cash";
     expect(() =>
       normalizeArchiveImportInput(duplicateBalanceId),
     ).toThrow(/archive opening balance line has a duplicate id/);
 
     const duplicateJournalId = validArchiveInput();
     const opening = archiveOpening(duplicateJournalId);
-    opening.openingJournals.push({
-      ...opening.openingJournals[0]!,
-      lines: opening.openingJournals[0]!.lines.map((line) => ({ ...line })),
+    opening.journals.push({
+      ...opening.journals[0]!,
+      lines: opening.journals[0]!.lines.map((line) => ({ ...line })),
     });
     expect(() =>
       normalizeArchiveImportInput(duplicateJournalId),
     ).toThrow(/archive opening journal has a duplicate id/);
 
     const duplicateLineId = validArchiveInput();
-    const journal = archiveOpening(duplicateLineId).openingJournals[0]!;
+    const journal = archiveOpening(duplicateLineId).journals[0]!;
     journal.lines[0]!.id = "same-line";
     journal.lines[1]!.id = "same-line";
     expect(() =>
@@ -588,8 +588,7 @@ describe("normalizeArchiveImportInput", () => {
   });
 
   it("normalizes category display names from legacy archives to master IDs", () => {
-    const input = validArchiveInput();
-    input.manifest.version = 1;
+    const input = legacyArchiveInput();
     const lines = input.entries[0]!.lines as Array<Record<string, unknown>>;
     lines[0]!.taxCategoryId = "課税 10%";
     lines[0]!.businessCategoryId = "第5種（サービス業等）";
@@ -625,23 +624,30 @@ describe("normalizeArchiveImportInput", () => {
     );
   });
 
+  it("reads legacy opening field names", () => {
+    const input = legacyArchiveInput();
+
+    const normalized = normalizeArchiveImportInput(input);
+
+    expect(normalized.fiscalPeriod.opening.balanceLines).toHaveLength(2);
+    expect(normalized.fiscalPeriod.opening.journals).toHaveLength(1);
+  });
+
   it("reads a missing opening in legacy archives as empty", () => {
-    const input = validArchiveInput();
-    input.manifest.version = 1;
+    const input = legacyArchiveInput();
     configureArchivePhase(input, "journalizing");
     input.fiscalPeriod.opening = null;
 
     const normalized = normalizeArchiveImportInput(input);
 
     expect(normalized.fiscalPeriod.opening).toEqual({
-      openingBalanceLines: [],
-      openingJournals: [],
+      balanceLines: [],
+      journals: [],
     });
   });
 
   it("reads a started pre_opening period from legacy archives as journalizing", () => {
-    const input = validArchiveInput();
-    input.manifest.version = 1;
+    const input = legacyArchiveInput();
     configureArchivePhase(input, "pre_opening");
     input.fiscalPeriod.settingsCompleted = true;
 
@@ -651,8 +657,7 @@ describe("normalizeArchiveImportInput", () => {
   });
 
   it("keeps an unstarted pre_opening period from legacy archives", () => {
-    const input = validArchiveInput();
-    input.manifest.version = 1;
+    const input = legacyArchiveInput();
     configureArchivePhase(input, "pre_opening");
     input.fiscalPeriod.settingsCompleted = false;
 
@@ -662,8 +667,7 @@ describe("normalizeArchiveImportInput", () => {
   });
 
   it("clears legacy disposal fields that the fixed asset status does not use", () => {
-    const input = validArchiveInput();
-    input.manifest.version = 1;
+    const input = legacyArchiveInput();
     input.fixedAssets[0]!.status = "active";
     input.fixedAssets[0]!.disposalDate = "2026-12-01";
     input.fixedAssets[0]!.disposalPrice = 0;
@@ -689,8 +693,7 @@ describe("normalizeArchiveImportInput", () => {
   });
 
   it("reads a blank legacy entry localId as null", () => {
-    const input = validArchiveInput();
-    input.manifest.version = 1;
+    const input = legacyArchiveInput();
     input.entries[0]!.localId = "";
 
     const normalized = normalizeArchiveImportInput(input);
@@ -709,8 +712,8 @@ describe("normalizeArchiveImportInput", () => {
 });
 
 type ArchiveOpeningView = {
-  openingBalanceLines: Array<{ id: string; accountId: string; amount: number }>;
-  openingJournals: Array<{
+  balanceLines: Array<{ id: string; accountId: string; amount: number }>;
+  journals: Array<{
     id: string;
     description: string;
     lines: Array<{ id: string; amount: number }>;
@@ -730,6 +733,17 @@ function captureError(fn: () => unknown): unknown {
     return error;
   }
   throw new Error("expected function to throw");
+}
+
+function legacyArchiveInput(): FiscalPeriodArchiveImportInput {
+  const input = validArchiveInput();
+  const opening = archiveOpening(input);
+  input.manifest.version = 1;
+  input.fiscalPeriod.opening = {
+    openingBalanceLines: opening.balanceLines,
+    openingJournals: opening.journals,
+  };
+  return input;
 }
 
 function validArchiveInput(): FiscalPeriodArchiveImportInput {
@@ -752,7 +766,7 @@ function validArchiveInput(): FiscalPeriodArchiveImportInput {
       openingBalancesCompleted: true,
       documentsReceivedCompleted: true,
       opening: {
-        openingBalanceLines: [
+        balanceLines: [
           {
             id: "cash",
             accountId: "a:現金",
@@ -764,7 +778,7 @@ function validArchiveInput(): FiscalPeriodArchiveImportInput {
             amount: 1000,
           },
         ],
-        openingJournals: [
+        journals: [
           {
             id: "carry-1",
             date: "2026-01-01",

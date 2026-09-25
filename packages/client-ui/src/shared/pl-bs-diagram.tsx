@@ -252,4 +252,3 @@ function DiagramLabel(props: { icon: string; color: string; label: string }) {
     </span>
   );
 }
-

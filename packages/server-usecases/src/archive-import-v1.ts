@@ -62,12 +62,11 @@ function migratePhase(fiscalPeriod: Record<string, unknown>): unknown {
 }
 
 function migrateOpening(value: unknown): Record<string, unknown> {
-  if (value == null) return { openingBalanceLines: [], openingJournals: [] };
+  if (value == null) return { balanceLines: [], journals: [] };
   const opening = requireObject(value, "archive opening");
   return {
-    ...opening,
-    openingBalanceLines: opening.openingBalanceLines ?? [],
-    openingJournals: mapArray(opening.openingJournals ?? [], (value) => {
+    balanceLines: opening.openingBalanceLines ?? [],
+    journals: mapArray(opening.openingJournals ?? [], (value) => {
       const journal = requireObject(value, "archive openingJournal");
       return { ...journal, lines: mapArray(journal.lines, migrateLine) };
     }),

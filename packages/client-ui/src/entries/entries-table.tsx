@@ -164,9 +164,7 @@ export function EntriesTable(props: {
                   row.recordId !== props.rows[index - 1]?.recordId;
                 const isRepeat = !isRecordHead;
                 const isActive =
-                  activeRecordId != null &&
-                  row.recordId != null &&
-                  row.recordId === activeRecordId;
+                  activeRecordId != null && row.recordId === activeRecordId;
                 return (
                   <div
                     key={`${row.recordId}-${index}`}
@@ -687,9 +685,8 @@ function TagChip(props: {
   align: "left" | "right" | null;
   emptyText: string | null;
 }) {
-  const value = props.text == null ? "" : String(props.text);
-  const isEmpty = value.trim() === "";
-  const displayText = isEmpty ? (props.emptyText ?? "−") : value;
+  const isEmpty = props.text.trim() === "";
+  const displayText = isEmpty ? (props.emptyText ?? "−") : props.text;
   return (
     <div
       style={{

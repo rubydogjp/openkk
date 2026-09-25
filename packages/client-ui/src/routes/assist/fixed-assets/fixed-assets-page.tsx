@@ -13,7 +13,6 @@ import {
   buildPeriodLockMessage,
   capFixedAssetPreviewDate,
   fixedAssetToDraft,
-  formatIsoLocalDate,
   type FixedAssetDraft,
 } from "@rubydogjp/openkk-client-domain";
 import { ClosedPeriodLock } from "../../../shared/closed-period-lock.js";
@@ -96,10 +95,7 @@ export function FixedAssetsPage() {
             : () => {
                 navigateWithAssetParam(null);
                 setNewAssetDraft(
-                  buildNewFixedAssetDraft(
-                    currentFiscalPeriod.startDate,
-                    today,
-                  ),
+                  buildNewFixedAssetDraft(currentFiscalPeriod.startDate),
                 );
               }
         }
@@ -162,11 +158,7 @@ export function FixedAssetsPage() {
   );
 }
 
-function buildNewFixedAssetDraft(
-  periodStartDate: string | null,
-  today: Date,
-): FixedAssetDraft {
-  const acquisitionDate = periodStartDate ?? formatIsoLocalDate(today);
+function buildNewFixedAssetDraft(acquisitionDate: string): FixedAssetDraft {
   return {
     name: "",
     account: "工具器具備品",

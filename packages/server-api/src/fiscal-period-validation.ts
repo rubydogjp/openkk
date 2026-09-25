@@ -255,9 +255,9 @@ function assertOpeningTextChanges(
   current: FiscalPeriodOpeningApiRecord,
 ): void {
   const savedJournals = new Map(
-    current.openingJournals.map((journal) => [journal.id, journal]),
+    current.journals.map((journal) => [journal.id, journal]),
   );
-  for (const journal of opening.openingJournals) {
+  for (const journal of opening.journals) {
     const savedJournal = savedJournals.get(journal.id) ?? null;
     assertTextFieldChange(
       journal.description,

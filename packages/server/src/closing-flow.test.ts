@@ -268,7 +268,7 @@ function createMemoryDb(
       async importArchived() {
         return fiscalPeriod({ id: "fp-archive", archiveStatus: "archived" });
       },
-      async update(id: string, patch: FiscalPeriodPatchInput) {
+      async patch(id: string, patch: FiscalPeriodPatchInput) {
         const { opening, ...rest } = patch;
         current = fiscalPeriod({
           ...current,
@@ -300,7 +300,7 @@ function createMemoryDb(
         };
         return current;
       },
-      async delete() {},
+      async remove() {},
     },
     entries: {
       async getAll() {
@@ -331,7 +331,7 @@ function createMemoryDb(
           lines: entryLinesWithIds(input.lines),
         });
       },
-      async delete() {},
+      async remove() {},
       async importMany(
         _userId: string,
         fiscalPeriodId: string,
@@ -362,10 +362,10 @@ function createMemoryDb(
       ) {
         return fixedAsset({ id: "asset-1", fiscalPeriodId, ...input });
       },
-      async update(id: string, patch: FixedAssetPatchInput) {
+      async patch(id: string, patch: FixedAssetPatchInput) {
         return fixedAsset({ id, fiscalPeriodId: "fp-1", ...changedFields(patch) });
       },
-      async delete() {},
+      async remove() {},
     },
     preClosings: {
       async get(fiscalPeriodId, year) {
@@ -431,8 +431,8 @@ function fiscalPeriod(
     opening:
       overrides.opening === undefined
         ? {
-            openingBalanceLines: [],
-            openingJournals: [],
+            balanceLines: [],
+            journals: [],
           }
         : overrides.opening,
   };

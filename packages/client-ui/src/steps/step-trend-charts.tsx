@@ -41,10 +41,10 @@ export function JournalizingCompletedTrendChart(props: {
 }
 
 export function JournalizingNotStartedTrendChart(props: {
-  points: StepTrendPoint[] | null;
+  points: StepTrendPoint[];
 }) {
   const points =
-    props.points != null && props.points.length > 0
+    props.points.length > 0
       ? props.points
       : Array.from({ length: 12 }, (_, index) => ({
           label: `${index + 1}月`,

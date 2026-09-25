@@ -28,13 +28,13 @@ export type FiscalPeriod = {
   opening: FiscalPeriodOpening;
 };
 
-export type FiscalPeriodOpeningBalanceLine = {
+export type OpeningBalanceLine = {
   id: string;
   accountId: string;
   amount: number;
 };
 
-export type FiscalPeriodOpeningJournalLine = {
+export type OpeningJournalLine = {
   id: string;
   side: "debit" | "credit";
   bookAccountId: string;
@@ -44,15 +44,15 @@ export type FiscalPeriodOpeningJournalLine = {
   businessCategoryId: string;
 };
 
-export type FiscalPeriodOpeningJournal = {
+export type OpeningJournal = {
   id: string;
   date: string;
   description: string;
   businessRate: number;
-  lines: FiscalPeriodOpeningJournalLine[];
+  lines: OpeningJournalLine[];
 };
 
 export type FiscalPeriodOpening = {
-  openingBalanceLines: FiscalPeriodOpeningBalanceLine[];
-  openingJournals: FiscalPeriodOpeningJournal[];
+  balanceLines: OpeningBalanceLine[];
+  journals: OpeningJournal[];
 };

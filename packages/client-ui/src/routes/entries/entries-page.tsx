@@ -647,12 +647,10 @@ function resolveNewEntryDefaultDate(input: {
 
 function isDateWithinRange(
   dateText: string,
-  startDate: string | null,
-  endDate: string | null,
+  startDate: string,
+  endDate: string,
 ): boolean {
-  if (startDate != null && dateText < startDate) return false;
-  if (endDate != null && dateText > endDate) return false;
-  return true;
+  return startDate <= dateText && dateText <= endDate;
 }
 
 function parseMonthParam(value: string | null): YearMonth | null {

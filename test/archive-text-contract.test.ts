@@ -29,11 +29,11 @@ describe("archive text preservation", () => {
         businessCategoryId: text,
       }));
       await db.fiscalPeriods.start(period.id);
-      period = await db.fiscalPeriods.update(period.id, {
+      period = await db.fiscalPeriods.patch(period.id, {
         openingBalancesCompleted: true,
         opening: {
           ...period.opening,
-          openingJournals: [
+          journals: [
             {
               id: "journal-1",
               date: period.startDate,
@@ -71,6 +71,12 @@ describe("archive text preservation", () => {
         closings: [],
       });
       payload.manifest.version = version;
+      if (version === 1) {
+        payload.fiscalPeriod.opening = {
+          openingBalanceLines: period.opening.balanceLines,
+          openingJournals: period.opening.journals,
+        };
+      }
       const target = createOpenkkServer(await createMemoryDbAdapter(null), {
         userId: "user-1",
       });
@@ -81,7 +87,7 @@ describe("archive text preservation", () => {
       const fixedAssets = await target.fixedAssets.getAll(restored.id);
 
       expect(restored.name).toBe(text);
-      expect(restored.opening.openingJournals[0]).toMatchObject({
+      expect(restored.opening.journals[0]).toMatchObject({
         description: text,
         lines,
       });
@@ -117,7 +123,7 @@ describe("archive text preservation", () => {
           periodEndDate: restored.endDate,
           entries,
           fixedAssets,
-          openingJournals: restored.opening.openingJournals,
+          openingJournals: restored.opening.journals,
           bookAccounts: await target.masterData.getBookAccounts(),
         }),
       );

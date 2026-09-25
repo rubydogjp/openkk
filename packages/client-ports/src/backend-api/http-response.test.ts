@@ -269,7 +269,7 @@ describe("resolveOpenkkHttpResponse", () => {
       ...fiscalPeriod(),
       openingBalancesCompleted: true,
       opening: openingResponse({
-        openingBalanceLines: [
+        balanceLines: [
           { id: "asset", accountId: "a:現金", amount: 1000 },
           { id: "equity", accountId: "l:元入金", amount: 1000 },
         ],
@@ -288,7 +288,7 @@ describe("resolveOpenkkHttpResponse", () => {
     const period = {
       ...fiscalPeriod(),
       opening: openingResponse({
-        openingJournals: [
+        journals: [
           {
             id: "journal-1",
             date: "2026-01-01",
@@ -407,10 +407,10 @@ describe("resolveOpenkkHttpResponse", () => {
               {
                 ...fiscalPeriod(),
                 opening: {
-                  openingBalanceLines: [
+                  balanceLines: [
                     { id: "line-1", accountId: "a:", amount: 1000 },
                   ],
-                  openingJournals: [],
+                  journals: [],
                 },
               },
             ],
@@ -425,7 +425,7 @@ describe("resolveOpenkkHttpResponse", () => {
 
   it("rejects duplicate opening accounts", () => {
     const opening = openingResponse({
-      openingBalanceLines: [
+      balanceLines: [
         { id: "asset-1", accountId: "a:現金", amount: 1000 },
         { id: "asset-2", accountId: "a:現金", amount: 1000 },
       ],
@@ -497,7 +497,7 @@ describe("resolveOpenkkHttpResponse", () => {
 
   it("rejects oversized opening collections and aggregate journal lines", () => {
     const tooManyBalances = openingResponse({
-      openingBalanceLines: Array(10_001).fill({
+      balanceLines: Array(10_001).fill({
         id: "balance",
         accountId: "a:現金",
         amount: 0,
@@ -506,7 +506,7 @@ describe("resolveOpenkkHttpResponse", () => {
     const line = entryResponse().lines[0];
     const lines = Array(1_000).fill(line);
     const tooManyJournalLines = openingResponse({
-      openingJournals: Array.from({ length: 101 }, (_, index) => ({
+      journals: Array.from({ length: 101 }, (_, index) => ({
         id: `journal-${index}`,
         date: "2026-01-01",
         description: "",
@@ -760,8 +760,8 @@ function bookAccountResponse() {
 
 function openingResponse(overrides: Record<string, unknown> = {}) {
   return {
-    openingBalanceLines: [],
-    openingJournals: [],
+    balanceLines: [],
+    journals: [],
     ...overrides,
   };
 }

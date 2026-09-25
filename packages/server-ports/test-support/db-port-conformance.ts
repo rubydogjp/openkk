@@ -57,13 +57,13 @@ export function runDbPortConformance(
       endDate: "2026-12-31",
     });
     await db.fiscalPeriods.start(created.id);
-    return db.fiscalPeriods.update(created.id, {
+    return db.fiscalPeriods.patch(created.id, {
       openingBalancesCompleted: true,
     });
   }
 
   function emptyOpening() {
-    return { openingBalanceLines: [], openingJournals: [] };
+    return { balanceLines: [], journals: [] };
   }
 
   function seedWithPeriods(...ids: string[]): DbSnapshot {
@@ -103,8 +103,8 @@ export function runDbPortConformance(
       expect(created.name).toBe("FY2026");
       expect(created.phase).toBe("pre_opening");
       expect(created.opening).toEqual({
-        openingBalanceLines: [],
-        openingJournals: [],
+        balanceLines: [],
+        journals: [],
       });
       expect(await db.fiscalPeriods.getById(created.id)).toEqual(created);
     });
@@ -171,7 +171,7 @@ export function runDbPortConformance(
         endDate: "2027-12-31",
       });
       await expect(
-        db.fiscalPeriods.update(next.id, { startDate: first.endDate }),
+        db.fiscalPeriods.patch(next.id, { startDate: first.endDate }),
       ).rejects.toThrow(/overlaps active fiscal period/);
       expect((await db.fiscalPeriods.getById(next.id))?.startDate).toBe(
         "2027-01-01",
@@ -199,7 +199,7 @@ export function runDbPortConformance(
       expect(await db.fiscalPeriods.getAll("user-1")).toEqual([]);
     });
 
-    it("update only patches provided fields", async () => {
+    it("patch changes only provided fields", async () => {
       const db = await makeDb();
       const created = await db.fiscalPeriods.create("user-1", {
         name: "Original",
@@ -207,7 +207,7 @@ export function runDbPortConformance(
         endDate: "2026-12-31",
       });
 
-      const updated = await db.fiscalPeriods.update(created.id, {
+      const updated = await db.fiscalPeriods.patch(created.id, {
         name: "Renamed",
       });
       expect(updated.name).toBe("Renamed");
@@ -237,11 +237,11 @@ export function runDbPortConformance(
       const period = await createTestFiscalPeriod(db);
       const opening = {
         ...period.opening,
-        openingBalanceLines: [
+        balanceLines: [
           { id: "balance-1", accountId: "a:現金", amount: 1000 },
           { id: "balance-2", accountId: "l:元入金", amount: 1000 },
         ],
-        openingJournals: [
+        journals: [
           {
             id: "journal-1",
             date: "2026-01-01",
@@ -271,7 +271,7 @@ export function runDbPortConformance(
         ],
       };
 
-      const updated = await db.fiscalPeriods.update(period.id, { opening });
+      const updated = await db.fiscalPeriods.patch(period.id, { opening });
 
       expect(updated.opening).toEqual(opening);
       expect((await db.fiscalPeriods.getById(period.id))?.opening).toEqual(
@@ -291,8 +291,8 @@ export function runDbPortConformance(
       });
       const draftOpening = {
         ...period.opening,
-        openingBalanceLines: [],
-        openingJournals: [
+        balanceLines: [],
+        journals: [
           {
             id: "draft-journal",
             date: "2026-01-01",
@@ -306,22 +306,22 @@ export function runDbPortConformance(
         ],
       };
 
-      const withDraft = await db.fiscalPeriods.update(period.id, {
+      const withDraft = await db.fiscalPeriods.patch(period.id, {
         opening: draftOpening,
       });
-      expect(withDraft.opening.openingJournals[0]?.description).toBe("");
+      expect(withDraft.opening.journals[0]?.description).toBe("");
 
       await expect(
-        db.fiscalPeriods.update(period.id, {
+        db.fiscalPeriods.patch(period.id, {
           openingBalancesCompleted: true,
         }),
       ).rejects.toThrow(/description is required/);
       await expect(
-        db.fiscalPeriods.update(period.id, {
+        db.fiscalPeriods.patch(period.id, {
           openingBalancesCompleted: true,
           opening: {
             ...draftOpening,
-            openingJournals: draftOpening.openingJournals.map((journal) => ({
+            journals: draftOpening.journals.map((journal) => ({
               ...journal,
               description: "carryover",
             })),
@@ -336,15 +336,15 @@ export function runDbPortConformance(
       const period = await createTestFiscalPeriod(db);
       const invalidOpening = {
         ...period.opening,
-        openingBalanceLines: [
+        balanceLines: [
           { id: "balance-1", accountId: "a:現金", amount: 1000 },
           { id: "balance-2", accountId: "a:現金", amount: 2000 },
         ],
-        openingJournals: [],
+        journals: [],
       };
 
       await expect(
-        db.fiscalPeriods.update(period.id, {
+        db.fiscalPeriods.patch(period.id, {
           openingBalancesCompleted: true,
           opening: invalidOpening,
         }),
@@ -378,20 +378,20 @@ export function runDbPortConformance(
       };
       const opening = {
         ...period.opening,
-        openingBalanceLines: [],
-        openingJournals: [balancedJournal],
+        balanceLines: [],
+        journals: [balancedJournal],
       };
-      const withOpening = await db.fiscalPeriods.update(period.id, { opening });
+      const withOpening = await db.fiscalPeriods.patch(period.id, { opening });
 
       await expect(
-        db.fiscalPeriods.update(period.id, { startDate: "2026-02-01" }),
+        db.fiscalPeriods.patch(period.id, { startDate: "2026-02-01" }),
       ).rejects.toThrow(/Opening journal date .* must be within fiscal period/);
       await expect(
-        db.fiscalPeriods.update(period.id, {
+        db.fiscalPeriods.patch(period.id, {
           openingBalancesCompleted: true,
           opening: {
             ...opening,
-            openingBalanceLines: [
+            balanceLines: [
               { id: "asset", accountId: "a:現金", amount: 1000 },
               { id: "equity", accountId: "l:元入金", amount: 900 },
             ],
@@ -402,10 +402,10 @@ export function runDbPortConformance(
       expect(await db.fiscalPeriods.getById(period.id)).toEqual(withOpening);
     });
 
-    it("update throws when record not found", async () => {
+    it("patch throws when record not found", async () => {
       const db = await makeDb();
       await expect(
-        db.fiscalPeriods.update("nonexistent", { name: "x" }),
+        db.fiscalPeriods.patch("nonexistent", { name: "x" }),
       ).rejects.toThrow(/fiscal period not found/);
     });
 
@@ -437,7 +437,7 @@ export function runDbPortConformance(
         endDate: "2026-12-31",
       });
       await db.fiscalPeriods.start(period.id);
-      await db.fiscalPeriods.update(period.id, {
+      await db.fiscalPeriods.patch(period.id, {
         openingBalancesCompleted: true,
       });
       await db.entries.create("user-1", period.id, {
@@ -458,7 +458,7 @@ export function runDbPortConformance(
       });
       await db.preClosings.run(period.id, 2026);
 
-      await db.fiscalPeriods.delete(period.id);
+      await db.fiscalPeriods.remove(period.id);
 
       expect(await db.fiscalPeriods.getById(period.id)).toBeNull();
       expect(await db.entries.getAll(period.id)).toEqual([]);
@@ -475,15 +475,15 @@ export function runDbPortConformance(
         endDate: "2026-12-31",
       });
       await db.fiscalPeriods.start(period.id);
-      await db.fiscalPeriods.update(period.id, {
+      await db.fiscalPeriods.patch(period.id, {
         openingBalancesCompleted: true,
         opening: {
           ...period.opening,
-          openingBalanceLines: [
+          balanceLines: [
             { id: "balance-1", accountId: "a:現金", amount: 1000 },
             { id: "balance-2", accountId: "l:元入金", amount: 1000 },
           ],
-          openingJournals: [],
+          journals: [],
         },
       });
       await db.entries.create("user-1", period.id, {
@@ -504,7 +504,7 @@ export function runDbPortConformance(
       });
       await db.preClosings.run(period.id, 2026);
       await db.closings.run(period.id, 2026, []);
-      await db.fiscalPeriods.update(period.id, {
+      await db.fiscalPeriods.patch(period.id, {
         documentsReceivedCompleted: true,
       });
       await db.fiscalPeriods.archive(period.id);
@@ -519,7 +519,7 @@ export function runDbPortConformance(
       const reloaded = await db.fiscalPeriods.getById(period.id);
       expect(reloaded).not.toBeNull();
       expect(reloaded?.archiveStatus).toBe("purged");
-      expect(reloaded?.opening.openingBalanceLines ?? []).toEqual([]);
+      expect(reloaded?.opening.balanceLines ?? []).toEqual([]);
     });
 
     it("purgeArchivedData rejects a period that is not archived", async () => {
@@ -544,7 +544,7 @@ export function runDbPortConformance(
           phase: "post_closing",
           openingBalancesCompleted: true,
           documentsReceivedCompleted: true,
-          opening: { openingBalanceLines: [], openingJournals: [] },
+          opening: { balanceLines: [], journals: [] },
         },
         entries: [
           {
@@ -606,7 +606,7 @@ export function runDbPortConformance(
           phase: "journalizing",
           openingBalancesCompleted: true,
           documentsReceivedCompleted: false,
-          opening: { openingBalanceLines: [], openingJournals: [] },
+          opening: { balanceLines: [], journals: [] },
         },
         entries: [
           {
@@ -653,7 +653,7 @@ export function runDbPortConformance(
           phase: "journalizing",
           openingBalancesCompleted: false,
           documentsReceivedCompleted: false,
-          opening: { openingBalanceLines: [], openingJournals: [] },
+          opening: { balanceLines: [], journals: [] },
         },
         entries: [],
         fixedAssets: [],
@@ -830,7 +830,7 @@ export function runDbPortConformance(
         endDate: "2027-12-31",
       });
       await db.fiscalPeriods.start(secondCreated.id);
-      const secondPeriod = await db.fiscalPeriods.update(secondCreated.id, {
+      const secondPeriod = await db.fiscalPeriods.patch(secondCreated.id, {
         openingBalancesCompleted: true,
       });
       const original = await db.entries.create("user-1", firstPeriod.id, {
@@ -867,7 +867,7 @@ export function runDbPortConformance(
       expect(updated.description).toBe("after");
       expect(updated.businessRate).toBe(0.5);
 
-      await db.entries.delete(original.id);
+      await db.entries.remove(original.id);
       expect(await db.entries.getById(original.id)).toBeNull();
     });
 
@@ -894,7 +894,7 @@ export function runDbPortConformance(
       expect(updated.localId).toBeNull();
       expect(updated.description).toBe("updated without external id");
 
-      await db.entries.delete(created.id);
+      await db.entries.remove(created.id);
       expect(await db.entries.getById(created.id)).toBeNull();
     });
 
@@ -1112,7 +1112,7 @@ export function runDbPortConformance(
       ).rejects.toThrow(/fiscal period not found/);
     });
 
-    it("create / getAll / update / delete round-trip", async () => {
+    it("create / getAll / patch / remove round-trip", async () => {
       const db = await makeDb();
       const period = await createTestFiscalPeriod(db);
       const asset = await db.fixedAssets.create("user-1", period.id, {
@@ -1130,7 +1130,7 @@ export function runDbPortConformance(
         asset,
       ]);
 
-      const updated = await db.fixedAssets.update(asset.id, {
+      const updated = await db.fixedAssets.patch(asset.id, {
         businessRate: 0.7,
         status: "disposed",
         disposalDate: "2026-12-31",
@@ -1144,7 +1144,7 @@ export function runDbPortConformance(
         name: "Camera",
       });
 
-      await db.fixedAssets.delete(asset.id);
+      await db.fixedAssets.remove(asset.id);
       expect(await db.fixedAssets.getAll(period.id)).toEqual([]);
     });
 
@@ -1179,7 +1179,7 @@ export function runDbPortConformance(
 
       const asset = await db.fixedAssets.create("user-1", period.id, base);
       await expect(
-        db.fixedAssets.update(asset.id, {
+        db.fixedAssets.patch(asset.id, {
           status: "disposed",
           disposalDate: "2026-12-31",
           disposalPrice: 20000,
@@ -1271,7 +1271,7 @@ export function runDbPortConformance(
         }),
       ).rejects.toThrow(/cannot create fixed asset from phase post_closing/);
       await expect(
-        db.fiscalPeriods.update(period.id, { name: "late rename" }),
+        db.fiscalPeriods.patch(period.id, { name: "late rename" }),
       ).rejects.toThrow(
         /only allows document receipt completion after closing/,
       );

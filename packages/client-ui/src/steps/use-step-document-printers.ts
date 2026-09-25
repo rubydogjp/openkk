@@ -42,7 +42,7 @@ export function useStepDocumentPrinters(
 
   const printGeneralLedger = () => {
     if (fiscalPeriod == null) return;
-    const openingBalanceLines = fiscalPeriod.opening.openingBalanceLines;
+    const openingBalanceLines = fiscalPeriod.opening.balanceLines;
     printDocument(
       buildGeneralLedgerDocument(
         fiscalPeriod.name,
@@ -54,7 +54,7 @@ export function useStepDocumentPrinters(
 
   const printFinancialStatements = () => {
     if (fiscalPeriod == null) return;
-    const openingBalanceLines = fiscalPeriod.opening.openingBalanceLines;
+    const openingBalanceLines = fiscalPeriod.opening.balanceLines;
     const { amounts, bsRows, expenseWriteIns } = computeFsAggregate({
       entries: closingEntries(fiscalPeriod),
       openingBalanceLines,

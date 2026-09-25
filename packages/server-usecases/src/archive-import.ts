@@ -16,7 +16,7 @@ import {
   type EntrySide,
   type FiscalPeriodPhase,
   type FixedAssetStatus,
-  type Opening,
+  type FiscalPeriodOpening,
 } from "@rubydogjp/openkk-server-domain";
 import type {
   EntryUpsertInput,
@@ -213,15 +213,15 @@ function normalizeArchivedOpening(
   value: unknown,
   period: { startDate: string; endDate: string },
   completed: boolean,
-): Opening {
+): FiscalPeriodOpening {
   assertOpeningMatchesRules(value, period, "archive opening", { completed });
   return {
-    openingBalanceLines: value.openingBalanceLines.map((line) => ({
+    balanceLines: value.balanceLines.map((line) => ({
       id: line.id,
       accountId: line.accountId,
       amount: line.amount,
     })),
-    openingJournals: value.openingJournals.map((journal) => ({
+    journals: value.journals.map((journal) => ({
       id: journal.id,
       date: journal.date,
       description: journal.description,

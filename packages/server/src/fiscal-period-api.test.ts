@@ -99,8 +99,8 @@ describe("openkk server fiscal period API", () => {
         phase: "pre_opening",
         openingBalancesCompleted: false,
         opening: {
-          openingBalanceLines: [],
-          openingJournals: [
+          balanceLines: [],
+          journals: [
             openingJournal({
               date: "2026-01-01",
               lines: [
@@ -232,7 +232,7 @@ describe("openkk server fiscal period API", () => {
     const updated = await server.fiscalPeriods.patch("fp-user-1", {
       openingBalancesCompleted: true,
       opening: openingPatch({
-        openingBalanceLines: [
+        balanceLines: [
           { id: "asset", accountId: "a:現金", amount: 1000 },
           { id: "equity", accountId: "l:元入金", amount: 1000 },
         ],
@@ -375,7 +375,7 @@ describe("openkk server fiscal period API", () => {
     await expect(
       server.fiscalPeriods.patch("fp-user-1", {
         opening: openingPatch({
-          openingJournals: [
+          journals: [
             openingJournal({
               lines: [
                 openingLine({ id: "debit", side: "debit", amount: 1000 }),
@@ -400,7 +400,7 @@ describe("openkk server fiscal period API", () => {
     const server = createOpenkkServer(db, { userId: "user-1" });
 
     const draftOpening = openingPatch({
-          openingJournals: [
+          journals: [
             {
               id: "draft-journal",
               date: "2026-01-01",
@@ -443,7 +443,7 @@ describe("openkk server fiscal period API", () => {
         openingBalancesCompleted: true,
         opening: {
           ...draftOpening,
-          openingJournals: draftOpening.openingJournals.map((journal) => ({
+          journals: draftOpening.journals.map((journal) => ({
             ...journal,
             description: "期首再振替",
           })),
@@ -466,7 +466,7 @@ describe("openkk server fiscal period API", () => {
 
     await expect(
       server.fiscalPeriods.patch("fp-user-1", {
-        opening: openingPatch({ openingJournals: [journal, journal] }),
+        opening: openingPatch({ journals: [journal, journal] }),
       }),
     ).rejects.toThrow(/duplicate id/);
   });
@@ -480,7 +480,7 @@ describe("openkk server fiscal period API", () => {
     await expect(
       server.fiscalPeriods.patch("fp-user-1", {
         opening: openingPatch({
-          openingBalanceLines: Array(MAX_ENTRY_IMPORT_ITEMS + 1).fill(
+          balanceLines: Array(MAX_ENTRY_IMPORT_ITEMS + 1).fill(
             balanceLine,
           ),
         }),
@@ -491,7 +491,7 @@ describe("openkk server fiscal period API", () => {
     await expect(
       server.fiscalPeriods.patch("fp-user-1", {
         opening: openingPatch({
-          openingJournals: Array(MAX_ENTRY_IMPORT_ITEMS + 1).fill(journal),
+          journals: Array(MAX_ENTRY_IMPORT_ITEMS + 1).fill(journal),
         }),
       }),
     ).rejects.toThrow(/Opening journals exceed the 10,000 item limit/);
@@ -511,7 +511,7 @@ describe("openkk server fiscal period API", () => {
 
     await expect(
       server.fiscalPeriods.patch("fp-user-1", {
-        opening: openingPatch({ openingJournals }),
+        opening: openingPatch({ journals: openingJournals }),
       }),
     ).rejects.toThrow(/Opening journal lines exceed the 100,000 line limit/);
   });
@@ -525,8 +525,8 @@ describe("openkk server fiscal period API", () => {
     await expect(
       server.fiscalPeriods.patch("fp-user-1", {
         opening: openingPatch({
-          openingJournals: [
-            null as unknown as OpeningPatch["openingJournals"][number],
+          journals: [
+            null as unknown as OpeningPatch["journals"][number],
           ],
         }),
       }),
@@ -542,7 +542,7 @@ describe("openkk server fiscal period API", () => {
     await expect(
       server.fiscalPeriods.patch("fp-user-1", {
         opening: openingPatch({
-          openingBalanceLines: [
+          balanceLines: [
             { id: "l1", accountId: "a:現金", amount: -100 },
           ],
         }),
@@ -559,7 +559,7 @@ describe("openkk server fiscal period API", () => {
     await expect(
       server.fiscalPeriods.patch("fp-user-1", {
         opening: openingPatch({
-          openingBalanceLines: [
+          balanceLines: [
             { id: "l1", accountId: "a:現金", amount: 100 },
             { id: "l2", accountId: "a:現金", amount: 200 },
           ],
@@ -578,7 +578,7 @@ describe("openkk server fiscal period API", () => {
       await expect(
         server.fiscalPeriods.patch("fp-user-1", {
           opening: openingPatch({
-            openingBalanceLines: [
+            balanceLines: [
               { id: `line-${accountId}`, accountId, amount: 100 },
             ],
           }),
@@ -601,7 +601,7 @@ describe("openkk server fiscal period API", () => {
       server.fiscalPeriods.patch("fp-user-1", {
         openingBalancesCompleted: true,
         opening: openingPatch({
-          openingBalanceLines: [
+          balanceLines: [
             { id: "asset", accountId: "a:現金", amount: 1000 },
             { id: "liability", accountId: "l:借入金", amount: 900 },
           ],
@@ -619,7 +619,7 @@ describe("openkk server fiscal period API", () => {
     await expect(
       server.fiscalPeriods.patch("fp-user-1", {
         opening: openingPatch({
-          openingJournals: [openingJournal({ date: "2027-01-01", lines: [] })],
+          journals: [openingJournal({ date: "2027-01-01", lines: [] })],
         }),
       }),
     ).rejects.toThrow(/Opening journal date .* must be within fiscal period/);
@@ -670,8 +670,8 @@ describe("openkk server fiscal period API", () => {
         openingBalancesCompleted: true,
         documentsReceivedCompleted: true,
         opening: {
-          openingBalanceLines: [],
-          openingJournals: [],
+          balanceLines: [],
+          journals: [],
         },
       },
       entries: [],
@@ -760,14 +760,14 @@ function createFiscalPeriodDb(
           userId,
           ...rest,
           opening: {
-            openingBalanceLines: opening?.openingBalanceLines ?? [],
-            openingJournals: opening?.openingJournals ?? [],
+            balanceLines: opening?.balanceLines ?? [],
+            journals: opening?.journals ?? [],
           },
         });
         fiscalPeriods.set(record.id, record);
         return record;
       },
-      async update(id: string, patch: FiscalPeriodPatchInput) {
+      async patch(id: string, patch: FiscalPeriodPatchInput) {
         const current = fiscalPeriods.get(id);
         if (current == null) throw new Error(`fiscal period not found: ${id}`);
         const { opening, ...rest } = patch;
@@ -810,7 +810,7 @@ function createFiscalPeriodDb(
         fiscalPeriods.set(id, updated);
         return updated;
       },
-      async delete(id) {
+      async remove(id) {
         fiscalPeriods.delete(id);
       },
     },
@@ -843,7 +843,7 @@ function createFiscalPeriodDb(
           lines: entryLinesWithIds(input.lines),
         });
       },
-      async delete() {},
+      async remove() {},
       async importMany(
         _userId: string,
         fiscalPeriodId: string,
@@ -876,10 +876,10 @@ function createFiscalPeriodDb(
       ) {
         return fixedAsset({ fiscalPeriodId, ...input });
       },
-      async update(id: string, patch: FixedAssetPatchInput) {
+      async patch(id: string, patch: FixedAssetPatchInput) {
         return fixedAsset({ id, ...changedFields(patch) });
       },
-      async delete() {},
+      async remove() {},
     },
     preClosings: {
       async get() {
@@ -950,22 +950,22 @@ function fiscalPeriod(
 }
 
 function emptyOpening(): FiscalPeriodOpeningApiRecord {
-  return { openingBalanceLines: [], openingJournals: [] };
+  return { balanceLines: [], journals: [] };
 }
 
 type OpeningPatch = NonNullable<FiscalPeriodPatchInput["opening"]>;
 
 function openingPatch(overrides: Partial<OpeningPatch>): OpeningPatch {
   const base: OpeningPatch = {
-    openingBalanceLines: [],
-    openingJournals: [],
+    balanceLines: [],
+    journals: [],
   };
   return Object.assign(base, overrides);
 }
 
 function openingJournal(
-  overrides: Partial<OpeningPatch["openingJournals"][number]>,
-): OpeningPatch["openingJournals"][number] {
+  overrides: Partial<OpeningPatch["journals"][number]>,
+): OpeningPatch["journals"][number] {
   return {
     id: "oj-1",
     date: "2026-01-01",
@@ -977,8 +977,8 @@ function openingJournal(
 }
 
 function openingLine(
-  overrides: Partial<OpeningPatch["openingJournals"][number]["lines"][number]>,
-): OpeningPatch["openingJournals"][number]["lines"][number] {
+  overrides: Partial<OpeningPatch["journals"][number]["lines"][number]>,
+): OpeningPatch["journals"][number]["lines"][number] {
   return {
     id: "ojl-1",
     side: "debit",

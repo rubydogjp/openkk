@@ -55,7 +55,7 @@ function createClosingsUsecase(db: OpenkkDbPort) {
         periodEndDate: period.endDate,
         entries: persistedEntries,
         fixedAssets,
-        openingJournals: period.opening.openingJournals,
+        openingJournals: period.opening.journals,
         bookAccounts,
       });
       assertClosingEntriesMatch(entries, expectedEntries);
@@ -103,9 +103,9 @@ function createEntriesUsecase(db: OpenkkDbPort) {
       await requireOwnedEntry(db, userId, id);
       return db.entries.update(id, input);
     },
-    async delete(userId: string, id: string) {
+    async remove(userId: string, id: string) {
       await requireOwnedEntry(db, userId, id);
-      await db.entries.delete(id);
+      await db.entries.remove(id);
     },
     async importMany(
       userId: string,
@@ -158,9 +158,9 @@ function createFiscalPeriodsUsecase(db: OpenkkDbPort) {
       }
       return db.fiscalPeriods.importArchived(userId, normalized);
     },
-    async update(userId: string, id: string, patch: FiscalPeriodPatchInput) {
+    async patch(userId: string, id: string, patch: FiscalPeriodPatchInput) {
       await requireOwnedFiscalPeriod(db, userId, id);
-      return db.fiscalPeriods.update(id, patch);
+      return db.fiscalPeriods.patch(id, patch);
     },
     async start(userId: string, id: string) {
       await requireOwnedFiscalPeriod(db, userId, id);
@@ -174,9 +174,9 @@ function createFiscalPeriodsUsecase(db: OpenkkDbPort) {
       await requireOwnedFiscalPeriod(db, userId, id);
       return db.fiscalPeriods.purgeArchivedData(id);
     },
-    async delete(userId: string, id: string) {
+    async remove(userId: string, id: string) {
       await requireOwnedFiscalPeriod(db, userId, id);
-      await db.fiscalPeriods.delete(id);
+      await db.fiscalPeriods.remove(id);
     },
   };
 }
@@ -199,13 +199,13 @@ function createFixedAssetsUsecase(db: OpenkkDbPort) {
       await requireOwnedFiscalPeriod(db, userId, fiscalPeriodId);
       return db.fixedAssets.create(userId, fiscalPeriodId, input);
     },
-    async update(userId: string, id: string, patch: FixedAssetPatchInput) {
+    async patch(userId: string, id: string, patch: FixedAssetPatchInput) {
       await requireOwnedFixedAsset(db, userId, id);
-      return db.fixedAssets.update(id, patch);
+      return db.fixedAssets.patch(id, patch);
     },
-    async delete(userId: string, id: string) {
+    async remove(userId: string, id: string) {
       await requireOwnedFixedAsset(db, userId, id);
-      await db.fixedAssets.delete(id);
+      await db.fixedAssets.remove(id);
     },
   };
 }

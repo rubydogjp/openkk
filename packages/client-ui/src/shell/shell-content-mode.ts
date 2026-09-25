@@ -22,7 +22,7 @@ export function resolveShellContentMode(input: {
   if (!input.hasSession) return "sign-in";
   if (input.pathname === FISCAL_PERIOD_PICKER_PATH) return "fiscal-periods";
   if (
-    !hasSelectedFiscalPeriod(input.currentFiscalPeriodId) &&
+    input.currentFiscalPeriodId == null &&
     input.pathname !== FISCAL_PERIOD_CREATE_PATH
   ) {
     return "fiscal-periods";
@@ -41,7 +41,7 @@ export function shouldRedirectMissingFiscalPeriod(input: {
 }): boolean {
   if (!input.isReady) return false;
   if (!input.hasSession) return false;
-  if (hasSelectedFiscalPeriod(input.currentFiscalPeriodId)) return false;
+  if (input.currentFiscalPeriodId != null) return false;
   return (
     input.pathname !== FISCAL_PERIOD_PICKER_PATH &&
     input.pathname !== FISCAL_PERIOD_CREATE_PATH
@@ -60,10 +60,6 @@ export function shouldRedirectArchivedWorkspace(input: {
     return false;
   }
   return input.pathname !== ARCHIVED_WORKSPACE_PATH;
-}
-
-function hasSelectedFiscalPeriod(id: string | null): boolean {
-  return id != null && id !== "";
 }
 
 function isArchivedWorkspace(

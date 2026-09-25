@@ -384,7 +384,7 @@ describe("print documents", () => {
       fpName: "2026年分",
       amounts: { 1: Infinity, 2: -Infinity },
       bsRows: [],
-      expenseWriteIns: null,
+      expenseWriteIns: [],
     });
 
     expect(journalHtml).not.toContain("Infinity");
@@ -419,7 +419,7 @@ describe("print documents", () => {
       fpName: "2026年分",
       amounts: aggregate.amounts,
       bsRows: aggregate.bsRows,
-      expenseWriteIns: null,
+      expenseWriteIns: [],
     });
 
     expect(html).toContain("<title>財務諸表</title>");

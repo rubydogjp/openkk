@@ -66,7 +66,7 @@ export function OpeningBsBody({
   );
 
   const openingBalanceLines =
-    currentFiscalPeriod?.opening.openingBalanceLines ?? [];
+    currentFiscalPeriod?.opening.balanceLines ?? [];
   const [amounts, setAmounts] = useState<Record<string, string>>(() =>
     buildInitialAmounts(openingBalanceLines),
   );
@@ -178,8 +178,8 @@ export function OpeningBsBody({
           return {
             openingBalancesCompleted: true,
             opening: {
-              openingBalanceLines: lines,
-              openingJournals: latestPeriod.opening.openingJournals,
+              balanceLines: lines,
+              journals: latestPeriod.opening.journals,
             },
           };
         },
@@ -230,8 +230,7 @@ export function OpeningBsBody({
 
         {!isPeriodLocked && editingLocked ? (
           <StepCallout tone="info">
-            {config.editingPolicy.lockedNotice ??
-              "この環境ではデータの編集がロックされています。"}
+            {config.editingPolicy.lockedNotice}
           </StepCallout>
         ) : null}
 

@@ -493,7 +493,7 @@ describe("atomic fiscal period carryover", () => {
       phase: "pre_opening",
       openingBalancesCompleted: true,
     });
-    expect(next.opening.openingJournals[0]).toMatchObject({
+    expect(next.opening.journals[0]).toMatchObject({
       description: `再振替: ${longText}`,
       businessRate: 0.3333333333333333,
       lines: [
@@ -523,7 +523,7 @@ describe("atomic fiscal period carryover", () => {
         periodEndDate: next.endDate,
         entries: [],
         fixedAssets: await backend.fixedAssets.getAll(next.id),
-        openingJournals: next.opening.openingJournals,
+        openingJournals: next.opening.journals,
         bookAccounts: await backend.masterData.getBookAccounts(),
       }),
     );
@@ -548,8 +548,8 @@ describe("atomic fiscal period carryover", () => {
         carryFixedAssets: false,
       });
       expect(next.openingBalancesCompleted).toBe(carryBalances);
-      expect(next.opening.openingBalanceLines.length > 0).toBe(carryBalances);
-      expect(next.opening.openingJournals).toEqual([]);
+      expect(next.opening.balanceLines.length > 0).toBe(carryBalances);
+      expect(next.opening.journals).toEqual([]);
       expect(await server.fixedAssets.getAll(next.id)).toEqual([]);
     },
   );
@@ -582,17 +582,17 @@ describe("atomic fiscal period carryover", () => {
     );
     const next = await server.fiscalPeriods.createNext(input);
     const opening = next.opening;
-    const journals = opening.openingJournals.map((journal) => ({
+    const journals = opening.journals.map((journal) => ({
       ...journal,
       businessRate: 0.5,
     }));
     await expect(
       server.fiscalPeriods.patch(next.id, {
-        opening: { ...opening, openingJournals: journals },
+        opening: { ...opening, journals: journals },
       }),
     ).resolves.toMatchObject({
       opening: {
-        openingJournals: [
+        journals: [
           { description: `再振替: ${longText}`, businessRate: 0.5 },
         ],
       },
@@ -601,7 +601,7 @@ describe("atomic fiscal period carryover", () => {
       server.fiscalPeriods.patch(next.id, {
         opening: {
           ...opening,
-          openingJournals: journals.map((journal) => ({
+          journals: journals.map((journal) => ({
             ...journal,
             description: longText + "変更",
           })),

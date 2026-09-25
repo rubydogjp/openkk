@@ -132,8 +132,8 @@ function prepareAndValidateSeed(seed: unknown): DbSnapshot {
         value.fixedAssets.some((asset) => asset.fiscalPeriodId === period.id) ||
         preClosings.length > 0 ||
         closings.length > 0 ||
-        period.opening.openingBalanceLines.length > 0 ||
-        period.opening.openingJournals.length > 0;
+        period.opening.balanceLines.length > 0 ||
+        period.opening.journals.length > 0;
       if (hasArchivedData) {
         throw serverValidationError(
           `Seed archived fiscal period ${period.id} contains purged data`,

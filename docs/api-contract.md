@@ -106,7 +106,7 @@ Third-party backends declare a lifecycle policy via `OpenkkConfig.fiscalPeriodPo
 |---|---|---|
 | `maxActivePeriods` | `null` | Max non-archived periods. `null` = unlimited. `1` blocks creating a next period until the current one is archived. |
 | `archiveRetention` | `"persistent"` | `"persistent"` keeps archived data forever. `"ephemeral"` purges archived data when advancing to the next period. |
-| `ephemeralArchiveWarning` | `null` | Warning text override; `null` uses the default text. |
+| `ephemeralArchiveWarning` | default text | Warning shown before purging archived data. |
 | `allowArchiveImport` | `true` | Allow importing archived periods. |
 
 `archiveStatus` is `active`, `archived`, or `purged`. `archivedAt` is `null` while `active`.
@@ -118,11 +118,10 @@ closings and opening, and returns it as `purged`. An `active` period fails with 
 `persistent` backends may return the archived record unchanged. Carryover into the next period
 must be committed **before** purge so the new period never depends on purged data.
 
-## Archive Zip Format (stable public contract)
+## Archive Zip Format
 
-The `openkk.fiscal-period-archive` zip (current `version: 2`) is a **stable, versioned
-public contract** so archives exported by any backend (e.g. a cloud host) re-import into
-plain OpenKK / the PWA. A zip contains `manifest.json`, `fiscal-period.json`,
+The `openkk.fiscal-period-archive` zip (current `version: 2`) is a versioned public contract:
+archives exported by any backend re-import into OpenKK. A zip contains `manifest.json`, `fiscal-period.json`,
 `entries.json`, `fixed-assets.json`, `closings.json` (stored, UTF-8, CRC32-checked).
 Build/read it via `createFiscalPeriodArchiveZip` / `readFiscalPeriodArchiveZip`.
 Version 2 represents nullable fields as JSON `null`; imports also accept version 1.

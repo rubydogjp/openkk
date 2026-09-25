@@ -8,7 +8,7 @@ export type FiscalPeriodArchiveRetention = "persistent" | "ephemeral";
 export type FiscalPeriodPolicy = {
   maxActivePeriods: number | null;
   archiveRetention: FiscalPeriodArchiveRetention;
-  ephemeralArchiveWarning: EphemeralArchiveWarning | null;
+  ephemeralArchiveWarning: EphemeralArchiveWarning;
   allowArchiveImport: boolean;
 };
 
@@ -21,18 +21,22 @@ export type EphemeralArchiveWarning = {
 export const DEFAULT_FISCAL_PERIOD_POLICY: FiscalPeriodPolicy = {
   maxActivePeriods: null,
   archiveRetention: "persistent",
-  ephemeralArchiveWarning: null,
+  ephemeralArchiveWarning: {
+    title: "この先は元に戻せません",
+    body: "次へ進むと、この会計期間の圧縮済みデータはサーバから削除され、二度とダウンロードできません。必要な場合は先にダウンロードしてください。",
+    confirmLabel: "理解して次期を作成",
+  },
   allowArchiveImport: true,
 };
 
-export type OpenkkEditingPolicy = {
+export type EditingPolicy = {
   locked: boolean;
-  lockedNotice: string | null;
+  lockedNotice: string;
 };
 
-export const DEFAULT_EDITING_POLICY: OpenkkEditingPolicy = {
+export const DEFAULT_EDITING_POLICY: EditingPolicy = {
   locked: false,
-  lockedNotice: null,
+  lockedNotice: "この環境ではデータの編集がロックされています。",
 };
 
 export interface OpenkkClock {
@@ -50,7 +54,7 @@ export interface OpenkkConfig {
   sessionStorageKey: string;
   fiscalPeriodStorageKey: string;
   fiscalPeriodPolicy: FiscalPeriodPolicy;
-  editingPolicy: OpenkkEditingPolicy;
+  editingPolicy: EditingPolicy;
   debugRoutesEnabled: boolean;
 }
 

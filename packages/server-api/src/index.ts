@@ -44,7 +44,7 @@ export function createOpenkkServerApi(
   config: OpenkkServerConfig,
 ): OpenkkServerPort {
   const uid = config.userId;
-  const getOwnedFiscalPeriod = async (fiscalPeriodId: string) => {
+  const requireOwnedFiscalPeriod = async (fiscalPeriodId: string) => {
     assertNonBlankString(fiscalPeriodId, "Fiscal period id");
     const period = await usecases.fiscalPeriods.getById(uid, fiscalPeriodId);
     if (period == null) {
@@ -52,7 +52,7 @@ export function createOpenkkServerApi(
     }
     return period;
   };
-  const getOwnedEntry = async (fiscalPeriodId: string, id: string) => {
+  const requireOwnedEntry = async (fiscalPeriodId: string, id: string) => {
     assertNonBlankString(id, "Entry id");
     const entry = await usecases.entries.getById(uid, id);
     if (entry == null || entry.fiscalPeriodId !== fiscalPeriodId) {
@@ -62,7 +62,7 @@ export function createOpenkkServerApi(
     }
     return entry;
   };
-  const getOwnedFixedAsset = async (fiscalPeriodId: string, id: string) => {
+  const requireOwnedFixedAsset = async (fiscalPeriodId: string, id: string) => {
     assertNonBlankString(id, "Fixed asset id");
     const asset = await usecases.fixedAssets.getById(uid, id);
     if (asset == null || asset.fiscalPeriodId !== fiscalPeriodId) {
@@ -98,20 +98,20 @@ export function createOpenkkServerApi(
     },
     preClosings: {
       get: async (fpId, year) => {
-        const period = await getOwnedFiscalPeriod(fpId);
+        const period = await requireOwnedFiscalPeriod(fpId);
         assertPeriodDataAvailable(period, "read pre-closing data");
         assertClosingYear(period, year);
         return usecases.preClosings.get(uid, fpId, year);
       },
       run: async (fpId, year) => {
-        const period = await getOwnedFiscalPeriod(fpId);
+        const period = await requireOwnedFiscalPeriod(fpId);
         assertPeriodPhase(period, "journalizing", "run pre-closing");
         assertClosingYear(period, year);
         assertFiscalPeriodReadyForPreClosing(period);
         return usecases.preClosings.run(uid, fpId, year);
       },
       cancel: async (fpId, year) => {
-        const period = await getOwnedFiscalPeriod(fpId);
+        const period = await requireOwnedFiscalPeriod(fpId);
         assertPeriodPhase(period, "pre_closing", "cancel pre-closing");
         assertClosingYear(period, year);
         return usecases.preClosings.cancel(uid, fpId, year);
@@ -119,13 +119,13 @@ export function createOpenkkServerApi(
     },
     closings: {
       get: async (fpId, year) => {
-        const period = await getOwnedFiscalPeriod(fpId);
+        const period = await requireOwnedFiscalPeriod(fpId);
         assertPeriodDataAvailable(period, "read closing data");
         assertClosingYear(period, year);
         return usecases.closings.get(uid, fpId, year);
       },
       run: async (fpId, year, entries) => {
-        const period = await getOwnedFiscalPeriod(fpId);
+        const period = await requireOwnedFiscalPeriod(fpId);
         assertPeriodPhase(period, "pre_closing", "run closing");
         assertClosingYear(period, year);
         assertClosingGeneratedEntries(entries, period);
@@ -134,31 +134,31 @@ export function createOpenkkServerApi(
     },
     entries: {
       getAll: async (fpId) => {
-        const period = await getOwnedFiscalPeriod(fpId);
+        const period = await requireOwnedFiscalPeriod(fpId);
         assertPeriodDataAvailable(period, "read entries");
         return usecases.entries.getAll(uid, fpId);
       },
       create: async (fpId, input) => {
-        const period = await getOwnedFiscalPeriod(fpId);
+        const period = await requireOwnedFiscalPeriod(fpId);
         assertPeriodPhase(period, "journalizing", "create entry");
         assertEditableEntryInput(input, period, null);
         return usecases.entries.create(uid, fpId, input);
       },
       update: async (fpId, id, input) => {
-        const period = await getOwnedFiscalPeriod(fpId);
+        const period = await requireOwnedFiscalPeriod(fpId);
         assertPeriodPhase(period, "journalizing", "update entry");
-        const existing = await getOwnedEntry(fpId, id);
+        const existing = await requireOwnedEntry(fpId, id);
         assertEditableEntryInput(input, period, existing);
         return usecases.entries.update(uid, id, input);
       },
       remove: async (fpId, id) => {
-        const period = await getOwnedFiscalPeriod(fpId);
+        const period = await requireOwnedFiscalPeriod(fpId);
         assertPeriodPhase(period, "journalizing", "delete entry");
-        await getOwnedEntry(fpId, id);
-        await usecases.entries.delete(uid, id);
+        await requireOwnedEntry(fpId, id);
+        await usecases.entries.remove(uid, id);
       },
       importMany: async (fpId, inputs) => {
-        const period = await getOwnedFiscalPeriod(fpId);
+        const period = await requireOwnedFiscalPeriod(fpId);
         assertPeriodPhaseOneOf(
           period,
           ["pre_opening", "journalizing"],
@@ -203,7 +203,7 @@ export function createOpenkkServerApi(
         return usecases.fiscalPeriods.importArchived(uid, input);
       },
       patch: async (id, patch) => {
-        const current = await getOwnedFiscalPeriod(id);
+        const current = await requireOwnedFiscalPeriod(id);
         if (current.archiveStatus !== "active") {
           throw archivedFiscalPeriodError(
             `Archived fiscal period ${id} cannot be updated`,
@@ -231,15 +231,15 @@ export function createOpenkkServerApi(
             fixedAssets,
           );
         }
-        return usecases.fiscalPeriods.update(uid, id, patch);
+        return usecases.fiscalPeriods.patch(uid, id, patch);
       },
       start: async (id) => {
-        const current = await getOwnedFiscalPeriod(id);
+        const current = await requireOwnedFiscalPeriod(id);
         assertPeriodPhase(current, "pre_opening", "start");
         return usecases.fiscalPeriods.start(uid, id);
       },
       archive: async (id) => {
-        const current = await getOwnedFiscalPeriod(id);
+        const current = await requireOwnedFiscalPeriod(id);
         assertPeriodPhase(current, "post_closing", "archive");
         if (!current.documentsReceivedCompleted) {
           throw serverConflictError(
@@ -250,7 +250,7 @@ export function createOpenkkServerApi(
         return usecases.fiscalPeriods.archive(uid, id);
       },
       purgeArchivedData: async (id) => {
-        const current = await getOwnedFiscalPeriod(id);
+        const current = await requireOwnedFiscalPeriod(id);
         if (current.archiveStatus === "active") {
           throw serverConflictError(
             `Fiscal period ${id} must be archived before purging data`,
@@ -260,19 +260,19 @@ export function createOpenkkServerApi(
         return usecases.fiscalPeriods.purgeArchivedData(uid, id);
       },
       remove: async (id) => {
-        const current = await getOwnedFiscalPeriod(id);
+        const current = await requireOwnedFiscalPeriod(id);
         assertPeriodPhase(current, "pre_opening", "discard");
-        await usecases.fiscalPeriods.delete(uid, id);
+        await usecases.fiscalPeriods.remove(uid, id);
       },
     },
     fixedAssets: {
       getAll: async (fpId) => {
-        const period = await getOwnedFiscalPeriod(fpId);
+        const period = await requireOwnedFiscalPeriod(fpId);
         assertPeriodDataAvailable(period, "read fixed assets");
         return usecases.fixedAssets.getAll(uid, fpId);
       },
       create: async (fpId, input) => {
-        const period = await getOwnedFiscalPeriod(fpId);
+        const period = await requireOwnedFiscalPeriod(fpId);
         assertPeriodPhaseOneOf(
           period,
           ["pre_opening", "journalizing"],
@@ -282,18 +282,18 @@ export function createOpenkkServerApi(
         return usecases.fixedAssets.create(uid, fpId, input);
       },
       patch: async (fpId, id, patch) => {
-        const period = await getOwnedFiscalPeriod(fpId);
+        const period = await requireOwnedFiscalPeriod(fpId);
         assertPeriodPhase(period, "journalizing", "update fixed asset");
-        const existing = await getOwnedFixedAsset(fpId, id);
+        const existing = await requireOwnedFixedAsset(fpId, id);
         assertFixedAssetPatchInput(patch, existing);
         assertPatchedFixedAsset(existing, patch, period);
-        return usecases.fixedAssets.update(uid, id, patch);
+        return usecases.fixedAssets.patch(uid, id, patch);
       },
       remove: async (fpId, id) => {
-        const period = await getOwnedFiscalPeriod(fpId);
+        const period = await requireOwnedFiscalPeriod(fpId);
         assertPeriodPhase(period, "journalizing", "delete fixed asset");
-        await getOwnedFixedAsset(fpId, id);
-        await usecases.fixedAssets.delete(uid, id);
+        await requireOwnedFixedAsset(fpId, id);
+        await usecases.fixedAssets.remove(uid, id);
       },
     },
     masterData: {

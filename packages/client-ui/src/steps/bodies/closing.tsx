@@ -80,7 +80,7 @@ export function ClosingBody({
     });
     return computeFsAggregate({
       entries,
-      openingBalanceLines: currentFiscalPeriod.opening.openingBalanceLines,
+      openingBalanceLines: currentFiscalPeriod.opening.balanceLines,
     }).summary;
   }, [currentFiscalPeriod, entriesState, assistState]);
 

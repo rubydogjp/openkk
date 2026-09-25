@@ -463,7 +463,7 @@ function createFixedAssetDb(
       async importArchived() {
         return fiscalPeriod({ id: "fp-archive", archiveStatus: "archived" });
       },
-      async update(id: string, patch: FiscalPeriodPatchInput) {
+      async patch(id: string, patch: FiscalPeriodPatchInput) {
         const { opening, ...rest } = patch;
         return fiscalPeriod({
           id,
@@ -485,7 +485,7 @@ function createFixedAssetDb(
           archiveStatus: "purged",
         });
       },
-      async delete() {},
+      async remove() {},
     },
     entries: {
       async getAll() {
@@ -516,7 +516,7 @@ function createFixedAssetDb(
           lines: entryLinesWithIds(input.lines),
         });
       },
-      async delete() {},
+      async remove() {},
       async importMany(
         _userId: string,
         fiscalPeriodId: string,
@@ -555,14 +555,14 @@ function createFixedAssetDb(
         fixedAssets.set(record.id, record);
         return record;
       },
-      async update(id: string, patch: FixedAssetPatchInput) {
+      async patch(id: string, patch: FixedAssetPatchInput) {
         const current = fixedAssets.get(id);
         if (current == null) throw new Error(`fixed asset not found: ${id}`);
         const updated = fixedAsset({ ...current, ...patch });
         fixedAssets.set(id, updated);
         return updated;
       },
-      async delete(id: string) {
+      async remove(id: string) {
         fixedAssets.delete(id);
       },
     },
@@ -635,7 +635,7 @@ function fiscalPeriod(
 }
 
 function emptyOpening(): FiscalPeriodOpeningApiRecord {
-  return { openingBalanceLines: [], openingJournals: [] };
+  return { balanceLines: [], journals: [] };
 }
 
 function entry(overrides: Partial<EntryApiRecord>): EntryApiRecord {

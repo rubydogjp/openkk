@@ -36,10 +36,7 @@ export function exportEntriesAsJson(entries: EntryRecord[]) {
       entries: entries.map((entry) => {
         const fields = journalFields(entry);
         return {
-          localId:
-            entry.localId == null || entry.localId.trim() === ""
-              ? entry.id
-              : entry.localId,
+          localId: entry.localId ?? entry.id,
           date: entry.date,
           weekday: entry.weekday,
           ...fields,
@@ -161,9 +158,7 @@ export function exportEntriesAsCsv(entries: EntryRecord[]) {
   for (const entry of entries) {
     const fields = journalFields(entry);
     const rawValues = [
-      entry.localId == null || entry.localId.trim() === ""
-        ? entry.id
-        : entry.localId,
+      entry.localId ?? entry.id,
       entry.date,
       entry.weekday,
       fields.debit,
@@ -280,8 +275,8 @@ export function decodeJournalImportBytes(bytes: Uint8Array): string {
 function parseCsvLinesCell(
   raw: string,
   rowNo: number,
-): unknown[] | null {
-  if (raw.trim() === "") return null;
+): unknown[] {
+  if (raw.trim() === "") return [];
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -312,7 +307,7 @@ function normalizeEntry(input: {
   businessRateRatio: unknown;
   taxCategory: string;
   businessCategory: string;
-  lines: unknown[] | null;
+  lines: unknown[];
 }): EntryRecord {
   if (parseIsoLocalDate(input.date) == null) {
     throw importFileRowError(
@@ -325,16 +320,17 @@ function normalizeEntry(input: {
   const businessCategory = input.businessCategory.trim() || "対象外";
   const importedLines = normalizeLines(input.lines, input.rowNo);
   const lines =
-    importedLines ??
-    [
-      pairInputToLine("debit", input),
-      pairInputToLine("credit", input),
-    ].map((line): EntryLine => ({
-      ...line,
-      partnerName: partner === "" ? null : partner,
-      taxCategoryName: taxCategory,
-      businessCategoryName: businessCategory,
-    }));
+    importedLines.length > 0
+      ? importedLines
+      : [
+          pairInputToLine("debit", input),
+          pairInputToLine("credit", input),
+        ].map((line): EntryLine => ({
+          ...line,
+          partnerName: partner === "" ? null : partner,
+          taxCategoryName: taxCategory,
+          businessCategoryName: businessCategory,
+        }));
   const result: EntryRecord = {
     id: input.id,
     localId: input.localId,
@@ -390,30 +386,26 @@ function importedBusinessRate(input: {
   businessRateRatio: unknown;
   rowNo: number;
 }): number {
-  const exact = input.businessRateRatio;
-  if (exact == null || exact === "") {
+  const ratio = input.businessRateRatio;
+  if (ratio == null || ratio === "") {
     return parseBusinessRate(input.businessRate);
   }
   const rate =
-    typeof exact === "number"
-      ? exact
-      : typeof exact === "string"
-        ? Number(exact.trim())
+    typeof ratio === "number"
+      ? ratio
+      : typeof ratio === "string"
+        ? Number(ratio.trim())
         : Number.NaN;
   if (!Number.isFinite(rate) || rate < 0 || rate > 1) {
     throw importFileRowError(
-      `row ${input.rowNo}: invalid exact business rate`,
+      `row ${input.rowNo}: invalid businessRateRatio`,
       input.rowNo,
     );
   }
   return rate;
 }
 
-function normalizeLines(
-  lines: unknown[] | null,
-  rowNo: number,
-): EntryLine[] | null {
-  if (lines == null || lines.length === 0) return null;
+function normalizeLines(lines: unknown[], rowNo: number): EntryLine[] {
   assertEntryLineCount(lines.length);
   return lines.map((line, index): EntryLine => {
     if (!isRecord(line)) {
@@ -471,7 +463,7 @@ function normalizeLines(
 
 function normalizeType(
   value: string,
-  rowNo: number | null,
+  rowNo: number,
   label: string,
 ): BookAccountType {
   if (
@@ -487,20 +479,20 @@ function normalizeType(
   if (value.trim() === "") return "asset";
   throw importFileRowError(
     `row ${rowNo}: invalid ${label} (${value})`,
-    rowNo ?? 0,
+    rowNo,
   );
 }
 
 function normalizeAmount(
   value: string,
-  rowNo: number | null,
+  rowNo: number,
   label: string,
 ) {
   const n = Number(String(value).replaceAll(",", "").trim());
   if (!Number.isSafeInteger(n) || n < 0) {
     throw importFileRowError(
       `row ${rowNo}: invalid ${label} (${value})`,
-      rowNo ?? 0,
+      rowNo,
     );
   }
   return n.toLocaleString("ja-JP");
@@ -659,8 +651,8 @@ function parseCsv(text: string) {
 function validateJsonLines(
   value: unknown,
   rowNo: number,
-): unknown[] | null {
-  if (value == null) return null;
+): unknown[] {
+  if (value == null) return [];
   if (!Array.isArray(value)) {
     throw importFileRowError(`row ${rowNo}: lines must be an array`, rowNo);
   }

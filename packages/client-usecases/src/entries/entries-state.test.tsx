@@ -324,7 +324,6 @@ describe("replaceFiscalPeriodEntryRecords", () => {
     ];
 
     expect(replaceFiscalPeriodEntryRecords(current, null, [])).toEqual([]);
-    expect(replaceFiscalPeriodEntryRecords(current, "", [])).toEqual([]);
   });
 });
 

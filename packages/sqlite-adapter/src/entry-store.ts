@@ -125,7 +125,7 @@ export function createEntriesDb(db: SqlDb): EntriesDb {
         return updated;
       });
     },
-    async delete(id) {
+    async remove(id) {
       await runInTransaction(db, async () => {
         const rows = (await db.exec({
           sql: `SELECT fiscal_period_id FROM entries WHERE id = ?`,

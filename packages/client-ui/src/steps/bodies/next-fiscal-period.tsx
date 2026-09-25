@@ -173,15 +173,6 @@ export function NextFiscalPeriodBody({
     !isArchiving &&
     !isCreating;
 
-  const ephemeralWarning = {
-    title: policy.ephemeralArchiveWarning?.title ?? "この先は元に戻せません",
-    body:
-      policy.ephemeralArchiveWarning?.body ??
-      "次へ進むと、この会計期間の圧縮済みデータはサーバから削除され、二度とダウンロードできません。必要な場合は先にダウンロードしてください。",
-    confirmLabel:
-      policy.ephemeralArchiveWarning?.confirmLabel ?? "理解して次期を作成",
-  };
-
   const handleCreate = async () => {
     if (!canCreateNext) return;
     const release = workflowLock.current.tryAcquire();
@@ -457,9 +448,9 @@ export function NextFiscalPeriodBody({
                       marginBottom: 4,
                     }}
                   >
-                    {ephemeralWarning.title}
+                    {policy.ephemeralArchiveWarning.title}
                   </span>
-                  {ephemeralWarning.body}
+                  {policy.ephemeralArchiveWarning.body}
                 </StepCallout>
                 <div
                   style={{
@@ -484,7 +475,7 @@ export function NextFiscalPeriodBody({
                     variant="success"
                     icon={null}
                   >
-                    {isCreating ? "作成中" : ephemeralWarning.confirmLabel}
+                    {isCreating ? "作成中" : policy.ephemeralArchiveWarning.confirmLabel}
                   </StepPrimaryButton>
                 </div>
               </div>

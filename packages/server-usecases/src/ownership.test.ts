@@ -40,7 +40,7 @@ describe("server usecase ownership boundary", () => {
       usecases.entries.update("user-1", "entry-1", {} as never),
     ).rejects.toThrow(/entry not found/);
     await expect(
-      usecases.fixedAssets.delete("user-1", "asset-1"),
+      usecases.fixedAssets.remove("user-1", "asset-1"),
     ).rejects.toThrow(/fixed asset not found/);
     expect(updateEntry).not.toHaveBeenCalled();
     expect(deleteAsset).not.toHaveBeenCalled();
