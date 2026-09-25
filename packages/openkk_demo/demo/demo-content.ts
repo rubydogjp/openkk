@@ -882,7 +882,7 @@ export const demoFixedAssetItems: FixedAsset[] = [
     name: "プリンター複合機",
     accountName: "工具器具備品",
     bookAccountId: "acct_equipment",
-    depreciationStartLabel: "2023年4月〜2025年11月",
+    depreciationStartLabel: "2023年4月〜2026年3月",
     remainingDepreciationLabel: "除却済み",
     depreciationProgress: 1,
     currentBookValue: 0,
@@ -891,7 +891,7 @@ export const demoFixedAssetItems: FixedAsset[] = [
     usefulLife: 5,
     businessRate: 1,
     acquisitionCost: 89_500,
-    disposalDate: "2025-11-30",
+    disposalDate: "2026-03-31",
     disposalPrice: null,
   },
 ];
