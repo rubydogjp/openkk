@@ -775,16 +775,6 @@ export function buildDemoEntries(): EntryRecord[] {
   );
 }
 
-export function buildDemoSeedEntriesForFiscalPeriod(
-  fiscalPeriodId: string,
-): EntryRecord[] {
-  return buildDemoEntries().map((record) => ({
-    ...record,
-    id: `${record.id}-${fiscalPeriodId}`,
-    fiscalPeriodId,
-  }));
-}
-
 export const demoFixedAssetItems: FixedAsset[] = [
   {
     id: "fa-1",

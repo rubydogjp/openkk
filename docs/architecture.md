@@ -33,7 +33,7 @@ packages/
 ├── frontend             3アプリ共通の provider・composition 配線
 ├── openkk               通常版 Next.js アプリ（SQLite OPFS）
 ├── openkk_sim           Sim版 Next.js アプリ（memory DB・固定時計・debug）
-└── openkk_demo          デモ版 Next.js アプリ（seed済みmemory DB・編集ロック）
+└── openkk_demo          デモ版 Next.js アプリ（seed済みmemory DB・再読み込みで初期化）
 ```
 
 ## 設計原則

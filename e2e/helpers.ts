@@ -52,15 +52,20 @@ export async function goToMonth(page: Page, label: string) {
   const target = page.getByText(label).first();
   const prev = page.getByRole("button", { name: "前の月" });
   const next = page.getByRole("button", { name: "次の月" });
+  const monthSwitcher = prev.locator("..");
   for (let i = 0; i < 24; i += 1) {
     if (await target.isVisible().catch(() => false)) return;
     if (await prev.isDisabled().catch(() => true)) break;
+    const previousMonth = await monthSwitcher.innerText();
     await prev.click();
+    await expect(monthSwitcher).not.toHaveText(previousMonth);
   }
   for (let i = 0; i < 24; i += 1) {
     if (await target.isVisible().catch(() => false)) return;
     if (await next.isDisabled().catch(() => true)) break;
+    const previousMonth = await monthSwitcher.innerText();
     await next.click();
+    await expect(monthSwitcher).not.toHaveText(previousMonth);
   }
   await expect(target).toBeVisible();
 }

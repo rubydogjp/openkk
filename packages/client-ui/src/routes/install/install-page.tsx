@@ -35,6 +35,15 @@ type Phase =
   | "dismissed"
   | "unsupported";
 
+const phaseMessage: Record<Phase, string> = {
+  checking: "ホーム画面に追加できるか確認しています。",
+  ready: "この環境では、下のボタンからホーム画面に追加できます。",
+  installing: "ブラウザの案内に沿って、ホーム画面への追加を進めてください。",
+  installed: "ホーム画面に追加済みです。追加したアイコンから起動できます。",
+  dismissed: "ホーム画面への追加をキャンセルしました。このままブラウザで使えます。",
+  unsupported: "このブラウザでは、このページのボタンから追加を始められません。ブラウザのメニューに「アプリをインストール」や「ホーム画面に追加」がある場合は、そこから追加できます。",
+};
+
 function isStandalone(): boolean {
   return (
     window.matchMedia("(display-mode: standalone)").matches ||
@@ -124,7 +133,7 @@ export function InstallPage() {
           fontWeight: fontWeight.bold,
         }}
       >
-        オープン会計
+        オープン会計をインストール
       </h1>
       {bundleLabel ? (
         <div style={{ fontSize: fontSize.sm, color: palette.textSoft }}>
@@ -132,62 +141,48 @@ export function InstallPage() {
         </div>
       ) : null}
 
-      {phase === "installed" ? (
-        <>
-          <p
-            style={{
-              margin: 0,
-              fontSize: fontSize.md,
-              color: palette.textSoft,
-            }}
-          >
-            ホーム画面に追加済みです
-          </p>
-          <PrimaryButton onClick={() => router.push("/")} disabled={false}>
-            アプリを開く
-          </PrimaryButton>
-        </>
-      ) : phase === "unsupported" || phase === "dismissed" ? (
-        <>
-          <p
-            style={{
-              margin: 0,
-              fontSize: fontSize.md,
-              color: palette.textSoft,
-            }}
-          >
-            {phase === "dismissed"
-              ? "ホーム画面への追加をキャンセルしました"
-              : "この環境では「ホーム画面に追加」できません"}
-          </p>
-          <PrimaryButton onClick={() => router.push("/")} disabled={false}>
-            このままブラウザで開始
-          </PrimaryButton>
-        </>
-      ) : (
-        <PrimaryButton
+      <p style={{ margin: 0, maxWidth: 480, lineHeight: 1.8, color: palette.textSoft }}>
+        PCやスマホのホーム画面にアプリを追加し、アイコンからすぐに開けるようにします。
+        インストールせずに、ブラウザで使うこともできます。
+      </p>
+      <p role="status" style={{ margin: "8px 0", maxWidth: 480, lineHeight: 1.8 }}>
+        {phaseMessage[phase]}
+      </p>
+
+      {phase === "checking" || phase === "ready" || phase === "installing" ? (
+        <InstallButton
           onClick={handleInstall}
           disabled={phase === "checking" || phase === "installing"}
+          secondary={false}
         >
           {phase === "checking"
-            ? "準備中…"
+            ? "確認中…"
             : phase === "installing"
               ? "追加しています…"
               : "ホーム画面に追加"}
-        </PrimaryButton>
-      )}
+        </InstallButton>
+      ) : null}
+      <InstallButton
+        onClick={() => router.push("/")}
+        disabled={phase === "installing"}
+        secondary={phase === "checking" || phase === "ready" || phase === "installing"}
+      >
+        {phase === "installed" ? "アプリを開く" : "ブラウザで開く"}
+      </InstallButton>
     </main>
   );
 }
 
-function PrimaryButton({
+function InstallButton({
   children,
   onClick,
   disabled,
+  secondary,
 }: {
   children: ReactNode;
   onClick: () => void;
   disabled: boolean;
+  secondary: boolean;
 }) {
   const isDisabled = disabled;
   return (
@@ -199,9 +194,9 @@ function PrimaryButton({
         height: 48,
         padding: "0 28px",
         borderRadius: 12,
-        border: "none",
-        background: isDisabled ? palette.borderStrong : palette.brand,
-        color: palette.surface,
+        border: `1px solid ${isDisabled ? palette.borderStrong : palette.brand}`,
+        background: isDisabled ? palette.borderStrong : secondary ? palette.surface : palette.brand,
+        color: !isDisabled && secondary ? palette.brand : palette.surface,
         fontSize: fontSize.md,
         fontWeight: fontWeight.bold,
         cursor: isDisabled ? "default" : "pointer",

@@ -10,14 +10,14 @@ import { createOpenkkEmbeddedBackendAdapter } from "@rubydogjp/openkk-embedded-b
 import { createMemoryDbAdapter } from "@rubydogjp/openkk-memory-db-adapter";
 
 import { openkkConfig } from "./openkk-config";
-import { demoBrandConfig, demoCalloutSlots, demoSeedFiscalPeriod } from "../demo/demo-bundle";
+import { demoBrandConfig, demoCalloutSlots } from "../demo/demo-bundle";
 import { buildOpenkkDemoSeed } from "../demo/demo-seed";
 
 const runtime: OpenkkBundleRuntime = {
   config: openkkConfig,
   brandConfig: demoBrandConfig,
   calloutSlots: demoCalloutSlots,
-  seedFiscalPeriod: demoSeedFiscalPeriod,
+  seedFiscalPeriod: null,
   createBackendApi: createDemoBackendApi,
   registerServiceWorker: false,
 };

@@ -28,6 +28,54 @@
     var(--openkk-shadow-input-inset, inset 0 1px 0 rgba(15, 23, 42, 0.04));
 }
 
+.bk-opening-bs {
+  container-type: inline-size;
+  container-name: opening-bs;
+}
+.bk-opening-bs-sections {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  background: var(--openkk-color-surface, #FFFFFF);
+  border: 1px solid var(--openkk-color-border-emphasis, #94A3B8);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.bk-opening-bs-sections > section + section {
+  border-left: 1px solid var(--openkk-color-border-emphasis, #94A3B8);
+}
+.bk-opening-bs-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-height: 52px;
+  padding: 0 10px;
+}
+.bk-opening-bs-header,
+.bk-opening-bs-total {
+  background: var(--openkk-color-header-surface, #F1F5F9);
+}
+.bk-opening-bs-header {
+  min-height: var(--openkk-size-field-height, 40px);
+  border-bottom: 1px solid var(--openkk-color-border-subtle, #E2E8F0);
+}
+.bk-opening-bs-total {
+  min-height: 48px;
+  border-top: 1px solid var(--openkk-color-border-strong, #CBD5E1);
+}
+@container opening-bs (max-width: 619px) {
+  .bk-opening-bs-sections {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .bk-opening-bs-sections > section + section {
+    border-left: 0;
+    border-top: 1px solid var(--openkk-color-border-emphasis, #94A3B8);
+  }
+  .bk-opening-bs-empty {
+    display: none;
+  }
+}
+
 .bk-step-row {
   display: grid;
   grid-template-columns: 160px 1fr;

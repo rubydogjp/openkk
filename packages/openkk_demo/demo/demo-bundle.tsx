@@ -1,28 +1,9 @@
 import {
-  DEFAULT_FISCAL_PERIOD_POLICY,
   fontWeight,
   palette,
   type BrandConfig,
-  type FiscalPeriodPolicy,
-  type FiscalPeriodSeeder,
   type OpenkkCalloutSlots,
-  type EditingPolicy,
 } from "@rubydogjp/openkk-client";
-
-import {
-  buildDemoSeedEntriesForFiscalPeriod,
-  demoOpeningBalanceLines,
-} from "./demo-content";
-
-export const demoEditingPolicy: EditingPolicy = {
-  locked: true,
-  lockedNotice: "デモ版ではこの操作はできません",
-};
-
-export const demoFiscalPeriodPolicy: FiscalPeriodPolicy = {
-  ...DEFAULT_FISCAL_PERIOD_POLICY,
-  maxActivePeriods: 1,
-};
 
 export const demoBrandConfig: BrandConfig = {
   marketingSiteUrl: "https://rubydog.jp/openkk",
@@ -32,12 +13,12 @@ export const demoBrandConfig: BrandConfig = {
 
 export const demoCalloutSlots: OpenkkCalloutSlots = {
   stepJournalizingPreClosingHint:
-    "※ デモ版では、いきなり仮締めを実行して構いません。",
+    "サンプルデータで、仮締めから書類の作成まで試せます。",
   stepNextFiscalPeriodFooter: (
     <>
       <div>デモ版を使っていただきありがとうございました!</div>
       <div>
-        正式リリースは
+        お知らせは
         <a
           href="https://x.com/rubydogjp"
           target="_blank"
@@ -51,20 +32,9 @@ export const demoCalloutSlots: OpenkkCalloutSlots = {
         >
           X公式アカウント
         </a>
-        でアナウンス予定です
+        に掲載しています
       </div>
       <div>レビュー・要望・バグ報告も同じアカウントまでお願いしますm(_ _)m</div>
     </>
   ),
 };
-
-export const demoSeedFiscalPeriod: FiscalPeriodSeeder = ({
-  fiscalPeriod,
-  isFirst,
-}) =>
-  isFirst
-    ? {
-        openingBalanceLines: demoOpeningBalanceLines,
-        entries: buildDemoSeedEntriesForFiscalPeriod(fiscalPeriod.id),
-      }
-    : null;

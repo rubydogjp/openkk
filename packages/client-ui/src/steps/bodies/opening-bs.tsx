@@ -22,12 +22,11 @@ import {
   fontWeight,
   palette,
   radii,
-  shadows,
   sizes,
   spacing,
   typography,
 } from "../../shared/design-tokens.js";
-import { LockButton, LockedActionIcon } from "../../shared/locked-action.js";
+import { LockButton } from "../../shared/locked-action.js";
 import { FormStyles } from "../../shared/form-fields.js";
 import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 import {
@@ -36,7 +35,6 @@ import {
   StepSecondaryButton,
 } from "../step-ui.js";
 import {
-  BS_ROWS,
   assetKey,
   buildAssetSlots,
   buildInitialAmounts,
@@ -234,118 +232,66 @@ export function OpeningBsBody({
           </StepCallout>
         ) : null}
 
-        {!isPeriodLocked && isCompleted && !isEditing ? (
+        {!isPeriodLocked && !editingLocked && isCompleted && !isEditing ? (
           <SavedCommentSection
-            editingLocked={editingLocked}
             onEdit={() => setIsEditingCompleted(true)}
           />
         ) : null}
 
-        <div
-          style={{
-            background: palette.surface,
-            border: `1px solid ${palette.borderEmphasis}`,
-            borderRadius: 12,
-            boxShadow: shadows.card,
-            overflow: "hidden",
-            position: "relative",
-          }}
-        >
-          <div
-            aria-hidden
-            style={{
-              position: "absolute",
-              top: 0,
-              bottom: 0,
-              left: "50%",
-              width: 1,
-              background: palette.borderEmphasis,
-              pointerEvents: "none",
-            }}
-          />
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: GRID_COLUMNS,
-              alignItems: "center",
-              height: sizes.field.height,
-              background: palette.headerSurface,
-              borderBottom: `1px solid ${palette.borderSubtle}`,
-            }}
-          >
-            <HeaderCell align={null}>資産の部</HeaderCell>
-            <HeaderCell align="right">金額</HeaderCell>
-            <HeaderCell align={null}>負債・純資産の部</HeaderCell>
-            <HeaderCell align="right">金額</HeaderCell>
-          </div>
-
-          {BS_ROWS.map((_, index) => {
-            const assetSlot = assetSlots[index];
-            const liabilitySlot = liabilitySlots[index];
-            if (!assetSlot || !liabilitySlot) return null;
-            const assetLabel = assetSlot.label;
-            const liabilityLabel = liabilitySlot.label;
-            const assetId = assetKey(assetLabel);
-            const liabilityId = liabilityKey(liabilityLabel);
-            const assetAmount = amounts[assetId] ?? "";
-            const liabilityAmount = amounts[liabilityId] ?? "";
-            const assetEditable = assetLabel !== "" && isEditing;
-            const liabilityEditable = liabilityLabel !== "" && isEditing;
-            return (
-              <div
-                key={index}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: GRID_COLUMNS,
-                  alignItems: "center",
-                  height: 52,
-                  background: palette.surface,
-                }}
-              >
-                <ChipCell label={assetLabel} type="asset" />
-                <AmountCell
-                  hasLabel={assetLabel !== ""}
-                  editable={assetEditable}
-                  ariaLabel={`${assetLabel} 金額`}
-                  value={assetAmount}
-                  onChange={(v) => setAmounts((p) => ({ ...p, [assetId]: v }))}
-                />
-                <ChipCell
-                  label={liabilityLabel}
-                  type={liabilityAccountType(liabilityLabel)}
-                />
-                <AmountCell
-                  hasLabel={liabilityLabel !== ""}
-                  editable={liabilityEditable}
-                  ariaLabel={`${liabilityLabel} 金額`}
-                  value={liabilityAmount}
-                  onChange={(v) =>
-                    setAmounts((p) => ({ ...p, [liabilityId]: v }))
-                  }
-                />
-              </div>
-            );
-          })}
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: GRID_COLUMNS,
-              alignItems: "center",
-              height: 48,
-              background: palette.headerSurface,
-              borderTop: `1px solid ${palette.borderStrong}`,
-            }}
-          >
-            <TotalLabelCell>合計</TotalLabelCell>
-            <TotalAmountCell>
-              {formatOpeningTotal(assetTotal)}
-            </TotalAmountCell>
-            <TotalLabelCell>合計</TotalLabelCell>
-            <TotalAmountCell>
-              {formatOpeningTotal(liabilityTotal)}
-            </TotalAmountCell>
+        <div className="bk-opening-bs">
+          <div className="bk-opening-bs-sections">
+            {[
+              {
+                title: "資産の部",
+                slots: assetSlots,
+                key: assetKey,
+                total: assetTotal,
+                accountType: (_label: string): BookAccountType => "asset",
+              },
+              {
+                title: "負債・純資産の部",
+                slots: liabilitySlots,
+                key: liabilityKey,
+                total: liabilityTotal,
+                accountType: liabilityAccountType,
+              },
+            ].map((section) => (
+              <section key={section.title} aria-label={section.title}>
+                <div className="bk-opening-bs-row bk-opening-bs-header">
+                  <HeaderCell align={null}>{section.title}</HeaderCell>
+                  <HeaderCell align="right">金額</HeaderCell>
+                </div>
+                {section.slots.map((slot, index) => {
+                  const id = section.key(slot.label);
+                  return (
+                    <div
+                      key={index}
+                      className={`bk-opening-bs-row${slot.label === "" ? " bk-opening-bs-empty" : ""}`}
+                    >
+                      <ChipCell
+                        label={slot.label}
+                        type={section.accountType(slot.label)}
+                      />
+                      <AmountCell
+                        hasLabel={slot.label !== ""}
+                        editable={isEditing}
+                        ariaLabel={`${slot.label} 金額`}
+                        value={amounts[id] ?? ""}
+                        onChange={(value) =>
+                          setAmounts((previous) => ({ ...previous, [id]: value }))
+                        }
+                      />
+                    </div>
+                  );
+                })}
+                <div className="bk-opening-bs-row bk-opening-bs-total">
+                  <TotalLabelCell>合計</TotalLabelCell>
+                  <TotalAmountCell>
+                    {formatOpeningTotal(section.total)}
+                  </TotalAmountCell>
+                </div>
+              </section>
+            ))}
           </div>
         </div>
 
@@ -410,10 +356,8 @@ function formatOpeningTotal(value: number | null): string {
 }
 
 function SavedCommentSection({
-  editingLocked,
   onEdit,
 }: {
-  editingLocked: boolean;
   onEdit: () => void;
 }) {
   return (
@@ -453,25 +397,23 @@ function SavedCommentSection({
         >
           <button
             type="button"
-            onClick={editingLocked ? undefined : onEdit}
-            disabled={editingLocked}
+            onClick={onEdit}
             style={{
               height: sizes.button.compactHeight,
               minWidth: sizes.button.compactMinWidth,
               padding: "0 14px",
               borderRadius: radii.sm,
-              border: `1px solid ${editingLocked ? palette.borderStrong : palette.brand}`,
+              border: `1px solid ${palette.brand}`,
               background: palette.surface,
-              color: editingLocked ? palette.textSoft : palette.brand,
+              color: palette.brand,
               ...typography.control,
-              cursor: editingLocked ? "default" : "pointer",
+              cursor: "pointer",
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
               gap: spacing.s8,
             }}
           >
-            {editingLocked ? <LockedActionIcon size={18} /> : null}
             <span>編集する</span>
           </button>
         </div>
@@ -480,9 +422,6 @@ function SavedCommentSection({
   );
 }
 
-const AMOUNT_INPUT_W = 120;
-const GRID_COLUMNS = "1fr 1fr 1fr 1fr";
-
 function HeaderCell({
   children,
   align,
@@ -490,39 +429,14 @@ function HeaderCell({
   children: ReactNode;
   align: "left" | "right" | null;
 }) {
-  if (align === "right") {
-    return (
-      <div
-        style={{
-          paddingLeft: 12,
-          display: "flex",
-          justifyContent: "flex-start",
-        }}
-      >
-        <div
-          style={{
-            width: AMOUNT_INPUT_W,
-            textAlign: "right",
-            fontSize: fontSize.xs,
-            fontWeight: fontWeight.bold,
-            color: palette.text,
-            letterSpacing: "0.02em",
-          }}
-        >
-          {children}
-        </div>
-      </div>
-    );
-  }
   return (
     <div
       style={{
-        padding: "0 12px",
         fontSize: fontSize.xs,
         fontWeight: fontWeight.bold,
         color: palette.text,
         letterSpacing: "0.02em",
-        textAlign: "left",
+        textAlign: align ?? "left",
       }}
     >
       {children}
@@ -542,7 +456,7 @@ function ChipCell({
   }
 
   return (
-    <div style={{ paddingLeft: 10 }}>
+    <div>
       <AccountChipCell label={label} type={type} />
     </div>
   );
@@ -566,10 +480,8 @@ function AmountCell({
   }
 
   return (
-    <div
-      style={{ paddingLeft: 12, display: "flex", justifyContent: "flex-start" }}
-    >
-      <div style={{ width: AMOUNT_INPUT_W }}>
+    <div style={{ minWidth: 0 }}>
+      <div>
         {editable ? (
           <AmountInput
             value={value}
@@ -590,7 +502,6 @@ function TotalLabelCell({ children }: { children: ReactNode }) {
   return (
     <div
       style={{
-        padding: "0 12px",
         fontSize: fontSize.base,
         fontWeight: fontWeight.bold,
         color: palette.text,
@@ -603,10 +514,8 @@ function TotalLabelCell({ children }: { children: ReactNode }) {
 
 function TotalAmountCell({ children }: { children: ReactNode }) {
   return (
-    <div
-      style={{ paddingLeft: 12, display: "flex", justifyContent: "flex-start" }}
-    >
-      <div style={{ width: AMOUNT_INPUT_W, textAlign: "right" }}>
+    <div style={{ minWidth: 0 }}>
+      <div style={{ textAlign: "right" }}>
         <AmountText bold muted={false}>
           {children}
         </AmountText>

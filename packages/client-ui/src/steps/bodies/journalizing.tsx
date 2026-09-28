@@ -190,7 +190,11 @@ export function JournalizingBody({
             <div style={{ fontWeight: fontWeight.bold, color: palette.text }}>
               ヒント
             </div>
-            <div>1月~12月の取引を「仕訳タブ」で入力して下さい</div>
+            <div>
+              {editingLocked
+                ? "記録された取引を「仕訳タブ」で確認できます。"
+                : "1月~12月の取引を「仕訳タブ」で入力して下さい"}
+            </div>
             <div
               style={{
                 display: "flex",
@@ -226,15 +230,17 @@ export function JournalizingBody({
           <section>
             <StepSectionLabel>記録を終了</StepSectionLabel>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div
-                style={{
-                  fontSize: fontSize.base,
-                  color: palette.textSoft,
-                  lineHeight: 1.75,
-                }}
-              >
-                翌2月ごろに今期の取引が全て確定したら仮締めを実行して下さい。
-              </div>
+              {!editingLocked ? (
+                <div
+                  style={{
+                    fontSize: fontSize.base,
+                    color: palette.textSoft,
+                    lineHeight: 1.75,
+                  }}
+                >
+                  翌2月ごろに今期の取引が全て確定したら仮締めを実行して下さい。
+                </div>
+              ) : null}
               {preClosingHint != null ? (
                 <StepCallout tone="info">{preClosingHint}</StepCallout>
               ) : null}

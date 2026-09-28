@@ -3,7 +3,7 @@ import { readFile, stat } from "node:fs/promises";
 import { join, extname, normalize, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "packages/openkk/out");
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", process.env.EXPORT_DIR ?? "packages/openkk/out");
 const PORT = Number(process.env.PORT ?? 4307);
 const COI = process.env.COI === "1";
 

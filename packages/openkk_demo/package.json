@@ -1,9 +1,9 @@
 {
   "name": "@rubydogjp/openkk-demo",
-  "version": "26.2.2",
+  "version": "26.2.3",
   "private": true,
   "type": "module",
-  "description": "オープン会計 デモ版 runnable Next.js app: サンプルデータ投入＋編集ロックの体験用バンドル。",
+  "description": "オープン会計 デモ版 runnable Next.js app: サンプルデータで操作を試せる、再読み込みで初期化する体験用バンドル。",
   "license": "MIT",
   "author": "rbdog <rbdog@rubydog.jp>",
   "homepage": "https://github.com/rubydogjp/openkk#readme",
@@ -24,11 +24,11 @@
     "lint": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@rubydogjp/openkk-client": "^26.2.2",
-    "@rubydogjp/openkk-embedded-backend": "^26.2.2",
-    "@rubydogjp/openkk-embedded-backend-adapter": "^26.2.2",
-    "@rubydogjp/openkk-frontend": "^26.2.2",
-    "@rubydogjp/openkk-memory-db-adapter": "^26.2.2",
+    "@rubydogjp/openkk-client": "^26.2.3",
+    "@rubydogjp/openkk-embedded-backend": "^26.2.3",
+    "@rubydogjp/openkk-embedded-backend-adapter": "^26.2.3",
+    "@rubydogjp/openkk-frontend": "^26.2.3",
+    "@rubydogjp/openkk-memory-db-adapter": "^26.2.3",
     "next": "^16.3.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"

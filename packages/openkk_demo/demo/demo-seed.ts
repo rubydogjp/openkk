@@ -49,9 +49,9 @@ function buildDemoSeedFiscalPeriod(
     name: "デモ期間2026年分",
     startDate: "2026-01-01",
     endDate: "2026-12-31",
-    phase: "pre_opening",
+    phase: "journalizing",
     archiveStatus: "active",
-    openingBalancesCompleted: false,
+    openingBalancesCompleted: true,
     documentsReceivedCompleted: false,
     opening: {
       balanceLines: demoOpeningBalanceLines,

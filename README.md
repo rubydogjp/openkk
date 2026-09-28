@@ -20,7 +20,7 @@ npm run check:full # 生成物検査 + 上記 + 3アプリbuild + Playwright
 ```bash
 npm run dev:vscode:openkk # 通常版（SQLite OPFS）— port 4322
 npm run dev:vscode:sim    # Sim版（memory DB）— port 4303
-npm run dev:vscode:demo   # デモ版（サンプルデータ・編集ロック）— port 4304
+npm run dev:vscode:demo   # デモ版（サンプルデータ・再読み込みで初期化）— port 4304
 ```
 
 E2E テスト:
@@ -28,6 +28,7 @@ E2E テスト:
 ```bash
 npm run test:e2e        # Sim版の操作シナリオ
 npm run test:e2e:export # 通常版の静的export smoke
+npm run build:apps && npm run test:e2e:export:built # 通常版・デモ版の公開用ビルドを検証
 ```
 
 ドキュメント:
@@ -38,6 +39,10 @@ npm run test:e2e:export # 通常版の静的export smoke
 [DB スキーマ](./docs/database-schema.md) /
 [テーマ](./docs/theming.md) /
 [リリース手順](./docs/release.md)
+
+アプリアイコンの正本は `rubydogjp/arts` の `doticons/rubydog.doticons` です。
+隣に `arts` を配置して `npm run gen-icons -- --sync` で取り込みます。
+取り込み後は、このリポジトリだけで `npm run gen-icons` による再生成と `npm run check:icons` による整合性の確認ができます。
 
 ## ライセンス
 

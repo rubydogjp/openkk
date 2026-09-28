@@ -47,7 +47,7 @@ jobs:
       - name: Production builds (original / Sim / demo)
         run: npm run build:apps
 
-      - name: Export smoke (original)
+      - name: Export checks (original / demo)
         run: npm run test:e2e:export:built
 
       - name: Sim interaction E2E

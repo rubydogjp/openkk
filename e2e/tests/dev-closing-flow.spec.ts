@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { clickButton, expectStep, waitUntilSettled } from "../helpers";
+import { clickButton, expectStep, goToMonth, waitUntilSettled } from "../helpers";
 
 const YEAR_ENTRIES_FIXTURE = "e2e/fixtures/dev-closing-entries.json";
 
@@ -14,9 +14,9 @@ test.describe("openkk closing flow", () => {
     await clickButton(page, "開始する");
 
     await expectStep(page, "期首のBSを入力");
-    await fillOpeningAmount(page, 0, "100000");
-    await fillOpeningAmount(page, 6, "150000");
-    await fillOpeningAmount(page, 24, "250000");
+    await fillOpeningAmount(page, "現金", "100000");
+    await fillOpeningAmount(page, "その他の預金", "150000");
+    await fillOpeningAmount(page, "元入金", "250000");
     await clickButton(page, "保存して次へ");
 
     await expectStep(page, "日々の仕訳");
@@ -45,9 +45,7 @@ test.describe("openkk closing flow", () => {
 
     await page.getByRole("link", { name: "仕訳" }).click();
     await expect(page.getByText("2026年9月")).toBeVisible();
-    await page.getByRole("button", { name: "次の月" }).click();
-    await page.getByRole("button", { name: "次の月" }).click();
-    await page.getByRole("button", { name: "次の月" }).click();
+    await goToMonth(page, "2026年12月");
     await expect(page.getByText("2026年12月")).toBeVisible();
     await expect(
       page.getByText("MacBook Pro 14インチ相当の減価償却"),
@@ -213,10 +211,10 @@ async function importYearEntries(page: Page) {
 
 async function fillOpeningAmount(
   page: Page,
-  inputIndex: number,
+  accountName: string,
   value: string,
 ) {
-  await page.getByLabel(/金額$/).nth(inputIndex).fill(value);
+  await page.getByLabel(`${accountName} 金額`, { exact: true }).fill(value);
 }
 
 async function createFixedAssetDuringScenario(page: Page) {
@@ -253,9 +251,7 @@ async function expectAccountingScenarioRows(page: Page) {
   await expect(page.getByText("168,000").first()).toBeVisible();
   await expect(page.getByText("42,000").first()).toBeVisible();
 
-  await page.getByRole("button", { name: "次の月" }).click();
-  await page.getByRole("button", { name: "次の月" }).click();
-  await page.getByRole("button", { name: "次の月" }).click();
+  await goToMonth(page, "2026年12月");
   await expect(page.getByText("2026年12月")).toBeVisible();
   const macbookDepreciationRow = page.getByRole("button", {
     name: /MacBook Pro 14インチ相当の減価償却/,

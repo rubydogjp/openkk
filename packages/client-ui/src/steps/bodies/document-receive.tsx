@@ -78,8 +78,10 @@ export function DocumentReceiveBody({
     <>
       {!canComplete ? (
         <>
-          <StepCallout tone="warning">
-            この手順はまだ進められません。
+          <StepCallout tone={editingLocked ? "info" : "warning"}>
+            {editingLocked
+              ? config.editingPolicy.lockedNotice
+              : "この手順はまだ進められません。"}
           </StepCallout>
           <StepDivider marginY={null} />
         </>
