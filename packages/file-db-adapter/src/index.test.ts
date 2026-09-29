@@ -10,6 +10,7 @@ type WorkerMessage = {
 
 type WorkerOutcome =
   | { kind: "response"; ok: boolean; error?: string; result?: unknown }
+  | { kind: "waitThenRespond"; release: Promise<void> }
   | { kind: "throw"; error: Error }
   | { kind: "hang" };
 
@@ -35,6 +36,15 @@ class FakeWorker {
     const outcome = FakeWorker.outcomes.shift();
     if (outcome?.kind === "throw") throw outcome.error;
     if (outcome?.kind === "hang") return;
+    if (outcome?.kind === "waitThenRespond") {
+      queueMicrotask(() => {
+        this.onmessage?.({ data: { event: "waiting_for_another_tab" } } as MessageEvent);
+      });
+      void outcome.release.then(() => {
+        this.onmessage?.({ data: { id: message.id, ok: true, result: null } } as MessageEvent);
+      });
+      return;
+    }
     queueMicrotask(() => {
       this.onmessage?.({
         data: {
@@ -86,7 +96,7 @@ describe("createFileDbAdapter — behavior parity over the worker proxy", () => 
     vi.stubGlobal("Worker", InMemoryDbWorker);
     const { createFileDbAdapter } = await import("./index.js");
     return createFileDbAdapter(
-      { vfsName: "opfs-behavior", dbFileName: null },
+      { vfsName: "opfs-behavior", dbFileName: null, onWaitingForAnotherTab: null },
       null,
     );
   }
@@ -182,26 +192,54 @@ describe("createFileDbAdapter", () => {
   it("clears a failed initialization so callers can retry", async () => {
     vi.stubGlobal("Worker", FakeWorker);
     FakeWorker.outcomes = [
-      { kind: "response", ok: false, error: "ANOTHER_TAB" },
+      { kind: "response", ok: false, error: "sqlite init failed" },
       { kind: "response", ok: true },
     ];
     const { createFileDbAdapter } = await import("./index.js");
 
     await expect(
       createFileDbAdapter(
-        { vfsName: "opfs-test", dbFileName: null },
+        { vfsName: "opfs-test", dbFileName: null, onWaitingForAnotherTab: null },
         null,
       ),
-    ).rejects.toThrow("ANOTHER_TAB");
+    ).rejects.toThrow("sqlite init failed");
 
     const db = await createFileDbAdapter(
-      { vfsName: "opfs-test", dbFileName: null },
+      { vfsName: "opfs-test", dbFileName: null, onWaitingForAnotherTab: null },
       null,
     );
 
     expect(db.fiscalPeriods).toBeTruthy();
     expect(FakeWorker.instances).toHaveLength(2);
     expect(FakeWorker.instances[0]?.terminated).toBe(true);
+  });
+
+  it("reports another tab and opens automatically once that tab lets go", async () => {
+    vi.stubGlobal("Worker", FakeWorker);
+    let releaseOtherTab: () => void = () => {};
+    const otherTabClosed = new Promise<void>((resolve) => {
+      releaseOtherTab = resolve;
+    });
+    FakeWorker.outcomes = [{ kind: "waitThenRespond", release: otherTabClosed }];
+    const waiting = vi.fn();
+    const { createFileDbAdapter } = await import("./index.js");
+
+    let opened = false;
+    const pending = createFileDbAdapter(
+      { vfsName: "opfs-test", dbFileName: null, onWaitingForAnotherTab: waiting },
+      null,
+    ).then((db) => {
+      opened = true;
+      return db;
+    });
+
+    await vi.waitFor(() => expect(waiting).toHaveBeenCalledOnce());
+    expect(opened).toBe(false);
+
+    releaseOtherTab();
+    const db = await pending;
+    expect(db.fiscalPeriods).toBeTruthy();
+    expect(FakeWorker.instances[0]?.terminated).toBe(false);
   });
 
   it("does not leave a rejected initialization cached when postMessage throws", async () => {
@@ -214,13 +252,13 @@ describe("createFileDbAdapter", () => {
 
     await expect(
       createFileDbAdapter(
-        { vfsName: "opfs-test", dbFileName: null },
+        { vfsName: "opfs-test", dbFileName: null, onWaitingForAnotherTab: null },
         null,
       ),
     ).rejects.toThrow("postMessage failed");
 
     const db = await createFileDbAdapter(
-      { vfsName: "opfs-test", dbFileName: null },
+      { vfsName: "opfs-test", dbFileName: null, onWaitingForAnotherTab: null },
       null,
     );
 
@@ -236,10 +274,12 @@ describe("createFileDbAdapter", () => {
     const first = await createFileDbAdapter({
       vfsName: "opfs-test",
       dbFileName: "one.sqlite3",
+      onWaitingForAnotherTab: null,
     }, null);
     const second = await createFileDbAdapter({
       vfsName: "opfs-test",
       dbFileName: "one.sqlite3",
+      onWaitingForAnotherTab: null,
     }, null);
 
     expect(second).toBe(first);
@@ -247,6 +287,7 @@ describe("createFileDbAdapter", () => {
       createFileDbAdapter({
         vfsName: "opfs-test",
         dbFileName: "two.sqlite3",
+        onWaitingForAnotherTab: null,
       }, null),
     ).toThrow(/already initialized with different options/);
     expect(FakeWorker.instances).toHaveLength(1);
@@ -257,7 +298,7 @@ describe("createFileDbAdapter", () => {
     FakeWorker.outcomes = [{ kind: "response", ok: true }];
     const { createFileDbAdapter } = await import("./index.js");
     const first = await createFileDbAdapter(
-      { vfsName: "opfs-test", dbFileName: null },
+      { vfsName: "opfs-test", dbFileName: null, onWaitingForAnotherTab: null },
       null,
     );
 
@@ -275,7 +316,7 @@ describe("createFileDbAdapter", () => {
     expect(FakeWorker.instances[0]!.terminated).toBe(true);
 
     const second = await withDeadline(
-      createFileDbAdapter({ vfsName: "opfs-test", dbFileName: null }, null),
+      createFileDbAdapter({ vfsName: "opfs-test", dbFileName: null, onWaitingForAnotherTab: null }, null),
       "adapter recreation",
     );
     expect(second).not.toBe(first);

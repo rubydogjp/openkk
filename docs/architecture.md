@@ -93,7 +93,7 @@ server side:   api → usecases → ports → domain
 
 `server-ports` にDB操作契約と境界型を置く。SQL・保存処理・DDLは `sqlite-adapter` が担当する。テーブル構造は [`database-schema.md`](./database-schema.md) を参照。
 
-`file-db-adapter`・`memory-db-adapter` は `sqlite-adapter` を利用し、起動時に `runMigrations()` を呼ぶ。`file-db-adapter` の OPFS SAHPool VFS は1ファイルを1接続でしか開けないため、Web Locks で1タブに限定し、同一プロセス内ではアダプタを1つだけ生成する。DB実装を差し替える場合は `OpenkkDbPort` を実装し、DDLはその実装内で管理する。
+`file-db-adapter`・`memory-db-adapter` は `sqlite-adapter` を利用し、起動時に `runMigrations()` を呼ぶ。`file-db-adapter` の OPFS SAHPool VFS は1ファイルを1接続でしか開けないため、Web Locks で1タブに限定し、同一プロセス内ではアダプタを1つだけ生成する。ロックは時間で打ち切らず、取れなければ `onWaitingForAnotherTab` で画面に知らせたうえで解放を待つ。別のタブを閉じる、または再読み込みで前の文書が片付くと、そのまま起動が続く。起動の段階は `<html data-openkk-boot>`（`starting` / `waiting-for-another-tab` / `ready` / `failed`）に出し、E2E は待ち時間ではなくこの属性の変化を待つ。DB実装を差し替える場合は `OpenkkDbPort` を実装し、DDLはその実装内で管理する。
 
 SQLite の単一接続では、トランザクションへ別操作が混入しないよう読取を含む公開ポート呼出しを直列化する。直列化は `server-ports` の `serializePortOperations` が担い、`OpenkkDbPort` と `OpenkkServerPort` の両方で使う。
 

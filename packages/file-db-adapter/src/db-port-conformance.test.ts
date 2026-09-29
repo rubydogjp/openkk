@@ -11,7 +11,7 @@ async function createWorkerTransportAdapter(
   vi.stubGlobal("Worker", InMemoryDbWorker);
   const { createFileDbAdapter } = await import("./index.js");
   return createFileDbAdapter(
-    { vfsName: "opfs-conformance", dbFileName: null },
+    { vfsName: "opfs-conformance", dbFileName: null, onWaitingForAnotherTab: null },
     seed,
   );
 }

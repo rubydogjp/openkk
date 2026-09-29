@@ -11,15 +11,28 @@ export { type DbSnapshot } from "@rubydogjp/openkk-server-ports";
 export type FileDbAdapterOptions = {
   vfsName: string;
   dbFileName: string | null;
+  onWaitingForAnotherTab: (() => void) | null;
 };
 
 type WorkerResponse =
   | { id: number; ok: true; result: unknown }
   | { id: number; ok: false; error: string };
 
+type WorkerEvent = { event: "waiting_for_another_tab" };
+
+function isWorkerEvent(data: unknown): data is WorkerEvent {
+  return (
+    typeof data === "object" &&
+    data != null &&
+    "event" in data &&
+    data.event === "waiting_for_another_tab"
+  );
+}
+
 async function createWorkerSqlDb(
   worker: Worker,
   onFatal: (error: Error) => void,
+  onWaitingForAnotherTab: (() => void) | null,
   initPayload: { vfsName: string; dbFileName: string },
 ): Promise<SqlDb> {
   let nextId = 1;
@@ -29,7 +42,11 @@ async function createWorkerSqlDb(
   >();
   let fatalError: Error | null = null;
 
-  worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+  worker.onmessage = (event: MessageEvent<WorkerResponse | WorkerEvent>) => {
+    if (isWorkerEvent(event.data)) {
+      onWaitingForAnotherTab?.();
+      return;
+    }
     const response = event.data;
     const { id } = response;
     const entry = pending.get(id);
@@ -104,6 +121,7 @@ export function createFileDbAdapter(
               cachedAdapterKey = null;
             }
           },
+          options.onWaitingForAnotherTab,
           { vfsName: options.vfsName, dbFileName },
         );
         return await createSqliteDbAdapter(db, seed);

@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
 
+import { waitUntilBootPhase, waitUntilSettled } from "../helpers";
+
 const ROUTES = [
   "/",
   "/steps",
@@ -32,7 +34,8 @@ test("export smoke (prod): 全ルートにアセット欠落・JS エラーが�
 
   for (const route of ROUTES) {
     await page.goto(route, { waitUntil: "networkidle" });
-    await page.waitForTimeout(800);
+    await waitUntilBootPhase(page, "ready");
+    await waitUntilSettled(page);
     await expect(page.locator("body")).not.toContainText("初期化に失敗");
   }
 
@@ -40,17 +43,32 @@ test("export smoke (prod): 全ルートにアセット欠落・JS エラーが�
   expect(pageErrors, `page errors:\n${pageErrors.join("\n")}`).toEqual([]);
 });
 
-test("export smoke (prod): 2タブ目は単一タブ案内を表示しクラッシュしない", async ({
+test("export smoke (prod): 2タブ目は1タブ目を閉じるまで待ち、閉じたら自動で開く", async ({
   page: firstTab,
   context,
 }) => {
   await firstTab.goto("/", { waitUntil: "networkidle" });
-  await firstTab.waitForTimeout(2500);
-  await expect(firstTab.locator("body")).not.toContainText("初期化に失敗");
-  await expect(firstTab.locator("body")).not.toContainText("複数のタブ");
+  await waitUntilBootPhase(firstTab, "ready");
+
   const secondTab = await context.newPage();
   await secondTab.goto("/", { waitUntil: "networkidle" });
-  await secondTab.waitForTimeout(2500);
-  await expect(secondTab.locator("body")).toContainText("複数のタブ");
+  await waitUntilBootPhase(secondTab, "waiting-for-another-tab");
+  await expect(secondTab.getByRole("status")).toContainText("別のタブで開いています");
+
+  await firstTab.close();
+  await waitUntilBootPhase(secondTab, "ready");
+  await expect(secondTab.locator("body")).not.toContainText("別のタブで開いています");
   await expect(secondTab.locator("body")).not.toContainText("初期化に失敗");
+});
+
+test("export smoke (prod): 再読み込みしても同じタブを別のタブと取り違えない", async ({
+  page,
+}) => {
+  await page.goto("/fiscal-periods", { waitUntil: "networkidle" });
+  await waitUntilBootPhase(page, "ready");
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    await page.reload();
+    await waitUntilBootPhase(page, "ready");
+  }
+  await expect(page.locator("body")).not.toContainText("初期化に失敗");
 });

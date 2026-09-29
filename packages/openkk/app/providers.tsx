@@ -3,6 +3,7 @@
 import type { BrandConfig, OpenkkBackendPort } from "@rubydogjp/openkk-client";
 import {
   OpenkkAppProviders,
+  type OpenkkBootEvents,
   type OpenkkBundleRuntime,
 } from "@rubydogjp/openkk-frontend";
 import { createOpenkkEmbeddedBackend } from "@rubydogjp/openkk-embedded-backend";
@@ -31,9 +32,15 @@ export function Providers(props: { children: React.ReactNode }) {
   );
 }
 
-async function createFileBackendApi(): Promise<OpenkkBackendPort> {
+async function createFileBackendApi(
+  events: OpenkkBootEvents,
+): Promise<OpenkkBackendPort> {
   const db = await createFileDbAdapter(
-    { vfsName: "openkk", dbFileName: "openkk.sqlite3" },
+    {
+      vfsName: "openkk",
+      dbFileName: "openkk.sqlite3",
+      onWaitingForAnotherTab: events.onWaitingForAnotherTab,
+    },
     null,
   );
   const server = createOpenkkEmbeddedBackend(db, {

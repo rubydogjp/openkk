@@ -25,6 +25,15 @@ export async function expectStep(page: Page, title: string) {
   });
 }
 
+export async function waitUntilBootPhase(
+  page: Page,
+  phase: "starting" | "waiting-for-another-tab" | "ready" | "failed",
+) {
+  await expect(page.locator("html")).toHaveAttribute("data-openkk-boot", phase, {
+    timeout: 30_000,
+  });
+}
+
 export async function waitUntilSettled(page: Page) {
   await page.waitForSelector('html[data-openkk-busy="0"]', {
     timeout: 60_000,

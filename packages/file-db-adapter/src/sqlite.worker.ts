@@ -21,15 +21,26 @@ const ctx = self as unknown as {
 
 let db: SyncDb | null = null;
 
-async function acquireSingleTabLock(name: string): Promise<boolean> {
-  if (typeof navigator === "undefined" || navigator.locks == null) return true;
-  return new Promise<boolean>((resolve) => {
-    void navigator.locks
-      .request(name, { mode: "exclusive", signal: AbortSignal.timeout(500) }, () => {
-        resolve(true);
-        return new Promise<void>(() => {});
-      })
-      .catch(() => resolve(false));
+function holdUntilWorkerEnds(): Promise<void> {
+  return new Promise<void>(() => {});
+}
+
+async function acquireSingleTabLock(name: string): Promise<void> {
+  if (typeof navigator === "undefined" || navigator.locks == null) return;
+  const locks = navigator.locks;
+  const acquiredImmediately = await new Promise<boolean>((resolve) => {
+    void locks.request(name, { mode: "exclusive", ifAvailable: true }, (lock) => {
+      resolve(lock != null);
+      return lock != null ? holdUntilWorkerEnds() : null;
+    });
+  });
+  if (acquiredImmediately) return;
+  ctx.postMessage({ event: "waiting_for_another_tab" });
+  await new Promise<void>((resolve) => {
+    void locks.request(name, { mode: "exclusive" }, () => {
+      resolve();
+      return holdUntilWorkerEnds();
+    });
   });
 }
 
@@ -37,8 +48,7 @@ async function init(payload: {
   vfsName: string;
   dbFileName: string;
 }): Promise<void> {
-  const held = await acquireSingleTabLock(`openkk-db:${payload.dbFileName}`);
-  if (!held) throw new Error("ANOTHER_TAB");
+  await acquireSingleTabLock(`openkk-db:${payload.dbFileName}`);
   const sqlite3 = await sqlite3InitModule({
     print: () => {},
     printErr: (msg: string) => console.error("[sqlite-wasm]", msg),
