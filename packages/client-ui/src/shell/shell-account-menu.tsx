@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation.js";
 
 import {
   useBrandConfig,
   useOpenkkAppState,
+  useOpenkkConfig,
 } from "@rubydogjp/openkk-client-usecases";
 import { userCanSignOut, userEmail } from "@rubydogjp/openkk-client-domain";
 
@@ -39,6 +41,8 @@ export function ShellAccountMenu(props: {
   const { hasSession, authActionPending } = props;
   const appState = useOpenkkAppState();
   const brandConfig = useBrandConfig();
+  const myPagePath = useOpenkkConfig().myPagePath;
+  const router = useRouter();
   const marketingSiteUrl = brandConfig.marketingSiteUrl;
   const productSiteUrl = brandConfig.productSiteUrl;
   const session = appState.session;
@@ -208,18 +212,33 @@ export function ShellAccountMenu(props: {
               </div>
 
               <div style={{ padding: "6px 0" }}>
-                <MenuButton
-                  icon={
-                    <PersonIcon
-                      size={18}
-                      color={PALETTE.menuIconDisabled}
-                    />
-                  }
-                  label="プロフィール"
-                  labelColor={PALETTE.menuTextDisabled}
-                  disabled
-                  onClick={() => {}}
-                />
+                {myPagePath != null ? (
+                  <MenuButton
+                    icon={
+                      <PersonIcon size={18} color={PALETTE.menuIconActive} />
+                    }
+                    label="マイページ"
+                    labelColor={PALETTE.menuTextActive}
+                    disabled={false}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      router.push(myPagePath);
+                    }}
+                  />
+                ) : (
+                  <MenuButton
+                    icon={
+                      <PersonIcon
+                        size={18}
+                        color={PALETTE.menuIconDisabled}
+                      />
+                    }
+                    label="プロフィール"
+                    labelColor={PALETTE.menuTextDisabled}
+                    disabled
+                    onClick={() => {}}
+                  />
+                )}
               </div>
 
               <div

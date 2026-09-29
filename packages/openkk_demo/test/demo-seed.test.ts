@@ -22,6 +22,7 @@ const config: OpenkkConfig = {
   fiscalPeriodPolicy: DEFAULT_FISCAL_PERIOD_POLICY,
   editingPolicy: DEFAULT_EDITING_POLICY,
   debugRoutesEnabled: false,
+  myPagePath: null,
 };
 
 describe("demo seed", () => {

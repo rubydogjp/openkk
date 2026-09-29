@@ -56,6 +56,7 @@ export interface OpenkkConfig {
   fiscalPeriodPolicy: FiscalPeriodPolicy;
   editingPolicy: EditingPolicy;
   debugRoutesEnabled: boolean;
+  myPagePath: string | null;
 }
 
 export function createSystemClock(): OpenkkClock {

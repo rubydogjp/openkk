@@ -28,4 +28,5 @@ export const openkkConfig: OpenkkConfig = {
   fiscalPeriodPolicy: DEFAULT_FISCAL_PERIOD_POLICY,
   editingPolicy: DEFAULT_EDITING_POLICY,
   debugRoutesEnabled: false,
+  myPagePath: null,
 };
