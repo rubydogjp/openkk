@@ -52,7 +52,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
   if (STATIC_ASSET_PATH_PATTERN.test(url.pathname)) {
-    event.respondWith(cacheFirst(event.request));
+    event.respondWith(serveStaticAsset(event.request));
   }
 });
 
@@ -204,6 +204,27 @@ function isPrecacheAsset(pathname) {
     pathname === "/icon.svg" ||
     pathname === "/manifest.json"
   );
+}
+
+async function serveStaticAsset(request) {
+  const response = await cacheFirst(request);
+  return isWorkerScriptRequest(request)
+    ? withoutResponseUrl(response)
+    : response;
+}
+
+function isWorkerScriptRequest(request) {
+  return (
+    request.destination === "worker" || request.destination === "sharedworker"
+  );
+}
+
+function withoutResponseUrl(response) {
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
 }
 
 async function cacheFirst(request) {

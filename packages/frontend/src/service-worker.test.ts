@@ -7,6 +7,7 @@ type ServiceWorkerFunctions = {
   cleanupOldCaches: () => Promise<void>;
   networkFirst: (request: Request) => Promise<Response>;
   precacheAppShell: () => Promise<void>;
+  serveStaticAsset: (request: Request) => Promise<Response>;
 };
 
 const workerUrls = [
@@ -124,6 +125,52 @@ describe("download service worker", () => {
     await expect(
       cacheFirst(new Request("https://example.test/_next/static/app.js")),
     ).resolves.toBe(response);
+  });
+
+  it("starts a worker from its own URL even when the cached script was stored for another worker", async () => {
+    const cachedForAnotherWorker = responseFrom(
+      "https://example.test/_next/static/chunks/worker.js#params=another",
+      "bootstrap",
+    );
+    const { serveStaticAsset } = loadWorker({
+      fetch: vi.fn(),
+      caches: {
+        open: vi.fn(async () => ({
+          match: vi.fn(async () => cachedForAnotherWorker),
+        })),
+        match: vi.fn(),
+      },
+    });
+
+    const served = await serveStaticAsset(
+      workerRequest(
+        "https://example.test/_next/static/chunks/worker.js#params=sqlite",
+      ),
+    );
+
+    expect(served.url).toBe("");
+    expect(served.status).toBe(200);
+    await expect(served.text()).resolves.toBe("bootstrap");
+  });
+
+  it("keeps the cached response for scripts loaded by documents", async () => {
+    const cached = responseFrom(
+      "https://example.test/_next/static/chunks/app.js",
+      "app",
+    );
+    const { serveStaticAsset } = loadWorker({
+      fetch: vi.fn(),
+      caches: {
+        open: vi.fn(async () => ({ match: vi.fn(async () => cached) })),
+        match: vi.fn(),
+      },
+    });
+
+    await expect(
+      serveStaticAsset(
+        new Request("https://example.test/_next/static/chunks/app.js"),
+      ),
+    ).resolves.toBe(cached);
   });
 
   it("serves static files from the network when cache storage cannot open", async () => {
@@ -285,6 +332,18 @@ describe("download service worker", () => {
   });
 });
 
+function responseFrom(url: string, body: string): Response {
+  return Object.defineProperty(new Response(body, { status: 200 }), "url", {
+    value: url,
+  });
+}
+
+function workerRequest(url: string): Request {
+  return Object.defineProperty(new Request(url), "destination", {
+    value: "worker",
+  });
+}
+
 function loadWorker(input: {
   fetch: typeof fetch;
   caches: {
@@ -301,7 +360,7 @@ function loadWorker(input: {
     "fetch",
     "Request",
     "URL",
-    `${source}\nreturn { cacheFirst, cleanupOldCaches, networkFirst, precacheAppShell };`,
+    `${source}\nreturn { cacheFirst, cleanupOldCaches, networkFirst, precacheAppShell, serveStaticAsset };`,
   );
   return factory(
     {
