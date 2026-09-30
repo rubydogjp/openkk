@@ -1,5 +1,5 @@
 {
-  "name": "@rubydogjp/openkk-frontend",
+  "name": "@rubydogjp/openkk-platform-browser-adapter",
   "version": "26.2.8",
   "type": "module",
   "main": "./dist/index.js",
@@ -15,23 +15,12 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@rubydogjp/openkk-client": "^26.2.8",
-    "@rubydogjp/openkk-platform-browser-adapter": "^26.2.8",
-    "@rubydogjp/openkk-print-adapter": "^26.2.8"
-  },
-  "peerDependencies": {
-    "next": "^15.3.2 || ^16.0.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "@rubydogjp/openkk-client-ports": "^26.2.8"
   },
   "devDependencies": {
-    "@types/node": "^24.19.0",
-    "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0",
-    "next": "^16.3.8",
     "typescript": "^6.0.3"
   },
-  "description": "オープン会計 frontend ランタイム共通基盤 — bundle 非依存の Providers 配線・env パース・Next 設定を 3 バンドルアプリ(openkk/openkk_sim/openkk_demo)で共有する。",
+  "description": "オープン会計 PlatformPort implementation for web browsers — PWA install, service worker, localStorage, downloads, navigation and clipboard",
   "license": "MIT",
   "author": "rbdog <rbdog@rubydog.jp>",
   "homepage": "https://github.com/rubydogjp/openkk#readme",
@@ -41,7 +30,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rubydogjp/openkk.git",
-    "directory": "packages/frontend"
+    "directory": "packages/platform-browser-adapter"
   },
   "files": [
     "dist"

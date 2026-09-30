@@ -13,6 +13,7 @@ import {
 } from "@rubydogjp/openkk-client-domain";
 import {
   useBackendApi,
+  usePlatformAdapter,
   useOpenkkAppState,
 } from "@rubydogjp/openkk-client-usecases";
 import { AppErrorText } from "../../shared/app-error-text.js";
@@ -23,7 +24,6 @@ import {
   sizes,
   typography,
 } from "../../shared/design-tokens.js";
-import { downloadBytes } from "../../shared/download.js";
 import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 import {
   StepMetaCard,
@@ -39,6 +39,7 @@ export function ArchivedFiscalPeriodScreen({
 }) {
   const backendApi = useBackendApi();
   const appState = useOpenkkAppState();
+  const files = usePlatformAdapter().files;
   const router = useRouter();
   const [isDownloading, setIsDownloading] = useState(false);
   const downloadLock = useRef(new ExclusiveActionLock());
@@ -73,7 +74,7 @@ export function ArchivedFiscalPeriodScreen({
             : [{ fiscalPeriodId: fiscalPeriod.id, year, kind: "closing" }]),
         ],
       });
-      downloadBytes(
+      files.save(
         createFiscalPeriodArchiveZip(payload),
         buildFiscalPeriodArchiveFilename(fiscalPeriod),
         "application/zip",

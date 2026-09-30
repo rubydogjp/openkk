@@ -1,6 +1,7 @@
 export * from "./shared/backend-api-context.js";
 export * from "./shared/maintenance-state.js";
 export * from "./shared/print-adapter-context.js";
+export * from "./shared/platform-adapter-context.js";
 export * from "./shared/openkk-config-context.js";
 export * from "./shared/brand-config-context.js";
 export * from "./shared/callouts-context.js";

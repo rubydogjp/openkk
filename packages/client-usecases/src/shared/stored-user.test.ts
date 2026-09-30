@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  readStoredUser,
-  safeStorageGet,
-  safeStorageRemove,
-  safeStorageSet,
-} from "./browser-storage.js";
+import { readStoredUser } from "./stored-user.js";
 
 describe("readStoredUser", () => {
   it("normalizes optional local-storage fields without exposing invalid types", () => {
@@ -47,25 +42,5 @@ describe("readStoredUser", () => {
         }),
       ),
     ).toMatchObject({ iconUrl: null });
-  });
-});
-
-describe("safe storage access", () => {
-  it("keeps UI state usable when localStorage access throws", () => {
-    const blocked = {
-      getItem(): string | null {
-        throw new Error("blocked");
-      },
-      setItem(): void {
-        throw new Error("quota exceeded");
-      },
-      removeItem(): void {
-        throw new Error("blocked");
-      },
-    };
-
-    expect(safeStorageGet(blocked, "session")).toBeNull();
-    expect(() => safeStorageSet(blocked, "session", "value")).not.toThrow();
-    expect(() => safeStorageRemove(blocked, "session")).not.toThrow();
   });
 });

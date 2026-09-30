@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation.js";
 
 import {
   useBrandConfig,
+  usePlatformAdapter,
   useOpenkkAppState,
   useOpenkkConfig,
 } from "@rubydogjp/openkk-client-usecases";
@@ -21,7 +22,6 @@ import {
   typography,
 } from "../shared/design-tokens.js";
 import { usePopoverLifecycle } from "../shared/dismissible-layer.js";
-import { openExternalUrl } from "../shared/external-navigation.js";
 import {
   ChevronDownIcon,
   ExternalLinkIcon,
@@ -41,6 +41,7 @@ export function ShellAccountMenu(props: {
   const { hasSession, authActionPending } = props;
   const appState = useOpenkkAppState();
   const brandConfig = useBrandConfig();
+  const navigation = usePlatformAdapter().navigation;
   const myPagePath = useOpenkkConfig().myPagePath;
   const router = useRouter();
   const marketingSiteUrl = brandConfig.marketingSiteUrl;
@@ -74,7 +75,7 @@ export function ShellAccountMenu(props: {
       {hasSession && marketingSiteUrl != null ? (
         <button
           type="button"
-          onClick={() => openExternalUrl(marketingSiteUrl, null)}
+          onClick={() => navigation.openExternal(marketingSiteUrl)}
           style={{
             width: "100%",
             display: "flex",
@@ -259,7 +260,7 @@ export function ShellAccountMenu(props: {
                     labelColor={PALETTE.menuLink}
                     onClick={() => {
                       setMenuOpen(false);
-                      openExternalUrl(productSiteUrl, null);
+                      navigation.openExternal(productSiteUrl);
                     }}
                     disabled={false}
                   />

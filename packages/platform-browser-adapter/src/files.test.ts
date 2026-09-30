@@ -1,19 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { downloadBytes } from "./download.js";
+import { browserFiles } from "./files.js";
 
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("downloadBytes", () => {
+describe("browserFiles.save", () => {
   it("removes temporary resources after a successful click", () => {
     const remove = vi.fn();
     const click = vi.fn();
     const revokeObjectURL = vi.fn();
     stubBrowserDownload({ click, remove, revokeObjectURL });
 
-    downloadBytes(Uint8Array.of(1, 2, 3), "test.bin", "application/octet-stream");
+    browserFiles.save(Uint8Array.of(1, 2, 3), "test.bin", "application/octet-stream");
 
     expect(click).toHaveBeenCalledOnce();
     expect(remove).toHaveBeenCalledOnce();
@@ -29,7 +29,7 @@ describe("downloadBytes", () => {
     stubBrowserDownload({ click, remove, revokeObjectURL });
 
     expect(() =>
-      downloadBytes(
+      browserFiles.save(
         Uint8Array.of(1, 2, 3),
         "test.bin",
         "application/octet-stream",

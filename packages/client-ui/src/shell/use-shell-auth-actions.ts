@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation.js";
 import { useRef, useState } from "react";
 
 import {
+  usePlatformAdapter,
   useOpenkkAppState,
   useOpenkkConfig,
 } from "@rubydogjp/openkk-client-usecases";
@@ -14,6 +15,7 @@ import { ExclusiveActionLock } from "../shared/exclusive-action-lock.js";
 export function useShellAuthActions() {
   const appState = useOpenkkAppState();
   const openkkConfig = useOpenkkConfig();
+  const navigation = usePlatformAdapter().navigation;
   const router = useRouter();
   const [authActionError, setAuthActionError] = useState<unknown>(null);
   const [authActionPending, setAuthActionPending] = useState(false);
@@ -31,9 +33,10 @@ export function useShellAuthActions() {
     setAuthActionPending(true);
     let navigationStarted = false;
     try {
-      const redirectUrl = `${window.location.origin}/auth/result`;
-      const result = await appState.startSignIn(redirectUrl);
-      window.location.href = result.authUrl;
+      const result = await appState.startSignIn(
+        navigation.appUrl("/auth/result"),
+      );
+      navigation.leaveTo(result.authUrl);
       navigationStarted = true;
     } catch (error) {
       setAuthActionError(
