@@ -1,4 +1,4 @@
-type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+import type { PlatformKeyValueStorage } from "@rubydogjp/openkk-client-ports";
 
 export const SIGN_IN_RETURN_PATH_LIFETIME_MS = 15 * 60 * 1000;
 const MAX_RETURN_PATH_LENGTH = 2048;
@@ -19,56 +19,49 @@ export function normalizeSignInReturnPath(value: unknown): string | null {
   return `${parsed.pathname}${parsed.search}${parsed.hash}`;
 }
 
-export function rememberSignInReturnPath(
-  storage: StorageLike | null,
-  key: string,
-  path: string,
-  now: Date,
-): boolean {
-  const normalized = normalizeSignInReturnPath(path);
-  if (normalized == null) return false;
-  try {
-    storage?.setItem(
-      key,
-      JSON.stringify({ path: normalized, savedAt: now.getTime() }),
-    );
-    return storage != null;
-  } catch {
-    return false;
-  }
+export type SignInReturnPathStore = {
+  remember(path: string, now: Date): boolean;
+  take(now: Date): string | null;
+  forget(): void;
+};
+
+export function createSignInReturnPathStore(
+  storage: PlatformKeyValueStorage,
+  sessionStorageKey: string,
+): SignInReturnPathStore {
+  const key = `${sessionStorageKey}.sign_in_return_path`;
+  return {
+    remember(path, now) {
+      const normalized = normalizeSignInReturnPath(path);
+      if (normalized == null) return false;
+      storage.setItem(
+        key,
+        JSON.stringify({ path: normalized, savedAt: now.getTime() }),
+      );
+      return true;
+    },
+    take(now) {
+      const raw = storage.getItem(key);
+      storage.removeItem(key);
+      return raw == null ? null : parseStoredReturnPath(raw, now);
+    },
+    forget() {
+      storage.removeItem(key);
+    },
+  };
 }
 
-export function takeSignInReturnPath(
-  storage: StorageLike | null,
-  key: string,
-  now: Date,
-): string | null {
-  let raw: string | null;
+function parseStoredReturnPath(raw: string, now: Date): string | null {
+  let parsed: unknown;
   try {
-    raw = storage?.getItem(key) ?? null;
-    storage?.removeItem(key);
+    parsed = JSON.parse(raw);
   } catch {
     return null;
   }
-  if (raw == null) return null;
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== "object" || parsed == null) return null;
-    const { path, savedAt } = parsed as Record<string, unknown>;
-    if (typeof savedAt !== "number") return null;
-    const age = now.getTime() - savedAt;
-    if (age < 0 || age > SIGN_IN_RETURN_PATH_LIFETIME_MS) return null;
-    return normalizeSignInReturnPath(path);
-  } catch {
-    return null;
-  }
-}
-
-export function forgetSignInReturnPath(
-  storage: StorageLike | null,
-  key: string,
-): void {
-  try {
-    storage?.removeItem(key);
-  } catch {}
+  if (typeof parsed !== "object" || parsed == null) return null;
+  const { path, savedAt } = parsed as Record<string, unknown>;
+  if (typeof savedAt !== "number") return null;
+  const age = now.getTime() - savedAt;
+  if (age < 0 || age > SIGN_IN_RETURN_PATH_LIFETIME_MS) return null;
+  return normalizeSignInReturnPath(path);
 }
