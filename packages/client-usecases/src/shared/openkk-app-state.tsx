@@ -51,6 +51,11 @@ import {
   safeStorageRemove,
   safeStorageSet,
 } from "./browser-storage.js";
+import {
+  forgetSignInReturnPath,
+  rememberSignInReturnPath,
+  takeSignInReturnPath,
+} from "./sign-in-return-path.js";
 
 type OpenkkAppState = {
   session: Session | null;
@@ -90,6 +95,11 @@ type OpenkkAppState = {
   signOut: () => Promise<void>;
 
   startSignIn: (redirectUrl: string) => Promise<{ authUrl: string }>;
+  startSignInReturningTo: (
+    redirectUrl: string,
+    returnPath: string,
+  ) => Promise<{ authUrl: string }>;
+  takeSignInReturnPath: () => string | null;
 
   completeSignIn: (state: string, code: string) => Promise<OpenkkUser>;
   selectFiscalPeriod: (fiscalPeriodId: string) => void;
@@ -254,6 +264,16 @@ export function OpenkkAppStateProvider(props: {
         return true;
       });
     };
+    const startSignIn = async (redirectUrl: string) => {
+      const operationVersion = authVersion.current.capture();
+      return await authMutationQueue.current.run(async () => {
+        assertAuthUnchanged(authVersion.current, operationVersion);
+        const started = await backendApi.auth.startSession(redirectUrl);
+        assertAuthUnchanged(authVersion.current, operationVersion);
+        return started;
+      });
+    };
+
     return {
       session: user == null ? null : { user },
       captureAuthOperationVersion() {
@@ -461,14 +481,24 @@ export function OpenkkAppStateProvider(props: {
           }
         });
       },
-      async startSignIn(redirectUrl) {
-        const operationVersion = authVersion.current.capture();
-        return await authMutationQueue.current.run(async () => {
-          assertAuthUnchanged(authVersion.current, operationVersion);
-          const started = await backendApi.auth.startSession(redirectUrl);
-          assertAuthUnchanged(authVersion.current, operationVersion);
-          return started;
-        });
+      startSignIn,
+      async startSignInReturningTo(redirectUrl, returnPath) {
+        const storage = browserLocalStorage();
+        const returnPathKey = signInReturnPathKey(config.sessionStorageKey);
+        rememberSignInReturnPath(storage, returnPathKey, returnPath, new Date());
+        try {
+          return await startSignIn(redirectUrl);
+        } catch (error) {
+          forgetSignInReturnPath(storage, returnPathKey);
+          throw error;
+        }
+      },
+      takeSignInReturnPath() {
+        return takeSignInReturnPath(
+          browserLocalStorage(),
+          signInReturnPathKey(config.sessionStorageKey),
+          new Date(),
+        );
       },
       async completeSignIn(state, code) {
         const operationVersion = authVersion.current.invalidate();
@@ -564,4 +594,8 @@ function fiscalPeriodCleanupError(
     statusCode: null,
     code: null,
   });
+}
+
+function signInReturnPathKey(sessionStorageKey: string): string {
+  return `${sessionStorageKey}.sign_in_return_path`;
 }

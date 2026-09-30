@@ -41,7 +41,9 @@ export function AuthResultPage() {
     void (async () => {
       try {
         await appState.completeSignIn(state, code);
-        window.location.replace("/fiscal-periods");
+        window.location.replace(
+          appState.takeSignInReturnPath() ?? "/fiscal-periods",
+        );
       } catch (error) {
         setScreenError(
           AppError.from(error, {
