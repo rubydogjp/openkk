@@ -15,6 +15,7 @@ import {
 import { AppErrorText } from "../../shared/app-error-text.js";
 import {
   useBackendApi,
+  usePlatformAdapter,
   useOpenkkAppState,
   useOpenkkCallout,
   useOpenkkConfig,
@@ -27,7 +28,6 @@ import {
   rings,
 } from "../../shared/design-tokens.js";
 import { LockButton } from "../../shared/locked-action.js";
-import { downloadBytes } from "../../shared/download.js";
 import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 import {
   FormDatePair,
@@ -72,6 +72,7 @@ export function NextFiscalPeriodBody({
   const nextPeriodFooter = useOpenkkCallout("stepNextFiscalPeriodFooter");
   const backendApi = useBackendApi();
   const appState = useOpenkkAppState();
+  const files = usePlatformAdapter().files;
   const entriesState = useOpenkkEntries();
   const [screenError, setScreenError] = useState<unknown>(null);
   const [archiveMessage, setArchiveMessage] = useState<string | null>(null);
@@ -264,7 +265,7 @@ export function NextFiscalPeriodBody({
         ],
       });
       const zip = createFiscalPeriodArchiveZip(payload);
-      downloadBytes(
+      files.save(
         zip,
         buildFiscalPeriodArchiveFilename(currentFiscalPeriod),
         "application/zip",

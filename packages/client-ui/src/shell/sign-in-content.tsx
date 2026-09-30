@@ -1,14 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
-
-import { AppError } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../shared/app-error-text.js";
 
-import {
-  useOpenkkAppState,
-  useOpenkkConfig,
-} from "@rubydogjp/openkk-client-usecases";
+import { useOpenkkConfig } from "@rubydogjp/openkk-client-usecases";
 import {
   fontSize,
   fontWeight,
@@ -18,46 +12,12 @@ import {
   sizes,
   typography,
 } from "../shared/design-tokens.js";
-import { ExclusiveActionLock } from "../shared/exclusive-action-lock.js";
+import { useShellAuthActions } from "./use-shell-auth-actions.js";
 
 export function SignInContent() {
-  const appState = useOpenkkAppState();
   const openkkConfig = useOpenkkConfig();
-  const [screenError, setScreenError] = useState<unknown>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const signInLock = useRef(new ExclusiveActionLock());
-
-  const handleSignIn = async () => {
-    const release = signInLock.current.tryAcquire();
-    if (release == null) return;
-    setScreenError(null);
-    if (openkkConfig.authMode === "embedded") {
-      appState.signInAsEmbeddedUser();
-      release();
-      return;
-    }
-    setSubmitting(true);
-    let navigationStarted = false;
-    try {
-      const redirectUrl = `${window.location.origin}/auth/result`;
-      const result = await appState.startSignIn(redirectUrl);
-      window.location.href = result.authUrl;
-      navigationStarted = true;
-    } catch (error) {
-      setScreenError(
-        AppError.from(error, {
-          fallbackUserMessage: "サインインに失敗しました",
-          fallbackDeveloperMessage: "shell: startAuthSession failed",
-          statusCode: null,
-        }),
-      );
-    } finally {
-      if (!navigationStarted) {
-        setSubmitting(false);
-        release();
-      }
-    }
-  };
+  const auth = useShellAuthActions();
+  const submitting = auth.authActionPending;
 
   return (
     <div
@@ -119,7 +79,7 @@ export function SignInContent() {
         <div style={{ height: 20 }} />
         <button
           type="button"
-          onClick={handleSignIn}
+          onClick={auth.signIn}
           style={{
             width: "100%",
             height: sizes.button.ctaHeight,
@@ -138,9 +98,9 @@ export function SignInContent() {
         >
           {submitting ? "処理中…" : "サインイン"}
         </button>
-        {screenError != null ? (
+        {auth.authActionError != null ? (
           <div style={{ marginTop: 12 }}>
-            <AppErrorText error={screenError} style={null} fallbackUserMessage={null} />
+            <AppErrorText error={auth.authActionError} style={null} fallbackUserMessage={null} />
           </div>
         ) : null}
       </section>

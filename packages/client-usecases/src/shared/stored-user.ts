@@ -1,45 +1,5 @@
 import type { OpenkkUser } from "@rubydogjp/openkk-client-domain";
 
-type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
-
-export function browserLocalStorage(): Storage | null {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-}
-
-export function safeStorageGet(
-  storage: StorageLike | null,
-  key: string,
-): string | null {
-  try {
-    return storage?.getItem(key) ?? null;
-  } catch {
-    return null;
-  }
-}
-
-export function safeStorageSet(
-  storage: StorageLike | null,
-  key: string,
-  value: string,
-): void {
-  try {
-    storage?.setItem(key, value);
-  } catch {}
-}
-
-export function safeStorageRemove(
-  storage: StorageLike | null,
-  key: string,
-): void {
-  try {
-    storage?.removeItem(key);
-  } catch {}
-}
-
 export function readStoredUser(raw: string | null): OpenkkUser | null {
   if (raw == null || raw === "") return null;
   try {

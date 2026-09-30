@@ -4,7 +4,10 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation.js";
 
 import { AppError } from "@rubydogjp/openkk-client-domain";
-import { useOpenkkAppState } from "@rubydogjp/openkk-client-usecases";
+import {
+  usePlatformAdapter,
+  useOpenkkAppState,
+} from "@rubydogjp/openkk-client-usecases";
 import { AppErrorText } from "../../shared/app-error-text.js";
 import { startOnceAfterMount, type StartOnceState } from "../../shared/start-once-after-mount.js";
 import { fontSize, fontWeight, palette, shadows } from "../../shared/design-tokens.js";
@@ -19,6 +22,7 @@ export function AuthResultPage() {
 
 function AuthResultContent() {
   const appState = useOpenkkAppState();
+  const navigation = usePlatformAdapter().navigation;
   const searchParams = useSearchParams();
   const [screenError, setScreenError] = useState<unknown>(null);
   const startRef = useRef<StartOnceState>({ started: false });
@@ -47,7 +51,7 @@ function AuthResultContent() {
     void (async () => {
       try {
         await appState.completeSignIn(state, code);
-        window.location.replace(
+        navigation.reloadAt(
           appState.takeSignInReturnPath() ?? "/fiscal-periods",
         );
       } catch (error) {
@@ -60,7 +64,7 @@ function AuthResultContent() {
         );
       }
     })();
-  }), [appState, searchParams]);
+  }), [appState, navigation, searchParams]);
 
   return <AuthResultView screenError={screenError} />;
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   BackendApiProvider,
   BrandConfigProvider,
+  PlatformAdapterProvider,
   OpenkkAppStateProvider,
   OpenkkAssistProvider,
   OpenkkCalloutsProvider,
@@ -14,6 +15,7 @@ import {
   WorkInProgressProvider,
   type OpenkkBackendPort,
 } from "@rubydogjp/openkk-client";
+import { platformBrowserAdapter } from "@rubydogjp/openkk-platform-browser-adapter";
 import { printAdapter } from "@rubydogjp/openkk-print-adapter";
 
 import type { OpenkkBundleRuntime } from "./bundle-runtime.js";
@@ -76,7 +78,10 @@ export function OpenkkAppProviders(props: {
 
   useEffect(() => {
     if (!runtime.registerServiceWorker) return;
-    registerServiceWorker();
+    platformBrowserAdapter.offlineCache.register(
+      SERVICE_WORKER_URL,
+      SERVICE_WORKER_BUILD_ID,
+    );
   }, [runtime.registerServiceWorker]);
 
   if (bootError != null) {
@@ -105,37 +110,27 @@ export function OpenkkAppProviders(props: {
     <OpenkkConfigProvider config={runtime.config}>
       <BrandConfigProvider config={runtime.brandConfig}>
         <OpenkkCalloutsProvider slots={runtime.calloutSlots}>
-          <BackendApiProvider api={backendApi}>
-            <OpenkkMaintenanceProvider>
-              <PrintAdapterProvider adapter={printAdapter}>
-                <OpenkkAppStateProvider
-                  seedFiscalPeriod={runtime.seedFiscalPeriod}
-                >
-                  <OpenkkEntriesProvider>
-                    <OpenkkAssistProvider>
-                      <WorkInProgressProvider>
-                        {props.children}
-                      </WorkInProgressProvider>
-                    </OpenkkAssistProvider>
-                  </OpenkkEntriesProvider>
-                </OpenkkAppStateProvider>
-              </PrintAdapterProvider>
-            </OpenkkMaintenanceProvider>
-          </BackendApiProvider>
+          <PlatformAdapterProvider adapter={platformBrowserAdapter}>
+            <BackendApiProvider api={backendApi}>
+              <OpenkkMaintenanceProvider>
+                <PrintAdapterProvider adapter={printAdapter}>
+                  <OpenkkAppStateProvider
+                    seedFiscalPeriod={runtime.seedFiscalPeriod}
+                  >
+                    <OpenkkEntriesProvider>
+                      <OpenkkAssistProvider>
+                        <WorkInProgressProvider>
+                          {props.children}
+                        </WorkInProgressProvider>
+                      </OpenkkAssistProvider>
+                    </OpenkkEntriesProvider>
+                  </OpenkkAppStateProvider>
+                </PrintAdapterProvider>
+              </OpenkkMaintenanceProvider>
+            </BackendApiProvider>
+          </PlatformAdapterProvider>
         </OpenkkCalloutsProvider>
       </BrandConfigProvider>
     </OpenkkConfigProvider>
   );
-}
-
-function registerServiceWorker(): void {
-  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
-    return;
-  }
-  const versionedUrl = `${SERVICE_WORKER_URL}?v=${encodeURIComponent(
-    SERVICE_WORKER_BUILD_ID,
-  )}`;
-  void navigator.serviceWorker.register(versionedUrl).catch((error) => {
-    console.error("[openkk] service worker registration failed:", error);
-  });
 }

@@ -3,15 +3,11 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation.js";
 
-import { useOpenkkConfig } from "@rubydogjp/openkk-client-usecases";
-
 import {
-  getDeferredInstallPrompt,
-  isAppInstalled,
-  requestAppInstall,
-  subscribeInstallChange,
-  takeDeferredInstallPrompt,
-} from "../../shared/pwa-install.js";
+  usePlatformAdapter,
+  useOpenkkConfig,
+} from "@rubydogjp/openkk-client-usecases";
+
 import {
   palette,
   fontSize,
@@ -21,11 +17,6 @@ import {
 import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 
 const INSTALL_AVAILABILITY_TIMEOUT_MS = 2500;
-
-type NavigatorWithExperimentalInstall = Navigator & {
-  install: unknown;
-  standalone: unknown;
-};
 
 type Phase =
   | "checking"
@@ -44,40 +35,27 @@ const phaseMessage: Record<Phase, string> = {
   unsupported: "このブラウザでは、このページのボタンから追加を始められません。ブラウザのメニューに「アプリをインストール」や「ホーム画面に追加」がある場合は、そこから追加できます。",
 };
 
-function isStandalone(): boolean {
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    (navigator as NavigatorWithExperimentalInstall).standalone === true
-  );
-}
-
-function canInstall(): boolean {
-  return (
-    getDeferredInstallPrompt() != null ||
-    typeof (navigator as NavigatorWithExperimentalInstall).install ===
-      "function"
-  );
-}
-
 export function InstallPage() {
   const router = useRouter();
   const openkkConfig = useOpenkkConfig();
+  const appInstall = usePlatformAdapter().appInstall;
   const bundleLabel = openkkConfig.bundleLabel;
   const [phase, setPhase] = useState<Phase>("checking");
   const installLock = useRef(new ExclusiveActionLock());
 
   useEffect(() => {
     const evaluateInstallAvailability = () => {
-      if (isStandalone() || isAppInstalled()) {
+      const state = appInstall.getState();
+      if (state === "installed") {
         setPhase("installed");
         return;
       }
-      if (canInstall()) {
+      if (state === "available") {
         setPhase("ready");
       }
     };
     evaluateInstallAvailability();
-    const unsubscribe = subscribeInstallChange(evaluateInstallAvailability);
+    const unsubscribe = appInstall.subscribe(evaluateInstallAvailability);
 
     const unsupportedDetectionTimer = window.setTimeout(() => {
       setPhase((p) => (p === "checking" ? "unsupported" : p));
@@ -87,25 +65,15 @@ export function InstallPage() {
       unsubscribe();
       window.clearTimeout(unsupportedDetectionTimer);
     };
-  }, []);
+  }, [appInstall]);
 
   async function handleInstall() {
     if (phase !== "ready") return;
     const release = installLock.current.tryAcquire();
     if (release == null) return;
     setPhase("installing");
-    const prompt = takeDeferredInstallPrompt();
-    const nav = navigator as NavigatorWithExperimentalInstall;
-    const install = nav.install;
     try {
-      const outcome = await requestAppInstall({
-        prompt,
-        install:
-          prompt == null && typeof install === "function"
-            ? () => install.call(nav)
-            : null,
-      });
-      setPhase(outcome);
+      setPhase(await appInstall.request());
     } finally {
       release();
     }

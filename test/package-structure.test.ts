@@ -181,7 +181,8 @@ describe("openkk workspace structure", () => {
       "embedded-backend": ["server"],
       "embedded-backend-adapter": ["client-ports", "embedded-backend"],
       "print-adapter": ["client-ports"],
-      frontend: ["client", "print-adapter"],
+      "platform-browser-adapter": ["client-ports"],
+      frontend: ["client", "print-adapter", "platform-browser-adapter"],
       openkk: [
         "client",
         "frontend",
@@ -250,6 +251,7 @@ describe("openkk workspace structure", () => {
     const ADAPTER_EXEMPTIONS = new Set([
       "embedded-backend-adapter",
       "print-adapter",
+      "platform-browser-adapter",
       "file-db-adapter",
       "memory-db-adapter",
       "sqlite-adapter",

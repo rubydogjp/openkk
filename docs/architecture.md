@@ -12,7 +12,7 @@ SQLite スキーマ: [`database-schema.md`](./database-schema.md)
 ```
 packages/
 ├── client-domain        純粋ドメイン型・計算ロジック（フレームワーク依存なし）
-├── client-ports         外部境界 interface（OpenkkBackendPort, PrintPort）
+├── client-ports         外部境界 interface（OpenkkBackendPort, PrintPort, PlatformPort）
 ├── client-usecases      React Context + hook のユースケース層
 ├── client-ui            React コンポーネント・デザイントークン
 ├── client               上 4 つの meta barrel
@@ -28,6 +28,7 @@ packages/
 ├── sqlite-adapter       上記2つが共有するSQL・保存処理・マイグレーション
 ├── embedded-backend-adapter  OpenkkBackendPort 実装 — 同プロセス HTTP 風 bridge
 ├── print-adapter        PrintPort 実装 — ブラウザ印刷
+├── platform-browser-adapter PlatformPort 実装 — PWA・localStorage・ダウンロード等のブラウザ機能
 │
 ├── embedded-backend     in-process backend composition root
 ├── frontend             3アプリ共通の provider・composition 配線
@@ -51,8 +52,11 @@ packages/
 | `OpenkkDbPort` | `server-ports` | `file-db-adapter` / `memory-db-adapter` |
 | `OpenkkBackendPort` | `client-ports` | `embedded-backend-adapter` |
 | `PrintPort` | `client-ports` | `print-adapter` |
+| `PlatformPort` | `client-ports` | `platform-browser-adapter` |
 
 HTTP バックエンドは `embedded-backend-adapter` と同じ位置で差し替える。
+
+実行環境（プラットフォーム）に依存する機能は `PlatformPort` に集める。対象はアプリのインストール、オフラインキャッシュの登録、key-value 保存、ファイル保存、外部URL・認証リダイレクトの遷移、クリップボード。UI とユースケースは `usePlatformAdapter` 経由で呼び、`window` や `navigator` を直接触らない。ネイティブアプリなど別のプラットフォームで動かす場合は `platform-browser-adapter` と同じ位置に実装を追加し、`PlatformAdapterProvider` に渡す。ポップオーバーの外側クリック検知など、Web ビューである限り共通の DOM 操作は UI に残す。
 
 ### 3. 4 層依存方向
 
@@ -112,7 +116,7 @@ Download版のService Workerは静的エクスポートを事前保存する。�
 
 各ビルドは `NEXT_PUBLIC_BUILD_ID` をService Worker URLの `v` クエリへ反映する。有効化時は同じアプリシェルprefixを持つ旧版だけを削除し、他用途のキャッシュは保持する。
 
-`beforeinstallprompt` はインストール画面の描画前に発生し得るため、`client-ui` のPWA状態モジュールをshellから先行読込みし、単回利用のpromptをアプリ全体で保持する。
+`beforeinstallprompt` はインストール画面の描画前に発生し得るため、`platform-browser-adapter` が読み込み時にイベントを購読し、単回利用のpromptをアプリ全体で保持する。composition root はアダプタをモジュールの先頭で import する。
 
 ## テスト戦略
 

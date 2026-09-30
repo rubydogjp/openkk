@@ -50,10 +50,11 @@ const LAYERS = [
   {
     id: "client_adapters",
     label: "Client Adapters",
-    note: "`OpenkkBackendPort` / `PrintPort` の実装群。consumer は backend adapter を差し替える",
+    note: "`OpenkkBackendPort` / `PrintPort` / `PlatformPort` の実装群。consumer は backend adapter を差し替える",
     match: (name) =>
       name === "@rubydogjp/openkk-embedded-backend-adapter" ||
-      name === "@rubydogjp/openkk-print-adapter",
+      name === "@rubydogjp/openkk-print-adapter" ||
+      name === "@rubydogjp/openkk-platform-browser-adapter",
   },
   {
     id: "client",
@@ -239,6 +240,7 @@ ${layerDescLines}
 |---|---|---|
 | \`OpenkkBackendPort\` | \`client-ports\` | \`embedded-backend-adapter\`、consumer 独自 HTTP adapter |
 | \`PrintPort\` | \`client-ports\` | \`print-adapter\` |
+| \`PlatformPort\` | \`client-ports\` | \`platform-browser-adapter\` |
 | \`OpenkkDbPort\` | \`server-ports\` | \`file-db-adapter\`、\`memory-db-adapter\` |
 | \`OpenkkServerPort\` | \`server-ports\` | \`server-api\` (via \`server\` meta) |
 

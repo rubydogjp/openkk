@@ -17,7 +17,6 @@ import {
   sizes,
 } from "../shared/design-tokens.js";
 import { normalizePathname } from "../shared/pathname.js";
-import "../shared/pwa-install.js";
 import { DataLoadErrorBanner } from "./data-load-error-banner.js";
 import { AppErrorText } from "../shared/app-error-text.js";
 import { useDismissibleLayer } from "../shared/dismissible-layer.js";

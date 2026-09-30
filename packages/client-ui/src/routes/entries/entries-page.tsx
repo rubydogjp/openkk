@@ -23,6 +23,7 @@ import {
   type YearMonth,
 } from "@rubydogjp/openkk-client-domain";
 import {
+  usePlatformAdapter,
   useOpenkkAppState,
   useOpenkkAssist,
   useOpenkkEntries,
@@ -39,13 +40,13 @@ import {
 } from "../../entries/entries-ui.js";
 import { EntryEditDrawer } from "../../entries/entry-edit-drawer.js";
 import { entryRecordToDraft } from "../../entries/entry-edit-model.js";
-import { downloadBytes } from "../../shared/download.js";
 import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 
 export function EntriesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const appState = useOpenkkAppState();
+  const files = usePlatformAdapter().files;
   const openkkConfig = useOpenkkConfig();
   const today = useOpenkkToday();
   const entriesState = useOpenkkEntries();
@@ -375,7 +376,7 @@ export function EntriesPage() {
         ? exportEntriesAsJson(manualEntriesForFileExport)
         : `\uFEFF${exportEntriesAsCsv(manualEntriesForFileExport)}`;
     const filename = `${fiscalPeriodId}_journal.${kind}`;
-    downloadBytes(
+    files.save(
       new TextEncoder().encode(data),
       filename,
       kind === "json"

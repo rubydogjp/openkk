@@ -44,13 +44,8 @@ import {
   mapRemoteFiscalPeriod,
 } from "./fiscal-period-list.js";
 import { assertAuthUnchanged } from "./auth-operation-guard.js";
-import {
-  browserLocalStorage,
-  readStoredUser,
-  safeStorageGet,
-  safeStorageRemove,
-  safeStorageSet,
-} from "./browser-storage.js";
+import { usePlatformAdapter } from "./platform-adapter-context.js";
+import { readStoredUser } from "./stored-user.js";
 import {
   forgetSignInReturnPath,
   rememberSignInReturnPath,
@@ -124,6 +119,7 @@ export function OpenkkAppStateProvider(props: {
 }) {
   const config = useOpenkkConfig();
   const backendApi = useBackendApi();
+  const storage = usePlatformAdapter().storage;
   const seedFiscalPeriod = props.seedFiscalPeriod;
   const authVersion = useRef(new AsyncStateVersion());
   const authMutationQueue = useRef(new AsyncMutationQueue());
@@ -151,19 +147,13 @@ export function OpenkkAppStateProvider(props: {
     };
   }, []);
   useEffect(() => {
-    if (typeof window === "undefined") {
-      setIsReady(true);
-      return;
-    }
-
-    const storage = browserLocalStorage();
     if (config.authMode === "custom") {
       const restored = readStoredUser(
-        safeStorageGet(storage, config.sessionStorageKey),
+        storage.getItem(config.sessionStorageKey),
       );
       if (restored != null) setUser(restored);
     }
-    const storedFp = safeStorageGet(storage, config.fiscalPeriodStorageKey);
+    const storedFp = storage.getItem(config.fiscalPeriodStorageKey);
     if (storedFp != null && storedFp !== "") setCurrentFiscalPeriodId(storedFp);
     setIsReady(true);
   }, []);
@@ -213,34 +203,20 @@ export function OpenkkAppStateProvider(props: {
   }, [backendApi, config, userId, fiscalPeriodReloadNonce]);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const storage = browserLocalStorage();
     if (user != null && user.kind === "custom") {
-      safeStorageSet(storage, config.sessionStorageKey, JSON.stringify(user));
+      storage.setItem(config.sessionStorageKey, JSON.stringify(user));
     } else {
-      safeStorageRemove(storage, config.sessionStorageKey);
+      storage.removeItem(config.sessionStorageKey);
     }
-  }, [user, config]);
+  }, [user, config, storage]);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const storage = browserLocalStorage();
     if (currentFiscalPeriodId == null) {
-      safeStorageRemove(storage, config.fiscalPeriodStorageKey);
+      storage.removeItem(config.fiscalPeriodStorageKey);
     } else {
-      safeStorageSet(
-        storage,
-        config.fiscalPeriodStorageKey,
-        currentFiscalPeriodId,
-      );
+      storage.setItem(config.fiscalPeriodStorageKey, currentFiscalPeriodId);
     }
-  }, [currentFiscalPeriodId, config]);
+  }, [currentFiscalPeriodId, config, storage]);
 
   const value = useMemo<OpenkkAppState>(() => {
     const runFiscalPeriodCommand = async (
@@ -483,13 +459,12 @@ export function OpenkkAppStateProvider(props: {
       },
       async startSignIn(redirectUrl) {
         forgetSignInReturnPath(
-          browserLocalStorage(),
+          storage,
           signInReturnPathKey(config.sessionStorageKey),
         );
         return await startAuthSession(redirectUrl);
       },
       async startSignInReturningTo(redirectUrl, returnPath) {
-        const storage = browserLocalStorage();
         const returnPathKey = signInReturnPathKey(config.sessionStorageKey);
         rememberSignInReturnPath(storage, returnPathKey, returnPath, new Date());
         try {
@@ -501,7 +476,7 @@ export function OpenkkAppStateProvider(props: {
       },
       takeSignInReturnPath() {
         return takeSignInReturnPath(
-          browserLocalStorage(),
+          storage,
           signInReturnPathKey(config.sessionStorageKey),
           new Date(),
         );
@@ -553,6 +528,7 @@ export function OpenkkAppStateProvider(props: {
     config,
     backendApi,
     seedFiscalPeriod,
+    storage,
   ]);
 
   return (
