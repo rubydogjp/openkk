@@ -6,18 +6,16 @@ import { useSearchParams } from "next/navigation.js";
 import { AppError } from "@rubydogjp/openkk-client-domain";
 import { useOpenkkAppState } from "@rubydogjp/openkk-client-usecases";
 import { AppErrorText } from "../../shared/app-error-text.js";
+import { startOnceAfterMount, type StartOnceState } from "../../shared/start-once-after-mount.js";
 import { fontSize, fontWeight, palette, shadows } from "../../shared/design-tokens.js";
 
 export function AuthResultPage() {
   const appState = useOpenkkAppState();
   const searchParams = useSearchParams();
   const [screenError, setScreenError] = useState<unknown>(null);
-  const startedRef = useRef(false);
+  const startRef = useRef<StartOnceState>({ started: false });
 
-  useEffect(() => {
-    if (startedRef.current) return;
-    startedRef.current = true;
-
+  useEffect(() => startOnceAfterMount(startRef.current, () => {
     const state = searchParams.get("state");
     const code = searchParams.get("code");
     if (
@@ -54,7 +52,7 @@ export function AuthResultPage() {
         );
       }
     })();
-  }, [appState, searchParams]);
+  }), [appState, searchParams]);
 
   return (
     <main
