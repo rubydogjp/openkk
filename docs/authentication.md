@@ -44,14 +44,14 @@ type CustomUser = {
 3. クライアントの状態管理（`openkk-app-state`）が以下を自動で駆動する。実装不要。
    - サインイン: `startSignIn` → 外部 URL へリダイレクト → `/auth/result` で `completeSignIn`（= `completeSession` ＋ `redeemCompletionCode`）→ `CustomUser` を保持。`/auth/result` には `AuthResultPage` をそのまま置ける。クエリの読み取りに必要な Suspense は部品の中に持っているので、静的エクスポートでも包まなくてよい。
    - サインアウト: `auth.signOut()` を呼び、ローカルのユーザーを破棄。
-   - サインイン後に `/fiscal-periods` 以外へ戻したい画面（外部連携の承認画面など）は、`startSignInReturningTo(redirectUrl, returnPath)` で始める。`/auth/result` はサインインの完了後に `takeSignInReturnPath()` の戻り先へ移動する。戻り先は同じサイト内のパスだけを受け付け、15分で失効し、一度使うと消える。
+   - サインイン後に `/fiscal-periods` 以外へ戻したい画面（外部連携の承認画面など）は、`startSignInReturningTo(redirectUrl, returnPath)` で始める。`/auth/result` はサインインの完了後に `takeSignInReturnPath()` の戻り先へ移動する。戻り先は同じサイト内のパスだけを受け付け、15分で失効し、一度使うと消える。通常の `startSignIn` で始め直すと、残っていた戻り先は消える。
 
 所有者検証は `server-usecases` が担当する。`server-api` は期間と子リソースの所属関係・操作可能なフェーズ・入力形式も検証する（[`architecture.md`](./architecture.md) 参照）。
 
 ## マイページ
 
 `OpenkkConfig.myPagePath` にアプリ内のパスを設定すると、アカウントメニューに「マイページ」が現れ、そのパスへ遷移する。
-ページ本体（プロフィール、APIキー管理など）は派生プロダクトが実装する。`null` の場合は従来どおり無効な「プロフィール」を表示する。
+ページ本体（プロフィール、外部連携の管理など）は派生プロダクトが実装する。`null` の場合は従来どおり無効な「プロフィール」を表示する。
 
 ## 復元とトークン有効性（CustomUser）
 

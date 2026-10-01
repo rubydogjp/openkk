@@ -264,7 +264,7 @@ export function OpenkkAppStateProvider(props: {
         return true;
       });
     };
-    const startSignIn = async (redirectUrl: string) => {
+    const startAuthSession = async (redirectUrl: string) => {
       const operationVersion = authVersion.current.capture();
       return await authMutationQueue.current.run(async () => {
         assertAuthUnchanged(authVersion.current, operationVersion);
@@ -481,13 +481,19 @@ export function OpenkkAppStateProvider(props: {
           }
         });
       },
-      startSignIn,
+      async startSignIn(redirectUrl) {
+        forgetSignInReturnPath(
+          browserLocalStorage(),
+          signInReturnPathKey(config.sessionStorageKey),
+        );
+        return await startAuthSession(redirectUrl);
+      },
       async startSignInReturningTo(redirectUrl, returnPath) {
         const storage = browserLocalStorage();
         const returnPathKey = signInReturnPathKey(config.sessionStorageKey);
         rememberSignInReturnPath(storage, returnPathKey, returnPath, new Date());
         try {
-          return await startSignIn(redirectUrl);
+          return await startAuthSession(redirectUrl);
         } catch (error) {
           forgetSignInReturnPath(storage, returnPathKey);
           throw error;
