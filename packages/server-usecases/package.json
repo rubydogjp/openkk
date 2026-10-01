@@ -19,7 +19,7 @@
     "@rubydogjp/openkk-server-domain": "^26.2.6"
   },
   "devDependencies": {
-    "typescript": "^5.8.3"
+    "typescript": "^6.0.3"
   },
   "description": "オープン会計 server-side use cases — orchestration / controller layer above server-ports",
   "license": "MIT",

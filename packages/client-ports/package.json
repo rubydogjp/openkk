@@ -18,7 +18,7 @@
     "@rubydogjp/openkk-client-domain": "^26.2.6"
   },
   "devDependencies": {
-    "typescript": "^5.8.3"
+    "typescript": "^6.0.3"
   },
   "description": "オープン会計 client-side port interfaces (OpenkkBackendPort, PrintPort) for swappable adapter implementations",
   "license": "MIT",

@@ -18,7 +18,7 @@
     "@rubydogjp/openkk-server": "^26.2.6"
   },
   "devDependencies": {
-    "typescript": "^5.8.3"
+    "typescript": "^6.0.3"
   },
   "description": "オープン会計 embedded backend composition root — runs openkk-server in-process (same JS runtime as the client). Inject any OpenkkDbPort (file / memory / etc.).",
   "license": "MIT",

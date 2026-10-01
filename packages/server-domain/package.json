@@ -15,7 +15,7 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "devDependencies": {
-    "typescript": "^5.8.3"
+    "typescript": "^6.0.3"
   },
   "description": "オープン会計 server-side domain layer — independent type duplicate of client-domain (no cross-import between sides)",
   "license": "MIT",

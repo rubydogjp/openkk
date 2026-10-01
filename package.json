@@ -56,10 +56,11 @@
     "check:icons": "node scripts/gen-icons.mjs --check"
   },
   "devDependencies": {
-    "@playwright/test": "^1.58.2",
-    "sharp": "^0.35.4",
-    "typescript": "^5.8.3",
-    "vitest": "^4.1.11"
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^24.19.0",
+    "sharp": "^0.35.5",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.3"
   },
   "version": "1.0.0",
   "description": "オープン会計 — open-source double-entry bookkeeping library for sole proprietors. Hexagonal architecture with swappable backend and storage adapters.",
@@ -75,6 +76,6 @@
   },
   "overrides": {
     "postcss": "^8.5.25",
-    "sharp": "^0.35.4"
+    "sharp": "^0.35.5"
   }
 }

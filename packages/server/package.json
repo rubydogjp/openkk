@@ -21,7 +21,7 @@
     "@rubydogjp/openkk-server-usecases": "^26.2.6"
   },
   "devDependencies": {
-    "typescript": "^5.8.3"
+    "typescript": "^6.0.3"
   },
   "description": "オープン会計 server-side meta package — bundles server layers and provides createOpenkkServer(db, config)",
   "license": "MIT",

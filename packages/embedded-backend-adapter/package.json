@@ -19,7 +19,7 @@
     "@rubydogjp/openkk-embedded-backend": "^26.2.6"
   },
   "devDependencies": {
-    "typescript": "^5.8.3"
+    "typescript": "^6.0.3"
   },
   "description": "オープン会計 OpenkkBackendPort implementation that wraps an in-process openkk-embedded-backend. Inject any OpenkkDbPort.",
   "license": "MIT",

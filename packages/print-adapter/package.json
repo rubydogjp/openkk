@@ -18,7 +18,7 @@
     "@rubydogjp/openkk-client-ports": "^26.2.6"
   },
   "devDependencies": {
-    "typescript": "^5.8.3"
+    "typescript": "^6.0.3"
   },
   "description": "オープン会計 PrintPort implementation that renders documents into a hidden iframe in the browser DOM",
   "license": "MIT",
