@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation.js";
 
 import { AppError } from "@rubydogjp/openkk-client-domain";
@@ -10,6 +10,14 @@ import { startOnceAfterMount, type StartOnceState } from "../../shared/start-onc
 import { fontSize, fontWeight, palette, shadows } from "../../shared/design-tokens.js";
 
 export function AuthResultPage() {
+  return (
+    <Suspense fallback={<AuthResultView screenError={null} />}>
+      <AuthResultContent />
+    </Suspense>
+  );
+}
+
+function AuthResultContent() {
   const appState = useOpenkkAppState();
   const searchParams = useSearchParams();
   const [screenError, setScreenError] = useState<unknown>(null);
@@ -54,6 +62,10 @@ export function AuthResultPage() {
     })();
   }), [appState, searchParams]);
 
+  return <AuthResultView screenError={screenError} />;
+}
+
+function AuthResultView(props: { screenError: unknown }) {
   return (
     <main
       style={{
@@ -95,9 +107,9 @@ export function AuthResultPage() {
         >
           画面が切り替わるまでお待ちください。
         </p>
-        {screenError != null ? (
+        {props.screenError != null ? (
           <div style={{ marginTop: 16 }}>
-            <AppErrorText error={screenError} style={null} fallbackUserMessage={null} />
+            <AppErrorText error={props.screenError} style={null} fallbackUserMessage={null} />
           </div>
         ) : null}
       </section>

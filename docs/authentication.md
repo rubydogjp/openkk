@@ -42,7 +42,7 @@ type CustomUser = {
    - `redeemCompletionCode(completionCode)` → `RedeemCompletionCodeResponse` を返す。未設定の `displayName` / `email` / `iconUrl` / `authProvider` は `null` にする。
    - `signOut()` → サーバ側セッション/Cookie を破棄。
 3. クライアントの状態管理（`openkk-app-state`）が以下を自動で駆動する。実装不要。
-   - サインイン: `startSignIn` → 外部 URL へリダイレクト → `/auth/result` で `completeSignIn`（= `completeSession` ＋ `redeemCompletionCode`）→ `CustomUser` を保持。
+   - サインイン: `startSignIn` → 外部 URL へリダイレクト → `/auth/result` で `completeSignIn`（= `completeSession` ＋ `redeemCompletionCode`）→ `CustomUser` を保持。`/auth/result` には `AuthResultPage` をそのまま置ける。クエリの読み取りに必要な Suspense は部品の中に持っているので、静的エクスポートでも包まなくてよい。
    - サインアウト: `auth.signOut()` を呼び、ローカルのユーザーを破棄。
    - サインイン後に `/fiscal-periods` 以外へ戻したい画面（外部連携の承認画面など）は、`startSignInReturningTo(redirectUrl, returnPath)` で始める。`/auth/result` はサインインの完了後に `takeSignInReturnPath()` の戻り先へ移動する。戻り先は同じサイト内のパスだけを受け付け、15分で失効し、一度使うと消える。
 
