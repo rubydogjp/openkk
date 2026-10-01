@@ -74,9 +74,5 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rubydogjp/openkk.git"
-  },
-  "overrides": {
-    "postcss": "^8.5.25",
-    "sharp": "^0.35.5"
   }
 }
