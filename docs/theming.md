@@ -113,9 +113,9 @@
 | `--openkk-color-account-expense` | `palette.accountExpense` | `#2563EB` |
 | `--openkk-color-account-expense-bg` | `palette.accountExpenseBg` | `#EFF6FF` |
 | `--openkk-color-account-expense-border` | `palette.accountExpenseBorder` | `#BFDBFE` |
-| `--openkk-color-account-profit` | `palette.accountProfit` | `#15803D` |
-| `--openkk-color-account-profit-bg` | `palette.accountProfitBg` | `#ECFDF3` |
-| `--openkk-color-account-profit-border` | `palette.accountProfitBorder` | `#86EFAC` |
+| `--openkk-color-account-profit` | `palette.accountProfit` | `#2563EB` |
+| `--openkk-color-account-profit-bg` | `palette.accountProfitBg` | `#EFF6FF` |
+| `--openkk-color-account-profit-border` | `palette.accountProfitBorder` | `#BFDBFE` |
 | `--openkk-color-account-loss` | `palette.accountLoss` | `#E11D48` |
 | `--openkk-color-account-loss-bg` | `palette.accountLossBg` | `#FFF1F2` |
 | `--openkk-color-account-loss-border` | `palette.accountLossBorder` | `#FDA4AF` |

@@ -16,7 +16,8 @@ type VarMap<T> = { [K in keyof T]: string };
 const kebab = (key: string) =>
   key.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
 
-const cssVar = (name: string, fallback: string) => `var(--openkk-${name}, ${fallback})`;
+const cssVar = (name: string, fallback: string) =>
+  `var(--openkk-${name}, ${fallback})`;
 
 function stringVars<T extends Record<string, string>>(
   prefix: string,
@@ -127,9 +128,9 @@ const paletteDefaults = {
   accountExpense: "#2563EB",
   accountExpenseBg: "#EFF6FF",
   accountExpenseBorder: "#BFDBFE",
-  accountProfit: "#15803D",
-  accountProfitBg: "#ECFDF3",
-  accountProfitBorder: "#86EFAC",
+  accountProfit: "#2563EB",
+  accountProfitBg: "#EFF6FF",
+  accountProfitBorder: "#BFDBFE",
   accountLoss: "#E11D48",
   accountLossBg: "#FFF1F2",
   accountLossBorder: "#FDA4AF",
@@ -325,10 +326,7 @@ function typographyStyle(token: TypographyToken): TypographyStyle {
   if ("fontFamily" in spec) {
     return {
       ...style,
-      fontFamily: cssVar(
-        `${name}-font-family`,
-        fontFamily[spec.fontFamily],
-      ),
+      fontFamily: cssVar(`${name}-font-family`, fontFamily[spec.fontFamily]),
     };
   }
 

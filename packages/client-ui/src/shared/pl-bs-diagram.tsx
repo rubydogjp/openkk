@@ -59,7 +59,12 @@ function PLPanel({ pl }: { pl: PLData }) {
     palette.accountRevenue,
     palette.accountRevenueBg,
   );
-  const resultBlock = financialResultBlock(result, "/icons/profit.svg");
+  const resultBlock = financialResultBlock(
+    result,
+    "/icons/profit.svg",
+    palette.accountProfit,
+    palette.accountProfitBg,
+  );
 
   return (
     <DiagramPanel title="損益計算書 (PL)">
@@ -91,7 +96,12 @@ function BSPanel({ bs }: { bs: BSData }) {
     palette.accountLiability,
     palette.accountLiabilityBg,
   );
-  const resultBlock = financialResultBlock(result, "/icons/net-assets.svg");
+  const resultBlock = financialResultBlock(
+    result,
+    "/icons/net-assets.svg",
+    palette.accountEquity,
+    palette.accountEquityBg,
+  );
 
   return (
     <DiagramPanel title="貸借対照表 (BS)">
@@ -207,14 +217,16 @@ function DiagramBlockView(props: {
 function financialResultBlock(
   result: DiagramResultBlock,
   icon: string,
+  foreground: string,
+  background: string,
 ): DiagramBlock {
   const negative = result.tone === "negative";
   return block(
     result.label,
     result.amount,
     icon,
-    negative ? palette.danger : palette.accountProfit,
-    negative ? palette.dangerBg : palette.accountProfitBg,
+    negative ? palette.danger : foreground,
+    negative ? palette.dangerBg : background,
   );
 }
 
