@@ -4,7 +4,14 @@ import type { ReactNode } from "react";
 
 import type { FixedAsset } from "@rubydogjp/openkk-client-domain";
 import { AmountText } from "../shared/amount-field.js";
-import { fontSize, fontWeight, palette, radii, sizes, spacing } from "../shared/design-tokens.js";
+import {
+  fontSize,
+  fontWeight,
+  palette,
+  radii,
+  sizes,
+  spacing,
+} from "../shared/design-tokens.js";
 import { PlusIcon } from "../shared/icons.js";
 import { CompactLockButton } from "../shared/locked-action.js";
 import { StepCallout } from "../steps/step-ui.js";
@@ -21,7 +28,6 @@ export function FixedAssetsScreen(props: {
 }) {
   const isReadOnly = props.readOnly;
   return (
-
     <section
       style={{
         padding: 24,
@@ -64,7 +70,7 @@ export function FixedAssetsScreen(props: {
           {isReadOnly ? (
             <CompactLockButton label="記録終了" />
           ) : (
-            props.addButtonSlot ?? <AddAssetButton onClick={props.onAdd} />
+            (props.addButtonSlot ?? <AddAssetButton onClick={props.onAdd} />)
           )}
         </div>
         <FixedAssetsTable
@@ -316,9 +322,11 @@ function FixedAssetRow(props: {
 
 function FixedAssetCardBody(props: { asset: FixedAsset }) {
   const asset = props.asset;
+  // These segments mark quarters of the total progress, not individual years.
+  const meterSegmentCount = 4;
+  const meterLineWidth = 1;
   return (
     <div>
-
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div
           style={{
@@ -355,40 +363,34 @@ function FixedAssetCardBody(props: { asset: FixedAsset }) {
         style={{
           marginTop: 12,
           height: 6,
-          borderRadius: 999,
-          background: palette.brand,
-          position: "relative",
-          overflow: "hidden",
+          display: "grid",
+          gridTemplateColumns: `repeat(${meterSegmentCount}, minmax(0, 1fr))`,
+          gap: meterLineWidth,
         }}
       >
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: `${asset.depreciationProgress * 100}%`,
-            background: palette.brandTint,
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: `${asset.depreciationProgress * 55}%`,
-            background: palette.borderSubtle,
-          }}
-        />
-        {[25, 50, 75].map((n) => (
+        {Array.from({ length: meterSegmentCount }, (_, index) => (
           <div
-            key={n}
+            key={index}
             style={{
-              position: "absolute",
-              left: `${n}%`,
-              top: 0,
-              bottom: 0,
-              width: 1,
-              background: palette.surface,
+              minWidth: 0,
+              border: `${meterLineWidth}px solid ${palette.brand}`,
+              borderTopLeftRadius: index === 0 ? 999 : 0,
+              borderBottomLeftRadius: index === 0 ? 999 : 0,
+              borderTopRightRadius: index === meterSegmentCount - 1 ? 999 : 0,
+              borderBottomRightRadius:
+                index === meterSegmentCount - 1 ? 999 : 0,
+              background: palette.brand,
+              overflow: "hidden",
             }}
-          />
+          >
+            <div
+              style={{
+                height: "100%",
+                width: `${Math.min(1, Math.max(0, asset.depreciationProgress * meterSegmentCount - index)) * 100}%`,
+                background: palette.brandTint,
+              }}
+            />
+          </div>
         ))}
       </div>
 
