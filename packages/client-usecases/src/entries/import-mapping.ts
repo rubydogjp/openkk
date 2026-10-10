@@ -22,10 +22,16 @@ export function entryRecordToImportPayload(
   master: ImportMaster,
 ): EntryUpsertInput {
   const lines = entry.lines.map((line): EntryLineInput => {
+    // Older name-only exports classified 事業主借 as a liability.
+    // Explicit IDs still take precedence in resolveBookAccountId.
+    const accountType =
+      line.accountName.trim() === "事業主借" && line.accountType === "liability"
+        ? "equity"
+        : line.accountType;
     const bookAccountId = resolveBookAccountId({
       explicitId: line.bookAccountId,
       accountName: line.accountName,
-      accountType: line.accountType,
+      accountType,
       accounts: master.accounts,
     });
     if (bookAccountId == null) {

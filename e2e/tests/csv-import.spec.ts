@@ -27,6 +27,39 @@ test.describe("file import", () => {
     await expect(page.getByText("CSVテストツール利用料")).toBeVisible();
   });
 
+  test("imports legacy 事業主借 as equity and groups it separately from 事業主貸", async ({
+    page,
+  }) => {
+    await page.getByRole("button", { name: "ファイル" }).click();
+    await page.locator('input[type="file"][accept*=".csv"]').setInputFiles({
+      name: "legacy-owner-loan.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(
+        [
+          "localId,date,debit,debitType,debitAmount,credit,creditType,creditAmount,description,businessRate",
+          "legacy-owner-loan,2026-05-01,現金,asset,30000,事業主借,liability,30000,旧分類の事業主借,100%",
+        ].join("\n"),
+      ),
+    });
+    await expect(page.getByText(/取り込みました\(取込 1 件/)).toBeVisible();
+    await page.getByText("旧分類の事業主借", { exact: true }).click();
+    const drawer = page.getByRole("dialog", { name: "仕訳の編集" });
+    await expect(drawer.getByLabel("貸方科目")).toContainText("事業主借");
+    await drawer.getByLabel("貸方科目").click();
+    const picker = page.getByRole("dialog", { name: "勘定科目を選択" });
+    await picker.getByPlaceholder("勘定科目を検索").fill("事業主");
+    const loanGroup = picker
+      .getByRole("button", { name: "事業主借", exact: true })
+      .locator("..");
+    await expect(loanGroup.getByText("純資産", { exact: true })).toBeVisible();
+    const withdrawalGroup = picker
+      .getByRole("button", { name: "事業主貸", exact: true })
+      .locator("..");
+    await expect(
+      withdrawalGroup.getByText("資産", { exact: true }),
+    ).toBeVisible();
+  });
+
   test("imports entries from a JSON file and shows import count", async ({
     page,
   }) => {

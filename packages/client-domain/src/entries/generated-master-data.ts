@@ -2195,8 +2195,8 @@ export const DEFAULT_BOOK_ACCOUNTS: DefaultBookAccount[] = [
     description: "事業主借",
     kana: "",
     normalBalanceSide: "credit",
-    accountType: "liability",
-    balanceSheetSection: "current_liability",
+    accountType: "equity",
+    balanceSheetSection: "equity",
     sortOrder: 4921,
   },
   {
