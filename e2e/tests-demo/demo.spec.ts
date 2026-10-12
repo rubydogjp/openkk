@@ -101,8 +101,12 @@ test("favicon・アプリ内・ホーム画面のアイコンを配信する", a
   expect(await icon.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBe(256);
   const svgUrl = await page.locator('link[rel="icon"][type="image/svg+xml"]').first().getAttribute("href");
   const svg = await request.get(svgUrl!);
-  expect(await svg.text()).toContain('fill="#2584fc"');
-  expect(await svg.text()).toContain('shape-rendering="crispEdges"');
+  const svgText = await svg.text();
+  expect(svgText).toContain('viewBox="0 0 8 8"');
+  expect(svgText).toContain('shape-rendering="crispEdges"');
+  expect(svgText.match(/<rect /g)).toHaveLength(64);
+  const colors = [...new Set([...svgText.matchAll(/fill="([^"]+)"/g)].map((match) => match[1]))].sort();
+  expect(colors).toEqual(["#f29900", "#ffba00", "#ffffff"]);
   const favicon = await request.get("/favicon.ico");
   expect((await favicon.body()).readUInt16LE(4)).toBe(3);
   const manifest = await (await request.get("/manifest.json")).json();

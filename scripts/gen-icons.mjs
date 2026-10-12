@@ -5,24 +5,11 @@ import sharp from "sharp";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const sourcePath = path.join(root, "resources/icons.json");
-const check = process.argv.includes("--check");
-if (process.argv.includes("--sync")) {
-  if (check) throw new Error("--sync and --check cannot be combined");
-  const { DatabaseSync } = await import("node:sqlite");
-  const db = new DatabaseSync(path.join(root, "../arts/doticons/rubydog.doticons"), { readOnly: true });
-  const icons = {};
-  try {
-    for (const name of ["openkk", "openkk-demo"]) {
-      const record = db.prepare("SELECT pixels FROM icons WHERE name = ?").get(name);
-      if (!record) throw new Error(`Missing icon: ${name}`);
-      icons[name] = JSON.parse(record.pixels);
-    }
-  } finally {
-    db.close();
-  }
-  await mkdir(path.dirname(sourcePath), { recursive: true });
-  await writeFile(sourcePath, JSON.stringify(icons, null, 2) + "\n");
+const args = process.argv.slice(2);
+for (const arg of args) {
+  if (arg !== "--check") throw new Error(`Unknown option: ${arg}`);
 }
+const check = args.includes("--check");
 const icons = JSON.parse(await readFile(sourcePath, "utf8"));
 const bundles = { openkk: "openkk", openkk_sim: "openkk", openkk_demo: "openkk-demo" };
 const stale = [];
@@ -39,11 +26,10 @@ async function output(file, content) {
   }
 }
 
-function svg(pixels, padding) {
-  const size = 8 + padding * 2;
+function svg(pixels) {
   const rectangles = pixels.map((color, i) => color == null ? "" :
-    `<rect x="${i % 8 + padding}" y="${Math.floor(i / 8) + padding}" width="1" height="1" fill="${color}"/>`);
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges"><rect width="${size}" height="${size}" fill="#ffffff"/>${rectangles.join("")}</svg>\n`;
+    `<rect x="${i % 8}" y="${Math.floor(i / 8)}" width="1" height="1" fill="${color}"/>`);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8" shape-rendering="crispEdges">${rectangles.join("")}</svg>\n`;
 }
 
 async function png(pixels, size, padded) {
@@ -56,6 +42,7 @@ async function png(pixels, size, padded) {
   const artSize = padded ? Math.floor(size * 0.6 / 8) * 8 : size;
   const art = await sharp(raw, { raw: { width: 8, height: 8, channels: 4 } })
     .resize(artSize, artSize, { kernel: "nearest" }).png().toBuffer();
+  if (!padded) return art;
   return sharp({ create: { width: size, height: size, channels: 4, background: "#ffffff" } })
     .composite([{ input: art, gravity: "centre" }]).png().toBuffer();
 }
@@ -84,15 +71,14 @@ for (const [bundle, name] of Object.entries(bundles)) {
     throw new Error(`Invalid 8×8 icon: ${name}`);
   }
   const base = `packages/${bundle}`;
-  await output(`${base}/app/icon.svg`, svg(pixels, 2));
+  await output(`${base}/app/icon.svg`, svg(pixels));
   const images = await Promise.all([16, 32, 48].map(async (size) => ({ size, data: await png(pixels, size, false) })));
   await output(`${base}/app/favicon.ico`, ico(images));
   await output(`${base}/app/apple-icon.png`, await png(pixels, 180, true));
   await output(`${base}/public/images/openkk-icon.png`, await png(pixels, 256, false));
   for (const size of [192, 512]) {
-    const image = await png(pixels, size, true);
-    await output(`${base}/public/icons/openkk-icon-${size}.png`, image);
-    await output(`${base}/public/icons/openkk-icon-maskable-${size}.png`, image);
+    await output(`${base}/public/icons/openkk-icon-${size}.png`, await png(pixels, size, false));
+    await output(`${base}/public/icons/openkk-icon-maskable-${size}.png`, await png(pixels, size, true));
   }
 }
 if (stale.length) throw new Error(`Run npm run gen-icons: ${stale.join(", ")}`);

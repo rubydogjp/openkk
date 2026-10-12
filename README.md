@@ -40,10 +40,6 @@ npm run build:apps && npm run test:e2e:export:built # 通常版・デモ版の�
 [テーマ](./docs/theming.md) /
 [リリース手順](./docs/release.md)
 
-アプリアイコンの正本は `rubydogjp/arts` の `doticons/rubydog.doticons` です。
-隣に `arts` を配置して `npm run gen-icons -- --sync` で取り込みます。
-取り込み後は、このリポジトリだけで `npm run gen-icons` による再生成と `npm run check:icons` による整合性の確認ができます。
-
 ## ライセンス
 
 [MIT License](./LICENSE) — Copyright 2026 Rubydog
