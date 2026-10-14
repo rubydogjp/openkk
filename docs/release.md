@@ -13,24 +13,32 @@ GitHub Secrets に登録するものは無い。
 
 ## 手順
 
-1. バージョンを上げる。内部依存 (`@rubydogjp/openkk-*`) の範囲と
+リリースも他の変更と同じく develop で commit し、main へ取り込んでからタグを打つ
+([CONTRIBUTING.md](../CONTRIBUTING.md) の「メンテナーの進め方」)。
+
+1. develop でバージョンを上げる。内部依存 (`@rubydogjp/openkk-*`) の範囲と
    `package-lock.json` も一緒に更新される。
 
    ```
+   git switch develop
    npm run version:set X.Y.Z
    ```
 
-2. 差分を確認してコミットする。
+2. 差分を確認してコミットし、develop を push する。
 
    ```
    git commit -am "release: X.Y.Z"
+   git push origin develop
    ```
 
-3. タグを打って push する。
+3. main をリリースの commit まで取り込み、main にタグを打って push する。
 
    ```
+   git push origin develop:main
+   git switch main
+   git pull --ff-only
    git tag vX.Y.Z
-   git push origin main vX.Y.Z
+   git push origin vX.Y.Z
    ```
 
 4. `Release` workflow がタグ一致の検証 → 生成物検証 → build → lint → unit/E2E test
