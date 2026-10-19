@@ -1,6 +1,6 @@
 {
   "name": "@rubydogjp/openkk-server-ports",
-  "version": "26.2.9",
+  "version": "26.2.10",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -15,7 +15,7 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "devDependencies": {
-    "@rubydogjp/openkk-server-domain": "^26.2.9",
+    "@rubydogjp/openkk-server-domain": "^26.2.10",
     "typescript": "^6.0.3"
   },
   "description": "オープン会計 server-side port interfaces (OpenkkDbPort, OpenkkServerPort) and wire DTOs",

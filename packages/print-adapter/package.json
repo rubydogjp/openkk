@@ -1,6 +1,6 @@
 {
   "name": "@rubydogjp/openkk-print-adapter",
-  "version": "26.2.9",
+  "version": "26.2.10",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -15,7 +15,7 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@rubydogjp/openkk-client-ports": "^26.2.9"
+    "@rubydogjp/openkk-client-ports": "^26.2.10"
   },
   "devDependencies": {
     "typescript": "^6.0.3"
