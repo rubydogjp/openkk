@@ -229,10 +229,7 @@ export function ShellAccountMenu(props: {
                 ) : (
                   <MenuButton
                     icon={
-                      <PersonIcon
-                        size={18}
-                        color={PALETTE.menuIconDisabled}
-                      />
+                      <PersonIcon size={18} color={PALETTE.menuIconDisabled} />
                     }
                     label="プロフィール"
                     labelColor={PALETTE.menuTextDisabled}
@@ -251,10 +248,7 @@ export function ShellAccountMenu(props: {
                 {productSiteUrl != null && (
                   <MenuButton
                     icon={
-                      <ExternalLinkIcon
-                        size={18}
-                        color={PALETTE.menuLink}
-                      />
+                      <ExternalLinkIcon size={18} color={PALETTE.menuLink} />
                     }
                     label="公式サイト"
                     labelColor={PALETTE.menuLink}
@@ -315,7 +309,7 @@ export function ShellAccountMenu(props: {
           }}
         >
           <LoginIcon size={16} color={palette.surface} />
-          <span>ログイン</span>
+          <span>サインイン</span>
         </button>
       )}
     </div>
