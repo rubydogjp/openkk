@@ -1,6 +1,6 @@
 {
   "name": "@rubydogjp/openkk-embedded-backend-adapter",
-  "version": "26.2.10",
+  "version": "26.2.11",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -15,8 +15,8 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@rubydogjp/openkk-client-ports": "^26.2.10",
-    "@rubydogjp/openkk-embedded-backend": "^26.2.10"
+    "@rubydogjp/openkk-client-ports": "^26.2.11",
+    "@rubydogjp/openkk-embedded-backend": "^26.2.11"
   },
   "devDependencies": {
     "typescript": "^6.0.3"
