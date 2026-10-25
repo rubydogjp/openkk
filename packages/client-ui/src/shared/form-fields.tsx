@@ -14,7 +14,6 @@ const formInputStyles = `
 `;
 
 export function FormStyles() {
-
   return <style>{formInputStyles}</style>;
 }
 
@@ -91,7 +90,6 @@ export function FormTextInput({
         border: `1px solid ${palette.borderStrong}`,
         borderRadius: radii.sm,
         background: readOnly ? palette.pageBg : palette.surface,
-
         color: readOnly ? palette.textMuted : palette.text,
         padding: `0 ${sizes.field.paddingX}`,
         ...typography.input,
@@ -118,7 +116,6 @@ export function FormReadOnlyValue({
         border: `1px solid ${palette.borderSubtle}`,
         borderRadius: radii.sm,
         background: palette.pageBg,
-
         color: palette.textMuted,
         padding: `0 ${sizes.field.paddingX}`,
         display: "flex",
@@ -233,20 +230,17 @@ export function FormPrimaryButton({
   onClick,
   disabled,
   type,
-  variant = "primary",
+  variant,
   icon,
 }: {
   children: ReactNode;
   onClick: (() => void) | null;
   disabled: boolean;
   type: "button" | "submit" | null;
-
   variant: "primary" | "success" | null;
-
   icon: ReactNode | null;
 }) {
-  const isDisabled = disabled;
-  const bg = variant === "success" ? palette.success : palette.brand;
+  const background = variant === "success" ? palette.success : palette.brand;
   const shadow =
     variant === "success"
       ? "0 1px 2px rgba(5, 150, 105, 0.28)"
@@ -255,14 +249,14 @@ export function FormPrimaryButton({
     <button
       type={type ?? "button"}
       onClick={onClick ?? undefined}
-      disabled={isDisabled}
+      disabled={disabled}
       style={{
         ...baseButtonStyle,
-        background: bg,
+        background,
         color: palette.surface,
-        opacity: isDisabled ? 0.5 : 1,
-        cursor: isDisabled ? "default" : "pointer",
-        boxShadow: isDisabled ? "none" : shadow,
+        opacity: disabled ? 0.5 : 1,
+        cursor: disabled ? "default" : "pointer",
+        boxShadow: disabled ? "none" : shadow,
         display: "inline-flex",
         alignItems: "center",
         gap: spacing.s8,
@@ -287,20 +281,19 @@ export function FormSecondaryButton({
   disabled: boolean;
   type: "button" | "submit" | null;
 }) {
-  const isDisabled = disabled;
   return (
     <button
       type={type ?? "button"}
       onClick={onClick ?? undefined}
-      disabled={isDisabled}
+      disabled={disabled}
       style={{
         ...baseButtonStyle,
         minWidth: sizes.button.formSecondaryMinWidth,
         background: palette.surface,
         color: palette.text,
         border: `1px solid ${palette.borderStrong}`,
-        opacity: isDisabled ? 0.5 : 1,
-        cursor: isDisabled ? "default" : "pointer",
+        opacity: disabled ? 0.5 : 1,
+        cursor: disabled ? "default" : "pointer",
       }}
     >
       {children}

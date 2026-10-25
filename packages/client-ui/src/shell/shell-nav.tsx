@@ -26,13 +26,11 @@ export function ShellNav(props: { pathname: string; enabled: boolean }) {
       {navItems.map((item) => {
         const selected =
           enabled &&
-          (pathname === item.href ||
-            pathname.startsWith(item.href + "/"));
+          (pathname === item.href || pathname.startsWith(`${item.href}/`));
         const commonStyle = {
           display: "flex",
           alignItems: "center",
           gap: 10,
-
           padding: "10px 12px",
           borderRadius: 8,
           background: selected ? PALETTE.navActiveBg : "transparent",

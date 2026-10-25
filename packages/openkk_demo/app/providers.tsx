@@ -17,7 +17,6 @@ const runtime: OpenkkBundleRuntime = {
   config: openkkConfig,
   brandConfig: demoBrandConfig,
   calloutSlots: demoCalloutSlots,
-  seedFiscalPeriod: null,
   createBackendApi: createDemoBackendApi,
   registerServiceWorker: false,
 };

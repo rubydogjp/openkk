@@ -73,12 +73,11 @@ export function importEntriesFromJson(input: {
   assertEntryImportItemCount(parsed.entries.length);
   const seenLocalIds = new Set<string>();
   let importLineCount = 0;
-  return parsed.entries.map((raw, index) => {
+  return parsed.entries.map((entry, index) => {
     const rowNo = index + 1;
-    if (!isRecord(raw)) {
+    if (!isRecord(entry)) {
       throw importFileRowError(`row ${rowNo}: entry must be an object`, rowNo);
     }
-    const entry = raw;
     const localId = validateRequiredLocalId(
       typeof entry.localId === "string" ? entry.localId : "",
       rowNo,
@@ -488,14 +487,14 @@ function normalizeAmount(
   rowNo: number,
   label: string,
 ) {
-  const n = Number(String(value).replaceAll(",", "").trim());
-  if (!Number.isSafeInteger(n) || n < 0) {
+  const amount = Number(String(value).replaceAll(",", "").trim());
+  if (!Number.isSafeInteger(amount) || amount < 0) {
     throw importFileRowError(
       `row ${rowNo}: invalid ${label} (${value})`,
       rowNo,
     );
   }
-  return n.toLocaleString("ja-JP");
+  return amount.toLocaleString("ja-JP");
 }
 
 function weekdayFromDate(dateText: string) {
@@ -645,7 +644,7 @@ function parseCsv(text: string) {
     throw importFileFormatError("CSV has an unterminated quoted field");
   }
   finishRow();
-  return rows.filter((r) => r.some((v) => v.trim().length > 0));
+  return rows.filter((cells) => cells.some((cell) => cell.trim().length > 0));
 }
 
 function validateJsonLines(

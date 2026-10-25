@@ -5,6 +5,7 @@ export * from "./shared/user.js";
 export * from "./shared/models.js";
 export * from "./shared/bootstrap-data.js";
 export * from "./shared/period-lock.js";
+export * from "./shared/balance-sheet-layout.js";
 export * from "./shared/parse-utils.js";
 export { MAX_TEXT_FIELD_LENGTH } from "./shared/text-limits.js";
 
@@ -29,6 +30,7 @@ export {
   MAX_FISCAL_PERIOD_ARCHIVE_FILE_BYTES,
 } from "./archive/fiscal-period-archive-zip.js";
 
+export * from "./steps/closing-year.js";
 export * from "./steps/period-check.js";
 export * from "./steps/step-derivation.js";
 export * from "./steps/step-trend.js";

@@ -14,11 +14,10 @@ import { LockButton } from "../../shared/locked-action.js";
 import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 import { useStepDocumentPrinters } from "../use-step-document-printers.js";
 import {
-  StepCallout,
-  StepDivider,
   StepPrimaryButton,
   StepSecondaryButton,
   StepSectionLabel,
+  StepUnavailableNotice,
 } from "../step-ui.js";
 
 export function DocumentReceiveBody({
@@ -32,11 +31,9 @@ export function DocumentReceiveBody({
   const [screenError, setScreenError] = useState<unknown>(null);
   const [isCompleting, setIsCompleting] = useState(false);
   const completeLock = useRef(new ExclusiveActionLock());
-  const currentFiscalPeriod = appState.fiscalPeriods.find(
-    (period) => period.id === appState.currentFiscalPeriodId,
-  );
+  const currentFiscalPeriod = appState.currentFiscalPeriod;
   const { printJournal, printGeneralLedger, printFinancialStatements } =
-    useStepDocumentPrinters(currentFiscalPeriod ?? null);
+    useStepDocumentPrinters(currentFiscalPeriod);
 
   if (currentFiscalPeriod == null) {
     return (
@@ -77,14 +74,7 @@ export function DocumentReceiveBody({
   return (
     <>
       {!canComplete ? (
-        <>
-          <StepCallout tone={editingLocked ? "info" : "warning"}>
-            {editingLocked
-              ? config.editingPolicy.lockedNotice
-              : "この手順はまだ進められません。"}
-          </StepCallout>
-          <StepDivider marginY={null} />
-        </>
+        <StepUnavailableNotice editingPolicy={config.editingPolicy} />
       ) : null}
 
       <section>
@@ -146,7 +136,7 @@ export function DocumentReceiveBody({
                 次の手順へ
               </StepPrimaryButton>
             ) : editingLocked ? (
-              <LockButton label="全て受け取りました" style={null} />
+              <LockButton label="全て受け取りました" />
             ) : (
               <StepPrimaryButton
                 onClick={handleComplete}

@@ -1,5 +1,6 @@
+import { formatAmount } from "../shared/parse-utils.js";
 import type { FsBsRow, FsExpenseWriteIn } from "./fs-data.js";
-import { buildPrintDocument, escapeHtml as esc } from "./print-shell.js";
+import { buildPrintDocument, escapeHtml } from "./print-shell.js";
 
 function writeInLabelOverrides(
   writeIns: ReadonlyArray<FsExpenseWriteIn>,
@@ -11,10 +12,9 @@ function writeInLabelOverrides(
   return overrides;
 }
 
-function fmt(n: number | null): string {
-  if (n === null) return "";
-  if (!Number.isFinite(n)) return "";
-  return new Intl.NumberFormat("ja-JP").format(n);
+function formatOptionalAmount(amount: number | null): string {
+  if (amount === null || !Number.isFinite(amount)) return "";
+  return formatAmount(amount);
 }
 
 const BLUE = "#1D4ED8";
@@ -156,10 +156,10 @@ function buildGroupHtml(
       return `<div style="${rowStyle}">
   <div style="${noCell}"><span style="font-size:9px;color:${BLUE}">${row.index}</span></div>
   <div style="${labelInner}">
-    <span style="font-size:8px;color:${BLUE};line-height:1.1">${esc(label)}</span>
-    ${row.note ? `<span style="font-size:6px;color:${BLUE};line-height:1.1">${esc(row.note)}</span>` : ""}
+    <span style="font-size:8px;color:${BLUE};line-height:1.1">${escapeHtml(label)}</span>
+    ${row.note ? `<span style="font-size:6px;color:${BLUE};line-height:1.1">${escapeHtml(row.note)}</span>` : ""}
   </div>
-  <div style="${amountCell}justify-content:flex-end;padding:2px 8px;"><span style="font-size:10px;color:${TEXT_DARK}">${fmt(amounts[row.index] ?? null)}</span></div>
+  <div style="${amountCell}justify-content:flex-end;padding:2px 8px;"><span style="font-size:10px;color:${TEXT_DARK}">${formatOptionalAmount(amounts[row.index] ?? null)}</span></div>
 </div>`;
     })
     .join("\n");
@@ -167,7 +167,7 @@ function buildGroupHtml(
   return `<div style="border:1px solid ${BLUE};margin-bottom:${GROUP_GAP}px">
 <div style="${headerStyle}">
   <div style="${noCell}"><span style="font-size:10px;color:${BLUE}">No.</span></div>
-  <div style="${labelCell}"><span style="font-size:10px;color:${BLUE}">${esc(group.title)} 科目</span></div>
+  <div style="${labelCell}"><span style="font-size:10px;color:${BLUE}">${escapeHtml(group.title)} 科目</span></div>
   <div style="${amountCell}"><span style="font-size:10px;color:${BLUE}">金額 (円)</span></div>
 </div>
 ${rowsHtml}
@@ -179,39 +179,34 @@ function buildPlHtml(
   labelOverrides: Record<number, string>,
 ): string {
   const sectionStyle = `width:${NO_W + LABEL_W + AMOUNT_W}px`;
-  const left = LEFT_GROUPS.map((g) =>
-    buildGroupHtml(g, amounts, labelOverrides),
-  ).join("\n");
-  const center = CENTER_GROUPS.map((g) =>
-    buildGroupHtml(g, amounts, labelOverrides),
-  ).join("\n");
-  const right = RIGHT_GROUPS.map((g) =>
-    buildGroupHtml(g, amounts, labelOverrides),
-  ).join("\n");
+  const columnHtml = (groups: PLGroup[]) =>
+    groups
+      .map((group) => buildGroupHtml(group, amounts, labelOverrides))
+      .join("\n");
 
   return `<div style="display:flex;justify-content:center;gap:${COL_GAP}px">
-  <div style="${sectionStyle}">${left}</div>
-  <div style="${sectionStyle}">${center}</div>
-  <div style="${sectionStyle}">${right}</div>
+  <div style="${sectionStyle}">${columnHtml(LEFT_GROUPS)}</div>
+  <div style="${sectionStyle}">${columnHtml(CENTER_GROUPS)}</div>
+  <div style="${sectionStyle}">${columnHtml(RIGHT_GROUPS)}</div>
 </div>`;
 }
 
 function buildBsHtml(bsRows: ReadonlyArray<FsBsRow>): string {
   const thBase = `border:0.8px solid ${BLUE};background:${BLUE_LIGHT};color:${BLUE};padding:4px 5px;text-align:center;font-size:10px;font-weight:700;height:${BS_HEADER_H}px;`;
   const headers = ["資産の部", "期首", "期末", "負債・資本の部", "期首", "期末"]
-    .map((h) => `<th style="${thBase}">${h}</th>`)
+    .map((header) => `<th style="${thBase}">${header}</th>`)
     .join("");
 
   const rowsHtml = bsRows
     .map((row) => {
       const cellBase = `border:0.8px solid ${BLUE};padding:3px 6px;font-size:10px;height:${BS_ROW_H}px;vertical-align:middle;background:white;font-weight:400;`;
       return `<tr>
-  <td style="${cellBase};color:${BLUE}">${esc(row.assetLabel)}</td>
-  <td style="${cellBase};color:${TEXT_DARK};text-align:right">${fmt(row.assetOpening)}</td>
-  <td style="${cellBase};color:${TEXT_DARK};text-align:right">${fmt(row.assetClosing)}</td>
-  <td style="${cellBase};color:${BLUE}">${esc(row.liabilityLabel)}</td>
-  <td style="${cellBase};color:${TEXT_DARK};text-align:right">${fmt(row.liabilityOpening)}</td>
-  <td style="${cellBase};color:${TEXT_DARK};text-align:right">${fmt(row.liabilityClosing)}</td>
+  <td style="${cellBase};color:${BLUE}">${escapeHtml(row.assetLabel)}</td>
+  <td style="${cellBase};color:${TEXT_DARK};text-align:right">${formatOptionalAmount(row.assetOpening)}</td>
+  <td style="${cellBase};color:${TEXT_DARK};text-align:right">${formatOptionalAmount(row.assetClosing)}</td>
+  <td style="${cellBase};color:${BLUE}">${escapeHtml(row.liabilityLabel)}</td>
+  <td style="${cellBase};color:${TEXT_DARK};text-align:right">${formatOptionalAmount(row.liabilityOpening)}</td>
+  <td style="${cellBase};color:${TEXT_DARK};text-align:right">${formatOptionalAmount(row.liabilityClosing)}</td>
 </tr>`;
     })
     .join("\n");
@@ -230,20 +225,19 @@ function buildBsHtml(bsRows: ReadonlyArray<FsBsRow>): string {
 }
 
 export type FinancialStatementsArgs = {
-  fpName: string;
   amounts: Record<number, number | null>;
   bsRows: ReadonlyArray<FsBsRow>;
   expenseWriteIns: ReadonlyArray<FsExpenseWriteIn>;
 };
 
-const FS_PAGE_W = 1123;
-const FS_PAGE_H = 794;
-const FS_SIDE_PAD = 37;
-const FS_TOP_PAD = 11;
-const FS_BOTTOM_PAD = 16;
-const FS_TITLE_FS = 16;
-const FS_TITLE_GAP = 19;
-const FS_BODY_TOP = FS_TOP_PAD + FS_TITLE_FS + FS_TITLE_GAP;
+const PAGE_WIDTH = 1123;
+const PAGE_HEIGHT = 794;
+const PAGE_SIDE_PADDING = 37;
+const PAGE_TOP_PADDING = 11;
+const PAGE_BOTTOM_PADDING = 16;
+const PAGE_TITLE_FONT_SIZE = 16;
+const PAGE_TITLE_GAP = 19;
+const PAGE_BODY_TOP = PAGE_TOP_PADDING + PAGE_TITLE_FONT_SIZE + PAGE_TITLE_GAP;
 
 export function buildFinancialStatementsBody(
   args: FinancialStatementsArgs,
@@ -252,18 +246,22 @@ export function buildFinancialStatementsBody(
   const labelOverrides = writeInLabelOverrides(expenseWriteIns);
 
   return (
-    wrapPage("損益計算書 (P/L)", buildPlHtml(amounts, labelOverrides), 1) +
-    wrapPage("貸借対照表 (B/S)", buildBsHtml(bsRows), 2)
+    buildLandscapePage("損益計算書 (P/L)", buildPlHtml(amounts, labelOverrides), 1) +
+    buildLandscapePage("貸借対照表 (B/S)", buildBsHtml(bsRows), 2)
   );
 }
 
-function wrapPage(title: string, bodyHtml: string, pageNumber: number): string {
-  return `<div class="bk-page" style="position:relative;width:${FS_PAGE_W}px;height:${FS_PAGE_H}px;overflow:hidden;">
-<div style="position:absolute;top:${FS_TOP_PAD}px;left:${FS_SIDE_PAD}px;right:${FS_SIDE_PAD}px;text-align:center;color:${BLUE};font-weight:700;font-size:${FS_TITLE_FS}px;line-height:1;">${esc(title)}</div>
-<div style="position:absolute;top:${FS_BODY_TOP}px;left:${FS_SIDE_PAD}px;right:${FS_SIDE_PAD}px;">
+function buildLandscapePage(
+  title: string,
+  bodyHtml: string,
+  pageNumber: number,
+): string {
+  return `<div class="bk-page" style="position:relative;width:${PAGE_WIDTH}px;height:${PAGE_HEIGHT}px;overflow:hidden;">
+<div style="position:absolute;top:${PAGE_TOP_PADDING}px;left:${PAGE_SIDE_PADDING}px;right:${PAGE_SIDE_PADDING}px;text-align:center;color:${BLUE};font-weight:700;font-size:${PAGE_TITLE_FONT_SIZE}px;line-height:1;">${escapeHtml(title)}</div>
+<div style="position:absolute;top:${PAGE_BODY_TOP}px;left:${PAGE_SIDE_PADDING}px;right:${PAGE_SIDE_PADDING}px;">
 ${bodyHtml}
 </div>
-<div style="position:absolute;bottom:${FS_BOTTOM_PAD}px;left:${FS_SIDE_PAD}px;right:${FS_SIDE_PAD}px;text-align:center;color:${BLUE};font-size:12px;line-height:1;">− ${pageNumber} −</div>
+<div style="position:absolute;bottom:${PAGE_BOTTOM_PADDING}px;left:${PAGE_SIDE_PADDING}px;right:${PAGE_SIDE_PADDING}px;text-align:center;color:${BLUE};font-size:12px;line-height:1;">− ${pageNumber} −</div>
 </div>`;
 }
 

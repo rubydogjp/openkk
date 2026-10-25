@@ -44,9 +44,7 @@ export function JournalizingAnalyticsPage() {
   const assistState = useOpenkkAssist();
   const today = useOpenkkToday();
   const [expandedMonths, setExpandedMonths] = useState<string[]>([]);
-  const currentFiscalPeriod = appState.fiscalPeriods.find(
-    (period) => period.id === appState.currentFiscalPeriodId,
-  );
+  const currentFiscalPeriod = appState.currentFiscalPeriod;
 
   const monthTiles = useMemo<MonthTile[]>(() => {
     if (currentFiscalPeriod == null) return [];

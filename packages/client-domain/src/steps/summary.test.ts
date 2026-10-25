@@ -7,10 +7,9 @@ import {
 import {
   computeExpenseContribution,
   computeRevenueContribution,
-  parseAmount,
-  parseBusinessRate,
   type EntrySummaryRow,
 } from "./summary.js";
+import { parseAmount, parseBusinessRate } from "../shared/parse-utils.js";
 import {
   buildBusinessRateTransferEntry,
   excludeBusinessRateTransfer,

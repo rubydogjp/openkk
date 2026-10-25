@@ -31,7 +31,7 @@
     "next": "^16.4.1",
     "typescript": "^6.0.3"
   },
-  "description": "オープン会計 frontend ランタイム共通基盤 — bundle 非依存の Providers 配線・env パース・Next 設定を 3 バンドルアプリ(openkk/openkk_sim/openkk_demo)で共有する。",
+  "description": "オープン会計 frontend ランタイム共通基盤 — bundle 非依存の Providers 配線・env パースを 3 バンドルアプリ(openkk/openkk_sim/openkk_demo)で共有する。",
   "license": "MIT",
   "author": "rbdog <rbdog@rubydog.jp>",
   "homepage": "https://github.com/rubydogjp/openkk#readme",

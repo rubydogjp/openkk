@@ -13,8 +13,7 @@ GitHub Secrets に登録するものは無い。
 
 ## 手順
 
-リリースも他の変更と同じく develop で commit し、main へ取り込んでからタグを打つ
-([CONTRIBUTING.md](../CONTRIBUTING.md) の「メンテナーの進め方」)。
+リリースも他の変更と同じく develop で commit し、main へ取り込んでからタグを打つ。
 
 1. develop でバージョンを上げる。内部依存 (`@rubydogjp/openkk-*`) の範囲と
    `package-lock.json` も一緒に更新される。

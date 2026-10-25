@@ -1,5 +1,3 @@
-
-
 @keyframes bk-dialog-backdrop-in {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -117,10 +115,62 @@
 }
 
 :root {
-  --bk-mobile-topbar-h: 0px;
+  --bk-mobile-topbar-h: 48px;
+}
+.bk-mobile-topbar {
+  display: none;
+}
+.bk-shell-backdrop {
+  display: none;
 }
 @media (max-width: 640px) {
+  .bk-mobile-topbar {
+    display: flex;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--bk-mobile-topbar-h);
+    background: var(--openkk-color-surface, #FFFFFF);
+    border-bottom: 1px solid var(--openkk-color-border-subtle, #E2E8F0);
+    z-index: 60;
+    padding: 0 12px;
+    align-items: center;
+    gap: 12px;
+  }
+  .bk-shell-sidebar {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 70;
+    transform: translateX(-100%);
+    transition: transform 200ms ease;
+    box-shadow: 0 0 24px rgba(15, 23, 42, 0.18);
+  }
+  .bk-shell-sidebar--open {
+    transform: translateX(0);
+  }
+  .bk-shell-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.4);
+    z-index: 65;
+    animation: bk-shell-backdrop-in 0.15s ease forwards;
+  }
+  .bk-shell-content {
+    padding-top: var(--bk-mobile-topbar-h) !important;
+  }
+  .bk-shell-main {
+    grid-template-columns: 1fr !important;
+  }
   .bk-entry-drawer {
     top: var(--bk-mobile-topbar-h) !important;
   }
+}
+
+@keyframes bk-shell-backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }

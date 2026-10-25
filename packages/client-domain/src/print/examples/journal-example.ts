@@ -48,8 +48,6 @@ function exampleEntry(input: ExampleEntry): EntryRecord {
   };
 }
 
-export const JOURNAL_EXAMPLE_FP_NAME = "サンプル期間 (2026年度)";
-
 export const JOURNAL_EXAMPLE_ENTRIES: EntryRecord[] = [
   exampleEntry({
     id: "ex-01",

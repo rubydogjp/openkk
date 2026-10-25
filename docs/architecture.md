@@ -32,7 +32,7 @@ packages/
 │
 ├── embedded-backend     in-process backend composition root
 ├── frontend             3アプリ共通の provider・composition 配線
-├── openkk               通常版 Next.js アプリ（SQLite OPFS）
+├── openkk               無印版 Next.js アプリ（SQLite OPFS）
 ├── openkk_sim           Sim版 Next.js アプリ（memory DB・固定時計・debug）
 └── openkk_demo          デモ版 Next.js アプリ（seed済みmemory DB・再読み込みで初期化）
 ```
@@ -124,8 +124,8 @@ Download版のService Workerは静的エクスポートを事前保存する。�
 |---|---|---|
 | ユニット | vitest | ドメインロジック・パーサー・DB adapter |
 | DB ポート契約適合 | vitest | `OpenkkDbPort` 共有 conformance（`server-ports/test-support/db-port-conformance.ts`）を memory/file-db 両実アダプタ＋遅延非同期コアに通し、dev(memory)↔prod(OPFS worker) の挙動一致を保証 |
-| E2E | Playwright | Sim版の操作フローと、通常版の静的export・OPFS永続化。締めフローでは仮帳票＝確定帳票＝概要図を実画面で検証 |
+| E2E | Playwright | Sim版の操作フローと、無印版の静的export・OPFS永続化。締めフローでは仮帳票＝確定帳票＝概要図を実画面で検証 |
 | パッケージ構造 | vitest | workspace 整合性チェック |
 
-`npm run test:e2e` は Sim版を専用 port 4306 で起動し、既存プロセスを再利用せず実行する。`npm run test:e2e:export` は通常版を静的exportして検査する。生成物・全workspace・3アプリ・両E2Eをまとめた検査は `npm run check:full` で実行できる。
+`npm run test:e2e` は Sim版を専用 port 4306 で起動し、既存プロセスを再利用せず実行する。`npm run test:e2e:export` は無印版を静的exportして検査する。生成物・全workspace・3アプリ・両E2Eをまとめた検査は `npm run check:full` で実行できる。
 このリポジトリに `OpenkkDbPort` 実装を追加したら `runDbPortConformance` に通すこと。conformance は `server-ports/test-support/` にあり npm には公開しないので、外部の実装はこのリポジトリを参照する。

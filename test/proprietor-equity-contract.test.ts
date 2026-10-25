@@ -22,8 +22,8 @@ import { createOpenkkServer } from "../packages/server/src/index.js";
 const OWNER_LOAN = "acct_proprietor_loan";
 const master = {
   accounts: DEFAULT_BOOK_ACCOUNTS,
-  taxes: DEFAULT_TAX_CATEGORIES,
-  businesses: DEFAULT_BUSINESS_CATEGORIES,
+  taxCategories: DEFAULT_TAX_CATEGORIES,
+  businessCategories: DEFAULT_BUSINESS_CATEGORIES,
 };
 
 function line(
@@ -123,8 +123,7 @@ describe("事業主借 equity contract", () => {
         liabilityClosing: 100_000 + remaining,
       });
 
-      // Liability and equity both have credit-normal balances: ledger amounts must not change.
-      const oldRecord: ClientEntryRecord = {
+      const recordWithLoanAsLiability: ClientEntryRecord = {
         ...record,
         lines: record.lines.map((item) =>
           item.bookAccountId === OWNER_LOAN
@@ -133,9 +132,12 @@ describe("事業主借 equity contract", () => {
         ),
       };
       expect(
-        buildGeneralLedgerBody("2026年分", [record], openingBalanceLines),
+        buildGeneralLedgerBody([record], openingBalanceLines),
       ).toBe(
-        buildGeneralLedgerBody("2026年分", [oldRecord], openingBalanceLines),
+        buildGeneralLedgerBody(
+          [recordWithLoanAsLiability],
+          openingBalanceLines,
+        ),
       );
       expect(
         buildCarryoverOpeningBalances({

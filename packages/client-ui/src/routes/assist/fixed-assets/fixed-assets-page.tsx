@@ -31,10 +31,8 @@ export function FixedAssetsPage() {
   const [newAssetDraft, setNewAssetDraft] =
     useState<FixedAssetDraft | null>(null);
 
-  const currentFiscalPeriod = appState.fiscalPeriods.find(
-    (p) => p.id === appState.currentFiscalPeriodId,
-  );
-  const lockMessage = buildPeriodLockMessage(currentFiscalPeriod ?? null, null);
+  const currentFiscalPeriod = appState.currentFiscalPeriod;
+  const lockMessage = buildPeriodLockMessage(currentFiscalPeriod, null);
   const isReadOnlyPeriod =
     currentFiscalPeriod?.phase === "post_closing" ||
     currentFiscalPeriod?.phase === "pre_closing";
@@ -106,7 +104,7 @@ export function FixedAssetsPage() {
         }
         addButtonSlot={
           !isReadOnlyPeriod && editingLocked ? (
-            <LockButton label="追加" style={null} />
+            <LockButton label="追加" />
           ) : null
         }
         contentMaxWidth={null}
@@ -119,7 +117,6 @@ export function FixedAssetsPage() {
           periodStartDate={currentFiscalPeriod.startDate}
           periodEndDate={currentFiscalPeriod.endDate}
           previewAsOf={fixedAssetPreviewAsOf}
-          editingLocked={editingLocked}
           onClose={() => navigateWithAssetParam(null)}
           onSave={async (draft) => {
             return await assistState.updateFixedAsset(drawerAsset.id, draft);
@@ -141,7 +138,6 @@ export function FixedAssetsPage() {
           periodStartDate={currentFiscalPeriod.startDate}
           periodEndDate={currentFiscalPeriod.endDate}
           previewAsOf={fixedAssetPreviewAsOf}
-          editingLocked={editingLocked}
           onClose={() => setNewAssetDraft(null)}
           onSave={async (draft) => {
             const createdId = await assistState.addFixedAsset(draft);

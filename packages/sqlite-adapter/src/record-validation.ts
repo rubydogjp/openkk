@@ -1,4 +1,5 @@
 import {
+  assertClosingYear,
   assertEntryCollectionItemLimit,
   assertEntryCollectionLineLimit,
   assertEntryMatchesRules,
@@ -7,7 +8,6 @@ import {
   assertFiscalPeriodPatchMatchesPhase,
   assertFixedAssetMatchesRules,
   assertOpeningMatchesRules,
-  assertPositiveInteger,
   assertUniqueIds,
   isNonBlankString,
   requireObject,
@@ -126,19 +126,6 @@ export function assertDbClosingGeneratedSizeLimits(
   assertEntryCollectionLineLimit(entries, "Closing entries", null);
 }
 
-export function assertDbClosingYear(
-  period: FiscalPeriodDbData,
-  year: number,
-): void {
-  assertPositiveInteger(year, "Closing year");
-  const expectedYear = Number(period.endDate.slice(0, 4));
-  if (year !== expectedYear) {
-    throw serverValidationError(
-      `Closing year ${year} must match fiscal period end year ${expectedYear}`,
-      "締め年度が会計期間の終了年と一致しません",
-    );
-  }
-}
 
 export function assertDbImportedClosingState(
   period: FiscalPeriodDbData,
@@ -146,7 +133,7 @@ export function assertDbImportedClosingState(
   closings: ReadonlyArray<ClosingMarkerDbImportInput>,
 ): void {
   for (const row of [...preClosings, ...closings]) {
-    assertDbClosingYear(period, row.year);
+    assertClosingYear(period, row.year);
   }
   assertFiscalPeriodClosingMarkers(
     period.phase,

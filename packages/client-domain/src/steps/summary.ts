@@ -3,7 +3,6 @@ import {
   applyBusinessRateToLines,
   type EntryLine,
 } from "../entries/entry-record.js";
-export { parseAmount, parseBusinessRate } from "../shared/parse-utils.js";
 
 export type EntrySummaryRow = {
   businessRate: number;

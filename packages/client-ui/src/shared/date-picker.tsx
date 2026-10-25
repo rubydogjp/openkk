@@ -2,7 +2,11 @@
 
 import { useId, useRef, useState } from "react";
 
-import { parseIsoLocalDate } from "@rubydogjp/openkk-client-domain";
+import {
+  formatIsoLocalDate,
+  parseIsoLocalDate,
+  weekdayJa,
+} from "@rubydogjp/openkk-client-domain";
 
 import {
   fontSize,
@@ -15,33 +19,11 @@ import {
 } from "./design-tokens.js";
 import { useModalLifecycle } from "./dismissible-layer.js";
 
-const WEEKDAY_JP = ["日", "月", "火", "水", "木", "金", "土"];
-
-function parseIsoDate(value: string): Date | null {
-  return parseIsoLocalDate(value);
-}
-
-function toIsoDate(date: Date): string {
-  const y = date.getFullYear();
-  const mo = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${mo}-${d}`;
-}
+const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
 
 export function formatDateButtonLabel(isoDate: string): string {
-  const date = parseIsoDate(isoDate);
-  if (date == null) return isoDate || "日付を選択";
-  const y = date.getFullYear();
-  const mo = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  const w = WEEKDAY_JP[date.getDay()];
-  return `${y}/${mo}/${d} (${w})`;
-}
-
-export function isoDateToWeekday(isoDate: string): string {
-  const date = parseIsoDate(isoDate);
-  if (date == null) return "";
-  return WEEKDAY_JP[date.getDay()]!;
+  if (parseIsoLocalDate(isoDate) == null) return isoDate || "日付を選択";
+  return `${isoDate.replaceAll("-", "/")} (${weekdayJa(isoDate)})`;
 }
 
 export function DatePickerButton(props: {
@@ -70,10 +52,8 @@ export function DatePickerButton(props: {
           alignItems: "center",
           gap: spacing.s8,
           cursor: "pointer",
-
           flexShrink: 0,
           whiteSpace: "nowrap",
-
           alignSelf: "flex-start",
         }}
       >
@@ -94,8 +74,8 @@ export function DatePickerButton(props: {
           value={props.value}
           minDate={props.minDate}
           maxDate={props.maxDate}
-          onConfirm={(v) => {
-            props.onChange(v);
+          onConfirm={(value) => {
+            props.onChange(value);
             setOpen(false);
           }}
           onCancel={() => setOpen(false)}
@@ -118,10 +98,12 @@ function DatePickerDialog(props: {
     props.onCancel,
     cancelButtonRef,
   );
-  const minDate = props.minDate == null ? null : parseIsoDate(props.minDate);
-  const maxDate = props.maxDate == null ? null : parseIsoDate(props.maxDate);
+  const minDate =
+    props.minDate == null ? null : parseIsoLocalDate(props.minDate);
+  const maxDate =
+    props.maxDate == null ? null : parseIsoLocalDate(props.maxDate);
   const initial = clampDateToBounds(
-    parseIsoDate(props.value) ?? new Date(),
+    parseIsoLocalDate(props.value) ?? new Date(),
     minDate,
     maxDate,
   );
@@ -129,10 +111,10 @@ function DatePickerDialog(props: {
   const [viewYear, setViewYear] = useState(initial.getFullYear());
   const [viewMonth, setViewMonth] = useState(initial.getMonth());
 
-  const firstDow = new Date(viewYear, viewMonth, 1).getDay();
+  const firstWeekday = new Date(viewYear, viewMonth, 1).getDay();
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
   const cells: Array<number | null> = [];
-  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let i = 0; i < firstWeekday; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
   while (cells.length % 7 !== 0) cells.push(null);
 
@@ -229,7 +211,7 @@ function DatePickerDialog(props: {
               日付を選択
             </div>
             <div style={{ fontSize: fontSize.base, color: palette.textSoft, marginTop: 2 }}>
-              {formatDateButtonLabel(toIsoDate(selected))}
+              {formatDateButtonLabel(formatIsoLocalDate(selected))}
             </div>
           </div>
         </div>
@@ -295,9 +277,9 @@ function DatePickerDialog(props: {
               marginBottom: 4,
             }}
           >
-            {WEEKDAY_JP.map((w) => (
+            {WEEKDAY_LABELS.map((weekday) => (
               <div
-                key={w}
+                key={weekday}
                 style={{
                   textAlign: "center",
                   fontSize: fontSize.xs,
@@ -306,7 +288,7 @@ function DatePickerDialog(props: {
                   padding: "4px 0",
                 }}
               >
-                {w}
+                {weekday}
               </div>
             ))}
           </div>
@@ -314,7 +296,7 @@ function DatePickerDialog(props: {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
             {cells.map((day, i) => {
               if (day == null) return <div key={`e${i}`} style={{ aspectRatio: "1" }} />;
-              const sel = isSelected(day);
+              const selectedDay = isSelected(day);
               const candidate = new Date(viewYear, viewMonth, day);
               const allowed = isAllowed(candidate);
               return (
@@ -327,14 +309,14 @@ function DatePickerDialog(props: {
                     aspectRatio: "1",
                     borderRadius: 999,
                     border: "none",
-                    background: sel ? palette.action : "transparent",
-                    color: sel
+                    background: selectedDay ? palette.action : "transparent",
+                    color: selectedDay
                       ? palette.surface
                       : allowed
                         ? palette.textSoft
                         : palette.textMuted,
                     fontSize: fontSize.base,
-                    fontWeight: sel ? fontWeight.bold : fontWeight.medium,
+                    fontWeight: selectedDay ? fontWeight.bold : fontWeight.medium,
                     cursor: allowed ? "pointer" : "default",
                     opacity: allowed ? 1 : 0.35,
                     display: "flex",
@@ -361,7 +343,7 @@ function DatePickerDialog(props: {
           </button>
           <button
             type="button"
-            onClick={() => props.onConfirm(toIsoDate(selected))}
+            onClick={() => props.onConfirm(formatIsoLocalDate(selected))}
             style={confirmBtnStyle}
           >
             選択する

@@ -11,12 +11,13 @@ import {
   assertPositiveInteger,
   assertUniqueStrings,
   assertUnitRate,
-  requireObject,
-  serverValidationError,
+  closingYear,
   type EntrySide,
+  type FiscalPeriodOpening,
   type FiscalPeriodPhase,
   type FixedAssetStatus,
-  type FiscalPeriodOpening,
+  requireObject,
+  serverValidationError,
 } from "@rubydogjp/openkk-server-domain";
 import type {
   EntryUpsertInput,
@@ -116,7 +117,7 @@ export function normalizeArchiveImportInput(
       sourceId,
     ),
   );
-  const expectedClosingYear = Number(endDate.slice(0, 4));
+  const expectedClosingYear = closingYear({ endDate });
   for (const closing of normalizedClosings) {
     if (closing.year !== expectedClosingYear) {
       throw serverValidationError(

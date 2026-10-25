@@ -1,5 +1,9 @@
 import type { EntryLine, EntryRecord } from "../entries/entry-record.js";
-import { parseAmount, parseIsoLocalDate } from "../shared/parse-utils.js";
+import {
+  formatIsoLocalDate,
+  parseAmount,
+  parseIsoLocalDate,
+} from "../shared/parse-utils.js";
 
 export type NextFiscalPeriodSuggestion = {
   name: string;
@@ -7,13 +11,18 @@ export type NextFiscalPeriodSuggestion = {
   endDate: string;
 };
 
+export function fiscalPeriodNameForEndDate(endDate: string): string | null {
+  const year = endDate.slice(0, 4);
+  return /^\d{4}$/.test(year) ? `${year}年分` : null;
+}
+
 export function buildNextFiscalPeriodSuggestion(
   previousEndDate: string,
 ): NextFiscalPeriodSuggestion {
   const startDate = addDaysToIsoDate(previousEndDate, 1) ?? previousEndDate;
   const endDate = addYearsToIsoDate(previousEndDate, 1) ?? previousEndDate;
   return {
-    name: `${endDate.slice(0, 4)}年分`,
+    name: fiscalPeriodNameForEndDate(endDate) ?? "",
     startDate,
     endDate,
   };
@@ -23,11 +32,7 @@ function addDaysToIsoDate(value: string, days: number): string | null {
   const date = parseIsoLocalDate(value);
   if (date == null) return null;
   date.setDate(date.getDate() + days);
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, "0"),
-    String(date.getDate()).padStart(2, "0"),
-  ].join("-");
+  return formatIsoLocalDate(date);
 }
 
 const REVERSIBLE_BALANCE_ACCOUNTS = new Set([

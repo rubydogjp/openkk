@@ -36,17 +36,15 @@ import {
 } from "../step-ui.js";
 import {
   assetKey,
-  buildAssetSlots,
+  buildAssetLabels,
   buildInitialAmounts,
-  buildLiabilitySlots,
-  isEditableLiability,
+  buildLiabilityLabels,
   liabilityAccountType,
   liabilityKey,
   parseOpeningAmount,
   sumOpeningAmounts,
+  unrenderedOpeningLines,
 } from "./opening-bs-model.js";
-
-const ORDINARY_DEPOSIT_ACCOUNT_ID_INCLUDED_IN_OTHER_DEPOSITS = "a:普通預金";
 
 export function OpeningBsBody({
   onSwitchToStep,
@@ -59,42 +57,25 @@ export function OpeningBsBody({
   const [isSaving, setIsSaving] = useState(false);
   const saveLock = useRef(new ExclusiveActionLock());
   const [isEditingCompleted, setIsEditingCompleted] = useState(false);
-  const currentFiscalPeriod = appState.fiscalPeriods.find(
-    (period) => period.id === appState.currentFiscalPeriodId,
-  );
+  const currentFiscalPeriod = appState.currentFiscalPeriod;
 
   const openingBalanceLines =
     currentFiscalPeriod?.opening.balanceLines ?? [];
   const [amounts, setAmounts] = useState<Record<string, string>>(() =>
     buildInitialAmounts(openingBalanceLines),
   );
-  const assetSlots = useMemo(
-    () => buildAssetSlots(openingBalanceLines),
+  const assetLabels = useMemo(
+    () => buildAssetLabels(openingBalanceLines),
     [openingBalanceLines],
   );
-  const liabilitySlots = useMemo(
-    () => buildLiabilitySlots(openingBalanceLines),
+  const liabilityLabels = useMemo(
+    () => buildLiabilityLabels(openingBalanceLines),
     [openingBalanceLines],
-  );
-  const visibleAccountIds = useMemo(
-    () =>
-      new Set([
-        ...assetSlots
-          .filter((slot) => slot.label !== "")
-          .map((slot) => assetKey(slot.label)),
-        ...liabilitySlots
-          .filter((slot) => slot.label !== "")
-          .map((slot) => liabilityKey(slot.label)),
-        ORDINARY_DEPOSIT_ACCOUNT_ID_INCLUDED_IN_OTHER_DEPOSITS,
-      ]),
-    [assetSlots, liabilitySlots],
   );
   const preservedUnrenderedLines = useMemo(
     () =>
-      openingBalanceLines.filter(
-        (line) => !visibleAccountIds.has(line.accountId) && line.amount > 0,
-      ),
-    [openingBalanceLines, visibleAccountIds],
+      unrenderedOpeningLines(openingBalanceLines, assetLabels, liabilityLabels),
+    [openingBalanceLines, assetLabels, liabilityLabels],
   );
 
   useEffect(() => {
@@ -105,25 +86,25 @@ export function OpeningBsBody({
 
   const assetTotal = useMemo(() => {
     return sumOpeningAmounts([
-      ...assetSlots
-        .filter((slot) => slot.label !== "")
-        .map((slot) => amounts[assetKey(slot.label)] ?? ""),
+      ...assetLabels
+        .filter((label) => label !== "")
+        .map((label) => amounts[assetKey(label)] ?? ""),
       ...preservedUnrenderedLines
         .filter((line) => line.accountId.startsWith("a:"))
         .map((line) => line.amount),
     ]);
-  }, [amounts, assetSlots, preservedUnrenderedLines]);
+  }, [amounts, assetLabels, preservedUnrenderedLines]);
 
   const liabilityTotal = useMemo(() => {
     return sumOpeningAmounts([
-      ...liabilitySlots
-        .filter((slot) => slot.label !== "")
-        .map((slot) => amounts[liabilityKey(slot.label)] ?? ""),
+      ...liabilityLabels
+        .filter((label) => label !== "")
+        .map((label) => amounts[liabilityKey(label)] ?? ""),
       ...preservedUnrenderedLines
         .filter((line) => line.accountId.startsWith("l:"))
         .map((line) => line.amount),
     ]);
-  }, [amounts, liabilitySlots, preservedUnrenderedLines]);
+  }, [amounts, liabilityLabels, preservedUnrenderedLines]);
 
   if (currentFiscalPeriod == null) {
     return (
@@ -153,21 +134,17 @@ export function OpeningBsBody({
     setIsSaving(true);
     try {
       if (!balancesMatch) return;
+      const enteredLines = (labels: string[], key: (label: string) => string) =>
+        labels.flatMap((label) => {
+          if (label === "") return [];
+          const accountId = key(label);
+          const amount = parseOpeningAmount(amounts[accountId] ?? "") ?? 0;
+          if (amount <= 0) return [];
+          return [{ id: accountId, accountId, amount }];
+        });
       const lines = [
-        ...assetSlots.flatMap((slot) => {
-          if (slot.label === "") return [];
-          const key = assetKey(slot.label);
-          const amount = parseOpeningAmount(amounts[key] ?? "") ?? 0;
-          if (amount <= 0) return [];
-          return [{ id: key, accountId: key, amount }];
-        }),
-        ...liabilitySlots.flatMap((slot) => {
-          if (!isEditableLiability(slot.label)) return [];
-          const key = liabilityKey(slot.label);
-          const amount = parseOpeningAmount(amounts[key] ?? "") ?? 0;
-          if (amount <= 0) return [];
-          return [{ id: key, accountId: key, amount }];
-        }),
+        ...enteredLines(assetLabels, assetKey),
+        ...enteredLines(liabilityLabels, liabilityKey),
         ...preservedUnrenderedLines,
       ];
       const updated = await appState.updateFiscalPeriod(
@@ -210,7 +187,6 @@ export function OpeningBsBody({
           display: "flex",
           flexDirection: "column",
           gap: 28,
-
           paddingBottom: 56,
         }}
       >
@@ -243,14 +219,14 @@ export function OpeningBsBody({
             {[
               {
                 title: "資産の部",
-                slots: assetSlots,
+                labels: assetLabels,
                 key: assetKey,
                 total: assetTotal,
                 accountType: (_label: string): BookAccountType => "asset",
               },
               {
                 title: "負債・純資産の部",
-                slots: liabilitySlots,
+                labels: liabilityLabels,
                 key: liabilityKey,
                 total: liabilityTotal,
                 accountType: liabilityAccountType,
@@ -258,24 +234,24 @@ export function OpeningBsBody({
             ].map((section) => (
               <section key={section.title} aria-label={section.title}>
                 <div className="bk-opening-bs-row bk-opening-bs-header">
-                  <HeaderCell align={null}>{section.title}</HeaderCell>
+                  <HeaderCell align="left">{section.title}</HeaderCell>
                   <HeaderCell align="right">金額</HeaderCell>
                 </div>
-                {section.slots.map((slot, index) => {
-                  const id = section.key(slot.label);
+                {section.labels.map((label, index) => {
+                  const id = section.key(label);
                   return (
                     <div
                       key={index}
-                      className={`bk-opening-bs-row${slot.label === "" ? " bk-opening-bs-empty" : ""}`}
+                      className={`bk-opening-bs-row${label === "" ? " bk-opening-bs-empty" : ""}`}
                     >
                       <ChipCell
-                        label={slot.label}
-                        type={section.accountType(slot.label)}
+                        label={label}
+                        type={section.accountType(label)}
                       />
                       <AmountCell
-                        hasLabel={slot.label !== ""}
+                        hasLabel={label !== ""}
                         editable={isEditing}
-                        ariaLabel={`${slot.label} 金額`}
+                        ariaLabel={`${label} 金額`}
                         value={amounts[id] ?? ""}
                         onChange={(value) =>
                           setAmounts((previous) => ({ ...previous, [id]: value }))
@@ -319,7 +295,7 @@ export function OpeningBsBody({
               前の手順へ
             </StepSecondaryButton>
           ) : editingLocked && !isCompleted ? (
-            <LockButton label="保存して次へ" style={null} />
+            <LockButton label="保存して次へ" />
           ) : !isEditing ? (
             <StepPrimaryButton
               onClick={() => onSwitchToStep?.(3)}
@@ -427,7 +403,7 @@ function HeaderCell({
   align,
 }: {
   children: ReactNode;
-  align: "left" | "right" | null;
+  align: "left" | "right";
 }) {
   return (
     <div
@@ -436,7 +412,7 @@ function HeaderCell({
         fontWeight: fontWeight.bold,
         color: palette.text,
         letterSpacing: "0.02em",
-        textAlign: align ?? "left",
+        textAlign: align,
       }}
     >
       {children}
@@ -481,19 +457,13 @@ function AmountCell({
 
   return (
     <div style={{ minWidth: 0 }}>
-      <div>
-        {editable ? (
-          <AmountInput
-            value={value}
-            onChange={onChange}
-            ariaLabel={ariaLabel}
-          />
-        ) : (
-          <AmountReadOnlyField
-            value={value !== "" ? Number(value).toLocaleString("ja-JP") : ""}
-          />
-        )}
-      </div>
+      {editable ? (
+        <AmountInput value={value} onChange={onChange} ariaLabel={ariaLabel} />
+      ) : (
+        <AmountReadOnlyField
+          value={value !== "" ? Number(value).toLocaleString("ja-JP") : ""}
+        />
+      )}
     </div>
   );
 }
@@ -514,12 +484,10 @@ function TotalLabelCell({ children }: { children: ReactNode }) {
 
 function TotalAmountCell({ children }: { children: ReactNode }) {
   return (
-    <div style={{ minWidth: 0 }}>
-      <div style={{ textAlign: "right" }}>
-        <AmountText bold muted={false}>
-          {children}
-        </AmountText>
-      </div>
+    <div style={{ minWidth: 0, textAlign: "right" }}>
+      <AmountText bold muted={false}>
+        {children}
+      </AmountText>
     </div>
   );
 }

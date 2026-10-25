@@ -1,7 +1,5 @@
 import type { FsBsRow } from "../fs-data.js";
 
-export const FINANCIAL_STATEMENTS_EXAMPLE_FP_NAME = "サンプル期間 (2026年度)";
-
 export const FINANCIAL_STATEMENTS_EXAMPLE_AMOUNTS: Record<
   number,
   number | null
@@ -54,8 +52,8 @@ export const FINANCIAL_STATEMENTS_EXAMPLE_AMOUNTS: Record<
 const PROFIT = 3550000;
 const OPENING_ASSETS_TOTAL = 50000 + 1500000 + 200000;
 const ASSETS_TOTAL = 80000 + 2800000 + 460000 + 136550 + 800000;
-const OPENING_LIABS_TOTAL = 1750000;
-const LIABS_AND_EQUITY_TOTAL_DISPLAY = 1750000 + PROFIT;
+const OPENING_LIABILITIES_TOTAL = 1750000;
+const LIABILITIES_AND_EQUITY_TOTAL = 1750000 + PROFIT;
 
 export const FINANCIAL_STATEMENTS_EXAMPLE_BS_ROWS: FsBsRow[] = [
   {
@@ -247,7 +245,7 @@ export const FINANCIAL_STATEMENTS_EXAMPLE_BS_ROWS: FsBsRow[] = [
     assetOpening: OPENING_ASSETS_TOTAL,
     assetClosing: ASSETS_TOTAL,
     liabilityLabel: "合計",
-    liabilityOpening: OPENING_LIABS_TOTAL,
-    liabilityClosing: LIABS_AND_EQUITY_TOTAL_DISPLAY,
+    liabilityOpening: OPENING_LIABILITIES_TOTAL,
+    liabilityClosing: LIABILITIES_AND_EQUITY_TOTAL,
   },
 ];

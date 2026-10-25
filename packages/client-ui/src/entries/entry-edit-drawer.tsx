@@ -67,7 +67,7 @@ import {
   validateEntryLineCount,
 } from "./entry-edit-validation.js";
 
-const BIZ_RATE_PRESETS = [
+const BUSINESS_RATE_PRESETS = [
   "100",
   "90",
   "80",
@@ -161,25 +161,29 @@ export function EntryEditDrawer(props: {
   };
 
   const addRow = () => {
-    const defDebit =
-      props.accountOptions.find((a) => a.accountType === "expense") ??
-      props.accountOptions[0] ?? null;
-    const defCredit =
-      props.accountOptions.find((a) => a.accountType === "asset") ??
-      props.accountOptions[0] ?? null;
+    const defaultDebit =
+      props.accountOptions.find(
+        (account) => account.accountType === "expense",
+      ) ??
+      props.accountOptions[0] ??
+      null;
+    const defaultCredit =
+      props.accountOptions.find((account) => account.accountType === "asset") ??
+      props.accountOptions[0] ??
+      null;
     setDraft((current) => ({
       ...current,
       pairs: [
         ...current.pairs,
         {
           id: nextLinePairId(),
-          debitAccountId: defDebit?.id ?? null,
-          debitAccountName: defDebit?.name ?? "",
-          debitAccountType: defDebit?.accountType ?? "expense",
+          debitAccountId: defaultDebit?.id ?? null,
+          debitAccountName: defaultDebit?.name ?? "",
+          debitAccountType: defaultDebit?.accountType ?? "expense",
           debitAmount: "",
-          creditAccountId: defCredit?.id ?? null,
-          creditAccountName: defCredit?.name ?? "",
-          creditAccountType: defCredit?.accountType ?? "asset",
+          creditAccountId: defaultCredit?.id ?? null,
+          creditAccountName: defaultCredit?.name ?? "",
+          creditAccountType: defaultCredit?.accountType ?? "asset",
           creditAmount: "",
           debitPartnerName: null,
           debitTaxCategoryId: null,
@@ -428,7 +432,7 @@ export function EntryEditDrawer(props: {
           bottom: 0,
           width: sizes.drawer.width,
           maxWidth: "100vw",
-          background: entryDrawerColors.panelBg,
+          background: entryDrawerColors.bg,
           boxShadow: shadows.drawer,
           borderLeft: `1px solid ${entryDrawerColors.border}`,
           zIndex: 50,
@@ -440,13 +444,13 @@ export function EntryEditDrawer(props: {
       >
         <style>{`
           ${DRAWER_SLIDE_IN_KEYFRAMES}
-          .bk-d-input { box-shadow: ${shadows.inputInset}; }
-          .bk-d-input:focus {
+          .bk-drawer-input { box-shadow: ${shadows.inputInset}; }
+          .bk-drawer-input:focus {
             border-color: ${entryDrawerColors.blue} !important;
             box-shadow: ${rings.brandFocus}, ${shadows.inputInset};
           }
-          .bk-d-menu-item { transition: background 80ms ease; }
-          .bk-d-menu-item:hover { background: #F1F5F9; }
+          .bk-drawer-menu-item { transition: background 80ms ease; }
+          .bk-drawer-menu-item:hover { background: #F1F5F9; }
         `}</style>
 
         <header
@@ -563,7 +567,7 @@ export function EntryEditDrawer(props: {
                           rowGap: 12,
                         }}
                       >
-                        <StackedField label="借方科目" width={null}>
+                        <StackedField label="借方科目">
                           <AccountPicker
                             ariaLabel="借方科目"
                             selectedId={row.debitAccountId}
@@ -580,7 +584,7 @@ export function EntryEditDrawer(props: {
                             fullWidth
                           />
                         </StackedField>
-                        <StackedField label="貸方科目" width={null}>
+                        <StackedField label="貸方科目">
                           <AccountPicker
                             ariaLabel="貸方科目"
                             selectedId={row.creditAccountId}
@@ -597,7 +601,7 @@ export function EntryEditDrawer(props: {
                             fullWidth
                           />
                         </StackedField>
-                        <StackedField label="借方金額" width={null}>
+                        <StackedField label="借方金額">
                           <AmountInput
                             value={row.debitAmount}
                             onChange={(value) =>
@@ -606,7 +610,7 @@ export function EntryEditDrawer(props: {
                             ariaLabel={null}
                           />
                         </StackedField>
-                        <StackedField label="貸方金額" width={null}>
+                        <StackedField label="貸方金額">
                           <AmountInput
                             value={row.creditAmount}
                             onChange={(value) =>
@@ -675,7 +679,7 @@ export function EntryEditDrawer(props: {
                     <SuggestionInput
                       value={draft.partner}
                       onChange={updatePartner}
-                      options={mergeOptions([], props.suggestions.partner)}
+                      options={props.suggestions.partner}
                       ariaLabel="取引先"
                       placeholder="取引先を入力"
                       align={null}
@@ -698,7 +702,7 @@ export function EntryEditDrawer(props: {
                           businessRate: null,
                         })
                       }
-                      options={BIZ_RATE_PRESETS}
+                      options={BUSINESS_RATE_PRESETS}
                       ariaLabel="事業割合 (%)"
                       placeholder="100"
                       align="right"
@@ -717,7 +721,7 @@ export function EntryEditDrawer(props: {
                       value={draft.taxCategory}
                       onChange={updateTaxCategory}
                       options={mergeOptions(
-                        props.taxCategoryOptions.map((o) => o.name),
+                        props.taxCategoryOptions.map((option) => option.name),
                         props.suggestions.taxCategory,
                       )}
                       ariaLabel="課税区分"
@@ -738,7 +742,9 @@ export function EntryEditDrawer(props: {
                       value={draft.businessCategory}
                       onChange={updateBusinessCategory}
                       options={mergeOptions(
-                        props.businessCategoryOptions.map((o) => o.name),
+                        props.businessCategoryOptions.map(
+                          (option) => option.name,
+                        ),
                         props.suggestions.businessCategory,
                       )}
                       ariaLabel="事業区分"
@@ -767,7 +773,7 @@ export function EntryEditDrawer(props: {
           }}
         >
           {footerMessages.length > 0 ? (
-            <ValidationCard messages={footerMessages} compact />
+            <ValidationCard messages={footerMessages} />
           ) : null}
           <div
             style={{
@@ -778,7 +784,7 @@ export function EntryEditDrawer(props: {
               width: "100%",
             }}
           >
-          {props.mode === "edit" && props.onDelete != null ? (
+            {props.mode === "edit" && props.onDelete != null ? (
               <button
                 type="button"
                 onClick={() => setConfirmingDelete(true)}
@@ -792,7 +798,10 @@ export function EntryEditDrawer(props: {
                 {deleting ? "削除中…" : "削除"}
               </button>
             ) : (
-              <BalanceIndicator debitAmt={debitTotal} creditAmt={creditTotal} />
+              <BalanceIndicator
+                debitAmount={debitTotal}
+                creditAmount={creditTotal}
+              />
             )}
             <div style={{ display: "flex", gap: 10 }}>
               <button

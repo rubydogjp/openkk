@@ -30,9 +30,7 @@ export function ShellFiscalPeriodMenu(props: {
   }, [props.pathname]);
 
   const fiscalPeriodLabel =
-    appState.fiscalPeriods.find(
-      (p) => p.id === appState.currentFiscalPeriodId,
-    )?.name ?? "期間 未選択";
+    appState.currentFiscalPeriod?.name ?? "期間 未選択";
 
   return (
     <div
@@ -125,16 +123,16 @@ export function ShellFiscalPeriodMenu(props: {
             </div>
           ) : (
             <div style={{ padding: "0 0 4px" }}>
-              {appState.fiscalPeriods.map((p) => {
-                const isCurrent = p.id === appState.currentFiscalPeriodId;
+              {appState.fiscalPeriods.map((period) => {
+                const isCurrent = period.id === appState.currentFiscalPeriodId;
                 return (
                   <button
-                    key={p.id}
+                    key={period.id}
                     type="button"
                     role="menuitem"
                     className="bk-menu-item"
                     onClick={() => {
-                      appState.selectFiscalPeriod(p.id);
+                      appState.selectFiscalPeriod(period.id);
                       setWorkspaceOpen(false);
                       router.push("/steps");
                     }}
@@ -165,7 +163,7 @@ export function ShellFiscalPeriodMenu(props: {
                         minWidth: 0,
                       }}
                     >
-                      {p.name}
+                      {period.name}
                     </span>
                     {isCurrent ? (
                       <CheckIcon size={14} color={palette.brand} />

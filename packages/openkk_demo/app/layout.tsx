@@ -19,7 +19,6 @@ const notoSansMono = localFont({
 export const metadata: Metadata = {
   title: "オープン会計",
   description: "個人事業主向けオープンソース複式簿記アプリ",
-
   manifest: "/manifest.json",
 };
 

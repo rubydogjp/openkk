@@ -5,14 +5,15 @@ import { useEffect, useRef, useState } from "react";
 import { fontSize, fontWeight, palette } from "../shared/design-tokens.js";
 import { MaskIcon } from "../shared/icons.js";
 
+const ANIMATION_DURATION_MS = 8000;
+
 export function ClosingExplainerAnimation({
   onCompleted,
 }: {
   onCompleted: (() => void) | null;
 }) {
-  const DURATION = 8000;
   const [width, setWidth] = useState(0);
-  const [t, setT] = useState(0);
+  const [progress, setProgress] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const startTimeRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -20,24 +21,24 @@ export function ClosingExplainerAnimation({
   onCompletedRef.current = onCompleted;
 
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const obs = new ResizeObserver((entries) => {
+    const container = containerRef.current;
+    if (!container) return;
+    const observer = new ResizeObserver((entries) => {
       const rect = entries[0]?.contentRect;
       if (rect) setWidth(rect.width);
     });
-    obs.observe(el);
-    setWidth(el.getBoundingClientRect().width);
-    return () => obs.disconnect();
+    observer.observe(container);
+    setWidth(container.getBoundingClientRect().width);
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
     const step = (timestamp: number) => {
       if (startTimeRef.current == null) startTimeRef.current = timestamp;
       const elapsed = timestamp - startTimeRef.current;
-      const newT = Math.min(elapsed / DURATION, 1);
-      setT(newT);
-      if (newT < 1) {
+      const nextProgress = Math.min(elapsed / ANIMATION_DURATION_MS, 1);
+      setProgress(nextProgress);
+      if (nextProgress < 1) {
         rafRef.current = requestAnimationFrame(step);
       } else {
         onCompletedRef.current?.();
@@ -52,7 +53,7 @@ export function ClosingExplainerAnimation({
   return (
     <div ref={containerRef} style={{ width: "100%" }}>
       {width > 50 ? (
-        <ClosingAnimFrame t={t} w={width - 48} />
+        <ClosingAnimationFrame progress={progress} width={width - 48} />
       ) : (
         <div style={{ height: 245 }} />
       )}
@@ -60,76 +61,94 @@ export function ClosingExplainerAnimation({
   );
 }
 
-function ClosingAnimFrame({ t, w }: { t: number; w: number }) {
-  const cellH = 28;
-  const g = 3;
-  const tg = 24;
+function ClosingAnimationFrame({
+  progress,
+  width,
+}: {
+  progress: number;
+  width: number;
+}) {
+  const cellHeight = 28;
+  const cellGap = 3;
+  const statementGap = 24;
 
-  const halfW = (w - tg) / 2;
-  const cellW = (halfW - g) / 2;
-  const initOx = (w - (2 * cellW + g)) / 2;
+  const statementWidth = (width - statementGap) / 2;
+  const cellWidth = (statementWidth - cellGap) / 2;
+  const initialOffsetX = (width - (2 * cellWidth + cellGap)) / 2;
 
-  const initH = 8 * cellH + 7 * g;
-  const plOy = (initH - (4 * cellH + 3 * g)) / 2;
-  const bsOy = (initH - (6 * cellH + 5 * g)) / 2;
+  const frameHeight = 8 * cellHeight + 7 * cellGap;
+  const plOffsetY = (frameHeight - (4 * cellHeight + 3 * cellGap)) / 2;
+  const bsOffsetY = (frameHeight - (6 * cellHeight + 5 * cellGap)) / 2;
 
-  const isWobbling = t >= 0.125 && t < 0.375;
-  const wobbleT = isWobbling ? (t - 0.125) / 0.25 : 0;
+  const isWobbling = progress >= 0.125 && progress < 0.375;
+  const wobbleProgress = isWobbling ? (progress - 0.125) / 0.25 : 0;
   const wobbleAngle = isWobbling
-    ? Math.sin(wobbleT * Math.PI * 4) * ((10 * Math.PI) / 180) * Math.sin(wobbleT * Math.PI)
+    ? Math.sin(wobbleProgress * Math.PI * 4) *
+      ((10 * Math.PI) / 180) *
+      Math.sin(wobbleProgress * Math.PI)
     : 0;
 
-  const moveRaw = Math.max(0, Math.min(1, (t - 0.375) / 0.1875));
-  const move = easeInOutCubic(moveRaw);
-  const labelAlpha = Math.max(0, Math.min(1, (t - 0.45) / 0.12));
-  const profitT = Math.max(0, Math.min(1, (t - 0.6875) / 0.09375));
+  const move = easeInOutCubic(clampUnit((progress - 0.375) / 0.1875));
+  const labelAlpha = clampUnit((progress - 0.45) / 0.12);
+  const profitOpacity = blinkFadeIn(clampUnit((progress - 0.6875) / 0.09375));
 
-  const ix = (c: number) => initOx + c * (cellW + g);
-  const iy = (r: number) => r * (cellH + g);
-  const px = (c: number) => c * (cellW + g);
-  const bx = (c: number) => halfW + tg + c * (cellW + g);
-  const ply = (r: number) => plOy + r * (cellH + g);
-  const bsy = (r: number) => bsOy + r * (cellH + g);
-  const lerp = (a: number, b: number, v: number) => a + (b - a) * v;
+  const columnX = (column: number) => column * (cellWidth + cellGap);
+  const rowY = (row: number) => row * (cellHeight + cellGap);
+  const initialX = (column: number) => initialOffsetX + columnX(column);
+  const plX = (column: number) => columnX(column);
+  const bsX = (column: number) =>
+    statementWidth + statementGap + columnX(column);
+  const plY = (row: number) => plOffsetY + rowY(row);
+  const bsY = (row: number) => bsOffsetY + rowY(row);
+  const lerp = (from: number, to: number, amount: number) =>
+    from + (to - from) * amount;
 
   type AccountVisual = { color: string; bg: string; icon: string };
-  type CellDef = [label: string, visual: AccountVisual, sx: number, sy: number, ex: number, ey: number, wobbles: boolean];
+  type Cell = [
+    label: string,
+    visual: AccountVisual,
+    startX: number,
+    startY: number,
+    endX: number,
+    endY: number,
+    wobbles: boolean,
+  ];
   const asset = { color: palette.accountAsset, bg: palette.accountAssetBg, icon: "/icons/assets.svg" };
   const liability = { color: palette.accountLiability, bg: palette.accountLiabilityBg, icon: "/icons/liabilities.svg" };
   const equity = { color: palette.accountEquity, bg: palette.accountEquityBg, icon: "/icons/net-assets.svg" };
   const revenue = { color: palette.accountRevenue, bg: palette.accountRevenueBg, icon: "/icons/revenue.svg" };
   const expense = { color: palette.accountExpense, bg: palette.accountExpenseBg, icon: "/icons/expense.svg" };
   const profit = { color: palette.accountProfit, bg: palette.accountProfitBg, icon: "/icons/profit.svg" };
-  const defs: CellDef[] = [
-    ["資産", asset, ix(0), iy(0), bx(0), bsy(0), false],
-    ["資産", asset, ix(0), iy(1), bx(0), bsy(1), false],
-    ["費用", expense, ix(0), iy(2), px(0), ply(0), true],
-    ["資産", asset, ix(0), iy(3), bx(0), bsy(2), false],
-    ["資産", asset, ix(0), iy(4), bx(0), bsy(3), false],
-    ["費用", expense, ix(0), iy(5), px(0), ply(1), true],
-    ["資産", asset, ix(0), iy(6), bx(0), bsy(4), false],
-    ["資産", asset, ix(0), iy(7), bx(0), bsy(5), false],
-    ["負債", liability, ix(1), iy(0), bx(1), bsy(0), false],
-    ["負債", liability, ix(1), iy(1), bx(1), bsy(1), false],
-    ["純資産", equity, ix(1), iy(2), bx(1), bsy(2), false],
-    ["純資産", equity, ix(1), iy(3), bx(1), bsy(3), false],
-    ["収益", revenue, ix(1), iy(4), px(1), ply(0), true],
-    ["収益", revenue, ix(1), iy(5), px(1), ply(1), true],
-    ["収益", revenue, ix(1), iy(6), px(1), ply(2), true],
-    ["収益", revenue, ix(1), iy(7), px(1), ply(3), true],
+  const cells: Cell[] = [
+    ["資産", asset, initialX(0), rowY(0), bsX(0), bsY(0), false],
+    ["資産", asset, initialX(0), rowY(1), bsX(0), bsY(1), false],
+    ["費用", expense, initialX(0), rowY(2), plX(0), plY(0), true],
+    ["資産", asset, initialX(0), rowY(3), bsX(0), bsY(2), false],
+    ["資産", asset, initialX(0), rowY(4), bsX(0), bsY(3), false],
+    ["費用", expense, initialX(0), rowY(5), plX(0), plY(1), true],
+    ["資産", asset, initialX(0), rowY(6), bsX(0), bsY(4), false],
+    ["資産", asset, initialX(0), rowY(7), bsX(0), bsY(5), false],
+    ["負債", liability, initialX(1), rowY(0), bsX(1), bsY(0), false],
+    ["負債", liability, initialX(1), rowY(1), bsX(1), bsY(1), false],
+    ["純資産", equity, initialX(1), rowY(2), bsX(1), bsY(2), false],
+    ["純資産", equity, initialX(1), rowY(3), bsX(1), bsY(3), false],
+    ["収益", revenue, initialX(1), rowY(4), plX(1), plY(0), true],
+    ["収益", revenue, initialX(1), rowY(5), plX(1), plY(1), true],
+    ["収益", revenue, initialX(1), rowY(6), plX(1), plY(2), true],
+    ["収益", revenue, initialX(1), rowY(7), plX(1), plY(3), true],
   ];
 
-  const profitOp = blinkFadeIn(profitT);
-
   return (
-    <div style={{ position: "relative", height: initH, userSelect: "none" }}>
+    <div
+      style={{ position: "relative", height: frameHeight, userSelect: "none" }}
+    >
       {labelAlpha > 0 ? (
         <>
           <div
             style={{
               position: "absolute",
               left: 0,
-              top: plOy - 18,
+              top: plOffsetY - 18,
               fontSize: fontSize.xs,
               fontWeight: fontWeight.semibold,
               color: `rgba(106,110,115,${labelAlpha.toFixed(3)})`,
@@ -141,8 +160,8 @@ function ClosingAnimFrame({ t, w }: { t: number; w: number }) {
           <div
             style={{
               position: "absolute",
-              left: halfW + tg,
-              top: bsOy - 18,
+              left: statementWidth + statementGap,
+              top: bsOffsetY - 18,
               fontSize: fontSize.xs,
               fontWeight: fontWeight.semibold,
               color: `rgba(106,110,115,${labelAlpha.toFixed(3)})`,
@@ -154,19 +173,17 @@ function ClosingAnimFrame({ t, w }: { t: number; w: number }) {
         </>
       ) : null}
 
-      {defs.map(([label, visual, sx, sy, ex, ey, wobbles], i) => {
-        const x = lerp(sx, ex, move);
-        const y = lerp(sy, ey, move);
+      {cells.map(([label, visual, startX, startY, endX, endY, wobbles], index) => {
         const angle = isWobbling && wobbles ? wobbleAngle : 0;
         return (
           <div
-            key={i}
+            key={index}
             style={{
               position: "absolute",
-              left: x,
-              top: y,
-              width: cellW,
-              height: cellH,
+              left: lerp(startX, endX, move),
+              top: lerp(startY, endY, move),
+              width: cellWidth,
+              height: cellHeight,
               borderRadius: 6,
               background: visual.bg,
               border: `1px solid ${visual.color}`,
@@ -187,17 +204,17 @@ function ClosingAnimFrame({ t, w }: { t: number; w: number }) {
         );
       })}
 
-      {profitOp > 0 ? (
+      {profitOpacity > 0 ? (
         <>
-          {[2, 3].map((r) => (
+          {[2, 3].map((row) => (
             <div
-              key={`profit-${r}`}
+              key={`profit-${row}`}
               style={{
                 position: "absolute",
-                left: px(0),
-                top: ply(r),
-                width: cellW,
-                height: cellH,
+                left: plX(0),
+                top: plY(row),
+                width: cellWidth,
+                height: cellHeight,
                 borderRadius: 6,
                 background: profit.bg,
                 border: `1px solid ${profit.color}`,
@@ -209,22 +226,22 @@ function ClosingAnimFrame({ t, w }: { t: number; w: number }) {
                 fontSize: fontSize.xs,
                 fontWeight: fontWeight.semibold,
                 color: profit.color,
-                opacity: profitOp,
+                opacity: profitOpacity,
               }}
             >
               <MaskIcon src={profit.icon} color={profit.color} size={10} />
               <span>利益</span>
             </div>
           ))}
-          {[4, 5].map((r) => (
+          {[4, 5].map((row) => (
             <div
-              key={`surplus-${r}`}
+              key={`surplus-${row}`}
               style={{
                 position: "absolute",
-                left: bx(1),
-                top: bsy(r),
-                width: cellW,
-                height: cellH,
+                left: bsX(1),
+                top: bsY(row),
+                width: cellWidth,
+                height: cellHeight,
                 borderRadius: 6,
                 background: equity.bg,
                 border: `1px solid ${equity.color}`,
@@ -236,7 +253,7 @@ function ClosingAnimFrame({ t, w }: { t: number; w: number }) {
                 fontSize: fontSize.xs,
                 fontWeight: fontWeight.semibold,
                 color: equity.color,
-                opacity: profitOp,
+                opacity: profitOpacity,
               }}
             >
               <MaskIcon src={equity.icon} color={equity.color} size={10} />
@@ -249,12 +266,21 @@ function ClosingAnimFrame({ t, w }: { t: number; w: number }) {
   );
 }
 
-function easeInOutCubic(t: number): number {
-  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+function clampUnit(value: number): number {
+  return Math.max(0, Math.min(1, value));
 }
 
-function blinkFadeIn(t: number): number {
-  if (t <= 0) return 0;
-  if (t >= 1) return 1;
-  return Math.max(0, Math.min(1, t + Math.sin(t * Math.PI * 6) * 0.3 * (1 - t * t)));
+function easeInOutCubic(progress: number): number {
+  return progress < 0.5
+    ? 4 * progress * progress * progress
+    : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+}
+
+function blinkFadeIn(progress: number): number {
+  if (progress <= 0) return 0;
+  if (progress >= 1) return 1;
+  return clampUnit(
+    progress +
+      Math.sin(progress * Math.PI * 6) * 0.3 * (1 - progress * progress),
+  );
 }

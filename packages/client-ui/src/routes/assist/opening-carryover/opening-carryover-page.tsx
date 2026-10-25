@@ -10,6 +10,7 @@ import {
   buildPeriodLockMessage,
   type OpeningCarryoverDraft,
   type OpeningCarryoverRecord,
+  weekdayJa,
 } from "@rubydogjp/openkk-client-domain";
 import {
   useOpenkkAppState,
@@ -24,7 +25,6 @@ import { entryRecordToDraft } from "../../../entries/entry-edit-model.js";
 import { AssistBreadcrumb } from "../../../assist/assist-breadcrumb.js";
 import { buildNewOpeningCarryoverDraft } from "../../../assist/opening-carryover-draft.js";
 import { ClosedPeriodLock } from "../../../shared/closed-period-lock.js";
-import { isoDateToWeekday } from "../../../shared/date-picker.js";
 import { PlusIcon } from "../../../shared/icons.js";
 import { CompactLockButton } from "../../../shared/locked-action.js";
 import {
@@ -47,10 +47,8 @@ export function OpeningCarryoverPage() {
   const [newCarryoverDraft, setNewCarryoverDraft] =
     useState<OpeningCarryoverDraft | null>(null);
   const fiscalPeriodId = appState.currentFiscalPeriodId;
-  const currentFiscalPeriod = appState.fiscalPeriods.find(
-    (period) => period.id === appState.currentFiscalPeriodId,
-  );
-  const lockMessage = buildPeriodLockMessage(currentFiscalPeriod ?? null, null);
+  const currentFiscalPeriod = appState.currentFiscalPeriod;
+  const lockMessage = buildPeriodLockMessage(currentFiscalPeriod, null);
   const isReadOnlyPeriod =
     currentFiscalPeriod?.phase === "post_closing" ||
     currentFiscalPeriod?.phase === "pre_closing";
@@ -292,7 +290,7 @@ function carryoverToEntryRecord(record: OpeningCarryoverRecord): EntryRecord {
     id: record.id,
     fiscalPeriodId: record.fiscalPeriodId,
     date: record.date,
-    weekday: isoDateToWeekday(record.date),
+    weekday: weekdayJa(record.date),
     description: record.description,
     businessRate: record.businessRate,
     lines: record.lines,

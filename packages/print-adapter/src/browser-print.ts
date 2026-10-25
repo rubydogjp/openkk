@@ -24,10 +24,10 @@ export function openBrowserPrintFrame(html: string): void {
   let windowAfterPrint: (() => void) | null = null;
   const timers = new Set<ReturnType<typeof setTimeout>>();
 
-  function scheduleTask(fn: () => void, delayMilliseconds: number): void {
+  function scheduleTask(task: () => void, delayMilliseconds: number): void {
     const timer = setTimeout(() => {
       timers.delete(timer);
-      fn();
+      task();
     }, delayMilliseconds);
     timers.add(timer);
   }
@@ -54,8 +54,8 @@ export function openBrowserPrintFrame(html: string): void {
   function triggerFramePrint() {
     if (printTriggered) return;
     printTriggered = true;
-    const win = iframe.contentWindow;
-    if (!win) {
+    const frameWindow = iframe.contentWindow;
+    if (!frameWindow) {
       removePrintFrame();
       return;
     }
@@ -66,11 +66,11 @@ export function openBrowserPrintFrame(html: string): void {
     };
     frameAfterPrint = handlePrintCompletion;
     windowAfterPrint = handlePrintCompletion;
-    win.addEventListener("afterprint", frameAfterPrint);
+    frameWindow.addEventListener("afterprint", frameAfterPrint);
     window.addEventListener("afterprint", windowAfterPrint);
     try {
-      win.focus();
-      win.print();
+      frameWindow.focus();
+      frameWindow.print();
     } catch {
       removePrintFrame();
       return;

@@ -4,6 +4,8 @@ import {
   resolveCategoryId,
   resolveBookAccountId,
   type BookAccount,
+  type BookAccountType,
+  type EntryLine,
   type EntryRecord,
 } from "@rubydogjp/openkk-client-domain";
 import type {
@@ -11,33 +13,51 @@ import type {
   EntryUpsertInput,
 } from "@rubydogjp/openkk-client-ports";
 
-export type ImportMaster = {
-  accounts: BookAccount[];
-  taxes: Array<{ id: string; name: string }>;
-  businesses: Array<{ id: string; name: string }>;
+export type EntryLineMaster = {
+  accounts: ReadonlyArray<BookAccount>;
+  taxCategories: ReadonlyArray<{ id: string; name: string }>;
+  businessCategories: ReadonlyArray<{ id: string; name: string }>;
+};
+
+export type UnresolvedAccountMessages = {
+  messageForDeveloper: string;
+  messageForUser: string;
 };
 
 export function entryRecordToImportPayload(
   entry: EntryRecord,
-  master: ImportMaster,
+  master: EntryLineMaster,
 ): EntryUpsertInput {
-  const lines = entry.lines.map((line): EntryLineInput => {
-    // Older name-only exports classified 事業主借 as a liability.
-    // Explicit IDs still take precedence in resolveBookAccountId.
-    const accountType =
-      line.accountName.trim() === "事業主借" && line.accountType === "liability"
-        ? "equity"
-        : line.accountType;
+  return {
+    date: entry.date,
+    description: entry.description,
+    localId: entry.localId,
+    businessRate: entry.businessRate,
+    lines: entryLinesToInputs(entry.lines, master, {
+      messageForDeveloper: "entries.import: unresolved bookAccountId",
+      messageForUser: "勘定科目の解決に失敗したため取込みできませんでした",
+    }),
+  };
+}
+
+export function entryLinesToInputs(
+  lines: ReadonlyArray<EntryLine>,
+  master: EntryLineMaster,
+  unresolvedAccount: UnresolvedAccountMessages,
+): EntryLineInput[] {
+  return lines.map((line): EntryLineInput => {
     const bookAccountId = resolveBookAccountId({
       explicitId: line.bookAccountId,
       accountName: line.accountName,
-      accountType,
+      accountType: withProprietorLoanAsEquity(
+        line.accountName,
+        line.accountType,
+      ),
       accounts: master.accounts,
     });
     if (bookAccountId == null) {
       throw new AppError({
-        messageForDeveloper: "entries.import: unresolved bookAccountId",
-        messageForUser: "勘定科目の解決に失敗したため取込みできませんでした",
+        ...unresolvedAccount,
         originalMessage: null,
         statusCode: null,
         code: null,
@@ -51,22 +71,27 @@ export function entryRecordToImportPayload(
       taxCategoryId: resolveCategoryId(
         line.taxCategoryId,
         line.taxCategoryName ?? "",
-        master.taxes,
+        master.taxCategories,
         "tax_out_of_scope",
       ),
       businessCategoryId: resolveCategoryId(
         line.businessCategoryId,
         line.businessCategoryName ?? "",
-        master.businesses,
+        master.businessCategories,
         "biz_none",
       ),
     };
   });
-  return {
-    date: entry.date,
-    description: entry.description,
-    localId: entry.localId,
-    businessRate: entry.businessRate,
-    lines,
-  };
+}
+
+const PROPRIETOR_LOAN_ACCOUNT_NAME = "事業主借";
+
+function withProprietorLoanAsEquity(
+  accountName: string,
+  accountType: BookAccountType,
+): BookAccountType {
+  return accountName.trim() === PROPRIETOR_LOAN_ACCOUNT_NAME &&
+    accountType === "liability"
+    ? "equity"
+    : accountType;
 }

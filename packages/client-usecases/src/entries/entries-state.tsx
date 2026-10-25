@@ -13,15 +13,11 @@ import {
 import {
   AppError,
   formatAmount,
-  parseAmount,
-  resolveCategoryId,
-  resolveBookAccountId,
   recordToPreviewRows,
   draftBusinessRate,
   weekdayJa,
   type EntryRecord,
   type EntryLine,
-  type BookAccountType,
   type EntryPreviewRow,
 } from "@rubydogjp/openkk-client-domain";
 import { useOpenkkAppState } from "../shared/openkk-app-state.js";
@@ -42,18 +38,17 @@ import {
   upsertEntryRecord,
 } from "./entry-record-state.js";
 import {
+  entryLinesToInputs,
   entryRecordToImportPayload,
+  type EntryLineMaster,
 } from "./import-mapping.js";
-
 import type {
   EntryApiRecord,
-  EntryLineInput,
   EntryUpsertInput,
   MasterBookAccountApiRecord,
   MasterBusinessCategoryApiRecord,
   MasterTaxCategoryApiRecord,
 } from "@rubydogjp/openkk-client-ports";
-
 
 export type EntryDraft = {
   date: string;
@@ -87,7 +82,7 @@ type EntriesState = {
   createEntryFromDraft: (
     fiscalPeriodId: string,
     draft: EntryDraft,
-  ) => Promise<string | null>;
+  ) => Promise<string>;
   saveEntry: (entryId: string, draft: EntryDraft) => Promise<boolean>;
   deleteEntry: (entryId: string) => Promise<boolean>;
   mergeFiscalPeriodEntries: (
@@ -139,6 +134,10 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
   const currentFiscalPeriodDataPurged = isSelectedFiscalPeriodDataPurged(
     appState.fiscalPeriods,
     appState.currentFiscalPeriodId,
+  );
+  const master = useMemo<EntryLineMaster>(
+    () => ({ accounts: bookAccounts, taxCategories, businessCategories }),
+    [bookAccounts, taxCategories, businessCategories],
   );
 
   useEffect(() => {
@@ -199,13 +198,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
             current,
             fiscalPeriodId,
             remoteEntries.map((entry) =>
-              mapRemoteEntryToRecord({
-                entry,
-                fiscalPeriodId,
-                accounts: bookAccounts,
-                taxes: taxCategories,
-                businesses: businessCategories,
-              }),
+              mapRemoteEntryToRecord(entry, fiscalPeriodId, master),
             ),
           ),
         );
@@ -227,9 +220,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
     };
   }, [
     appState.currentFiscalPeriodId,
-    bookAccounts,
-    businessCategories,
-    taxCategories,
+    master,
     currentFiscalPeriodDataPurged,
     reloadNonce,
   ]);
@@ -271,16 +262,15 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
         return records.find((record) => record.id === entryId) ?? null;
       },
       async createEntryFromDraft(fiscalPeriodId, draft) {
-        assertEditingUnlocked(config.editingPolicy, "entries.createEntryFromDraft");
+        assertEditingUnlocked(
+          config.editingPolicy,
+          "entries.createEntryFromDraft",
+        );
         const authOperationVersion = appState.captureAuthOperationVersion();
         periodVersions.current.invalidate(fiscalPeriodId);
-        const lines = buildEntryApiLinesFromDraft(
-          draft,
-          {
-            accounts: bookAccounts,
-            taxes: taxCategories,
-            businesses: businessCategories,
-          },
+        const lines = entryLinesToInputs(
+          draft.lines,
+          master,
           {
             messageForDeveloper:
               "entries.createEntryFromDraft: bookAccountId resolution failed",
@@ -296,13 +286,11 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
             localId: null,
           });
           appState.assertAuthOperationCurrent(authOperationVersion);
-          const mapped = mapRemoteEntryToRecord({
-            entry: created,
+          const mapped = mapRemoteEntryToRecord(
+            created,
             fiscalPeriodId,
-            accounts: bookAccounts,
-            taxes: taxCategories,
-            businesses: businessCategories,
-          });
+            master,
+          );
           setRecords((current) => upsertEntryRecord(current, mapped));
           return mapped.id;
         } finally {
@@ -316,13 +304,9 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
         if (currentRecord == null) {
           return false;
         }
-        const lines = buildEntryApiLinesFromDraft(
-          draft,
-          {
-            accounts: bookAccounts,
-            taxes: taxCategories,
-            businesses: businessCategories,
-          },
+        const lines = entryLinesToInputs(
+          draft.lines,
+          master,
           {
             messageForDeveloper:
               "entries.saveEntry: bookAccountId resolution failed",
@@ -348,13 +332,11 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
             setRecords((current) =>
               upsertEntryRecord(
                 current,
-                mapRemoteEntryToRecord({
-                  entry: updated,
-                  fiscalPeriodId: currentRecord.fiscalPeriodId,
-                  accounts: bookAccounts,
-                  taxes: taxCategories,
-                  businesses: businessCategories,
-                }),
+                mapRemoteEntryToRecord(
+                  updated,
+                  currentRecord.fiscalPeriodId,
+                  master,
+                ),
               ),
             );
             return true;
@@ -384,15 +366,14 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
         });
       },
       async mergeFiscalPeriodEntries(fiscalPeriodId, importedEntries) {
-        assertEditingUnlocked(config.editingPolicy, "entries.mergeFiscalPeriodEntries");
+        assertEditingUnlocked(
+          config.editingPolicy,
+          "entries.mergeFiscalPeriodEntries",
+        );
         const authOperationVersion = appState.captureAuthOperationVersion();
         periodVersions.current.invalidate(fiscalPeriodId);
         const payload = importedEntries.map((entry) =>
-          entryRecordToImportPayload(entry, {
-            accounts: bookAccounts,
-            taxes: taxCategories,
-            businesses: businessCategories,
-          }),
+          entryRecordToImportPayload(entry, master),
         );
         try {
           const response = await backendApi.entries.importMany(
@@ -401,13 +382,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
           );
           appState.assertAuthOperationCurrent(authOperationVersion);
           const appended = response.entries.map((entry) =>
-            mapRemoteEntryToRecord({
-              entry,
-              fiscalPeriodId,
-              accounts: bookAccounts,
-              taxes: taxCategories,
-              businesses: businessCategories,
-            }),
+            mapRemoteEntryToRecord(entry, fiscalPeriodId, master),
           );
           setRecords((current) =>
             appended.reduce(upsertEntryRecord, current),
@@ -426,11 +401,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
       },
       prepareFiscalPeriodEntries(importedEntries) {
         return importedEntries.map((entry) =>
-          entryRecordToImportPayload(entry, {
-            accounts: bookAccounts,
-            taxes: taxCategories,
-            businesses: businessCategories,
-          }),
+          entryRecordToImportPayload(entry, master),
         );
       },
       accountOptions,
@@ -438,15 +409,19 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
       businessCategoryOptions,
       listSuggestions(fiscalPeriodId) {
         const partner = new Set<string>();
-        const tax = new Set<string>();
-        const biz = new Set<string>();
+        const taxCategory = new Set<string>();
+        const businessCategory = new Set<string>();
         for (const record of records) {
           if (record.fiscalPeriodId !== fiscalPeriodId) continue;
           for (const line of record.lines) {
             addSuggestion(partner, line.partnerName, null);
-            addSuggestion(tax, line.taxCategoryName, line.taxCategoryId);
             addSuggestion(
-              biz,
+              taxCategory,
+              line.taxCategoryName,
+              line.taxCategoryId,
+            );
+            addSuggestion(
+              businessCategory,
               line.businessCategoryName,
               line.businessCategoryId,
             );
@@ -454,8 +429,8 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
         }
         return {
           partner: Array.from(partner).sort(),
-          taxCategory: Array.from(tax).sort(),
-          businessCategory: Array.from(biz).sort(),
+          taxCategory: Array.from(taxCategory).sort(),
+          businessCategory: Array.from(businessCategory).sort(),
         };
       },
       loadError,
@@ -465,12 +440,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
       async reloadAndWait() {
         const authOperationVersion = appState.captureAuthOperationVersion();
         const fiscalPeriodId = appState.currentFiscalPeriodId;
-        if (fiscalPeriodId == null) {
-          setRecords([]);
-          setEntriesLoadError(null);
-          return [];
-        }
-        if (currentFiscalPeriodDataPurged) {
+        if (fiscalPeriodId == null || currentFiscalPeriodDataPurged) {
           setRecords([]);
           setEntriesLoadError(null);
           return [];
@@ -484,13 +454,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
               continue;
             }
             const mappedEntries = remoteEntries.map((entry) =>
-              mapRemoteEntryToRecord({
-                entry,
-                fiscalPeriodId,
-                accounts: bookAccounts,
-                taxes: taxCategories,
-                businesses: businessCategories,
-              }),
+              mapRemoteEntryToRecord(entry, fiscalPeriodId, master),
             );
             setRecords((current) =>
               replaceFiscalPeriodEntryRecords(
@@ -526,6 +490,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
     config,
     currentFiscalPeriodDataPurged,
     entriesLoadError,
+    master,
     masterLoadError,
     records,
     taxCategories,
@@ -538,47 +503,45 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
   );
 }
 
-function mapRemoteEntryToRecord(input: {
-  entry: EntryApiRecord;
-  fiscalPeriodId: string;
-  accounts: MasterBookAccountApiRecord[];
-  taxes: MasterTaxCategoryApiRecord[];
-  businesses: MasterBusinessCategoryApiRecord[];
-}): EntryRecord {
-  const lines: EntryLine[] = input.entry.lines.map((line): EntryLine => ({
-    side: line.side,
-    accountName: mapBookAccountName(line.bookAccountId, input.accounts),
-    accountType: mapAccountType(line.bookAccountId, input.accounts, "asset"),
-    amount: formatAmount(Math.abs(line.amount)),
-    bookAccountId: line.bookAccountId,
-    partnerName: line.partnerName,
-    taxCategoryId: line.taxCategoryId,
-    taxCategoryName: mapCategoryName(line.taxCategoryId, input.taxes),
-    businessCategoryId: line.businessCategoryId,
-    businessCategoryName: mapCategoryName(
-      line.businessCategoryId,
-      input.businesses,
-    ),
-    id: null,
-  }));
-  const date = input.entry.date;
+function mapRemoteEntryToRecord(
+  entry: EntryApiRecord,
+  fiscalPeriodId: string,
+  master: EntryLineMaster,
+): EntryRecord {
+  const lines = entry.lines.map((line): EntryLine => {
+    const account = master.accounts.find(
+      (candidate) => candidate.id === line.bookAccountId,
+    );
+    return {
+      side: line.side,
+      accountName: account?.name ?? line.bookAccountId,
+      accountType: account?.accountType ?? "asset",
+      amount: formatAmount(Math.abs(line.amount)),
+      bookAccountId: line.bookAccountId,
+      partnerName: line.partnerName,
+      taxCategoryId: line.taxCategoryId,
+      taxCategoryName: mapCategoryName(
+        line.taxCategoryId,
+        master.taxCategories,
+      ),
+      businessCategoryId: line.businessCategoryId,
+      businessCategoryName: mapCategoryName(
+        line.businessCategoryId,
+        master.businessCategories,
+      ),
+      id: null,
+    };
+  });
   return {
-    id: input.entry.id,
-    fiscalPeriodId: input.fiscalPeriodId,
-    date,
-    weekday: weekdayJa(date),
+    id: entry.id,
+    fiscalPeriodId,
+    date: entry.date,
+    weekday: weekdayJa(entry.date),
     lines,
-    description: input.entry.description,
-    businessRate: input.entry.businessRate,
-    localId: input.entry.localId,
+    description: entry.description,
+    businessRate: entry.businessRate,
+    localId: entry.localId,
   };
-}
-
-function mapBookAccountName(
-  id: string,
-  accounts: MasterBookAccountApiRecord[],
-): string {
-  return accounts.find((account) => account.id === id)?.name ?? id;
 }
 
 function mapCategoryName(
@@ -587,61 +550,6 @@ function mapCategoryName(
 ): string {
   if (id.length === 0) return "対象外";
   return categories.find((category) => category.id === id)?.name ?? id;
-}
-
-function mapAccountType(
-  id: string,
-  accounts: MasterBookAccountApiRecord[],
-  fallback: BookAccountType,
-): BookAccountType {
-  return (accounts.find((account) => account.id === id)?.accountType ??
-    fallback) as BookAccountType;
-}
-
-function buildEntryApiLinesFromDraft(
-  draft: EntryDraft,
-  master: {
-    accounts: MasterBookAccountApiRecord[];
-    taxes: MasterTaxCategoryApiRecord[];
-    businesses: MasterBusinessCategoryApiRecord[];
-  },
-  errorContext: { messageForDeveloper: string; messageForUser: string },
-): EntryLineInput[] {
-  return draft.lines.map((line) => {
-    const bookAccountId = resolveBookAccountId({
-      explicitId: line.bookAccountId,
-      accountName: line.accountName,
-      accountType: line.accountType,
-      accounts: master.accounts,
-    });
-    if (bookAccountId == null) {
-      throw new AppError({
-        messageForDeveloper: errorContext.messageForDeveloper,
-        messageForUser: errorContext.messageForUser,
-        originalMessage: null,
-        statusCode: null,
-        code: null,
-      });
-    }
-    return {
-      side: line.side,
-      bookAccountId,
-      amount: parseAmount(line.amount),
-      partnerName: line.partnerName ?? "",
-      taxCategoryId: resolveCategoryId(
-        line.taxCategoryId,
-        line.taxCategoryName ?? "",
-        master.taxes,
-        "tax_out_of_scope",
-      ),
-      businessCategoryId: resolveCategoryId(
-        line.businessCategoryId,
-        line.businessCategoryName ?? "",
-        master.businesses,
-        "biz_none",
-      ),
-    };
-  });
 }
 
 function addSuggestion(

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   AppError,
+  fiscalPeriodNameForEndDate,
   hasActiveFiscalPeriodOverlap,
   validateFiscalPeriodDates,
 } from "@rubydogjp/openkk-client-domain";
@@ -40,9 +41,9 @@ export function CreateFiscalPeriodPage() {
   const openkkConfig = useOpenkkConfig();
   const today = useOpenkkToday();
   const initialYear = today.getFullYear();
-  const [name, setName] = useState(`${initialYear}年分`);
   const [startDate, setStartDate] = useState(`${initialYear}-01-01`);
   const [endDate, setEndDate] = useState(`${initialYear}-12-31`);
+  const [name, setName] = useState(fiscalPeriodNameForEndDate(endDate) ?? "");
   const [nameEdited, setNameEdited] = useState(false);
   const [screenError, setScreenError] = useState<unknown>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -51,10 +52,8 @@ export function CreateFiscalPeriodPage() {
 
   useEffect(() => {
     if (nameEdited) return;
-    const yearText = endDate.slice(0, 4);
-    if (yearText.length === 4) {
-      setName(`${yearText}年分`);
-    }
+    const suggestedName = fiscalPeriodNameForEndDate(endDate);
+    if (suggestedName != null) setName(suggestedName);
   }, [endDate, nameEdited]);
 
   const canCreate = useMemo(() => {
@@ -93,12 +92,7 @@ export function CreateFiscalPeriodPage() {
     if (release == null) return;
     setIsCreating(true);
     try {
-      const createdId = await appState.createFiscalPeriod({
-        name,
-        startDate,
-        endDate,
-      });
-      if (createdId == null) return;
+      await appState.createFiscalPeriod({ name, startDate, endDate });
       setScreenError(null);
       router.push("/steps");
     } catch (error) {
@@ -211,7 +205,7 @@ export function CreateFiscalPeriodPage() {
             キャンセル
           </FormSecondaryButton>
           {atPeriodLimit || editingLocked ? (
-            <LockButton label="作成する" style={null} />
+            <LockButton label="作成する" />
           ) : (
             <FormPrimaryButton
               onClick={handleCreate}

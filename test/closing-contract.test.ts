@@ -102,7 +102,13 @@ describe("client/server closing contract", () => {
         entries: [],
         assets: [],
         carryovers: [carryover],
-      }).map((entry) => entryRecordToImportPayload(entry, { accounts, taxes, businesses }));
+      }).map((entry) =>
+        entryRecordToImportPayload(entry, {
+          accounts,
+          taxCategories: taxes,
+          businessCategories: businesses,
+        }),
+      );
 
       await server.preClosings.run(period.id, 2026);
       const closed = await server.closings.run(period.id, 2026, entries);

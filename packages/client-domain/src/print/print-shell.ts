@@ -31,8 +31,8 @@ ${body}
 </html>`;
 }
 
-export function escapeHtml(s: string): string {
-  return s
+export function escapeHtml(value: string): string {
+  return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")

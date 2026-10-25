@@ -4,6 +4,7 @@ import {
   fontSize,
   fontWeight,
   shadows,
+  tokenDefaults,
   typography,
 } from "../../../shared/design-tokens.js";
 
@@ -19,472 +20,339 @@ type PaletteToken = {
   border: string | null;
 };
 
-type AppPalette = {
-  page: string;
-  surface: string;
-  surfaceTint: string;
-  surfaceHeader: string;
-  borderSubtle: string;
-  borderControl: string;
-  borderStrong: string;
-  textPrimary: string;
-  textSecondary: string;
-  textLabel: string;
-  textMuted: string;
-  brandInk: string;
-  brandPaper: string;
-  action: string;
-  actionHover: string;
-  actionBackground: string;
-  actionBorder: string;
-  decision: string;
-  decisionHover: string;
-  decisionBackground: string;
-  decisionBorder: string;
-  success: string;
-  successBackground: string;
-  successBorder: string;
-  warning: string;
-  warningBackground: string;
-  warningBorder: string;
-  danger: string;
-  dangerBackground: string;
-  dangerBorder: string;
-  accountAsset: string;
-  accountAssetBackground: string;
-  accountAssetBorder: string;
-  accountLiability: string;
-  accountLiabilityBackground: string;
-  accountLiabilityBorder: string;
-  accountEquity: string;
-  accountEquityBackground: string;
-  accountEquityBorder: string;
-  accountRevenue: string;
-  accountRevenueBackground: string;
-  accountRevenueBorder: string;
-  accountExpense: string;
-  accountExpenseBackground: string;
-  accountExpenseBorder: string;
-  accountProfit: string;
-  accountProfitBackground: string;
-  accountProfitBorder: string;
-  accountLoss: string;
-  accountLossBackground: string;
-  accountLossBorder: string;
-};
 
-const appPalette: AppPalette = {
-  page: "#FFFFFF",
-  surface: "#FFFFFF",
-
-  surfaceTint: "#F6F9FC",
-
-  surfaceHeader: "#EAF0F6",
-
-  borderSubtle: "#E2E8F0",
-  borderControl: "#CBD5E1",
-  borderStrong: "#94A3B8",
-
-  textPrimary: "#0F172A",
-  textSecondary: "#475569",
-  textLabel: "#64748B",
-  textMuted: "#94A3B8",
-
-  brandInk: "#0F172A",
-  brandPaper: "#FFFFFF",
-
-  action: "#1D4ED8",
-  actionHover: "#1E40AF",
-  actionBackground: "#EEF5FF",
-  actionBorder: "#93C5FD",
-
-  decision: "#15803D",
-  decisionHover: "#166534",
-  decisionBackground: "#ECFDF3",
-  decisionBorder: "#86EFAC",
-
-  success: "#15803D",
-  successBackground: "#ECFDF3",
-  successBorder: "#86EFAC",
-
-  warning: "#D97706",
-  warningBackground: "#FFFBEB",
-  warningBorder: "#FDE68A",
-
-  danger: "#DC2626",
-  dangerBackground: "#FEF2F2",
-  dangerBorder: "#FECACA",
-
-  accountAsset: "#2563EB",
-  accountAssetBackground: "#EFF6FF",
-  accountAssetBorder: "#BFDBFE",
-  accountLiability: "#E11D48",
-  accountLiabilityBackground: "#FFF1F2",
-  accountLiabilityBorder: "#FDA4AF",
-  accountEquity: "#15803D",
-  accountEquityBackground: "#ECFDF3",
-  accountEquityBorder: "#86EFAC",
-  accountRevenue: "#15803D",
-  accountRevenueBackground: "#ECFDF3",
-  accountRevenueBorder: "#86EFAC",
-  accountExpense: "#2563EB",
-  accountExpenseBackground: "#EFF6FF",
-  accountExpenseBorder: "#BFDBFE",
-  accountProfit: "#2563EB",
-  accountProfitBackground: "#EFF6FF",
-  accountProfitBorder: "#BFDBFE",
-  accountLoss: "#E11D48",
-  accountLossBackground: "#FFF1F2",
-  accountLossBorder: "#FDA4AF",
-};
+const paletteValues = tokenDefaults.palette;
 
 const paletteTokens: PaletteToken[] = [
   {
     group: "Canvas / Surface",
-    name: "Page",
-    value: appPalette.page,
+    name: "Page Bg",
+    value: paletteValues.pageBg,
     purpose: "画面全体の基本背景。現状に合わせて白を基準にする。",
     examples: ["/entries の作業面", "詳細 drawer 背景", "一覧ページの余白"],
     preview: "surface",
-    border: appPalette.borderSubtle,
+    border: paletteValues.borderSubtle,
     fg: null,
     bg: null,
   },
   {
     group: "Canvas / Surface",
     name: "Surface",
-    value: appPalette.surface,
+    value: paletteValues.surface,
     purpose: "カード、入力欄、ポップアップなど最上層の面。",
     examples: ["テーブル行", "入力フィールド", "dropdown menu"],
     preview: "surface",
-    border: appPalette.borderSubtle,
+    border: paletteValues.borderSubtle,
     fg: null,
     bg: null,
   },
   {
     group: "Canvas / Surface",
     name: "Surface Tint",
-    value: appPalette.surfaceTint,
+    value: paletteValues.surfaceTint,
     purpose: "フォームグループ、hover、弱いカードをまとめて受ける薄い塗り。",
     examples: ["フォームグループ", "hover row", "readonly 周辺"],
     preview: "surface",
-    border: appPalette.borderSubtle,
+    border: paletteValues.borderSubtle,
     fg: null,
     bg: null,
   },
   {
     group: "Canvas / Surface",
-    name: "Surface Header",
-    value: appPalette.surfaceHeader,
+    name: "Header Surface",
+    value: paletteValues.headerSurface,
     purpose: "テーブルヘッダー、非データ面、強めのラベル帯。",
     examples: ["仕訳一覧ヘッダー", "空テーブル面", "セクション見出し帯"],
     preview: "surface",
-    border: appPalette.borderControl,
+    border: paletteValues.borderStrong,
     fg: null,
     bg: null,
   },
   {
     group: "Border",
     name: "Border Subtle",
-    value: appPalette.borderSubtle,
+    value: paletteValues.borderSubtle,
     purpose: "弱い枠と内部 divider。最も使用頻度が高い境界。",
     examples: ["dropdown", "readonly field", "行間 divider"],
     preview: "border",
-    bg: appPalette.surface,
-    border: appPalette.borderSubtle,
-    fg: null,
-  },
-  {
-    group: "Border",
-    name: "Border Control",
-    value: appPalette.borderControl,
-    purpose: "操作可能な入力欄の標準枠。",
-    examples: ["text input", "select", "date picker button"],
-    preview: "border",
-    bg: appPalette.surfaceTint,
-    border: appPalette.borderControl,
+    bg: paletteValues.surface,
+    border: paletteValues.borderSubtle,
     fg: null,
   },
   {
     group: "Border",
     name: "Border Strong",
-    value: appPalette.borderStrong,
+    value: paletteValues.borderStrong,
+    purpose: "操作可能な入力欄の標準枠。",
+    examples: ["text input", "select", "date picker button"],
+    preview: "border",
+    bg: paletteValues.surfaceTint,
+    border: paletteValues.borderStrong,
+    fg: null,
+  },
+  {
+    group: "Border",
+    name: "Border Emphasis",
+    value: paletteValues.borderEmphasis,
     purpose: "大領域の分離と強い外枠。常時見える境界。",
     examples: ["sidebar 境界", "table outer border", "main card"],
     preview: "border",
-    bg: appPalette.page,
-    border: appPalette.borderStrong,
+    bg: paletteValues.pageBg,
+    border: paletteValues.borderEmphasis,
     fg: null,
   },
   {
     group: "Text",
-    name: "Text Primary",
-    value: appPalette.textPrimary,
+    name: "Text",
+    value: paletteValues.text,
     purpose: "主要テキスト。見出し、金額、入力値。",
     examples: ["ページ見出し", "金額", "仕訳行の主情報"],
     preview: "text",
-    fg: appPalette.textPrimary,
+    fg: paletteValues.text,
     bg: null,
     border: null,
   },
   {
     group: "Text",
-    name: "Text Secondary",
-    value: appPalette.textSecondary,
+    name: "Text Soft",
+    value: paletteValues.textSoft,
     purpose: "本文説明や二次情報。",
     examples: ["カード説明", "補足テキスト", "サブタイトル"],
     preview: "text",
-    fg: appPalette.textSecondary,
+    fg: paletteValues.textSoft,
     bg: null,
     border: null,
   },
   {
     group: "Text",
     name: "Text Label",
-    value: appPalette.textLabel,
+    value: paletteValues.textLabel,
     purpose: "ラベル、メタ情報、caption。",
     examples: ["フィールドラベル", "テーブルヘッダー文字", "日付 meta"],
     preview: "text",
-    fg: appPalette.textLabel,
+    fg: paletteValues.textLabel,
     bg: null,
     border: null,
   },
   {
     group: "Text",
     name: "Text Muted",
-    value: appPalette.textMuted,
+    value: paletteValues.textMuted,
     purpose: "disabled、placeholder、弱い補助。",
     examples: ["placeholder", "無効メニュー", "未選択表示"],
     preview: "text",
-    fg: appPalette.textMuted,
+    fg: paletteValues.textMuted,
     bg: null,
     border: null,
   },
   {
     group: "Brand",
     name: "Brand Ink",
-    value: appPalette.brandInk,
+    value: paletteValues.brandInk,
     purpose: "ロゴ、製品名、ブランド面。ボタン意味色には使わない。",
     examples: ["オープン会計ロゴ文字", "ブランドマーク", "デモ CTA の黒面"],
     preview: "surface",
-    fg: appPalette.brandPaper,
-    border: appPalette.brandInk,
+    fg: paletteValues.brandPaper,
+    border: paletteValues.brandInk,
     bg: null,
   },
   {
     group: "Action",
     name: "Action",
-    value: appPalette.action,
+    value: paletteValues.action,
     purpose: "通常の主操作。保存、次へ、開く。",
     examples: ["保存する", "仕訳を追加", "リストを開く"],
     preview: "button",
-    fg: appPalette.brandPaper,
-    border: appPalette.action,
+    fg: paletteValues.brandPaper,
+    border: paletteValues.action,
     bg: null,
   },
   {
     group: "Action",
-    name: "Action Background",
-    value: appPalette.actionBackground,
+    name: "Action Bg",
+    value: paletteValues.actionBg,
     purpose: "コメント、情報、選択中の薄い背景。",
     examples: ["コメントフィールド背景", "active row", "情報 chip 背景"],
     preview: "message",
-    fg: appPalette.action,
-    border: appPalette.actionBorder,
+    fg: paletteValues.action,
+    border: paletteValues.actionBorder,
     bg: null,
   },
   {
     group: "Action",
     name: "Action Border",
-    value: appPalette.actionBorder,
+    value: paletteValues.actionBorder,
     purpose: "Action Background と組み合わせる固定境界色。",
     examples: ["情報メッセージ枠", "青 outline chip", "選択カード枠"],
     preview: "border",
-    bg: appPalette.actionBackground,
-    border: appPalette.actionBorder,
+    bg: paletteValues.actionBg,
+    border: paletteValues.actionBorder,
     fg: null,
   },
   {
     group: "Decision",
     name: "Decision",
-    value: appPalette.decision,
+    value: paletteValues.decision,
     purpose: "大きな決断・前進操作。完了、開始、確定。",
     examples: ["決算を確定", "開始する", "取り込みを実行"],
     preview: "button",
-    fg: appPalette.brandPaper,
-    border: appPalette.decision,
+    fg: paletteValues.brandPaper,
+    border: paletteValues.decision,
     bg: null,
   },
   {
     group: "Success",
     name: "Success",
-    value: appPalette.success,
+    value: paletteValues.success,
     purpose: "成功状態、完了表示。",
     examples: ["完了 chip", "成功 toast", "チェック済み icon"],
     preview: "button",
-    fg: appPalette.brandPaper,
-    border: appPalette.success,
+    fg: paletteValues.brandPaper,
+    border: paletteValues.success,
     bg: null,
   },
   {
     group: "Success",
-    name: "Success Background",
-    value: appPalette.successBackground,
+    name: "Success Bg",
+    value: paletteValues.successBg,
     purpose: "成功メッセージや完了 chip の背景。",
     examples: ["インポート完了 banner", "完了 status", "成功 notice"],
     preview: "message",
-    fg: appPalette.success,
-    border: appPalette.successBorder,
+    fg: paletteValues.success,
+    border: paletteValues.successBorder,
     bg: null,
   },
   {
     group: "Warning",
     name: "Warning",
-    value: appPalette.warning,
+    value: paletteValues.warning,
     purpose: "注意・確認待ち。破壊的ではない警告。",
     examples: ["未分類があります", "仮締め前の注意", "要確認 chip"],
     preview: "button",
-    fg: appPalette.brandPaper,
-    border: appPalette.warning,
+    fg: paletteValues.brandPaper,
+    border: paletteValues.warning,
     bg: null,
   },
   {
     group: "Warning",
-    name: "Warning Background",
-    value: appPalette.warningBackground,
+    name: "Warning Bg",
+    value: paletteValues.warningBg,
     purpose: "警告 message / demo data banner の背景。",
     examples: ["注意 banner", "デモデータ notice", "確認待ち row"],
     preview: "message",
-    fg: appPalette.warning,
-    border: appPalette.warningBorder,
+    fg: paletteValues.warning,
+    border: paletteValues.warningBorder,
     bg: null,
   },
   {
     group: "Danger",
     name: "Danger",
-    value: appPalette.danger,
+    value: paletteValues.danger,
     purpose: "危険・削除・エラー。",
     examples: ["削除する", "エラー icon", "破棄 action"],
     preview: "button",
-    fg: appPalette.brandPaper,
-    border: appPalette.danger,
+    fg: paletteValues.brandPaper,
+    border: paletteValues.danger,
     bg: null,
   },
   {
     group: "Danger",
-    name: "Danger Background",
-    value: appPalette.dangerBackground,
+    name: "Danger Bg",
+    value: paletteValues.dangerBg,
     purpose: "エラーメッセージや削除確認の背景。",
     examples: ["エラー banner", "危険 notice", "削除確認 card"],
     preview: "message",
-    fg: appPalette.danger,
-    border: appPalette.dangerBorder,
+    fg: paletteValues.danger,
+    border: paletteValues.dangerBorder,
     bg: null,
   },
   {
     group: "Account Visual",
     name: "Account Asset",
-    value: appPalette.accountAsset,
+    value: paletteValues.accountAsset,
     purpose: "資産カテゴリ専用。Action とは独立した青。",
     examples: ["普通預金", "売掛金", "現金"],
     preview: "message",
-    fg: appPalette.accountAsset,
-    border: appPalette.accountAssetBorder,
+    fg: paletteValues.accountAsset,
+    border: paletteValues.accountAssetBorder,
     bg: null,
   },
   {
     group: "Account Visual",
     name: "Account Liability",
-    value: appPalette.accountLiability,
+    value: paletteValues.accountLiability,
     purpose: "負債カテゴリ専用。Danger とは独立した赤。",
     examples: ["借入金", "未払金", "買掛金"],
     preview: "message",
-    fg: appPalette.accountLiability,
-    border: appPalette.accountLiabilityBorder,
+    fg: paletteValues.accountLiability,
+    border: paletteValues.accountLiabilityBorder,
     bg: null,
   },
   {
     group: "Account Visual",
     name: "Account Equity",
-    value: appPalette.accountEquity,
+    value: paletteValues.accountEquity,
     purpose: "純資産カテゴリ専用。落ち着いた緑。",
     examples: ["元入金", "事業主借", "事業主貸"],
     preview: "message",
-    fg: appPalette.accountEquity,
-    border: appPalette.accountEquityBorder,
+    fg: paletteValues.accountEquity,
+    border: paletteValues.accountEquityBorder,
     bg: null,
   },
   {
     group: "Account Visual",
     name: "Account Revenue",
-    value: appPalette.accountRevenue,
+    value: paletteValues.accountRevenue,
     purpose: "収益カテゴリ専用。純資産/利益と同じ緑。",
     examples: ["売上高", "雑収入", "受取利息"],
     preview: "message",
-    fg: appPalette.accountRevenue,
-    border: appPalette.accountRevenueBorder,
+    fg: paletteValues.accountRevenue,
+    border: paletteValues.accountRevenueBorder,
     bg: null,
   },
   {
     group: "Account Visual",
     name: "Account Expense",
-    value: appPalette.accountExpense,
+    value: paletteValues.accountExpense,
     purpose: "費用カテゴリ専用。資産と同じ青。",
     examples: ["通信費", "消耗品費", "旅費交通費"],
     preview: "message",
-    fg: appPalette.accountExpense,
-    border: appPalette.accountExpenseBorder,
+    fg: paletteValues.accountExpense,
+    border: paletteValues.accountExpenseBorder,
     bg: null,
   },
   {
     group: "Account Visual",
     name: "Account Profit",
-    value: appPalette.accountProfit,
+    value: paletteValues.accountProfit,
     purpose: "利益カテゴリ専用。純資産/収益と同じ緑。",
     examples: ["利益", "当期利益", "黒字"],
     preview: "message",
-    fg: appPalette.accountProfit,
-    border: appPalette.accountProfitBorder,
+    fg: paletteValues.accountProfit,
+    border: paletteValues.accountProfitBorder,
     bg: null,
   },
   {
     group: "Account Visual",
     name: "Account Loss",
-    value: appPalette.accountLoss,
+    value: paletteValues.accountLoss,
     purpose: "損失カテゴリ専用。負債と同じ赤。",
     examples: ["損失", "当期損失", "赤字"],
     preview: "message",
-    fg: appPalette.accountLoss,
-    border: appPalette.accountLossBorder,
+    fg: paletteValues.accountLoss,
+    border: paletteValues.accountLossBorder,
     bg: null,
   },
 ];
 
 export function ColorThemePage() {
-  if (false) {
-    return (
-      <section style={{ padding: 24 }}>
-        <div
-          style={{
-            maxWidth: 880,
-            margin: "0 auto",
-            color: appPalette.textSecondary,
-            fontWeight: fontWeight.semibold,
-          }}
-        >
-          この画面は dev 環境専用です
-        </div>
-      </section>
-    );
-  }
-
   return (
     <main
       style={{
         minHeight: "100vh",
-        background: appPalette.page,
+        background: paletteValues.pageBg,
         padding: "34px 22px 72px",
-        color: appPalette.textPrimary,
+        color: paletteValues.text,
       }}
     >
       <div style={{ maxWidth: 1180, margin: "0 auto" }}>
@@ -507,7 +375,7 @@ function ColorPalettes() {
           margin: 0,
           fontSize: typography.pageTitle.fontSize,
           lineHeight: 1.25,
-          color: appPalette.textPrimary,
+          color: paletteValues.text,
         }}
       >
         COLOR PALETTES
@@ -519,7 +387,7 @@ function ColorPalettes() {
               margin: 0,
               fontSize: fontSize.xl,
               lineHeight: 1.35,
-              color: appPalette.textPrimary,
+              color: paletteValues.text,
             }}
           >
             {group}
@@ -606,7 +474,7 @@ function TokenPreview({ token }: { token: PaletteToken }) {
         <button
           style={buttonStyle(
             token.value,
-            token.fg ?? appPalette.brandPaper,
+            token.fg ?? paletteValues.brandPaper,
             token.border ?? token.value,
           )}
         >
@@ -621,14 +489,14 @@ function TokenPreview({ token }: { token: PaletteToken }) {
         style={{
           marginTop: 10,
           background: token.value,
-          border: `1px solid ${token.border ?? appPalette.borderSubtle}`,
+          border: `1px solid ${token.border ?? paletteValues.borderSubtle}`,
           borderRadius: 10,
           padding: "8px 10px",
         }}
       >
         <div
           style={{
-            color: token.fg ?? appPalette.textPrimary,
+            color: token.fg ?? paletteValues.text,
             fontSize: fontSize.sm,
             fontWeight: fontWeight.bold,
           }}
@@ -638,7 +506,7 @@ function TokenPreview({ token }: { token: PaletteToken }) {
         <div
           style={{
             marginTop: 2,
-            color: appPalette.textSecondary,
+            color: paletteValues.textSoft,
             fontSize: fontSize.xs,
           }}
         >
@@ -655,8 +523,8 @@ function TokenPreview({ token }: { token: PaletteToken }) {
       <div
         style={{
           marginTop: 8,
-          background: appPalette.surface,
-          border: `1px solid ${appPalette.borderSubtle}`,
+          background: paletteValues.surface,
+          border: `1px solid ${paletteValues.borderSubtle}`,
           borderRadius: 10,
           padding: "8px 10px",
           color: token.fg ?? token.value,
@@ -678,7 +546,7 @@ function tokenCardStyle(token: PaletteToken): React.CSSProperties {
       padding: 14,
       borderRadius: 14,
       background: accountBackgroundForToken(token),
-      border: `1px solid ${token.border ?? appPalette.borderSubtle}`,
+      border: `1px solid ${token.border ?? paletteValues.borderSubtle}`,
     };
   }
   if (token.group === "Canvas / Surface") {
@@ -687,7 +555,7 @@ function tokenCardStyle(token: PaletteToken): React.CSSProperties {
       padding: 14,
       borderRadius: 14,
       background: token.value,
-      border: `1px solid ${token.border ?? appPalette.borderSubtle}`,
+      border: `1px solid ${token.border ?? paletteValues.borderSubtle}`,
     };
   }
   if (token.group === "Border") {
@@ -695,7 +563,7 @@ function tokenCardStyle(token: PaletteToken): React.CSSProperties {
       minHeight: 144,
       padding: 14,
       borderRadius: 14,
-      background: token.bg ?? appPalette.surface,
+      background: token.bg ?? paletteValues.surface,
       border: `2px solid ${token.value}`,
     };
   }
@@ -704,8 +572,8 @@ function tokenCardStyle(token: PaletteToken): React.CSSProperties {
       minHeight: 144,
       padding: 14,
       borderRadius: 14,
-      background: appPalette.surface,
-      border: `1px solid ${appPalette.borderSubtle}`,
+      background: paletteValues.surface,
+      border: `1px solid ${paletteValues.borderSubtle}`,
     };
   }
   if (token.preview === "message") {
@@ -714,60 +582,60 @@ function tokenCardStyle(token: PaletteToken): React.CSSProperties {
       padding: 14,
       borderRadius: 14,
       background: token.value,
-      border: `1px solid ${token.border ?? appPalette.borderSubtle}`,
+      border: `1px solid ${token.border ?? paletteValues.borderSubtle}`,
     };
   }
   return {
     minHeight: 144,
     padding: 14,
     borderRadius: 14,
-    background: appPalette.surface,
-    border: `1px solid ${appPalette.borderSubtle}`,
+    background: paletteValues.surface,
+    border: `1px solid ${paletteValues.borderSubtle}`,
   };
 }
 
 function cardTextColor(token: PaletteToken): string {
   if (token.group === "Account Visual") return token.value;
-  if (token.name === "Brand Ink") return appPalette.brandPaper;
+  if (token.name === "Brand Ink") return paletteValues.brandPaper;
   if (token.preview === "button") return token.value;
-  if (token.preview === "message") return token.fg ?? appPalette.textPrimary;
+  if (token.preview === "message") return token.fg ?? paletteValues.text;
   if (token.preview === "text") return token.fg ?? token.value;
-  return appPalette.textPrimary;
+  return paletteValues.text;
 }
 
 function cardDescriptionColor(token: PaletteToken): string {
-  if (token.group === "Account Visual") return appPalette.textSecondary;
-  if (token.name === "Brand Ink") return appPalette.brandPaper;
-  if (token.preview === "message") return appPalette.textSecondary;
-  if (token.preview === "text") return token.fg ?? appPalette.textSecondary;
-  return appPalette.textSecondary;
+  if (token.group === "Account Visual") return paletteValues.textSoft;
+  if (token.name === "Brand Ink") return paletteValues.brandPaper;
+  if (token.preview === "message") return paletteValues.textSoft;
+  if (token.preview === "text") return token.fg ?? paletteValues.textSoft;
+  return paletteValues.textSoft;
 }
 
 function cardCodeColor(token: PaletteToken): string {
   if (token.group === "Account Visual") return token.value;
-  if (token.name === "Brand Ink") return appPalette.brandPaper;
-  if (token.preview === "message") return token.fg ?? appPalette.textLabel;
-  return appPalette.textLabel;
+  if (token.name === "Brand Ink") return paletteValues.brandPaper;
+  if (token.preview === "message") return token.fg ?? paletteValues.textLabel;
+  return paletteValues.textLabel;
 }
 
 function accountBackgroundForToken(token: PaletteToken): string {
   switch (token.name) {
     case "Account Asset":
-      return appPalette.accountAssetBackground;
+      return paletteValues.accountAssetBg;
     case "Account Liability":
-      return appPalette.accountLiabilityBackground;
+      return paletteValues.accountLiabilityBg;
     case "Account Equity":
-      return appPalette.accountEquityBackground;
+      return paletteValues.accountEquityBg;
     case "Account Revenue":
-      return appPalette.accountRevenueBackground;
+      return paletteValues.accountRevenueBg;
     case "Account Expense":
-      return appPalette.accountExpenseBackground;
+      return paletteValues.accountExpenseBg;
     case "Account Profit":
-      return appPalette.accountProfitBackground;
+      return paletteValues.accountProfitBg;
     case "Account Loss":
-      return appPalette.accountLossBackground;
+      return paletteValues.accountLossBg;
     default:
-      return appPalette.surface;
+      return paletteValues.surface;
   }
 }
 
@@ -775,8 +643,8 @@ function ApplicationSample() {
   return (
     <section
       style={{
-        background: appPalette.surface,
-        border: `1px solid ${appPalette.borderStrong}`,
+        background: paletteValues.surface,
+        border: `1px solid ${paletteValues.borderEmphasis}`,
         borderRadius: 18,
         padding: 18,
         boxShadow: shadows.card,
@@ -786,10 +654,10 @@ function ApplicationSample() {
       <div
         style={{
           marginTop: 14,
-          border: `1px solid ${appPalette.borderStrong}`,
+          border: `1px solid ${paletteValues.borderEmphasis}`,
           borderRadius: 18,
           overflow: "hidden",
-          background: appPalette.page,
+          background: paletteValues.pageBg,
         }}
       >
         <div
@@ -802,8 +670,8 @@ function ApplicationSample() {
         >
           <aside
             style={{
-              borderRight: `1px solid ${appPalette.borderStrong}`,
-              background: appPalette.surface,
+              borderRight: `1px solid ${paletteValues.borderEmphasis}`,
+              background: paletteValues.surface,
               padding: 14,
             }}
           >
@@ -813,7 +681,7 @@ function ApplicationSample() {
                   width: 28,
                   height: 28,
                   borderRadius: 8,
-                  background: appPalette.brandInk,
+                  background: paletteValues.brandInk,
                 }}
               />
               <div>
@@ -821,7 +689,7 @@ function ApplicationSample() {
                   style={{
                     fontSize: fontSize.base,
                     fontWeight: fontWeight.bold,
-                    color: appPalette.brandInk,
+                    color: paletteValues.brandInk,
                   }}
                 >
                   オープン会計
@@ -830,7 +698,7 @@ function ApplicationSample() {
                   style={{
                     fontSize: fontSize.micro,
                     fontWeight: fontWeight.bold,
-                    color: appPalette.textLabel,
+                    color: paletteValues.textLabel,
                   }}
                 >
                   Dev環境
@@ -845,11 +713,11 @@ function ApplicationSample() {
                     padding: "9px 10px",
                     borderRadius: 9,
                     background:
-                      index === 1 ? appPalette.surfaceTint : "transparent",
+                      index === 1 ? paletteValues.surfaceTint : "transparent",
                     color:
                       index === 1
-                        ? appPalette.textPrimary
-                        : appPalette.textSecondary,
+                        ? paletteValues.text
+                        : paletteValues.textSoft,
                     fontSize: fontSize.sm,
                     fontWeight:
                       index === 1 ? fontWeight.bold : fontWeight.semibold,
@@ -862,9 +730,9 @@ function ApplicationSample() {
             <button
               style={{
                 ...buttonStyle(
-                  appPalette.brandInk,
-                  appPalette.brandPaper,
-                  appPalette.brandInk,
+                  paletteValues.brandInk,
+                  paletteValues.brandPaper,
+                  paletteValues.brandInk,
                 ),
                 width: "100%",
                 marginTop: 290,
@@ -873,7 +741,7 @@ function ApplicationSample() {
               公式サイト
             </button>
           </aside>
-          <main style={{ background: appPalette.page, padding: 18 }}>
+          <main style={{ background: paletteValues.pageBg, padding: 18 }}>
             <div
               style={{
                 display: "flex",
@@ -887,7 +755,7 @@ function ApplicationSample() {
                   style={{
                     fontSize: typography.dialogTitle.fontSize,
                     fontWeight: fontWeight.bold,
-                    color: appPalette.textPrimary,
+                    color: paletteValues.text,
                   }}
                 >
                   仕訳
@@ -896,17 +764,17 @@ function ApplicationSample() {
                   style={{
                     marginTop: 4,
                     fontSize: fontSize.sm,
-                    color: appPalette.textSecondary,
+                    color: paletteValues.textSoft,
                   }}
                 >
                   2026年分の取引を確認・入力します。
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button style={outlineButtonStyle(appPalette.action)}>
+                <button style={outlineButtonStyle(paletteValues.action)}>
                   ファイル
                 </button>
-                <button style={primaryButtonStyle(appPalette.action)}>
+                <button style={primaryButtonStyle(paletteValues.action)}>
                   仕訳を追加
                 </button>
               </div>
@@ -921,19 +789,19 @@ function ApplicationSample() {
             >
               <div
                 style={{
-                  border: `1px solid ${appPalette.borderStrong}`,
+                  border: `1px solid ${paletteValues.borderEmphasis}`,
                   borderRadius: 16,
                   overflow: "hidden",
-                  background: appPalette.surface,
+                  background: paletteValues.surface,
                 }}
               >
                 <div
                   style={{
                     display: "grid",
                     gridTemplateColumns: "1fr 96px 96px",
-                    background: appPalette.surfaceHeader,
-                    borderBottom: `1px solid ${appPalette.borderControl}`,
-                    color: appPalette.textLabel,
+                    background: paletteValues.headerSurface,
+                    borderBottom: `1px solid ${paletteValues.borderStrong}`,
+                    color: paletteValues.textLabel,
                     fontSize: fontSize.xs,
                     fontWeight: fontWeight.bold,
                   }}
@@ -954,11 +822,11 @@ function ApplicationSample() {
                       gridTemplateColumns: "1fr 96px 96px",
                       background:
                         index === 1
-                          ? appPalette.surfaceTint
-                          : appPalette.surface,
+                          ? paletteValues.surfaceTint
+                          : paletteValues.surface,
                       borderTop:
                         index > 0
-                          ? `1px solid ${appPalette.borderSubtle}`
+                          ? `1px solid ${paletteValues.borderSubtle}`
                           : "none",
                       fontSize: fontSize.sm,
                     }}
@@ -966,7 +834,7 @@ function ApplicationSample() {
                     <div
                       style={{
                         padding: "11px 12px",
-                        color: appPalette.textPrimary,
+                        color: paletteValues.text,
                         fontWeight: fontWeight.bold,
                       }}
                     >
@@ -976,7 +844,7 @@ function ApplicationSample() {
                       style={{
                         padding: "11px 12px",
                         textAlign: "right",
-                        color: appPalette.textSecondary,
+                        color: paletteValues.textSoft,
                       }}
                     >
                       {index === 0 ? "120,000" : "18,400"}
@@ -985,7 +853,7 @@ function ApplicationSample() {
                       style={{
                         padding: "11px 12px",
                         textAlign: "right",
-                        color: appPalette.textSecondary,
+                        color: paletteValues.textSoft,
                       }}
                     >
                       {index === 0 ? "" : "18,400"}
@@ -997,28 +865,28 @@ function ApplicationSample() {
                 <Message
                   title="コメント"
                   text="証憑の確認が必要です。"
-                  bg={appPalette.actionBackground}
-                  border={appPalette.actionBorder}
-                  fg={appPalette.action}
+                  bg={paletteValues.actionBg}
+                  border={paletteValues.actionBorder}
+                  fg={paletteValues.action}
                 />
                 <Message
                   title="警告"
                   text="未分類の仕訳が 2 件あります。"
-                  bg={appPalette.warningBackground}
-                  border={appPalette.warningBorder}
-                  fg={appPalette.warning}
+                  bg={paletteValues.warningBg}
+                  border={paletteValues.warningBorder}
+                  fg={paletteValues.warning}
                 />
                 <Message
                   title="成功"
                   text="CSV を取り込みました。"
-                  bg={appPalette.successBackground}
-                  border={appPalette.successBorder}
-                  fg={appPalette.success}
+                  bg={paletteValues.successBg}
+                  border={paletteValues.successBorder}
+                  fg={paletteValues.success}
                 />
                 <div
                   style={{
-                    background: appPalette.surfaceTint,
-                    border: `1px solid ${appPalette.borderSubtle}`,
+                    background: paletteValues.surfaceTint,
+                    border: `1px solid ${paletteValues.borderSubtle}`,
                     borderRadius: 14,
                     padding: 12,
                   }}
@@ -1027,7 +895,7 @@ function ApplicationSample() {
                     style={{
                       fontSize: fontSize.sm,
                       fontWeight: fontWeight.bold,
-                      color: appPalette.textLabel,
+                      color: paletteValues.textLabel,
                     }}
                   >
                     フォーム領域
@@ -1035,11 +903,11 @@ function ApplicationSample() {
                   <div
                     style={{
                       marginTop: 8,
-                      background: appPalette.surface,
-                      border: `1px solid ${appPalette.borderControl}`,
+                      background: paletteValues.surface,
+                      border: `1px solid ${paletteValues.borderStrong}`,
                       borderRadius: 9,
                       padding: "9px 10px",
-                      color: appPalette.textPrimary,
+                      color: paletteValues.text,
                       fontSize: fontSize.sm,
                     }}
                   >
@@ -1048,11 +916,11 @@ function ApplicationSample() {
                   <div
                     style={{
                       marginTop: 8,
-                      background: appPalette.surface,
-                      border: `1px solid ${appPalette.borderControl}`,
+                      background: paletteValues.surface,
+                      border: `1px solid ${paletteValues.borderStrong}`,
                       borderRadius: 9,
                       padding: "9px 10px",
-                      color: appPalette.textMuted,
+                      color: paletteValues.textMuted,
                       fontSize: fontSize.sm,
                     }}
                   >
@@ -1077,18 +945,18 @@ function ButtonMatrix() {
         style={{
           fontSize: fontSize.sm,
           fontWeight: fontWeight.bold,
-          color: appPalette.textLabel,
+          color: paletteValues.textLabel,
         }}
       >
         ボタン用途
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button style={primaryButtonStyle(appPalette.action)}>追加</button>
-        <button style={outlineButtonStyle(appPalette.action)}>
+        <button style={primaryButtonStyle(paletteValues.action)}>追加</button>
+        <button style={outlineButtonStyle(paletteValues.action)}>
           キャンセル
         </button>
-        <button style={primaryButtonStyle(appPalette.decision)}>確定</button>
-        <button style={primaryButtonStyle(appPalette.danger)}>削除</button>
+        <button style={primaryButtonStyle(paletteValues.decision)}>確定</button>
+        <button style={primaryButtonStyle(paletteValues.danger)}>削除</button>
         <button style={neutralButtonStyle()}>詳細</button>
       </div>
     </div>
@@ -1111,7 +979,7 @@ function AccountContainerSample() {
         style={{
           fontSize: fontSize.base,
           fontWeight: fontWeight.bold,
-          color: appPalette.textPrimary,
+          color: paletteValues.text,
         }}
       >
         勘定科目コンテナ
@@ -1177,45 +1045,45 @@ const accountVisuals: Record<
   { color: string; bg: string; border: string; icon: string }
 > = {
   asset: {
-    color: appPalette.accountAsset,
-    bg: appPalette.accountAssetBackground,
-    border: appPalette.accountAssetBorder,
+    color: paletteValues.accountAsset,
+    bg: paletteValues.accountAssetBg,
+    border: paletteValues.accountAssetBorder,
     icon: "/icons/assets.svg",
   },
   liability: {
-    color: appPalette.accountLiability,
-    bg: appPalette.accountLiabilityBackground,
-    border: appPalette.accountLiabilityBorder,
+    color: paletteValues.accountLiability,
+    bg: paletteValues.accountLiabilityBg,
+    border: paletteValues.accountLiabilityBorder,
     icon: "/icons/liabilities.svg",
   },
   equity: {
-    color: appPalette.accountEquity,
-    bg: appPalette.accountEquityBackground,
-    border: appPalette.accountEquityBorder,
+    color: paletteValues.accountEquity,
+    bg: paletteValues.accountEquityBg,
+    border: paletteValues.accountEquityBorder,
     icon: "/icons/net-assets.svg",
   },
   revenue: {
-    color: appPalette.accountRevenue,
-    bg: appPalette.accountRevenueBackground,
-    border: appPalette.accountRevenueBorder,
+    color: paletteValues.accountRevenue,
+    bg: paletteValues.accountRevenueBg,
+    border: paletteValues.accountRevenueBorder,
     icon: "/icons/revenue.svg",
   },
   expense: {
-    color: appPalette.accountExpense,
-    bg: appPalette.accountExpenseBackground,
-    border: appPalette.accountExpenseBorder,
+    color: paletteValues.accountExpense,
+    bg: paletteValues.accountExpenseBg,
+    border: paletteValues.accountExpenseBorder,
     icon: "/icons/expense.svg",
   },
   profit: {
-    color: appPalette.accountProfit,
-    bg: appPalette.accountProfitBackground,
-    border: appPalette.accountProfitBorder,
+    color: paletteValues.accountProfit,
+    bg: paletteValues.accountProfitBg,
+    border: paletteValues.accountProfitBorder,
     icon: "/icons/profit.svg",
   },
   loss: {
-    color: appPalette.accountLoss,
-    bg: appPalette.accountLossBackground,
-    border: appPalette.accountLossBorder,
+    color: paletteValues.accountLoss,
+    bg: paletteValues.accountLossBg,
+    border: paletteValues.accountLossBorder,
     icon: "/icons/loss.svg",
   },
 };
@@ -1277,7 +1145,7 @@ function BackLink() {
     <Link
       href="/debug"
       style={{
-        color: appPalette.textSecondary,
+        color: paletteValues.textSoft,
         fontSize: fontSize.base,
         fontWeight: fontWeight.bold,
         textDecoration: "none",
@@ -1295,7 +1163,7 @@ function Kicker({ children }: { children: React.ReactNode }) {
         fontSize: fontSize.xs,
         fontWeight: fontWeight.bold,
         letterSpacing: "0.08em",
-        color: appPalette.textLabel,
+        color: paletteValues.textLabel,
       }}
     >
       {children}
@@ -1327,23 +1195,23 @@ function buttonStyle(
 
 function primaryButtonStyle(color: string): React.CSSProperties {
   return {
-    ...buttonStyle(color, appPalette.brandPaper, color),
+    ...buttonStyle(color, paletteValues.brandPaper, color),
     boxShadow:
-      color === appPalette.action
+      color === paletteValues.action
         ? "0 1px 2px rgba(37, 99, 235, 0.22)"
         : "none",
   };
 }
 
 function outlineButtonStyle(color: string): React.CSSProperties {
-  return buttonStyle(appPalette.surface, color, color);
+  return buttonStyle(paletteValues.surface, color, color);
 }
 
 function neutralButtonStyle(): React.CSSProperties {
   return buttonStyle(
-    appPalette.surface,
-    appPalette.textSecondary,
-    appPalette.borderControl,
+    paletteValues.surface,
+    paletteValues.textSoft,
+    paletteValues.borderStrong,
   );
 }
 
@@ -1355,8 +1223,8 @@ function accountContainerGroupStyle(): React.CSSProperties {
     gap: 8,
     padding: 10,
     borderRadius: 14,
-    border: `1px solid ${appPalette.borderSubtle}`,
-    background: appPalette.surfaceTint,
+    border: `1px solid ${paletteValues.borderSubtle}`,
+    background: paletteValues.surfaceTint,
   };
 }
 
@@ -1396,7 +1264,7 @@ function Message({
           marginTop: 3,
           fontSize: fontSize.sm,
           lineHeight: 1.55,
-          color: appPalette.textPrimary,
+          color: paletteValues.text,
         }}
       >
         {text}

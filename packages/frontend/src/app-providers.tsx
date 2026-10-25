@@ -21,6 +21,7 @@ import { printAdapter } from "@rubydogjp/openkk-print-adapter";
 import type { OpenkkBundleRuntime } from "./bundle-runtime.js";
 
 const SERVICE_WORKER_URL = "/sw.js";
+const SERVICE_WORKER_BUILD_ID = process.env.NEXT_PUBLIC_BUILD_ID ?? "default";
 const BOOT_PHASE_ATTRIBUTE_NAME = "data-openkk-boot";
 
 type OpenkkBootPhase =
@@ -28,7 +29,6 @@ type OpenkkBootPhase =
   | "waiting-for-another-tab"
   | "ready"
   | "failed";
-const SERVICE_WORKER_BUILD_ID = process.env.NEXT_PUBLIC_BUILD_ID ?? "default";
 
 export function OpenkkAppProviders(props: {
   runtime: OpenkkBundleRuntime;
@@ -114,9 +114,7 @@ export function OpenkkAppProviders(props: {
             <BackendApiProvider api={backendApi}>
               <OpenkkMaintenanceProvider>
                 <PrintAdapterProvider adapter={printAdapter}>
-                  <OpenkkAppStateProvider
-                    seedFiscalPeriod={runtime.seedFiscalPeriod}
-                  >
+                  <OpenkkAppStateProvider>
                     <OpenkkEntriesProvider>
                       <OpenkkAssistProvider>
                         <WorkInProgressProvider>

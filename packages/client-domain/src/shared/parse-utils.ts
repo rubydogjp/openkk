@@ -11,9 +11,9 @@ export function formatAmount(value: number): string {
 
 export function parseBusinessRate(value: string): number {
   if (value.trim() === "") return 1;
-  const n = Number(value);
-  if (!Number.isFinite(n)) return 1;
-  return Math.max(0, Math.min(100, n)) / 100;
+  const percent = Number(value);
+  if (!Number.isFinite(percent)) return 1;
+  return Math.max(0, Math.min(100, percent)) / 100;
 }
 
 export function draftBusinessRate(draft: {

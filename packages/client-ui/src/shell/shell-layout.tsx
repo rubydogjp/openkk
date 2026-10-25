@@ -47,10 +47,7 @@ export function OpenkkShellLayout(props: { children: React.ReactNode }) {
   const appState = useOpenkkAppState();
   const maintenance = useMaintenance();
   const session = appState.session;
-  const currentFiscalPeriod =
-    appState.fiscalPeriods.find(
-      (p) => p.id === appState.currentFiscalPeriodId,
-    ) ?? null;
+  const currentFiscalPeriod = appState.currentFiscalPeriod;
   const contentMode = resolveShellContentMode({
     isReady: appState.isReady,
     hasSession: session != null,

@@ -18,7 +18,10 @@ import {
   sizes,
   spacing,
 } from "../shared/design-tokens.js";
-import type { EntryPreviewRow } from "@rubydogjp/openkk-client-domain";
+import type {
+  EntryPreviewRow,
+  PeriodLockMessage,
+} from "@rubydogjp/openkk-client-domain";
 
 export {
   AccountChip,
@@ -29,10 +32,7 @@ export {
 
 const entryColors = {
   blue: palette.brand,
-  border: palette.borderSubtle,
   text: palette.text,
-  accentBg: palette.warningBg,
-  accentFg: palette.warning,
 };
 
 function EntriesMonthSwitcher(props: {
@@ -107,20 +107,14 @@ export function EntriesScreen(props: {
   canGoNext: boolean;
   onPrev: () => void;
   onNext: () => void;
-  isPlaceholderData: boolean;
   readOnly: boolean;
   onAddEntry: (() => void) | null;
   onImportFile: ((kind: EntryFileKind, file: File) => void) | null;
   onExport: ((kind: EntryFileKind) => void) | null;
-
   onOpenEntry: ((row: EntryPreviewRow, index: number) => void) | null;
-
   activeRecordId: string | null;
   statusMessage: EntryStatusMessage | null;
-  lockedMessage: {
-    title: string;
-    description: string;
-  } | null;
+  lockedMessage: PeriodLockMessage | null;
 }) {
   if (props.lockedMessage != null) {
     return (
@@ -192,41 +186,6 @@ export function EntriesScreen(props: {
 
         {props.statusMessage != null ? (
           <StatusBanner message={props.statusMessage} />
-        ) : null}
-
-        {props.isPlaceholderData ? (
-          <div
-            style={{
-              marginBottom: 12,
-              borderRadius: 10,
-              border: `1px solid ${entryColors.border}`,
-              background: "#FFFBEE",
-              padding: "10px 14px",
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              color: entryColors.text,
-            }}
-          >
-            <div
-              style={{
-                width: 22,
-                height: 22,
-                borderRadius: 999,
-                display: "grid",
-                placeItems: "center",
-                background: entryColors.accentBg,
-                color: entryColors.accentFg,
-                fontWeight: fontWeight.bold,
-                fontSize: fontSize.sm,
-              }}
-            >
-              i
-            </div>
-            <div style={{ fontSize: fontSize.sm, lineHeight: 1.6 }}>
-              この環境ではデモデータを表示しています。
-            </div>
-          </div>
         ) : null}
 
         <div style={{ flex: 1, minHeight: 320 }}>
@@ -342,7 +301,11 @@ export function VirtualEntryDrawer(props: {
             overflow: "hidden",
           }}
         >
-          <VirtualEntrySummaryRow label="摘要" value={props.row.description} />
+          <VirtualEntrySummaryRow
+            label="摘要"
+            value={props.row.description}
+            divider={false}
+          />
           {rows.map((row, index) => {
             const suffix = rows.length > 1 ? ` ${index + 1}` : "";
             return (
@@ -350,18 +313,22 @@ export function VirtualEntryDrawer(props: {
                 <VirtualEntrySummaryRow
                   label={`借方${suffix}`}
                   value={row.debit}
+                  divider
                 />
                 <VirtualEntrySummaryRow
                   label={`借方金額${suffix}`}
                   value={row.debitAmount}
+                  divider
                 />
                 <VirtualEntrySummaryRow
                   label={`貸方${suffix}`}
                   value={row.credit}
+                  divider
                 />
                 <VirtualEntrySummaryRow
                   label={`貸方金額${suffix}`}
                   value={row.creditAmount}
+                  divider
                 />
               </div>
             );
@@ -395,17 +362,20 @@ export function VirtualEntryDrawer(props: {
   );
 }
 
-function VirtualEntrySummaryRow(props: { label: string; value: string }) {
+function VirtualEntrySummaryRow(props: {
+  label: string;
+  value: string;
+  divider: boolean;
+}) {
   return (
     <div
       style={{
         display: "grid",
         gridTemplateColumns: "104px 1fr",
         minHeight: 42,
-        borderTop:
-          props.label === "摘要"
-            ? undefined
-            : `1px solid ${palette.borderSubtle}`,
+        borderTop: props.divider
+          ? `1px solid ${palette.borderSubtle}`
+          : undefined,
       }}
     >
       <div
@@ -434,7 +404,7 @@ function VirtualEntrySummaryRow(props: { label: string; value: string }) {
 }
 
 function StatusBanner({ message }: { message: EntryStatusMessage }) {
-  const palette = (() => {
+  const colors = (() => {
     switch (message.kind) {
       case "success":
         return { bg: "#ECFDF5", border: "#A7F3D0", fg: "#065F46" };
@@ -449,9 +419,9 @@ function StatusBanner({ message }: { message: EntryStatusMessage }) {
       style={{
         marginBottom: 12,
         borderRadius: 10,
-        border: `1px solid ${palette.border}`,
-        background: palette.bg,
-        color: palette.fg,
+        border: `1px solid ${colors.border}`,
+        background: colors.bg,
+        color: colors.fg,
         padding: "10px 14px",
         fontSize: fontSize.base,
         fontWeight: fontWeight.semibold,

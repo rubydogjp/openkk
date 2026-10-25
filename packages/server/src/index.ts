@@ -1,5 +1,3 @@
-
-
 export * from "@rubydogjp/openkk-server-domain";
 export * from "@rubydogjp/openkk-server-ports";
 export * from "@rubydogjp/openkk-server-usecases";

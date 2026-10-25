@@ -20,7 +20,7 @@
   "devDependencies": {
     "typescript": "^6.0.3"
   },
-  "description": "オープン会計 client-side port interfaces (OpenkkBackendPort, PrintPort) for swappable adapter implementations",
+  "description": "オープン会計 client-side port interfaces (OpenkkBackendPort, PrintPort, PlatformPort) for swappable adapter implementations",
   "license": "MIT",
   "author": "rbdog <rbdog@rubydog.jp>",
   "homepage": "https://github.com/rubydogjp/openkk#readme",

@@ -18,7 +18,7 @@ function initializeSqliteWasm() {
 
   const initialization = sqlite3InitModule({
     print: () => {},
-    printErr: (msg: string) => console.error("[sqlite-wasm]", msg),
+    printErr: (message: string) => console.error("[sqlite-wasm]", message),
   });
   sqliteModulePromise = initialization;
   void initialization.catch(() => {

@@ -1,4 +1,5 @@
 import {
+  assertClosingYear,
   assertEntryMatchesRules,
   serverConflictError,
   serverValidationError,
@@ -17,7 +18,6 @@ import { transitionFiscalPeriod } from "./fiscal-period-transition.js";
 import { msToIso } from "./persistence-codec.js";
 import {
   assertDbClosingGeneratedSizeLimits,
-  assertDbClosingYear,
 } from "./record-validation.js";
 import { newId, nowMs } from "./runtime.js";
 import type { SqlDb } from "./sql-db.js";
@@ -40,7 +40,7 @@ export function createPreClosingsDb(db: SqlDb): PreClosingsDb {
         "journalizing",
         "pre_closing",
         async (period) => {
-          assertDbClosingYear(period, year);
+          assertClosingYear(period, year);
           await db.exec({
             sql: `INSERT OR REPLACE INTO pre_closings(fiscal_period_id, year) VALUES(?, ?)`,
             bind: [fiscalPeriodId, year],
@@ -55,7 +55,7 @@ export function createPreClosingsDb(db: SqlDb): PreClosingsDb {
         "pre_closing",
         "journalizing",
         async (period) => {
-          assertDbClosingYear(period, year);
+          assertClosingYear(period, year);
           await assertDbClosingMarkerExists(
             db,
             "pre_closings",
@@ -92,7 +92,7 @@ export function createClosingsDb(db: SqlDb): ClosingsDb {
         "pre_closing",
         "post_closing",
         async (period) => {
-          assertDbClosingYear(period, year);
+          assertClosingYear(period, year);
           await assertDbClosingMarkerExists(
             db,
             "pre_closings",

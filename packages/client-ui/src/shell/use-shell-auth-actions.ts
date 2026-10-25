@@ -35,6 +35,7 @@ export function useShellAuthActions() {
     try {
       const result = await appState.startSignIn(
         navigation.appUrl("/auth/result"),
+        null,
       );
       navigation.leaveTo(result.authUrl);
       navigationStarted = true;

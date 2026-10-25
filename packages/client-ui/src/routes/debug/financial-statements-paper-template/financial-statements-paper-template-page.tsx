@@ -9,14 +9,12 @@ import {
   buildFinancialStatementsDocument,
   FINANCIAL_STATEMENTS_EXAMPLE_AMOUNTS,
   FINANCIAL_STATEMENTS_EXAMPLE_BS_ROWS,
-  FINANCIAL_STATEMENTS_EXAMPLE_FP_NAME,
 } from "@rubydogjp/openkk-client-domain";
 
 export function FinancialStatementsPaperTemplatePage() {
   const printDocument = usePrintDocument();
   const args = useMemo(
     () => ({
-      fpName: FINANCIAL_STATEMENTS_EXAMPLE_FP_NAME,
       amounts: FINANCIAL_STATEMENTS_EXAMPLE_AMOUNTS,
       bsRows: FINANCIAL_STATEMENTS_EXAMPLE_BS_ROWS,
       expenseWriteIns: [],
@@ -31,7 +29,6 @@ export function FinancialStatementsPaperTemplatePage() {
       title="財務諸表 (テンプレート + 例の値)"
       notice="このページはテンプレート + 固定の例の値の表示確認用です。実際の期間データは使用しません。"
       bodyHtml={bodyHtml}
-      fpName={FINANCIAL_STATEMENTS_EXAMPLE_FP_NAME}
       onPrint={() => printDocument(buildFinancialStatementsDocument(args))}
     />
   );

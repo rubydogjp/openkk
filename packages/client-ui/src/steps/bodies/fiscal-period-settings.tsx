@@ -39,9 +39,7 @@ export function FiscalPeriodSettingsBody({
   const config = useOpenkkConfig();
   const editingLocked = config.editingPolicy.locked;
   const { confirm, dialog } = useConfirmDialog();
-  const currentFiscalPeriod = appState.fiscalPeriods.find(
-    (period) => period.id === appState.currentFiscalPeriodId,
-  );
+  const currentFiscalPeriod = appState.currentFiscalPeriod;
 
   const [name, setName] = useState(currentFiscalPeriod?.name ?? "");
   const [startDate, setStartDate] = useState(

@@ -4,7 +4,6 @@ import { useMemo, useRef, useState, type ReactNode } from "react";
 
 import { AmountInput } from "../shared/amount-field.js";
 import { useConfirmDialog } from "../shared/confirm-dialog.js";
-import { LockButton } from "../shared/locked-action.js";
 import { ExclusiveActionLock } from "../shared/exclusive-action-lock.js";
 import { useModalLifecycle } from "../shared/dismissible-layer.js";
 import { DrawerFrame } from "../shared/drawer-frame.js";
@@ -28,6 +27,7 @@ import {
   computeFixedAssetDraftPeriodDepreciation,
   computeStraightLineDepreciation,
   MAX_FIXED_ASSET_USEFUL_LIFE_YEARS,
+  formatAmount,
   parseAmount,
   parseIsoLocalDate,
   resolveFixedAssetDraftPreviewDate,
@@ -42,7 +42,6 @@ export function FixedAssetEditDrawer({
   periodStartDate,
   periodEndDate,
   previewAsOf,
-  editingLocked,
   onClose,
   onSave,
   onDelete,
@@ -52,7 +51,6 @@ export function FixedAssetEditDrawer({
   periodStartDate: string;
   periodEndDate: string;
   previewAsOf: Date;
-  editingLocked: boolean;
   onClose: () => void;
   onSave: (draft: FixedAssetDraft) => Promise<boolean>;
   onDelete: (() => Promise<boolean>) | null;
@@ -208,7 +206,7 @@ export function FixedAssetEditDrawer({
           <Field label="名称">
             <FormTextInput
               value={draft.name}
-              onChange={(v) => setDraft({ ...draft, name: v })}
+              onChange={(value) => setDraft({ ...draft, name: value })}
               readOnly={false}
               width={null}
               placeholder={null}
@@ -217,7 +215,7 @@ export function FixedAssetEditDrawer({
           <Field label="勘定科目">
             <FormTextInput
               value={draft.account}
-              onChange={(v) => setDraft({ ...draft, account: v })}
+              onChange={(value) => setDraft({ ...draft, account: value })}
               readOnly={false}
               width={null}
               placeholder={null}
@@ -227,30 +225,30 @@ export function FixedAssetEditDrawer({
             <DateInput
               value={draft.acquisitionDate}
               max={periodEndDate}
-              onChange={(v) => setDraft({ ...draft, acquisitionDate: v })}
+              onChange={(value) => setDraft({ ...draft, acquisitionDate: value })}
               min={null}
             />
           </Field>
           <Field label="取得価額">
             <AmountInput
               value={draft.acquisitionCost}
-              onChange={(v) => setDraft({ ...draft, acquisitionCost: v })}
+              onChange={(value) => setDraft({ ...draft, acquisitionCost: value })}
               ariaLabel={null}
             />
           </Field>
           <Field label="耐用年数 (年)">
             <UsefulLifeInput
               value={draft.usefulLife}
-              onChange={(v) => setDraft({ ...draft, usefulLife: v })}
+              onChange={(value) => setDraft({ ...draft, usefulLife: value })}
             />
           </Field>
           <Field label="事業割合 (0-100%)">
             <BusinessRateField
               value={draft.businessRatePercent}
-              onChange={(v) =>
+              onChange={(value) =>
                 setDraft({
                   ...draft,
-                  businessRatePercent: v,
+                  businessRatePercent: value,
                   businessRate: null,
                 })
               }
@@ -260,7 +258,7 @@ export function FixedAssetEditDrawer({
             <Field label="状態">
               <StatusField
                 value={draft.status}
-                onChange={(v) => setDraft({ ...draft, status: v })}
+                onChange={(value) => setDraft({ ...draft, status: value })}
               />
             </Field>
           ) : null}
@@ -270,7 +268,7 @@ export function FixedAssetEditDrawer({
                 value={draft.disposalDate ?? ""}
                 min={laterIsoDate(draft.acquisitionDate, periodStartDate)}
                 max={periodEndDate}
-                onChange={(v) => setDraft({ ...draft, disposalDate: v })}
+                onChange={(value) => setDraft({ ...draft, disposalDate: value })}
               />
             </Field>
           ) : null}
@@ -278,7 +276,7 @@ export function FixedAssetEditDrawer({
             <Field label="売却額">
               <AmountInput
                 value={draft.disposalPrice ?? ""}
-                onChange={(v) => setDraft({ ...draft, disposalPrice: v })}
+                onChange={(value) => setDraft({ ...draft, disposalPrice: value })}
                 ariaLabel={null}
               />
             </Field>
@@ -349,19 +347,15 @@ export function FixedAssetEditDrawer({
             >
               キャンセル
             </FormSecondaryButton>
-            {editingLocked ? (
-              <LockButton label="保存" style={null} />
-            ) : (
-              <FormPrimaryButton
-                onClick={handleSave}
-                disabled={saving || deleting}
-                type={null}
-                variant={null}
-                icon={null}
-              >
-                {saving ? "保存中…" : "保存"}
-              </FormPrimaryButton>
-            )}
+            <FormPrimaryButton
+              onClick={handleSave}
+              disabled={saving || deleting}
+              type={null}
+              variant={null}
+              icon={null}
+            >
+              {saving ? "保存中…" : "保存"}
+            </FormPrimaryButton>
           </div>
         </footer>
       </DrawerFrame>
@@ -447,7 +441,7 @@ function UsefulLifeInput({
     <input
       type="number"
       min={1}
-      max={100}
+      max={MAX_FIXED_ASSET_USEFUL_LIFE_YEARS}
       step={1}
       inputMode="numeric"
       value={Number.isFinite(value) && value > 0 ? value : ""}
@@ -502,7 +496,6 @@ function DepreciationPreview({
   currentBookValue: number;
   periodDepreciation: number;
 }) {
-  const yen = (value: number) => new Intl.NumberFormat("ja-JP").format(value);
   return (
     <div
       style={{
@@ -528,8 +521,14 @@ function DepreciationPreview({
         label="進捗"
         value={`${Math.round(progress * 100)}%（${remaining}）`}
       />
-      <PreviewRow label="現在簿価" value={`${yen(currentBookValue)} 円`} />
-      <PreviewRow label="当期償却費" value={`${yen(periodDepreciation)} 円`} />
+      <PreviewRow
+        label="現在簿価"
+        value={`${formatAmount(currentBookValue)} 円`}
+      />
+      <PreviewRow
+        label="当期償却費"
+        value={`${formatAmount(periodDepreciation)} 円`}
+      />
     </div>
   );
 }
@@ -565,18 +564,7 @@ function StatusField({
     <select
       value={value}
       onChange={(event) => onChange(event.target.value as FixedAssetStatus)}
-      style={{
-        height: sizes.field.height,
-        boxSizing: "border-box",
-        border: `1px solid ${palette.borderStrong}`,
-        borderRadius: radii.sm,
-        background: palette.surface,
-        padding: `0 ${sizes.field.paddingX}`,
-        ...typography.input,
-        color: palette.text,
-        outline: "none",
-        fontFamily: "inherit",
-      }}
+      style={controlStyle}
     >
       {options.map((option) => (
         <option key={option} value={option}>

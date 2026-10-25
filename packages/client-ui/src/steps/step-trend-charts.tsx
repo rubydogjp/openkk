@@ -21,6 +21,10 @@ const profitColor = "#444B55";
 
 type TrendChartMode = "current" | "completed" | "not-started";
 
+function slotCenterX(index: number, slotWidth: number): number {
+  return index * slotWidth + slotWidth / 2;
+}
+
 export function JournalizingCurrentTrendChart(props: {
   points: StepTrendPoint[];
   detailsHref: string | null;
@@ -89,7 +93,7 @@ function TrendChart(props: {
   const barWidth = Math.min(20, slotWidth * 0.38);
   const profitPath = props.points
     .map((point, index) => {
-      const x = index * slotWidth + slotWidth / 2;
+      const x = slotCenterX(index, slotWidth);
       return `${index === 0 ? "M" : "L"} ${x} ${yFor(point.profit)}`;
     })
     .join(" ");
@@ -316,7 +320,7 @@ function TrendBars(props: {
   yFor: (value: number) => number;
 }) {
   return props.points.map((point, index) => {
-    const x = index * props.slotWidth + props.slotWidth / 2;
+    const x = slotCenterX(index, props.slotWidth);
     const revenueValue = point.revenue;
     const expenseValue = -point.expenses;
     const revenueY = props.yFor(revenueValue);
@@ -358,7 +362,7 @@ function EmptyTrendMarks(props: {
   baselineY: number;
 }) {
   return props.points.map((point, index) => {
-    const x = index * props.slotWidth + props.slotWidth / 2;
+    const x = slotCenterX(index, props.slotWidth);
     return (
       <g key={`${point.label}-${index}`}>
         <line
@@ -398,7 +402,7 @@ function ProfitPoints(props: {
   yFor: (value: number) => number;
 }) {
   return props.points.map((point, index) => {
-    const x = index * props.slotWidth + props.slotWidth / 2;
+    const x = slotCenterX(index, props.slotWidth);
     const y = props.yFor(point.profit);
     const emphasized = props.mode === "current" && point.isCurrent;
     const radius = emphasized ? 4.2 : 3.4;

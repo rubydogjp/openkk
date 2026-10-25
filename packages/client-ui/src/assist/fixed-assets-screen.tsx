@@ -23,7 +23,6 @@ export function FixedAssetsScreen(props: {
   onAdd: (() => void) | null;
   onOpenItem: ((itemId: string) => void) | null;
   contentMaxWidth: number | null;
-
   addButtonSlot: ReactNode | null;
 }) {
   const isReadOnly = props.readOnly;
@@ -77,7 +76,6 @@ export function FixedAssetsScreen(props: {
           items={props.items}
           readOnly={isReadOnly}
           onOpenItem={isReadOnly ? null : props.onOpenItem}
-          fillHeight
         />
       </div>
     </section>
@@ -88,49 +86,46 @@ function FixedAssetsTable(props: {
   items: FixedAsset[];
   readOnly: boolean;
   onOpenItem: ((itemId: string) => void) | null;
-  fillHeight: boolean;
 }) {
   const isEmpty = props.items.length === 0;
-  const { fillHeight } = props;
   const isReadOnly = props.readOnly;
   return (
     <div
       style={{
         background: palette.surface,
-
         border: `1px solid ${palette.borderEmphasis}`,
         borderRadius: 12,
         overflow: "hidden",
         boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
-        height: fillHeight ? "100%" : undefined,
+        height: "100%",
         display: "flex",
         flexDirection: "column",
         minHeight: 320,
       }}
     >
       <style>{`
-        .bk-fa-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
-        .bk-fa-scroll::-webkit-scrollbar-track { background: transparent; }
-        .bk-fa-scroll::-webkit-scrollbar-thumb {
+        .bk-fixed-assets-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+        .bk-fixed-assets-scroll::-webkit-scrollbar-track { background: transparent; }
+        .bk-fixed-assets-scroll::-webkit-scrollbar-thumb {
           background: #CBD5E1;
           border-radius: 999px;
           border: 2px solid transparent;
           background-clip: padding-box;
         }
-        .bk-fa-scroll::-webkit-scrollbar-thumb:hover {
+        .bk-fixed-assets-scroll::-webkit-scrollbar-thumb:hover {
           background: #94A3B8;
           border: 2px solid transparent;
           background-clip: padding-box;
         }
-        .bk-fa-row { transition: background 80ms ease; }
-        .bk-fa-row.is-clickable { cursor: pointer; }
-        .bk-fa-row.is-clickable:hover { background: ${palette.hoverStrong} !important; }
+        .bk-fixed-assets-row { transition: background 80ms ease; }
+        .bk-fixed-assets-row.is-clickable { cursor: pointer; }
+        .bk-fixed-assets-row.is-clickable:hover { background: ${palette.hoverStrong} !important; }
       `}</style>
       {isEmpty ? (
         <FixedAssetsEmptyState readOnly={isReadOnly} />
       ) : (
         <div
-          className="bk-fa-scroll"
+          className="bk-fixed-assets-scroll"
           style={{
             flex: 1,
             minHeight: 0,
@@ -301,7 +296,7 @@ function FixedAssetRow(props: {
     <button
       type="button"
       onClick={() => props.onOpen?.(props.asset.id)}
-      className={`bk-fa-row${clickable ? " is-clickable" : ""}`}
+      className={`bk-fixed-assets-row${clickable ? " is-clickable" : ""}`}
       style={{
         border: "none",
         borderTop: props.showDivider
@@ -322,8 +317,7 @@ function FixedAssetRow(props: {
 
 function FixedAssetCardBody(props: { asset: FixedAsset }) {
   const asset = props.asset;
-  // These segments mark quarters of the total progress, not individual years.
-  const meterSegmentCount = 4;
+  const progressQuarterCount = 4;
   const meterLineWidth = 1;
   return (
     <div>
@@ -364,11 +358,11 @@ function FixedAssetCardBody(props: { asset: FixedAsset }) {
           marginTop: 12,
           height: 6,
           display: "grid",
-          gridTemplateColumns: `repeat(${meterSegmentCount}, minmax(0, 1fr))`,
+          gridTemplateColumns: `repeat(${progressQuarterCount}, minmax(0, 1fr))`,
           gap: meterLineWidth,
         }}
       >
-        {Array.from({ length: meterSegmentCount }, (_, index) => (
+        {Array.from({ length: progressQuarterCount }, (_, index) => (
           <div
             key={index}
             style={{
@@ -376,9 +370,9 @@ function FixedAssetCardBody(props: { asset: FixedAsset }) {
               border: `${meterLineWidth}px solid ${palette.brand}`,
               borderTopLeftRadius: index === 0 ? 999 : 0,
               borderBottomLeftRadius: index === 0 ? 999 : 0,
-              borderTopRightRadius: index === meterSegmentCount - 1 ? 999 : 0,
+              borderTopRightRadius: index === progressQuarterCount - 1 ? 999 : 0,
               borderBottomRightRadius:
-                index === meterSegmentCount - 1 ? 999 : 0,
+                index === progressQuarterCount - 1 ? 999 : 0,
               background: palette.brand,
               overflow: "hidden",
             }}
@@ -386,7 +380,7 @@ function FixedAssetCardBody(props: { asset: FixedAsset }) {
             <div
               style={{
                 height: "100%",
-                width: `${Math.min(1, Math.max(0, asset.depreciationProgress * meterSegmentCount - index)) * 100}%`,
+                width: `${Math.min(1, Math.max(0, asset.depreciationProgress * progressQuarterCount - index)) * 100}%`,
                 background: palette.brandTint,
               }}
             />

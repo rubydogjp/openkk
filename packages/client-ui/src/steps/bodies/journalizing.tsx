@@ -26,11 +26,11 @@ import {
   JournalizingCurrentTrendChart,
 } from "../step-trend-charts.js";
 import {
-  StepDivider,
   StepCallout,
   StepPrimaryButton,
   StepSecondaryButton,
   StepSectionLabel,
+  StepSpacer,
 } from "../step-ui.js";
 
 export function JournalizingBody({
@@ -48,9 +48,7 @@ export function JournalizingBody({
   const appState = useOpenkkAppState();
   const closingApi = useOpenkkClosing();
   const preClosingHint = useOpenkkCallout("stepJournalizingPreClosingHint");
-  const currentFiscalPeriod = appState.fiscalPeriods.find(
-    (period) => period.id === appState.currentFiscalPeriodId,
-  );
+  const currentFiscalPeriod = appState.currentFiscalPeriod;
 
   const preClosingShown =
     currentFiscalPeriod?.phase === "pre_closing" ||
@@ -76,7 +74,7 @@ export function JournalizingBody({
     return (
       <>
         <StepCallout tone="warning">この手順はまだ進められません。</StepCallout>
-        <StepDivider marginY={null} />
+        <StepSpacer height={null} />
         <section>
           <StepSectionLabel>記録中</StepSectionLabel>
           <JournalizingNotStartedTrendChart points={trendPoints} />
@@ -139,8 +137,7 @@ export function JournalizingBody({
       }
       onBusyChange?.(true);
       try {
-        const year = Number(currentFiscalPeriod.endDate.slice(0, 4));
-        await closingApi.runPreClosing(currentFiscalPeriod.id, year);
+        await closingApi.runPreClosing(currentFiscalPeriod);
         setScreenError(null);
       } catch (error) {
         onBusyChange?.(false);
@@ -215,7 +212,7 @@ export function JournalizingBody({
 
           {trendPoints.length > 0 ? (
             <>
-              <StepDivider marginY={null} />
+              <StepSpacer height={null} />
               <section>
                 <StepSectionLabel>記録中</StepSectionLabel>
                 <JournalizingCurrentTrendChart
@@ -226,7 +223,7 @@ export function JournalizingBody({
             </>
           ) : null}
 
-          <StepDivider marginY={null} />
+          <StepSpacer height={null} />
           <section>
             <StepSectionLabel>記録を終了</StepSectionLabel>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -246,7 +243,7 @@ export function JournalizingBody({
               ) : null}
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
                 {editingLocked ? (
-                  <LockButton label="仮締めを実行" style={null} />
+                  <LockButton label="仮締めを実行" />
                 ) : (
                   <StepPrimaryButton
                     onClick={handleRunPreClosing}

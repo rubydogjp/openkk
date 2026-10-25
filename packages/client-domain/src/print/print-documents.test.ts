@@ -12,7 +12,7 @@ import { buildJournalDocument } from "./journal-print.js";
 
 describe("print documents", () => {
   it("renders journal data from supplied entries and escapes HTML", () => {
-    const html = buildJournalDocument("2026年分", [
+    const html = buildJournalDocument([
       entry({
         date: "2026-01-15<script>",
         description: "売上 <確認>",
@@ -29,7 +29,6 @@ describe("print documents", () => {
 
   it("renders general ledger balances from supplied entries and opening balances", () => {
     const html = buildGeneralLedgerDocument(
-      "2026年分",
       [entry({})],
       [{ accountId: "a:普通預金", amount: 50_000 }],
     );
@@ -42,7 +41,7 @@ describe("print documents", () => {
   });
 
   it("renders ledgers for opening-only accounts with no current transactions", () => {
-    const html = buildGeneralLedgerDocument("2026年分", [], [
+    const html = buildGeneralLedgerDocument([], [
       { accountId: "a:敷金<保証>", amount: 300_000 },
       { accountId: "l:元入金", amount: 300_000 },
     ]);
@@ -58,7 +57,6 @@ describe("print documents", () => {
 
   it("keeps a contrary opening balance in the same account ledger", () => {
     const html = buildGeneralLedgerDocument(
-      "2026年分",
       [
         entry({
           debit: "現金",
@@ -134,12 +132,12 @@ describe("print documents", () => {
       ],
     });
 
-    const journalHtml = buildJournalDocument("2026年分", [compound]);
+    const journalHtml = buildJournalDocument([compound]);
     expect(journalHtml).toContain("荷造運賃");
     expect(journalHtml).toContain("42,000");
     expect(journalHtml).toContain("210,000");
 
-    const ledgerHtml = buildGeneralLedgerDocument("2026年分", [compound], []);
+    const ledgerHtml = buildGeneralLedgerDocument([compound], []);
     expect(ledgerHtml).toContain("荷造運賃");
     expect(ledgerHtml).toContain("未払金");
     expect(ledgerHtml).toContain("42,000");
@@ -193,13 +191,13 @@ describe("print documents", () => {
       ],
     });
 
-    const journalHtml = buildJournalDocument("2026年分", [compound]);
+    const journalHtml = buildJournalDocument([compound]);
     expect(journalHtml).toContain("借: 通信会社A / 貸: 決済会社C");
     expect(journalHtml).toContain("借: 課税仕入 10% / 貸: 非課税");
     expect(journalHtml).toContain("取引先: 銀行B");
     expect(journalHtml).toContain("事業区分: 対象外");
 
-    const ledgerHtml = buildGeneralLedgerDocument("2026年分", [compound], []);
+    const ledgerHtml = buildGeneralLedgerDocument([compound], []);
     expect(ledgerHtml).toContain("取引先: 通信会社A");
     expect(ledgerHtml).toContain("取引先: 銀行B");
     expect(ledgerHtml).toContain("取引先: 決済会社C");
@@ -210,7 +208,6 @@ describe("print documents", () => {
 
   it("creates separate ledgers for same-name accounts with different IDs", () => {
     const html = buildGeneralLedgerDocument(
-      "2026年分",
       [
         entry({
           id: "cost-bonus",
@@ -319,8 +316,8 @@ describe("print documents", () => {
       }),
     );
 
-    const journalHtml = buildJournalDocument("2026年分", entries);
-    const ledgerHtml = buildGeneralLedgerDocument("2026年分", entries, []);
+    const journalHtml = buildJournalDocument(entries);
+    const ledgerHtml = buildGeneralLedgerDocument(entries, []);
     expect(journalHtml.match(/class="bk-page"/g)?.length).toBeGreaterThan(1);
     expect(ledgerHtml.match(/class="bk-page"/g)?.length).toBeGreaterThan(2);
     expect(journalHtml).toContain("row-60");
@@ -363,7 +360,7 @@ describe("print documents", () => {
       ],
     });
 
-    const html = buildJournalDocument("2026年分", [compound]);
+    const html = buildJournalDocument([compound]);
 
     expect(html.match(/class="bk-page"/g)).toHaveLength(2);
     expect(html).toContain("経費35");
@@ -372,16 +369,14 @@ describe("print documents", () => {
   });
 
   it("normalises non-finite printed amounts to blanks", () => {
-    const journalHtml = buildJournalDocument("2026年分", [
+    const journalHtml = buildJournalDocument([
       entry({ debitAmount: "Infinity", creditAmount: "-Infinity" }),
     ]);
     const ledgerHtml = buildGeneralLedgerDocument(
-      "2026年分",
       [entry({ debitAmount: "Infinity", creditAmount: "-Infinity" })],
       [],
     );
     const fsHtml = buildFinancialStatementsDocument({
-      fpName: "2026年分",
       amounts: { 1: Infinity, 2: -Infinity },
       bsRows: [],
       expenseWriteIns: [],
@@ -395,9 +390,8 @@ describe("print documents", () => {
   it("does not render NaN month labels for malformed entry dates", () => {
     const malformedDateEntry = entry({ date: "not-a-date" });
 
-    const journalHtml = buildJournalDocument("2026年分", [malformedDateEntry]);
+    const journalHtml = buildJournalDocument([malformedDateEntry]);
     const ledgerHtml = buildGeneralLedgerDocument(
-      "2026年分",
       [malformedDateEntry],
       [],
     );
@@ -416,7 +410,6 @@ describe("print documents", () => {
       entries: [entry({})],
     });
     const html = buildFinancialStatementsDocument({
-      fpName: "2026年分",
       amounts: aggregate.amounts,
       bsRows: aggregate.bsRows,
       expenseWriteIns: [],

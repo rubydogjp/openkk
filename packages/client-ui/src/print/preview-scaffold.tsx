@@ -9,7 +9,6 @@ export type PreviewScaffoldProps = {
   notice: string;
   bodyHtml: string;
   onPrint: () => void;
-  fpName: string | null;
 };
 
 export function PreviewScaffold({
@@ -17,7 +16,6 @@ export function PreviewScaffold({
   notice,
   bodyHtml,
   onPrint,
-  fpName,
 }: PreviewScaffoldProps) {
   const router = useRouter();
 
@@ -42,7 +40,7 @@ export function PreviewScaffold({
       <div style={toolbarStyle}>
         <button type="button" onClick={handleClose} style={navBtnStyle}>✕ 閉じる</button>
         <span style={{ fontSize: 14, fontWeight: 700, color: palette.textSoft }}>
-          {title}{fpName ? ` — ${fpName}` : ""}
+          {title}
         </span>
         <button type="button" onClick={onPrint} style={printBtnStyle}>
           🖨 印刷 / PDF保存

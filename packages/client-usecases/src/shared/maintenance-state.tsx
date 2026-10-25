@@ -19,6 +19,7 @@ import {
 
 import { BackendApiProvider, useBackendApi } from "./backend-api-context.js";
 import { AsyncStateVersion } from "./async-state-version.js";
+import { observeRejectedCalls } from "./observe-rejected-calls.js";
 
 const MAINTENANCE_RECHECK_INTERVAL_MS = 30_000;
 
@@ -46,11 +47,7 @@ export function OpenkkMaintenanceProvider(props: { children: ReactNode }) {
     const refreshVersion = refreshVersions.current.invalidate();
     try {
       const fetched = await api.maintenance.get();
-      if (
-        !refreshVersions.current.isCurrent(refreshVersion)
-      ) {
-        return;
-      }
+      if (!refreshVersions.current.isCurrent(refreshVersion)) return;
       setStatus(fetched.enabled ? fetched : null);
     } catch (error) {
       if (
@@ -109,32 +106,7 @@ function wrapWithMaintenanceDetection(
   api: OpenkkBackendPort,
   onMaintenance: () => void,
 ): OpenkkBackendPort {
-  return wrapNode(api, onMaintenance) as OpenkkBackendPort;
-}
-
-function wrapNode<T extends object>(target: T, onMaintenance: () => void): T {
-  return new Proxy(target, {
-    get(node, key, receiver) {
-      const value = Reflect.get(node, key, receiver);
-      if (typeof value === "function") {
-        return (...args: unknown[]) => {
-          const result = (value as (...a: unknown[]) => unknown).apply(
-            node,
-            args,
-          );
-          if (result instanceof Promise) {
-            return result.catch((error: unknown) => {
-              if (isMaintenanceModeError(error)) onMaintenance();
-              throw error;
-            });
-          }
-          return result;
-        };
-      }
-      if (value != null && typeof value === "object") {
-        return wrapNode(value as object, onMaintenance);
-      }
-      return value;
-    },
+  return observeRejectedCalls(api, () => (error) => {
+    if (isMaintenanceModeError(error)) onMaintenance();
   });
 }

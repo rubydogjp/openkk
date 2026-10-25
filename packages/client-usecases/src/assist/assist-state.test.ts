@@ -317,7 +317,7 @@ describe("compound opening journals", () => {
         { id: "biz_service", name: "サービス" },
         { id: "biz_none", name: "対象外" },
       ],
-    });
+    }, UNRESOLVED_ACCOUNT);
 
     expect(rebuilt).toEqual(journal.lines);
   });
@@ -355,7 +355,7 @@ describe("compound opening journals", () => {
         { id: "biz_service", name: "サービス" },
         { id: "biz_none", name: "対象外" },
       ],
-    });
+    }, UNRESOLVED_ACCOUNT);
 
     expect(rebuilt?.map((line) => line.id)).toEqual([
       "opening-1-d",
@@ -386,10 +386,15 @@ describe("compound opening journals", () => {
         accounts,
         taxCategories: [],
         businessCategories: [],
-      }),
+      }, UNRESOLVED_ACCOUNT),
     ).toThrow("opening carryover line id must not be blank");
   });
 });
+
+const UNRESOLVED_ACCOUNT = {
+  messageForDeveloper: "test: account resolution failed",
+  messageForUser: "勘定科目が解決できないため保存できませんでした",
+};
 
 function draft(overrides: Partial<FixedAssetDraft> = {}): FixedAssetDraft {
   const base: FixedAssetDraft = {

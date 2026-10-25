@@ -29,7 +29,6 @@ export function AssistPage() {
   const router = useRouter();
 
   return (
-
     <section
       style={{
         width: "100%",
@@ -38,7 +37,6 @@ export function AssistPage() {
         padding: "24px 24px 96px",
       }}
     >
-
       <header style={{ marginBottom: 32 }}>
         <h1
           style={{

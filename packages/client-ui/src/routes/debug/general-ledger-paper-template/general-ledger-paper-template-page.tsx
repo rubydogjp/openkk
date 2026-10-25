@@ -8,7 +8,6 @@ import {
   buildGeneralLedgerBody,
   buildGeneralLedgerDocument,
   GENERAL_LEDGER_EXAMPLE_ENTRIES,
-  GENERAL_LEDGER_EXAMPLE_FP_NAME,
   GENERAL_LEDGER_EXAMPLE_OPENING_BALANCE_LINES,
 } from "@rubydogjp/openkk-client-domain";
 
@@ -17,7 +16,6 @@ export function GeneralLedgerPaperTemplatePage() {
   const bodyHtml = useMemo(
     () =>
       buildGeneralLedgerBody(
-        GENERAL_LEDGER_EXAMPLE_FP_NAME,
         GENERAL_LEDGER_EXAMPLE_ENTRIES,
         GENERAL_LEDGER_EXAMPLE_OPENING_BALANCE_LINES,
       ),
@@ -29,11 +27,9 @@ export function GeneralLedgerPaperTemplatePage() {
       title="総勘定元帳 (テンプレート + 例の値)"
       notice="このページはテンプレート + 固定の例の値の表示確認用です。実際の期間データは使用しません。"
       bodyHtml={bodyHtml}
-      fpName={GENERAL_LEDGER_EXAMPLE_FP_NAME}
       onPrint={() =>
         printDocument(
           buildGeneralLedgerDocument(
-            GENERAL_LEDGER_EXAMPLE_FP_NAME,
             GENERAL_LEDGER_EXAMPLE_ENTRIES,
             GENERAL_LEDGER_EXAMPLE_OPENING_BALANCE_LINES,
           ),

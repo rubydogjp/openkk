@@ -25,8 +25,8 @@ const tokens = await import(
 );
 
 const parseVar = (value) => {
-  const m = /^var\((--openkk-[a-z0-9-]+),\s*([\s\S]+)\)$/.exec(value);
-  return m ? { name: m[1], fallback: m[2] } : null;
+  const match = /^var\((--openkk-[a-z0-9-]+),\s*([\s\S]+)\)$/.exec(value);
+  return match ? { name: match[1], fallback: match[2] } : null;
 };
 
 const flat = [
@@ -43,16 +43,19 @@ const flat = [
 const groups = flat.map(([label, group, key]) => ({
   label,
   entries: Object.entries(group)
-    .map(([k, v]) => ({ key: `${key}.${k}`, ...parseVar(v) }))
-    .filter((e) => e.name),
+    .map(([name, value]) => ({ key: `${key}.${name}`, ...parseVar(value) }))
+    .filter((entry) => entry.name),
 }));
 
 groups.push({
   label: "寸法 (sizes)",
   entries: Object.entries(tokens.sizes).flatMap(([sub, group]) =>
     Object.entries(group)
-      .map(([k, v]) => ({ key: `sizes.${sub}.${k}`, ...parseVar(v) }))
-      .filter((e) => e.name),
+      .map(([name, value]) => ({
+        key: `sizes.${sub}.${name}`,
+        ...parseVar(value),
+      }))
+      .filter((entry) => entry.name),
   ),
 });
 
@@ -60,14 +63,17 @@ groups.push({
   label: "文字スタイル (typography)",
   entries: Object.entries(tokens.typography).flatMap(([token, style]) =>
     Object.entries(style)
-      .map(([prop, v]) => ({ key: `typography.${token}.${prop}`, ...parseVar(v) }))
-      .filter((e) => e.name),
+      .map(([prop, value]) => ({
+        key: `typography.${token}.${prop}`,
+        ...parseVar(value),
+      }))
+      .filter((entry) => entry.name),
   ),
 });
 
-const total = groups.reduce((n, g) => n + g.entries.length, 0);
+const total = groups.reduce((count, group) => count + group.entries.length, 0);
 
-const esc = (s) => s.replace(/\|/g, "\\|");
+const escapeTableCell = (text) => text.replace(/\|/g, "\\|");
 
 const tables = groups
   .map(
@@ -76,7 +82,10 @@ const tables = groups
 | CSS 変数 | トークン | 既定値 |
 | --- | --- | --- |
 ${entries
-  .map((e) => `| \`${e.name}\` | \`${e.key}\` | \`${esc(e.fallback)}\` |`)
+  .map(
+    (entry) =>
+      `| \`${entry.name}\` | \`${entry.key}\` | \`${escapeTableCell(entry.fallback)}\` |`,
+  )
   .join("\n")}
 `,
   )

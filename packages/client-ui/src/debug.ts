@@ -5,6 +5,5 @@ export { FontThemePage } from "./routes/debug/font-theme/font-theme-page.js";
 export { GeneralLedgerPaperTemplatePage } from "./routes/debug/general-ledger-paper-template/general-ledger-paper-template-page.js";
 export { FinancialStatementsPaperTemplatePage } from "./routes/debug/financial-statements-paper-template/financial-statements-paper-template-page.js";
 export { JournalPaperTemplatePage } from "./routes/debug/journal-paper-template/journal-paper-template-page.js";
-export { JsonImportPage } from "./routes/debug/json-import/json-import-page.js";
 export { PlBsDiagramPreviewPage } from "./routes/debug/pl-bs-diagram-preview/pl-bs-diagram-preview-page.js";
 export { MaintenancePreviewPage } from "./routes/debug/maintenance-preview/maintenance-preview-page.js";

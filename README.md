@@ -18,7 +18,7 @@ npm run check:full # 生成物検査 + 上記 + 3アプリbuild + Playwright
 用途別のリファレンスアプリを起動:
 
 ```bash
-npm run dev:vscode:openkk # 通常版（SQLite OPFS）— port 4322
+npm run dev:vscode:openkk # 無印版（SQLite OPFS）— port 4322
 npm run dev:vscode:sim    # Sim版（memory DB）— port 4303
 npm run dev:vscode:demo   # デモ版（サンプルデータ・再読み込みで初期化）— port 4304
 ```
@@ -27,8 +27,8 @@ E2E テスト:
 
 ```bash
 npm run test:e2e        # Sim版の操作シナリオ
-npm run test:e2e:export # 通常版の静的export smoke
-npm run build:apps && npm run test:e2e:export:built # 通常版・デモ版の公開用ビルドを検証
+npm run test:e2e:export # 無印版の静的export smoke
+npm run build:apps && npm run test:e2e:export:built # 無印版・デモ版の公開用ビルドを検証
 ```
 
 ドキュメント:

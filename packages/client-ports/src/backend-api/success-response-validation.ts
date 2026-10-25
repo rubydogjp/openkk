@@ -393,8 +393,6 @@ function isPositiveInteger(value: unknown): value is number {
   return Number.isSafeInteger(value) && Number(value) >= 1;
 }
 
-
-
 function hasUniqueValues(values: unknown[]): boolean {
   return new Set(values).size === values.length;
 }
@@ -422,7 +420,6 @@ function isEntryRecordArray(
     )
   );
 }
-
 
 function isIsoTimestamp(value: unknown): value is string {
   if (!isString(value)) return false;

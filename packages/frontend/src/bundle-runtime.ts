@@ -1,6 +1,5 @@
 import type {
   BrandConfig,
-  FiscalPeriodSeeder,
   OpenkkBackendPort,
   OpenkkCalloutSlots,
   OpenkkConfig,
@@ -14,7 +13,6 @@ export interface OpenkkBundleRuntime {
   config: OpenkkConfig;
   brandConfig: BrandConfig;
   calloutSlots: OpenkkCalloutSlots;
-  seedFiscalPeriod: FiscalPeriodSeeder | null;
   createBackendApi: (events: OpenkkBootEvents) => Promise<OpenkkBackendPort>;
   registerServiceWorker: boolean;
 }

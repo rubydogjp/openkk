@@ -27,17 +27,25 @@ async function output(file, content) {
 }
 
 function svg(pixels) {
-  const rectangles = pixels.map((color, i) => color == null ? "" :
-    `<rect x="${i % 8}" y="${Math.floor(i / 8)}" width="1" height="1" fill="${color}"/>`);
+  const rectangles = pixels.map((color, index) =>
+    color == null
+      ? ""
+      : `<rect x="${index % 8}" y="${Math.floor(index / 8)}" width="1" height="1" fill="${color}"/>`,
+  );
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8" shape-rendering="crispEdges">${rectangles.join("")}</svg>\n`;
 }
 
 async function png(pixels, size, padded) {
   const raw = Buffer.alloc(8 * 8 * 4);
-  pixels.forEach((color, i) => {
+  pixels.forEach((color, index) => {
     if (color == null) return;
-    for (let c = 0; c < 3; c++) raw[i * 4 + c] = parseInt(color.slice(1 + c * 2, 3 + c * 2), 16);
-    raw[i * 4 + 3] = 255;
+    for (let channel = 0; channel < 3; channel++) {
+      raw[index * 4 + channel] = parseInt(
+        color.slice(1 + channel * 2, 3 + channel * 2),
+        16,
+      );
+    }
+    raw[index * 4 + 3] = 255;
   });
   const artSize = padded ? Math.floor(size * 0.6 / 8) * 8 : size;
   const art = await sharp(raw, { raw: { width: 8, height: 8, channels: 4 } })
@@ -52,8 +60,8 @@ function ico(images) {
   header.writeUInt16LE(1, 2);
   header.writeUInt16LE(images.length, 4);
   let offset = header.length;
-  images.forEach(({ size, data }, i) => {
-    const entry = 6 + i * 16;
+  images.forEach(({ size, data }, index) => {
+    const entry = 6 + index * 16;
     header[entry] = header[entry + 1] = size;
     header.writeUInt16LE(1, entry + 4);
     header.writeUInt16LE(32, entry + 6);

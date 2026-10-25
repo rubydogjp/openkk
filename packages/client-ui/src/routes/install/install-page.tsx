@@ -58,7 +58,7 @@ export function InstallPage() {
     const unsubscribe = appInstall.subscribe(evaluateInstallAvailability);
 
     const unsupportedDetectionTimer = window.setTimeout(() => {
-      setPhase((p) => (p === "checking" ? "unsupported" : p));
+      setPhase((current) => (current === "checking" ? "unsupported" : current));
     }, INSTALL_AVAILABILITY_TIMEOUT_MS);
 
     return () => {
@@ -152,22 +152,21 @@ function InstallButton({
   disabled: boolean;
   secondary: boolean;
 }) {
-  const isDisabled = disabled;
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={isDisabled}
+      disabled={disabled}
       style={{
         height: 48,
         padding: "0 28px",
         borderRadius: 12,
-        border: `1px solid ${isDisabled ? palette.borderStrong : palette.brand}`,
-        background: isDisabled ? palette.borderStrong : secondary ? palette.surface : palette.brand,
-        color: !isDisabled && secondary ? palette.brand : palette.surface,
+        border: `1px solid ${disabled ? palette.borderStrong : palette.brand}`,
+        background: disabled ? palette.borderStrong : secondary ? palette.surface : palette.brand,
+        color: !disabled && secondary ? palette.brand : palette.surface,
         fontSize: fontSize.md,
         fontWeight: fontWeight.bold,
-        cursor: isDisabled ? "default" : "pointer",
+        cursor: disabled ? "default" : "pointer",
       }}
     >
       {children}

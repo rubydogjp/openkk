@@ -1,4 +1,5 @@
 import {
+  assertClosingYear,
   assertUniqueIds,
   requireObject,
   serverValidationError,
@@ -17,7 +18,6 @@ import {
   serializeFixedAssetDbData,
 } from "./persistence-codec.js";
 import {
-  assertDbClosingYear,
   assertDbImportedClosingState,
   assertDbOpeningForPeriod,
   assertDbStoredEntryRecord,
@@ -188,7 +188,7 @@ function groupSeedClosingRows(
   const grouped = new Map<string, ClosingMarkerDbImportInput[]>();
   for (const row of rows) {
     const period = requireSeedFiscalPeriod(periodsById, row.fiscalPeriodId);
-    assertDbClosingYear(period, row.year);
+    assertClosingYear(period, row.year);
     const periodRows = grouped.get(period.id) ?? [];
     if (periodRows.some((existing) => existing.year === row.year)) {
       throw serverValidationError(

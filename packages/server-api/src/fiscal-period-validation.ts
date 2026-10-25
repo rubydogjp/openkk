@@ -2,7 +2,6 @@ import {
   assertDateRange,
   assertNonBlankString,
   assertOpeningMatchesRules,
-  assertPositiveInteger,
   assertUniqueStrings,
   MAX_ENTRY_IMPORT_ITEMS,
   requireObject,
@@ -67,20 +66,6 @@ export function assertPeriodPhaseOneOf(
     throw serverConflictError(
       `Fiscal period ${period.id} cannot ${operation} from phase ${period.phase}`,
       "会計期間の状態が変わったため、この操作を実行できません",
-    );
-  }
-}
-
-export function assertClosingYear(
-  period: FiscalPeriodApiRecord,
-  year: unknown,
-): asserts year is number {
-  assertPositiveInteger(year, "Closing year");
-  const expectedYear = Number(period.endDate.slice(0, 4));
-  if (year !== expectedYear) {
-    throw serverValidationError(
-      `Closing year ${year} must match fiscal period end year ${expectedYear}`,
-      "締め年度が会計期間の終了年と一致しません",
     );
   }
 }

@@ -3,7 +3,7 @@ import type {
   FiscalPeriodArchiveStatus,
   FiscalPeriodPhase,
 } from "./models.js";
-import { requireObject } from "./validation.js";
+import { assertPositiveInteger, requireObject } from "./validation.js";
 
 export const FISCAL_PERIOD_PATCH_KEYS = [
   "name",
@@ -113,6 +113,24 @@ export function assertFiscalPeriodClosingMarkers(
     throw serverValidationError(
       `${label} ${phase} phase must not contain closing records`,
       null,
+    );
+  }
+}
+
+export function closingYear(fiscalPeriod: { endDate: string }): number {
+  return Number(fiscalPeriod.endDate.slice(0, 4));
+}
+
+export function assertClosingYear(
+  fiscalPeriod: { endDate: string },
+  year: unknown,
+): asserts year is number {
+  assertPositiveInteger(year, "Closing year");
+  const expectedYear = closingYear(fiscalPeriod);
+  if (year !== expectedYear) {
+    throw serverValidationError(
+      `Closing year ${year} must match fiscal period end year ${expectedYear}`,
+      "締め年度が会計期間の終了年と一致しません",
     );
   }
 }

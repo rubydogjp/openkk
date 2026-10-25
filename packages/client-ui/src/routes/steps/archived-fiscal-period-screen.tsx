@@ -1,18 +1,15 @@
 "use client";
 
 import { useRef, useState } from "react";
-
 import { useRouter } from "next/navigation.js";
 
 import {
   AppError,
   buildFiscalPeriodArchiveFilename,
-  buildFiscalPeriodArchivePayload,
-  createFiscalPeriodArchiveZip,
   type FiscalPeriod,
 } from "@rubydogjp/openkk-client-domain";
 import {
-  useBackendApi,
+  useFiscalPeriodArchiveExport,
   usePlatformAdapter,
   useOpenkkAppState,
 } from "@rubydogjp/openkk-client-usecases";
@@ -37,7 +34,7 @@ export function ArchivedFiscalPeriodScreen({
 }: {
   fiscalPeriod: FiscalPeriod;
 }) {
-  const backendApi = useBackendApi();
+  const exportArchive = useFiscalPeriodArchiveExport();
   const appState = useOpenkkAppState();
   const files = usePlatformAdapter().files;
   const router = useRouter();
@@ -52,30 +49,8 @@ export function ArchivedFiscalPeriodScreen({
     const authOperationVersion = appState.captureAuthOperationVersion();
     setIsDownloading(true);
     try {
-      const year = Number(fiscalPeriod.endDate.slice(0, 4));
-      const [entries, fixedAssets, preClosed, closed] = await Promise.all([
-        backendApi.entries.getAll(fiscalPeriod.id),
-        backendApi.fixedAssets.getAll(fiscalPeriod.id),
-        backendApi.preClosings.get(fiscalPeriod.id, year),
-        backendApi.closings.get(fiscalPeriod.id, year),
-      ]);
-      appState.assertAuthOperationCurrent(authOperationVersion);
-      const payload = buildFiscalPeriodArchivePayload({
-        createdAt: new Date().toISOString(),
-        fiscalPeriod,
-        entries: entries.map((entry) => ({ ...entry })),
-        fixedAssets: fixedAssets.map((asset) => ({ ...asset })),
-        closings: [
-          ...(!preClosed
-            ? []
-            : [{ fiscalPeriodId: fiscalPeriod.id, year, kind: "pre_closing" }]),
-          ...(!closed
-            ? []
-            : [{ fiscalPeriodId: fiscalPeriod.id, year, kind: "closing" }]),
-        ],
-      });
       files.save(
-        createFiscalPeriodArchiveZip(payload),
+        await exportArchive(fiscalPeriod),
         buildFiscalPeriodArchiveFilename(fiscalPeriod),
         "application/zip",
       );

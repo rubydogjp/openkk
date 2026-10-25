@@ -14,7 +14,6 @@ export type StepTrendPoint = {
   revenue: number;
   expenses: number;
   profit: number;
-
   isCurrent: boolean;
 };
 

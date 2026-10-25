@@ -35,9 +35,7 @@ export function useStepDocumentPrinters(
 
   const printJournal = () => {
     if (fiscalPeriod == null) return;
-    printDocument(
-      buildJournalDocument(fiscalPeriod.name, closingEntries(fiscalPeriod)),
-    );
+    printDocument(buildJournalDocument(closingEntries(fiscalPeriod)));
   };
 
   const printGeneralLedger = () => {
@@ -45,7 +43,6 @@ export function useStepDocumentPrinters(
     const openingBalanceLines = fiscalPeriod.opening.balanceLines;
     printDocument(
       buildGeneralLedgerDocument(
-        fiscalPeriod.name,
         closingEntries(fiscalPeriod),
         openingBalanceLines,
       ),
@@ -61,7 +58,6 @@ export function useStepDocumentPrinters(
     });
     printDocument(
       buildFinancialStatementsDocument({
-        fpName: fiscalPeriod.name,
         amounts,
         bsRows,
         expenseWriteIns,

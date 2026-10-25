@@ -26,7 +26,6 @@ export function QuickGuidePanel({
   const description = guideDescription(page);
   const options = guideOptions(page);
   return (
-
     <div
       style={{
         display: "flex",

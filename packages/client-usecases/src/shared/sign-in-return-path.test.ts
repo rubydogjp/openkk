@@ -51,17 +51,27 @@ describe("createSignInReturnPathStore", () => {
   it("returns the remembered path once", () => {
     const storage = memoryStorage();
     const returnPath = createSignInReturnPathStore(storage, sessionStorageKey);
-    expect(returnPath.remember("/device", now)).toBe(true);
+    returnPath.replace("/device", now);
     expect(storage.values.has(key)).toBe(true);
 
     expect(returnPath.take(now)).toBe("/device");
     expect(returnPath.take(now)).toBeNull();
   });
 
-  it("forgets a pending path so a later plain sign-in lands on the default page", () => {
+  it("drops a pending path when a later sign-in has no return path", () => {
     const storage = memoryStorage();
     const returnPath = createSignInReturnPathStore(storage, sessionStorageKey);
-    returnPath.remember("/device", now);
+    returnPath.replace("/device", now);
+
+    returnPath.replace(null, now);
+
+    expect(returnPath.take(now)).toBeNull();
+  });
+
+  it("forgets a pending path", () => {
+    const storage = memoryStorage();
+    const returnPath = createSignInReturnPathStore(storage, sessionStorageKey);
+    returnPath.replace("/device", now);
 
     returnPath.forget();
 
@@ -71,17 +81,20 @@ describe("createSignInReturnPathStore", () => {
   it("forgets a return path that was started too long ago", () => {
     const storage = memoryStorage();
     const returnPath = createSignInReturnPathStore(storage, sessionStorageKey);
-    returnPath.remember("/device", now);
+    returnPath.replace("/device", now);
     const later = new Date(now.getTime() + SIGN_IN_RETURN_PATH_LIFETIME_MS + 1);
 
     expect(returnPath.take(later)).toBeNull();
     expect(storage.values.has(key)).toBe(false);
   });
 
-  it("does not store an unsafe path", () => {
+  it("does not store an unsafe path and drops the pending one", () => {
     const storage = memoryStorage();
     const returnPath = createSignInReturnPathStore(storage, sessionStorageKey);
-    expect(returnPath.remember("//evil.example", now)).toBe(false);
+    returnPath.replace("/device", now);
+
+    returnPath.replace("//evil.example", now);
+
     expect(storage.values.size).toBe(0);
   });
 

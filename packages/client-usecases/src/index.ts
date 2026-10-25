@@ -8,6 +8,7 @@ export * from "./shared/callouts-context.js";
 
 export * from "./shared/openkk-app-state.js";
 export * from "./shared/closing-state.js";
+export * from "./shared/fiscal-period-archive-export.js";
 
 export * from "./entries/entries-state.js";
 export * from "./entries/account-options.js";

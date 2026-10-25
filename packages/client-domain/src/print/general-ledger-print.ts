@@ -5,31 +5,19 @@ import {
   type EntryRecord,
 } from "../entries/entry-record.js";
 import type { BookAccountType } from "../entries/book-account.js";
-import { parseAmount } from "../shared/parse-utils.js";
-import { buildPrintDocument, escapeHtml as esc } from "./print-shell.js";
+import { formatAmount, parseAmount } from "../shared/parse-utils.js";
+import { OPENING_EQUITY_LABELS } from "../steps/summary.js";
+import { buildPrintDocument, escapeHtml } from "./print-shell.js";
+import { buildPortraitPage } from "./portrait-page.js";
+import {
+  formatAmountOrBlank,
+  formatMonthLabel,
+  formatPrintDate,
+} from "./print-format.js";
 import { formatEntryMetadata } from "./entry-metadata.js";
 
-function parseNum(str: string): number {
-  return parseAmount(str);
-}
-
-function fmt(n: number): string {
-  return n === 0 ? "" : new Intl.NumberFormat("ja-JP").format(n);
-}
-
-function fmtBalance(n: number): string {
-  return new Intl.NumberFormat("ja-JP").format(Math.abs(n));
-}
-
-function fmtDate(iso: string): string {
-  return iso.replace(/-/g, "/");
-}
-
-function fmtMonthLabel(monthKey: string): string {
-  const month = Number(monthKey.slice(5, 7));
-  return Number.isInteger(month) && month >= 1 && month <= 12
-    ? `${month}月分`
-    : "日付未設定";
+function formatBalance(balance: number): string {
+  return formatAmount(Math.abs(balance));
 }
 
 function isDebitNormal(type: BookAccountType): boolean {
@@ -58,14 +46,6 @@ const PREFERRED_LEDGER_ORDER = [
   "元入金",
 ];
 
-const PAGE_W = 794;
-const PAGE_H = 1123;
-const SIDE_PAD = 27;
-const TOP_PAD = 11;
-const BOTTOM_PAD = 19;
-const TITLE_FS = 16;
-const TITLE_GAP = 19;
-const BODY_TOP = TOP_PAD + TITLE_FS + TITLE_GAP;
 const MAX_LEDGER_LINES_PER_PAGE = 12;
 
 type LedgerLine = {
@@ -73,8 +53,8 @@ type LedgerLine = {
   counterAccount: string;
   memo: string;
   metadata: string;
-  debitAmt: number;
-  creditAmt: number;
+  debitAmount: number;
+  creditAmount: number;
   balance: number;
 };
 
@@ -105,42 +85,42 @@ function buildLedger(
         .filter((line) => entryLineAccountKey(line) === account.key)
         .map((line) => ({ entry, line })),
     )
-    .sort((a, b) => a.entry.date.localeCompare(b.entry.date));
+    .sort((left, right) => left.entry.date.localeCompare(right.entry.date));
 
   const debitNormal = isDebitNormal(account.type);
   let balance = openingBalance;
   const lines: LedgerLine[] = [];
   const monthSubtotals = new Map<string, { debit: number; credit: number }>();
 
-  for (const { entry: e, line } of relevant) {
-    const monthKey = e.date.slice(0, 7);
+  for (const { entry, line } of relevant) {
+    const monthKey = entry.date.slice(0, 7);
     if (!monthSubtotals.has(monthKey))
       monthSubtotals.set(monthKey, { debit: 0, credit: 0 });
-    const sub = monthSubtotals.get(monthKey)!;
-    const amt = parseNum(line.amount);
+    const subtotal = monthSubtotals.get(monthKey)!;
+    const amount = parseAmount(line.amount);
 
     if (line.side === "debit") {
-      balance = debitNormal ? balance + amt : balance - amt;
-      sub.debit += amt;
+      balance = debitNormal ? balance + amount : balance - amount;
+      subtotal.debit += amount;
       lines.push({
-        date: e.date,
-        counterAccount: counterAccountsForLine(e, line),
-        memo: e.description,
+        date: entry.date,
+        counterAccount: counterAccountsForLine(entry, line),
+        memo: entry.description,
         metadata: formatEntryMetadata(resolveEntryLineMetadata(line)),
-        debitAmt: amt,
-        creditAmt: 0,
+        debitAmount: amount,
+        creditAmount: 0,
         balance,
       });
     } else {
-      balance = debitNormal ? balance - amt : balance + amt;
-      sub.credit += amt;
+      balance = debitNormal ? balance - amount : balance + amount;
+      subtotal.credit += amount;
       lines.push({
-        date: e.date,
-        counterAccount: counterAccountsForLine(e, line),
-        memo: e.description,
+        date: entry.date,
+        counterAccount: counterAccountsForLine(entry, line),
+        memo: entry.description,
         metadata: formatEntryMetadata(resolveEntryLineMetadata(line)),
-        debitAmt: 0,
-        creditAmt: amt,
+        debitAmount: 0,
+        creditAmount: amount,
         balance,
       });
     }
@@ -157,22 +137,24 @@ function buildLedger(
   };
 }
 
-const TH =
+const HEADER_CELL_STYLE =
   "border:1px solid #1D4ED8;background:#EEF5FF;color:#1D4ED8;font-weight:700;padding:5px 4px;text-align:center;";
-const TD =
+const BODY_CELL_STYLE =
   "border:1px solid #1D4ED8;color:#111827;background:#FFFFFF;padding:4px 4px;vertical-align:top;line-height:1.25;";
-const BAND =
+const BAND_CELL_STYLE =
   "border:1px solid #1D4ED8;color:#111827;background:#EEF5FF;padding:4px 4px;font-weight:700;vertical-align:top;line-height:1.25;";
 
 export function buildGeneralLedgerBody(
-  _fpName: string,
   entries: EntryRecord[],
   openingBalanceLines: Array<{ accountId: string; amount: number }>,
 ): string {
   const encounterOrder: AccountIdentity[] = [];
   const seen = new Set<string>();
-  for (const e of [...entries].sort((a, b) => a.date.localeCompare(b.date))) {
-    for (const line of e.lines) {
+  const entriesByDate = [...entries].sort((left, right) =>
+    left.date.localeCompare(right.date),
+  );
+  for (const entry of entriesByDate) {
+    for (const line of entry.lines) {
       const key = entryLineAccountKey(line);
       if (!seen.has(key)) {
         seen.add(key);
@@ -210,7 +192,7 @@ export function buildGeneralLedgerBody(
         type:
           prefix === "a:"
             ? "asset"
-            : name === "事業主借" || name === "元入金"
+            : OPENING_EQUITY_LABELS.has(name)
               ? "equity"
               : "liability",
       };
@@ -224,14 +206,16 @@ export function buildGeneralLedgerBody(
     else sides.credit += line.amount;
     openingSidesByAccountKey.set(target.key, sides);
   }
-  const preferredIndex = new Map(PREFERRED_LEDGER_ORDER.map((n, i) => [n, i]));
-  const accountOrder = [...encounterOrder].sort((a, b) => {
-    const ia = preferredIndex.get(a.name);
-    const ib = preferredIndex.get(b.name);
-    if (ia != null && ib != null) return ia - ib;
-    if (ia != null) return -1;
-    if (ib != null) return 1;
-    return encounterOrder.indexOf(a) - encounterOrder.indexOf(b);
+  const preferredIndex = new Map(
+    PREFERRED_LEDGER_ORDER.map((name, index) => [name, index]),
+  );
+  const accountOrder = [...encounterOrder].sort((left, right) => {
+    const leftIndex = preferredIndex.get(left.name);
+    const rightIndex = preferredIndex.get(right.name);
+    if (leftIndex != null && rightIndex != null) return leftIndex - rightIndex;
+    if (leftIndex != null) return -1;
+    if (rightIndex != null) return 1;
+    return encounterOrder.indexOf(left) - encounterOrder.indexOf(right);
   });
 
   const ledgers = accountOrder.map((account) => {
@@ -254,7 +238,7 @@ export function buildGeneralLedgerBody(
   }
 
   if (ledgers.length === 0) {
-    return wrapPage(
+    return buildPortraitPage(
       "",
       `<div style="text-align:center;padding:48px;color:#475569;font-size:14px;">仕訳データがありません</div>`,
       1,
@@ -279,48 +263,48 @@ export function buildGeneralLedgerBody(
 
         if (chunkIndex === 0 && ledger.openingBalance !== 0) {
           rowsHtml += `<tr>
-  <td style="${BAND};text-align:center">前期繰越</td>
-  <td colspan="2" style="${BAND}"></td>
-  <td style="${BAND};text-align:right">${openingOnDebit ? fmt(openingAmount) : ""}</td>
-  <td style="${BAND};text-align:right">${openingOnCredit ? fmt(openingAmount) : ""}</td>
-  <td style="${BAND};text-align:right">${fmtBalance(ledger.openingBalance)}</td>
+  <td style="${BAND_CELL_STYLE};text-align:center">前期繰越</td>
+  <td colspan="2" style="${BAND_CELL_STYLE}"></td>
+  <td style="${BAND_CELL_STYLE};text-align:right">${openingOnDebit ? formatAmountOrBlank(openingAmount) : ""}</td>
+  <td style="${BAND_CELL_STYLE};text-align:right">${openingOnCredit ? formatAmountOrBlank(openingAmount) : ""}</td>
+  <td style="${BAND_CELL_STYLE};text-align:right">${formatBalance(ledger.openingBalance)}</td>
 </tr>
 `;
         }
 
         const globalStart = chunkIndex * MAX_LEDGER_LINES_PER_PAGE;
-        for (let i = 0; i < pageLines.length; i++) {
-          const line = pageLines[i]!;
-          const globalIndex = globalStart + i;
+        for (let pageIndex = 0; pageIndex < pageLines.length; pageIndex++) {
+          const line = pageLines[pageIndex]!;
+          const globalIndex = globalStart + pageIndex;
           const monthKey = line.date.slice(0, 7);
           const isLastInMonth =
             globalIndex === ledger.lines.length - 1 ||
             ledger.lines[globalIndex + 1]!.date.slice(0, 7) !== monthKey;
 
           rowsHtml += `<tr>
-  <td rowspan="2" style="${TD};vertical-align:middle;text-align:center">${esc(fmtDate(line.date))}</td>
-  <td style="${TD}">${esc(line.counterAccount)}</td>
-  <td style="${TD}">${esc(line.memo)}</td>
-  <td colspan="3" style="${TD}">${esc(line.metadata)}</td>
+  <td rowspan="2" style="${BODY_CELL_STYLE};vertical-align:middle;text-align:center">${escapeHtml(formatPrintDate(line.date))}</td>
+  <td style="${BODY_CELL_STYLE}">${escapeHtml(line.counterAccount)}</td>
+  <td style="${BODY_CELL_STYLE}">${escapeHtml(line.memo)}</td>
+  <td colspan="3" style="${BODY_CELL_STYLE}">${escapeHtml(line.metadata)}</td>
 </tr>
 <tr>
-  <td style="${TD}"></td>
-  <td style="${TD}"></td>
-  <td style="${TD};text-align:right">${fmt(line.debitAmt)}</td>
-  <td style="${TD};text-align:right">${fmt(line.creditAmt)}</td>
-  <td style="${TD};text-align:right">${fmtBalance(line.balance)}</td>
+  <td style="${BODY_CELL_STYLE}"></td>
+  <td style="${BODY_CELL_STYLE}"></td>
+  <td style="${BODY_CELL_STYLE};text-align:right">${formatAmountOrBlank(line.debitAmount)}</td>
+  <td style="${BODY_CELL_STYLE};text-align:right">${formatAmountOrBlank(line.creditAmount)}</td>
+  <td style="${BODY_CELL_STYLE};text-align:right">${formatBalance(line.balance)}</td>
 </tr>
 `;
 
           if (isLastInMonth && !processedMonths.has(monthKey)) {
             processedMonths.add(monthKey);
-            const sub = ledger.monthSubtotals.get(monthKey);
-            if (sub) {
+            const subtotal = ledger.monthSubtotals.get(monthKey);
+            if (subtotal) {
               rowsHtml += `<tr>
-  <td colspan="3" style="${BAND}">${fmtMonthLabel(monthKey)} 合計</td>
-  <td style="${BAND};text-align:right">${fmt(sub.debit)}</td>
-  <td style="${BAND};text-align:right">${fmt(sub.credit)}</td>
-  <td style="${BAND}"></td>
+  <td colspan="3" style="${BAND_CELL_STYLE}">${formatMonthLabel(monthKey)} 合計</td>
+  <td style="${BAND_CELL_STYLE};text-align:right">${formatAmountOrBlank(subtotal.debit)}</td>
+  <td style="${BAND_CELL_STYLE};text-align:right">${formatAmountOrBlank(subtotal.credit)}</td>
+  <td style="${BAND_CELL_STYLE}"></td>
 </tr>
 `;
             }
@@ -330,15 +314,15 @@ export function buildGeneralLedgerBody(
         if (chunkIndex === chunks.length - 1) {
           let grandDebit = openingOnDebit ? openingAmount : 0;
           let grandCredit = openingOnCredit ? openingAmount : 0;
-          for (const sub of ledger.monthSubtotals.values()) {
-            grandDebit += sub.debit;
-            grandCredit += sub.credit;
+          for (const subtotal of ledger.monthSubtotals.values()) {
+            grandDebit += subtotal.debit;
+            grandCredit += subtotal.credit;
           }
           rowsHtml += `<tr>
-  <td colspan="3" style="${BAND}">合計</td>
-  <td style="${BAND};text-align:right">${fmt(grandDebit)}</td>
-  <td style="${BAND};text-align:right">${fmt(grandCredit)}</td>
-  <td style="${BAND}"></td>
+  <td colspan="3" style="${BAND_CELL_STYLE}">合計</td>
+  <td style="${BAND_CELL_STYLE};text-align:right">${formatAmountOrBlank(grandDebit)}</td>
+  <td style="${BAND_CELL_STYLE};text-align:right">${formatAmountOrBlank(grandCredit)}</td>
+  <td style="${BAND_CELL_STYLE}"></td>
 </tr>
 `;
         }
@@ -349,17 +333,17 @@ export function buildGeneralLedgerBody(
   </colgroup>
   <thead>
     <tr>
-      <th rowspan="2" style="${TH}">取引日</th>
-      <th style="${TH}">相手勘定科目</th>
-      <th style="${TH}">摘要</th>
-      <th colspan="3" style="${TH}">取引先・区分</th>
+      <th rowspan="2" style="${HEADER_CELL_STYLE}">取引日</th>
+      <th style="${HEADER_CELL_STYLE}">相手勘定科目</th>
+      <th style="${HEADER_CELL_STYLE}">摘要</th>
+      <th colspan="3" style="${HEADER_CELL_STYLE}">取引先・区分</th>
     </tr>
     <tr>
-      <th style="${TH}">相手補助科目</th>
-      <th style="${TH}">補助科目</th>
-      <th style="${TH}">借方金額</th>
-      <th style="${TH}">貸方金額</th>
-      <th style="${TH}">残高</th>
+      <th style="${HEADER_CELL_STYLE}">相手補助科目</th>
+      <th style="${HEADER_CELL_STYLE}">補助科目</th>
+      <th style="${HEADER_CELL_STYLE}">借方金額</th>
+      <th style="${HEADER_CELL_STYLE}">貸方金額</th>
+      <th style="${HEADER_CELL_STYLE}">残高</th>
     </tr>
   </thead>
   <tbody>
@@ -371,7 +355,7 @@ export function buildGeneralLedgerBody(
           (duplicateNameCounts.get(ledger.accountName) ?? 0) > 1
             ? `${ledger.accountName}（${accountTypeLabel(ledger.accountType)}）`
             : ledger.accountName;
-        return wrapPage(title, tableHtml, pageNumber);
+        return buildPortraitPage(title, tableHtml, pageNumber);
       });
     })
     .join("");
@@ -398,25 +382,14 @@ function accountTypeLabel(type: BookAccountType): string {
   return "経費";
 }
 
-function wrapPage(title: string, bodyHtml: string, pageNumber: number): string {
-  return `<div class="bk-page" style="position:relative;width:${PAGE_W}px;min-height:${PAGE_H}px;height:auto;overflow:visible;padding-bottom:${BOTTOM_PAD + 24}px;">
-<div style="position:absolute;top:${TOP_PAD}px;left:${SIDE_PAD}px;right:${SIDE_PAD}px;text-align:center;color:#1D4ED8;font-weight:700;font-size:${TITLE_FS}px;line-height:1;">${esc(title)}</div>
-<div style="position:absolute;top:${BODY_TOP}px;left:${SIDE_PAD}px;right:${SIDE_PAD}px;">
-${bodyHtml}
-</div>
-<div style="position:absolute;bottom:${BOTTOM_PAD}px;left:${SIDE_PAD}px;right:${SIDE_PAD}px;text-align:center;color:#1D4ED8;font-size:12px;line-height:1;">− ${pageNumber} −</div>
-</div>`;
-}
-
 export function buildGeneralLedgerDocument(
-  fpName: string,
   entries: EntryRecord[],
   openingBalanceLines: Array<{ accountId: string; amount: number }>,
 ): string {
   return buildPrintDocument({
     title: "総勘定元帳",
     orientation: "portrait",
-    body: buildGeneralLedgerBody(fpName, entries, openingBalanceLines),
+    body: buildGeneralLedgerBody(entries, openingBalanceLines),
   });
 }
 

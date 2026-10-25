@@ -16,11 +16,6 @@ const debugItems = [
     subtitle: "メンテナンスモードの見た目確認",
   },
   {
-    href: "/debug/json-import",
-    title: "JSON 取込み仕様",
-    subtitle: "仕訳 JSON 取込みの仕様書",
-  },
-  {
     href: "/debug/journal-paper-template",
     title: "仕訳帳テンプレート",
     subtitle: "A4 縦 / 複数ページ",
@@ -58,23 +53,6 @@ const debugItems = [
 ] as const;
 
 export function DebugIndexPage() {
-  if (false) {
-    return (
-      <section style={{ padding: 24 }}>
-        <div
-          style={{
-            maxWidth: 880,
-            margin: "0 auto",
-            color: palette.textSoft,
-            fontWeight: fontWeight.semibold,
-          }}
-        >
-          この画面は dev 環境専用です
-        </div>
-      </section>
-    );
-  }
-
   return (
     <section style={{ padding: 24 }}>
       <div style={{ maxWidth: 880, margin: "0 auto" }}>

@@ -34,7 +34,7 @@ export function DocumentFileList({
 
 function DocumentFileTile(
   props: DocumentFileItem & {
-    actionLabel: string | null;
+    actionLabel: string;
     showDivider: boolean;
   },
 ) {
@@ -82,7 +82,7 @@ function DocumentFileTile(
           cursor: isClickable ? "pointer" : "default",
         }}
       >
-        {props.actionLabel ?? "受け取る"}
+        {props.actionLabel}
       </button>
     </div>
   );

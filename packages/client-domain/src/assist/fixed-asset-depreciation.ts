@@ -67,7 +67,6 @@ export function computeStraightLineDepreciation(
       : {
           year: startDate.getFullYear(),
           month: startDate.getMonth() + 1,
-          day: startDate.getDate(),
         };
   const cost = Math.max(0, Math.round(input.acquisitionCost));
   const usefulLifeYears = Math.max(1, Math.floor(input.usefulLife) || 1);

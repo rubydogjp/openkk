@@ -27,10 +27,12 @@ test("export smoke (prod): 全ルートにアセット欠落・JS エラーが�
 }) => {
   const failed: string[] = [];
   const pageErrors: string[] = [];
-  page.on("response", (r) => {
-    if (r.status() >= 400) failed.push(`${r.status()} ${r.url()}`);
+  page.on("response", (response) => {
+    if (response.status() >= 400) {
+      failed.push(`${response.status()} ${response.url()}`);
+    }
   });
-  page.on("pageerror", (e) => pageErrors.push(String(e)));
+  page.on("pageerror", (error) => pageErrors.push(String(error)));
 
   for (const route of ROUTES) {
     await page.goto(route, { waitUntil: "networkidle" });

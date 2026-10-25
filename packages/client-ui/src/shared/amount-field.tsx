@@ -103,7 +103,7 @@ export function AmountReadOnlyField({ value }: { value: string }) {
 function formatGrouped(value: string): string {
   const digitsOnly = value.replace(/[^\d-]/g, "");
   if (digitsOnly === "" || digitsOnly === "-") return "";
-  const n = parseInt(digitsOnly, 10);
-  if (!Number.isFinite(n)) return "";
-  return n.toLocaleString("ja-JP");
+  const amount = parseInt(digitsOnly, 10);
+  if (!Number.isFinite(amount)) return "";
+  return amount.toLocaleString("ja-JP");
 }

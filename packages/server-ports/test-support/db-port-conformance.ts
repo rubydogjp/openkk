@@ -111,7 +111,7 @@ export function runDbPortConformance(
 
     it("getAll filters by userId", async () => {
       const db = await makeDb();
-      const a = await db.fiscalPeriods.create("user-A", {
+      const userAPeriod = await db.fiscalPeriods.create("user-A", {
         name: "A1",
         startDate: "2026-01-01",
         endDate: "2026-12-31",
@@ -123,10 +123,10 @@ export function runDbPortConformance(
       });
 
       expect(
-        (await db.fiscalPeriods.getAll("user-A")).map((r) => r.id),
-      ).toEqual([a.id]);
+        (await db.fiscalPeriods.getAll("user-A")).map((period) => period.id),
+      ).toEqual([userAPeriod.id]);
       expect(
-        (await db.fiscalPeriods.getAll("user-B")).map((r) => r.name),
+        (await db.fiscalPeriods.getAll("user-B")).map((period) => period.name),
       ).toEqual(["B1"]);
     });
 

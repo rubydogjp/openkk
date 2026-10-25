@@ -31,12 +31,11 @@ async function resolveFile(urlPath) {
   );
   const base = join(ROOT, clean);
   const candidates = [base, join(base, "index.html"), `${base}.html`];
-  for (const c of candidates) {
+  for (const candidate of candidates) {
     try {
-      const s = await stat(c);
-      if (s.isFile()) return c;
-    } catch {
-    }
+      const stats = await stat(candidate);
+      if (stats.isFile()) return candidate;
+    } catch {}
   }
   return null;
 }

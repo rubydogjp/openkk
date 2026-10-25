@@ -17,7 +17,9 @@ export function runMigrations(db: MigrationDb): void {
     );
   }
 
-  const pending = SCHEMA_MIGRATIONS.filter((m) => m.version > currentVersion);
+  const pending = SCHEMA_MIGRATIONS.filter(
+    (migration) => migration.version > currentVersion,
+  );
   for (const migration of pending) {
     db.exec("BEGIN");
     try {

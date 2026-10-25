@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 
+import type { EditingPolicy } from "@rubydogjp/openkk-client-domain";
 import { fontSize, fontWeight, palette, radii, shadows, sizes, spacing, typography } from "../shared/design-tokens.js";
 
 export type StatusChipTone = "brand" | "success" | "muted" | "warning";
@@ -20,7 +21,7 @@ export function StatusChip({
   label: string;
   tone: StatusChipTone;
 }) {
-  const c = STATUS_TONE_MAP[tone];
+  const toneColors = STATUS_TONE_MAP[tone];
   return (
     <span
       style={{
@@ -29,8 +30,8 @@ export function StatusChip({
         height: 24,
         padding: "0 12px",
         borderRadius: 999,
-        background: c.bg,
-        color: c.fg,
+        background: toneColors.bg,
+        color: toneColors.fg,
         fontSize: fontSize.sm,
         fontWeight: fontWeight.bold,
         letterSpacing: "0.01em",
@@ -79,7 +80,6 @@ export function StepMetaRow({
         </div>
         <div
           style={{
-
             fontSize: fontSize.base,
             fontWeight: fontWeight.medium,
             color: palette.text,
@@ -112,8 +112,8 @@ export function StepSectionLabel({ children }: { children: ReactNode }) {
   );
 }
 
-export function StepDivider({ marginY }: { marginY: number | null }) {
-  return <div style={{ height: marginY ?? 28 }} />;
+export function StepSpacer({ height }: { height: number | null }) {
+  return <div style={{ height: height ?? 28 }} />;
 }
 
 type StepCalloutTone = "action" | "info" | "warning" | "alert";
@@ -189,7 +189,6 @@ export function StepCallout({
       />
       <div
         style={{
-
           flex: 1,
           minWidth: 0,
           display: "flex",
@@ -206,6 +205,23 @@ export function StepCallout({
   );
 }
 
+export function StepUnavailableNotice({
+  editingPolicy,
+}: {
+  editingPolicy: EditingPolicy;
+}) {
+  return (
+    <>
+      <StepCallout tone={editingPolicy.locked ? "info" : "warning"}>
+        {editingPolicy.locked
+          ? editingPolicy.lockedNotice
+          : "この手順はまだ進められません。"}
+      </StepCallout>
+      <StepSpacer height={null} />
+    </>
+  );
+}
+
 export function ActionChoiceCard({
   icon,
   title,
@@ -218,7 +234,6 @@ export function ActionChoiceCard({
   action: ReactNode;
 }) {
   return (
-
     <div
       style={{
         display: "flex",
@@ -338,7 +353,7 @@ export function StepPrimaryButton({
   onClick,
   children,
   disabled,
-  variant = "primary",
+  variant,
   icon,
 }: {
   onClick: () => void;
@@ -347,8 +362,7 @@ export function StepPrimaryButton({
   variant: "primary" | "success" | null;
   icon: ReactNode | null;
 }) {
-  const isDisabled = disabled;
-  const bg = variant === "success" ? palette.success : palette.brand;
+  const background = variant === "success" ? palette.success : palette.brand;
   const shadow =
     variant === "success"
       ? "0 1px 2px rgba(5, 150, 105, 0.28)"
@@ -357,20 +371,23 @@ export function StepPrimaryButton({
     <button
       type="button"
       onClick={onClick}
-      disabled={isDisabled}
+      disabled={disabled}
       style={{
         height: sizes.button.compactHeight,
-        minWidth: icon != null ? sizes.button.compactIconTextMinWidth : sizes.button.compactMinWidth,
+        minWidth:
+          icon != null
+            ? sizes.button.compactIconTextMinWidth
+            : sizes.button.compactMinWidth,
         padding: "0 16px",
         borderRadius: radii.sm,
         border: "none",
-        background: bg,
+        background,
         color: palette.surface,
         fontSize: fontSize.base,
         fontWeight: fontWeight.bold,
-        cursor: isDisabled ? "default" : "pointer",
-        opacity: isDisabled ? 0.5 : 1,
-        boxShadow: isDisabled ? "none" : shadow,
+        cursor: disabled ? "default" : "pointer",
+        opacity: disabled ? 0.5 : 1,
+        boxShadow: disabled ? "none" : shadow,
         display: "inline-flex",
         alignItems: "center",
         gap: spacing.s8,
@@ -395,12 +412,11 @@ export function StepSecondaryButton({
   children: ReactNode;
   disabled: boolean;
 }) {
-  const isDisabled = disabled;
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={isDisabled}
+      disabled={disabled}
       style={{
         height: sizes.button.compactHeight,
         minWidth: sizes.button.compactMinWidth,
@@ -411,7 +427,7 @@ export function StepSecondaryButton({
         color: palette.text,
         fontSize: fontSize.base,
         fontWeight: fontWeight.bold,
-        cursor: isDisabled ? "default" : "pointer",
+        cursor: disabled ? "default" : "pointer",
         opacity: disabled ? 0.5 : 1,
       }}
     >

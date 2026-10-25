@@ -29,13 +29,13 @@ import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 import {
   ActionChoiceCard,
   ActionGrid,
-  StepDivider,
-  StepCallout,
   StepMetaCard,
   StepMetaRow,
   StepPrimaryButton,
   StepSecondaryButton,
   StepSectionLabel,
+  StepSpacer,
+  StepUnavailableNotice,
   UndoIcon,
 } from "../step-ui.js";
 
@@ -57,11 +57,9 @@ export function ClosingBody({
   const [showRunningAnimation, setShowRunningAnimation] = useState(false);
   const [animationKey, setAnimationKey] = useState(0);
   const closingMutationLock = useRef(new ExclusiveActionLock());
-  const currentFiscalPeriod = appState.fiscalPeriods.find(
-    (period) => period.id === appState.currentFiscalPeriodId,
-  );
+  const currentFiscalPeriod = appState.currentFiscalPeriod;
   const { printJournal, printGeneralLedger, printFinancialStatements } =
-    useStepDocumentPrinters(currentFiscalPeriod ?? null);
+    useStepDocumentPrinters(currentFiscalPeriod);
 
   useEffect(() => {
     return () => onBusyChange?.(false);
@@ -100,9 +98,7 @@ export function ClosingBody({
 
   const isClosed = currentFiscalPeriod.phase === "post_closing";
   const isPreClosed = currentFiscalPeriod.phase === "pre_closing";
-  const canFinalize = isPreClosed && !isClosed;
   const canEnterPage = isPreClosed || isClosed;
-  const isBusy = showRunningAnimation;
 
   const handleCancelPreClosing = async () => {
     const release = closingMutationLock.current.tryAcquire();
@@ -119,8 +115,7 @@ export function ClosingBody({
       });
       if (!confirmed) return;
       try {
-        const year = Number(currentFiscalPeriod.endDate.slice(0, 4));
-        await closingApi.cancelPreClosing(currentFiscalPeriod.id, year);
+        await closingApi.cancelPreClosing(currentFiscalPeriod);
         setScreenError(null);
       } catch (error) {
         setScreenError(
@@ -164,8 +159,7 @@ export function ClosingBody({
           assistState,
           entriesState,
         });
-        const year = Number(currentFiscalPeriod.endDate.slice(0, 4));
-        await closingApi.runFinal(currentFiscalPeriod.id, year, entries);
+        await closingApi.runFinal(currentFiscalPeriod, entries);
         await entriesState.reloadAndWait();
         setScreenError(null);
       } catch (error) {
@@ -189,14 +183,7 @@ export function ClosingBody({
       {dialog}
 
       {!canEnterPage ? (
-        <>
-          <StepCallout tone={editingLocked ? "info" : "warning"}>
-            {editingLocked
-              ? config.editingPolicy.lockedNotice
-              : "この手順はまだ進められません。"}
-          </StepCallout>
-          <StepDivider marginY={null} />
-        </>
+        <StepUnavailableNotice editingPolicy={config.editingPolicy} />
       ) : null}
 
       <StepMetaCard>
@@ -228,9 +215,9 @@ export function ClosingBody({
         </div>
       ) : null}
 
-      {canFinalize && !isBusy ? (
+      {isPreClosed && !showRunningAnimation ? (
         <>
-          <StepDivider marginY={null} />
+          <StepSpacer height={null} />
           <section>
             <StepSectionLabel>仮書類をチェック</StepSectionLabel>
             <DocumentFileList
@@ -247,7 +234,7 @@ export function ClosingBody({
 
       {showRunningAnimation ? (
         <>
-          <StepDivider marginY={null} />
+          <StepSpacer height={null} />
           <section>
             <StepSectionLabel>実行中</StepSectionLabel>
 
@@ -263,7 +250,7 @@ export function ClosingBody({
 
       {isClosed && !showRunningAnimation && fsSummary != null ? (
         <>
-          <StepDivider marginY={null} />
+          <StepSpacer height={null} />
           <section>
             <StepSectionLabel>財務諸表の概要</StepSectionLabel>
 
@@ -288,9 +275,9 @@ export function ClosingBody({
         </>
       ) : null}
 
-      {canFinalize && !isBusy ? (
+      {isPreClosed && !showRunningAnimation ? (
         <>
-          <StepDivider marginY={null} />
+          <StepSpacer height={null} />
           <section>
             <StepSectionLabel>選択</StepSectionLabel>
             <ActionGrid columns={2}>
@@ -300,7 +287,7 @@ export function ClosingBody({
                 description="書類に問題が見つかった場合、仮締めを取り消します。ロックは解除され、仕訳データを再編集できるようになります。"
                 action={
                   editingLocked ? (
-                    <LockButton label="取り消す" style={null} />
+                    <LockButton label="取り消す" />
                   ) : (
                     <StepSecondaryButton
                       onClick={handleCancelPreClosing}
@@ -317,7 +304,7 @@ export function ClosingBody({
                 description="書類に問題がなかった場合、本締めを実行します。仕訳データは確定され、編集ができなくなります。"
                 action={
                   editingLocked ? (
-                    <LockButton label="本締めを実行" style={null} />
+                    <LockButton label="本締めを実行" />
                   ) : (
                     <StepPrimaryButton
                       onClick={handleFinalize}

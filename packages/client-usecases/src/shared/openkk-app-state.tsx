@@ -19,20 +19,14 @@ import {
   AppError,
   buildBootstrapFiscalPeriodId,
   buildBootstrapUser,
-  DEFAULT_BOOK_ACCOUNTS,
-  DEFAULT_BUSINESS_CATEGORIES,
-  DEFAULT_TAX_CATEGORIES,
-  type EntryRecord,
   type FiscalPeriodArchivePayload,
   type CustomUser,
   type FiscalPeriod,
-  type OpeningBalanceLine,
   type OpenkkUser,
   type Session,
 } from "@rubydogjp/openkk-client-domain";
 import { BackendApiProvider, useBackendApi } from "./backend-api-context.js";
 import { useOpenkkConfig } from "./openkk-config-context.js";
-import { entryRecordToImportPayload } from "../entries/import-mapping.js";
 import { assertEditingUnlocked } from "./editing-policy.js";
 import {
   AsyncStateVersion,
@@ -56,6 +50,7 @@ type OpenkkAppState = {
   assertAuthOperationCurrent: (expectedVersion: number) => void;
   fiscalPeriods: FiscalPeriod[];
   currentFiscalPeriodId: string | null;
+  currentFiscalPeriod: FiscalPeriod | null;
   isReady: boolean;
   fiscalPeriodLoadError: unknown;
   reloadFiscalPeriods: () => void;
@@ -63,34 +58,31 @@ type OpenkkAppState = {
     name: string;
     startDate: string;
     endDate: string;
-  }) => Promise<string | null>;
+  }) => Promise<string>;
   createNextFiscalPeriod: (
     input: FiscalPeriodNextCreateInput,
   ) => Promise<string>;
   importArchivedFiscalPeriod: (
     payload: FiscalPeriodArchivePayload,
-  ) => Promise<string | null>;
+  ) => Promise<string>;
   updateFiscalPeriod: (
     fiscalPeriodId: string,
     input:
       | FiscalPeriodPatchInput
       | ((current: FiscalPeriod) => FiscalPeriodPatchInput | null),
   ) => Promise<boolean>;
-  startFiscalPeriod: (fiscalPeriodId: string) => Promise<boolean>;
-  archiveFiscalPeriod: (fiscalPeriodId: string) => Promise<boolean>;
-  purgeArchivedFiscalPeriod: (fiscalPeriodId: string) => Promise<boolean>;
+  startFiscalPeriod: (fiscalPeriodId: string) => Promise<void>;
+  archiveFiscalPeriod: (fiscalPeriodId: string) => Promise<void>;
+  purgeArchivedFiscalPeriod: (fiscalPeriodId: string) => Promise<void>;
   discardFiscalPeriod: (fiscalPeriodId: string) => Promise<void>;
   syncFiscalPeriod: (period: FiscalPeriodApiRecord) => void;
   signInAsEmbeddedUser: () => void;
   signOut: () => Promise<void>;
-
-  startSignIn: (redirectUrl: string) => Promise<{ authUrl: string }>;
-  startSignInReturningTo: (
+  startSignIn: (
     redirectUrl: string,
-    returnPath: string,
+    returnPath: string | null,
   ) => Promise<{ authUrl: string }>;
   takeSignInReturnPath: () => string | null;
-
   completeSignIn: (state: string, code: string) => Promise<OpenkkUser>;
   selectFiscalPeriod: (fiscalPeriodId: string) => void;
   clearFiscalPeriod: () => void;
@@ -98,24 +90,10 @@ type OpenkkAppState = {
 
 const OpenkkAppStateContext = createContext<OpenkkAppState | null>(null);
 
-export type FiscalPeriodSeed = {
-  openingBalanceLines: OpeningBalanceLine[];
-  entries: EntryRecord[];
-};
-
-export type FiscalPeriodSeeder = (ctx: {
-  fiscalPeriod: FiscalPeriodApiRecord;
-  isFirst: boolean;
-}) => FiscalPeriodSeed | null;
-
-export function OpenkkAppStateProvider(props: {
-  children: ReactNode;
-  seedFiscalPeriod: FiscalPeriodSeeder | null;
-}) {
+export function OpenkkAppStateProvider(props: { children: ReactNode }) {
   const config = useOpenkkConfig();
   const sourceBackendApi = useBackendApi();
   const storage = usePlatformAdapter().storage;
-  const seedFiscalPeriod = props.seedFiscalPeriod;
   const authVersion = useRef(new AsyncStateVersion());
   const authMutationQueue = useRef(new AsyncMutationQueue());
   const fiscalPeriodMutationQueue = useRef(new AsyncMutationQueue());
@@ -139,17 +117,29 @@ export function OpenkkAppStateProvider(props: {
   const userRef = useRef(user);
   userRef.current = user;
 
-  function resetToSignedOut() {
+  function replaceUser(nextUser: OpenkkUser | null) {
     fiscalPeriodListVersion.current.invalidate("all");
     fiscalPeriodsRef.current = [];
     setFiscalPeriods([]);
     setFiscalPeriodLoadError(null);
-    setUser(buildBootstrapUser(config));
+    setUser(nextUser);
     setCurrentFiscalPeriodId(buildBootstrapFiscalPeriodId(config));
     setFiscalPeriodReloadNonce((nonce) => nonce + 1);
   }
 
-  // localStorage から戻したサインインは有効か確かめていないので、401 を受けたら外す
+  function resetToSignedOut() {
+    replaceUser(buildBootstrapUser(config));
+  }
+
+  function storeFiscalPeriod(period: FiscalPeriodApiRecord) {
+    fiscalPeriodListVersion.current.invalidate("all");
+    fiscalPeriodsRef.current = applyFiscalPeriodUpdate(
+      fiscalPeriodsRef.current,
+      period,
+    );
+    setFiscalPeriods((current) => applyFiscalPeriodUpdate(current, period));
+  }
+
   const backendApi = useMemo(() => {
     if (config.authMode !== "custom") return sourceBackendApi;
     return wrapWithSessionExpiry(sourceBackendApi, {
@@ -175,8 +165,10 @@ export function OpenkkAppStateProvider(props: {
       );
       if (restored != null) setUser(restored);
     }
-    const storedFp = storage.getItem(config.fiscalPeriodStorageKey);
-    if (storedFp != null && storedFp !== "") setCurrentFiscalPeriodId(storedFp);
+    const storedFiscalPeriodId = storage.getItem(config.fiscalPeriodStorageKey);
+    if (storedFiscalPeriodId != null && storedFiscalPeriodId !== "") {
+      setCurrentFiscalPeriodId(storedFiscalPeriodId);
+    }
     setIsReady(true);
   }, []);
 
@@ -251,31 +243,13 @@ export function OpenkkAppStateProvider(props: {
         assertAuthUnchanged(authVersion.current, operationVersion);
         const updated = await command();
         assertAuthUnchanged(authVersion.current, operationVersion);
-        fiscalPeriodListVersion.current.invalidate("all");
-        fiscalPeriodsRef.current = applyFiscalPeriodUpdate(
-          fiscalPeriodsRef.current,
-          updated,
-        );
-        setFiscalPeriods((current) =>
-          applyFiscalPeriodUpdate(current, updated),
-        );
-        return true;
+        storeFiscalPeriod(updated);
       });
     };
     const signInReturnPath = createSignInReturnPathStore(
       storage,
       config.sessionStorageKey,
     );
-    const startAuthSession = async (redirectUrl: string) => {
-      const operationVersion = authVersion.current.capture();
-      return await authMutationQueue.current.run(async () => {
-        assertAuthUnchanged(authVersion.current, operationVersion);
-        const started = await backendApi.auth.startSession(redirectUrl);
-        assertAuthUnchanged(authVersion.current, operationVersion);
-        return started;
-      });
-    };
-
     return {
       session: user == null ? null : { user },
       captureAuthOperationVersion() {
@@ -289,6 +263,9 @@ export function OpenkkAppStateProvider(props: {
       },
       fiscalPeriods,
       currentFiscalPeriodId,
+      currentFiscalPeriod:
+        fiscalPeriods.find((period) => period.id === currentFiscalPeriodId) ??
+        null,
       isReady,
       fiscalPeriodLoadError,
       reloadFiscalPeriods() {
@@ -304,50 +281,9 @@ export function OpenkkAppStateProvider(props: {
           assertAuthUnchanged(authVersion.current, operationVersion);
           const created = await backendApi.fiscalPeriods.create(input);
           assertAuthUnchanged(authVersion.current, operationVersion);
-          try {
-            const seed =
-              seedFiscalPeriod?.({
-                fiscalPeriod: created,
-                isFirst: fiscalPeriodsRef.current.length === 0,
-              }) ?? null;
-            let final = created;
-            if (seed != null) {
-              final = await backendApi.fiscalPeriods.patch(created.id, {
-                opening: {
-                  balanceLines: seed.openingBalanceLines,
-                  journals: [],
-                },
-              });
-              assertAuthUnchanged(authVersion.current, operationVersion);
-              if (seed.entries.length > 0) {
-                await backendApi.entries.importMany(
-                  created.id,
-                  seed.entries.map((record) =>
-                    entryRecordToImportInput(record),
-                  ),
-                );
-                assertAuthUnchanged(authVersion.current, operationVersion);
-              }
-            }
-            fiscalPeriodListVersion.current.invalidate("all");
-            fiscalPeriodsRef.current = applyFiscalPeriodUpdate(
-              fiscalPeriodsRef.current,
-              final,
-            );
-            setFiscalPeriods((current) =>
-              applyFiscalPeriodUpdate(current, final),
-            );
-            setCurrentFiscalPeriodId(final.id);
-            return final.id;
-          } catch (error) {
-            assertAuthUnchanged(authVersion.current, operationVersion);
-            try {
-              await backendApi.fiscalPeriods.remove(created.id);
-            } catch (cleanupError) {
-              throw fiscalPeriodCleanupError(created.id, error, cleanupError);
-            }
-            throw error;
-          }
+          storeFiscalPeriod(created);
+          setCurrentFiscalPeriodId(created.id);
+          return created.id;
         });
       },
       async createNextFiscalPeriod(input) {
@@ -360,14 +296,7 @@ export function OpenkkAppStateProvider(props: {
           assertAuthUnchanged(authVersion.current, operationVersion);
           const created = await backendApi.fiscalPeriods.createNext(input);
           assertAuthUnchanged(authVersion.current, operationVersion);
-          fiscalPeriodListVersion.current.invalidate("all");
-          fiscalPeriodsRef.current = applyFiscalPeriodUpdate(
-            fiscalPeriodsRef.current,
-            created,
-          );
-          setFiscalPeriods((current) =>
-            applyFiscalPeriodUpdate(current, created),
-          );
+          storeFiscalPeriod(created);
           return created.id;
         });
       },
@@ -382,14 +311,7 @@ export function OpenkkAppStateProvider(props: {
           const imported =
             await backendApi.fiscalPeriods.importArchived(payload);
           assertAuthUnchanged(authVersion.current, operationVersion);
-          fiscalPeriodListVersion.current.invalidate("all");
-          fiscalPeriodsRef.current = applyFiscalPeriodUpdate(
-            fiscalPeriodsRef.current,
-            imported,
-          );
-          setFiscalPeriods((current) =>
-            applyFiscalPeriodUpdate(current, imported),
-          );
+          storeFiscalPeriod(imported);
           return imported.id;
         });
       },
@@ -412,14 +334,7 @@ export function OpenkkAppStateProvider(props: {
             resolved,
           );
           assertAuthUnchanged(authVersion.current, operationVersion);
-          fiscalPeriodListVersion.current.invalidate("all");
-          fiscalPeriodsRef.current = applyFiscalPeriodUpdate(
-            fiscalPeriodsRef.current,
-            patched,
-          );
-          setFiscalPeriods((currentPeriods) =>
-            applyFiscalPeriodUpdate(currentPeriods, patched),
-          );
+          storeFiscalPeriod(patched);
           return true;
         });
       },
@@ -465,21 +380,11 @@ export function OpenkkAppStateProvider(props: {
       },
       syncFiscalPeriod(period) {
         if (period.userId !== user?.id) return;
-        fiscalPeriodListVersion.current.invalidate("all");
-        fiscalPeriodsRef.current = applyFiscalPeriodUpdate(
-          fiscalPeriodsRef.current,
-          period,
-        );
-        setFiscalPeriods((current) => applyFiscalPeriodUpdate(current, period));
+        storeFiscalPeriod(period);
       },
       signInAsEmbeddedUser() {
         authVersion.current.invalidate();
-        fiscalPeriodsRef.current = [];
-        setFiscalPeriods([]);
-        setFiscalPeriodLoadError(null);
-        setCurrentFiscalPeriodId(buildBootstrapFiscalPeriodId(config));
-        setUser(config.embeddedUser);
-        setFiscalPeriodReloadNonce((nonce) => nonce + 1);
+        replaceUser(config.embeddedUser);
       },
       async signOut() {
         const operationVersion = authVersion.current.invalidate();
@@ -493,14 +398,16 @@ export function OpenkkAppStateProvider(props: {
           }
         });
       },
-      async startSignIn(redirectUrl) {
-        signInReturnPath.forget();
-        return await startAuthSession(redirectUrl);
-      },
-      async startSignInReturningTo(redirectUrl, returnPath) {
-        signInReturnPath.remember(returnPath, new Date());
+      async startSignIn(redirectUrl, returnPath) {
+        signInReturnPath.replace(returnPath, new Date());
+        const operationVersion = authVersion.current.capture();
         try {
-          return await startAuthSession(redirectUrl);
+          return await authMutationQueue.current.run(async () => {
+            assertAuthUnchanged(authVersion.current, operationVersion);
+            const started = await backendApi.auth.startSession(redirectUrl);
+            assertAuthUnchanged(authVersion.current, operationVersion);
+            return started;
+          });
         } catch (error) {
           signInReturnPath.forget();
           throw error;
@@ -530,13 +437,7 @@ export function OpenkkAppStateProvider(props: {
             iconUrl: token.iconUrl,
             authProvider: token.authProvider ?? "custom",
           };
-          fiscalPeriodListVersion.current.invalidate("all");
-          fiscalPeriodsRef.current = [];
-          setFiscalPeriods([]);
-          setFiscalPeriodLoadError(null);
-          setCurrentFiscalPeriodId(buildBootstrapFiscalPeriodId(config));
-          setUser(signedInUser);
-          setFiscalPeriodReloadNonce((nonce) => nonce + 1);
+          replaceUser(signedInUser);
           return signedInUser;
         });
       },
@@ -555,7 +456,6 @@ export function OpenkkAppStateProvider(props: {
     user,
     config,
     backendApi,
-    seedFiscalPeriod,
     storage,
   ]);
 
@@ -579,29 +479,4 @@ export function useOpenkkAppState() {
     });
   }
   return value;
-}
-
-const DEFAULT_IMPORT_MASTER = {
-  accounts: DEFAULT_BOOK_ACCOUNTS,
-  taxes: DEFAULT_TAX_CATEGORIES,
-  businesses: DEFAULT_BUSINESS_CATEGORIES,
-};
-
-function entryRecordToImportInput(record: EntryRecord) {
-  return entryRecordToImportPayload(record, DEFAULT_IMPORT_MASTER);
-}
-
-function fiscalPeriodCleanupError(
-  fiscalPeriodId: string,
-  originalError: unknown,
-  cleanupError: unknown,
-): AppError {
-  return new AppError({
-    messageForDeveloper: `fiscal period initialization and cleanup failed: ${fiscalPeriodId}; original=${String(originalError)}; cleanup=${String(cleanupError)}`,
-    messageForUser:
-      "会計期間の初期化に失敗し、作成途中の期間も自動削除できませんでした。期間一覧を再読込して不要な期間を確認してください",
-    originalMessage: String(originalError),
-    statusCode: null,
-    code: null,
-  });
 }

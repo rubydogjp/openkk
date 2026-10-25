@@ -212,8 +212,13 @@ export function ShellAccountMenu(props: {
                 </div>
               </div>
 
-              <div style={{ padding: "6px 0" }}>
-                {myPagePath != null ? (
+              {myPagePath != null ? (
+                <div
+                  style={{
+                    padding: "6px 0",
+                    borderBottom: `1px solid ${PALETTE.menuDivider}`,
+                  }}
+                >
                   <MenuButton
                     icon={
                       <PersonIcon size={18} color={PALETTE.menuIconActive} />
@@ -226,25 +231,10 @@ export function ShellAccountMenu(props: {
                       router.push(myPagePath);
                     }}
                   />
-                ) : (
-                  <MenuButton
-                    icon={
-                      <PersonIcon size={18} color={PALETTE.menuIconDisabled} />
-                    }
-                    label="プロフィール"
-                    labelColor={PALETTE.menuTextDisabled}
-                    disabled
-                    onClick={() => {}}
-                  />
-                )}
-              </div>
+                </div>
+              ) : null}
 
-              <div
-                style={{
-                  borderTop: `1px solid ${PALETTE.menuDivider}`,
-                  padding: "6px 0 8px",
-                }}
-              >
+              <div style={{ padding: "6px 0 8px" }}>
                 {productSiteUrl != null && (
                   <MenuButton
                     icon={

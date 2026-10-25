@@ -60,12 +60,9 @@ export function FiscalPeriodsContent() {
       const bytes = new Uint8Array(await file.arrayBuffer());
       const payload = readFiscalPeriodArchiveZip(bytes);
       const createdId = await appState.importArchivedFiscalPeriod(payload);
-      if (createdId != null) {
-        appState.selectFiscalPeriod(createdId);
-        router.push("/steps");
-      }
+      appState.selectFiscalPeriod(createdId);
+      router.push("/steps");
       setStatusMessage("圧縮済みファイルを展開しました");
-      setScreenError(null);
     } catch (error) {
       setScreenError(
         AppError.from(error, {
@@ -128,7 +125,7 @@ export function FiscalPeriodsContent() {
           {allowArchiveImport ? (
             <div ref={fileMenuContainerRef} style={{ position: "relative" }}>
               {editingLocked ? (
-                <LockButton label="ファイル" style={null} />
+                <LockButton label="ファイル" />
               ) : (
                 <button
                   type="button"
@@ -208,7 +205,7 @@ export function FiscalPeriodsContent() {
             </div>
           ) : null}
           {editingLocked ? (
-            <LockButton label="追加" style={null} />
+            <LockButton label="追加" />
           ) : (
             <AddPeriodButton
               onClick={() => router.push("/fiscal-periods/new")}
@@ -281,9 +278,9 @@ function FiscalPeriodsTable({
           border: 2px solid transparent;
           background-clip: padding-box;
         }
-        .bk-fp-row { transition: background 80ms ease; }
-        .bk-fp-row.is-clickable { cursor: pointer; }
-        .bk-fp-row.is-clickable:hover { background: ${palette.hoverStrong} !important; }
+        .bk-fiscal-period-row { transition: background 80ms ease; }
+        .bk-fiscal-period-row.is-clickable { cursor: pointer; }
+        .bk-fiscal-period-row.is-clickable:hover { background: ${palette.hoverStrong} !important; }
       `}</style>
       {isEmpty ? (
         <FiscalPeriodsEmptyState />
@@ -372,7 +369,7 @@ function FiscalPeriodRow({
               color: palette.textSoft,
             }}
           >
-            圧縮保存日時: {formatArchivedAt(period.archivedAt)}
+            圧縮保存日時: {formatCalendarDate(period.archivedAt, null)}
           </div>
         ) : null}
         {showOpeningBsChip ? (
@@ -393,33 +390,7 @@ function FiscalPeriodRow({
           flexShrink: 0,
         }}
       >
-        <InlineChip
-          label={
-            purged
-              ? "圧縮保存済み（削除）"
-              : period.archiveStatus === "archived"
-                ? "圧縮保存済み"
-                : phaseLabel(period.phase)
-          }
-          background={
-            purged
-              ? palette.formGroupBg
-              : period.archiveStatus === "archived"
-                ? "#DCFCE7"
-                : period.phase === "journalizing"
-                  ? "#DCFCE7"
-                  : palette.formGroupBg
-          }
-          foreground={
-            purged
-              ? palette.textSoft
-              : period.archiveStatus === "archived"
-                ? palette.success
-                : period.phase === "journalizing"
-                  ? palette.success
-                  : palette.textLabel
-          }
-        />
+        <InlineChip {...periodStatusChip(period)} />
         {purged ? null : (
           <div
             style={{
@@ -451,7 +422,7 @@ function FiscalPeriodRow({
   if (purged) {
     return (
       <div
-        className="bk-fp-row"
+        className="bk-fiscal-period-row"
         aria-disabled="true"
         style={{ ...sharedStyle, cursor: "default" }}
       >
@@ -464,16 +435,12 @@ function FiscalPeriodRow({
     <button
       type="button"
       onClick={onSelect}
-      className="bk-fp-row is-clickable"
+      className="bk-fiscal-period-row is-clickable"
       style={{ ...sharedStyle, border: "none", cursor: "pointer" }}
     >
       {content}
     </button>
   );
-}
-
-function formatArchivedAt(iso: string): string {
-  return formatCalendarDate(iso, null);
 }
 
 function FiscalPeriodsEmptyState() {
@@ -625,6 +592,38 @@ function InlineChip({
       {label}
     </span>
   );
+}
+
+function periodStatusChip(period: FiscalPeriod): {
+  label: string;
+  background: string;
+  foreground: string;
+} {
+  if (period.archiveStatus === "purged") {
+    return {
+      label: "圧縮保存済み（削除）",
+      background: palette.formGroupBg,
+      foreground: palette.textSoft,
+    };
+  }
+  if (period.archiveStatus === "archived") {
+    return {
+      label: "圧縮保存済み",
+      background: "#DCFCE7",
+      foreground: palette.success,
+    };
+  }
+  return period.phase === "journalizing"
+    ? {
+        label: phaseLabel(period.phase),
+        background: "#DCFCE7",
+        foreground: palette.success,
+      }
+    : {
+        label: phaseLabel(period.phase),
+        background: palette.formGroupBg,
+        foreground: palette.textLabel,
+      };
 }
 
 function phaseLabel(phase: FiscalPeriodPhase) {

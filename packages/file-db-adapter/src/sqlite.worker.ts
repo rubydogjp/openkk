@@ -51,7 +51,7 @@ async function init(payload: {
   await acquireSingleTabLock(`openkk-db:${payload.dbFileName}`);
   const sqlite3 = await sqlite3InitModule({
     print: () => {},
-    printErr: (msg: string) => console.error("[sqlite-wasm]", msg),
+    printErr: (message: string) => console.error("[sqlite-wasm]", message),
   });
   const pool = await sqlite3.installOpfsSAHPoolVfs({ name: payload.vfsName });
   const opfsDb = new pool.OpfsSAHPoolDb(payload.dbFileName) as unknown as SyncDb;

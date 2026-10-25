@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  entryRecordToImportPayload,
-} from "./import-mapping.js";
+import { entryRecordToImportPayload } from "./import-mapping.js";
 import {
   earliestEntryDate,
   removeEntryRecord,
@@ -33,11 +31,11 @@ const accounts: Pick<
   { id: "acct_accrued_expense", name: "未払金", accountType: "liability" },
 ];
 
-const taxes: Pick<MasterTaxCategoryApiRecord, "id" | "name">[] = [
+const taxCategories: Pick<MasterTaxCategoryApiRecord, "id" | "name">[] = [
   { id: "tax_10", name: "課税 10%" },
   { id: "tax_8", name: "軽減税率 8%" },
 ];
-const businesses: Pick<MasterBusinessCategoryApiRecord, "id" | "name">[] = [
+const businessCategories: Pick<MasterBusinessCategoryApiRecord, "id" | "name">[] = [
   { id: "biz_service", name: "第5種（サービス業等）" },
   { id: "biz_retail", name: "第2種（小売業等）" },
 ];
@@ -104,7 +102,7 @@ describe("entryRecordToImportPayload", () => {
   it("rejects an unknown account id even when its display name matches", () => {
     expect(() => entryRecordToImportPayload(entry({
       debitBookAccountId: "unknown",
-    }), { accounts, taxes, businesses })).toThrow("entries.import: unresolved bookAccountId");
+    }), { accounts, taxCategories, businessCategories })).toThrow("entries.import: unresolved bookAccountId");
   });
 
   it("preserves unknown explicit category ids for backend validation", () => {
@@ -118,8 +116,8 @@ describe("entryRecordToImportPayload", () => {
     }));
     const payload = entryRecordToImportPayload(record, {
       accounts,
-      taxes,
-      businesses,
+      taxCategories,
+      businessCategories,
     });
     expect(payload.lines).toEqual(
       record.lines.map((line) => expect.objectContaining({
@@ -132,8 +130,8 @@ describe("entryRecordToImportPayload", () => {
   it("maps a blank tax category to out-of-scope taxation", () => {
     const payload = entryRecordToImportPayload(entry({ taxCategory: "" }), {
       accounts,
-      taxes,
-      businesses,
+      taxCategories,
+      businessCategories,
     });
 
     expect(payload.lines.map((line) => line.taxCategoryId)).toEqual([
@@ -196,8 +194,8 @@ describe("entryRecordToImportPayload", () => {
 
     const payload = entryRecordToImportPayload(entry, {
       accounts,
-      taxes,
-      businesses,
+      taxCategories,
+      businessCategories,
     });
 
     expect(payload.lines).toEqual([
@@ -233,7 +231,7 @@ describe("entryRecordToImportPayload", () => {
       entry({
         businessRate: 0.3333333333333333,
       }),
-      { accounts, taxes, businesses },
+      { accounts, taxCategories, businessCategories },
     );
 
     expect(payload.businessRate).toBe(0.3333333333333333);
@@ -271,7 +269,7 @@ describe("entryRecordToImportPayload", () => {
           },
         ],
       }),
-      { accounts, taxes, businesses },
+      { accounts, taxCategories, businessCategories },
     );
 
     expect(payload.lines).toEqual([
@@ -288,8 +286,6 @@ describe("entryRecordToImportPayload", () => {
     ]);
   });
 });
-
-
 
 describe("earliestEntryDate", () => {
   it("uses only records actually inserted by the backend", () => {

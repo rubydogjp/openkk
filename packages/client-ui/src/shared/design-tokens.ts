@@ -58,13 +58,9 @@ function unitlessVars<T extends Record<string, number>>(
 
 const paletteDefaults = {
   surface: slate.white,
-
   pageBg: slate.white,
-
   surfaceTint: slate.s50,
-
   chromeSurface: slate.white,
-
   headerSurface: slate.s100,
 
   hairline: slate.s200,
@@ -74,9 +70,7 @@ const paletteDefaults = {
   borderHeavy: slate.s400,
 
   formGroupBg: slate.s50,
-
   hoverSubtle: slate.s50,
-
   hoverStrong: slate.s200,
 
   text: slate.s900,
@@ -138,14 +132,10 @@ const paletteDefaults = {
 
 const shadowDefaults = {
   card: "0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.03)",
-
   drawer:
     "-16px 0 40px rgba(15, 23, 42, 0.12), -2px 0 4px rgba(15, 23, 42, 0.04)",
-
   popup: "0 12px 32px rgba(15, 23, 42, 0.14), 0 2px 4px rgba(15, 23, 42, 0.04)",
-
   inputInset: "inset 0 1px 0 rgba(15, 23, 42, 0.04)",
-
   primaryButton: "0 1px 2px rgba(37, 99, 235, 0.22)",
 };
 

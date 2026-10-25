@@ -20,7 +20,7 @@ export function normalizeSignInReturnPath(value: unknown): string | null {
 }
 
 export type SignInReturnPathStore = {
-  remember(path: string, now: Date): boolean;
+  replace(path: string | null, now: Date): void;
   take(now: Date): string | null;
   forget(): void;
 };
@@ -31,14 +31,16 @@ export function createSignInReturnPathStore(
 ): SignInReturnPathStore {
   const key = `${sessionStorageKey}.sign_in_return_path`;
   return {
-    remember(path, now) {
+    replace(path, now) {
       const normalized = normalizeSignInReturnPath(path);
-      if (normalized == null) return false;
+      if (normalized == null) {
+        storage.removeItem(key);
+        return;
+      }
       storage.setItem(
         key,
         JSON.stringify({ path: normalized, savedAt: now.getTime() }),
       );
-      return true;
     },
     take(now) {
       const raw = storage.getItem(key);

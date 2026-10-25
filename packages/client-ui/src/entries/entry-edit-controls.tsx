@@ -43,10 +43,7 @@ export const entryDrawerColors = {
   soft: palette.textSoft,
   muted: palette.textMuted,
   labelText: palette.textLabel,
-
   border: palette.borderStrong,
-
-  panelBg: palette.surface,
   bg: palette.surface,
   blue: palette.brand,
   red: palette.danger,
@@ -68,22 +65,13 @@ export function CardDivider() {
 
 export function StackedField({
   label,
-  width,
   children,
 }: {
   label: string;
-  width: number | null;
   children: ReactNode;
 }) {
   return (
-    <label
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        width: width ?? "100%",
-        maxWidth: "100%",
-      }}
-    >
+    <label style={{ display: "flex", flexDirection: "column", width: "100%" }}>
       <span
         style={{
           marginBottom: 8,
@@ -114,7 +102,6 @@ export function AccountPicker({
   accountType: BookAccountType;
   onChange: (option: EntryMasterAccountOption) => void;
   options: EntryMasterAccountOption[];
-
   fullWidth: boolean;
   ariaLabel: string | null;
 }) {
@@ -132,8 +119,9 @@ export function AccountPicker({
   const accountPalette = entryAccountPalette(accountType);
   const selectedLabel =
     options.find((option) => option.id === selectedId)?.selectionLabel ?? value;
-  const bg = value === "" ? entryDrawerColors.bg : accountPalette.background;
-  const fg =
+  const background =
+    value === "" ? entryDrawerColors.bg : accountPalette.background;
+  const foreground =
     value === "" ? entryDrawerColors.muted : accountPalette.foreground;
   const border =
     value === "" ? entryDrawerColors.border : accountPalette.foreground;
@@ -158,10 +146,10 @@ export function AccountPicker({
           boxSizing: "border-box",
           border: `1px solid ${border}`,
           borderRadius: radii.sm,
-          background: bg,
+          background,
           padding: "0 11px",
           fontSize: fontSize.base,
-          color: fg,
+          color: foreground,
           fontWeight: fontWeight.bold,
           textAlign: "left",
           cursor: "pointer",
@@ -198,7 +186,7 @@ export function AccountPicker({
         >
           <div style={{ padding: 8, borderBottom: `1px solid ${entryDrawerColors.border}` }}>
             <input
-              className="bk-d-input"
+              className="bk-drawer-input"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="勘定科目を検索"
@@ -225,7 +213,7 @@ export function AccountPicker({
                     <button
                       key={account.id}
                       type="button"
-                      className="bk-d-menu-item"
+                      className="bk-drawer-menu-item"
                       onClick={() => {
                         onChange(account);
                         setOpen(false);
@@ -394,7 +382,7 @@ export function SuggestionInput({
             }}
           >
             <input
-              className="bk-d-input"
+              className="bk-drawer-input"
               value={query}
               maxLength={MAX_TEXT_FIELD_LENGTH}
               onChange={(e) => setQuery(e.target.value)}
@@ -448,7 +436,7 @@ export function SuggestionInput({
                 <button
                   key={option}
                   type="button"
-                  className="bk-d-menu-item"
+                  className="bk-drawer-menu-item"
                   onClick={() => commit(option)}
                   style={{
                     ...menuItemStyle,
@@ -478,7 +466,7 @@ export function TextFieldInput({
 }) {
   return (
     <input
-      className="bk-d-input"
+      className="bk-drawer-input"
       aria-label={ariaLabel ?? undefined}
       value={value}
       maxLength={MAX_TEXT_FIELD_LENGTH}
@@ -500,13 +488,13 @@ export function TextFieldInput({
 }
 
 export function BalanceIndicator({
-  debitAmt,
-  creditAmt,
+  debitAmount,
+  creditAmount,
 }: {
-  debitAmt: number;
-  creditAmt: number;
+  debitAmount: number;
+  creditAmount: number;
 }) {
-  if (debitAmt === 0 && creditAmt === 0) {
+  if (debitAmount === 0 && creditAmount === 0) {
     return (
       <div
         style={{
@@ -519,7 +507,7 @@ export function BalanceIndicator({
       </div>
     );
   }
-  if (debitAmt === creditAmt) {
+  if (debitAmount === creditAmount) {
     return (
       <div
         style={{
@@ -531,7 +519,7 @@ export function BalanceIndicator({
           gap: 6,
         }}
       >
-        <CheckIcon size={14} color="currentColor" /> 貸借一致 ¥{debitAmt.toLocaleString()}
+        <CheckIcon size={14} color="currentColor" /> 貸借一致 ¥{debitAmount.toLocaleString()}
       </div>
     );
   }
@@ -546,32 +534,25 @@ export function BalanceIndicator({
         gap: 6,
       }}
     >
-      <WarningIcon size={14} color="currentColor" /> 差額 ¥{Math.abs(debitAmt - creditAmt).toLocaleString()}
+      <WarningIcon size={14} color="currentColor" /> 差額 ¥{Math.abs(debitAmount - creditAmount).toLocaleString()}
     </div>
   );
 }
 
-export function ValidationCard({
-  messages,
-  compact,
-}: {
-  messages: string[];
-  compact: boolean;
-}) {
-  const isCompact = compact;
+export function ValidationCard({ messages }: { messages: string[] }) {
   return (
     <div
       role="alert"
       style={{
         width: "100%",
         boxSizing: "border-box",
-        borderRadius: isCompact ? radii.sm : 12,
+        borderRadius: radii.sm,
         border: `1px solid ${entryDrawerColors.red}2E`,
         background: `${entryDrawerColors.red}0D`,
-        padding: isCompact ? "10px 12px" : "14px 16px",
+        padding: "10px 12px",
         display: "flex",
         flexDirection: "column",
-        gap: isCompact ? 4 : 8,
+        gap: 4,
       }}
     >
       <div
@@ -579,7 +560,7 @@ export function ValidationCard({
           display: "inline-flex",
           alignItems: "center",
           gap: 8,
-          fontSize: isCompact ? fontSize.sm : fontSize.base,
+          fontSize: fontSize.sm,
           fontWeight: fontWeight.bold,
           color: entryDrawerColors.red,
         }}
@@ -593,7 +574,7 @@ export function ValidationCard({
             paddingLeft: 22,
             fontSize: fontSize.sm,
             color: entryDrawerColors.text,
-            lineHeight: isCompact ? 1.45 : 1.6,
+            lineHeight: 1.45,
           }}
         >
           ・{message}

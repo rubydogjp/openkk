@@ -1,6 +1,6 @@
 import type { BookAccountType } from "./book-account.js";
 import type { EntryPreviewRow } from "./entries-types.js";
-import { parseAmount } from "../shared/parse-utils.js";
+import { formatAmount, parseAmount } from "../shared/parse-utils.js";
 
 export type EntryLine = {
   id: string | null;
@@ -73,10 +73,6 @@ function isProfitAndLossType(type: BookAccountType): boolean {
   return type === "revenue" || type === "expense" || type === "cost_of_sales";
 }
 
-function formatYen(value: number): string {
-  return new Intl.NumberFormat("ja-JP").format(value);
-}
-
 export function applyBusinessRateToLines(
   lines: EntryLine[],
   rate: number,
@@ -92,24 +88,24 @@ export function applyBusinessRateToLines(
     const raw = parseAmount(line.amount);
     const business = Math.round(raw * rate);
     const personal = raw - business;
-    result.push({ ...line, amount: formatYen(business) });
+    result.push({ ...line, amount: formatAmount(business) });
     if (personal <= 0) continue;
-    const toDeposit = line.accountType === "revenue";
-    const accountName = toDeposit
+    const isRevenue = line.accountType === "revenue";
+    const accountName = isRevenue
       ? PERSONAL_REVENUE_ACCOUNT
       : PERSONAL_EXPENSE_ACCOUNT;
-    const accountType: BookAccountType = toDeposit ? "equity" : "asset";
+    const accountType: BookAccountType = isRevenue ? "equity" : "asset";
     const key = `${accountName}|${line.side}`;
     const existing = adjustments.get(key);
     if (existing != null) {
-      existing.amount = formatYen(parseAmount(existing.amount) + personal);
+      existing.amount = formatAmount(parseAmount(existing.amount) + personal);
     } else {
       adjustments.set(key, {
         side: line.side,
         accountName,
         accountType,
-        amount: formatYen(personal),
-        bookAccountId: toDeposit
+        amount: formatAmount(personal),
+        bookAccountId: isRevenue
           ? PERSONAL_REVENUE_ACCOUNT_ID
           : PERSONAL_EXPENSE_ACCOUNT_ID,
         id: null,
@@ -197,7 +193,7 @@ export function buildBusinessRateTransferEntry(input: {
       side: amount > 0 ? "debit" : "credit",
       accountName,
       accountType,
-      amount: formatYen(Math.abs(amount)),
+      amount: formatAmount(Math.abs(amount)),
       bookAccountId,
       id: null,
       partnerName: null,
@@ -229,7 +225,6 @@ export type EntryRecord = {
   fiscalPeriodId: string;
   date: string;
   weekday: string;
-
   lines: EntryLine[];
   description: string;
   businessRate: number;

@@ -66,7 +66,11 @@ describe("archived closing reports", () => {
         period.id,
         2026,
         preview.map((entry) =>
-          entryRecordToImportPayload(entry, { accounts, taxes, businesses }),
+          entryRecordToImportPayload(entry, {
+            accounts,
+            taxCategories: taxes,
+            businessCategories: businesses,
+          }),
         ),
       );
       const closed = await server.fiscalPeriods.patch(period.id, {

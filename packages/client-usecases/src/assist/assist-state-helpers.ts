@@ -3,7 +3,6 @@ import {
   formatAmount,
   parseAmount,
   parseIsoLocalDate,
-  resolveCategoryId,
   resolveBookAccountId,
   type BookAccount,
   type BookAccountType,
@@ -20,6 +19,12 @@ import type {
   FixedAssetPatchInput,
   OpeningJournalApiRecord,
 } from "@rubydogjp/openkk-client-ports";
+
+import {
+  entryLinesToInputs,
+  type EntryLineMaster,
+  type UnresolvedAccountMessages,
+} from "../entries/import-mapping.js";
 
 export function upsertFixedAsset(
   current: FixedAsset[],
@@ -93,12 +98,9 @@ export function mapOpeningJournalToRecord(
 export function buildOpeningJournalLines(
   journalId: string,
   draft: OpeningCarryoverDraft,
-  master: {
-    accounts: ReadonlyArray<BookAccount>;
-    taxCategories: ReadonlyArray<{ id: string; name: string }>;
-    businessCategories: ReadonlyArray<{ id: string; name: string }>;
-  },
-): EntryLineApiRecord[] | null {
+  master: EntryLineMaster,
+  unresolvedAccount: UnresolvedAccountMessages,
+): EntryLineApiRecord[] {
   for (const line of draft.lines) {
     if (line.id != null && line.id.trim() === "") {
       throw new Error("opening carryover line id must not be blank");
@@ -120,36 +122,11 @@ export function buildOpeningJournalLines(
     usedLineIds.add(id);
     return id;
   };
-  const result = [];
-  for (const line of draft.lines) {
-    const bookAccountId = resolveBookAccountId({
-      explicitId: line.bookAccountId,
-      accountName: line.accountName,
-      accountType: line.accountType,
-      accounts: master.accounts,
-    });
-    if (bookAccountId == null) return null;
-    result.push({
-      id: line.id ?? allocateLineId(line.side),
-      side: line.side,
-      bookAccountId,
-      amount: parseAmount(line.amount),
-      partnerName: line.partnerName ?? "",
-      taxCategoryId: resolveCategoryId(
-        line.taxCategoryId,
-        line.taxCategoryName ?? "",
-        master.taxCategories,
-        "tax_out_of_scope",
-      ),
-      businessCategoryId: resolveCategoryId(
-        line.businessCategoryId,
-        line.businessCategoryName ?? "",
-        master.businessCategories,
-        "biz_none",
-      ),
-    });
-  }
-  return result;
+  const inputs = entryLinesToInputs(draft.lines, master, unresolvedAccount);
+  return inputs.map((input, index) => ({
+    id: draft.lines[index]!.id ?? allocateLineId(input.side),
+    ...input,
+  }));
 }
 
 export function resolveFixedAssetAccountId(

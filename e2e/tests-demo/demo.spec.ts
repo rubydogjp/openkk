@@ -31,15 +31,15 @@ test("仕訳と期首BSを変更でき、再読み込みでサンプルに戻る
   await page.getByRole("link", { name: "仕訳", exact: true }).click();
   await page.getByRole("button", { name: "追加", exact: true }).click();
   const drawer = page.getByRole("dialog", { name: "仕訳の新規作成" });
-  await drawer.getByLabel("摘要").fill("体験版の入力テスト");
+  await drawer.getByLabel("摘要").fill("デモ版の入力テスト");
   await drawer.getByLabel("借方金額").first().fill("1000");
   await drawer.getByLabel("貸方金額").last().fill("1000");
   await clickButton(page, "作成");
   await expect(drawer).not.toBeVisible();
-  await expect(page.getByText("体験版の入力テスト")).toBeVisible();
+  await expect(page.getByText("デモ版の入力テスト")).toBeVisible();
   await page.reload();
   await expect(page.getByRole("button", { name: "追加", exact: true })).toBeVisible();
-  await expect(page.getByText("体験版の入力テスト")).toHaveCount(0);
+  await expect(page.getByText("デモ版の入力テスト")).toHaveCount(0);
   await page.getByRole("link", { name: "手順", exact: true }).click();
   await expectStep(page, "日々の仕訳");
   await page.getByRole("button", { name: "期首のBSを入力", exact: true }).click();

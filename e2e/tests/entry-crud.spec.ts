@@ -208,8 +208,8 @@ test.describe("entry CRUD", () => {
     await page.keyboard.press("Enter");
     await expect(page.getByRole("menu")).toBeVisible();
     await expect(
-      page.getByRole("menuitem", { name: "プロフィール" }),
-    ).toBeDisabled();
+      page.getByRole("menuitem", { name: "マイページ" }),
+    ).toHaveCount(0);
     await page.keyboard.press("Escape");
     await expect(accountButton).toHaveAttribute("aria-expanded", "false");
     await expect(accountButton).toBeFocused();

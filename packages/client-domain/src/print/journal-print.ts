@@ -4,63 +4,43 @@ import {
   type EntryLine,
   type EntryRecord,
 } from "../entries/entry-record.js";
-import { parseAmount } from "../shared/parse-utils.js";
-import { buildPrintDocument, escapeHtml as esc } from "./print-shell.js";
+import { formatAmount, parseAmount } from "../shared/parse-utils.js";
+import { buildPrintDocument, escapeHtml } from "./print-shell.js";
+import { buildPortraitPage } from "./portrait-page.js";
+import {
+  formatAmountOrBlank,
+  formatMonthLabel,
+  formatPrintDate,
+} from "./print-format.js";
 import { formatEntryMetadata } from "./entry-metadata.js";
 
-function parseNum(str: string): number {
-  return parseAmount(str);
-}
-
-function fmt(n: number): string {
-  return n === 0 ? "" : new Intl.NumberFormat("ja-JP").format(n);
-}
-
-function fmtDate(iso: string): string {
-  return iso.replace(/-/g, "/");
-}
-
-function fmtMonthLabel(monthKey: string): string {
-  const month = Number(monthKey.slice(5, 7));
-  return Number.isInteger(month) && month >= 1 && month <= 12
-    ? `${month}月分`
-    : "日付未設定";
-}
-
-const PAGE_W = 794;
-const PAGE_H = 1123;
-const SIDE_PAD = 27;
-const TOP_PAD = 11;
-const BOTTOM_PAD = 19;
-const TITLE_FS = 16;
-const TITLE_GAP = 19;
-const BODY_TOP = TOP_PAD + TITLE_FS + TITLE_GAP;
+const JOURNAL_TITLE = "仕訳帳";
 const MAX_DETAIL_ROWS_PER_PAGE = 28;
 
-const TH =
+const HEADER_CELL_STYLE =
   "border:1px solid #1D4ED8;background:#EEF5FF;color:#1D4ED8;font-weight:700;padding:5px 4px;text-align:center;";
-const TD =
+const BODY_CELL_STYLE =
   "border:1px solid #1D4ED8;color:#111827;background:#FFFFFF;padding:5px 4px;vertical-align:top;line-height:1.3;";
-const BAND =
+const BAND_CELL_STYLE =
   "border:1px solid #1D4ED8;color:#111827;background:#EEF5FF;padding:5px 4px;font-weight:700;vertical-align:top;line-height:1.3;";
 
-export function buildJournalBody(
-  _fpName: string,
-  entries: EntryRecord[],
-): string {
-  const map = new Map<string, EntryRecord[]>();
-  for (const e of entries) {
-    const key = e.date.slice(0, 7);
-    if (!map.has(key)) map.set(key, []);
-    map.get(key)!.push(e);
+export function buildJournalBody(entries: EntryRecord[]): string {
+  const entriesByMonth = new Map<string, EntryRecord[]>();
+  for (const entry of entries) {
+    const monthKey = entry.date.slice(0, 7);
+    if (!entriesByMonth.has(monthKey)) entriesByMonth.set(monthKey, []);
+    entriesByMonth.get(monthKey)!.push(entry);
   }
-  for (const rows of map.values()) {
-    rows.sort((a, b) => a.date.localeCompare(b.date));
+  for (const monthEntries of entriesByMonth.values()) {
+    monthEntries.sort((left, right) => left.date.localeCompare(right.date));
   }
-  const monthGroups = [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
+  const monthGroups = [...entriesByMonth.entries()].sort(([left], [right]) =>
+    left.localeCompare(right),
+  );
 
   if (monthGroups.length === 0) {
-    return wrapPage(
+    return buildPortraitPage(
+      JOURNAL_TITLE,
       `<div style="text-align:center;padding:48px;color:#475569;font-size:14px;">仕訳データがありません</div>`,
       1,
     );
@@ -68,26 +48,12 @@ export function buildJournalBody(
 
   let pageNumber = 0;
   return monthGroups
-    .flatMap(([monthKey, rows]) => {
-      const monthLabel = fmtMonthLabel(monthKey);
-      const debitTotal = rows.reduce(
-        (s, r) =>
-          s +
-          r.lines
-            .filter((line) => line.side === "debit")
-            .reduce((lineSum, line) => lineSum + parseNum(line.amount), 0),
-        0,
-      );
-      const creditTotal = rows.reduce(
-        (s, r) =>
-          s +
-          r.lines
-            .filter((line) => line.side === "credit")
-            .reduce((lineSum, line) => lineSum + parseNum(line.amount), 0),
-        0,
-      );
+    .flatMap(([monthKey, monthEntries]) => {
+      const monthLabel = formatMonthLabel(monthKey);
+      const debitTotal = sideTotal(monthEntries, "debit");
+      const creditTotal = sideTotal(monthEntries, "credit");
 
-      const chunks = chunkEntriesByVisualRows(rows);
+      const chunks = chunkEntriesByVisualRows(monthEntries);
       return chunks.map((pageRows, chunkIndex) => {
         pageNumber += 1;
         const rowsHtml = pageRows
@@ -98,15 +64,15 @@ export function buildJournalBody(
                 resolveEntryPairMetadata(pair),
               );
               return `<tr>
-  <td style="${TD}">${isFirstPair ? esc(fmtDate(entry.date)) : ""}</td>
-  <td style="${TD}">${esc(lineAccountName(pair.debit))}</td>
-  <td style="${TD}"></td>
-  <td style="${TD};text-align:right">${esc(lineAmount(pair.debit))}</td>
-  <td style="${TD}">${esc(lineAccountName(pair.credit))}</td>
-  <td style="${TD}"></td>
-  <td style="${TD};text-align:right">${esc(lineAmount(pair.credit))}</td>
-  <td style="${TD}">${isFirstPair ? esc(entry.description) : ""}</td>
-  <td style="${TD}">${esc(metadata)}</td>
+  <td style="${BODY_CELL_STYLE}">${isFirstPair ? escapeHtml(formatPrintDate(entry.date)) : ""}</td>
+  <td style="${BODY_CELL_STYLE}">${escapeHtml(lineAccountName(pair.debit))}</td>
+  <td style="${BODY_CELL_STYLE}"></td>
+  <td style="${BODY_CELL_STYLE};text-align:right">${escapeHtml(lineAmount(pair.debit))}</td>
+  <td style="${BODY_CELL_STYLE}">${escapeHtml(lineAccountName(pair.credit))}</td>
+  <td style="${BODY_CELL_STYLE}"></td>
+  <td style="${BODY_CELL_STYLE};text-align:right">${escapeHtml(lineAmount(pair.credit))}</td>
+  <td style="${BODY_CELL_STYLE}">${isFirstPair ? escapeHtml(entry.description) : ""}</td>
+  <td style="${BODY_CELL_STYLE}">${escapeHtml(metadata)}</td>
 </tr>`;
             }),
           )
@@ -115,11 +81,11 @@ export function buildJournalBody(
         const isLastChunk = chunkIndex === chunks.length - 1;
         const totalHtml = isLastChunk
           ? `<tr>
-      <td colspan="3" style="${BAND}">${monthLabel} 合計</td>
-      <td style="${BAND};text-align:right">${fmt(debitTotal)}</td>
-      <td colspan="2" style="${BAND}"></td>
-      <td style="${BAND};text-align:right">${fmt(creditTotal)}</td>
-      <td colspan="2" style="${BAND}"></td>
+      <td colspan="3" style="${BAND_CELL_STYLE}">${monthLabel} 合計</td>
+      <td style="${BAND_CELL_STYLE};text-align:right">${formatAmountOrBlank(debitTotal)}</td>
+      <td colspan="2" style="${BAND_CELL_STYLE}"></td>
+      <td style="${BAND_CELL_STYLE};text-align:right">${formatAmountOrBlank(creditTotal)}</td>
+      <td colspan="2" style="${BAND_CELL_STYLE}"></td>
     </tr>`
           : "";
         const tableHtml = `<table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px">
@@ -129,15 +95,15 @@ export function buildJournalBody(
   </colgroup>
   <thead>
     <tr>
-      <th rowspan="2" style="${TH}">取引日</th>
-      <th colspan="3" style="${TH}">借方</th>
-      <th colspan="3" style="${TH}">貸方</th>
-      <th rowspan="2" style="${TH}">摘要</th>
-      <th rowspan="2" style="${TH}">取引先・区分</th>
+      <th rowspan="2" style="${HEADER_CELL_STYLE}">取引日</th>
+      <th colspan="3" style="${HEADER_CELL_STYLE}">借方</th>
+      <th colspan="3" style="${HEADER_CELL_STYLE}">貸方</th>
+      <th rowspan="2" style="${HEADER_CELL_STYLE}">摘要</th>
+      <th rowspan="2" style="${HEADER_CELL_STYLE}">取引先・区分</th>
     </tr>
     <tr>
-      <th style="${TH}">勘定科目</th><th style="${TH}">補助科目</th><th style="${TH}">金額</th>
-      <th style="${TH}">勘定科目</th><th style="${TH}">補助科目</th><th style="${TH}">金額</th>
+      <th style="${HEADER_CELL_STYLE}">勘定科目</th><th style="${HEADER_CELL_STYLE}">補助科目</th><th style="${HEADER_CELL_STYLE}">金額</th>
+      <th style="${HEADER_CELL_STYLE}">勘定科目</th><th style="${HEADER_CELL_STYLE}">補助科目</th><th style="${HEADER_CELL_STYLE}">金額</th>
     </tr>
   </thead>
   <tbody>
@@ -146,7 +112,7 @@ export function buildJournalBody(
   </tbody>
 </table>`;
 
-        return wrapPage(tableHtml, pageNumber);
+        return buildPortraitPage(JOURNAL_TITLE, tableHtml, pageNumber);
       });
     })
     .join("");
@@ -187,24 +153,22 @@ function chunkEntriesByVisualRows(entries: EntryRecord[]): JournalPageEntry[][] 
   return chunks;
 }
 
-function wrapPage(bodyHtml: string, pageNumber: number): string {
-  return `<div class="bk-page" style="position:relative;width:${PAGE_W}px;min-height:${PAGE_H}px;height:auto;overflow:visible;padding-bottom:${BOTTOM_PAD + 24}px;">
-<div style="position:absolute;top:${TOP_PAD}px;left:${SIDE_PAD}px;right:${SIDE_PAD}px;text-align:center;color:#1D4ED8;font-weight:700;font-size:${TITLE_FS}px;line-height:1;">仕訳帳</div>
-<div style="position:absolute;top:${BODY_TOP}px;left:${SIDE_PAD}px;right:${SIDE_PAD}px;">
-${bodyHtml}
-</div>
-<div style="position:absolute;bottom:${BOTTOM_PAD}px;left:${SIDE_PAD}px;right:${SIDE_PAD}px;text-align:center;color:#1D4ED8;font-size:12px;line-height:1;">− ${pageNumber} −</div>
-</div>`;
+function sideTotal(entries: EntryRecord[], side: EntryLine["side"]): number {
+  return entries.reduce(
+    (sum, entry) =>
+      sum +
+      entry.lines
+        .filter((line) => line.side === side)
+        .reduce((lineSum, line) => lineSum + parseAmount(line.amount), 0),
+    0,
+  );
 }
 
-export function buildJournalDocument(
-  fpName: string,
-  entries: EntryRecord[],
-): string {
+export function buildJournalDocument(entries: EntryRecord[]): string {
   return buildPrintDocument({
-    title: "仕訳帳",
+    title: JOURNAL_TITLE,
     orientation: "portrait",
-    body: buildJournalBody(fpName, entries),
+    body: buildJournalBody(entries),
   });
 }
 
@@ -214,5 +178,5 @@ function lineAccountName(line: EntryLine | null): string {
 
 function lineAmount(line: EntryLine | null): string {
   if (line == null || line.amount.trim() === "") return "";
-  return new Intl.NumberFormat("ja-JP").format(parseAmount(line.amount));
+  return formatAmount(parseAmount(line.amount));
 }

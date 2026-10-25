@@ -1,12 +1,6 @@
-
-
 import type { OpeningBalanceLine } from "../../shared/models.js";
-import {
-  JOURNAL_EXAMPLE_ENTRIES,
-  JOURNAL_EXAMPLE_FP_NAME,
-} from "./journal-example.js";
+import { JOURNAL_EXAMPLE_ENTRIES } from "./journal-example.js";
 
-export const GENERAL_LEDGER_EXAMPLE_FP_NAME = JOURNAL_EXAMPLE_FP_NAME;
 export const GENERAL_LEDGER_EXAMPLE_ENTRIES = JOURNAL_EXAMPLE_ENTRIES;
 
 export const GENERAL_LEDGER_EXAMPLE_OPENING_BALANCE_LINES: OpeningBalanceLine[] = [

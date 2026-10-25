@@ -31,6 +31,7 @@ import {
   resolveFixedAssetAccountId,
   upsertFixedAsset,
 } from "./assist-state-helpers.js";
+import type { UnresolvedAccountMessages } from "../entries/import-mapping.js";
 import {
   capFixedAssetPreviewDate,
   draftBusinessRate,
@@ -107,9 +108,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
   const periodVersions = useRef(new KeyedAsyncStateVersion<string>());
   const assetMutationQueue = useRef(new KeyedAsyncMutationQueue<string>());
   selectedFiscalPeriodId.current = appState.currentFiscalPeriodId;
-  const currentFiscalPeriod = appState.fiscalPeriods.find(
-    (period) => period.id === appState.currentFiscalPeriodId,
-  );
+  const currentFiscalPeriod = appState.currentFiscalPeriod;
   const currentFiscalPeriodEndDate = currentFiscalPeriod?.endDate ?? null;
   const currentFiscalPeriodDataPurged = isSelectedFiscalPeriodDataPurged(
     appState.fiscalPeriods,
@@ -145,7 +144,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         setBookAccountTypeById(
           Object.fromEntries(
             accounts.map((account) => [account.id, account.accountType]),
-          ) as Record<string, BookAccountType>,
+          ),
         );
         setTaxCategories(taxCategories);
         setTaxCategoryNameById(
@@ -232,6 +231,11 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
 
   const value = useMemo<AssistState>(() => {
     const loadError = masterLoadError ?? fixedAssetsLoadError;
+    const openingCarryoverMaster = {
+      accounts: bookAccounts,
+      taxCategories,
+      businessCategories,
+    };
     return {
       listFixedAssets(fiscalPeriodId) {
         return listFixedAssetsForPeriod(fixedAssets, fiscalPeriodId);
@@ -275,7 +279,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
               created,
               bookAccountNameById[created.bookAccountId] ?? null,
               fixedAssetPreviewAsOf,
-              currentFiscalPeriodEndDate ?? null,
+              currentFiscalPeriodEndDate,
             );
             setFixedAssets((current) => upsertFixedAsset(current, mapped));
           }
@@ -326,7 +330,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
                 patched,
                 bookAccountNameById[patched.bookAccountId] ?? null,
                 fixedAssetPreviewAsOf,
-                currentFiscalPeriodEndDate ?? null,
+                currentFiscalPeriodEndDate,
               );
               setFixedAssets((currentList) =>
                 upsertFixedAsset(currentList, mapped),
@@ -340,7 +344,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
       },
       listOpeningCarryovers(fiscalPeriodId) {
         const period = appState.fiscalPeriods.find(
-          (p) => p.id === fiscalPeriodId,
+          (candidate) => candidate.id === fiscalPeriodId,
         );
         const journals = period?.opening.journals ?? [];
         return journals
@@ -364,7 +368,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         const fiscalPeriodId = appState.currentFiscalPeriodId;
         if (fiscalPeriodId == null) return null;
         const period = appState.fiscalPeriods.find(
-          (p) => p.id === fiscalPeriodId,
+          (candidate) => candidate.id === fiscalPeriodId,
         );
         const journals = period?.opening.journals ?? [];
         const journal = journals.find((item) => item.id === carryoverId);
@@ -379,11 +383,10 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         );
       },
       async addOpeningCarryover(fiscalPeriodId, draft) {
-        assertEditingUnlocked(config.editingPolicy, "assist.addOpeningCarryover");
-        const period = appState.fiscalPeriods.find(
-          (p) => p.id === fiscalPeriodId,
+        assertEditingUnlocked(
+          config.editingPolicy,
+          "assist.addOpeningCarryover",
         );
-        if (period == null) return null;
         let nextId: string | null = null;
         const updated = await appState.updateFiscalPeriod(
           fiscalPeriodId,
@@ -394,16 +397,12 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
               currentOpening.journals,
             );
             nextId = generatedId;
-            const lines = buildOpeningJournalLines(generatedId, draft, {
-              accounts: bookAccounts,
-              taxCategories,
-              businessCategories,
-            });
-            if (lines == null) {
-              throw openingCarryoverAccountResolutionError(
-                "assist.addOpeningCarryover",
-              );
-            }
+            const lines = buildOpeningJournalLines(
+              generatedId,
+              draft,
+              openingCarryoverMaster,
+              unresolvedOpeningCarryoverAccount("assist.addOpeningCarryover"),
+            );
             const newJournal = {
               id: generatedId,
               date: draft.date,
@@ -414,10 +413,7 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
             return {
               opening: {
                 balanceLines: currentOpening.balanceLines,
-                journals: [
-                  ...currentOpening.journals,
-                  newJournal,
-                ],
+                journals: [...currentOpening.journals, newJournal],
               },
             };
           },
@@ -425,13 +421,12 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         return updated ? nextId : null;
       },
       async updateOpeningCarryover(carryoverId, draft) {
-        assertEditingUnlocked(config.editingPolicy, "assist.updateOpeningCarryover");
+        assertEditingUnlocked(
+          config.editingPolicy,
+          "assist.updateOpeningCarryover",
+        );
         const fiscalPeriodId = appState.currentFiscalPeriodId;
         if (fiscalPeriodId == null) return false;
-        const period = appState.fiscalPeriods.find(
-          (p) => p.id === fiscalPeriodId,
-        );
-        if (period == null) return false;
         return await appState.updateFiscalPeriod(
           fiscalPeriodId,
           (currentPeriod) => {
@@ -441,16 +436,14 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
               (journal) => journal.id === carryoverId,
             );
             if (target == null) return null;
-            const lines = buildOpeningJournalLines(target.id, draft, {
-              accounts: bookAccounts,
-              taxCategories,
-              businessCategories,
-            });
-            if (lines == null) {
-              throw openingCarryoverAccountResolutionError(
+            const lines = buildOpeningJournalLines(
+              target.id,
+              draft,
+              openingCarryoverMaster,
+              unresolvedOpeningCarryoverAccount(
                 "assist.updateOpeningCarryover",
-              );
-            }
+              ),
+            );
             const nextJournal = {
               ...target,
               date: draft.date,
@@ -495,13 +488,12 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
         });
       },
       async deleteOpeningCarryover(carryoverId) {
-        assertEditingUnlocked(config.editingPolicy, "assist.deleteOpeningCarryover");
+        assertEditingUnlocked(
+          config.editingPolicy,
+          "assist.deleteOpeningCarryover",
+        );
         const fiscalPeriodId = appState.currentFiscalPeriodId;
         if (fiscalPeriodId == null) return false;
-        const period = appState.fiscalPeriods.find(
-          (p) => p.id === fiscalPeriodId,
-        );
-        if (period == null) return false;
         return await appState.updateFiscalPeriod(
           fiscalPeriodId,
           (currentPeriod) => {
@@ -549,14 +541,13 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
   );
 }
 
-function openingCarryoverAccountResolutionError(operation: string): AppError {
-  return new AppError({
+function unresolvedOpeningCarryoverAccount(
+  operation: string,
+): UnresolvedAccountMessages {
+  return {
     messageForDeveloper: `${operation}: account resolution failed`,
     messageForUser: "勘定科目が解決できないため保存できませんでした",
-    originalMessage: null,
-    statusCode: null,
-    code: null,
-  });
+  };
 }
 
 export function useOpenkkAssist() {

@@ -52,9 +52,7 @@ export function EntriesPage() {
   const entriesState = useOpenkkEntries();
   const assistState = useOpenkkAssist();
   const editingLocked = openkkConfig.editingPolicy.locked;
-  const currentFiscalPeriod = appState.fiscalPeriods.find(
-    (period) => period.id === appState.currentFiscalPeriodId,
-  );
+  const currentFiscalPeriod = appState.currentFiscalPeriod;
   const fiscalPeriodId = appState.currentFiscalPeriodId;
   const [displayedMonth, setDisplayedMonth] = useState<YearMonth>(() =>
     clampMonthToPeriod(
@@ -121,7 +119,7 @@ export function EntriesPage() {
     compareYearMonth(displayedMonth, periodEndMonth) < 0;
   const yearMonth = formatYearMonth(displayedMonth);
   const lockedMessage = buildPeriodLockMessage(
-    currentFiscalPeriod ?? null,
+    currentFiscalPeriod,
     "仕訳を記録できます",
   );
   const isReadOnlyPeriod =
@@ -129,7 +127,7 @@ export function EntriesPage() {
     currentFiscalPeriod?.phase === "pre_closing";
   const screenLockedMessage = isReadOnlyPeriod ? null : lockedMessage;
   const importLockedMessage = buildPeriodLockMessage(
-    currentFiscalPeriod ?? null,
+    currentFiscalPeriod,
     "仕訳を取り込めます",
   );
   const canImport =
@@ -437,7 +435,6 @@ export function EntriesPage() {
         }
         onImportFile={canImport && !isImporting ? handleImportFile : null}
         onExport={fiscalPeriodId != null ? handleExport : null}
-        isPlaceholderData={false}
       />
       {fiscalPeriodId != null &&
       drawerEntry != null &&
@@ -505,22 +502,9 @@ export function EntriesPage() {
           suggestions={entriesState.listSuggestions(fiscalPeriodId)}
           onClose={closeNewEntryDrawer}
           onSave={async (draft) => {
-            const createdId = await entriesState.createEntryFromDraft(
-              fiscalPeriodId,
-              draft,
-            );
-            if (createdId != null) {
-              if (!navigateToEntryDateMonth(draft.date)) {
-                closeNewEntryDrawer();
-              }
-            } else {
-              throw new AppError({
-                messageForDeveloper: "createEntryFromDraft returned null",
-                messageForUser: "仕訳の作成に失敗しました",
-                originalMessage: null,
-                statusCode: null,
-                code: null,
-              });
+            await entriesState.createEntryFromDraft(fiscalPeriodId, draft);
+            if (!navigateToEntryDateMonth(draft.date)) {
+              closeNewEntryDrawer();
             }
           }}
           onDelete={null}

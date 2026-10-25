@@ -3,7 +3,7 @@
   "version": "26.2.11",
   "private": true,
   "type": "module",
-  "description": "オープン会計 Sim版 runnable Next.js app: メモリDB+モック時計の開発・検証用バンドル。",
+  "description": "オープン会計 Sim版 runnable Next.js app: メモリDB+固定時計の開発・検証用バンドル。",
   "license": "MIT",
   "author": "rbdog <rbdog@rubydog.jp>",
   "homepage": "https://github.com/rubydogjp/openkk#readme",

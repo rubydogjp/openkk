@@ -1,5 +1,3 @@
-
-
 export * from "./shared/amount-field.js";
 export * from "./shared/app-error-text.js";
 export * from "./shared/closed-period-lock.js";

@@ -5,16 +5,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AppError,
   buildFiscalPeriodArchiveFilename,
-  buildFiscalPeriodArchivePayload,
   buildNextFiscalPeriodSuggestion,
-  createFiscalPeriodArchiveZip,
+  fiscalPeriodNameForEndDate,
   hasActiveFiscalPeriodOverlap,
   isOpeningCarryoverCandidate,
   validateFiscalPeriodDates,
 } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text.js";
 import {
-  useBackendApi,
+  useFiscalPeriodArchiveExport,
   usePlatformAdapter,
   useOpenkkAppState,
   useOpenkkCallout,
@@ -36,14 +35,15 @@ import {
   FormTextInput,
 } from "../../shared/form-fields.js";
 import {
-  StepDivider,
-  StepFormRow,
   StepCallout,
+  StepFormRow,
   StepMetaCard,
   StepMetaRow,
   StepPrimaryButton,
   StepSecondaryButton,
   StepSectionLabel,
+  StepSpacer,
+  StepUnavailableNotice,
 } from "../step-ui.js";
 
 type CarryOptions = {
@@ -70,15 +70,13 @@ export function NextFiscalPeriodBody({
 }) {
   const config = useOpenkkConfig();
   const nextPeriodFooter = useOpenkkCallout("stepNextFiscalPeriodFooter");
-  const backendApi = useBackendApi();
+  const exportArchive = useFiscalPeriodArchiveExport();
   const appState = useOpenkkAppState();
   const files = usePlatformAdapter().files;
   const entriesState = useOpenkkEntries();
   const [screenError, setScreenError] = useState<unknown>(null);
   const [archiveMessage, setArchiveMessage] = useState<string | null>(null);
-  const currentFiscalPeriod = appState.fiscalPeriods.find(
-    (period) => period.id === appState.currentFiscalPeriodId,
-  );
+  const currentFiscalPeriod = appState.currentFiscalPeriod;
 
   const suggested = useMemo(() => {
     if (currentFiscalPeriod == null)
@@ -117,8 +115,8 @@ export function NextFiscalPeriodBody({
 
   useEffect(() => {
     if (nameEdited) return;
-    const yearText = endDate.slice(0, 4);
-    if (yearText.length === 4) setName(`${yearText}年分`);
+    const suggestedName = fiscalPeriodNameForEndDate(endDate);
+    if (suggestedName != null) setName(suggestedName);
   }, [endDate, nameEdited]);
 
   if (currentFiscalPeriod == null) {
@@ -230,43 +228,8 @@ export function NextFiscalPeriodBody({
     const authOperationVersion = appState.captureAuthOperationVersion();
     setIsArchiving(true);
     try {
-      const year = Number(currentFiscalPeriod.endDate.slice(0, 4));
-      const [entries, fixedAssets, preClosed, closed] = await Promise.all([
-        backendApi.entries.getAll(currentFiscalPeriod.id),
-        backendApi.fixedAssets.getAll(currentFiscalPeriod.id),
-        backendApi.preClosings.get(currentFiscalPeriod.id, year),
-        backendApi.closings.get(currentFiscalPeriod.id, year),
-      ]);
-      appState.assertAuthOperationCurrent(authOperationVersion);
-      const payload = buildFiscalPeriodArchivePayload({
-        createdAt: new Date().toISOString(),
-        fiscalPeriod: { ...currentFiscalPeriod, archiveStatus: "archived" },
-        entries: entries.map((entry) => ({ ...entry })),
-        fixedAssets: fixedAssets.map((asset) => ({ ...asset })),
-        closings: [
-          ...(!preClosed
-            ? []
-            : [
-                {
-                  fiscalPeriodId: currentFiscalPeriod.id,
-                  year,
-                  kind: "pre_closing",
-                },
-              ]),
-          ...(!closed
-            ? []
-            : [
-                {
-                  fiscalPeriodId: currentFiscalPeriod.id,
-                  year,
-                  kind: "closing",
-                },
-              ]),
-        ],
-      });
-      const zip = createFiscalPeriodArchiveZip(payload);
       files.save(
-        zip,
+        await exportArchive(currentFiscalPeriod),
         buildFiscalPeriodArchiveFilename(currentFiscalPeriod),
         "application/zip",
       );
@@ -296,14 +259,7 @@ export function NextFiscalPeriodBody({
       <CheckboxStyles />
 
       {!canEnterPage ? (
-        <>
-          <StepCallout tone={editingLocked ? "info" : "warning"}>
-            {editingLocked
-              ? config.editingPolicy.lockedNotice
-              : "この手順はまだ進められません。"}
-          </StepCallout>
-          <StepDivider marginY={null} />
-        </>
+        <StepUnavailableNotice editingPolicy={config.editingPolicy} />
       ) : null}
 
       <section>
@@ -357,7 +313,7 @@ export function NextFiscalPeriodBody({
         </StepMetaCard>
       </section>
 
-      <StepDivider marginY={null} />
+      <StepSpacer height={null} />
 
       <section>
         <StepSectionLabel>引き継ぎ</StepSectionLabel>
@@ -491,7 +447,7 @@ export function NextFiscalPeriodBody({
                 }}
               >
                 {editingLocked ? (
-                  <LockButton label="次期を作成" style={null} />
+                  <LockButton label="次期を作成" />
                 ) : (
                   <StepPrimaryButton
                     onClick={() => {
@@ -529,12 +485,12 @@ export function NextFiscalPeriodBody({
 
       {nextPeriodFooter != null ? (
         <>
-          <StepDivider marginY={null} />
+          <StepSpacer height={null} />
           <StepCallout tone="info">{nextPeriodFooter}</StepCallout>
         </>
       ) : null}
 
-      <StepDivider marginY={44} />
+      <StepSpacer height={44} />
 
       <section>
         <StepSectionLabel>長期保存</StepSectionLabel>
@@ -566,7 +522,7 @@ export function NextFiscalPeriodBody({
             </span>
           ) : null}
           {editingLocked ? (
-            <LockButton label="圧縮保存" style={null} />
+            <LockButton label="圧縮保存" />
           ) : (
             <StepPrimaryButton
               onClick={handleArchive}

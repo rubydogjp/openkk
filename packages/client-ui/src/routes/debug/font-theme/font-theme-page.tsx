@@ -170,23 +170,6 @@ const buttonBase: CSSProperties = {
 };
 
 export function FontThemePage() {
-  if (false) {
-    return (
-      <section style={{ padding: spacing.s24 }}>
-        <div
-          style={{
-            maxWidth: 980,
-            margin: "0 auto",
-            color: palette.textSoft,
-            fontWeight: fontWeight.semibold,
-          }}
-        >
-          この画面は dev 環境専用です
-        </div>
-      </section>
-    );
-  }
-
   return (
     <main
       style={{

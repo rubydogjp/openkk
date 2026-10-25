@@ -1,32 +1,30 @@
 "use client";
 
+import {
+  computeFsAggregate,
+  GENERAL_LEDGER_EXAMPLE_ENTRIES,
+  GENERAL_LEDGER_EXAMPLE_OPENING_BALANCE_LINES,
+} from "@rubydogjp/openkk-client-domain";
+
 import { palette, typography } from "../../../shared/design-tokens.js";
+import { PlBsDiagramSection } from "../../../shared/pl-bs-diagram.js";
+
+const EXAMPLE_SUMMARY = computeFsAggregate({
+  entries: GENERAL_LEDGER_EXAMPLE_ENTRIES,
+  openingBalanceLines: GENERAL_LEDGER_EXAMPLE_OPENING_BALANCE_LINES,
+}).summary;
 
 export function PlBsDiagramPreviewPage() {
-  if (false) {
-    return (
-      <section style={{ padding: 24, color: palette.textSoft }}>
-        この画面は dev 環境専用です
-      </section>
-    );
-  }
   return (
     <section style={{ padding: 24 }}>
-      <div
-        style={{
-          maxWidth: 880,
-          margin: "0 auto",
-          border: `1px solid ${palette.borderSubtle}`,
-          borderRadius: 12,
-          padding: 20,
-        }}
-      >
+      <div style={{ maxWidth: 880, margin: "0 auto" }}>
         <h1 style={{ margin: 0, fontSize: typography.pageTitle.fontSize }}>
           PL / BS 図プレビュー
         </h1>
-        <p style={{ marginTop: 10, color: palette.textSoft }}>
-          PL / BS 図の表示確認用ページです。
+        <p style={{ margin: "10px 0 20px", color: palette.textSoft }}>
+          固定の例の値で PL / BS 図を表示します。実際の期間データは使用しません。
         </p>
+        <PlBsDiagramSection pl={EXAMPLE_SUMMARY} bs={EXAMPLE_SUMMARY} />
       </div>
     </section>
   );

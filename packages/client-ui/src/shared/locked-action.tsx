@@ -1,7 +1,5 @@
 "use client";
 
-import type { CSSProperties } from "react";
-
 import {
   fontSize,
   fontWeight,
@@ -34,13 +32,7 @@ export function LockedActionIcon({ size }: { size: number }) {
   );
 }
 
-export function LockButton({
-  label,
-  style,
-}: {
-  label: string | null;
-  style: CSSProperties | null;
-}) {
+export function LockButton({ label }: { label: string }) {
   return (
     <button
       type="button"
@@ -58,11 +50,10 @@ export function LockButton({
         display: "inline-flex",
         alignItems: "center",
         gap: spacing.s8,
-        ...style,
       }}
     >
       <LockedActionIcon size={18} />
-      <span>{label ?? "この操作はできません"}</span>
+      <span>{label}</span>
     </button>
   );
 }

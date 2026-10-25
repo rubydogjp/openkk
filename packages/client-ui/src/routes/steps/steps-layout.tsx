@@ -15,6 +15,7 @@ import {
   buildStepTrendPoints,
   type FiscalPeriodPhase,
 } from "@rubydogjp/openkk-client-domain";
+import { palette } from "../../shared/design-tokens.js";
 import { normalizePathname } from "../../shared/pathname.js";
 import { StepsPageScreen } from "../../steps/step-page-screen.js";
 import { ArchivedFiscalPeriodScreen } from "./archived-fiscal-period-screen.js";
@@ -34,14 +35,12 @@ export function StepsLayout({ children }: { children: React.ReactNode }) {
 
 function StepsStepperHost({ pathname }: { pathname: string }) {
   const appState = useOpenkkAppState();
-  const currentFiscalPeriod = appState.fiscalPeriods.find(
-    (period) => period.id === appState.currentFiscalPeriodId,
-  );
+  const currentFiscalPeriod = appState.currentFiscalPeriod;
 
   if (currentFiscalPeriod == null) {
     return (
       <section style={{ padding: 24 }}>
-        <div style={{ color: "var(--muted)" }}>期間を選択してください</div>
+        <div style={{ color: palette.textLabel }}>期間を選択してください</div>
       </section>
     );
   }
@@ -104,7 +103,6 @@ function StepsPageScreenWithChart({
         }),
         startDate: currentStartDate,
         endDate: currentEndDate,
-
         today,
       }),
     [

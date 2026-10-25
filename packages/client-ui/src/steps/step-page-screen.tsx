@@ -53,7 +53,10 @@ export function StepsPageScreen({
   const router = useRouter();
 
   const currentStepNumber = useMemo<number>(
-    () => items.find((s) => s.status === "doing")?.no ?? items[items.length - 1]?.no ?? 1,
+    () =>
+      items.find((step) => step.status === "doing")?.no ??
+      items[items.length - 1]?.no ??
+      1,
     [items],
   );
   const urlActiveStep = useMemo<number | null>(
@@ -98,7 +101,7 @@ export function StepsPageScreen({
     if (typeof window !== "undefined") window.scrollTo({ top: 0 });
   }, [activeStepNo]);
 
-  const active = items.find((s) => s.no === activeStepNo) ?? items[0];
+  const active = items.find((step) => step.no === activeStepNo) ?? items[0];
 
   function navigateToStep(no: number) {
     const path = STEP_PATHS[no];
@@ -109,7 +112,6 @@ export function StepsPageScreen({
   if (active == null) return null;
 
   return (
-
     <main ref={mainRef} style={{ minHeight: "100%" }}>
 
       <StepperBar
@@ -120,7 +122,6 @@ export function StepsPageScreen({
 
       <div
         style={{
-
           maxWidth: sizes.content.readingMaxWidth,
           margin: "0 auto",
           padding: "24px 24px 96px",
@@ -132,7 +133,6 @@ export function StepsPageScreen({
             style={{
               display: "flex",
               alignItems: "center",
-
               gap: 12,
               padding: "0 0 10px",
               borderBottom: `1px solid ${palette.hairline}`,
@@ -234,9 +234,7 @@ export function StepperBar({
       className="bk-stepper-bar"
       style={{
         background: palette.surface,
-
         borderBottom: `1px solid ${palette.borderHeavy}`,
-
         padding: "16px 24px 19px",
       }}
     >
@@ -266,14 +264,14 @@ export function StepperBar({
         </div>
 
         <div className="bk-stepper-dots-full">
-          {steps.map((s, i) => (
-            <Fragment key={s.no}>
+          {steps.map((step, index) => (
+            <Fragment key={step.no}>
               <StepperDot
-                step={s}
-                active={s.no === activeNo}
-                onClick={() => onSelect(s.no)}
+                step={step}
+                active={step.no === activeNo}
+                onClick={() => onSelect(step.no)}
               />
-              {i < steps.length - 1 ? <StepperConnector /> : null}
+              {index < steps.length - 1 ? <StepperConnector /> : null}
             </Fragment>
           ))}
         </div>
@@ -383,14 +381,14 @@ function WindowedStepperDots({
   activeNo: number;
   onSelect: (no: number) => void;
 }) {
-  const idx = steps.findIndex((s) => s.no === activeNo);
-  if (idx < 0) return null;
-  const prev = idx > 0 ? steps[idx - 1] : null;
-  const current = steps[idx];
-  const next = idx < steps.length - 1 ? steps[idx + 1] : null;
+  const activeIndex = steps.findIndex((step) => step.no === activeNo);
+  if (activeIndex < 0) return null;
+  const prev = activeIndex > 0 ? steps[activeIndex - 1] : null;
+  const current = steps[activeIndex];
+  const next = activeIndex < steps.length - 1 ? steps[activeIndex + 1] : null;
 
-  const hasMorePrev = idx > 1;
-  const hasMoreNext = idx < steps.length - 2;
+  const hasMorePrev = activeIndex > 1;
+  const hasMoreNext = activeIndex < steps.length - 2;
 
   if (current == null) return null;
 
@@ -404,7 +402,6 @@ function WindowedStepperDots({
           onClick={() => onSelect(prev.no)}
         />
       ) : (
-
         <EmptySlot />
       )}
       {prev != null ? <StepperConnector /> : null}

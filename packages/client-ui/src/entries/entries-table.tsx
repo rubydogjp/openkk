@@ -55,11 +55,9 @@ const rightAlignedColumns = new Set([2, 4]);
 
 export function EntriesTable(props: {
   rows: EntryPreviewRow[];
-
   onOpenEntry: ((row: EntryPreviewRow, index: number) => void) | null;
   onAddEntry: (() => void) | null;
   readOnly: boolean;
-
   activeRecordId: string | null;
   fillHeight: boolean;
   headerTone: EntriesHeaderTone | null;
@@ -102,7 +100,6 @@ export function EntriesTable(props: {
         .bk-entries-row { transition: background 80ms ease; }
         .bk-entries-row.is-clickable { cursor: pointer; }
         .bk-entries-row.is-clickable:hover { background: ${entryColors.hoverBg} !important; }
-
         .bk-entries-row.is-active { background: ${palette.actionBg} !important; }
         .bk-entries-row.is-active.is-clickable:hover { background: #DBEAFE !important; }
       `}</style>
@@ -254,7 +251,7 @@ export function EntriesTable(props: {
                     {isRepeat ? (
                       <RepeatPlaceholderCell align={null} />
                     ) : (
-                      <TableTagCell text={row.partner} align={null} emptyText={null} />
+                      <TableTagCell text={row.partner} align={null} />
                     )}
                     {isRepeat ? (
                       <RepeatPlaceholderCell align="right" />
@@ -262,18 +259,17 @@ export function EntriesTable(props: {
                       <TableTagCell
                         text={formatBusinessRatePercent(row.businessRate)}
                         align="right"
-                        emptyText={null}
                       />
                     )}
                     {isRepeat ? (
                       <RepeatPlaceholderCell align={null} />
                     ) : (
-                      <TableTagCell text={row.taxCategory} align={null} emptyText={null} />
+                      <TableTagCell text={row.taxCategory} align={null} />
                     )}
                     {isRepeat ? (
                       <RepeatPlaceholderCell align={null} />
                     ) : (
-                      <TableTagCell text={row.businessCategory} align={null} emptyText={null} />
+                      <TableTagCell text={row.businessCategory} align={null} />
                     )}
                   </div>
                 );
@@ -663,58 +659,38 @@ function TableAmountCell(props: { children: ReactNode }) {
   );
 }
 
-function TableTagCell(props: {
-  text: string;
-  align: "left" | "right" | null;
-
-  emptyText: string | null;
-}) {
+function TableTagCell(props: { text: string; align: "right" | null }) {
+  const isEmpty = props.text.trim() === "";
   return (
     <div style={{ padding: "0 8px" }}>
-      <TagChip
-        text={props.text}
-        align={props.align}
-        emptyText={props.emptyText}
-      />
-    </div>
-  );
-}
-
-function TagChip(props: {
-  text: string;
-  align: "left" | "right" | null;
-  emptyText: string | null;
-}) {
-  const isEmpty = props.text.trim() === "";
-  const displayText = isEmpty ? (props.emptyText ?? "−") : props.text;
-  return (
-    <div
-      style={{
-        height: sizes.chip.height,
-        padding: "0 10px",
-        borderRadius: radii.pill,
-        background: "#FFFFFF",
-        border: `1px solid ${isEmpty ? entryColors.tagBorder : entryColors.blue}`,
-        color: isEmpty ? entryColors.muted : entryColors.blue,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: props.align === "right" ? "flex-end" : "flex-start",
-        width: "100%",
-        boxSizing: "border-box",
-        overflow: "hidden",
-        fontSize: fontSize.sm,
-        fontWeight: fontWeight.regular,
-      }}
-    >
-      <span
+      <div
         style={{
+          height: sizes.chip.height,
+          padding: "0 10px",
+          borderRadius: radii.pill,
+          background: "#FFFFFF",
+          border: `1px solid ${isEmpty ? entryColors.tagBorder : entryColors.blue}`,
+          color: isEmpty ? entryColors.muted : entryColors.blue,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: props.align === "right" ? "flex-end" : "flex-start",
+          width: "100%",
+          boxSizing: "border-box",
           overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
+          fontSize: fontSize.sm,
+          fontWeight: fontWeight.regular,
         }}
       >
-        {displayText}
-      </span>
+        <span
+          style={{
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {isEmpty ? "−" : props.text}
+        </span>
+      </div>
     </div>
   );
 }

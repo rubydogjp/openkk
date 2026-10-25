@@ -24,7 +24,6 @@ const toneMap = {
     primaryBg: palette.action,
     Icon: CheckCircleIcon,
   },
-
   success: {
     iconBg: palette.successBg,
     iconColor: palette.success,
@@ -57,8 +56,8 @@ function ConfirmDialogView(
     onConfirm,
     onCancel,
   } = props;
-  const t = toneMap[tone];
-  const IconComp = t.Icon;
+  const toneStyle = toneMap[tone];
+  const ToneIcon = toneStyle.Icon;
   const titleId = useId();
   const bodyId = useId();
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
@@ -116,14 +115,14 @@ function ConfirmDialogView(
                 width: 46,
                 height: 46,
                 borderRadius: 999,
-                background: t.iconBg,
+                background: toneStyle.iconBg,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 flexShrink: 0,
               }}
             >
-              <IconComp size={26} color={t.iconColor} />
+              <ToneIcon size={26} color={toneStyle.iconColor} />
             </div>
             <div
               id={titleId}
@@ -178,7 +177,7 @@ function ConfirmDialogView(
             <button
               type="button"
               onClick={onConfirm}
-              style={{ ...confirmBaseStyle, background: t.primaryBg }}
+              style={{ ...confirmBaseStyle, background: toneStyle.primaryBg }}
             >
               {confirmLabel ?? "実行する"}
             </button>

@@ -38,6 +38,7 @@
 |---|---|---|
 | インポート | JSON (`.json`) | `schema: "openkk-journal-v1"` 形式の仕訳 JSON を取り込む |
 | インポート | CSV (`.csv`) | ヘッダ付き CSV を取り込む |
+| 科目の照合 | JSON / CSV | 科目 ID がなければ科目名と種別で照合する。`事業主借` は種別が `liability` でも純資産として取り込む |
 | エクスポート | JSON / CSV | 期間内全仕訳を明細付きでダウンロード |
 | マージ | — | `localId` が既存仕訳と重複しないものだけ追加 |
 
@@ -104,7 +105,7 @@
 |---|---|
 | 月次 PL トレンド | 期間内の各月の売上・費用・利益をグラフ表示 (`buildStepTrendPoints`)。未確定の減価償却・再振替を含め、各仕訳で直接按分するため期末の家事按分振替は二重計上しない |
 | FS サマリー | 期末時点の PL/BS を数値で表示 (`computeFsAggregate`) |
-| 科目別内訳 | 売上・費用の科目別貢献度を計算 (`computeRevenueContribution` / `computeExpenseContribution`) |
+| 月の選択集計 | 分析ページで選んだ月の売上・費用・利益を合計する (`computeRevenueContribution` / `computeExpenseContribution`) |
 
 ---
 
