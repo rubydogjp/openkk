@@ -4,6 +4,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
+import { formatGenerated } from "./format-generated.mjs";
+
 const commonRoutes = [
   "/",
   "/steps",
@@ -60,16 +62,16 @@ if (bundles.length === 0) {
 const staleFiles = [];
 for (const bundle of bundles) {
   const routes = bundleRoutes[bundle];
-  const generated = template.replace(
-    routesPlaceholder,
-    JSON.stringify(routes, null, 2),
-  );
   const outputPath = path.join(
     rootDirectory,
     "packages",
     bundle,
     "public",
     "sw.js",
+  );
+  const generated = await formatGenerated(
+    outputPath,
+    template.replace(routesPlaceholder, JSON.stringify(routes)),
   );
   if (checkOnly) {
     if (readFileSync(outputPath, "utf8") !== generated) {

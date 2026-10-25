@@ -5,6 +5,8 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
+import { formatGenerated } from "./format-generated.mjs";
+
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const rootDirectory = path.resolve(scriptDirectory, "..");
 const tokensPath = path.join(
@@ -95,7 +97,9 @@ ${entries
   )
   .join("\n");
 
-const markdown = `<!-- npm run gen-theme-docs で生成。直接編集しない。 -->
+const markdown = await formatGenerated(
+  outputPath,
+  `<!-- npm run gen-theme-docs で生成。直接編集しない。 -->
 
 # テーマの差し替え
 
@@ -147,7 +151,8 @@ const markdown = `<!-- npm run gen-theme-docs で生成。直接編集しない�
 
 全 ${total} 個。
 
-${tables}`;
+${tables}`,
+);
 
 if (checkOnly) {
   if (readFileSync(outputPath, "utf8") !== markdown) {

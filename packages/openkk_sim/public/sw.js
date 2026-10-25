@@ -21,7 +21,7 @@ const APP_SHELL_ROUTES = [
   "/fiscal-periods",
   "/fiscal-periods/new",
   "/install",
-  "/debug"
+  "/debug",
 ];
 const PRECACHE_URLS = [
   ...APP_SHELL_ROUTES,

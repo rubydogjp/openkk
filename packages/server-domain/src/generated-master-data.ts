@@ -2,12 +2,7 @@
 // Regenerate: npm run gen-master-data
 
 export type MasterBookAccountType =
-  | "asset"
-  | "liability"
-  | "equity"
-  | "revenue"
-  | "cost_of_sales"
-  | "expense";
+  "asset" | "liability" | "equity" | "revenue" | "cost_of_sales" | "expense";
 
 export type NormalBalanceSide = "debit" | "credit";
 

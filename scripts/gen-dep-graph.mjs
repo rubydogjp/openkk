@@ -4,6 +4,8 @@ import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
+import { formatGenerated } from "./format-generated.mjs";
+
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const rootDirectory = path.resolve(scriptDirectory, "..");
 const packagesDirectory = path.join(rootDirectory, "packages");
@@ -205,7 +207,9 @@ const layerDescriptionLines = LAYERS.filter(
   .map((layer) => `| **${layer.label}** | ${layer.note} |`)
   .join("\n");
 
-const content = `# オープン会計 dependency graph
+const content = await formatGenerated(
+  outputPath,
+  `# オープン会計 dependency graph
 
 オープン会計 配下の各 npm パッケージが互いをどう依存しているかをまとめた図です。
 パッケージは全て \`@rubydogjp/\` scope。\`@rubydogjp/openkk\` がメイン (= App composition root)、それ以外は \`@rubydogjp/openkk-<short>\` 形式。
@@ -252,7 +256,8 @@ ${tableBlock}
 cd openkk
 npm run gen-deps
 \`\`\`
-`;
+`,
+);
 
 if (checkOnly) {
   if (readFileSync(outputPath, "utf8") !== content) {

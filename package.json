@@ -46,6 +46,8 @@
     "build:packages": "npm run clean:packages && npm run build -w @rubydogjp/openkk-client-domain -w @rubydogjp/openkk-server-domain -w @rubydogjp/openkk-client-ports -w @rubydogjp/openkk-server-ports -w @rubydogjp/openkk-client-usecases -w @rubydogjp/openkk-server-usecases -w @rubydogjp/openkk-client-ui -w @rubydogjp/openkk-server-api -w @rubydogjp/openkk-client -w @rubydogjp/openkk-server -w @rubydogjp/openkk-print-adapter -w @rubydogjp/openkk-platform-browser-adapter -w @rubydogjp/openkk-sqlite-adapter -w @rubydogjp/openkk-file-db-adapter -w @rubydogjp/openkk-memory-db-adapter -w @rubydogjp/openkk-embedded-backend -w @rubydogjp/openkk-embedded-backend-adapter -w @rubydogjp/openkk-frontend",
     "build:apps": "npm run build -w @rubydogjp/openkk -w @rubydogjp/openkk-sim -w @rubydogjp/openkk-demo",
     "lint": "npm run lint --workspaces --if-present && tsc -p tsconfig.json --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test --config=e2e/playwright.config.ts",
@@ -70,6 +72,7 @@
   "devDependencies": {
     "@playwright/test": "^1.63.0",
     "@types/node": "^24.19.0",
+    "prettier": "3.9.10",
     "sharp": "^0.35.5",
     "typescript": "^6.0.3",
     "vitest": "^5.0.3"

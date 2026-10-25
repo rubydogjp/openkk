@@ -2,6 +2,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { formatGenerated } from "./format-generated.mjs";
+
 const rootDirectory = join(dirname(fileURLToPath(import.meta.url)), "..");
 const sourceRelativePath = "resources/gen/bookkeeping_master_data.json";
 const sourcePath = join(rootDirectory, sourceRelativePath);
@@ -44,12 +46,13 @@ const outputs = [
 
 const staleOutputs = [];
 for (const output of outputs) {
+  const source = await formatGenerated(output.path, output.source);
   if (checkOnly) {
-    if (readFileSync(output.path, "utf8") !== output.source) {
+    if (readFileSync(output.path, "utf8") !== source) {
       staleOutputs.push(relative(rootDirectory, output.path));
     }
   } else {
-    writeFileSync(output.path, output.source);
+    writeFileSync(output.path, source);
   }
 }
 
