@@ -59,8 +59,6 @@ describe("normalizeArchiveImportInput", () => {
       disposalDate: "2026-12-01",
       disposalPrice: 120000,
     });
-    expect(normalized.preClosings).toEqual([{ year: 2026 }]);
-    expect(normalized.closings).toEqual([{ year: 2026 }]);
   });
 
   it.each([

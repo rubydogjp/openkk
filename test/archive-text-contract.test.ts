@@ -114,10 +114,9 @@ describe("archive text preservation", () => {
       expect(
         await reimportedServer.entries.getAll(reimported.id),
       ).toMatchObject([{ description: text, lines }]);
-      await target.preClosings.run(restored.id, 2026);
+      await target.preClosings.run(restored.id);
       const closed = await target.closings.run(
         restored.id,
-        2026,
         buildExpectedClosingEntries({
           periodStartDate: restored.startDate,
           periodEndDate: restored.endDate,

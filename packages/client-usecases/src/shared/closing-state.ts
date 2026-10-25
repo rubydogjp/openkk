@@ -1,10 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import {
-  closingYear,
-  type FiscalPeriod,
-} from "@rubydogjp/openkk-client-domain";
+import type { FiscalPeriod } from "@rubydogjp/openkk-client-domain";
 import type { EntryUpsertInput } from "@rubydogjp/openkk-client-ports";
 
 import { useBackendApi } from "./backend-api-context.js";
@@ -30,31 +27,21 @@ export function useOpenkkClosing(): OpenkkClosing {
       async runPreClosing(fiscalPeriod) {
         assertEditingUnlocked(config.editingPolicy, "closing.runPreClosing");
         const authOperationVersion = appState.captureAuthOperationVersion();
-        const period = await backendApi.preClosings.run(
-          fiscalPeriod.id,
-          closingYear(fiscalPeriod),
-        );
+        const period = await backendApi.preClosings.run(fiscalPeriod.id);
         appState.assertAuthOperationCurrent(authOperationVersion);
         appState.syncFiscalPeriod(period);
       },
       async runFinal(fiscalPeriod, entries) {
         assertEditingUnlocked(config.editingPolicy, "closing.runFinal");
         const authOperationVersion = appState.captureAuthOperationVersion();
-        const period = await backendApi.closings.run(
-          fiscalPeriod.id,
-          closingYear(fiscalPeriod),
-          entries,
-        );
+        const period = await backendApi.closings.run(fiscalPeriod.id, entries);
         appState.assertAuthOperationCurrent(authOperationVersion);
         appState.syncFiscalPeriod(period);
       },
       async cancelPreClosing(fiscalPeriod) {
         assertEditingUnlocked(config.editingPolicy, "closing.cancelPreClosing");
         const authOperationVersion = appState.captureAuthOperationVersion();
-        const period = await backendApi.preClosings.cancel(
-          fiscalPeriod.id,
-          closingYear(fiscalPeriod),
-        );
+        const period = await backendApi.preClosings.cancel(fiscalPeriod.id);
         appState.assertAuthOperationCurrent(authOperationVersion);
         appState.syncFiscalPeriod(period);
       },

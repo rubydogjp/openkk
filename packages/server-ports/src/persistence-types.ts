@@ -221,27 +221,14 @@ export type FiscalPeriodDbImportInput = {
   opening: FiscalPeriodOpeningDbRecord;
 };
 
-export type ClosingMarkerDbRecord = {
-  fiscalPeriodId: string;
-  year: number;
-};
-
-export type ClosingMarkerDbImportInput = {
-  year: number;
-};
-
 export type FiscalPeriodArchiveDbImportInput = {
   fiscalPeriod: FiscalPeriodDbImportInput;
   entries: EntryDbUpsertInput[];
   fixedAssets: FixedAssetDbImportInput[];
-  preClosings: ClosingMarkerDbImportInput[];
-  closings: ClosingMarkerDbImportInput[];
 };
 
 export type DbSnapshot = {
   fiscalPeriods: FiscalPeriodDbRecord[];
   entries: EntryDbRecord[];
   fixedAssets: FixedAssetDbRecord[];
-  preClosings: ClosingMarkerDbRecord[];
-  closings: ClosingMarkerDbRecord[];
 };

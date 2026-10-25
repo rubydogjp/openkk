@@ -35,8 +35,6 @@ export function buildOpenkkDemoSeed(config: OpenkkConfig): DbSnapshot {
     fixedAssets: demoFixedAssetItems.map((item) =>
       fixedAssetItemToApiRecord(item, fiscalPeriod.id, fiscalPeriod.userId),
     ),
-    closings: [],
-    preClosings: [],
   };
 }
 

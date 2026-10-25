@@ -4,8 +4,8 @@ import { runMigrations, type MigrationDb } from "./migrate.js";
 import { SCHEMA_MIGRATIONS, SCHEMA_VERSION } from "./schema.js";
 
 describe("SQLite schema", () => {
-  it("keeps the normalized schema at version 4", () => {
-    expect(SCHEMA_VERSION).toBe(4);
+  it("keeps the normalized schema at version 5", () => {
+    expect(SCHEMA_VERSION).toBe(5);
   });
 
   it("keeps migration versions unique, ordered, and contiguous", () => {

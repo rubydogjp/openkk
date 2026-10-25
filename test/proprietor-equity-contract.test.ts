@@ -322,10 +322,9 @@ describe("事業主借 equity contract", () => {
         ?.liabilityClosing,
     ).toBe(120_000);
 
-    await server.preClosings.run(period.id, 2026);
+    await server.preClosings.run(period.id);
     await server.closings.run(
       period.id,
-      2026,
       virtual.map((record) => entryRecordToImportPayload(record, master)),
     );
     const reloaded = createOpenkkServer(db, { userId: "user-1" });

@@ -7,8 +7,6 @@ erDiagram
   fiscal_periods ||--o{ entries : "foreign key"
   entries ||--o{ entry_lines : "foreign key"
   fiscal_periods ||--o{ fixed_assets : "foreign key"
-  fiscal_periods ||--o{ pre_closings : "foreign key"
-  fiscal_periods ||--o{ closings : "foreign key"
   fiscal_periods ||--o{ opening_balance_lines : "foreign key"
   fiscal_periods ||--o{ opening_journals : "foreign key"
   opening_journals ||--o{ opening_journal_lines : "foreign key"
@@ -79,17 +77,9 @@ erDiagram
     INTEGER created_at
     INTEGER updated_at
   }
-  pre_closings {
-    TEXT fiscal_period_id PK,FK
-    INTEGER year PK
-  }
-  closings {
-    TEXT fiscal_period_id PK,FK
-    INTEGER year PK
-  }
 ```
 
-期首データと仕訳明細は子テーブルへ正規化する。仮締めと本締めも別テーブルで管理する。
+期首データと仕訳明細は子テーブルへ正規化する。締めの状態は `fiscal_periods.data` の `phase` で表す。
 
 子テーブルは親の削除時に `ON DELETE CASCADE` で削除される。残る `data` 列は `json_valid` と主要列との一致をCHECK制約で検証する。
 
@@ -97,7 +87,7 @@ Indexes: `fiscal_periods(user_id, created_at, id)`, 期首データ各行の表�
 
 ## マイグレーション
 
-`SCHEMA_VERSION` は 4。起動時に不足分を順に適用する。
+`SCHEMA_VERSION` は 5。起動時に不足分を順に適用する。
 
 公開済みのマイグレーションは書き換えず、修正は新しいバージョンに分離する。
 未公開のバージョンは追加せず、次に公開するバージョンへまとめる。
@@ -108,3 +98,4 @@ Indexes: `fiscal_periods(user_id, created_at, id)`, 期首データ各行の表�
 | 2 | Opening・仕訳明細・締め状態を子テーブルへ正規化 |
 | 3 | `entry_lines` に明細IDを追加 |
 | 4 | 税区分・事業区分をID化し未設定値を `null` に統一。期首データを会計期間へ直結し、`archiveDataAvailable`・`settingsCompleted` を `archiveStatus`・`phase` へ統合 |
+| 5 | 仮締め・本締めのテーブルを廃止し `phase` に統合 |

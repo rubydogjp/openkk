@@ -29,13 +29,12 @@ describe("client/server closing contract", () => {
       businessRate: 1,
       bookAccountId: "acct_equipment",
     });
-    await server.preClosings.run(period.id, 2026);
+    await server.preClosings.run(period.id);
 
     await expect(
-      createServerUsecases(db).closings.run("user-1", period.id, 2026, []),
+      createServerUsecases(db).closings.run("user-1", period.id, []),
     ).rejects.toThrow(/do not match the current fiscal-period source data/);
     expect((await db.fiscalPeriods.getById(period.id))?.phase).toBe("pre_closing");
-    expect(await db.closings.get(period.id, 2026)).toBe(false);
     expect(await db.entries.getAll(period.id)).toEqual([]);
   });
 
@@ -110,8 +109,8 @@ describe("client/server closing contract", () => {
         }),
       );
 
-      await server.preClosings.run(period.id, 2026);
-      const closed = await server.closings.run(period.id, 2026, entries);
+      await server.preClosings.run(period.id);
+      const closed = await server.closings.run(period.id, entries);
 
       expect(closed.phase).toBe("post_closing");
       const saved = await server.entries.getAll(period.id);

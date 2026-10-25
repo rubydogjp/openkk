@@ -1,4 +1,5 @@
 import { AppError } from "../shared/app-error.js";
+import type { FiscalPeriodPhase } from "../shared/models.js";
 import {
   createStoredZip,
   invalidArchiveContentError,
@@ -59,6 +60,22 @@ export function buildFiscalPeriodArchivePayload(input: {
     fixedAssets: input.fixedAssets.map((asset) => ({ ...asset })),
     closings: input.closings.map((closing) => ({ ...closing })),
   };
+}
+
+export function archiveClosingRecords(fiscalPeriod: {
+  id: string;
+  endDate: string;
+  phase: FiscalPeriodPhase;
+}): Array<Record<string, unknown>> {
+  const record = (kind: "pre_closing" | "closing") => ({
+    fiscalPeriodId: fiscalPeriod.id,
+    year: Number(fiscalPeriod.endDate.slice(0, 4)),
+    kind,
+  });
+  if (fiscalPeriod.phase === "post_closing") {
+    return [record("pre_closing"), record("closing")];
+  }
+  return fiscalPeriod.phase === "pre_closing" ? [record("pre_closing")] : [];
 }
 
 export function createFiscalPeriodArchiveZip(

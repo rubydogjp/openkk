@@ -86,7 +86,6 @@ Archived fiscal periods are read-only. Mutations against them must fail with `Op
 | `businessRate` | `0..1` |
 | amount | non-negative safe integer |
 | `usefulLife` | integer, `1..100` |
-| closing `year` | fiscal period end year |
 | fixed-asset disposal fields | sold: date and price; disposed: date; otherwise `null` |
 
 `fiscalPeriods.start` moves a `pre_opening` period to `journalizing`.
@@ -113,8 +112,8 @@ Third-party backends declare a lifecycle policy via `OpenkkConfig.fiscalPeriodPo
 
 `opening` is always present: a period without opening balances carries an empty one.
 
-`fiscalPeriods.purgeArchivedData(id)` deletes an archived period's entries, fixed assets,
-closings and opening, and returns it as `purged`. An `active` period fails with `409`.
+`fiscalPeriods.purgeArchivedData(id)` deletes an archived period's entries, fixed assets
+and opening, and returns it as `purged`. An `active` period fails with `409`.
 `persistent` backends may return the archived record unchanged. Carryover into the next period
 must be committed **before** purge so the new period never depends on purged data.
 
@@ -125,3 +124,5 @@ archives exported by any backend re-import into OpenKK. A zip contains `manifest
 `entries.json`, `fixed-assets.json`, `closings.json` (stored, UTF-8, CRC32-checked).
 Build/read it via `createFiscalPeriodArchiveZip` / `readFiscalPeriodArchiveZip`.
 Version 2 represents nullable fields as JSON `null`; imports also accept version 1.
+`closings.json` lists the closing steps that `phase` has passed, each with the fiscal period end year.
+Imports reject records that disagree with `phase`.

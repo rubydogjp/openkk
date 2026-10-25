@@ -567,9 +567,6 @@ function createFixedAssetDb(
       },
     },
     preClosings: {
-      async get() {
-        return false;
-      },
       async run() {
         return fiscalPeriod({ phase: "pre_closing" });
       },
@@ -578,9 +575,6 @@ function createFixedAssetDb(
       },
     },
     closings: {
-      async get(): Promise<boolean> {
-        return false;
-      },
       async run() {
         return fiscalPeriod({ phase: "post_closing" });
       },

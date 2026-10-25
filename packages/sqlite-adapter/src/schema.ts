@@ -687,11 +687,20 @@ DROP TABLE openkk_v4_tax_category_ids;
 `.trim(),
 };
 
+const MIGRATION_V5: SchemaMigration = {
+  version: 5,
+  sql: `
+DROP TABLE pre_closings;
+DROP TABLE closings;
+`.trim(),
+};
+
 export const SCHEMA_MIGRATIONS: SchemaMigration[] = [
   MIGRATION_V1,
   MIGRATION_V2,
   MIGRATION_V3,
   MIGRATION_V4,
+  MIGRATION_V5,
 ];
 
 export const SCHEMA_VERSION =

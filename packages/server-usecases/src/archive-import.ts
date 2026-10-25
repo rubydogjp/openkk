@@ -2,7 +2,7 @@ import {
   assertDateRange,
   assertEntryMatchesRules,
   assertFiscalPeriodArchiveSize,
-  assertFiscalPeriodClosingMarkers,
+  assertFiscalPeriodClosingRecords,
   assertFiscalPeriodLifecycleFlags,
   assertFixedAssetMatchesRules,
   assertIsoDate,
@@ -11,7 +11,6 @@ import {
   assertPositiveInteger,
   assertUniqueStrings,
   assertUnitRate,
-  closingYear,
   type EntrySide,
   type FiscalPeriodOpening,
   type FiscalPeriodPhase,
@@ -117,7 +116,7 @@ export function normalizeArchiveImportInput(
       sourceId,
     ),
   );
-  const expectedClosingYear = closingYear({ endDate });
+  const expectedClosingYear = Number(endDate.slice(0, 4));
   for (const closing of normalizedClosings) {
     if (closing.year !== expectedClosingYear) {
       throw serverValidationError(
@@ -168,18 +167,16 @@ export function normalizeArchiveImportInput(
       sourceId,
     ),
   );
-  const importedPreClosings = normalizedClosings
-    .filter((closing) => closing.kind === "pre_closing")
-    .map(({ year }) => ({ year }));
-  const importedClosings = normalizedClosings
-    .filter((closing) => closing.kind === "closing")
-    .map(({ year }) => ({ year }));
   assertArchiveLifecycle({
     phase,
     openingBalancesCompleted,
     documentsReceivedCompleted,
-    preClosingCount: importedPreClosings.length,
-    closingCount: importedClosings.length,
+    preClosingCount: normalizedClosings.filter(
+      (closing) => closing.kind === "pre_closing",
+    ).length,
+    closingCount: normalizedClosings.filter(
+      (closing) => closing.kind === "closing",
+    ).length,
   });
   return {
     fiscalPeriod: {
@@ -193,8 +190,6 @@ export function normalizeArchiveImportInput(
     },
     entries: normalizedEntries,
     fixedAssets: normalizedFixedAssets,
-    preClosings: importedPreClosings,
-    closings: importedClosings,
   };
 }
 
@@ -410,7 +405,7 @@ function assertArchiveLifecycle(input: {
   closingCount: number;
 }): void {
   assertFiscalPeriodLifecycleFlags(input, "archive");
-  assertFiscalPeriodClosingMarkers(
+  assertFiscalPeriodClosingRecords(
     input.phase,
     {
       hasPreClosing: input.preClosingCount > 0,

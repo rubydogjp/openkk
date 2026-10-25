@@ -43,37 +43,19 @@ export function createOpenkkEmbeddedBackendAdapter(
       },
     },
     preClosings: {
-      get: async (fiscalPeriodId, year) => {
-        const response = await request("preClosingGet", {
-          fiscalPeriodId,
-          year,
-        });
-        return response.preClosed;
-      },
-      run: async (fiscalPeriodId, year) => {
-        const response = await request("preClosingRun", {
-          fiscalPeriodId,
-          year,
-        });
+      run: async (fiscalPeriodId) => {
+        const response = await request("preClosingRun", { fiscalPeriodId });
         return response.fiscalPeriod;
       },
-      cancel: async (fiscalPeriodId, year) => {
-        const response = await request("preClosingCancel", {
-          fiscalPeriodId,
-          year,
-        });
+      cancel: async (fiscalPeriodId) => {
+        const response = await request("preClosingCancel", { fiscalPeriodId });
         return response.fiscalPeriod;
       },
     },
     closings: {
-      get: async (fiscalPeriodId, year) => {
-        const response = await request("closingGet", { fiscalPeriodId, year });
-        return response.closed;
-      },
-      run: async (fiscalPeriodId, year, entries) => {
+      run: async (fiscalPeriodId, entries) => {
         const response = await request("closingRun", {
           fiscalPeriodId,
-          year,
           entries,
         });
         return response.fiscalPeriod;
@@ -224,27 +206,12 @@ async function dispatchEmbeddedHttp(
       case "authSignOut":
         await server.auth.signOut();
         return { status: 204, body: null };
-      case "preClosingGet": {
-        const request = body as EndpointRequest<"preClosingGet">;
-        return {
-          status: 200,
-          body: {
-            preClosed: await server.preClosings.get(
-              request.fiscalPeriodId,
-              request.year,
-            ),
-          },
-        };
-      }
       case "preClosingRun": {
         const request = body as EndpointRequest<"preClosingRun">;
         return {
           status: 200,
           body: {
-            fiscalPeriod: await server.preClosings.run(
-              request.fiscalPeriodId,
-              request.year,
-            ),
+            fiscalPeriod: await server.preClosings.run(request.fiscalPeriodId),
           },
         };
       }
@@ -255,19 +222,6 @@ async function dispatchEmbeddedHttp(
           body: {
             fiscalPeriod: await server.preClosings.cancel(
               request.fiscalPeriodId,
-              request.year,
-            ),
-          },
-        };
-      }
-      case "closingGet": {
-        const request = body as EndpointRequest<"closingGet">;
-        return {
-          status: 200,
-          body: {
-            closed: await server.closings.get(
-              request.fiscalPeriodId,
-              request.year,
             ),
           },
         };
@@ -279,7 +233,6 @@ async function dispatchEmbeddedHttp(
           body: {
             fiscalPeriod: await server.closings.run(
               request.fiscalPeriodId,
-              request.year,
               request.entries,
             ),
           },

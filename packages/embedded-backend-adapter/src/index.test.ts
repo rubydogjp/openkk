@@ -192,13 +192,11 @@ function embeddedServer(
       ...overrides.auth,
     },
     preClosings: {
-      get: async () => false,
       run: async () => unused(),
       cancel: async () => unused(),
       ...overrides.preClosings,
     },
     closings: {
-      get: async () => false,
       run: async () => unused(),
       ...overrides.closings,
     },

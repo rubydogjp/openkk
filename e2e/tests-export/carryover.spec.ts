@@ -120,10 +120,9 @@ async function archivedPeriod(): Promise<Uint8Array> {
     bookAccountId: "acct_equipment",
   });
   const fixedAssets = await server.fixedAssets.getAll(period.id);
-  await server.preClosings.run(period.id, 2026);
+  await server.preClosings.run(period.id);
   await server.closings.run(
     period.id,
-    2026,
     buildExpectedClosingEntries({
       periodStartDate: period.startDate,
       periodEndDate: period.endDate,

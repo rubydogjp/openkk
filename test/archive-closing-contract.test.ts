@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  archiveClosingRecords,
   buildClosingVirtualEntries,
   buildFiscalPeriodArchivePayload,
   computeFsAggregate,
@@ -61,10 +62,9 @@ describe("archived closing reports", () => {
       });
       expect(preview.every((entry) => entry.description.length <= 400)).toBe(true);
       expect(preview.every((entry) => !/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(entry.description))).toBe(true);
-      await server.preClosings.run(period.id, 2026);
+      await server.preClosings.run(period.id);
       await server.closings.run(
         period.id,
-        2026,
         preview.map((entry) =>
           entryRecordToImportPayload(entry, {
             accounts,
@@ -81,11 +81,7 @@ describe("archived closing reports", () => {
         fiscalPeriod: closed,
         entries: await server.entries.getAll(period.id),
         fixedAssets: [asset],
-        closings: ["pre_closing", "closing"].map((kind) => ({
-          fiscalPeriodId: period.id,
-          year: 2026,
-          kind,
-        })),
+        closings: archiveClosingRecords(closed),
       }));
       const restoredServer = createOpenkkServer(await createMemoryDbAdapter(null), {
         userId: "user-1",

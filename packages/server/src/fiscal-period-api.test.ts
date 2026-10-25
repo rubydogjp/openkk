@@ -882,9 +882,6 @@ function createFiscalPeriodDb(
       async remove() {},
     },
     preClosings: {
-      async get() {
-        return false;
-      },
       async run() {
         throw new Error("not implemented");
       },
@@ -893,9 +890,6 @@ function createFiscalPeriodDb(
       },
     },
     closings: {
-      async get(): Promise<boolean> {
-        return false;
-      },
       async run() {
         throw new Error("not implemented");
       },

@@ -81,18 +81,15 @@ export interface FixedAssetsDb {
 }
 
 export interface ClosingsDb {
-  get(fiscalPeriodId: string, year: number): Promise<boolean>;
   run(
     fiscalPeriodId: string,
-    year: number,
     entries: EntryDbUpsertInput[],
   ): Promise<FiscalPeriodDbRecord>;
 }
 
 export interface PreClosingsDb {
-  get(fiscalPeriodId: string, year: number): Promise<boolean>;
-  run(fiscalPeriodId: string, year: number): Promise<FiscalPeriodDbRecord>;
-  cancel(fiscalPeriodId: string, year: number): Promise<FiscalPeriodDbRecord>;
+  run(fiscalPeriodId: string): Promise<FiscalPeriodDbRecord>;
+  cancel(fiscalPeriodId: string): Promise<FiscalPeriodDbRecord>;
 }
 
 export interface MasterDataDb {

@@ -29,10 +29,6 @@ export function isValidSuccessBody(
         isNullableSafeHttpUrl(body.iconUrl) &&
         isNullableString(body.authProvider)
       );
-    case "preClosingGet":
-      return isObject(body) && typeof body.preClosed === "boolean";
-    case "closingGet":
-      return isObject(body) && typeof body.closed === "boolean";
     case "preClosingRun":
     case "preClosingCancel":
     case "closingRun":

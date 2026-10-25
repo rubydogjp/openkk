@@ -34,14 +34,9 @@ export function createServerUsecases(db: OpenkkDbPort) {
 
 function createClosingsUsecase(db: OpenkkDbPort) {
   return {
-    async get(userId: string, fiscalPeriodId: string, year: number) {
-      await requireOwnedFiscalPeriod(db, userId, fiscalPeriodId);
-      return db.closings.get(fiscalPeriodId, year);
-    },
     async run(
       userId: string,
       fiscalPeriodId: string,
-      year: number,
       entries: EntryUpsertInput[],
     ) {
       const period = await requireOwnedFiscalPeriod(db, userId, fiscalPeriodId);
@@ -59,24 +54,20 @@ function createClosingsUsecase(db: OpenkkDbPort) {
         bookAccounts,
       });
       assertClosingEntriesMatch(entries, expectedEntries);
-      return db.closings.run(fiscalPeriodId, year, entries);
+      return db.closings.run(fiscalPeriodId, entries);
     },
   };
 }
 
 function createPreClosingsUsecase(db: OpenkkDbPort) {
   return {
-    async get(userId: string, fiscalPeriodId: string, year: number) {
+    async run(userId: string, fiscalPeriodId: string) {
       await requireOwnedFiscalPeriod(db, userId, fiscalPeriodId);
-      return db.preClosings.get(fiscalPeriodId, year);
+      return db.preClosings.run(fiscalPeriodId);
     },
-    async run(userId: string, fiscalPeriodId: string, year: number) {
+    async cancel(userId: string, fiscalPeriodId: string) {
       await requireOwnedFiscalPeriod(db, userId, fiscalPeriodId);
-      return db.preClosings.run(fiscalPeriodId, year);
-    },
-    async cancel(userId: string, fiscalPeriodId: string, year: number) {
-      await requireOwnedFiscalPeriod(db, userId, fiscalPeriodId);
-      return db.preClosings.cancel(fiscalPeriodId, year);
+      return db.preClosings.cancel(fiscalPeriodId);
     },
   };
 }

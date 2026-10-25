@@ -21,7 +21,7 @@ async function createVersion1Db() {
   return db;
 }
 
-describe("SQLite v1 to v4 migration", () => {
+describe("SQLite migration from v1", () => {
   it("adds constraints and preserves valid records", async () => {
     const db = await createVersion1Db();
     const period = {
@@ -222,12 +222,8 @@ describe("SQLite v1 to v4 migration", () => {
     ).toBe(0);
     expect(
       db.selectValue(
-        `SELECT COUNT(*) FROM pre_closings WHERE fiscal_period_id='fp-1'`,
-      ),
-    ).toBe(1);
-    expect(
-      db.selectValue(
-        `SELECT COUNT(*) FROM closings WHERE fiscal_period_id='fp-1'`,
+        `SELECT COUNT(*) FROM sqlite_master
+          WHERE type='table' AND name IN ('pre_closings', 'closings')`,
       ),
     ).toBe(0);
     expect(

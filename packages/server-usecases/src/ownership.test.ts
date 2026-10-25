@@ -93,7 +93,7 @@ describe("server usecase ownership boundary", () => {
       usecases.fiscalPeriods.archive("user-1", "fp-1"),
     ).rejects.toThrow(/fiscal period not found/);
     await expect(
-      usecases.closings.run("user-1", "fp-1", 2026, []),
+      usecases.closings.run("user-1", "fp-1", []),
     ).rejects.toThrow(/fiscal period not found/);
     expect(archive).not.toHaveBeenCalled();
     expect(runClosing).not.toHaveBeenCalled();

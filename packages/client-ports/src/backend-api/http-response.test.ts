@@ -186,31 +186,6 @@ describe("resolveOpenkkHttpResponse", () => {
     }
   });
 
-  it("rejects a closing presence flag that is not a boolean", () => {
-    expect(
-      captureError(() =>
-        resolveOpenkkHttpResponse("closingGet", {
-          status: 200,
-          body: { closed: "yes" },
-        }),
-      ),
-    ).toMatchObject({
-      messageForDeveloper: "closingGet returned a malformed success response",
-    });
-    expect(
-      resolveOpenkkHttpResponse("closingGet", {
-        status: 200,
-        body: { closed: false },
-      }),
-    ).toEqual({ closed: false });
-    expect(
-      resolveOpenkkHttpResponse("preClosingGet", {
-        status: 200,
-        body: { preClosed: true },
-      }),
-    ).toEqual({ preClosed: true });
-  });
-
   it("rejects malformed and duplicate master records", () => {
     const account = bookAccountResponse();
     expect(

@@ -453,10 +453,9 @@ async function closedSource(db: OpenkkDbPort) {
     bookAccountId: "acct_equipment",
   });
   await server.fixedAssets.patch(period.id, retired.id, { status: "retired" });
-  await server.preClosings.run(period.id, 2026);
+  await server.preClosings.run(period.id);
   await server.closings.run(
     period.id,
-    2026,
     buildExpectedClosingEntries({
       periodStartDate: period.startDate,
       periodEndDate: period.endDate,
@@ -514,10 +513,9 @@ describe("atomic fiscal period carryover", () => {
       (await backend.fiscalPeriods.getAll()).find((item) => item.id === next.id),
     ).toEqual(next);
     await backend.fiscalPeriods.start(next.id);
-    await backend.preClosings.run(next.id, 2027);
+    await backend.preClosings.run(next.id);
     const closed = await backend.closings.run(
       next.id,
-      2027,
       buildExpectedClosingEntries({
         periodStartDate: next.startDate,
         periodEndDate: next.endDate,

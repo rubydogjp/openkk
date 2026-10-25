@@ -38,7 +38,6 @@ import {
 import {
   assertDbArchiveImportSizeLimits,
   assertDbFiscalPeriodPatchAllowed,
-  assertDbImportedClosingState,
   assertDbOpeningForPeriod,
 } from "./record-validation.js";
 import { newId, nowMs } from "./runtime.js";
@@ -159,7 +158,6 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         updatedAt: timestamp,
       };
       assertDbOpeningForPeriod(opening, record);
-      assertDbImportedClosingState(record, input.preClosings, input.closings);
       const serializedRecord = serializeFiscalPeriodDbData(record);
       await runInTransaction(db, async () => {
         await assertNoOverlappingActiveFiscalPeriod(db, {
@@ -226,18 +224,6 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
             updatedAt: timestamp,
           };
           await insertFixedAsset(db, asset, record, now);
-        }
-        for (const preClosing of input.preClosings) {
-          await db.exec({
-            sql: `INSERT OR REPLACE INTO pre_closings(fiscal_period_id, year) VALUES(?, ?)`,
-            bind: [fiscalPeriodId, preClosing.year],
-          });
-        }
-        for (const closing of input.closings) {
-          await db.exec({
-            sql: `INSERT OR REPLACE INTO closings(fiscal_period_id, year) VALUES(?, ?)`,
-            bind: [fiscalPeriodId, closing.year],
-          });
         }
       });
       return record;
@@ -330,14 +316,6 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         });
         await db.exec({
           sql: `DELETE FROM fixed_assets WHERE fiscal_period_id = ?`,
-          bind: [id],
-        });
-        await db.exec({
-          sql: `DELETE FROM pre_closings WHERE fiscal_period_id = ?`,
-          bind: [id],
-        });
-        await db.exec({
-          sql: `DELETE FROM closings WHERE fiscal_period_id = ?`,
           bind: [id],
         });
         await replaceOpening(db, id, updated.opening);

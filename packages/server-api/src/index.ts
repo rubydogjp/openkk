@@ -1,5 +1,4 @@
 import {
-  assertClosingYear,
   assertEntryCollectionItemLimit,
   assertEntryCollectionLineLimit,
   assertFiscalPeriodPatchMatchesPhase,
@@ -97,39 +96,24 @@ export function createOpenkkServerApi(
       signOut: () => usecases.auth.signOut(),
     },
     preClosings: {
-      get: async (fiscalPeriodId, year) => {
-        const period = await requireOwnedFiscalPeriod(fiscalPeriodId);
-        assertPeriodDataAvailable(period, "read pre-closing data");
-        assertClosingYear(period, year);
-        return usecases.preClosings.get(userId, fiscalPeriodId, year);
-      },
-      run: async (fiscalPeriodId, year) => {
+      run: async (fiscalPeriodId) => {
         const period = await requireOwnedFiscalPeriod(fiscalPeriodId);
         assertPeriodPhase(period, "journalizing", "run pre-closing");
-        assertClosingYear(period, year);
         assertFiscalPeriodReadyForPreClosing(period);
-        return usecases.preClosings.run(userId, fiscalPeriodId, year);
+        return usecases.preClosings.run(userId, fiscalPeriodId);
       },
-      cancel: async (fiscalPeriodId, year) => {
+      cancel: async (fiscalPeriodId) => {
         const period = await requireOwnedFiscalPeriod(fiscalPeriodId);
         assertPeriodPhase(period, "pre_closing", "cancel pre-closing");
-        assertClosingYear(period, year);
-        return usecases.preClosings.cancel(userId, fiscalPeriodId, year);
+        return usecases.preClosings.cancel(userId, fiscalPeriodId);
       },
     },
     closings: {
-      get: async (fiscalPeriodId, year) => {
-        const period = await requireOwnedFiscalPeriod(fiscalPeriodId);
-        assertPeriodDataAvailable(period, "read closing data");
-        assertClosingYear(period, year);
-        return usecases.closings.get(userId, fiscalPeriodId, year);
-      },
-      run: async (fiscalPeriodId, year, entries) => {
+      run: async (fiscalPeriodId, entries) => {
         const period = await requireOwnedFiscalPeriod(fiscalPeriodId);
         assertPeriodPhase(period, "pre_closing", "run closing");
-        assertClosingYear(period, year);
         assertClosingGeneratedEntries(entries, period);
-        return usecases.closings.run(userId, fiscalPeriodId, year, entries);
+        return usecases.closings.run(userId, fiscalPeriodId, entries);
       },
     },
     entries: {

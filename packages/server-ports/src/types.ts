@@ -244,18 +244,13 @@ export type MaintenanceStatus = {
 export type MaintenanceGetRequest = OpenkkEmptyRequest;
 export type MaintenanceGetResponse = MaintenanceStatus;
 
-export type PreClosingGetRequest = { fiscalPeriodId: string; year: number };
-export type PreClosingGetResponse = { preClosed: boolean };
-export type PreClosingRunRequest = { fiscalPeriodId: string; year: number };
+export type PreClosingRunRequest = { fiscalPeriodId: string };
 export type PreClosingRunResponse = { fiscalPeriod: FiscalPeriodApiRecord };
-export type PreClosingCancelRequest = { fiscalPeriodId: string; year: number };
+export type PreClosingCancelRequest = { fiscalPeriodId: string };
 export type PreClosingCancelResponse = { fiscalPeriod: FiscalPeriodApiRecord };
 
-export type ClosingGetRequest = { fiscalPeriodId: string; year: number };
-export type ClosingGetResponse = { closed: boolean };
 export type ClosingRunRequest = {
   fiscalPeriodId: string;
-  year: number;
   entries: EntryUpsertInput[];
 };
 export type ClosingRunResponse = { fiscalPeriod: FiscalPeriodApiRecord };
@@ -382,11 +377,6 @@ export type OpenkkHttpEndpointSpecs = {
     AuthSignOutResponse,
     204
   >;
-  preClosingGet: OpenkkHttpEndpointSpec<
-    PreClosingGetRequest,
-    PreClosingGetResponse,
-    200
-  >;
   preClosingRun: OpenkkHttpEndpointSpec<
     PreClosingRunRequest,
     PreClosingRunResponse,
@@ -395,11 +385,6 @@ export type OpenkkHttpEndpointSpecs = {
   preClosingCancel: OpenkkHttpEndpointSpec<
     PreClosingCancelRequest,
     PreClosingCancelResponse,
-    200
-  >;
-  closingGet: OpenkkHttpEndpointSpec<
-    ClosingGetRequest,
-    ClosingGetResponse,
     200
   >;
   closingRun: OpenkkHttpEndpointSpec<
@@ -538,29 +523,19 @@ export const OPENKK_HTTP_ENDPOINTS = {
     successStatus: 200,
   },
   authSignOut: { method: "POST", path: "/auth/sign-out", successStatus: 204 },
-  preClosingGet: {
-    method: "GET",
-    path: "/fiscal-periods/{fiscalPeriodId}/pre-closings/{year}",
-    successStatus: 200,
-  },
   preClosingRun: {
     method: "PUT",
-    path: "/fiscal-periods/{fiscalPeriodId}/pre-closings/{year}",
+    path: "/fiscal-periods/{fiscalPeriodId}/pre-closing",
     successStatus: 200,
   },
   preClosingCancel: {
     method: "DELETE",
-    path: "/fiscal-periods/{fiscalPeriodId}/pre-closings/{year}",
-    successStatus: 200,
-  },
-  closingGet: {
-    method: "GET",
-    path: "/fiscal-periods/{fiscalPeriodId}/closings/{year}",
+    path: "/fiscal-periods/{fiscalPeriodId}/pre-closing",
     successStatus: 200,
   },
   closingRun: {
     method: "PUT",
-    path: "/fiscal-periods/{fiscalPeriodId}/closings/{year}",
+    path: "/fiscal-periods/{fiscalPeriodId}/closing",
     successStatus: 200,
   },
   entriesGetAll: {
@@ -693,18 +668,15 @@ export interface AuthApi {
 }
 
 export interface ClosingsApi {
-  get(fiscalPeriodId: string, year: number): Promise<boolean>;
   run(
     fiscalPeriodId: string,
-    year: number,
     entries: EntryUpsertInput[],
   ): Promise<FiscalPeriodApiRecord>;
 }
 
 export interface PreClosingsApi {
-  get(fiscalPeriodId: string, year: number): Promise<boolean>;
-  run(fiscalPeriodId: string, year: number): Promise<FiscalPeriodApiRecord>;
-  cancel(fiscalPeriodId: string, year: number): Promise<FiscalPeriodApiRecord>;
+  run(fiscalPeriodId: string): Promise<FiscalPeriodApiRecord>;
+  cancel(fiscalPeriodId: string): Promise<FiscalPeriodApiRecord>;
 }
 
 export interface EntriesApi {

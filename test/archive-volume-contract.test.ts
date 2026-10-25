@@ -32,8 +32,8 @@ it("restores an archive containing multiple entry import batches", async () => {
       })),
     })));
   }
-  await source.preClosings.run(period.id, 2026);
-  await source.closings.run(period.id, 2026, []);
+  await source.preClosings.run(period.id);
+  await source.closings.run(period.id, []);
   const closed = await source.fiscalPeriods.patch(period.id, { documentsReceivedCompleted: true });
   const entries = await source.entries.getAll(period.id);
   const zip = createFiscalPeriodArchiveZip(buildFiscalPeriodArchivePayload({

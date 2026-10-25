@@ -1,5 +1,4 @@
 import {
-  assertClosingYear,
   assertEntryMatchesRules,
   serverConflictError,
   serverValidationError,
@@ -16,56 +15,28 @@ import type {
 import { insertEntryLines, insertImportedEntries } from "./entry-store.js";
 import { transitionFiscalPeriod } from "./fiscal-period-transition.js";
 import { msToIso } from "./persistence-codec.js";
-import {
-  assertDbClosingGeneratedSizeLimits,
-} from "./record-validation.js";
+import { assertDbClosingGeneratedSizeLimits } from "./record-validation.js";
 import { newId, nowMs } from "./runtime.js";
 import type { SqlDb } from "./sql-db.js";
 
 export function createPreClosingsDb(db: SqlDb): PreClosingsDb {
   return {
-    async get(fiscalPeriodId, year) {
-      const rows = (await db.exec({
-        sql: `SELECT 1 FROM pre_closings WHERE fiscal_period_id = ? AND year = ?`,
-        bind: [fiscalPeriodId, year],
-        returnValue: "resultRows",
-        rowMode: "array",
-      })) as Array<[number]>;
-      return rows[0] != null;
-    },
-    async run(fiscalPeriodId, year) {
+    async run(fiscalPeriodId) {
       return transitionFiscalPeriod(
         db,
         fiscalPeriodId,
         "journalizing",
         "pre_closing",
-        async (period) => {
-          assertClosingYear(period, year);
-          await db.exec({
-            sql: `INSERT OR REPLACE INTO pre_closings(fiscal_period_id, year) VALUES(?, ?)`,
-            bind: [fiscalPeriodId, year],
-          });
-        },
+        null,
       );
     },
-    async cancel(fiscalPeriodId, year) {
+    async cancel(fiscalPeriodId) {
       return transitionFiscalPeriod(
         db,
         fiscalPeriodId,
         "pre_closing",
         "journalizing",
-        async (period) => {
-          assertClosingYear(period, year);
-          await assertDbClosingMarkerExists(
-            db,
-            "pre_closings",
-            fiscalPeriodId,
-            year,
-          );
-          await db.exec({
-            sql: `DELETE FROM pre_closings WHERE fiscal_period_id = ? AND year = ?`,
-            bind: [fiscalPeriodId, year],
-          });
+        async () => {
           await deleteClosingGeneratedEntries(db, fiscalPeriodId);
         },
       );
@@ -75,16 +46,7 @@ export function createPreClosingsDb(db: SqlDb): PreClosingsDb {
 
 export function createClosingsDb(db: SqlDb): ClosingsDb {
   return {
-    async get(fiscalPeriodId, year) {
-      const rows = (await db.exec({
-        sql: `SELECT 1 FROM closings WHERE fiscal_period_id = ? AND year = ?`,
-        bind: [fiscalPeriodId, year],
-        returnValue: "resultRows",
-        rowMode: "array",
-      })) as Array<[number]>;
-      return rows[0] != null;
-    },
-    async run(fiscalPeriodId, year, entries) {
+    async run(fiscalPeriodId, entries) {
       assertDbClosingGeneratedSizeLimits(entries);
       return transitionFiscalPeriod(
         db,
@@ -92,18 +54,7 @@ export function createClosingsDb(db: SqlDb): ClosingsDb {
         "pre_closing",
         "post_closing",
         async (period) => {
-          assertClosingYear(period, year);
-          await assertDbClosingMarkerExists(
-            db,
-            "pre_closings",
-            fiscalPeriodId,
-            year,
-          );
           await replaceClosingGeneratedEntries(db, period, entries);
-          await db.exec({
-            sql: `INSERT OR REPLACE INTO closings(fiscal_period_id, year) VALUES(?, ?)`,
-            bind: [fiscalPeriodId, year],
-          });
         },
       );
     },
@@ -161,25 +112,5 @@ async function replaceClosingGeneratedEntries(
   }
   for (const entry of candidates) {
     await insertEntryLines(db, entry);
-  }
-}
-
-async function assertDbClosingMarkerExists(
-  db: SqlDb,
-  table: "pre_closings" | "closings",
-  fiscalPeriodId: string,
-  year: number,
-): Promise<void> {
-  const rows = (await db.exec({
-    sql: `SELECT 1 FROM ${table} WHERE fiscal_period_id = ? AND year = ?`,
-    bind: [fiscalPeriodId, year],
-    returnValue: "resultRows",
-    rowMode: "array",
-  })) as Array<[number]>;
-  if (rows[0] == null) {
-    throw serverConflictError(
-      `${table} marker is missing for fiscal period ${fiscalPeriodId} and year ${year}`,
-      "締め状態の保存データが一致しないため、処理を実行できません",
-    );
   }
 }

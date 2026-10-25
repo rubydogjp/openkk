@@ -1,13 +1,10 @@
 import {
-  assertClosingYear,
   assertUniqueIds,
   requireObject,
   serverValidationError,
 } from "@rubydogjp/openkk-server-domain";
 
 import type {
-  ClosingMarkerDbImportInput,
-  ClosingMarkerDbRecord,
   DbSnapshot,
   FiscalPeriodDbRecord,
 } from "@rubydogjp/openkk-server-ports";
@@ -18,7 +15,6 @@ import {
   serializeFixedAssetDbData,
 } from "./persistence-codec.js";
 import {
-  assertDbImportedClosingState,
   assertDbOpeningForPeriod,
   assertDbStoredEntryRecord,
   assertDbStoredFixedAssetRecord,
@@ -40,9 +36,7 @@ function prepareAndValidateSeed(seed: unknown): DbSnapshot {
   if (
     !Array.isArray(value.fiscalPeriods) ||
     !Array.isArray(value.entries) ||
-    !Array.isArray(value.fixedAssets) ||
-    !Array.isArray(value.preClosings) ||
-    !Array.isArray(value.closings)
+    !Array.isArray(value.fixedAssets)
   ) {
     throw serverValidationError("Seed collections must be arrays", null);
   }
@@ -113,44 +107,25 @@ function prepareAndValidateSeed(seed: unknown): DbSnapshot {
   }
   assertUniqueIds(value.fixedAssets, "Seed fixed asset", null);
 
-  const preClosingsByPeriod = groupSeedClosingRows(
-    periodsById,
-    value.preClosings,
-    "pre-closing",
-  );
-  const closingsByPeriod = groupSeedClosingRows(
-    periodsById,
-    value.closings,
-    "closing",
-  );
   for (const period of periodsById.values()) {
-    const preClosings = preClosingsByPeriod.get(period.id) ?? [];
-    const closings = closingsByPeriod.get(period.id) ?? [];
-    if (period.archiveStatus === "purged") {
-      const hasArchivedData =
-        value.entries.some((entry) => entry.fiscalPeriodId === period.id) ||
-        value.fixedAssets.some((asset) => asset.fiscalPeriodId === period.id) ||
-        preClosings.length > 0 ||
-        closings.length > 0 ||
-        period.opening.balanceLines.length > 0 ||
-        period.opening.journals.length > 0;
-      if (hasArchivedData) {
-        throw serverValidationError(
-          `Seed archived fiscal period ${period.id} contains purged data`,
-          null,
-        );
-      }
-      continue;
+    if (period.archiveStatus !== "purged") continue;
+    const hasArchivedData =
+      value.entries.some((entry) => entry.fiscalPeriodId === period.id) ||
+      value.fixedAssets.some((asset) => asset.fiscalPeriodId === period.id) ||
+      period.opening.balanceLines.length > 0 ||
+      period.opening.journals.length > 0;
+    if (hasArchivedData) {
+      throw serverValidationError(
+        `Seed archived fiscal period ${period.id} contains purged data`,
+        null,
+      );
     }
-    assertDbImportedClosingState(period, preClosings, closings);
   }
 
   return {
     fiscalPeriods,
     entries: value.entries,
     fixedAssets: value.fixedAssets,
-    preClosings: value.preClosings,
-    closings: value.closings,
   };
 }
 
@@ -178,28 +153,6 @@ function assertSeedOwner(
       null,
     );
   }
-}
-
-function groupSeedClosingRows(
-  periodsById: ReadonlyMap<string, FiscalPeriodDbRecord>,
-  rows: ReadonlyArray<ClosingMarkerDbRecord>,
-  label: string,
-): Map<string, ClosingMarkerDbImportInput[]> {
-  const grouped = new Map<string, ClosingMarkerDbImportInput[]>();
-  for (const row of rows) {
-    const period = requireSeedFiscalPeriod(periodsById, row.fiscalPeriodId);
-    assertClosingYear(period, row.year);
-    const periodRows = grouped.get(period.id) ?? [];
-    if (periodRows.some((existing) => existing.year === row.year)) {
-      throw serverValidationError(
-        `Seed contains duplicate ${label} marker for ${period.id}`,
-        null,
-      );
-    }
-    periodRows.push({ year: row.year });
-    grouped.set(period.id, periodRows);
-  }
-  return grouped;
 }
 
 async function seedStoresInner(
@@ -241,18 +194,6 @@ async function seedStoresInner(
         now,
         now,
       ],
-    });
-  }
-  for (const preClosing of seed.preClosings) {
-    await db.exec({
-      sql: `INSERT INTO pre_closings(fiscal_period_id, year) VALUES(?, ?)`,
-      bind: [preClosing.fiscalPeriodId, preClosing.year],
-    });
-  }
-  for (const closing of seed.closings) {
-    await db.exec({
-      sql: `INSERT INTO closings(fiscal_period_id, year) VALUES(?, ?)`,
-      bind: [closing.fiscalPeriodId, closing.year],
     });
   }
 }

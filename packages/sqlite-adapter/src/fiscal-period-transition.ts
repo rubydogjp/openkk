@@ -17,7 +17,7 @@ export async function transitionFiscalPeriod(
   fiscalPeriodId: string,
   expectedPhase: FiscalPeriodDbPhase,
   nextPhase: FiscalPeriodDbPhase,
-  writeTransitionData: (period: FiscalPeriodDbRecord) => Promise<void>,
+  writeTransitionData: ((period: FiscalPeriodDbRecord) => Promise<void>) | null,
 ): Promise<FiscalPeriodDbRecord> {
   return runInTransaction(db, async () => {
     const current = await requireFiscalPeriodRecord(db, fiscalPeriodId);
@@ -40,7 +40,7 @@ export async function transitionFiscalPeriod(
       phase: nextPhase,
     };
     const serializedRecord = serializeFiscalPeriodDbData(updated);
-    await writeTransitionData(current);
+    await writeTransitionData?.(current);
     await db.exec({
       sql: `UPDATE fiscal_periods SET data = ?, updated_at = ? WHERE id = ?`,
       bind: [serializedRecord, now, fiscalPeriodId],

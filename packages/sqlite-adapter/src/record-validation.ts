@@ -1,10 +1,8 @@
 import {
-  assertClosingYear,
   assertEntryCollectionItemLimit,
   assertEntryCollectionLineLimit,
   assertEntryMatchesRules,
   assertFiscalPeriodArchiveSize,
-  assertFiscalPeriodClosingMarkers,
   assertFiscalPeriodPatchMatchesPhase,
   assertFixedAssetMatchesRules,
   assertOpeningMatchesRules,
@@ -16,7 +14,6 @@ import {
 } from "@rubydogjp/openkk-server-domain";
 
 import type {
-  ClosingMarkerDbImportInput,
   EntryDbRecord,
   EntryDbUpsertInput,
   FiscalPeriodArchiveDbImportInput,
@@ -30,12 +27,7 @@ export function assertDbArchiveImportSizeLimits(
   input: unknown,
 ): asserts input is FiscalPeriodArchiveDbImportInput {
   const value = requireObject(input, "Archived import");
-  if (
-    !Array.isArray(value.entries) ||
-    !Array.isArray(value.fixedAssets) ||
-    !Array.isArray(value.preClosings) ||
-    !Array.isArray(value.closings)
-  ) {
+  if (!Array.isArray(value.entries) || !Array.isArray(value.fixedAssets)) {
     throw serverValidationError(
       "Archived import collections must be arrays",
       null,
@@ -45,15 +37,7 @@ export function assertDbArchiveImportSizeLimits(
     value.fiscalPeriod,
     value.entries,
     value.fixedAssets,
-    value.preClosings,
-    value.closings,
   ]);
-  if (value.preClosings.length > 1 || value.closings.length > 1) {
-    throw serverValidationError(
-      "Archived closing collections must contain at most one record each",
-      null,
-    );
-  }
 }
 
 export function assertDbOpeningForPeriod(
@@ -124,23 +108,4 @@ export function assertDbClosingGeneratedSizeLimits(
   }
   assertEntryCollectionItemLimit(entries, "Closing entries", null);
   assertEntryCollectionLineLimit(entries, "Closing entries", null);
-}
-
-
-export function assertDbImportedClosingState(
-  period: FiscalPeriodDbData,
-  preClosings: ReadonlyArray<ClosingMarkerDbImportInput>,
-  closings: ReadonlyArray<ClosingMarkerDbImportInput>,
-): void {
-  for (const row of [...preClosings, ...closings]) {
-    assertClosingYear(period, row.year);
-  }
-  assertFiscalPeriodClosingMarkers(
-    period.phase,
-    {
-      hasPreClosing: preClosings.length > 0,
-      hasClosing: closings.length > 0,
-    },
-    "Imported",
-  );
 }
