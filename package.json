@@ -38,7 +38,7 @@
   ],
   "scripts": {
     "prepare": "npm run build:packages",
-    "check": "npm run build:packages && npm run lint && npm test",
+    "check": "npm run format:check && npm run build:packages && npm run lint && npm test",
     "check:generated": "npm run check:master-data && npm run check:service-workers && npm run check:dependency-graph && npm run check:theme-docs && npm run check:icons",
     "check:full": "npm run audit:production && npm run check:generated && npm run check && npm run build:apps && npm run test:e2e:export:built && npm run test:e2e",
     "audit:production": "npm audit --omit=dev --audit-level=high",

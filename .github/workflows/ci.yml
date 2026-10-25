@@ -25,7 +25,7 @@ jobs:
       - name: Generated source drift
         run: npm run check:generated
 
-      - name: Package build, lint, and unit tests
+      - name: Format, package build, lint, and unit tests
         run: npm run check
 
   apps-e2e:

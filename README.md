@@ -11,7 +11,8 @@
 
 ```bash
 npm install
-npm run check     # package build + tsc --noEmit + Vitest
+npm run format     # Prettier で整形
+npm run check      # 書式検査 + package build + tsc --noEmit + Vitest
 npm run check:full # 生成物検査 + 上記 + 3アプリbuild + Playwright
 ```
 
