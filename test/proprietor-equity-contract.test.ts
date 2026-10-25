@@ -131,9 +131,7 @@ describe("事業主借 equity contract", () => {
             : item,
         ),
       };
-      expect(
-        buildGeneralLedgerBody([record], openingBalanceLines),
-      ).toBe(
+      expect(buildGeneralLedgerBody([record], openingBalanceLines)).toBe(
         buildGeneralLedgerBody(
           [recordWithLoanAsLiability],
           openingBalanceLines,

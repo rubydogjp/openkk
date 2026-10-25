@@ -70,7 +70,9 @@ describe("openkk server fixed asset API", () => {
         businessRate: 1,
         bookAccountId: "acct_equipment",
       }),
-    ).rejects.toThrow(/Fixed asset acquisition cost must be a positive integer/);
+    ).rejects.toThrow(
+      /Fixed asset acquisition cost must be a positive integer/,
+    );
 
     await expect(
       server.fixedAssets.create("fp-1", {
@@ -287,9 +289,7 @@ describe("openkk server fixed asset API", () => {
     await expect(
       server.fixedAssets.patch("fp-1", created.id, { status: "retired" }),
     ).rejects.toThrow(/cannot be retired before it reaches memorandum value/);
-    expect((await server.fixedAssets.getAll("fp-1"))[0]?.status).toBe(
-      "active",
-    );
+    expect((await server.fixedAssets.getAll("fp-1"))[0]?.status).toBe("active");
   });
 
   it("rejects disposal data for statuses that do not use it", async () => {
@@ -320,9 +320,7 @@ describe("openkk server fixed asset API", () => {
       }),
     ).rejects.toThrow(/must not have a disposal price/);
 
-    expect((await server.fixedAssets.getAll("fp-1"))[0]?.status).toBe(
-      "active",
-    );
+    expect((await server.fixedAssets.getAll("fp-1"))[0]?.status).toBe("active");
   });
 
   it("rejects future acquisitions and out-of-period disposals", async () => {
@@ -590,9 +588,7 @@ function createFixedAssetDb(
       async getTaxCategories(): Promise<MasterTaxCategoryDbRecord[]> {
         return [];
       },
-      async getBusinessCategories(): Promise<
-        MasterBusinessCategoryDbRecord[]
-      > {
+      async getBusinessCategories(): Promise<MasterBusinessCategoryDbRecord[]> {
         return [];
       },
     },

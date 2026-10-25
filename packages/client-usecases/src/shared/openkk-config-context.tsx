@@ -30,7 +30,10 @@ export function OpenkkConfigProvider(props: {
         current.getMonth(),
         current.getDate() + 1,
       );
-      const delay = Math.max(1_000, nextDate.getTime() - current.getTime() + 50);
+      const delay = Math.max(
+        1_000,
+        nextDate.getTime() - current.getTime() + 50,
+      );
       timer = setTimeout(() => {
         setToday(props.config.clock.today());
         scheduleNextDayUpdate();

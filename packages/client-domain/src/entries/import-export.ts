@@ -184,11 +184,7 @@ export function exportEntriesAsCsv(entries: EntryRecord[]) {
       return `'${value}`;
     });
     lines.push(
-      [
-        ...safeValues,
-        OPENKK_JOURNAL_CSV_SCHEMA,
-        JSON.stringify(escapedFields),
-      ]
+      [...safeValues, OPENKK_JOURNAL_CSV_SCHEMA, JSON.stringify(escapedFields)]
         .map(escapeCsvField)
         .join(","),
     );
@@ -317,15 +313,14 @@ function normalizeEntry(input: {
   const lines =
     importedLines.length > 0
       ? importedLines
-      : [
-          pairInputToLine("debit", input),
-          pairInputToLine("credit", input),
-        ].map((line): EntryLine => ({
-          ...line,
-          partnerName: partner === "" ? null : partner,
-          taxCategoryName: taxCategory,
-          businessCategoryName: businessCategory,
-        }));
+      : [pairInputToLine("debit", input), pairInputToLine("credit", input)].map(
+          (line): EntryLine => ({
+            ...line,
+            partnerName: partner === "" ? null : partner,
+            taxCategoryName: taxCategory,
+            businessCategoryName: businessCategory,
+          }),
+        );
   const result: EntryRecord = {
     id: input.id,
     localId: input.localId,
@@ -421,9 +416,7 @@ function normalizeLines(lines: unknown[], rowNumber: number): EntryLine[] {
     const taxCategoryId = stringValue(line.taxCategoryId).trim();
     const taxCategoryName = stringValue(line.taxCategoryName).trim();
     const businessCategoryId = stringValue(line.businessCategoryId).trim();
-    const businessCategoryName = stringValue(
-      line.businessCategoryName,
-    ).trim();
+    const businessCategoryName = stringValue(line.businessCategoryName).trim();
     return {
       side: line.side,
       accountName,
@@ -442,8 +435,7 @@ function normalizeLines(lines: unknown[], rowNumber: number): EntryLine[] {
       partnerName: partnerName === "" ? null : partnerName,
       taxCategoryId: taxCategoryId === "" ? null : taxCategoryId,
       taxCategoryName: taxCategoryName === "" ? null : taxCategoryName,
-      businessCategoryId:
-        businessCategoryId === "" ? null : businessCategoryId,
+      businessCategoryId: businessCategoryId === "" ? null : businessCategoryId,
       businessCategoryName:
         businessCategoryName === "" ? null : businessCategoryName,
     };
@@ -498,9 +490,7 @@ function parseCsvEscapedFields(
   indexMap: Record<(typeof csvHeaders)[number], number>,
   rowNumber: number,
 ): Set<(typeof journalCsvDataHeaders)[number]> {
-  if (
-    readCsvCell(cells, indexMap.openkkSchema) !== OPENKK_JOURNAL_CSV_SCHEMA
-  ) {
+  if (readCsvCell(cells, indexMap.openkkSchema) !== OPENKK_JOURNAL_CSV_SCHEMA) {
     return new Set();
   }
   const raw = readCsvCell(cells, indexMap.openkkEscapedFields);

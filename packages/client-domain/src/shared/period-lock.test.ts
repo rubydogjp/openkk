@@ -33,27 +33,42 @@ describe("buildPeriodLockMessage", () => {
   });
 
   it("returns locked message when phase is pre_opening", () => {
-    const message = buildPeriodLockMessage(period({ phase: "pre_opening" }), null);
+    const message = buildPeriodLockMessage(
+      period({ phase: "pre_opening" }),
+      null,
+    );
     expect(message).not.toBeNull();
   });
 
   it("returns locked message when phase is post_closing", () => {
-    const message = buildPeriodLockMessage(period({ phase: "post_closing" }), null);
+    const message = buildPeriodLockMessage(
+      period({ phase: "post_closing" }),
+      null,
+    );
     expect(message).not.toBeNull();
   });
 
   it("returns locked message when pre-closing", () => {
-    const message = buildPeriodLockMessage(period({ phase: "pre_closing" }), null);
+    const message = buildPeriodLockMessage(
+      period({ phase: "pre_closing" }),
+      null,
+    );
     expect(message).not.toBeNull();
   });
 
   it("returns locked message when archived", () => {
-    const message = buildPeriodLockMessage(period({ archiveStatus: "archived" }), null);
+    const message = buildPeriodLockMessage(
+      period({ archiveStatus: "archived" }),
+      null,
+    );
     expect(message?.description).toContain("圧縮保存済み");
   });
 
   it("returns null (unlocked) when journalizing and not closed", () => {
-    const message = buildPeriodLockMessage(period({ phase: "journalizing" }), null);
+    const message = buildPeriodLockMessage(
+      period({ phase: "journalizing" }),
+      null,
+    );
     expect(message).toBeNull();
   });
 

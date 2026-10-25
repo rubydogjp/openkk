@@ -11,7 +11,11 @@ async function createWorkerTransportAdapter(
   vi.stubGlobal("Worker", InMemoryDbWorker);
   const { createFileDbAdapter } = await import("./index.js");
   return createFileDbAdapter(
-    { vfsName: "opfs-conformance", dbFileName: "test.sqlite3", onWaitingForAnotherTab: null },
+    {
+      vfsName: "opfs-conformance",
+      dbFileName: "test.sqlite3",
+      onWaitingForAnotherTab: null,
+    },
     seed,
   );
 }

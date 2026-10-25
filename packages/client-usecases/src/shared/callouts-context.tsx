@@ -3,8 +3,7 @@
 import { createContext, useContext, type ReactNode } from "react";
 
 export type OpenkkCalloutSlot =
-  | "stepJournalizingPreClosingHint"
-  | "stepNextFiscalPeriodFooter";
+  "stepJournalizingPreClosingHint" | "stepNextFiscalPeriodFooter";
 
 export type OpenkkCalloutSlots = Record<OpenkkCalloutSlot, ReactNode | null>;
 

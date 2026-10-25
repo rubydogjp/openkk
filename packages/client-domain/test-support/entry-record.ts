@@ -1,7 +1,4 @@
-import type {
-  EntryLine,
-  EntryRecord,
-} from "../src/entries/entry-record.js";
+import type { EntryLine, EntryRecord } from "../src/entries/entry-record.js";
 import type { BookAccountType } from "../src/entries/book-account.js";
 
 type PairFields = {
@@ -56,7 +53,10 @@ export function entryRecord(
   defaults: EntryRecordOverrides = {},
 ): EntryRecord {
   const input = { ...DEFAULTS, ...defaults, ...overrides };
-  const lines = input.lines ?? [pairLine("debit", input), pairLine("credit", input)];
+  const lines = input.lines ?? [
+    pairLine("debit", input),
+    pairLine("credit", input),
+  ];
   return {
     id: input.id,
     fiscalPeriodId: input.fiscalPeriodId,
@@ -80,13 +80,9 @@ function pairLine(
     accountName: debit ? input.debit : input.credit,
     accountType: debit ? input.debitType : input.creditType,
     amount: debit ? input.debitAmount : input.creditAmount,
-    bookAccountId: debit
-      ? input.debitBookAccountId
-      : input.creditBookAccountId,
+    bookAccountId: debit ? input.debitBookAccountId : input.creditBookAccountId,
     partnerName: input.partner,
-    taxCategoryId: debit
-      ? input.debitTaxCategoryId
-      : input.creditTaxCategoryId,
+    taxCategoryId: debit ? input.debitTaxCategoryId : input.creditTaxCategoryId,
     taxCategoryName: input.taxCategory,
     businessCategoryId: debit
       ? input.debitBusinessCategoryId

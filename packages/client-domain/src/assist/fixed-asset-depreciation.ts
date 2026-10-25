@@ -96,9 +96,9 @@ export function computeStraightLineDepreciation(
   const annualDepreciation = Math.min(
     depreciableAmount - accumulated,
     Number(
-      (BigInt(depreciableAmount) * BigInt(annualWindowEnd)) / BigInt(totalMonths),
-    ) -
-      accumulated,
+      (BigInt(depreciableAmount) * BigInt(annualWindowEnd)) /
+        BigInt(totalMonths),
+    ) - accumulated,
   );
   const remainingMonths = totalMonths - elapsedMonths;
 

@@ -8,7 +8,10 @@ import {
 } from "@rubydogjp/openkk-server-domain";
 
 import type { OpenkkDbPort } from "../src/db-port.js";
-import type { DbSnapshot, FiscalPeriodArchiveDbImportInput } from "../src/persistence-types.js";
+import type {
+  DbSnapshot,
+  FiscalPeriodArchiveDbImportInput,
+} from "../src/persistence-types.js";
 
 export type DbPortConformanceContext = {
   makeAdapter: () => Promise<OpenkkDbPort>;
@@ -270,9 +273,9 @@ export function runDbPortConformance(
       expect((await db.fiscalPeriods.getById(period.id))?.opening).toEqual(
         updated.opening,
       );
-      expect(
-        (await db.fiscalPeriods.getAll("user-1"))[0]?.opening,
-      ).toEqual(updated.opening);
+      expect((await db.fiscalPeriods.getAll("user-1"))[0]?.opening).toEqual(
+        updated.opening,
+      );
     });
 
     it("allows opening-journal drafts but enforces finalization at the persistence boundary", async () => {
@@ -567,9 +570,7 @@ export function runDbPortConformance(
       expect(imported.phase).toBe("post_closing");
       expect(await db.fiscalPeriods.getAll("user-1")).toEqual([imported]);
       expect(await db.entries.getAll(imported.id)).toHaveLength(1);
-      expect(
-        (await db.fixedAssets.getAll(imported.id))[0],
-      ).toMatchObject({
+      expect((await db.fixedAssets.getAll(imported.id))[0]).toMatchObject({
         name: "Imported Camera",
         status: "sold",
         disposalDate: "2026-12-01",
@@ -1005,9 +1006,9 @@ export function runDbPortConformance(
       await expect(
         db.entries.create("user-1", period.id, input),
       ).rejects.toMatchObject({ statusCode: 409 });
-      await expect(
-        db.entries.update(other.id, input),
-      ).rejects.toMatchObject({ statusCode: 409 });
+      await expect(db.entries.update(other.id, input)).rejects.toMatchObject({
+        statusCode: 409,
+      });
       expect(await db.entries.getById(other.id)).toEqual(other);
     });
 
@@ -1098,9 +1099,7 @@ export function runDbPortConformance(
         bookAccountId: "acct_equipment",
       });
 
-      expect(await db.fixedAssets.getAll(period.id)).toEqual([
-        asset,
-      ]);
+      expect(await db.fixedAssets.getAll(period.id)).toEqual([asset]);
 
       const updated = await db.fixedAssets.patch(asset.id, {
         businessRate: 0.7,
@@ -1263,9 +1262,12 @@ export function runDbPortConformance(
       async (operation) => {
         const db = await makeDb();
         const period = await createTestFiscalPeriod(db);
-        const inputs = ["Virtual:import", "VIRTUAL:import", "ordinary", null].map(
-          (localId) => testEntryInput(localId, "Imported entry"),
-        );
+        const inputs = [
+          "Virtual:import",
+          "VIRTUAL:import",
+          "ordinary",
+          null,
+        ].map((localId) => testEntryInput(localId, "Imported entry"));
         const ordinaryEntries = await db.entries.importMany(
           "user-1",
           period.id,
@@ -1322,7 +1324,6 @@ export function runDbPortConformance(
         (await db.entries.getAll(period.id)).map((entry) => entry.localId),
       ).toEqual(["virtual:stored"]);
     });
-
   });
 
   describe(`OpenkkDbPort conformance [${label}] / seed`, () => {

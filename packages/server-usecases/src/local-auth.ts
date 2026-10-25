@@ -53,7 +53,10 @@ export function createLocalAuthUsecase() {
       pruneExpired();
       const key = authorizationKey(state, code);
       if (!pendingAuthorizations.delete(key)) {
-        throw serverValidationError("auth state or code is invalid or expired", null);
+        throw serverValidationError(
+          "auth state or code is invalid or expired",
+          null,
+        );
       }
       const completionCode = `${LOCAL_AUTH_COMPLETION_PREFIX}${crypto.randomUUID()}`;
       setBoundedPendingValue(
@@ -67,7 +70,10 @@ export function createLocalAuthUsecase() {
       assertNonBlankString(completionCode, "auth completion code");
       pruneExpired();
       if (!pendingCompletions.delete(completionCode)) {
-        throw serverValidationError("invalid or expired auth completion code", null);
+        throw serverValidationError(
+          "invalid or expired auth completion code",
+          null,
+        );
       }
     },
     async signOut() {

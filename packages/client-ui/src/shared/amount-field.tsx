@@ -4,7 +4,14 @@ import { useState, type ReactNode } from "react";
 
 import { formatAmount } from "@rubydogjp/openkk-client-domain";
 
-import { fontFamily, fontWeight, palette, radii, sizes, typography } from "./design-tokens.js";
+import {
+  fontFamily,
+  fontWeight,
+  palette,
+  radii,
+  sizes,
+  typography,
+} from "./design-tokens.js";
 
 const AMOUNT_FONT = {
   ...typography.amount,

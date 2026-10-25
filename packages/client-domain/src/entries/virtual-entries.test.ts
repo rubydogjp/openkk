@@ -16,9 +16,7 @@ import {
   withClosingVirtualEntries,
 } from "./virtual-entries.js";
 
-function depreciatingAsset(
-  overrides: Partial<FixedAsset> = {},
-): FixedAsset {
+function depreciatingAsset(overrides: Partial<FixedAsset> = {}): FixedAsset {
   const base: FixedAsset = {
     id: "fa-1",
     name: "業務用PC",
@@ -298,21 +296,21 @@ describe("buildClosingVirtualEntries", () => {
 describe("buildClosingVirtualEntries / 家事按分の振替", () => {
   const rentEntry = (businessRate: number): EntryRecord =>
     entryRecord({
-    id: "rent",
-    fiscalPeriodId: "fp-2026",
-    date: "2026-03-25",
-    weekday: "",
-    debit: "地代家賃",
-    debitType: "expense",
-    debitAmount: "21,000",
-    credit: "普通預金",
-    creditType: "asset",
-    creditAmount: "21,000",
-    description: "作業場賃料",
-    partner: "",
-    businessRate,
-    taxCategory: "課税 10%",
-  });
+      id: "rent",
+      fiscalPeriodId: "fp-2026",
+      date: "2026-03-25",
+      weekday: "",
+      debit: "地代家賃",
+      debitType: "expense",
+      debitAmount: "21,000",
+      credit: "普通預金",
+      creditType: "asset",
+      creditAmount: "21,000",
+      description: "作業場賃料",
+      partner: "",
+      businessRate,
+      taxCategory: "課税 10%",
+    });
 
   it("emits one balanced period-end transfer moving the personal portion to 事業主貸", () => {
     const entries = buildClosingVirtualEntries({

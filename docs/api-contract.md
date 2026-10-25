@@ -2,12 +2,12 @@
 
 ## Packages
 
-| Boundary | Package | Types |
-|---|---|---|
-| Client backend | `@rubydogjp/openkk-client-ports` | `OpenkkBackendPort`, `*Request`, `*Response`, `*ApiRecord`, `*Input`, `OpenkkApiErrorDto` |
-| TypeScript server | `@rubydogjp/openkk-server-ports` | `OpenkkServerPort`, `*Request`, `*Response`, `*ApiRecord`, `*Input`, `OpenkkApiErrorDto` |
-| Server storage | `@rubydogjp/openkk-server-ports` | `OpenkkDbPort`, `*DbRecord`, `*Db*Input` |
-| Errors | `@rubydogjp/openkk-*-domain` | `AppError`, `AppErrorLike` |
+| Boundary          | Package                          | Types                                                                                     |
+| ----------------- | -------------------------------- | ----------------------------------------------------------------------------------------- |
+| Client backend    | `@rubydogjp/openkk-client-ports` | `OpenkkBackendPort`, `*Request`, `*Response`, `*ApiRecord`, `*Input`, `OpenkkApiErrorDto` |
+| TypeScript server | `@rubydogjp/openkk-server-ports` | `OpenkkServerPort`, `*Request`, `*Response`, `*ApiRecord`, `*Input`, `OpenkkApiErrorDto`  |
+| Server storage    | `@rubydogjp/openkk-server-ports` | `OpenkkDbPort`, `*DbRecord`, `*Db*Input`                                                  |
+| Errors            | `@rubydogjp/openkk-*-domain`     | `AppError`, `AppErrorLike`                                                                |
 
 `client-*` and `server-*` define the contract independently.
 
@@ -23,15 +23,15 @@ PATCH 入力だけは「未指定 = 変更しない」を表すため省略可�
 
 ## Naming
 
-| Suffix | Meaning |
-|---|---|
-| `*Request` | REST request payload |
-| `*Response` | REST response body |
-| `*ApiRecord` | API result record |
-| `*Input` | operation input |
-| `*DbRecord` | storage record |
-| `*Db*Input` | storage input |
-| `OpenkkApiErrorDto` | error JSON |
+| Suffix              | Meaning              |
+| ------------------- | -------------------- |
+| `*Request`          | REST request payload |
+| `*Response`         | REST response body   |
+| `*ApiRecord`        | API result record    |
+| `*Input`            | operation input      |
+| `*DbRecord`         | storage record       |
+| `*Db*Input`         | storage input        |
+| `OpenkkApiErrorDto` | error JSON           |
 
 ## HTTP Metadata
 
@@ -80,12 +80,12 @@ Archived fiscal periods are read-only. Mutations other than `purgeArchivedData` 
 
 ## Value Rules
 
-| Value | Rule |
-|---|---|
-| date | `YYYY-MM-DD` |
-| `businessRate` | `0..1` |
-| amount | non-negative safe integer |
-| `usefulLife` | integer, `1..100` |
+| Value                       | Rule                                                   |
+| --------------------------- | ------------------------------------------------------ |
+| date                        | `YYYY-MM-DD`                                           |
+| `businessRate`              | `0..1`                                                 |
+| amount                      | non-negative safe integer                              |
+| `usefulLife`                | integer, `1..100`                                      |
 | fixed-asset disposal fields | sold: date and price; disposed: date; otherwise `null` |
 
 `fiscalPeriods.start` moves a `pre_opening` period to `journalizing`.
@@ -101,12 +101,12 @@ Archived fiscal periods are read-only. Mutations other than `purgeArchivedData` 
 Third-party backends declare a lifecycle policy via `OpenkkConfig.fiscalPeriodPolicy`.
 `DEFAULT_FISCAL_PERIOD_POLICY` preserves plain-OpenKK behaviour.
 
-| Field | Default | Meaning |
-|---|---|---|
-| `maxActivePeriods` | `null` | Max non-archived periods. `null` = unlimited. `1` blocks creating a next period until the current one is archived. |
-| `archiveRetention` | `"persistent"` | `"persistent"` keeps archived data forever. `"ephemeral"` purges archived data when advancing to the next period. |
-| `ephemeralArchiveWarning` | default text | Warning shown before purging archived data. |
-| `allowArchiveImport` | `true` | Allow importing archived periods. |
+| Field                     | Default        | Meaning                                                                                                            |
+| ------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `maxActivePeriods`        | `null`         | Max non-archived periods. `null` = unlimited. `1` blocks creating a next period until the current one is archived. |
+| `archiveRetention`        | `"persistent"` | `"persistent"` keeps archived data forever. `"ephemeral"` purges archived data when advancing to the next period.  |
+| `ephemeralArchiveWarning` | default text   | Warning shown before purging archived data.                                                                        |
+| `allowArchiveImport`      | `true`         | Allow importing archived periods.                                                                                  |
 
 `archiveStatus` is `active`, `archived`, or `purged`. `archivedAt` is `null` while `active`.
 

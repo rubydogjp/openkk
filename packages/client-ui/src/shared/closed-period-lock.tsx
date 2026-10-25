@@ -2,7 +2,15 @@
 
 import { useRouter } from "next/navigation.js";
 
-import { fontSize, fontWeight, palette, radii, sizes, spacing, typography } from "./design-tokens.js";
+import {
+  fontSize,
+  fontWeight,
+  palette,
+  radii,
+  sizes,
+  spacing,
+  typography,
+} from "./design-tokens.js";
 
 export type ClosedPeriodLockProps = {
   title: string;
@@ -42,7 +50,13 @@ export function ClosedPeriodLock({
           >
             🔒
           </div>
-          <div style={{ marginTop: 16, fontSize: typography.dialogTitle.fontSize, fontWeight: fontWeight.bold }}>
+          <div
+            style={{
+              marginTop: 16,
+              fontSize: typography.dialogTitle.fontSize,
+              fontWeight: fontWeight.bold,
+            }}
+          >
             {title}
           </div>
           <div

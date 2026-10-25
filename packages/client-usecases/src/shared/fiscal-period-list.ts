@@ -1,7 +1,9 @@
 import type { FiscalPeriod } from "@rubydogjp/openkk-client-domain";
 import type { FiscalPeriodApiRecord } from "@rubydogjp/openkk-client-ports";
 
-export function mapRemoteFiscalPeriod(period: FiscalPeriodApiRecord): FiscalPeriod {
+export function mapRemoteFiscalPeriod(
+  period: FiscalPeriodApiRecord,
+): FiscalPeriod {
   return {
     id: period.id,
     userId: period.userId,

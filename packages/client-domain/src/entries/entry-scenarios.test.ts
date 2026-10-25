@@ -515,10 +515,7 @@ function openingCarryover(
   return Object.assign(base, overrides);
 }
 
-function totalBySide(
-  lines: EntryLine[],
-  side: "debit" | "credit",
-): number {
+function totalBySide(lines: EntryLine[], side: "debit" | "credit"): number {
   return lines
     .filter((line) => line.side === side)
     .reduce((sum, line) => sum + Number(line.amount.replaceAll(",", "")), 0);

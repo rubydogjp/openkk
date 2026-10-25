@@ -37,7 +37,10 @@ export function WorkInProgressProvider({ children }: { children: ReactNode }) {
   const busy = count > 0;
 
   useEffect(() => {
-    document.documentElement.setAttribute(BUSY_ATTRIBUTE_NAME, busy ? "1" : "0");
+    document.documentElement.setAttribute(
+      BUSY_ATTRIBUTE_NAME,
+      busy ? "1" : "0",
+    );
     return () => {
       document.documentElement.removeAttribute(BUSY_ATTRIBUTE_NAME);
     };

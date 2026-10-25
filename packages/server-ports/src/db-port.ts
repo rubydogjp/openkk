@@ -73,10 +73,7 @@ export interface FixedAssetsDb {
     fiscalPeriodId: string,
     input: FixedAssetDbCreateInput,
   ): Promise<FixedAssetDbRecord>;
-  patch(
-    id: string,
-    patch: FixedAssetDbPatchInput,
-  ): Promise<FixedAssetDbRecord>;
+  patch(id: string, patch: FixedAssetDbPatchInput): Promise<FixedAssetDbRecord>;
   remove(id: string): Promise<void>;
 }
 

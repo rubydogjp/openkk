@@ -45,11 +45,7 @@ export function assertOpeningMatchesRules(
   for (const line of balanceLines) {
     assertOpeningBalanceLine(line, `${label} balance line`);
   }
-  assertUniqueIds(
-    balanceLines,
-    `${label} balance line`,
-    DUPLICATE_ID_MESSAGE,
-  );
+  assertUniqueIds(balanceLines, `${label} balance line`, DUPLICATE_ID_MESSAGE);
   assertUniqueStrings(
     balanceLines.map((line) => line.accountId),
     `${label} balance accountId`,
@@ -123,10 +119,17 @@ function assertOpeningJournal(
     throw serverValidationError(`${label} lines must be an array`, null);
   }
   for (const line of value.lines) {
-    assertNonBlankString(requireObject(line, `${label} line`).id, `${label} line id`);
+    assertNonBlankString(
+      requireObject(line, `${label} line`).id,
+      `${label} line id`,
+    );
     assertEntryLineMatchesRules(line, label);
   }
-  assertUniqueIds(value.lines, `${label} ${value.id} line`, DUPLICATE_ID_MESSAGE);
+  assertUniqueIds(
+    value.lines,
+    `${label} ${value.id} line`,
+    DUPLICATE_ID_MESSAGE,
+  );
   assertEntryLinesBalanced(value.lines, label, {
     allowZero: !options.completed,
   });

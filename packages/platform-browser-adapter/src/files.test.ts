@@ -13,7 +13,11 @@ describe("browserFiles.save", () => {
     const revokeObjectURL = vi.fn();
     stubBrowserDownload({ click, remove, revokeObjectURL });
 
-    browserFiles.save(Uint8Array.of(1, 2, 3), "test.bin", "application/octet-stream");
+    browserFiles.save(
+      Uint8Array.of(1, 2, 3),
+      "test.bin",
+      "application/octet-stream",
+    );
 
     expect(click).toHaveBeenCalledOnce();
     expect(remove).toHaveBeenCalledOnce();

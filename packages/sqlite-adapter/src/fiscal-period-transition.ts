@@ -4,10 +4,7 @@ import type {
   FiscalPeriodDbRecord,
 } from "@rubydogjp/openkk-server-ports";
 import { requireFiscalPeriodRecord } from "./fiscal-period-record.js";
-import {
-  msToIso,
-  serializeFiscalPeriodDbData,
-} from "./persistence-codec.js";
+import { msToIso, serializeFiscalPeriodDbData } from "./persistence-codec.js";
 import { nowMs } from "./runtime.js";
 import type { SqlDb } from "./sql-db.js";
 import { runInTransaction } from "./transaction.js";

@@ -113,9 +113,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         record.openingBalancesCompleted = input.carryBalances;
         await insertFiscalPeriod(db, record, now);
         if (input.carryFixedAssets) {
-          const assets = await createFixedAssetsDb(db).getAll(
-            source.id,
-          );
+          const assets = await createFixedAssetsDb(db).getAll(source.id);
           for (const asset of assets) {
             if (asset.status !== "active") continue;
             const carried: FixedAssetDbRecord = {
@@ -230,7 +228,13 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       });
     },
     async start(id) {
-      return transitionFiscalPeriod(db, id, "pre_opening", "journalizing", null);
+      return transitionFiscalPeriod(
+        db,
+        id,
+        "pre_opening",
+        "journalizing",
+        null,
+      );
     },
     async archive(id) {
       return runInTransaction(db, async () => {

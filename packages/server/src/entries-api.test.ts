@@ -197,9 +197,9 @@ describe("openkk server entries API", () => {
     const invalidPartner = validEntryInput({ localId: "invalid-partner" });
     invalidPartner.lines[0]!.partnerName = 123 as unknown as string;
 
-    await expect(
-      server.entries.create("fp-1", invalidPartner),
-    ).rejects.toThrow(/Entry line partner must be a string/);
+    await expect(server.entries.create("fp-1", invalidPartner)).rejects.toThrow(
+      /Entry line partner must be a string/,
+    );
     await expect(
       server.entries.create("fp-1", {
         ...validEntryInput(),
@@ -326,13 +326,15 @@ describe("openkk server entries API", () => {
     ).rejects.toThrow(/character limit/);
 
     expect(
-      (await server.entries.create(
-        "fp-1",
-        validEntryInput({
-          localId: "at-the-limit",
-          description: "あ".repeat(MAX_TEXT_FIELD_LENGTH),
-        }),
-      )).description,
+      (
+        await server.entries.create(
+          "fp-1",
+          validEntryInput({
+            localId: "at-the-limit",
+            description: "あ".repeat(MAX_TEXT_FIELD_LENGTH),
+          }),
+        )
+      ).description,
     ).toHaveLength(MAX_TEXT_FIELD_LENGTH);
   });
 
@@ -447,10 +449,7 @@ describe("openkk server entries API", () => {
     const server = createOpenkkServer(db, { userId: "user-1" });
 
     await expect(
-      server.entries.importMany(
-        "fp-1",
-        null as unknown as EntryUpsertInput[],
-      ),
+      server.entries.importMany("fp-1", null as unknown as EntryUpsertInput[]),
     ).rejects.toThrow(/Entry import input must be an array/);
     expect(await server.entries.getAll("fp-1")).toEqual([]);
   });
@@ -472,8 +471,9 @@ describe("openkk server entries API", () => {
   it("rejects oversized import line totals before validating every line", async () => {
     const db = createEntryDb();
     const server = createOpenkkServer(db, { userId: "user-1" });
-    const repeatedLines = Array.from({ length: MAX_ENTRY_LINES }, () =>
-      validEntryInput().lines[0]!,
+    const repeatedLines = Array.from(
+      { length: MAX_ENTRY_LINES },
+      () => validEntryInput().lines[0]!,
     );
     const oversized = Array.from(
       { length: MAX_ENTRY_IMPORT_LINES / MAX_ENTRY_LINES + 1 },
@@ -662,7 +662,11 @@ function createEntryDb(
         return fixedAsset({ id: "asset-1", fiscalPeriodId, ...input });
       },
       async patch(id: string, patch: FixedAssetPatchInput) {
-        return fixedAsset({ id, fiscalPeriodId: "fp-1", ...changedFields(patch) });
+        return fixedAsset({
+          id,
+          fiscalPeriodId: "fp-1",
+          ...changedFields(patch),
+        });
       },
       async remove() {},
     },
@@ -686,9 +690,7 @@ function createEntryDb(
       async getTaxCategories(): Promise<MasterTaxCategoryDbRecord[]> {
         return [];
       },
-      async getBusinessCategories(): Promise<
-        MasterBusinessCategoryDbRecord[]
-      > {
+      async getBusinessCategories(): Promise<MasterBusinessCategoryDbRecord[]> {
         return [];
       },
     },

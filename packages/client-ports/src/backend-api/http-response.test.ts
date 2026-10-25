@@ -125,7 +125,9 @@ describe("resolveOpenkkHttpResponse", () => {
       resolveOpenkkHttpResponse("fiscalPeriodsGetAll", {
         status: 200,
         body: {
-          fiscalPeriods: [{ ...fiscalPeriod(), openingBalancesCompleted: "yes" }],
+          fiscalPeriods: [
+            { ...fiscalPeriod(), openingBalancesCompleted: "yes" },
+          ],
         },
       }),
     );
@@ -344,9 +346,7 @@ describe("resolveOpenkkHttpResponse", () => {
         resolveOpenkkHttpResponse("fiscalPeriodsGetAll", {
           status: 200,
           body: {
-            fiscalPeriods: [
-              { ...fiscalPeriod(), startDate: "2026-02-29" },
-            ],
+            fiscalPeriods: [{ ...fiscalPeriod(), startDate: "2026-02-29" }],
           },
         }),
       ),

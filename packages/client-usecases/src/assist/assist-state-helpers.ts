@@ -218,4 +218,3 @@ export function fixedAssetDraftBusinessRate(draft: FixedAssetDraft): number {
     Math.max(0, Math.min(100, draft.businessRatePercent)) / 100
   );
 }
-

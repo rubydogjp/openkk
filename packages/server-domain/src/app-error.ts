@@ -88,7 +88,8 @@ function stringifyOriginalMessage(error: unknown): string | null {
     if (error == null) return null;
     if (typeof error === "string") return error.length === 0 ? null : error;
     if (error instanceof Error) return error.message || error.toString();
-    if (Array.isArray(error) || isObject(error)) return JSON.stringify(error) ?? null;
+    if (Array.isArray(error) || isObject(error))
+      return JSON.stringify(error) ?? null;
     return String(error);
   } catch {
     return "<unprintable>";
@@ -96,7 +97,9 @@ function stringifyOriginalMessage(error: unknown): string | null {
 }
 
 function validStatusCode(value: unknown): value is number | null {
-  return value === null || (typeof value === "number" && Number.isFinite(value));
+  return (
+    value === null || (typeof value === "number" && Number.isFinite(value))
+  );
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

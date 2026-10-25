@@ -260,15 +260,11 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
         );
         const authOperationVersion = appState.captureAuthOperationVersion();
         periodVersions.current.invalidate(fiscalPeriodId);
-        const lines = entryLinesToInputs(
-          draft.lines,
-          master,
-          {
-            messageForDeveloper:
-              "entries.createEntryFromDraft: bookAccountId resolution failed",
-            messageForUser: "勘定科目の解決に失敗したため作成できませんでした",
-          },
-        );
+        const lines = entryLinesToInputs(draft.lines, master, {
+          messageForDeveloper:
+            "entries.createEntryFromDraft: bookAccountId resolution failed",
+          messageForUser: "勘定科目の解決に失敗したため作成できませんでした",
+        });
         try {
           const created = await backendApi.entries.create(fiscalPeriodId, {
             date: draft.date,
@@ -296,15 +292,11 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
         if (currentRecord == null) {
           return false;
         }
-        const lines = entryLinesToInputs(
-          draft.lines,
-          master,
-          {
-            messageForDeveloper:
-              "entries.saveEntry: bookAccountId resolution failed",
-            messageForUser: "勘定科目の解決に失敗したため保存できませんでした",
-          },
-        );
+        const lines = entryLinesToInputs(draft.lines, master, {
+          messageForDeveloper:
+            "entries.saveEntry: bookAccountId resolution failed",
+          messageForUser: "勘定科目の解決に失敗したため保存できませんでした",
+        });
         return await entryMutationQueue.current.run(entryId, async () => {
           appState.assertAuthOperationCurrent(authOperationVersion);
           periodVersions.current.invalidate(currentRecord.fiscalPeriodId);
@@ -348,7 +340,10 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
           appState.assertAuthOperationCurrent(authOperationVersion);
           periodVersions.current.invalidate(currentRecord.fiscalPeriodId);
           try {
-            await backendApi.entries.remove(currentRecord.fiscalPeriodId, entryId);
+            await backendApi.entries.remove(
+              currentRecord.fiscalPeriodId,
+              entryId,
+            );
             appState.assertAuthOperationCurrent(authOperationVersion);
             setRecords((current) => removeEntryRecord(current, entryId));
             return true;
@@ -376,9 +371,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
           const appended = response.entries.map((entry) =>
             mapRemoteEntryToRecord(entry, fiscalPeriodId, master),
           );
-          setRecords((current) =>
-            appended.reduce(upsertEntryRecord, current),
-          );
+          setRecords((current) => appended.reduce(upsertEntryRecord, current));
           return {
             imported: response.importedCount,
             skipped: Math.max(
@@ -440,9 +433,12 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
         try {
           for (let attempt = 0; attempt < 3; attempt += 1) {
             const readVersion = periodVersions.current.capture(fiscalPeriodId);
-            const remoteEntries = await backendApi.entries.getAll(fiscalPeriodId);
+            const remoteEntries =
+              await backendApi.entries.getAll(fiscalPeriodId);
             appState.assertAuthOperationCurrent(authOperationVersion);
-            if (!periodVersions.current.isCurrent(fiscalPeriodId, readVersion)) {
+            if (
+              !periodVersions.current.isCurrent(fiscalPeriodId, readVersion)
+            ) {
               continue;
             }
             const mappedEntries = remoteEntries.map((entry) =>
@@ -468,7 +464,8 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
             code: null,
           });
         } catch (error) {
-          if (!appState.isAuthOperationCurrent(authOperationVersion)) throw error;
+          if (!appState.isAuthOperationCurrent(authOperationVersion))
+            throw error;
           setEntriesLoadError(error);
           throw error;
         }

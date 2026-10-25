@@ -66,13 +66,11 @@ export function isValidSuccessBody(
       return isObject(body) && isFixedAsset(body.fixedAsset);
     case "masterBookAccounts":
       return (
-        isObject(body) &&
-        isUniqueRecordArray(body.bookAccounts, isBookAccount)
+        isObject(body) && isUniqueRecordArray(body.bookAccounts, isBookAccount)
       );
     case "masterTaxCategories":
       return (
-        isObject(body) &&
-        isUniqueRecordArray(body.taxCategories, isTaxCategory)
+        isObject(body) && isUniqueRecordArray(body.taxCategories, isTaxCategory)
       );
     case "masterBusinessCategories":
       return (
@@ -92,28 +90,21 @@ export function isValidSuccessBody(
 
 function isFiscalPeriod(value: unknown): boolean {
   if (!isObject(value)) return false;
-  if (
-    !(
-      hasNonBlankStrings(value, ["id", "userId", "name"]) &&
-      hasStrings(value, [
-        "startDate",
-        "endDate",
-        "createdAt",
-        "updatedAt",
-      ]) &&
-      isIsoDateString(value.startDate) &&
-      isIsoDateString(value.endDate) &&
-      isIsoTimestamp(value.createdAt) &&
-      isIsoTimestamp(value.updatedAt) &&
-      ["pre_opening", "journalizing", "pre_closing", "post_closing"].includes(
-        String(value.phase),
-      ) &&
-      ["active", "archived", "purged"].includes(String(value.archiveStatus)) &&
-      isNullableIsoTimestamp(value.archivedAt) &&
-      typeof value.openingBalancesCompleted === "boolean" &&
-      typeof value.documentsReceivedCompleted === "boolean"
-    )
-  ) {
+  if (!(
+    hasNonBlankStrings(value, ["id", "userId", "name"]) &&
+    hasStrings(value, ["startDate", "endDate", "createdAt", "updatedAt"]) &&
+    isIsoDateString(value.startDate) &&
+    isIsoDateString(value.endDate) &&
+    isIsoTimestamp(value.createdAt) &&
+    isIsoTimestamp(value.updatedAt) &&
+    ["pre_opening", "journalizing", "pre_closing", "post_closing"].includes(
+      String(value.phase),
+    ) &&
+    ["active", "archived", "purged"].includes(String(value.archiveStatus)) &&
+    isNullableIsoTimestamp(value.archivedAt) &&
+    typeof value.openingBalancesCompleted === "boolean" &&
+    typeof value.documentsReceivedCompleted === "boolean"
+  )) {
     return false;
   }
   return isOpening(value.opening);
@@ -218,11 +209,7 @@ function isEntryLine(value: unknown): value is Record<string, unknown> {
   return (
     isObject(value) &&
     hasNonBlankStrings(value, ["id", "bookAccountId"]) &&
-    hasStrings(value, [
-      "partnerName",
-      "taxCategoryId",
-      "businessCategoryId",
-    ]) &&
+    hasStrings(value, ["partnerName", "taxCategoryId", "businessCategoryId"]) &&
     (value.side === "debit" || value.side === "credit") &&
     isNonNegativeSafeInteger(value.amount)
   );
@@ -260,12 +247,7 @@ function isBookAccount(value: unknown): boolean {
   return (
     isObject(value) &&
     hasNonBlankStrings(value, ["id", "name"]) &&
-    hasStrings(value, [
-      "description",
-      "kana",
-      "createdAt",
-      "updatedAt",
-    ]) &&
+    hasStrings(value, ["description", "kana", "createdAt", "updatedAt"]) &&
     isIsoTimestamp(value.createdAt) &&
     isIsoTimestamp(value.updatedAt) &&
     (value.normalBalanceSide === "debit" ||
@@ -379,9 +361,7 @@ function isUnitRate(value: unknown): value is number {
 
 function isBasisPointRate(value: unknown): value is number {
   return (
-    Number.isSafeInteger(value) &&
-    Number(value) >= 0 &&
-    Number(value) <= 10_000
+    Number.isSafeInteger(value) && Number(value) >= 0 && Number(value) <= 10_000
   );
 }
 
@@ -410,9 +390,7 @@ function isEntryRecordArray(
   return (
     isUniqueRecordArray(value, isEntry) &&
     hasUniqueValues(
-      value
-        .map((entry) => entry.localId)
-        .filter((localId) => localId !== null),
+      value.map((entry) => entry.localId).filter((localId) => localId !== null),
     )
   );
 }

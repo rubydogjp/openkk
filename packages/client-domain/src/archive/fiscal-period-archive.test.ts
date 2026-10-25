@@ -20,9 +20,7 @@ describe("fiscal period archive", () => {
       assertFiscalPeriodArchiveByteLength(MAX_FISCAL_PERIOD_ARCHIVE_BYTES),
     ).not.toThrow();
     expect(() =>
-      assertFiscalPeriodArchiveByteLength(
-        MAX_FISCAL_PERIOD_ARCHIVE_BYTES + 1,
-      ),
+      assertFiscalPeriodArchiveByteLength(MAX_FISCAL_PERIOD_ARCHIVE_BYTES + 1),
     ).toThrow(/size limit/);
     expect(() => assertFiscalPeriodArchiveByteLength(Number.NaN)).toThrow(
       /size limit/,
@@ -91,9 +89,7 @@ describe("fiscal period archive", () => {
         endDate: "2026-12-31",
       },
       entries: [],
-      fixedAssets: [
-        { id: "asset-1", disposalDate: null, disposalPrice: null },
-      ],
+      fixedAssets: [{ id: "asset-1", disposalDate: null, disposalPrice: null }],
       closings: [],
     });
 
@@ -130,9 +126,7 @@ describe("fiscal period archive", () => {
         endDate: "2026-12-31",
       },
       entries: [{ id: "entry-1", localId: "" }],
-      fixedAssets: [
-        { id: "asset-1", disposalDate: "", disposalPrice: 0 },
-      ],
+      fixedAssets: [{ id: "asset-1", disposalDate: "", disposalPrice: 0 }],
       closings: [],
     });
     const version1 = {
@@ -505,10 +499,11 @@ function mutateStoredZipEntry(
   mutate(data);
   output.set(data, targetDataStart);
   const crc = testCrc32(data);
-  new DataView(
-    output.buffer,
-    output.byteOffset + targetLocalOffset,
-  ).setUint32(14, crc, true);
+  new DataView(output.buffer, output.byteOffset + targetLocalOffset).setUint32(
+    14,
+    crc,
+    true,
+  );
 
   let centralOffset = findBytePattern(
     output,

@@ -125,13 +125,15 @@ type JournalPageEntry = {
   pairOffset: number;
 };
 
-function chunkEntriesByVisualRows(entries: EntryRecord[]): JournalPageEntry[][] {
+function chunkEntriesByVisualRows(
+  entries: EntryRecord[],
+): JournalPageEntry[][] {
   const chunks: JournalPageEntry[][] = [];
   let current: JournalPageEntry[] = [];
   let currentRows = 0;
   for (const entry of entries) {
     const pairs = entryToVisualPairs(entry);
-    for (let offset = 0; offset < pairs.length; ) {
+    for (let offset = 0; offset < pairs.length;) {
       if (currentRows === MAX_DETAIL_ROWS_PER_PAGE) {
         chunks.push(current);
         current = [];

@@ -18,8 +18,9 @@ describe("resolveCategoryId", () => {
   );
 
   it.each(["", " ", " 課税 10% "])("preserves the explicit id %j", (id) => {
-    expect(resolveCategoryId(id, "課税 10%", categories, "tax_out_of_scope"))
-      .toBe(id);
+    expect(
+      resolveCategoryId(id, "課税 10%", categories, "tax_out_of_scope"),
+    ).toBe(id);
   });
 
   it("prioritizes ids over a conflicting display name", () => {

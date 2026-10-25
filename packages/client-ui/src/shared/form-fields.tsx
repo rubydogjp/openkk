@@ -3,7 +3,16 @@
 import type { CSSProperties, ReactNode } from "react";
 
 import { MAX_TEXT_FIELD_LENGTH } from "@rubydogjp/openkk-client-domain";
-import { fontWeight, palette, radii, rings, shadows, sizes, spacing, typography } from "./design-tokens.js";
+import {
+  fontWeight,
+  palette,
+  radii,
+  rings,
+  shadows,
+  sizes,
+  spacing,
+  typography,
+} from "./design-tokens.js";
 import { DatePickerButton, formatDateButtonLabel } from "./date-picker.js";
 
 const inputClassName = "bk-form-input";
@@ -98,17 +107,33 @@ export function FormDatePair({
   readOnly: boolean;
 }) {
   return (
-    <div style={{ display: "inline-flex", alignItems: "center", gap: spacing.s10 }}>
+    <div
+      style={{ display: "inline-flex", alignItems: "center", gap: spacing.s10 }}
+    >
       {readOnly ? (
         <ReadOnlyDate value={start} />
       ) : (
-        <DatePickerButton value={start} onChange={onChangeStart} ariaLabel={null} minDate={null} maxDate={null} />
+        <DatePickerButton
+          value={start}
+          onChange={onChangeStart}
+          ariaLabel={null}
+          minDate={null}
+          maxDate={null}
+        />
       )}
-      <span style={{ color: palette.textLabel, ...typography.control }}>〜</span>
+      <span style={{ color: palette.textLabel, ...typography.control }}>
+        〜
+      </span>
       {readOnly ? (
         <ReadOnlyDate value={end} />
       ) : (
-        <DatePickerButton value={end} onChange={onChangeEnd} ariaLabel={null} minDate={null} maxDate={null} />
+        <DatePickerButton
+          value={end}
+          onChange={onChangeEnd}
+          ariaLabel={null}
+          minDate={null}
+          maxDate={null}
+        />
       )}
     </div>
   );

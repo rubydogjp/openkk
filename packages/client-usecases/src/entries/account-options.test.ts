@@ -1,14 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import { buildEntryMasterAccountOptions } from "./account-options.js";
-import type {
-  MasterBookAccountApiRecord,
-} from "@rubydogjp/openkk-client-ports";
+import type { MasterBookAccountApiRecord } from "@rubydogjp/openkk-client-ports";
 
 describe("buildEntryMasterAccountOptions", () => {
   it("labels same-name accounts with their balance-sheet section", () => {
     const options = buildEntryMasterAccountOptions([
-      account({ id: "allowance-current", balanceSheetSection: "current_asset" }),
+      account({
+        id: "allowance-current",
+        balanceSheetSection: "current_asset",
+      }),
       account({ id: "allowance-fixed", balanceSheetSection: "fixed_asset" }),
     ]);
 
@@ -20,7 +21,11 @@ describe("buildEntryMasterAccountOptions", () => {
 
   it("does not add redundant section text to a unique account", () => {
     const [option] = buildEntryMasterAccountOptions([
-      account({ id: "cash", name: "現金", balanceSheetSection: "current_asset" }),
+      account({
+        id: "cash",
+        name: "現金",
+        balanceSheetSection: "current_asset",
+      }),
     ]);
 
     expect(option?.selectionLabel).toBe("現金");

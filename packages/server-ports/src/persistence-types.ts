@@ -1,20 +1,12 @@
 export type FiscalPeriodDbPhase =
-  | "pre_opening"
-  | "journalizing"
-  | "pre_closing"
-  | "post_closing";
+  "pre_opening" | "journalizing" | "pre_closing" | "post_closing";
 
 export type FiscalPeriodDbArchiveStatus = "active" | "archived" | "purged";
 
 export type EntryDbSide = "debit" | "credit";
 
 export type MasterBookAccountDbAccountType =
-  | "asset"
-  | "liability"
-  | "equity"
-  | "revenue"
-  | "cost_of_sales"
-  | "expense";
+  "asset" | "liability" | "equity" | "revenue" | "cost_of_sales" | "expense";
 
 export type EntryLineDbRecord = {
   id: string;

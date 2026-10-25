@@ -31,22 +31,14 @@ export type AuthSignOutResponse = OpenkkNoContentResponse;
 export type EntryApiSide = "debit" | "credit";
 
 export type FiscalPeriodApiPhase =
-  | "pre_opening"
-  | "journalizing"
-  | "pre_closing"
-  | "post_closing";
+  "pre_opening" | "journalizing" | "pre_closing" | "post_closing";
 
 export type FiscalPeriodApiArchiveStatus = "active" | "archived" | "purged";
 
 export type FixedAssetApiStatus = "active" | "sold" | "disposed" | "retired";
 
 export type MasterBookAccountApiAccountType =
-  | "asset"
-  | "liability"
-  | "equity"
-  | "revenue"
-  | "cost_of_sales"
-  | "expense";
+  "asset" | "liability" | "equity" | "revenue" | "cost_of_sales" | "expense";
 
 export type EntryLineApiRecord = {
   id: string;
@@ -289,7 +281,9 @@ export type FiscalPeriodCreateRequest = { input: FiscalPeriodCreateInput };
 export type FiscalPeriodCreateResponse = {
   fiscalPeriod: FiscalPeriodApiRecord;
 };
-export type FiscalPeriodNextCreateRequest = { input: FiscalPeriodNextCreateInput };
+export type FiscalPeriodNextCreateRequest = {
+  input: FiscalPeriodNextCreateInput;
+};
 export type FiscalPeriodNextCreateResponse = {
   fiscalPeriod: FiscalPeriodApiRecord;
 };
@@ -702,7 +696,9 @@ export interface EntriesApi {
 export interface FiscalPeriodsApi {
   getAll(): Promise<FiscalPeriodApiRecord[]>;
   create(input: FiscalPeriodCreateInput): Promise<FiscalPeriodApiRecord>;
-  createNext(input: FiscalPeriodNextCreateInput): Promise<FiscalPeriodApiRecord>;
+  createNext(
+    input: FiscalPeriodNextCreateInput,
+  ): Promise<FiscalPeriodApiRecord>;
   importArchived(
     input: FiscalPeriodArchiveImportInput,
   ): Promise<FiscalPeriodApiRecord>;

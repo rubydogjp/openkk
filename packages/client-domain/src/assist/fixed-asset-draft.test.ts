@@ -41,7 +41,12 @@ describe("resolveFixedAssetDraftPreviewDate", () => {
     const periodEnd = new Date(2026, 11, 31);
 
     expect(
-      resolveFixedAssetDraftPreviewDate(periodEnd, "active", "2027-08-31", null),
+      resolveFixedAssetDraftPreviewDate(
+        periodEnd,
+        "active",
+        "2027-08-31",
+        null,
+      ),
     ).toBe(periodEnd);
   });
 
@@ -138,9 +143,9 @@ describe("validateFixedAssetDraft", () => {
   });
 
   it("rejects unsafe monetary values and excessive useful lives", () => {
-    expect(
-      validate(draft({ acquisitionCost: "9007199254740993" })),
-    ).toMatch(/安全に計算/);
+    expect(validate(draft({ acquisitionCost: "9007199254740993" }))).toMatch(
+      /安全に計算/,
+    );
     expect(validate(draft({ usefulLife: 101 }))).toMatch(/1〜100年/);
   });
 

@@ -1,9 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  requestAppInstall,
-  type InstallPromptEvent,
-} from "./app-install.js";
+import { requestAppInstall, type InstallPromptEvent } from "./app-install.js";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -16,9 +13,7 @@ async function loadWithBrowser(browser: EventTarget) {
   return import("./app-install.js");
 }
 
-function installPrompt(
-  outcome: "accepted" | "dismissed",
-): InstallPromptEvent {
+function installPrompt(outcome: "accepted" | "dismissed"): InstallPromptEvent {
   const event = new Event("beforeinstallprompt", {
     cancelable: true,
   }) as InstallPromptEvent;

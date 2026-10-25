@@ -39,8 +39,9 @@ describe("openkk workspace structure", () => {
       .flatMap(({ packageJson }) =>
         Object.entries(packageJson.exports)
           .filter(([, target]) => typeof target === "object")
-          .map(([subpath]) =>
-            packageJson.name + (subpath === "." ? "" : subpath.slice(1)),
+          .map(
+            ([subpath]) =>
+              packageJson.name + (subpath === "." ? "" : subpath.slice(1)),
           ),
       );
     const result = spawnSync(

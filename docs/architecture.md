@@ -47,12 +47,12 @@ packages/
 
 外部依存はすべて interface (port) で抽象化する。
 
-| Port | 定義場所 | 標準実装 |
-|---|---|---|
-| `OpenkkDbPort` | `server-ports` | `file-db-adapter` / `memory-db-adapter` |
-| `OpenkkBackendPort` | `client-ports` | `embedded-backend-adapter` |
-| `PrintPort` | `client-ports` | `print-adapter` |
-| `PlatformPort` | `client-ports` | `platform-browser-adapter` |
+| Port                | 定義場所       | 標準実装                                |
+| ------------------- | -------------- | --------------------------------------- |
+| `OpenkkDbPort`      | `server-ports` | `file-db-adapter` / `memory-db-adapter` |
+| `OpenkkBackendPort` | `client-ports` | `embedded-backend-adapter`              |
+| `PrintPort`         | `client-ports` | `print-adapter`                         |
+| `PlatformPort`      | `client-ports` | `platform-browser-adapter`              |
 
 HTTP バックエンドは `embedded-backend-adapter` と同じ位置で差し替える。
 
@@ -120,12 +120,12 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 
 ## テスト戦略
 
-| レイヤー | ツール | 対象 |
-|---|---|---|
-| ユニット | vitest | ドメインロジック・パーサー・DB adapter |
-| DB ポート契約適合 | vitest | `OpenkkDbPort` 共有 conformance（`server-ports/test-support/db-port-conformance.ts`）を memory/file-db 両実アダプタ＋遅延非同期コアに通し、dev(memory)↔prod(OPFS worker) の挙動一致を保証 |
-| E2E | Playwright | Sim版の操作フローと、無印版・デモ版の静的export・OPFS永続化。締めフローでは仮帳票＝確定帳票＝概要図を実画面で検証 |
-| パッケージ構造 | vitest | workspace 整合性チェック |
+| レイヤー          | ツール     | 対象                                                                                                                                                                                      |
+| ----------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ユニット          | vitest     | ドメインロジック・パーサー・DB adapter                                                                                                                                                    |
+| DB ポート契約適合 | vitest     | `OpenkkDbPort` 共有 conformance（`server-ports/test-support/db-port-conformance.ts`）を memory/file-db 両実アダプタ＋遅延非同期コアに通し、dev(memory)↔prod(OPFS worker) の挙動一致を保証 |
+| E2E               | Playwright | Sim版の操作フローと、無印版・デモ版の静的export・OPFS永続化。締めフローでは仮帳票＝確定帳票＝概要図を実画面で検証                                                                         |
+| パッケージ構造    | vitest     | workspace 整合性チェック                                                                                                                                                                  |
 
 `npm run test:e2e` は Sim版を専用 port 4306 で起動し、既存プロセスを再利用せず実行する。`npm run test:e2e:export` は無印版を静的exportして検査する。生成物・全workspace・3アプリ・両E2Eをまとめた検査は `npm run check:full` で実行できる。
 このリポジトリに `OpenkkDbPort` 実装を追加したら `runDbPortConformance` に通すこと。conformance は `server-ports/test-support/` にあり npm には公開しないので、外部の実装はこのリポジトリを参照する。

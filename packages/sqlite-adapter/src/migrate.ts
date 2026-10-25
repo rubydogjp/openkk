@@ -61,9 +61,7 @@ function readSchemaVersion(db: MigrationDb): number {
   }
   const text = String(raw);
   if (!/^(0|[1-9]\d*)$/.test(text)) {
-    throw new Error(
-      `invalid schema_version: ${JSON.stringify(text)}`,
-    );
+    throw new Error(`invalid schema_version: ${JSON.stringify(text)}`);
   }
   const parsed = Number(text);
   if (!Number.isSafeInteger(parsed)) {

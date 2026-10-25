@@ -15,7 +15,9 @@ describe("server usecase ownership boundary", () => {
     } as unknown as OpenkkDbPort;
     const usecases = createServerUsecases(db);
 
-    await expect(usecases.entries.getById("user-1", "entry-1")).resolves.toBeNull();
+    await expect(
+      usecases.entries.getById("user-1", "entry-1"),
+    ).resolves.toBeNull();
     await expect(
       usecases.fixedAssets.getById("user-1", "asset-1"),
     ).resolves.toBeNull();
@@ -92,9 +94,9 @@ describe("server usecase ownership boundary", () => {
     await expect(
       usecases.fiscalPeriods.archive("user-1", "fp-1"),
     ).rejects.toThrow(/fiscal period not found/);
-    await expect(
-      usecases.closings.run("user-1", "fp-1", []),
-    ).rejects.toThrow(/fiscal period not found/);
+    await expect(usecases.closings.run("user-1", "fp-1", [])).rejects.toThrow(
+      /fiscal period not found/,
+    );
     expect(archive).not.toHaveBeenCalled();
     expect(runClosing).not.toHaveBeenCalled();
   });

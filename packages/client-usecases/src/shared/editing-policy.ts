@@ -1,7 +1,4 @@
-import {
-  AppError,
-  type EditingPolicy,
-} from "@rubydogjp/openkk-client-domain";
+import { AppError, type EditingPolicy } from "@rubydogjp/openkk-client-domain";
 
 export function assertEditingUnlocked(
   editingPolicy: EditingPolicy,

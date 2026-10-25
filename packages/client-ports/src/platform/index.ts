@@ -1,6 +1,7 @@
 export type PlatformAppInstallState = "installed" | "available" | "unavailable";
 
-export type PlatformAppInstallOutcome = "installed" | "dismissed" | "unsupported";
+export type PlatformAppInstallOutcome =
+  "installed" | "dismissed" | "unsupported";
 
 export interface PlatformAppInstall {
   getState(): PlatformAppInstallState;

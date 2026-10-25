@@ -53,7 +53,8 @@ function accountDisambiguation(
   group: ReadonlyArray<MasterBookAccountApiRecord>,
 ): string {
   if (group.length <= 1) return "";
-  const sectionLabel = BALANCE_SHEET_SECTION_LABELS[account.balanceSheetSection];
+  const sectionLabel =
+    BALANCE_SHEET_SECTION_LABELS[account.balanceSheetSection];
   const sameSectionCount = group.filter(
     (candidate) =>
       candidate.balanceSheetSection === account.balanceSheetSection,

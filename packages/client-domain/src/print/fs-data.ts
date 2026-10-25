@@ -107,7 +107,9 @@ function fitToSlots(
   items: BalanceSheetItem[],
   slotCount: number,
 ): BalanceSheetItem[] {
-  const shown = items.filter((item) => item.opening !== 0 || item.closing !== 0);
+  const shown = items.filter(
+    (item) => item.opening !== 0 || item.closing !== 0,
+  );
   if (shown.length <= slotCount) return shown;
   const overflow = shown.slice(slotCount - 1);
   return [
@@ -394,7 +396,8 @@ export function computeFsAggregate({
     if (slot.kind === "profit") {
       return balanceCells("青色申告特別控除前の所得金額", 0, profit);
     }
-    if (slot.kind === "extra") return extraCells(liabilityExtras.shift() ?? null);
+    if (slot.kind === "extra")
+      return extraCells(liabilityExtras.shift() ?? null);
     if (slot.label === ALLOWANCE_FOR_DOUBTFUL_ACCOUNTS) {
       return balanceCells(slot.label, allowanceOpening, allowanceClosing);
     }

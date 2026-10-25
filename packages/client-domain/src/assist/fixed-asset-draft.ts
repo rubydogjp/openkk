@@ -34,9 +34,7 @@ export function capFixedAssetPreviewDate(
   fiscalPeriodEndDate: string | null,
 ): Date {
   const periodEnd =
-    fiscalPeriodEndDate == null
-      ? null
-      : parseIsoLocalDate(fiscalPeriodEndDate);
+    fiscalPeriodEndDate == null ? null : parseIsoLocalDate(fiscalPeriodEndDate);
   if (periodEnd == null || today.getTime() <= periodEnd.getTime()) return today;
   return periodEnd;
 }
@@ -129,10 +127,7 @@ export function validateFixedAssetDraft(input: {
       return "売却額は安全に計算できる0以上の整数で入力してください";
     }
     const disposalPrice = parseAmount(disposalPriceText);
-    if (
-      !Number.isSafeInteger(disposalPrice) ||
-      disposalPrice < 0
-    ) {
+    if (!Number.isSafeInteger(disposalPrice) || disposalPrice < 0) {
       return "売却額は安全に計算できる0以上の整数で入力してください";
     }
   }

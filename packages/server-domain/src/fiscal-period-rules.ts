@@ -1,8 +1,5 @@
 import { serverConflictError, serverValidationError } from "./app-error.js";
-import type {
-  FiscalPeriodArchiveStatus,
-  FiscalPeriodPhase,
-} from "./models.js";
+import type { FiscalPeriodArchiveStatus, FiscalPeriodPhase } from "./models.js";
 import { requireObject } from "./validation.js";
 
 export const FISCAL_PERIOD_PATCH_KEYS = [
@@ -46,8 +43,7 @@ export function assertFiscalPeriodPatchMatchesPhase(
     .map(([key]) => key);
   if (
     fiscalPeriod.phase === "post_closing" &&
-    (changedKeys.length !== 1 ||
-      changes.documentsReceivedCompleted !== true)
+    (changedKeys.length !== 1 || changes.documentsReceivedCompleted !== true)
   ) {
     throw serverConflictError(
       `Fiscal period ${fiscalPeriod.id} only allows document receipt completion after closing`,

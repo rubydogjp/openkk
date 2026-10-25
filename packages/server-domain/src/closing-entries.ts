@@ -31,22 +31,19 @@ export function buildExpectedClosingEntries(input: {
   openingJournals: OpeningJournal[];
   bookAccounts: BookAccount[];
 }): Entry[] {
-  const openingEntries = input.openingJournals.map(
-    (journal): Entry => ({
-      date: journal.date,
-      description: journal.description,
-      localId: `${VIRTUAL_ENTRY_LOCAL_ID_PREFIX}virtual-opening-carryover-${journal.id}`,
-      businessRate: journal.businessRate,
-      lines: journal.lines.map((line) => ({ ...line })),
-    }),
-  );
+  const openingEntries = input.openingJournals.map((journal): Entry => ({
+    date: journal.date,
+    description: journal.description,
+    localId: `${VIRTUAL_ENTRY_LOCAL_ID_PREFIX}virtual-opening-carryover-${journal.id}`,
+    businessRate: journal.businessRate,
+    lines: journal.lines.map((line) => ({ ...line })),
+  }));
   const fixedAssetEntries = input.fixedAssets.flatMap((asset) =>
     buildFixedAssetEntries(asset, input.periodStartDate, input.periodEndDate),
   );
   const assistEntries = [...openingEntries, ...fixedAssetEntries];
   const ordinaryEntries = input.entries.filter(
-    (entry) =>
-      !entry.localId?.startsWith(VIRTUAL_ENTRY_LOCAL_ID_PREFIX),
+    (entry) => !entry.localId?.startsWith(VIRTUAL_ENTRY_LOCAL_ID_PREFIX),
   );
   const transfer = buildBusinessRateTransfer({
     date: input.periodEndDate,
@@ -61,22 +58,28 @@ export function assertClosingEntriesMatch(
   expected: Entry[],
 ): void {
   const canonicalEntries = (entries: Entry[]) =>
-    entries.map((entry) => JSON.stringify({
-      date: entry.date,
-      description: entry.description,
-      localId: entry.localId,
-      businessRate: entry.businessRate,
-      lines: entry.lines
-        .map((line) => JSON.stringify([
-          line.side,
-          line.bookAccountId,
-          line.amount,
-          line.partnerName,
-          line.taxCategoryId,
-          line.businessCategoryId,
-        ]))
-        .sort(),
-    })).sort();
+    entries
+      .map((entry) =>
+        JSON.stringify({
+          date: entry.date,
+          description: entry.description,
+          localId: entry.localId,
+          businessRate: entry.businessRate,
+          lines: entry.lines
+            .map((line) =>
+              JSON.stringify([
+                line.side,
+                line.bookAccountId,
+                line.amount,
+                line.partnerName,
+                line.taxCategoryId,
+                line.businessCategoryId,
+              ]),
+            )
+            .sort(),
+        }),
+      )
+      .sort();
   if (
     JSON.stringify(canonicalEntries(actual)) !==
     JSON.stringify(canonicalEntries(expected))
@@ -134,9 +137,7 @@ function buildFixedAssetEntries(
     const gain = Math.max(0, disposalPrice - bookValue);
     const loss = Math.max(0, bookValue - disposalPrice);
     const debits = [
-      ...(disposalPrice > 0
-        ? [line("debit", BANK, disposalPrice)]
-        : []),
+      ...(disposalPrice > 0 ? [line("debit", BANK, disposalPrice)] : []),
       ...(loss > 0 ? [line("debit", ASSET_SALE_LOSS, loss)] : []),
     ];
     const credits = [
@@ -305,8 +306,9 @@ export function computeFixedAssetBookValue(input: {
 
 function fixedAssetDescription(name: string, suffix: string): string {
   const maxLength = MAX_TEXT_FIELD_LENGTH - suffix.length;
-  const shortened = name.length <= maxLength
-    ? name
-    : name.slice(0, maxLength).replace(/[\uD800-\uDBFF]$/, "");
+  const shortened =
+    name.length <= maxLength
+      ? name
+      : name.slice(0, maxLength).replace(/[\uD800-\uDBFF]$/, "");
   return `${shortened}${suffix}`;
 }

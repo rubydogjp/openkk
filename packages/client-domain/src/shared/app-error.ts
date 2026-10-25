@@ -51,7 +51,9 @@ export class AppError extends Error implements AppErrorLike {
 }
 
 function validStatusCode(value: unknown): value is number | null {
-  return value === null || (typeof value === "number" && Number.isFinite(value));
+  return (
+    value === null || (typeof value === "number" && Number.isFinite(value))
+  );
 }
 
 function stringifyOriginalMessage(error: unknown): string | null {

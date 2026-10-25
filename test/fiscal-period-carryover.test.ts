@@ -126,7 +126,10 @@ function assertCarriesClosingBalanceSheet(
     entries,
     openingBalanceLines,
   });
-  const next = computeFsAggregate({ entries: [], openingBalanceLines: carried });
+  const next = computeFsAggregate({
+    entries: [],
+    openingBalanceLines: carried,
+  });
   expect(balanceSheetAmounts(next.bsRows, "opening"), label).toEqual(
     balanceSheetAmounts(closing.bsRows, "closing"),
   );
@@ -209,21 +212,37 @@ describe("carryover calculations", () => {
     [
       "profit into 元入金",
       [balance("a:普通預金", 50_000)],
-      [[line("debit", "acct_bank", 100_000), line("credit", "acct_sales", 100_000)]],
+      [
+        [
+          line("debit", "acct_bank", 100_000),
+          line("credit", "acct_sales", 100_000),
+        ],
+      ],
       [balance("a:普通預金", 150_000), balance("l:元入金", 100_000)],
     ],
     [
       "a loss into 元入金",
       [balance("a:現金", 500_000), balance("l:元入金", 500_000)],
-      [[line("debit", "acct_communication", 100_000), line("credit", "acct_cash", 100_000)]],
+      [
+        [
+          line("debit", "acct_communication", 100_000),
+          line("credit", "acct_cash", 100_000),
+        ],
+      ],
       [balance("a:現金", 400_000), balance("l:元入金", 400_000)],
     ],
     [
       "negative capital as 事業主貸",
       [balance("a:現金", 100_000), balance("l:長期借入金", 100_000)],
       [
-        [line("debit", "acct_communication", 150_000), line("credit", "acct_cash", 150_000)],
-        [line("debit", "acct_cash", 100_000), line("credit", "acct_capital", 100_000)],
+        [
+          line("debit", "acct_communication", 150_000),
+          line("credit", "acct_cash", 150_000),
+        ],
+        [
+          line("debit", "acct_cash", 100_000),
+          line("credit", "acct_capital", 100_000),
+        ],
       ],
       [
         balance("a:現金", 50_000),
@@ -235,40 +254,53 @@ describe("carryover calculations", () => {
       "owner draws, deposits and profit into 元入金",
       [balance("a:現金", 1_000_000), balance("l:元入金", 1_000_000)],
       [
-        [line("debit", "acct_proprietor_withdrawal", 50_000), line("credit", "acct_cash", 50_000)],
-        [line("debit", "acct_cash", 30_000), line("credit", "acct_proprietor_loan", 30_000)],
-        [line("debit", "acct_cash", 200_000), line("credit", "acct_sales", 200_000)],
+        [
+          line("debit", "acct_proprietor_withdrawal", 50_000),
+          line("credit", "acct_cash", 50_000),
+        ],
+        [
+          line("debit", "acct_cash", 30_000),
+          line("credit", "acct_proprietor_loan", 30_000),
+        ],
+        [
+          line("debit", "acct_cash", 200_000),
+          line("credit", "acct_sales", 200_000),
+        ],
       ],
       [balance("a:現金", 1_180_000), balance("l:元入金", 1_180_000)],
     ],
     [
       "a contrary asset balance on the liability side",
       [balance("a:現金", 100_000), balance("l:長期借入金", 100_000)],
-      [[line("debit", "acct_communication", 150_000), line("credit", "acct_cash", 150_000)]],
+      [
+        [
+          line("debit", "acct_communication", 150_000),
+          line("credit", "acct_cash", 150_000),
+        ],
+      ],
       [
         balance("l:現金", 50_000),
         balance("l:長期借入金", 100_000),
         balance("a:事業主貸", 150_000),
       ],
     ],
-  ] as const)(
-    "carries %s",
-    (_name, openingBalanceLines, lines, expected) => {
-      const actual = buildCarryoverOpeningBalances({
-        openingBalanceLines,
-        entries: lines.map((entryLines, index) => ({
-          ...entry([...entryLines]),
-          id: `entry-${index + 1}`,
-        })),
-      });
-      expect(actual).toEqual(expect.arrayContaining([...expected]));
-      expect(actual).toHaveLength(expected.length);
-    },
-  );
+  ] as const)("carries %s", (_name, openingBalanceLines, lines, expected) => {
+    const actual = buildCarryoverOpeningBalances({
+      openingBalanceLines,
+      entries: lines.map((entryLines, index) => ({
+        ...entry([...entryLines]),
+        id: `entry-${index + 1}`,
+      })),
+    });
+    expect(actual).toEqual(expect.arrayContaining([...expected]));
+    expect(actual).toHaveLength(expected.length);
+  });
 
   it("preserves named balances beyond printed statement slots", () => {
     const openingBalanceLines = [
-      ...Array.from({ length: 20 }, (_, index) => balance(`a:科目${index}`, 100)),
+      ...Array.from({ length: 20 }, (_, index) =>
+        balance(`a:科目${index}`, 100),
+      ),
       balance("l:元入金", 2000),
     ];
     expect(
@@ -405,7 +437,9 @@ describe("carryover calculations", () => {
       line("credit", "acct_cash", 100),
       line("credit", "acct_accrued_expense", 0),
     ]);
-    expect(isOpeningCarryoverCandidate(clientEntry(zeroLineRecord))).toBe(false);
+    expect(isOpeningCarryoverCandidate(clientEntry(zeroLineRecord))).toBe(
+      false,
+    );
   });
 });
 
@@ -510,7 +544,9 @@ describe("atomic fiscal period carryover", () => {
     ]);
     await backend.fiscalPeriods.purgeArchivedData(period.id);
     expect(
-      (await backend.fiscalPeriods.getAll()).find((item) => item.id === next.id),
+      (await backend.fiscalPeriods.getAll()).find(
+        (item) => item.id === next.id,
+      ),
     ).toEqual(next);
     await backend.fiscalPeriods.start(next.id);
     await backend.preClosings.run(next.id);
@@ -590,9 +626,7 @@ describe("atomic fiscal period carryover", () => {
       }),
     ).resolves.toMatchObject({
       opening: {
-        journals: [
-          { description: `再振替: ${longText}`, businessRate: 0.5 },
-        ],
+        journals: [{ description: `再振替: ${longText}`, businessRate: 0.5 }],
       },
     });
     await expect(

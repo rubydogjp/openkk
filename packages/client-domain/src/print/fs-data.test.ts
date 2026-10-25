@@ -363,7 +363,9 @@ describe("computeFsAggregate", () => {
         creditAmount: amount,
       });
     const aggregate = computeFsAggregate({
-      openingBalanceLines: [{ id: "a:普通預金", accountId: "a:普通預金", amount: 1_000_000 }],
+      openingBalanceLines: [
+        { id: "a:普通預金", accountId: "a:普通預金", amount: 1_000_000 },
+      ],
       entries: [
         entry({
           debit: "普通預金",
@@ -493,7 +495,6 @@ describe("computeFsAggregate", () => {
       aggregate.bsRows.find((row) => row.assetLabel === "貸倒引当金"),
     ).toMatchObject({ assetClosing: 20_000 });
   });
-
 });
 
 function entry(overrides: EntryRecordOverrides): EntryRecord {

@@ -54,10 +54,17 @@ export function normalizeArchiveImportInput(
     "archive closings",
   );
   assertFiscalPeriodArchiveSize([
-    manifest, sourceFiscalPeriod, sourceEntries, sourceFixedAssets, sourceClosings,
+    manifest,
+    sourceFiscalPeriod,
+    sourceEntries,
+    sourceFixedAssets,
+    sourceClosings,
   ]);
   if (sourceClosings.length > 2) {
-    throw serverValidationError("archive closings exceeds the 2 item limit", null);
+    throw serverValidationError(
+      "archive closings exceeds the 2 item limit",
+      null,
+    );
   }
   const manifestFiscalPeriodId = requireNonBlankString(
     manifest.fiscalPeriodId,
@@ -84,9 +91,7 @@ export function normalizeArchiveImportInput(
     closings: sourceClosings,
   };
   const { fiscalPeriod, entries, fixedAssets, closings } =
-    archiveVersion === 1
-      ? migrateFiscalPeriodArchiveV1(content)
-      : content;
+    archiveVersion === 1 ? migrateFiscalPeriodArchiveV1(content) : content;
   const startDate = requireIsoDate(
     fiscalPeriod.startDate,
     "archive fiscalPeriod.startDate",
@@ -256,10 +261,7 @@ function normalizeArchivedEntry(
     value.description,
     "archive entry.description",
   );
-  const localId = requireNullableString(
-    value.localId,
-    "archive entry.localId",
-  );
+  const localId = requireNullableString(value.localId, "archive entry.localId");
   const businessRate = requireUnitRate(
     value.businessRate,
     "archive entry.businessRate",
@@ -328,10 +330,7 @@ function normalizeArchivedFixedAsset(
   const disposalDate =
     value.disposalDate === null
       ? null
-      : requireIsoDate(
-          value.disposalDate,
-          "archive fixedAsset.disposalDate",
-        );
+      : requireIsoDate(value.disposalDate, "archive fixedAsset.disposalDate");
   const disposalPrice =
     value.disposalPrice === null
       ? null
@@ -398,7 +397,10 @@ function assertSourceFiscalPeriodId(
 ): void {
   const id = requireNonBlankString(value, label);
   if (id !== sourceFiscalPeriodId) {
-    throw serverValidationError(`${label} does not match archive fiscalPeriod`, null);
+    throw serverValidationError(
+      `${label} does not match archive fiscalPeriod`,
+      null,
+    );
   }
 }
 
@@ -484,5 +486,8 @@ function requireIsoDate(value: unknown, label: string): string {
 
 function requireArchiveVersion(value: unknown): FiscalPeriodArchiveVersion {
   if (value === 1 || value === 2) return value;
-  throw serverValidationError("archive manifest.version is not supported", null);
+  throw serverValidationError(
+    "archive manifest.version is not supported",
+    null,
+  );
 }

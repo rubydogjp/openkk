@@ -1,9 +1,7 @@
 import type { BookAccountType } from "./book-account.js";
 
 export type VirtualEntrySourceKind =
-  | "opening_carryover"
-  | "fixed_asset"
-  | "business_rate_transfer";
+  "opening_carryover" | "fixed_asset" | "business_rate_transfer";
 
 export type VirtualEntrySource = {
   id: string;

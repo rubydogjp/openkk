@@ -37,9 +37,9 @@ describe("applyFiscalPeriodUpdate", () => {
   it("upserts a missing period and removes stale duplicates", () => {
     const patched = remotePeriod({ id: "fp-new", name: "server" });
 
-    expect(applyFiscalPeriodUpdate([], patched).map((item) => item.id)).toEqual([
-      "fp-new",
-    ]);
+    expect(applyFiscalPeriodUpdate([], patched).map((item) => item.id)).toEqual(
+      ["fp-new"],
+    );
     expect(
       applyFiscalPeriodUpdate(
         [

@@ -41,10 +41,13 @@ describe("print documents", () => {
   });
 
   it("renders ledgers for opening-only accounts with no current transactions", () => {
-    const html = buildGeneralLedgerDocument([], [
-      { accountId: "a:敷金<保証>", amount: 300_000 },
-      { accountId: "l:元入金", amount: 300_000 },
-    ]);
+    const html = buildGeneralLedgerDocument(
+      [],
+      [
+        { accountId: "a:敷金<保証>", amount: 300_000 },
+        { accountId: "l:元入金", amount: 300_000 },
+      ],
+    );
 
     expect(html.match(/class="bk-page"/g)).toHaveLength(2);
     expect(html).toContain("敷金&lt;保証&gt;");
@@ -391,10 +394,7 @@ describe("print documents", () => {
     const malformedDateEntry = entry({ date: "not-a-date" });
 
     const journalHtml = buildJournalDocument([malformedDateEntry]);
-    const ledgerHtml = buildGeneralLedgerDocument(
-      [malformedDateEntry],
-      [],
-    );
+    const ledgerHtml = buildGeneralLedgerDocument([malformedDateEntry], []);
 
     expect(journalHtml).not.toContain("NaN月");
     expect(ledgerHtml).not.toContain("NaN月");

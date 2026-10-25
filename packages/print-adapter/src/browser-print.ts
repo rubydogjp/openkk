@@ -38,10 +38,7 @@ export function openBrowserPrintFrame(html: string): void {
     for (const timer of timers) clearTimeout(timer);
     timers.clear();
     if (frameAfterPrint != null) {
-      iframe.contentWindow?.removeEventListener(
-        "afterprint",
-        frameAfterPrint,
-      );
+      iframe.contentWindow?.removeEventListener("afterprint", frameAfterPrint);
       frameAfterPrint = null;
     }
     if (windowAfterPrint != null) {

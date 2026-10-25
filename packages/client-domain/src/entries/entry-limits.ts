@@ -22,11 +22,7 @@ export function assertEntryImportItemCount(count: number): void {
 }
 
 export function assertEntryLineCount(count: number): void {
-  if (
-    !Number.isSafeInteger(count) ||
-    count < 0 ||
-    count > MAX_ENTRY_LINES
-  ) {
+  if (!Number.isSafeInteger(count) || count < 0 || count > MAX_ENTRY_LINES) {
     throw importFileLimitError("journal entry contains too many lines");
   }
 }

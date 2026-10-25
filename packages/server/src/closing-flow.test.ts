@@ -62,9 +62,9 @@ describe("openkk server closing flow", () => {
       createMemoryDb({ openingBalancesCompleted: false }),
       { userId: "user-1" },
     );
-    await expect(
-      openingIncomplete.preClosings.run("fp-1"),
-    ).rejects.toThrow(/before opening balances are completed/);
+    await expect(openingIncomplete.preClosings.run("fp-1")).rejects.toThrow(
+      /before opening balances are completed/,
+    );
   });
 
   it("does not let a concurrent entry creation slip past pre-closing", async () => {
@@ -122,9 +122,9 @@ describe("openkk server closing flow", () => {
     );
     await server.preClosings.run("fp-1");
 
-    await expect(
-      server.closings.run("fp-1", []),
-    ).rejects.toThrow(/do not match the current fiscal-period source data/);
+    await expect(server.closings.run("fp-1", [])).rejects.toThrow(
+      /do not match the current fiscal-period source data/,
+    );
 
     const closed = await server.closings.run("fp-1", [
       {
@@ -217,9 +217,9 @@ describe("openkk server closing flow", () => {
       },
     );
 
-    await expect(
-      server.preClosings.run("fp-1"),
-    ).rejects.toThrow(/Archived fiscal period fp-1 cannot run pre-closing/);
+    await expect(server.preClosings.run("fp-1")).rejects.toThrow(
+      /Archived fiscal period fp-1 cannot run pre-closing/,
+    );
 
     await expect(server.preClosings.cancel("fp-1")).rejects.toThrow(
       /Archived fiscal period fp-1 cannot cancel pre-closing/,
@@ -347,7 +347,11 @@ function createMemoryDb(
         return fixedAsset({ id: "asset-1", fiscalPeriodId, ...input });
       },
       async patch(id: string, patch: FixedAssetPatchInput) {
-        return fixedAsset({ id, fiscalPeriodId: "fp-1", ...changedFields(patch) });
+        return fixedAsset({
+          id,
+          fiscalPeriodId: "fp-1",
+          ...changedFields(patch),
+        });
       },
       async remove() {},
     },
@@ -374,9 +378,7 @@ function createMemoryDb(
       async getTaxCategories(): Promise<MasterTaxCategoryDbRecord[]> {
         return [];
       },
-      async getBusinessCategories(): Promise<
-        MasterBusinessCategoryDbRecord[]
-      > {
+      async getBusinessCategories(): Promise<MasterBusinessCategoryDbRecord[]> {
         return [];
       },
     },

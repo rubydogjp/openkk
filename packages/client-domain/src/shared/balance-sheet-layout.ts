@@ -73,6 +73,5 @@ export function balanceSheetRowLabel(
 }
 
 export function balanceSheetExtraSlotCount(side: BalanceSheetSide): number {
-  return balanceSheetSlots(side).filter((slot) => slot.kind === "extra")
-    .length;
+  return balanceSheetSlots(side).filter((slot) => slot.kind === "extra").length;
 }

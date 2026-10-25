@@ -96,9 +96,7 @@ describe("normalizeArchiveImportInput", () => {
     const input = validArchiveInput();
     input.fiscalPeriod.id = "another-period";
 
-    const error = captureError(() =>
-      normalizeArchiveImportInput(input),
-    );
+    const error = captureError(() => normalizeArchiveImportInput(input));
 
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).messageForDeveloper).toContain(
@@ -112,9 +110,7 @@ describe("normalizeArchiveImportInput", () => {
     const input = validArchiveInput();
     input.fiscalPeriod.startDate = "2027-01-01";
 
-    const error = captureError(() =>
-      normalizeArchiveImportInput(input),
-    );
+    const error = captureError(() => normalizeArchiveImportInput(input));
 
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).messageForDeveloper).toContain(
@@ -126,9 +122,7 @@ describe("normalizeArchiveImportInput", () => {
     const input = validArchiveInput();
     input.entries[0]!.date = "2026-02-29";
 
-    const error = captureError(() =>
-      normalizeArchiveImportInput(input),
-    );
+    const error = captureError(() => normalizeArchiveImportInput(input));
 
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).messageForDeveloper).toContain(
@@ -149,9 +143,7 @@ describe("normalizeArchiveImportInput", () => {
     const input = validArchiveInput();
     (input as unknown as { entries: unknown }).entries = undefined;
 
-    const error = captureError(() =>
-      normalizeArchiveImportInput(input),
-    );
+    const error = captureError(() => normalizeArchiveImportInput(input));
 
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).messageForDeveloper).toContain(
@@ -167,11 +159,16 @@ describe("normalizeArchiveImportInput", () => {
 
   it("accepts archive collections larger than a single entry import batch", () => {
     const input = validArchiveInput();
-    input.entries = Array.from({ length: MAX_ENTRY_IMPORT_ITEMS + 1 }, (_, index) => ({
-      ...input.entries[0],
-      id: `entry-${index}`,
-    }));
-    input.fixedAssets = Array(MAX_ENTRY_IMPORT_ITEMS + 1).fill(input.fixedAssets[0]);
+    input.entries = Array.from(
+      { length: MAX_ENTRY_IMPORT_ITEMS + 1 },
+      (_, index) => ({
+        ...input.entries[0],
+        id: `entry-${index}`,
+      }),
+    );
+    input.fixedAssets = Array(MAX_ENTRY_IMPORT_ITEMS + 1).fill(
+      input.fixedAssets[0],
+    );
     const result = normalizeArchiveImportInput(input);
     expect(result.entries).toHaveLength(MAX_ENTRY_IMPORT_ITEMS + 1);
     expect(result.fixedAssets).toHaveLength(MAX_ENTRY_IMPORT_ITEMS + 1);
@@ -179,14 +176,18 @@ describe("normalizeArchiveImportInput", () => {
 
   it("rejects oversized archive sections before normalization", () => {
     const input = validArchiveInput();
-    input.entries[0]!.description = "資".repeat(Math.ceil(MAX_FISCAL_PERIOD_ARCHIVE_FILE_BYTES / 3));
+    input.entries[0]!.description = "資".repeat(
+      Math.ceil(MAX_FISCAL_PERIOD_ARCHIVE_FILE_BYTES / 3),
+    );
     expect(() => normalizeArchiveImportInput(input)).toThrow(/size limit/);
   });
 
   it("rejects excessive closing records", () => {
     const input = validArchiveInput();
     input.closings = Array(3).fill(input.closings[0]);
-    expect(() => normalizeArchiveImportInput(input)).toThrow(/closings exceeds the 2 item limit/);
+    expect(() => normalizeArchiveImportInput(input)).toThrow(
+      /closings exceeds the 2 item limit/,
+    );
   });
 
   it("rejects non-boolean lifecycle flags instead of silently clearing them", () => {
@@ -202,9 +203,7 @@ describe("normalizeArchiveImportInput", () => {
     const input = validArchiveInput();
     (input.entries as unknown[])[0] = null;
 
-    const error = captureError(() =>
-      normalizeArchiveImportInput(input),
-    );
+    const error = captureError(() => normalizeArchiveImportInput(input));
 
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).messageForDeveloper).toContain(
@@ -218,79 +217,75 @@ describe("normalizeArchiveImportInput", () => {
       invalidPartner.entries[0] as { lines: Array<Record<string, unknown>> }
     ).lines[0]!;
     partnerLine.partnerName = { corrupted: true };
-    expect(() =>
-      normalizeArchiveImportInput(invalidPartner),
-    ).toThrow(/entry\.line\.partnerName must be a string/);
+    expect(() => normalizeArchiveImportInput(invalidPartner)).toThrow(
+      /entry\.line\.partnerName must be a string/,
+    );
 
     const invalidCategory = validArchiveInput();
     const categoryLine = (
       invalidCategory.entries[0] as { lines: Array<Record<string, unknown>> }
     ).lines[0]!;
     categoryLine.taxCategoryId = 10;
-    expect(() =>
-      normalizeArchiveImportInput(invalidCategory),
-    ).toThrow(/entry\.line\.taxCategoryId must be a string/);
+    expect(() => normalizeArchiveImportInput(invalidCategory)).toThrow(
+      /entry\.line\.taxCategoryId must be a string/,
+    );
   });
 
   it("rejects wrong types instead of substituting defaults", () => {
     const invalidLocalId = validArchiveInput();
     invalidLocalId.entries[0]!.localId = 123;
-    expect(() =>
-      normalizeArchiveImportInput(invalidLocalId),
-    ).toThrow(/entry\.localId must be a string or null/);
+    expect(() => normalizeArchiveImportInput(invalidLocalId)).toThrow(
+      /entry\.localId must be a string or null/,
+    );
 
     const invalidLineId = validArchiveInput();
     const openingLine = archiveOpening(invalidLineId).journals[0]!
       .lines[0]! as { id: unknown };
     openingLine.id = { corrupted: true };
-    expect(() =>
-      normalizeArchiveImportInput(invalidLineId),
-    ).toThrow(/archive opening journal line id is required/);
+    expect(() => normalizeArchiveImportInput(invalidLineId)).toThrow(
+      /archive opening journal line id is required/,
+    );
 
     const invalidStatus = validArchiveInput();
     invalidStatus.fixedAssets[0]!.status = 1;
-    expect(() =>
-      normalizeArchiveImportInput(invalidStatus),
-    ).toThrow(/fixedAsset\.status must be a string/);
+    expect(() => normalizeArchiveImportInput(invalidStatus)).toThrow(
+      /fixedAsset\.status must be a string/,
+    );
   });
 
   it("requires version 2 fields to be explicit", () => {
     const missingOpening = validArchiveInput();
     delete missingOpening.fiscalPeriod.opening;
-    expect(() =>
-      normalizeArchiveImportInput(missingOpening),
-    ).toThrow(/archive opening must be an object/);
+    expect(() => normalizeArchiveImportInput(missingOpening)).toThrow(
+      /archive opening must be an object/,
+    );
 
     const missingLocalId = validArchiveInput();
     delete missingLocalId.entries[0]!.localId;
-    expect(() =>
-      normalizeArchiveImportInput(missingLocalId),
-    ).toThrow(/entry\.localId must be a string or null/);
+    expect(() => normalizeArchiveImportInput(missingLocalId)).toThrow(
+      /entry\.localId must be a string or null/,
+    );
 
     const missingLineMetadata = validArchiveInput();
     delete (
-      missingLineMetadata.entries[0]!.lines as Array<
-        Record<string, unknown>
-      >
+      missingLineMetadata.entries[0]!.lines as Array<Record<string, unknown>>
     )[0]!.partnerName;
-    expect(() =>
-      normalizeArchiveImportInput(missingLineMetadata),
-    ).toThrow(/entry\.line\.partnerName must be a string/);
+    expect(() => normalizeArchiveImportInput(missingLineMetadata)).toThrow(
+      /entry\.line\.partnerName must be a string/,
+    );
 
     const missingStatus = validArchiveInput();
     delete missingStatus.fixedAssets[0]!.status;
-    expect(() =>
-      normalizeArchiveImportInput(missingStatus),
-    ).toThrow(/fixedAsset\.status must be a string/);
+    expect(() => normalizeArchiveImportInput(missingStatus)).toThrow(
+      /fixedAsset\.status must be a string/,
+    );
   });
 
   it("rejects invalid fixed asset values", () => {
     const input = validArchiveInput();
     input.fixedAssets[0]!.usefulLife = 0;
 
-    const error = captureError(() =>
-      normalizeArchiveImportInput(input),
-    );
+    const error = captureError(() => normalizeArchiveImportInput(input));
 
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).messageForDeveloper).toContain(
@@ -310,9 +305,7 @@ describe("normalizeArchiveImportInput", () => {
       input.entries[0]!.lines as Array<Record<string, unknown>>
     ).map((line) => ({ ...line, amount: 1000.5 }));
 
-    expect(() => normalizeArchiveImportInput(input)).toThrow(
-      /safe integer/,
-    );
+    expect(() => normalizeArchiveImportInput(input)).toThrow(/safe integer/);
   });
 
   it("rejects inconsistent archived fixed asset disposal data", () => {
@@ -324,43 +317,43 @@ describe("normalizeArchiveImportInput", () => {
 
     const beforeAcquisition = validArchiveInput();
     beforeAcquisition.fixedAssets[0]!.disposalDate = "2026-03-31";
-    expect(() =>
-      normalizeArchiveImportInput(beforeAcquisition),
-    ).toThrow(/disposal date 2026-03-31 must not be before acquisition date/);
+    expect(() => normalizeArchiveImportInput(beforeAcquisition)).toThrow(
+      /disposal date 2026-03-31 must not be before acquisition date/,
+    );
   });
 
   it("rejects unsupported depreciation methods and active disposal data", () => {
     const invalidMethod = validArchiveInput();
     invalidMethod.fixedAssets[0]!.depreciationMethod = "declining_balance";
-    expect(() =>
-      normalizeArchiveImportInput(invalidMethod),
-    ).toThrow(/depreciationMethod is invalid/);
+    expect(() => normalizeArchiveImportInput(invalidMethod)).toThrow(
+      /depreciationMethod is invalid/,
+    );
 
     const activeDisposal = validArchiveInput();
     activeDisposal.fixedAssets[0]!.status = "active";
-    expect(() =>
-      normalizeArchiveImportInput(activeDisposal),
-    ).toThrow(/Fixed asset with status active must not have a disposal date/);
+    expect(() => normalizeArchiveImportInput(activeDisposal)).toThrow(
+      /Fixed asset with status active must not have a disposal date/,
+    );
 
     const retiredDisposal = validArchiveInput();
     retiredDisposal.fixedAssets[0]!.status = "retired";
-    expect(() =>
-      normalizeArchiveImportInput(retiredDisposal),
-    ).toThrow(/Fixed asset with status retired must not have a disposal date/);
+    expect(() => normalizeArchiveImportInput(retiredDisposal)).toThrow(
+      /Fixed asset with status retired must not have a disposal date/,
+    );
 
     const prematureRetirement = validArchiveInput();
     prematureRetirement.fixedAssets[0]!.status = "retired";
     prematureRetirement.fixedAssets[0]!.disposalDate = null;
     prematureRetirement.fixedAssets[0]!.disposalPrice = null;
-    expect(() =>
-      normalizeArchiveImportInput(prematureRetirement),
-    ).toThrow(/cannot be retired before it reaches memorandum value/);
+    expect(() => normalizeArchiveImportInput(prematureRetirement)).toThrow(
+      /cannot be retired before it reaches memorandum value/,
+    );
 
     const disposedPrice = validArchiveInput();
     disposedPrice.fixedAssets[0]!.status = "disposed";
-    expect(() =>
-      normalizeArchiveImportInput(disposedPrice),
-    ).toThrow(/Fixed asset with status disposed must not have a disposal price/);
+    expect(() => normalizeArchiveImportInput(disposedPrice)).toThrow(
+      /Fixed asset with status disposed must not have a disposal price/,
+    );
   });
 
   it("rejects an unknown archived closing kind", () => {
@@ -421,25 +414,23 @@ describe("normalizeArchiveImportInput", () => {
     missingPreClosing.closings = [
       { fiscalPeriodId: "period-1", year: 2026, kind: "closing" },
     ];
-    expect(() =>
-      normalizeArchiveImportInput(missingPreClosing),
-    ).toThrow(/post_closing phase requires pre-closing and closing records/);
+    expect(() => normalizeArchiveImportInput(missingPreClosing)).toThrow(
+      /post_closing phase requires pre-closing and closing records/,
+    );
 
     const prematureDocuments = validArchiveInput();
     configureArchivePhase(prematureDocuments, "journalizing");
     prematureDocuments.fiscalPeriod.documentsReceivedCompleted = true;
-    expect(() =>
-      normalizeArchiveImportInput(prematureDocuments),
-    ).toThrow(/documentsReceivedCompleted requires post_closing/);
+    expect(() => normalizeArchiveImportInput(prematureDocuments)).toThrow(
+      /documentsReceivedCompleted requires post_closing/,
+    );
   });
 
   it("rejects an unbalanced archived opening journal", () => {
     const input = validArchiveInput();
     archiveOpening(input).journals[0]!.lines[1]!.amount = 900;
 
-    const error = captureError(() =>
-      normalizeArchiveImportInput(input),
-    );
+    const error = captureError(() => normalizeArchiveImportInput(input));
 
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).messageForDeveloper).toContain(
@@ -499,18 +490,16 @@ describe("normalizeArchiveImportInput", () => {
     configureArchivePhase(blankDescription, "pre_opening");
     blankDescription.fiscalPeriod.openingBalancesCompleted = true;
     archiveOpening(blankDescription).journals[0]!.description = "";
-    expect(() =>
-      normalizeArchiveImportInput(blankDescription),
-    ).toThrow(/description is required/);
+    expect(() => normalizeArchiveImportInput(blankDescription)).toThrow(
+      /description is required/,
+    );
   });
 
   it("rejects an unbalanced archived entry", () => {
     const input = validArchiveInput();
     (input.entries[0]!.lines as Array<{ amount: number }>)[1]!.amount = 900;
 
-    const error = captureError(() =>
-      normalizeArchiveImportInput(input),
-    );
+    const error = captureError(() => normalizeArchiveImportInput(input));
 
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).messageForDeveloper).toContain(
@@ -522,9 +511,7 @@ describe("normalizeArchiveImportInput", () => {
     const input = validArchiveInput();
     archiveOpening(input).balanceLines[0]!.amount = -100;
 
-    const error = captureError(() =>
-      normalizeArchiveImportInput(input),
-    );
+    const error = captureError(() => normalizeArchiveImportInput(input));
 
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).messageForDeveloper).toContain(
@@ -540,9 +527,7 @@ describe("normalizeArchiveImportInput", () => {
       amount: 500,
     });
 
-    const error = captureError(() =>
-      normalizeArchiveImportInput(input),
-    );
+    const error = captureError(() => normalizeArchiveImportInput(input));
 
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).messageForDeveloper).toContain(
@@ -562,9 +547,9 @@ describe("normalizeArchiveImportInput", () => {
   it("rejects duplicate opening record IDs before reaching the database", () => {
     const duplicateBalanceId = validArchiveInput();
     archiveOpening(duplicateBalanceId).balanceLines[1]!.id = "cash";
-    expect(() =>
-      normalizeArchiveImportInput(duplicateBalanceId),
-    ).toThrow(/archive opening balance line has a duplicate id/);
+    expect(() => normalizeArchiveImportInput(duplicateBalanceId)).toThrow(
+      /archive opening balance line has a duplicate id/,
+    );
 
     const duplicateJournalId = validArchiveInput();
     const opening = archiveOpening(duplicateJournalId);
@@ -572,17 +557,17 @@ describe("normalizeArchiveImportInput", () => {
       ...opening.journals[0]!,
       lines: opening.journals[0]!.lines.map((line) => ({ ...line })),
     });
-    expect(() =>
-      normalizeArchiveImportInput(duplicateJournalId),
-    ).toThrow(/archive opening journal has a duplicate id/);
+    expect(() => normalizeArchiveImportInput(duplicateJournalId)).toThrow(
+      /archive opening journal has a duplicate id/,
+    );
 
     const duplicateLineId = validArchiveInput();
     const journal = archiveOpening(duplicateLineId).journals[0]!;
     journal.lines[0]!.id = "same-line";
     journal.lines[1]!.id = "same-line";
-    expect(() =>
-      normalizeArchiveImportInput(duplicateLineId),
-    ).toThrow(/archive opening journal carry-1 line has a duplicate id/);
+    expect(() => normalizeArchiveImportInput(duplicateLineId)).toThrow(
+      /archive opening journal carry-1 line has a duplicate id/,
+    );
   });
 
   it("normalizes category display names from version 1 archives to master IDs", () => {

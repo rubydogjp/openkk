@@ -1,4 +1,7 @@
-import type { OpenkkDbPort, OpenkkServerPort } from "@rubydogjp/openkk-server-ports";
+import type {
+  OpenkkDbPort,
+  OpenkkServerPort,
+} from "@rubydogjp/openkk-server-ports";
 import { createServerUsecases } from "@rubydogjp/openkk-server-usecases";
 import {
   createOpenkkServerApi,

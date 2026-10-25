@@ -11,7 +11,11 @@ type SyncDb = {
 };
 
 type Incoming =
-  | { id: number; type: "init"; payload: { vfsName: string; dbFileName: string } }
+  | {
+      id: number;
+      type: "init";
+      payload: { vfsName: string; dbFileName: string };
+    }
   | { id: number; type: "exec"; payload: ExecArg };
 
 const workerScope = self as unknown as {
@@ -29,10 +33,14 @@ async function acquireSingleTabLock(name: string): Promise<void> {
   if (typeof navigator === "undefined" || navigator.locks == null) return;
   const locks = navigator.locks;
   const acquiredImmediately = await new Promise<boolean>((resolve) => {
-    void locks.request(name, { mode: "exclusive", ifAvailable: true }, (lock) => {
-      resolve(lock != null);
-      return lock != null ? holdUntilWorkerEnds() : null;
-    });
+    void locks.request(
+      name,
+      { mode: "exclusive", ifAvailable: true },
+      (lock) => {
+        resolve(lock != null);
+        return lock != null ? holdUntilWorkerEnds() : null;
+      },
+    );
   });
   if (acquiredImmediately) return;
   workerScope.postMessage({ event: "waiting_for_another_tab" });
@@ -54,7 +62,9 @@ async function init(payload: {
     printErr: (message: string) => console.error("[sqlite-wasm]", message),
   });
   const pool = await sqlite3.installOpfsSAHPoolVfs({ name: payload.vfsName });
-  const opfsDb = new pool.OpfsSAHPoolDb(payload.dbFileName) as unknown as SyncDb;
+  const opfsDb = new pool.OpfsSAHPoolDb(
+    payload.dbFileName,
+  ) as unknown as SyncDb;
   runMigrations(opfsDb);
   db = opfsDb;
 }

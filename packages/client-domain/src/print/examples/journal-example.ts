@@ -1,7 +1,4 @@
-import type {
-  EntryLine,
-  EntryRecord,
-} from "../../entries/entry-record.js";
+import type { EntryLine, EntryRecord } from "../../entries/entry-record.js";
 import type { BookAccountType } from "../../entries/book-account.js";
 import type { OpeningBalanceLine } from "../../shared/models.js";
 

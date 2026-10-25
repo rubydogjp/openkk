@@ -202,8 +202,7 @@ export function assertFiscalPeriodPatchInput(
   );
   const startDate =
     value.startDate === undefined ? current.startDate : value.startDate;
-  const endDate =
-    value.endDate === undefined ? current.endDate : value.endDate;
+  const endDate = value.endDate === undefined ? current.endDate : value.endDate;
   assertDateRange(startDate, endDate, "Fiscal period");
   const opening = value.opening === undefined ? current.opening : value.opening;
   assertOpeningMatchesRules(opening, { startDate, endDate }, "Opening", {

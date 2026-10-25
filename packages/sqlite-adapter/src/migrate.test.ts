@@ -14,7 +14,10 @@ describe("SQLite schema", () => {
   });
 });
 
-type FakeMeta = { schemaVersion: number | string | null; metaTableExists: boolean };
+type FakeMeta = {
+  schemaVersion: number | string | null;
+  metaTableExists: boolean;
+};
 
 function createFakeDb(initial: Partial<FakeMeta> = {}): {
   db: MigrationDb;

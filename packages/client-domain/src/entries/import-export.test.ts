@@ -22,10 +22,7 @@ import {
   MAX_ENTRY_LINES,
   MAX_ENTRY_IMPORT_SIZE,
 } from "./entry-limits.js";
-import {
-  recordToPreviewRows,
-  type EntryRecord,
-} from "./entry-record.js";
+import { recordToPreviewRows, type EntryRecord } from "./entry-record.js";
 
 function entry(overrides: EntryRecordOverrides = {}): EntryRecord {
   return entryRecord(overrides, {
@@ -48,9 +45,9 @@ function entry(overrides: EntryRecordOverrides = {}): EntryRecord {
 describe("journal import limits", () => {
   it("rejects oversized files before reading or parsing their contents", () => {
     expect(() => assertEntryImportSize(MAX_ENTRY_IMPORT_SIZE)).not.toThrow();
-    expect(() =>
-      assertEntryImportSize(MAX_ENTRY_IMPORT_SIZE + 1),
-    ).toThrow(/size limit/);
+    expect(() => assertEntryImportSize(MAX_ENTRY_IMPORT_SIZE + 1)).toThrow(
+      /size limit/,
+    );
   });
 
   it("rejects malformed UTF-8 instead of silently replacing bytes", () => {
@@ -69,12 +66,10 @@ describe("journal import limits", () => {
   });
 
   it("rejects an oversized compound entry before normalizing every line", () => {
-    expect(() =>
-      assertEntryLineCount(MAX_ENTRY_LINES),
-    ).not.toThrow();
-    expect(() =>
-      assertEntryLineCount(MAX_ENTRY_LINES + 1),
-    ).toThrow(/too many lines/);
+    expect(() => assertEntryLineCount(MAX_ENTRY_LINES)).not.toThrow();
+    expect(() => assertEntryLineCount(MAX_ENTRY_LINES + 1)).toThrow(
+      /too many lines/,
+    );
   });
 
   it("rejects an oversized total across otherwise bounded entries", () => {
@@ -783,7 +778,10 @@ describe("CSV export/import round-trip", () => {
     expect(csv).toContain("'+SUM(1,2)");
     expect(csv).toContain("'@partner");
     expect(csv).toContain("'-1+2");
-    const imported = importEntriesFromCsv({ text: csv, fiscalPeriodId: "fp-2" });
+    const imported = importEntriesFromCsv({
+      text: csv,
+      fiscalPeriodId: "fp-2",
+    });
     expect(imported[0]?.localId).toBe(original.localId);
     expect(imported[0]?.description).toBe(original.description);
     const importedRow = recordToPreviewRows(imported[0]!)[0];
@@ -872,10 +870,7 @@ describe("importEntriesFromCsv — error handling", () => {
   });
 
   it("rejects quotes in the middle of an unquoted field", () => {
-    const csv = exportEntriesAsCsv([entry()]).replace(
-      "売上入金",
-      '売"上入金',
-    );
+    const csv = exportEntriesAsCsv([entry()]).replace("売上入金", '売"上入金');
 
     expect(() =>
       importEntriesFromCsv({ text: csv, fiscalPeriodId: "fp-1" }),

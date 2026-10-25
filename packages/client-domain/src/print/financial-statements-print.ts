@@ -244,8 +244,11 @@ export function buildFinancialStatementsBody(
   const labelOverrides = writeInLabelOverrides(expenseWriteIns);
 
   return (
-    buildLandscapePage("損益計算書 (P/L)", buildPlHtml(amounts, labelOverrides), 1) +
-    buildLandscapePage("貸借対照表 (B/S)", buildBsHtml(bsRows), 2)
+    buildLandscapePage(
+      "損益計算書 (P/L)",
+      buildPlHtml(amounts, labelOverrides),
+      1,
+    ) + buildLandscapePage("貸借対照表 (B/S)", buildBsHtml(bsRows), 2)
   );
 }
 

@@ -8,18 +8,13 @@ import {
   serverValidationError,
 } from "@rubydogjp/openkk-server-domain";
 import type { FiscalPeriodOpeningDbRecord } from "@rubydogjp/openkk-server-ports";
-import type {
-  FiscalPeriodDbData,
-  FixedAssetDbData,
-} from "./table-types.js";
+import type { FiscalPeriodDbData, FixedAssetDbData } from "./table-types.js";
 
 export function msToIso(ms: number): string {
   return new Date(ms).toISOString();
 }
 
-export function parseFiscalPeriodDbData(
-  json: string,
-): FiscalPeriodDbData {
+export function parseFiscalPeriodDbData(json: string): FiscalPeriodDbData {
   return decodeRecord(json, "fiscal period", (value) => {
     const id = nonBlankString(value, "id");
     const name = nonBlankString(value, "name");
@@ -72,9 +67,7 @@ export function parseFiscalPeriodDbData(
   });
 }
 
-export function serializeFiscalPeriodDbData(
-  value: FiscalPeriodDbData,
-): string {
+export function serializeFiscalPeriodDbData(value: FiscalPeriodDbData): string {
   const data: FiscalPeriodDbData = {
     id: value.id,
     name: value.name,
@@ -139,9 +132,7 @@ export function parseFixedAssetDbData(json: string): FixedAssetDbData {
   });
 }
 
-export function serializeFixedAssetDbData(
-  value: FixedAssetDbData,
-): string {
+export function serializeFixedAssetDbData(value: FixedAssetDbData): string {
   const data: FixedAssetDbData = {
     id: value.id,
     fiscalPeriodId: value.fiscalPeriodId,
@@ -184,10 +175,7 @@ function serializeRecord<Value>(
   return json;
 }
 
-function stringValue(
-  record: Record<string, unknown>,
-  key: string,
-): string {
+function stringValue(record: Record<string, unknown>, key: string): string {
   const value = record[key];
   if (typeof value !== "string") {
     throw serverValidationError(`${key} must be a string`, null);
@@ -195,10 +183,7 @@ function stringValue(
   return value;
 }
 
-function nonBlankString(
-  record: Record<string, unknown>,
-  key: string,
-): string {
+function nonBlankString(record: Record<string, unknown>, key: string): string {
   const value = stringValue(record, key);
   if (value.trim() === "") {
     throw serverValidationError(`${key} must not be blank`, null);
@@ -217,10 +202,7 @@ function nullableValue<Value>(
   return record[key] === null ? null : read(record, key);
 }
 
-function booleanValue(
-  record: Record<string, unknown>,
-  key: string,
-): boolean {
+function booleanValue(record: Record<string, unknown>, key: string): boolean {
   const value = record[key];
   if (typeof value !== "boolean") {
     throw serverValidationError(`${key} must be a boolean`, null);
@@ -228,10 +210,7 @@ function booleanValue(
   return value;
 }
 
-function finiteNumber(
-  record: Record<string, unknown>,
-  key: string,
-): number {
+function finiteNumber(record: Record<string, unknown>, key: string): number {
   const value = record[key];
   if (typeof value !== "number" || !Number.isFinite(value)) {
     throw serverValidationError(`${key} must be a finite number`, null);
@@ -245,15 +224,15 @@ function nonNegativeInteger(
 ): number {
   const value = finiteNumber(record, key);
   if (!Number.isSafeInteger(value) || value < 0) {
-    throw serverValidationError(`${key} must be a non-negative safe integer`, null);
+    throw serverValidationError(
+      `${key} must be a non-negative safe integer`,
+      null,
+    );
   }
   return value;
 }
 
-function positiveInteger(
-  record: Record<string, unknown>,
-  key: string,
-): number {
+function positiveInteger(record: Record<string, unknown>, key: string): number {
   const value = finiteNumber(record, key);
   if (!Number.isSafeInteger(value) || value < 1) {
     throw serverValidationError(`${key} must be a positive safe integer`, null);

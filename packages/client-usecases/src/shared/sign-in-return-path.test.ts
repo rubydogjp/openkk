@@ -27,7 +27,9 @@ const now = new Date("2026-09-30T00:00:00.000Z");
 describe("normalizeSignInReturnPath", () => {
   it("accepts same-origin paths with query and hash", () => {
     expect(normalizeSignInReturnPath("/device")).toBe("/device");
-    expect(normalizeSignInReturnPath("/device?x=1#top")).toBe("/device?x=1#top");
+    expect(normalizeSignInReturnPath("/device?x=1#top")).toBe(
+      "/device?x=1#top",
+    );
   });
 
   it("rejects anything that could leave the site", () => {
@@ -101,7 +103,10 @@ describe("createSignInReturnPathStore", () => {
   it("ignores tampered or broken stored values", () => {
     const storage = memoryStorage();
     const returnPath = createSignInReturnPathStore(storage, sessionStorageKey);
-    storage.setItem(key, JSON.stringify({ path: "https://evil.example", savedAt: now.getTime() }));
+    storage.setItem(
+      key,
+      JSON.stringify({ path: "https://evil.example", savedAt: now.getTime() }),
+    );
     expect(returnPath.take(now)).toBeNull();
     storage.setItem(key, "{");
     expect(returnPath.take(now)).toBeNull();

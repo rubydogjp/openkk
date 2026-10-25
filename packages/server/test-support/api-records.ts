@@ -82,7 +82,9 @@ export function fixedAsset(
   return Object.assign(base, overrides);
 }
 
-export function changedFields<T extends object>(patch: T): {
+export function changedFields<T extends object>(
+  patch: T,
+): {
   [K in keyof T]?: Exclude<T[K], null>;
 } {
   return Object.fromEntries(

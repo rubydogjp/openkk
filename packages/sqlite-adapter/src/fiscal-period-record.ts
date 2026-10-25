@@ -34,6 +34,7 @@ export async function requireFiscalPeriodRecord(
   id: string,
 ): Promise<FiscalPeriodDbRecord> {
   const record = await findFiscalPeriodRecord(db, id);
-  if (record == null) throw serverNotFoundError(`fiscal period not found: ${id}`);
+  if (record == null)
+    throw serverNotFoundError(`fiscal period not found: ${id}`);
   return record;
 }

@@ -35,7 +35,10 @@ const taxCategories: Pick<MasterTaxCategoryApiRecord, "id" | "name">[] = [
   { id: "tax_10", name: "課税 10%" },
   { id: "tax_8", name: "軽減税率 8%" },
 ];
-const businessCategories: Pick<MasterBusinessCategoryApiRecord, "id" | "name">[] = [
+const businessCategories: Pick<
+  MasterBusinessCategoryApiRecord,
+  "id" | "name"
+>[] = [
   { id: "biz_service", name: "第5種（サービス業等）" },
   { id: "biz_retail", name: "第2種（小売業等）" },
 ];
@@ -60,16 +63,13 @@ type EntryInput = Partial<
 function entry(input: EntryInput = {}): EntryRecord {
   const partner = input.partner ?? "";
   const taxCategory = input.taxCategory ?? "課税 10%";
-  const businessCategory =
-    input.businessCategory ?? "第5種（サービス業等）";
+  const businessCategory = input.businessCategory ?? "第5種（サービス業等）";
   const line = (side: EntryLine["side"]): EntryLine => {
     const debit = side === "debit";
     return {
       id: null,
       side,
-      accountName: debit
-        ? (input.debit ?? "仕入")
-        : (input.credit ?? "未払金"),
+      accountName: debit ? (input.debit ?? "仕入") : (input.credit ?? "未払金"),
       accountType: debit
         ? (input.debitType ?? "cost_of_sales")
         : (input.creditType ?? "liability"),
@@ -100,9 +100,14 @@ function entry(input: EntryInput = {}): EntryRecord {
 
 describe("entryRecordToImportPayload", () => {
   it("rejects an unknown account id even when its display name matches", () => {
-    expect(() => entryRecordToImportPayload(entry({
-      debitBookAccountId: "unknown",
-    }), { accounts, taxCategories, businessCategories })).toThrow("entries.import: unresolved bookAccountId");
+    expect(() =>
+      entryRecordToImportPayload(
+        entry({
+          debitBookAccountId: "unknown",
+        }),
+        { accounts, taxCategories, businessCategories },
+      ),
+    ).toThrow("entries.import: unresolved bookAccountId");
   });
 
   it("preserves unknown explicit category ids for backend validation", () => {
@@ -120,10 +125,12 @@ describe("entryRecordToImportPayload", () => {
       businessCategories,
     });
     expect(payload.lines).toEqual(
-      record.lines.map((line) => expect.objectContaining({
-        taxCategoryId: line.taxCategoryId,
-        businessCategoryId: line.businessCategoryId,
-      })),
+      record.lines.map((line) =>
+        expect.objectContaining({
+          taxCategoryId: line.taxCategoryId,
+          businessCategoryId: line.businessCategoryId,
+        }),
+      ),
     );
   });
 

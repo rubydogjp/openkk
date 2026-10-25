@@ -25,17 +25,26 @@ describe("assertClosingEntriesMatch", () => {
 
   it("ignores entry and line order", () => {
     const second = { ...entry, localId: "virtual:second" };
-    expect(() => assertClosingEntriesMatch(
-      [{ ...second, lines: [...second.lines].reverse() }, entry],
-      [entry, second],
-    )).not.toThrow();
+    expect(() =>
+      assertClosingEntriesMatch(
+        [{ ...second, lines: [...second.lines].reverse() }, entry],
+        [entry, second],
+      ),
+    ).not.toThrow();
   });
 
   it("rejects changed amounts and duplicate entries", () => {
-    expect(() => assertClosingEntriesMatch(
-      [{ ...entry, lines: entry.lines.map((line) => ({ ...line, amount: 101 })) }],
-      [entry],
-    )).toThrow(/do not match/);
+    expect(() =>
+      assertClosingEntriesMatch(
+        [
+          {
+            ...entry,
+            lines: entry.lines.map((line) => ({ ...line, amount: 101 })),
+          },
+        ],
+        [entry],
+      ),
+    ).toThrow(/do not match/);
     expect(() => assertClosingEntriesMatch([entry, entry], [entry])).toThrow(
       /do not match/,
     );
@@ -158,11 +167,13 @@ describe("buildExpectedClosingEntries fixed-asset disposal", () => {
 
 describe("computeFixedAssetBookValue", () => {
   it("keeps yen precision near the largest accepted acquisition cost", () => {
-    expect(computeFixedAssetBookValue({
-      acquisitionDate: "2026-01-01",
-      acquisitionCost: 9_007_199_254_740_918,
-      usefulLife: 7,
-      asOf: "2026-06-30",
-    })).toBe(8_363_827_879_402_282);
+    expect(
+      computeFixedAssetBookValue({
+        acquisitionDate: "2026-01-01",
+        acquisitionCost: 9_007_199_254_740_918,
+        usefulLife: 7,
+        asOf: "2026-06-30",
+      }),
+    ).toBe(8_363_827_879_402_282);
   });
 });

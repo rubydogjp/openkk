@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 import { applyPatch } from "./patch.js";
 
 describe("applyPatch", () => {
-  const current: { id: string; userId: string; name: string; note: string | null } = {
+  const current: {
+    id: string;
+    userId: string;
+    name: string;
+    note: string | null;
+  } = {
     id: "a",
     userId: "u",
     name: "old",

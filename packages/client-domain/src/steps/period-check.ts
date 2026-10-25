@@ -3,8 +3,7 @@ import { parseIsoLocalDate } from "../shared/parse-utils.js";
 import { compareYearMonth, parseYearMonth } from "./year-month.js";
 
 export type FiscalPeriodDateValidationResult =
-  | { ok: true }
-  | { ok: false; message: string };
+  { ok: true } | { ok: false; message: string };
 
 export function isCurrentMonthWithinFiscalPeriod(
   startDate: string,

@@ -7,10 +7,7 @@ import {
   serverValidationError,
 } from "@rubydogjp/openkk-server-domain";
 
-import type {
-  EntriesDb,
-  EntryDbRecord,
-} from "@rubydogjp/openkk-server-ports";
+import type { EntriesDb, EntryDbRecord } from "@rubydogjp/openkk-server-ports";
 import type { FiscalPeriodDbData } from "./table-types.js";
 import {
   assertDbFiscalPeriodAllows,
@@ -140,7 +137,10 @@ export function createEntriesDb(db: SqlDb): EntriesDb {
     },
     async importMany(userId, fiscalPeriodId, inputs) {
       if (!Array.isArray(inputs)) {
-        throw serverValidationError("Entry import input must be an array", null);
+        throw serverValidationError(
+          "Entry import input must be an array",
+          null,
+        );
       }
       assertEntryCollectionItemLimit(inputs, "Imported entries", null);
       assertEntryCollectionLineLimit(inputs, "Imported entries", null);

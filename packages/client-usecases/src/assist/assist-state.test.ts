@@ -145,7 +145,9 @@ describe("nextOpeningCarryoverId", () => {
 
   it("does not reuse a suffix after deletion (no collision)", () => {
     const journals = [{ id: "oc-fp-2026-1" }, { id: "oc-fp-2026-2" }];
-    const afterDelete = journals.filter((journal) => journal.id !== "oc-fp-2026-1");
+    const afterDelete = journals.filter(
+      (journal) => journal.id !== "oc-fp-2026-1",
+    );
     expect(nextOpeningCarryoverId("fp-2026", afterDelete)).toBe("oc-fp-2026-3");
   });
 
@@ -307,17 +309,22 @@ describe("compound opening journals", () => {
         { biz_service: "サービス", biz_none: "対象外" },
       ),
     );
-    const rebuilt = buildOpeningJournalLines("opening-1", draft, {
-      accounts,
-      taxCategories: [
-        { id: "tax_10", name: "課税 10%" },
-        { id: "tax_out_of_scope", name: "対象外" },
-      ],
-      businessCategories: [
-        { id: "biz_service", name: "サービス" },
-        { id: "biz_none", name: "対象外" },
-      ],
-    }, UNRESOLVED_ACCOUNT);
+    const rebuilt = buildOpeningJournalLines(
+      "opening-1",
+      draft,
+      {
+        accounts,
+        taxCategories: [
+          { id: "tax_10", name: "課税 10%" },
+          { id: "tax_out_of_scope", name: "対象外" },
+        ],
+        businessCategories: [
+          { id: "biz_service", name: "サービス" },
+          { id: "biz_none", name: "対象外" },
+        ],
+      },
+      UNRESOLVED_ACCOUNT,
+    );
 
     expect(rebuilt).toEqual(journal.lines);
   });
@@ -345,17 +352,22 @@ describe("compound opening journals", () => {
       { ...cashLine, id: null, amount: "20,000" },
     ];
 
-    const rebuilt = buildOpeningJournalLines("opening-1", draft, {
-      accounts,
-      taxCategories: [
-        { id: "tax_10", name: "課税 10%" },
-        { id: "tax_out_of_scope", name: "対象外" },
-      ],
-      businessCategories: [
-        { id: "biz_service", name: "サービス" },
-        { id: "biz_none", name: "対象外" },
-      ],
-    }, UNRESOLVED_ACCOUNT);
+    const rebuilt = buildOpeningJournalLines(
+      "opening-1",
+      draft,
+      {
+        accounts,
+        taxCategories: [
+          { id: "tax_10", name: "課税 10%" },
+          { id: "tax_out_of_scope", name: "対象外" },
+        ],
+        businessCategories: [
+          { id: "biz_service", name: "サービス" },
+          { id: "biz_none", name: "対象外" },
+        ],
+      },
+      UNRESOLVED_ACCOUNT,
+    );
 
     expect(rebuilt?.map((line) => line.id)).toEqual([
       "opening-1-d",
@@ -382,11 +394,16 @@ describe("compound opening journals", () => {
     draft.lines = [{ ...firstLine, id: "" }];
 
     expect(() =>
-      buildOpeningJournalLines("opening-1", draft, {
-        accounts,
-        taxCategories: [],
-        businessCategories: [],
-      }, UNRESOLVED_ACCOUNT),
+      buildOpeningJournalLines(
+        "opening-1",
+        draft,
+        {
+          accounts,
+          taxCategories: [],
+          businessCategories: [],
+        },
+        UNRESOLVED_ACCOUNT,
+      ),
     ).toThrow("opening carryover line id must not be blank");
   });
 });

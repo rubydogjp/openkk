@@ -160,11 +160,7 @@ describe("SQLite migration from v1", () => {
     });
     db.exec({
       sql: `INSERT INTO fixed_assets VALUES(?, ?, ?, 1, 1)`,
-      bind: [
-        fixedAsset.id,
-        period.id,
-        JSON.stringify(fixedAsset),
-      ],
+      bind: [fixedAsset.id, period.id, JSON.stringify(fixedAsset)],
     });
     db.exec({
       sql: `INSERT INTO closings VALUES(?, ?, ?)`,

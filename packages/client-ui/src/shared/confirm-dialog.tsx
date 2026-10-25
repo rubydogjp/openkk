@@ -5,7 +5,15 @@ import { useEffect, useId, useRef, useState } from "react";
 import { ConfirmDialogResolver } from "./confirm-dialog-resolver.js";
 import { useModalLifecycle } from "./dismissible-layer.js";
 import { CheckCircleIcon, ErrorIcon } from "./icons.js";
-import { fontSize, fontWeight, palette, radii, shadows, sizes, typography } from "./design-tokens.js";
+import {
+  fontSize,
+  fontWeight,
+  palette,
+  radii,
+  shadows,
+  sizes,
+  typography,
+} from "./design-tokens.js";
 
 export type ConfirmDialogTone = "danger" | "success";
 
@@ -34,14 +42,7 @@ const toneMap = {
 function ConfirmDialogView(
   props: ConfirmDialogOptions & { onConfirm: () => void; onCancel: () => void },
 ) {
-  const {
-    tone,
-    title,
-    body,
-    confirmLabel,
-    onConfirm,
-    onCancel,
-  } = props;
+  const { tone, title, body, confirmLabel, onConfirm, onCancel } = props;
   const toneStyle = toneMap[tone];
   const ToneIcon = toneStyle.Icon;
   const titleId = useId();
@@ -123,10 +124,7 @@ function ConfirmDialogView(
           </div>
 
           {body.length > 0 && (
-            <div
-              id={bodyId}
-              style={{ marginTop: 16, display: "grid", gap: 6 }}
-            >
+            <div id={bodyId} style={{ marginTop: 16, display: "grid", gap: 6 }}>
               {body.map((paragraph, i) => (
                 <p
                   key={i}

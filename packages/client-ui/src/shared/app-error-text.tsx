@@ -12,10 +12,7 @@ export type AppErrorTextProps = {
 };
 
 export function AppErrorText(props: AppErrorTextProps) {
-  const message = safeUserErrorMessage(
-    props.error,
-    props.fallbackUserMessage,
-  );
+  const message = safeUserErrorMessage(props.error, props.fallbackUserMessage);
 
   useEffect(() => {
     debugAppError(props.error);

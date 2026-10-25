@@ -28,8 +28,14 @@ export function createStoredZip(files: ArchiveZipFile[]): Uint8Array {
   if (files.length > MAX_ARCHIVE_FILES) {
     throw invalidArchiveContentError("archive zip contains too many files");
   }
-  if (files.some((file) => file.bytes.length > MAX_FISCAL_PERIOD_ARCHIVE_FILE_BYTES)) {
-    throw invalidArchiveContentError("archive zip entry exceeds the size limit");
+  if (
+    files.some(
+      (file) => file.bytes.length > MAX_FISCAL_PERIOD_ARCHIVE_FILE_BYTES,
+    )
+  ) {
+    throw invalidArchiveContentError(
+      "archive zip entry exceeds the size limit",
+    );
   }
   const localParts: Uint8Array[] = [];
   const centralParts: Uint8Array[] = [];

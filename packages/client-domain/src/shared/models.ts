@@ -5,10 +5,7 @@ export type Session = {
 };
 
 export type FiscalPeriodPhase =
-  | "pre_opening"
-  | "journalizing"
-  | "pre_closing"
-  | "post_closing";
+  "pre_opening" | "journalizing" | "pre_closing" | "post_closing";
 
 export type FiscalPeriodArchiveStatus = "active" | "archived" | "purged";
 

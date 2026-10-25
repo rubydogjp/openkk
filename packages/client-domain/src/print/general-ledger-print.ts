@@ -163,8 +163,7 @@ export function buildGeneralLedgerBody(
     const name = line.accountId.slice(2);
     if ((prefix !== "a:" && prefix !== "l:") || name.trim() === "") continue;
     const candidates = encounterOrder.filter(
-      (account) =>
-        account.name === name && isBalanceSheetAccount(account.type),
+      (account) => account.name === name && isBalanceSheetAccount(account.type),
     );
     let target = candidates.find((account) =>
       prefix === "a:"
