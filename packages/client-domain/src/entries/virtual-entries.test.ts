@@ -9,8 +9,10 @@ import {
   buildClosingVirtualEntries,
   buildAnalyticsEntries,
   buildVirtualBusinessRateTransferRows,
+  buildVirtualEntryRows,
   buildVirtualFixedAssetRows,
   buildVirtualFixedAssetEntries,
+  buildVirtualOpeningCarryoverEntries,
   withClosingVirtualEntries,
 } from "./virtual-entries.js";
 
@@ -604,6 +606,29 @@ describe("withClosingVirtualEntries", () => {
 
     expect(withClosingVirtualEntries(input)).toEqual(entries);
     expect(buildAnalyticsEntries(input)).toEqual(entries);
+  });
+});
+
+describe("buildVirtualEntryRows", () => {
+  it("lists the month's virtual rows and drops the ones already saved", () => {
+    const input = {
+      fiscalPeriodId: "fp-2026",
+      periodStartDate: "2026-01-01",
+      periodEndDate: "2026-12-31",
+      entries: [],
+      assets: [],
+      carryovers: [carryover()],
+      yearMonth: "2026-01",
+    };
+    const saved = buildVirtualOpeningCarryoverEntries({
+      fiscalPeriodId: "fp-2026",
+      records: [carryover()],
+    });
+
+    expect(
+      buildVirtualEntryRows(input).map((row) => row.virtual?.kind),
+    ).toEqual(["opening_carryover"]);
+    expect(buildVirtualEntryRows({ ...input, entries: saved })).toEqual([]);
   });
 });
 

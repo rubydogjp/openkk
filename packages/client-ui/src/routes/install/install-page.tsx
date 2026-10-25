@@ -31,15 +31,16 @@ const phaseMessage: Record<Phase, string> = {
   ready: "この環境では、下のボタンからホーム画面に追加できます。",
   installing: "ブラウザの案内に沿って、ホーム画面への追加を進めてください。",
   installed: "ホーム画面に追加済みです。追加したアイコンから起動できます。",
-  dismissed: "ホーム画面への追加をキャンセルしました。このままブラウザで使えます。",
-  unsupported: "このブラウザでは、このページのボタンから追加を始められません。ブラウザのメニューに「アプリをインストール」や「ホーム画面に追加」がある場合は、そこから追加できます。",
+  dismissed:
+    "ホーム画面への追加をキャンセルしました。このままブラウザで使えます。",
+  unsupported:
+    "このブラウザでは、このページのボタンから追加を始められません。ブラウザのメニューに「アプリをインストール」や「ホーム画面に追加」がある場合は、そこから追加できます。",
 };
 
 export function InstallPage() {
   const router = useRouter();
   const openkkConfig = useOpenkkConfig();
   const appInstall = usePlatformAdapter().appInstall;
-  const bundleLabel = openkkConfig.bundleLabel;
   const [phase, setPhase] = useState<Phase>("checking");
   const installLock = useRef(new ExclusiveActionLock());
 
@@ -66,6 +67,9 @@ export function InstallPage() {
       window.clearTimeout(unsupportedDetectionTimer);
     };
   }, [appInstall]);
+
+  const offersInstall =
+    phase === "checking" || phase === "ready" || phase === "installing";
 
   async function handleInstall() {
     if (phase !== "ready") return;
@@ -103,21 +107,29 @@ export function InstallPage() {
       >
         オープン会計をインストール
       </h1>
-      {bundleLabel ? (
-        <div style={{ fontSize: fontSize.sm, color: palette.textSoft }}>
-          {bundleLabel}
-        </div>
-      ) : null}
+      <div style={{ fontSize: fontSize.sm, color: palette.textSoft }}>
+        {openkkConfig.bundleLabel}
+      </div>
 
-      <p style={{ margin: 0, maxWidth: 480, lineHeight: 1.8, color: palette.textSoft }}>
+      <p
+        style={{
+          margin: 0,
+          maxWidth: 480,
+          lineHeight: 1.8,
+          color: palette.textSoft,
+        }}
+      >
         PCやスマホのホーム画面にアプリを追加し、アイコンからすぐに開けるようにします。
         インストールせずに、ブラウザで使うこともできます。
       </p>
-      <p role="status" style={{ margin: "8px 0", maxWidth: 480, lineHeight: 1.8 }}>
+      <p
+        role="status"
+        style={{ margin: "8px 0", maxWidth: 480, lineHeight: 1.8 }}
+      >
         {phaseMessage[phase]}
       </p>
 
-      {phase === "checking" || phase === "ready" || phase === "installing" ? (
+      {offersInstall ? (
         <InstallButton
           onClick={handleInstall}
           disabled={phase === "checking" || phase === "installing"}
@@ -133,7 +145,7 @@ export function InstallPage() {
       <InstallButton
         onClick={() => router.push("/")}
         disabled={phase === "installing"}
-        secondary={phase === "checking" || phase === "ready" || phase === "installing"}
+        secondary={offersInstall}
       >
         {phase === "installed" ? "アプリを開く" : "ブラウザで開く"}
       </InstallButton>
@@ -162,7 +174,11 @@ function InstallButton({
         padding: "0 28px",
         borderRadius: 12,
         border: `1px solid ${disabled ? palette.borderStrong : palette.brand}`,
-        background: disabled ? palette.borderStrong : secondary ? palette.surface : palette.brand,
+        background: disabled
+          ? palette.borderStrong
+          : secondary
+            ? palette.surface
+            : palette.brand,
         color: !disabled && secondary ? palette.brand : palette.surface,
         fontSize: fontSize.md,
         fontWeight: fontWeight.bold,

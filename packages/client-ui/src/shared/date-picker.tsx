@@ -18,6 +18,7 @@ import {
   typography,
 } from "./design-tokens.js";
 import { useModalLifecycle } from "./dismissible-layer.js";
+import type { IconProps } from "./icons.js";
 
 const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -127,16 +128,16 @@ function DatePickerDialog(props: {
     (minDate == null || date >= minDate) &&
     (maxDate == null || date <= maxDate);
 
-  const canGoPrev =
+  const canGoToPreviousMonth =
     minDate == null ||
     viewYear > minDate.getFullYear() ||
     (viewYear === minDate.getFullYear() && viewMonth > minDate.getMonth());
-  const canGoNext =
+  const canGoToNextMonth =
     maxDate == null ||
     viewYear < maxDate.getFullYear() ||
     (viewYear === maxDate.getFullYear() && viewMonth < maxDate.getMonth());
 
-  const prevMonth = () => {
+  const goToPreviousMonth = () => {
     if (viewMonth === 0) {
       setViewYear((year) => year - 1);
       setViewMonth(11);
@@ -144,7 +145,7 @@ function DatePickerDialog(props: {
       setViewMonth((month) => month - 1);
     }
   };
-  const nextMonth = () => {
+  const goToNextMonth = () => {
     if (viewMonth === 11) {
       setViewYear((year) => year + 1);
       setViewMonth(0);
@@ -184,7 +185,6 @@ function DatePickerDialog(props: {
           gap: 16,
         }}
       >
-
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <div
             style={{
@@ -210,7 +210,13 @@ function DatePickerDialog(props: {
             >
               日付を選択
             </div>
-            <div style={{ fontSize: fontSize.base, color: palette.textSoft, marginTop: 2 }}>
+            <div
+              style={{
+                fontSize: fontSize.base,
+                color: palette.textSoft,
+                marginTop: 2,
+              }}
+            >
               {formatDateButtonLabel(formatIsoLocalDate(selected))}
             </div>
           </div>
@@ -224,7 +230,6 @@ function DatePickerDialog(props: {
             padding: "12px 14px",
           }}
         >
-
           <div
             style={{
               display: "flex",
@@ -235,13 +240,13 @@ function DatePickerDialog(props: {
           >
             <button
               type="button"
-              onClick={prevMonth}
-              disabled={!canGoPrev}
+              onClick={goToPreviousMonth}
+              disabled={!canGoToPreviousMonth}
               aria-label="前の月"
               style={{
-                ...navBtnStyle,
-                opacity: canGoPrev ? 1 : 0.35,
-                cursor: canGoPrev ? "pointer" : "default",
+                ...navButtonStyle,
+                opacity: canGoToPreviousMonth ? 1 : 0.35,
+                cursor: canGoToPreviousMonth ? "pointer" : "default",
               }}
             >
               ‹
@@ -257,13 +262,13 @@ function DatePickerDialog(props: {
             </span>
             <button
               type="button"
-              onClick={nextMonth}
-              disabled={!canGoNext}
+              onClick={goToNextMonth}
+              disabled={!canGoToNextMonth}
               aria-label="次の月"
               style={{
-                ...navBtnStyle,
-                opacity: canGoNext ? 1 : 0.35,
-                cursor: canGoNext ? "pointer" : "default",
+                ...navButtonStyle,
+                opacity: canGoToNextMonth ? 1 : 0.35,
+                cursor: canGoToNextMonth ? "pointer" : "default",
               }}
             >
               ›
@@ -293,9 +298,16 @@ function DatePickerDialog(props: {
             ))}
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(7, 1fr)",
+              gap: 2,
+            }}
+          >
             {cells.map((day, i) => {
-              if (day == null) return <div key={`e${i}`} style={{ aspectRatio: "1" }} />;
+              if (day == null)
+                return <div key={`e${i}`} style={{ aspectRatio: "1" }} />;
               const selectedDay = isSelected(day);
               const candidate = new Date(viewYear, viewMonth, day);
               const allowed = isAllowed(candidate);
@@ -316,7 +328,9 @@ function DatePickerDialog(props: {
                         ? palette.textSoft
                         : palette.textMuted,
                     fontSize: fontSize.base,
-                    fontWeight: selectedDay ? fontWeight.bold : fontWeight.medium,
+                    fontWeight: selectedDay
+                      ? fontWeight.bold
+                      : fontWeight.medium,
                     cursor: allowed ? "pointer" : "default",
                     opacity: allowed ? 1 : 0.35,
                     display: "flex",
@@ -337,14 +351,14 @@ function DatePickerDialog(props: {
             ref={cancelButtonRef}
             type="button"
             onClick={props.onCancel}
-            style={cancelBtnStyle}
+            style={cancelButtonStyle}
           >
             キャンセル
           </button>
           <button
             type="button"
             onClick={() => props.onConfirm(formatIsoLocalDate(selected))}
-            style={confirmBtnStyle}
+            style={confirmButtonStyle}
           >
             選択する
           </button>
@@ -364,12 +378,25 @@ function clampDateToBounds(
   return date;
 }
 
-function CalendarIcon(props: { size: number; color: string }) {
+function CalendarIcon(props: IconProps) {
   return (
     <svg width={props.size} height={props.size} viewBox="0 0 24 24" fill="none">
-      <rect x={3} y={4} width={18} height={18} rx={3} stroke={props.color} strokeWidth={2} />
+      <rect
+        x={3}
+        y={4}
+        width={18}
+        height={18}
+        rx={3}
+        stroke={props.color}
+        strokeWidth={2}
+      />
       <path d="M3 9h18" stroke={props.color} strokeWidth={1.5} />
-      <path d="M8 2v4M16 2v4" stroke={props.color} strokeWidth={2} strokeLinecap="round" />
+      <path
+        d="M8 2v4M16 2v4"
+        stroke={props.color}
+        strokeWidth={2}
+        strokeLinecap="round"
+      />
       <rect x={7} y={12} width={3} height={3} rx={0.5} fill={props.color} />
       <rect x={11} y={12} width={3} height={3} rx={0.5} fill={props.color} />
       <rect x={15} y={12} width={3} height={3} rx={0.5} fill={props.color} />
@@ -379,7 +406,7 @@ function CalendarIcon(props: { size: number; color: string }) {
   );
 }
 
-const navBtnStyle = {
+const navButtonStyle = {
   width: 32,
   height: 32,
   borderRadius: 999,
@@ -393,7 +420,7 @@ const navBtnStyle = {
   color: palette.textSoft,
 } as const;
 
-const cancelBtnStyle = {
+const cancelButtonStyle = {
   height: sizes.button.formHeight,
   minWidth: sizes.button.formSecondaryMinWidth,
   padding: "0 16px",
@@ -405,7 +432,7 @@ const cancelBtnStyle = {
   cursor: "pointer",
 } as const;
 
-const confirmBtnStyle = {
+const confirmButtonStyle = {
   height: sizes.button.formHeight,
   minWidth: sizes.button.formPrimaryMinWidth,
   padding: "0 16px",

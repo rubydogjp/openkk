@@ -1,18 +1,15 @@
-import type {
-  EntryLineApiRecord,
-  EntryApiRecord,
-  FiscalPeriodApiRecord,
-  FixedAssetApiRecord,
-} from "@rubydogjp/openkk-client";
 import {
-  parseAmount,
-  resolveBookAccountId,
-  resolveCategoryId,
   DEFAULT_BOOK_ACCOUNTS,
   DEFAULT_BUSINESS_CATEGORIES,
   DEFAULT_TAX_CATEGORIES,
+  parseAmount,
+  resolveBookAccountId,
+  resolveCategoryId,
+  type EntryApiRecord,
+  type EntryLineApiRecord,
   type EntryRecord,
-  type FixedAsset,
+  type FiscalPeriodApiRecord,
+  type FixedAssetApiRecord,
   type OpenkkConfig,
 } from "@rubydogjp/openkk-client";
 import type { DbSnapshot } from "@rubydogjp/openkk-memory-db-adapter";
@@ -21,6 +18,7 @@ import {
   buildDemoEntries,
   demoFixedAssetItems,
   demoOpeningBalanceLines,
+  type DemoFixedAsset,
 } from "./demo-content";
 
 const DEMO_SEED_TIMESTAMP = new Date(0).toISOString();
@@ -82,7 +80,7 @@ function entryRecordToApiRecord(
         accounts: DEFAULT_BOOK_ACCOUNTS,
       });
       if (bookAccountId == null) {
-        throw new Error("Unknown demo book account: " + line.accountName);
+        throw new Error(`Unknown demo book account: ${line.accountName}`);
       }
       return {
         id: `${record.id}-line-${index}`,
@@ -110,7 +108,7 @@ function entryRecordToApiRecord(
 }
 
 function fixedAssetItemToApiRecord(
-  item: FixedAsset,
+  item: DemoFixedAsset,
   fiscalPeriodId: string,
   userId: string,
 ): FixedAssetApiRecord {
@@ -132,4 +130,3 @@ function fixedAssetItemToApiRecord(
     updatedAt: DEMO_SEED_TIMESTAMP,
   };
 }
-

@@ -1,8 +1,8 @@
 "use client";
 
-import { AppErrorText } from "../shared/app-error-text.js";
-
 import { useOpenkkConfig } from "@rubydogjp/openkk-client-usecases";
+
+import { AppErrorText } from "../shared/app-error-text.js";
 import {
   fontSize,
   fontWeight,
@@ -100,7 +100,11 @@ export function SignInContent() {
         </button>
         {auth.authActionError != null ? (
           <div style={{ marginTop: 12 }}>
-            <AppErrorText error={auth.authActionError} style={null} fallbackUserMessage={null} />
+            <AppErrorText
+              error={auth.authActionError}
+              style={null}
+              fallbackUserMessage={null}
+            />
           </div>
         ) : null}
       </section>

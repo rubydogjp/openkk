@@ -55,11 +55,15 @@ test("export smoke (prod): 2タブ目は1タブ目を閉じるまで待ち、閉
   const secondTab = await context.newPage();
   await secondTab.goto("/", { waitUntil: "networkidle" });
   await waitUntilBootPhase(secondTab, "waiting-for-another-tab");
-  await expect(secondTab.getByRole("status")).toContainText("別のタブで開いています");
+  await expect(secondTab.getByRole("status")).toContainText(
+    "別のタブで開いています",
+  );
 
   await firstTab.close();
   await waitUntilBootPhase(secondTab, "ready");
-  await expect(secondTab.locator("body")).not.toContainText("別のタブで開いています");
+  await expect(secondTab.locator("body")).not.toContainText(
+    "別のタブで開いています",
+  );
   await expect(secondTab.locator("body")).not.toContainText("初期化に失敗");
 });
 

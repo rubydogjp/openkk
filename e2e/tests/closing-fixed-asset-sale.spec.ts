@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import {
+  addFixedAsset,
   advanceToJournalizing,
   clickButton,
   createFiscalPeriod,
@@ -8,7 +9,9 @@ import {
   expectStep,
   extractReportAmounts,
   goToMonth,
+  openFixedAssets,
   readPrintedReport,
+  saveScreenshot,
 } from "../helpers";
 
 const SHOTS = "test-results/scenario-fixed-asset-sale";
@@ -40,9 +43,11 @@ test.describe("固定資産の売却 → 締めフローの帳票一貫性", () 
 
     await page.getByRole("link", { name: "仕訳" }).click();
     await goToMonth(page, "2026年6月");
-    await expect(page.getByText("売却検証サーバーの売却").first()).toBeVisible();
+    await expect(
+      page.getByText("売却検証サーバーの売却").first(),
+    ).toBeVisible();
     await expect(page.getByText("固定資産売却益").first()).toBeVisible();
-    await shot(page, "01-entry-list-sale");
+    await saveScreenshot(page, SHOTS, "01-entry-list-sale");
 
     await page.getByRole("link", { name: "手順" }).click();
     await expectStep(page, "日々の仕訳");
@@ -51,7 +56,7 @@ test.describe("固定資産の売却 → 締めフローの帳票一貫性", () 
     await clickButton(page, "実行する");
     await clickButton(page, "次の手順へ");
     await expectStep(page, "本締め");
-    await shot(page, "02-pre-closing-documents");
+    await saveScreenshot(page, SHOTS, "02-pre-closing-documents");
 
     const draftJournal = await readPrintedReport(page, "仮_仕訳帳.pdf");
     expect(draftJournal).toContain("売却検証サーバーの売却");
@@ -66,11 +71,11 @@ test.describe("固定資産の売却 → 締めフローの帳票一貫性", () 
     await expect(page.getByText("財務諸表の概要")).toBeVisible({
       timeout: 30_000,
     });
-    await shot(page, "03-final-summary");
+    await saveScreenshot(page, SHOTS, "03-final-summary");
 
     await page.getByRole("link", { name: "手順" }).click();
     await expectStep(page, "書類を受け取る");
-    await shot(page, "04-final-documents");
+    await saveScreenshot(page, SHOTS, "04-final-documents");
 
     const finalJournal = await readPrintedReport(page, "仕訳帳.pdf");
     expect(finalJournal).toContain("売却検証サーバーの売却");
@@ -80,34 +85,6 @@ test.describe("固定資産の売却 → 締めフローの帳票一貫性", () 
     );
   });
 });
-
-async function openFixedAssets(page: Page) {
-  await page.getByRole("link", { name: "補助" }).click();
-  await page
-    .getByRole("button", { name: /固定資産 数年かけて費用になる資産/ })
-    .click();
-}
-
-async function addFixedAsset(
-  page: Page,
-  input: {
-    name: string;
-    acquisitionDate: string;
-    acquisitionCost: string;
-    usefulLife: string;
-  },
-) {
-  await page.getByRole("button", { name: "追加" }).click();
-  const drawer = page.getByRole("dialog", { name: "固定資産の追加" });
-  await expect(drawer).toBeVisible();
-  await drawer.getByLabel("名称").fill(input.name);
-  await drawer.getByLabel("取得日").fill(input.acquisitionDate);
-  await drawer.getByLabel("取得価額").fill(input.acquisitionCost);
-  await drawer.getByLabel("耐用年数 (年)").fill(input.usefulLife);
-  await clickButton(page, "保存");
-  await expect(drawer).not.toBeVisible({ timeout: 5_000 });
-  await expect(page.getByText(input.name)).toBeVisible();
-}
 
 async function sellFixedAsset(
   page: Page,
@@ -122,8 +99,4 @@ async function sellFixedAsset(
   await drawer.getByLabel("売却額").fill(input.disposalPrice);
   await clickButton(page, "保存");
   await expect(drawer).not.toBeVisible({ timeout: 5_000 });
-}
-
-async function shot(page: Page, name: string) {
-  await page.screenshot({ path: `${SHOTS}/${name}.png`, fullPage: true });
 }

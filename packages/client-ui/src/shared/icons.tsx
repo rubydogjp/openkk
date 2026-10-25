@@ -1,5 +1,7 @@
 "use client";
 
+export type IconProps = { size: number; color: string };
+
 export function MaskIcon({
   src,
   size,
@@ -31,15 +33,15 @@ export function MaskIcon({
   );
 }
 
-export function AssistIcon({ size, color }: { size: number; color: string }) {
+export function AssistIcon({ size, color }: IconProps) {
   return <MaskIcon src="/icons/assist.svg" size={size} color={color} />;
 }
 
-export function LockIcon({ size, color }: { size: number; color: string }) {
+export function LockIcon({ size, color }: IconProps) {
   return <MaskIcon src="/icons/lock.svg" size={size} color={color} />;
 }
 
-export function StepsIcon({ size, color }: { size: number; color: string }) {
+export function StepsIcon({ size, color }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="12" r="9" stroke={color} strokeWidth="1.6" />
@@ -54,7 +56,7 @@ export function StepsIcon({ size, color }: { size: number; color: string }) {
   );
 }
 
-export function JournalIcon({ size, color }: { size: number; color: string }) {
+export function JournalIcon({ size, color }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <rect
@@ -97,7 +99,7 @@ export function JournalIcon({ size, color }: { size: number; color: string }) {
   );
 }
 
-export function PersonIcon({ size, color }: { size: number; color: string }) {
+export function PersonIcon({ size, color }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="8" r="3.5" stroke={color} strokeWidth="1.5" />
@@ -111,7 +113,7 @@ export function PersonIcon({ size, color }: { size: number; color: string }) {
   );
 }
 
-export function LogoutIcon({ size, color }: { size: number; color: string }) {
+export function LogoutIcon({ size, color }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <path
@@ -140,7 +142,7 @@ export function LogoutIcon({ size, color }: { size: number; color: string }) {
   );
 }
 
-export function LoginIcon({ size, color }: { size: number; color: string }) {
+export function LoginIcon({ size, color }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <path
@@ -169,13 +171,7 @@ export function LoginIcon({ size, color }: { size: number; color: string }) {
   );
 }
 
-export function ExternalLinkIcon({
-  size,
-  color,
-}: {
-  size: number;
-  color: string;
-}) {
+export function ExternalLinkIcon({ size, color }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <path
@@ -204,13 +200,7 @@ export function ExternalLinkIcon({
   );
 }
 
-export function ChevronDownIcon({
-  size,
-  color,
-}: {
-  size: number;
-  color: string;
-}) {
+export function ChevronDownIcon({ size, color }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <polyline
@@ -224,7 +214,7 @@ export function ChevronDownIcon({
   );
 }
 
-export function CheckIcon({ size, color }: { size: number; color: string }) {
+export function CheckIcon({ size, color }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <polyline
@@ -238,13 +228,7 @@ export function CheckIcon({ size, color }: { size: number; color: string }) {
   );
 }
 
-export function CheckCircleIcon({
-  size,
-  color,
-}: {
-  size: number;
-  color: string;
-}) {
+export function CheckCircleIcon({ size, color }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="12" r="9.5" stroke={color} strokeWidth="1.6" />
@@ -259,7 +243,7 @@ export function CheckCircleIcon({
   );
 }
 
-export function WarningIcon({ size, color }: { size: number; color: string }) {
+export function WarningIcon({ size, color }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <path
@@ -282,7 +266,7 @@ export function WarningIcon({ size, color }: { size: number; color: string }) {
   );
 }
 
-export function ErrorIcon({ size, color }: { size: number; color: string }) {
+export function ErrorIcon({ size, color }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="12" r="9.5" stroke={color} strokeWidth="1.6" />
@@ -300,7 +284,7 @@ export function ErrorIcon({ size, color }: { size: number; color: string }) {
   );
 }
 
-export function PlusIcon({ size, color }: { size: number; color: string }) {
+export function PlusIcon({ size, color }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <line
@@ -325,7 +309,7 @@ export function PlusIcon({ size, color }: { size: number; color: string }) {
   );
 }
 
-export function MinusIcon({ size, color }: { size: number; color: string }) {
+export function MinusIcon({ size, color }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <line
@@ -341,7 +325,7 @@ export function MinusIcon({ size, color }: { size: number; color: string }) {
   );
 }
 
-export function CloseIcon({ size, color }: { size: number; color: string }) {
+export function CloseIcon({ size, color }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <line

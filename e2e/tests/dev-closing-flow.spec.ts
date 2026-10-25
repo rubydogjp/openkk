@@ -1,5 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
-import { clickButton, expectStep, goToMonth, waitUntilSettled } from "../helpers";
+import {
+  addFixedAsset,
+  clickButton,
+  expectStep,
+  goToMonth,
+  importEntriesFile,
+  openFixedAssets,
+  waitUntilSettled,
+} from "../helpers";
 
 const YEAR_ENTRIES_FIXTURE = "e2e/fixtures/dev-closing-entries.json";
 
@@ -76,14 +84,18 @@ test.describe("openkk closing flow", () => {
     await page.locator('button[aria-label="次の期間へ"]').first().click();
     await expectStep(page, "次の期間へ");
 
-    const reversals = page.getByRole("checkbox", { name: /秋商材の仕入と配送費/ });
+    const reversals = page.getByRole("checkbox", {
+      name: /秋商材の仕入と配送費/,
+    });
     await expect(reversals).toHaveCount(2);
     for (const candidate of await reversals.all()) {
       await expect(candidate).not.toBeChecked();
       await candidate.press("Space");
       await expect(candidate).toBeChecked();
     }
-    await expect(page.getByRole("checkbox", { name: /支払済みの通信費/ })).not.toBeChecked();
+    await expect(
+      page.getByRole("checkbox", { name: /支払済みの通信費/ }),
+    ).not.toBeChecked();
 
     await clickButton(page, "次期を作成");
     await expectStep(page, "期間を開始");
@@ -99,10 +111,7 @@ test.describe("openkk closing flow", () => {
     await expect(page.getByText("再振替").first()).toBeVisible();
     await expect(page.getByText(/再振替: 支払済みの通信費/)).toHaveCount(0);
 
-    await page.getByRole("link", { name: "補助" }).click();
-    await page
-      .getByRole("button", { name: /固定資産 数年かけて費用になる資産/ })
-      .click();
+    await openFixedAssets(page);
     await expect(
       page.getByText("検証用固定資産 長い名称のノートPC兼撮影機材"),
     ).toBeVisible();
@@ -119,12 +128,11 @@ test.describe("openkk closing flow", () => {
     const download = await downloadPromise;
     const archivePath = await download.path();
     expect(archivePath).not.toBeNull();
+    await expectStep(page, "次の期間へ");
+    await expect(page.getByText("圧縮保存しました")).toBeVisible();
     await expect(
-      page.getByRole("heading", {
-        name: "検証用 2026年分 長い名称 ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-      }),
-    ).toBeVisible();
-    await expect(page.getByText("圧縮保存済み").first()).toBeVisible();
+      page.getByRole("button", { name: "圧縮保存済み" }),
+    ).toBeDisabled();
 
     await openFiscalPeriodList(page);
     await expect(
@@ -182,7 +190,7 @@ async function createDevFiscalPeriodFromZero(page: Page) {
 async function openFiscalPeriodList(page: Page) {
   await waitUntilSettled(page);
   const archivedPeriodListButton = page.getByRole("button", {
-    name: "期間一覧へ",
+    name: "期間のリストへ",
   });
   if (await archivedPeriodListButton.isVisible().catch(() => false)) {
     await archivedPeriodListButton.click();
@@ -202,10 +210,7 @@ async function openFiscalPeriodList(page: Page) {
 
 async function importYearEntries(page: Page) {
   await page.getByRole("link", { name: "仕訳" }).click();
-  await page.getByRole("button", { name: "ファイル" }).click();
-  await page
-    .locator('input[type="file"][accept*=".json"]')
-    .setInputFiles(YEAR_ENTRIES_FIXTURE);
+  await importEntriesFile(page, "json", YEAR_ENTRIES_FIXTURE);
   await expect(page.getByText(/取り込みました\(取込 15 件/)).toBeVisible();
 }
 
@@ -218,25 +223,14 @@ async function fillOpeningAmount(
 }
 
 async function createFixedAssetDuringScenario(page: Page) {
-  await page.getByRole("link", { name: "補助" }).click();
-  await expect(page.getByRole("heading", { name: "補助" })).toBeVisible();
-  await page
-    .getByRole("button", { name: /固定資産 数年かけて費用になる資産/ })
-    .click();
+  await openFixedAssets(page);
   await expect(page.getByText("まだ固定資産がありません")).toBeVisible();
-  await page.getByRole("button", { name: "追加" }).click();
-  const drawer = page.getByRole("dialog", { name: "固定資産の追加" });
-  await expect(drawer).toBeVisible();
-  await drawer
-    .getByLabel("名称")
-    .fill("検証用固定資産 長い名称のノートPC兼撮影機材");
-  await drawer.getByLabel("取得日").fill("2026-04-01");
-  await drawer.getByLabel("取得価額").fill("420000");
-  await drawer.getByLabel("耐用年数 (年)").fill("4");
-  await clickButton(page, "保存");
-  await expect(
-    page.getByText("検証用固定資産 長い名称のノートPC兼撮影機材"),
-  ).toBeVisible();
+  await addFixedAsset(page, {
+    name: "検証用固定資産 長い名称のノートPC兼撮影機材",
+    acquisitionDate: "2026-04-01",
+    acquisitionCost: "420000",
+    usefulLife: "4",
+  });
 }
 
 async function expectAccountingScenarioRows(page: Page) {
@@ -260,11 +254,7 @@ async function expectAccountingScenarioRows(page: Page) {
   await expect(macbookDepreciationRow).toContainText("減価償却費");
   await expect(macbookDepreciationRow).toContainText("94,500");
 
-  await page.getByRole("link", { name: "補助" }).click();
-  await expect(page.getByRole("heading", { name: "補助" })).toBeVisible();
-  await page
-    .getByRole("button", { name: /固定資産 数年かけて費用になる資産/ })
-    .click();
+  await openFixedAssets(page);
   await expect(
     page.getByText("検証用固定資産 長い名称のノートPC兼撮影機材"),
   ).toBeVisible();

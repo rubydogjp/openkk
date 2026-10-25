@@ -4,3 +4,11 @@ export function normalizePathname(pathname: string): string {
   }
   return pathname;
 }
+
+export function pathWithSearchParams(
+  pathname: string,
+  params: URLSearchParams,
+): string {
+  const query = params.toString();
+  return query === "" ? pathname : `${pathname}?${query}`;
+}

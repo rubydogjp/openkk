@@ -29,9 +29,13 @@ export async function waitUntilBootPhase(
   page: Page,
   phase: "starting" | "waiting-for-another-tab" | "ready" | "failed",
 ) {
-  await expect(page.locator("html")).toHaveAttribute("data-openkk-boot", phase, {
-    timeout: 30_000,
-  });
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-openkk-boot",
+    phase,
+    {
+      timeout: 30_000,
+    },
+  );
 }
 
 export async function waitUntilSettled(page: Page) {
@@ -49,6 +53,56 @@ export async function clickButton(page: Page, name: string) {
     return;
   }
   await page.getByRole("button", { name }).last().click();
+}
+
+export async function openFixedAssets(page: Page) {
+  await page
+    .getByRole("complementary")
+    .getByRole("link", { name: "補助" })
+    .click();
+  await page
+    .getByRole("button", { name: /固定資産 数年かけて費用になる資産/ })
+    .click();
+}
+
+export async function addFixedAsset(
+  page: Page,
+  input: {
+    name: string;
+    acquisitionDate: string;
+    acquisitionCost: string;
+    usefulLife: string;
+  },
+) {
+  await page.getByRole("button", { name: "追加" }).click();
+  const drawer = page.getByRole("dialog", { name: "固定資産の追加" });
+  await expect(drawer).toBeVisible();
+  await drawer.getByLabel("名称").fill(input.name);
+  await drawer.getByLabel("取得日").fill(input.acquisitionDate);
+  await drawer.getByLabel("取得価額").fill(input.acquisitionCost);
+  await drawer.getByLabel("耐用年数 (年)").fill(input.usefulLife);
+  await clickButton(page, "保存");
+  await expect(drawer).not.toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText(input.name)).toBeVisible();
+}
+
+export async function importEntriesFile(
+  page: Page,
+  kind: "json" | "csv",
+  file: Parameters<Page["setInputFiles"]>[1],
+) {
+  await page.getByRole("button", { name: "ファイル" }).click();
+  await page
+    .locator(`input[type="file"][accept*=".${kind}"]`)
+    .setInputFiles(file);
+}
+
+export async function saveScreenshot(
+  page: Page,
+  directory: string,
+  name: string,
+) {
+  await page.screenshot({ path: `${directory}/${name}.png`, fullPage: true });
 }
 
 export async function disablePrintBeforeFirstNavigation(page: Page) {

@@ -3,11 +3,10 @@ temp/
 test-results/
 playwright-report/
 dist
-.turbo
 *.tsbuildinfo
 .DS_Store
 
-# Next.js (packages/openkk app)
+# Next.js apps
 .next/
 out/
 next-env.d.ts

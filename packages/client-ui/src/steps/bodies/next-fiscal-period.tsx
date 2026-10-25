@@ -430,7 +430,9 @@ export function NextFiscalPeriodBody({
                     variant="success"
                     icon={null}
                   >
-                    {isCreating ? "作成中" : policy.ephemeralArchiveWarning.confirmLabel}
+                    {isCreating
+                      ? "作成中"
+                      : policy.ephemeralArchiveWarning.confirmLabel}
                   </StepPrimaryButton>
                 </div>
               </div>

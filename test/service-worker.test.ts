@@ -11,9 +11,9 @@ type ServiceWorkerFunctions = {
 };
 
 const workerUrls = [
-  new URL("../../openkk/public/sw.js", import.meta.url),
-  new URL("../../openkk_sim/public/sw.js", import.meta.url),
-  new URL("../../openkk_demo/public/sw.js", import.meta.url),
+  new URL("../packages/openkk/public/sw.js", import.meta.url),
+  new URL("../packages/openkk_sim/public/sw.js", import.meta.url),
+  new URL("../packages/openkk_demo/public/sw.js", import.meta.url),
 ];
 
 describe("download service worker", () => {
@@ -288,9 +288,7 @@ describe("download service worker", () => {
     });
 
     await expect(precacheAppShell()).resolves.toBeUndefined();
-    expect(
-      requested.filter((pathname) => pathname.includes("$")),
-    ).toEqual([]);
+    expect(requested.filter((pathname) => pathname.includes("$"))).toEqual([]);
   });
 
   it("deletes only old OpenKK app-shell caches", async () => {
@@ -364,7 +362,10 @@ function loadWorker(input: {
   );
   return factory(
     {
-      location: { href: "https://example.test/sw.js?v=test", origin: "https://example.test" },
+      location: {
+        href: "https://example.test/sw.js?v=test",
+        origin: "https://example.test",
+      },
       addEventListener: vi.fn(),
       skipWaiting: vi.fn(),
       clients: { claim: vi.fn() },

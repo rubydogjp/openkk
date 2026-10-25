@@ -29,21 +29,21 @@ export function validateEntryAmounts(
   debitAmounts: Iterable<string>,
   creditAmounts: Iterable<string>,
 ): string | null {
-  let debitTotal = 0;
-  let creditTotal = 0;
-  for (const raw of debitAmounts) {
+  return hasSafeTotal(debitAmounts) && hasSafeTotal(creditAmounts)
+    ? null
+    : unsafeAmountMessage;
+}
+
+function hasSafeTotal(amounts: Iterable<string>): boolean {
+  let total = 0;
+  for (const raw of amounts) {
     const amount = parseAmount(raw);
-    if (!Number.isSafeInteger(amount)) return unsafeAmountMessage;
-    debitTotal += amount;
-    if (!Number.isSafeInteger(debitTotal)) return unsafeAmountMessage;
+    total += amount;
+    if (!Number.isSafeInteger(amount) || !Number.isSafeInteger(total)) {
+      return false;
+    }
   }
-  for (const raw of creditAmounts) {
-    const amount = parseAmount(raw);
-    if (!Number.isSafeInteger(amount)) return unsafeAmountMessage;
-    creditTotal += amount;
-    if (!Number.isSafeInteger(creditTotal)) return unsafeAmountMessage;
-  }
-  return null;
+  return true;
 }
 
 export function validateBusinessRate(value: string): string | null {
@@ -70,5 +70,4 @@ export function validateEntryLineCount(count: number): string | null {
 
 const unsafeAmountMessage =
   "仕訳金額または合計が大きすぎるため、安全に計算できる金額へ修正してください。";
-const businessRateMessage =
-  "事業割合は0から100までの数値で入力してください。";
+const businessRateMessage = "事業割合は0から100までの数値で入力してください。";

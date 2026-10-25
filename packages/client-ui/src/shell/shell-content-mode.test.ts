@@ -2,13 +2,19 @@ import { describe, expect, it } from "vitest";
 
 import type { FiscalPeriod } from "@rubydogjp/openkk-client-domain";
 import {
-  ARCHIVED_WORKSPACE_PATH,
+  ARCHIVED_FISCAL_PERIOD_PATH,
   FISCAL_PERIOD_CREATE_PATH,
   FISCAL_PERIOD_PICKER_PATH,
+  NEXT_FISCAL_PERIOD_STEP_PATH,
   resolveShellContentMode,
-  shouldRedirectArchivedWorkspace,
+  shouldRedirectArchivedFiscalPeriod,
   shouldRedirectMissingFiscalPeriod,
 } from "./shell-content-mode.js";
+
+const archivedPeriod = period({
+  archiveStatus: "archived",
+  archivedAt: "2027-03-01T00:00:00.000Z",
+});
 
 describe("resolveShellContentMode", () => {
   it("shows loading until app state is ready", () => {
@@ -18,7 +24,7 @@ describe("resolveShellContentMode", () => {
         hasSession: true,
         pathname: "/entries",
         currentFiscalPeriodId: "fp-1",
-        currentFiscalPeriod: period(),
+        currentFiscalPeriod: period({}),
       }),
     ).toBe("loading");
   });
@@ -30,7 +36,7 @@ describe("resolveShellContentMode", () => {
         hasSession: false,
         pathname: "/entries",
         currentFiscalPeriodId: "fp-1",
-        currentFiscalPeriod: period(),
+        currentFiscalPeriod: period({}),
       }),
     ).toBe("sign-in");
   });
@@ -42,7 +48,7 @@ describe("resolveShellContentMode", () => {
         hasSession: true,
         pathname: FISCAL_PERIOD_PICKER_PATH,
         currentFiscalPeriodId: "fp-1",
-        currentFiscalPeriod: period({ archiveStatus: "archived" }),
+        currentFiscalPeriod: archivedPeriod,
       }),
     ).toBe("fiscal-periods");
     expect(
@@ -56,14 +62,50 @@ describe("resolveShellContentMode", () => {
     ).toBe("normal");
   });
 
-  it("routes archived workspaces to the archived screen", () => {
+  it("routes archived fiscal periods to the archived screen", () => {
     expect(
       resolveShellContentMode({
         isReady: true,
         hasSession: true,
         pathname: "/entries",
         currentFiscalPeriodId: "fp-1",
-        currentFiscalPeriod: period({ archiveStatus: "archived" }),
+        currentFiscalPeriod: archivedPeriod,
+      }),
+    ).toBe("archived");
+  });
+});
+
+describe("next fiscal period step of an archived period", () => {
+  it("stays open until the archived data is purged", () => {
+    const purgedPeriod = period({
+      archiveStatus: "purged",
+      archivedAt: "2027-03-01T00:00:00.000Z",
+    });
+
+    expect(
+      resolveShellContentMode({
+        isReady: true,
+        hasSession: true,
+        pathname: NEXT_FISCAL_PERIOD_STEP_PATH,
+        currentFiscalPeriodId: "fp-1",
+        currentFiscalPeriod: archivedPeriod,
+      }),
+    ).toBe("normal");
+    expect(
+      shouldRedirectArchivedFiscalPeriod({
+        isReady: true,
+        hasSession: true,
+        pathname: NEXT_FISCAL_PERIOD_STEP_PATH,
+        currentFiscalPeriod: archivedPeriod,
+      }),
+    ).toBe(false);
+    expect(
+      resolveShellContentMode({
+        isReady: true,
+        hasSession: true,
+        pathname: NEXT_FISCAL_PERIOD_STEP_PATH,
+        currentFiscalPeriodId: "fp-1",
+        currentFiscalPeriod: purgedPeriod,
       }),
     ).toBe("archived");
   });
@@ -89,28 +131,28 @@ describe("shell redirects", () => {
     ).toBe(false);
   });
 
-  it("normalizes archived workspace routes to the archived workspace path", () => {
+  it("redirects archived fiscal period routes to the archived fiscal period path", () => {
     expect(
-      shouldRedirectArchivedWorkspace({
+      shouldRedirectArchivedFiscalPeriod({
         isReady: true,
         hasSession: true,
         pathname: "/assist/fixed-assets",
-        currentFiscalPeriod: period({ archiveStatus: "archived" }),
+        currentFiscalPeriod: archivedPeriod,
       }),
     ).toBe(true);
     expect(
-      shouldRedirectArchivedWorkspace({
+      shouldRedirectArchivedFiscalPeriod({
         isReady: true,
         hasSession: true,
-        pathname: ARCHIVED_WORKSPACE_PATH,
-        currentFiscalPeriod: period({ archiveStatus: "archived" }),
+        pathname: ARCHIVED_FISCAL_PERIOD_PATH,
+        currentFiscalPeriod: archivedPeriod,
       }),
     ).toBe(false);
   });
 });
 
-function period(overrides: Partial<FiscalPeriod> = {}): FiscalPeriod {
-  const base: FiscalPeriod = {
+function period(overrides: Partial<FiscalPeriod>): FiscalPeriod {
+  return {
     id: "fp-1",
     userId: "user-1",
     name: "2026年分",
@@ -127,6 +169,6 @@ function period(overrides: Partial<FiscalPeriod> = {}): FiscalPeriod {
       balanceLines: [],
       journals: [],
     },
+    ...overrides,
   };
-  return Object.assign(base, overrides);
 }

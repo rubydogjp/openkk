@@ -1,15 +1,16 @@
 "use client";
 
+import { AddButton } from "../shared/add-button.js";
 import { ClosedPeriodLock } from "../shared/closed-period-lock.js";
 import { useDismissibleLayer } from "../shared/dismissible-layer.js";
 import { DrawerFrame } from "../shared/drawer-frame.js";
-import { AssistIcon, PlusIcon } from "../shared/icons.js";
+import { AssistIcon } from "../shared/icons.js";
 import { CompactLockButton } from "../shared/locked-action.js";
 import {
   EntryFileActionsButton,
   type EntryFileKind,
 } from "./entry-file-actions.js";
-import { EntriesTable, MonthNavButton } from "./entries-table.js";
+import { EntriesTable } from "./entries-table.js";
 import {
   fontSize,
   fontWeight,
@@ -24,17 +25,13 @@ import type {
 } from "@rubydogjp/openkk-client-domain";
 
 export { AccountChipCell, EntriesTable } from "./entries-table.js";
-
-const entryColors = {
-  blue: palette.brand,
-  text: palette.text,
-};
+export type { EntryFileKind } from "./entry-file-actions.js";
 
 function EntriesMonthSwitcher(props: {
   label: string;
-  canGoPrev: boolean;
+  canGoPrevious: boolean;
   canGoNext: boolean;
-  onPrev: () => void;
+  onPrevious: () => void;
   onNext: () => void;
 }) {
   const switcherBorder = palette.borderHeavy;
@@ -57,9 +54,9 @@ function EntriesMonthSwitcher(props: {
         .bk-month-nav:active:not(:disabled) { background: #E2E8F0; }
       `}</style>
       <MonthNavButton
-        direction="prev"
-        enabled={props.canGoPrev}
-        onClick={props.onPrev}
+        direction="previous"
+        enabled={props.canGoPrevious}
+        onClick={props.onPrevious}
       />
       <div
         style={{
@@ -70,7 +67,7 @@ function EntriesMonthSwitcher(props: {
           justifyContent: "center",
           fontSize: fontSize.md,
           fontWeight: fontWeight.bold,
-          color: entryColors.text,
+          color: palette.text,
           letterSpacing: "0.01em",
           borderLeft: `1px solid ${switcherBorder}`,
           borderRight: `1px solid ${switcherBorder}`,
@@ -88,7 +85,52 @@ function EntriesMonthSwitcher(props: {
   );
 }
 
-export type { EntryFileKind } from "./entry-file-actions.js";
+function MonthNavButton(props: {
+  direction: "previous" | "next";
+  enabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="bk-month-nav"
+      onClick={props.onClick}
+      disabled={!props.enabled}
+      aria-label={props.direction === "previous" ? "前の月" : "次の月"}
+      style={{
+        width: 40,
+        height: "100%",
+        borderRadius: 0,
+        border: "none",
+        background: "transparent",
+        color: props.enabled ? palette.text : palette.textMuted,
+        cursor: props.enabled ? "pointer" : "default",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 0,
+      }}
+    >
+      <ChevronSmall direction={props.direction} />
+    </button>
+  );
+}
+
+function ChevronSmall({ direction }: { direction: "previous" | "next" }) {
+  const points =
+    direction === "previous" ? "13 6 7 12 13 18" : "11 6 17 12 11 18";
+  return (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+      <polyline
+        points={points}
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 export type EntryStatusMessage = {
   kind: "info" | "success" | "error";
@@ -98,9 +140,9 @@ export type EntryStatusMessage = {
 export function EntriesScreen(props: {
   monthLabel: string;
   rows: EntryPreviewRow[];
-  canGoPrev: boolean;
+  canGoPrevious: boolean;
   canGoNext: boolean;
-  onPrev: () => void;
+  onPrevious: () => void;
   onNext: () => void;
   readOnly: boolean;
   onAddEntry: (() => void) | null;
@@ -159,9 +201,9 @@ export function EntriesScreen(props: {
         >
           <EntriesMonthSwitcher
             label={props.monthLabel}
-            canGoPrev={props.canGoPrev}
+            canGoPrevious={props.canGoPrevious}
             canGoNext={props.canGoNext}
-            onPrev={props.onPrev}
+            onPrevious={props.onPrevious}
             onNext={props.onNext}
           />
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -173,8 +215,8 @@ export function EntriesScreen(props: {
             ) : null}
             {isReadOnly ? (
               <CompactLockButton label="記録終了" />
-            ) : props.onAddEntry ? (
-              <ToolbarPrimaryButton label="追加" onClick={props.onAddEntry} />
+            ) : props.onAddEntry != null ? (
+              <AddButton onClick={props.onAddEntry} />
             ) : null}
           </div>
         </div>
@@ -209,10 +251,10 @@ export function VirtualEntryDrawer(props: {
   const drawerRef = useDismissibleLayer<HTMLElement>({
     open: virtual != null,
     onDismiss: props.onClose,
-    trapFocus: true,
     initialFocusRef: null,
     focusOnOpen: true,
     restoreFocus: true,
+    trapFocus: true,
   });
   if (virtual == null) return null;
   const rows = props.rows.length === 0 ? [props.row] : props.rows;
@@ -427,38 +469,5 @@ function StatusBanner({ message }: { message: EntryStatusMessage }) {
     >
       {message.text}
     </div>
-  );
-}
-
-function ToolbarPrimaryButton({
-  label,
-  onClick,
-}: {
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        height: sizes.button.compactHeight,
-        minWidth: sizes.button.compactIconTextMinWidth,
-        padding: "0 14px",
-        borderRadius: radii.sm,
-        border: "none",
-        background: entryColors.blue,
-        color: palette.surface,
-        fontSize: fontSize.base,
-        fontWeight: fontWeight.bold,
-        cursor: "pointer",
-        display: "inline-flex",
-        alignItems: "center",
-        gap: spacing.s6,
-        boxShadow: "0 1px 2px rgba(37, 99, 235, 0.18)",
-      }}
-    >
-      <PlusIcon size={14} color="currentColor" /> {label}
-    </button>
   );
 }

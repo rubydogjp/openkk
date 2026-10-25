@@ -13,7 +13,11 @@ import { createMemoryDbAdapter } from "@rubydogjp/openkk-memory-db-adapter";
 
 import { openkkConfig } from "./openkk-config";
 
-const brandConfig: BrandConfig = { marketingSiteUrl: null, productSiteUrl: null, accountIconUrl: null };
+const brandConfig: BrandConfig = {
+  marketingSiteUrl: null,
+  productSiteUrl: null,
+  accountIconUrl: null,
+};
 
 const runtime: OpenkkBundleRuntime = {
   config: openkkConfig,

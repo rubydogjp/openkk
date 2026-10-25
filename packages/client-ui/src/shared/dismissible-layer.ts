@@ -54,7 +54,8 @@ export function useDismissibleLayer<ElementType extends HTMLElement>(options: {
       }
       if (event.key !== "Tab" || !trapFocus) return;
       const focusable = Array.from(
-        layerRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ?? [],
+        layerRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ??
+          [],
       );
       const first = focusable[0];
       const last = focusable.at(-1);
@@ -82,13 +83,7 @@ export function useDismissibleLayer<ElementType extends HTMLElement>(options: {
         previouslyFocused.focus();
       }
     };
-  }, [
-    focusOnOpen,
-    open,
-    options.initialFocusRef,
-    restoreFocus,
-    trapFocus,
-  ]);
+  }, [focusOnOpen, open, options.initialFocusRef, restoreFocus, trapFocus]);
 
   return layerRef;
 }
@@ -134,11 +129,11 @@ export function useModalLifecycle<ElementType extends HTMLElement>(
   initialFocusRef: RefObject<HTMLElement | null> | null,
 ): RefObject<ElementType | null> {
   return useDismissibleLayer<ElementType>({
+    open: true,
     onDismiss,
     initialFocusRef,
-    trapFocus: true,
-    open: true,
     focusOnOpen: true,
     restoreFocus: true,
+    trapFocus: true,
   });
 }

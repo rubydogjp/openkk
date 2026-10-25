@@ -140,10 +140,9 @@ function fixedAssetEntries(
   periodStartDate: Date,
   periodEndDate: string | null,
 ): EntryRecord[] {
-  const dateText =
-    fixedAssetStatusRequiresDisposal(asset.status)
-      ? asset.disposalDate
-      : periodEndDate;
+  const dateText = fixedAssetStatusRequiresDisposal(asset.status)
+    ? asset.disposalDate
+    : periodEndDate;
   if (dateText == null) return [];
   const asOf = parseIsoLocalDate(dateText);
   if (asOf == null) return [];
@@ -215,7 +214,9 @@ function buildSaleEntries(input: {
 }): EntryRecord[] {
   const disposalPrice = input.asset.disposalPrice;
   if (disposalPrice == null) {
-    throw new Error(`sold fixed asset has no disposal price: ${input.asset.id}`);
+    throw new Error(
+      `sold fixed asset has no disposal price: ${input.asset.id}`,
+    );
   }
   const gain = Math.max(0, disposalPrice - input.bookValue);
   const loss = Math.max(0, input.bookValue - disposalPrice);
@@ -385,13 +386,7 @@ export function withClosingVirtualEntries(
   input: FiscalPeriodEntriesInput,
 ): EntryRecord[] {
   if (input.phase === "post_closing") return input.entries;
-  const materializedLocalIds = new Set(
-    input.entries
-      .map((entry) => entry.localId)
-      .filter(
-        (localId): localId is string => localId != null,
-      ),
-  );
+  const savedLocalIds = localIdsOf(input.entries);
   const realEntries = input.entries.filter(
     (entry) => !isMaterializedVirtualEntry(entry),
   );
@@ -403,10 +398,47 @@ export function withClosingVirtualEntries(
     assets: input.assets,
     carryovers: input.carryovers,
   }).filter(
-    (entry) =>
-      entry.localId == null || !materializedLocalIds.has(entry.localId),
+    (entry) => entry.localId == null || !savedLocalIds.has(entry.localId),
   );
   return [...input.entries, ...virtualEntries];
+}
+
+export function buildVirtualEntryRows(input: {
+  fiscalPeriodId: string;
+  periodStartDate: string | null;
+  periodEndDate: string | null;
+  entries: EntryRecord[];
+  assets: FixedAsset[];
+  carryovers: OpeningCarryoverRecord[];
+  yearMonth: string;
+}): EntryPreviewRow[] {
+  const savedLocalIds = localIdsOf(input.entries);
+  return [
+    ...buildVirtualOpeningCarryoverRows({
+      fiscalPeriodId: input.fiscalPeriodId,
+      records: input.carryovers,
+      yearMonth: input.yearMonth,
+    }),
+    ...buildVirtualFixedAssetRows({
+      fiscalPeriodId: input.fiscalPeriodId,
+      assets: input.assets,
+      periodStartDate: input.periodStartDate,
+      periodEndDate: input.periodEndDate,
+      yearMonth: input.yearMonth,
+    }),
+    ...buildVirtualBusinessRateTransferRows({
+      ...input,
+      entries: input.entries.filter(
+        (entry) => !isMaterializedVirtualEntry(entry),
+      ),
+    }),
+  ].filter((row) => !savedLocalIds.has(virtualEntryLocalId(row.recordId)));
+}
+
+function localIdsOf(entries: EntryRecord[]): Set<string> {
+  return new Set(
+    entries.flatMap((entry) => (entry.localId == null ? [] : [entry.localId])),
+  );
 }
 
 export function buildAnalyticsEntries(

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { clickButton, expectStep } from "../helpers";
+import { clickButton, expectStep, openFixedAssets } from "../helpers";
 
 const storedText = "保存済みの長い名称😀".repeat(50);
 
@@ -24,13 +24,7 @@ test("carries archived text into a persistent next period and keeps it when edit
   await page.reload();
   await expectStep(page, "日々の仕訳");
 
-  await page
-    .getByRole("complementary")
-    .getByRole("link", { name: "補助" })
-    .click();
-  await page
-    .getByRole("button", { name: /固定資産 数年かけて費用になる資産/ })
-    .click();
+  await openFixedAssets(page);
   await page.getByText(storedText, { exact: true }).click();
   const asset = page.getByRole("dialog", { name: "固定資産の編集" });
   await expect(asset.getByLabel("名称")).toHaveValue(storedText);
@@ -76,8 +70,11 @@ test("carries archived text into a persistent next period and keeps it when edit
 });
 
 async function archivedPeriod(): Promise<Uint8Array> {
-  const { buildFiscalPeriodArchivePayload, createFiscalPeriodArchiveZip } =
-    await import("@rubydogjp/openkk-client-domain");
+  const {
+    archiveClosingRecords,
+    buildFiscalPeriodArchivePayload,
+    createFiscalPeriodArchiveZip,
+  } = await import("@rubydogjp/openkk-client-domain");
   const { createMemoryDbAdapter } =
     await import("@rubydogjp/openkk-memory-db-adapter");
   const { buildExpectedClosingEntries, createOpenkkServer } =
@@ -141,10 +138,7 @@ async function archivedPeriod(): Promise<Uint8Array> {
       fiscalPeriod: period,
       entries: await server.entries.getAll(period.id),
       fixedAssets,
-      closings: [
-        { fiscalPeriodId: period.id, year: 2026, kind: "pre_closing" },
-        { fiscalPeriodId: period.id, year: 2026, kind: "closing" },
-      ],
+      closings: archiveClosingRecords(period),
     }),
   );
 }

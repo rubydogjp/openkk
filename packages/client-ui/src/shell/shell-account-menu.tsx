@@ -29,7 +29,7 @@ import {
   LogoutIcon,
   PersonIcon,
 } from "../shared/icons.js";
-import { SHELL_PALETTE as PALETTE } from "./shell-palette.js";
+import { SHELL_PALETTE } from "./shell-palette.js";
 
 export function ShellAccountMenu(props: {
   pathname: string;
@@ -52,11 +52,13 @@ export function ShellAccountMenu(props: {
   const canSignOut = session != null && userCanSignOut(session.user);
 
   const [menuOpen, setMenuOpen] = useState(false);
-  const { containerRef: accountMenuContainerRef, popupRef: menuRef } =
-    usePopoverLifecycle<HTMLDivElement, HTMLDivElement>({
-      open: menuOpen,
-      onDismiss: () => setMenuOpen(false),
-    });
+  const { containerRef, popupRef } = usePopoverLifecycle<
+    HTMLDivElement,
+    HTMLDivElement
+  >({
+    open: menuOpen,
+    onDismiss: () => setMenuOpen(false),
+  });
 
   useEffect(() => {
     setMenuOpen(false);
@@ -68,10 +70,7 @@ export function ShellAccountMenu(props: {
   }
 
   return (
-    <div
-      ref={accountMenuContainerRef}
-      style={{ padding: 8, position: "relative" }}
-    >
+    <div ref={containerRef} style={{ padding: 8, position: "relative" }}>
       {hasSession && marketingSiteUrl != null ? (
         <button
           type="button"
@@ -114,7 +113,7 @@ export function ShellAccountMenu(props: {
               padding: "8px 10px",
               borderRadius: 8,
               border: "none",
-              background: menuOpen ? PALETTE.navHoverBg : "transparent",
+              background: menuOpen ? SHELL_PALETTE.navHoverBg : "transparent",
               cursor: "pointer",
               textAlign: "left",
             }}
@@ -125,7 +124,7 @@ export function ShellAccountMenu(props: {
                 style={{
                   fontSize: fontSize.base,
                   fontWeight: fontWeight.semibold,
-                  color: PALETTE.titleColor,
+                  color: SHELL_PALETTE.titleColor,
                   whiteSpace: "nowrap",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
@@ -137,7 +136,7 @@ export function ShellAccountMenu(props: {
                 <div
                   style={{
                     fontSize: fontSize.xs,
-                    color: PALETTE.subtitleColor,
+                    color: SHELL_PALETTE.subtitleColor,
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -147,12 +146,12 @@ export function ShellAccountMenu(props: {
                 </div>
               )}
             </div>
-            <ChevronDownIcon size={14} color={PALETTE.subtitleColor} />
+            <ChevronDownIcon size={14} color={SHELL_PALETTE.subtitleColor} />
           </button>
 
           {menuOpen && (
             <div
-              ref={menuRef}
+              ref={popupRef}
               role="menu"
               tabIndex={-1}
               style={{
@@ -161,7 +160,7 @@ export function ShellAccountMenu(props: {
                 right: 8,
                 bottom: 62,
                 background: palette.surface,
-                border: `1px solid ${PALETTE.menuBorder}`,
+                border: `1px solid ${SHELL_PALETTE.menuBorder}`,
                 borderRadius: 12,
                 boxShadow: shadows.popup,
                 zIndex: 100,
@@ -174,20 +173,16 @@ export function ShellAccountMenu(props: {
                   display: "flex",
                   alignItems: "center",
                   gap: 12,
-                  borderBottom: `1px solid ${PALETTE.menuDivider}`,
+                  borderBottom: `1px solid ${SHELL_PALETTE.menuDivider}`,
                 }}
               >
-                <AccountAvatar
-                  size={sizes.field.height}
-                  iconSize={24}
-                  placeholderSize={22}
-                />
+                <AccountAvatar size={40} iconSize={24} placeholderSize={22} />
                 <div style={{ minWidth: 0 }}>
                   <div
                     style={{
                       fontSize: fontSize.md,
                       fontWeight: fontWeight.bold,
-                      color: PALETTE.titleColor,
+                      color: SHELL_PALETTE.titleColor,
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
@@ -200,7 +195,7 @@ export function ShellAccountMenu(props: {
                       style={{
                         marginTop: 2,
                         fontSize: fontSize.sm,
-                        color: PALETTE.subtitleColor,
+                        color: SHELL_PALETTE.subtitleColor,
                         whiteSpace: "nowrap",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
@@ -216,15 +211,18 @@ export function ShellAccountMenu(props: {
                 <div
                   style={{
                     padding: "6px 0",
-                    borderBottom: `1px solid ${PALETTE.menuDivider}`,
+                    borderBottom: `1px solid ${SHELL_PALETTE.menuDivider}`,
                   }}
                 >
                   <MenuButton
                     icon={
-                      <PersonIcon size={18} color={PALETTE.menuIconActive} />
+                      <PersonIcon
+                        size={18}
+                        color={SHELL_PALETTE.menuIconActive}
+                      />
                     }
                     label="マイページ"
-                    labelColor={PALETTE.menuTextActive}
+                    labelColor={SHELL_PALETTE.menuTextActive}
                     disabled={false}
                     onClick={() => {
                       setMenuOpen(false);
@@ -238,15 +236,18 @@ export function ShellAccountMenu(props: {
                 {productSiteUrl != null && (
                   <MenuButton
                     icon={
-                      <ExternalLinkIcon size={18} color={PALETTE.menuLink} />
+                      <ExternalLinkIcon
+                        size={18}
+                        color={SHELL_PALETTE.menuLink}
+                      />
                     }
                     label="公式サイト"
-                    labelColor={PALETTE.menuLink}
+                    labelColor={SHELL_PALETTE.menuLink}
+                    disabled={false}
                     onClick={() => {
                       setMenuOpen(false);
                       navigation.openExternal(productSiteUrl);
                     }}
-                    disabled={false}
                   />
                 )}
                 <MenuButton
@@ -255,16 +256,16 @@ export function ShellAccountMenu(props: {
                       size={18}
                       color={
                         canSignOut
-                          ? PALETTE.menuIconActive
-                          : PALETTE.menuIconDisabled
+                          ? SHELL_PALETTE.menuIconActive
+                          : SHELL_PALETTE.menuIconDisabled
                       }
                     />
                   }
                   label="サインアウト"
                   labelColor={
                     canSignOut
-                      ? PALETTE.menuTextActive
-                      : PALETTE.menuTextDisabled
+                      ? SHELL_PALETTE.menuTextActive
+                      : SHELL_PALETTE.menuTextDisabled
                   }
                   disabled={!canSignOut || authActionPending}
                   onClick={handleSignOut}
@@ -347,7 +348,7 @@ function MenuButton(props: {
 }
 
 function AccountAvatar(props: {
-  size: number | string;
+  size: number;
   iconSize: number;
   placeholderSize: number;
 }) {
@@ -358,7 +359,7 @@ function AccountAvatar(props: {
         width: props.size,
         height: props.size,
         borderRadius: 999,
-        background: PALETTE.userAvatarBg,
+        background: SHELL_PALETTE.userAvatarBg,
         display: "grid",
         placeItems: "center",
         flexShrink: 0,

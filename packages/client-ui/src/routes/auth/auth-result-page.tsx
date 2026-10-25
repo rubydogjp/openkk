@@ -9,8 +9,16 @@ import {
   useOpenkkAppState,
 } from "@rubydogjp/openkk-client-usecases";
 import { AppErrorText } from "../../shared/app-error-text.js";
-import { startOnceAfterMount, type StartOnceState } from "../../shared/start-once-after-mount.js";
-import { fontSize, fontWeight, palette, shadows } from "../../shared/design-tokens.js";
+import {
+  startOnceAfterMount,
+  type StartOnceState,
+} from "../../shared/start-once-after-mount.js";
+import {
+  fontSize,
+  fontWeight,
+  palette,
+  shadows,
+} from "../../shared/design-tokens.js";
 
 export function AuthResultPage() {
   return (
@@ -27,44 +35,48 @@ function AuthResultContent() {
   const [screenError, setScreenError] = useState<unknown>(null);
   const startRef = useRef<StartOnceState>({ started: false });
 
-  useEffect(() => startOnceAfterMount(startRef.current, () => {
-    const state = searchParams.get("state");
-    const code = searchParams.get("code");
-    if (
-      state == null ||
-      state.trim() === "" ||
-      code == null ||
-      code.trim() === ""
-    ) {
-      setScreenError(
-        new AppError({
-          messageForUser: "サインイン結果を確認できませんでした",
-          messageForDeveloper: "auth-result: state or code missing",
-          originalMessage: null,
-          statusCode: null,
-          code: null,
-        }),
-      );
-      return;
-    }
+  useEffect(
+    () =>
+      startOnceAfterMount(startRef.current, () => {
+        const state = searchParams.get("state");
+        const code = searchParams.get("code");
+        if (
+          state == null ||
+          state.trim() === "" ||
+          code == null ||
+          code.trim() === ""
+        ) {
+          setScreenError(
+            new AppError({
+              messageForUser: "サインイン結果を確認できませんでした",
+              messageForDeveloper: "auth-result: state or code missing",
+              originalMessage: null,
+              statusCode: null,
+              code: null,
+            }),
+          );
+          return;
+        }
 
-    void (async () => {
-      try {
-        await appState.completeSignIn(state, code);
-        navigation.reloadAt(
-          appState.takeSignInReturnPath() ?? "/fiscal-periods",
-        );
-      } catch (error) {
-        setScreenError(
-          AppError.from(error, {
-            fallbackUserMessage: "サインインの完了に失敗しました",
-            fallbackDeveloperMessage: "auth-result: completeSignIn failed",
-            statusCode: null,
-          }),
-        );
-      }
-    })();
-  }), [appState, navigation, searchParams]);
+        void (async () => {
+          try {
+            await appState.completeSignIn(state, code);
+            navigation.reloadAt(
+              appState.takeSignInReturnPath() ?? "/fiscal-periods",
+            );
+          } catch (error) {
+            setScreenError(
+              AppError.from(error, {
+                fallbackUserMessage: "サインインの完了に失敗しました",
+                fallbackDeveloperMessage: "auth-result: completeSignIn failed",
+                statusCode: null,
+              }),
+            );
+          }
+        })();
+      }),
+    [appState, navigation, searchParams],
+  );
 
   return <AuthResultView screenError={screenError} />;
 }
@@ -113,7 +125,11 @@ function AuthResultView(props: { screenError: unknown }) {
         </p>
         {props.screenError != null ? (
           <div style={{ marginTop: 16 }}>
-            <AppErrorText error={props.screenError} style={null} fallbackUserMessage={null} />
+            <AppErrorText
+              error={props.screenError}
+              style={null}
+              fallbackUserMessage={null}
+            />
           </div>
         ) : null}
       </section>

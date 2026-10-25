@@ -3,7 +3,13 @@
 import { usePathname, useRouter } from "next/navigation.js";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
-import { fontSize, fontWeight, palette, sizes, typography } from "../shared/design-tokens.js";
+import {
+  fontSize,
+  fontWeight,
+  palette,
+  sizes,
+  typography,
+} from "../shared/design-tokens.js";
 import { useReportWorkInProgress } from "../shared/work-in-progress.js";
 import { normalizePathname } from "../shared/pathname.js";
 import { ClosingBody } from "./bodies/closing.js";
@@ -106,7 +112,6 @@ export function StepsPageScreen({
 
   return (
     <main ref={mainRef} style={{ minHeight: "100%" }}>
-
       <StepperBar
         steps={items}
         activeNo={activeStepNo}
@@ -120,7 +125,6 @@ export function StepsPageScreen({
           padding: "24px 24px 96px",
         }}
       >
-
         <header style={{ marginBottom: 32 }}>
           <div
             style={{
@@ -168,11 +172,7 @@ export function StepsPageScreen({
   );
 }
 
-function StepTitleStatusChip({
-  status,
-}: {
-  status: StepItem["status"];
-}) {
+function StepTitleStatusChip({ status }: { status: StepItem["status"] }) {
   if (status === "done") return <StatusChip label="完了" tone="success" />;
   if (status === "todo") return <StatusChip label="未着手" tone="muted" />;
   return null;
@@ -203,7 +203,12 @@ function StepBody({
         />
       );
     case 4:
-      return <ClosingBody onSwitchToStep={onSwitchToStep} onBusyChange={onBusyChange} />;
+      return (
+        <ClosingBody
+          onSwitchToStep={onSwitchToStep}
+          onBusyChange={onBusyChange}
+        />
+      );
     case 5:
       return <DocumentReceiveBody onSwitchToStep={onSwitchToStep} />;
     case 6:
@@ -241,7 +246,6 @@ export function StepperBar({
           gap: 16,
         }}
       >
-
         <div
           style={{
             fontSize: typography.dialogTitle.fontSize,
@@ -292,7 +296,7 @@ function StepperDot({
 }) {
   const isDoing = step.status === "doing";
   const isDone = step.status === "done";
-  const bg = isDoing ? palette.text : DOT_GRAY;
+  const background = isDoing ? palette.text : DOT_GRAY;
   return (
     <button
       type="button"
@@ -304,7 +308,7 @@ function StepperDot({
         width: 26,
         height: 26,
         borderRadius: 999,
-        background: bg,
+        background,
         color: palette.surface,
         display: "grid",
         placeItems: "center",
@@ -398,11 +402,7 @@ function WindowedStepperDots({
         <EmptySlot />
       )}
       {previous != null ? <StepperConnector /> : null}
-      <StepperDot
-        step={current}
-        active
-        onClick={() => onSelect(current.no)}
-      />
+      <StepperDot step={current} active onClick={() => onSelect(current.no)} />
       {next != null ? <StepperConnector /> : null}
       {next != null ? (
         <StepperDot

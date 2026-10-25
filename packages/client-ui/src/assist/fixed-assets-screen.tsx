@@ -2,17 +2,15 @@
 
 import type { ReactNode } from "react";
 
-import { formatAmount, type FixedAsset } from "@rubydogjp/openkk-client-domain";
-import { AmountText } from "../shared/amount-field.js";
 import {
-  fontSize,
-  fontWeight,
-  palette,
-  radii,
-  sizes,
-  spacing,
-} from "../shared/design-tokens.js";
-import { PlusIcon } from "../shared/icons.js";
+  FIXED_ASSET_STATUS_LABELS,
+  formatAmount,
+  type FixedAsset,
+  type FixedAssetStatus,
+} from "@rubydogjp/openkk-client-domain";
+import { AddButton } from "../shared/add-button.js";
+import { AmountText } from "../shared/amount-field.js";
+import { fontSize, fontWeight, palette } from "../shared/design-tokens.js";
 import { CompactLockButton } from "../shared/locked-action.js";
 import { StepCallout } from "../steps/step-ui.js";
 import { AssistBreadcrumb } from "./assist-breadcrumb.js";
@@ -69,7 +67,7 @@ export function FixedAssetsScreen(props: {
           {isReadOnly ? (
             <CompactLockButton label="記録終了" />
           ) : (
-            (props.addButtonSlot ?? <AddAssetButton onClick={props.onAdd} />)
+            (props.addButtonSlot ?? <AddButton onClick={props.onAdd} />)
           )}
         </div>
         <FixedAssetsTable
@@ -256,36 +254,6 @@ function EmptyFixedAssetIcon() {
   );
 }
 
-function AddAssetButton({ onClick }: { onClick: (() => void) | null }) {
-  const disabled = onClick == null;
-  return (
-    <button
-      type="button"
-      onClick={onClick ?? undefined}
-      disabled={disabled}
-      style={{
-        height: sizes.button.compactHeight,
-        minWidth: sizes.button.compactIconTextMinWidth,
-        padding: "0 14px",
-        borderRadius: radii.sm,
-        border: "none",
-        background: palette.brand,
-        color: palette.surface,
-        fontSize: fontSize.base,
-        fontWeight: fontWeight.bold,
-        cursor: disabled ? "default" : "pointer",
-        opacity: disabled ? 0.5 : 1,
-        display: "inline-flex",
-        alignItems: "center",
-        gap: spacing.s6,
-        boxShadow: "0 1px 2px rgba(37, 99, 235, 0.18)",
-      }}
-    >
-      <PlusIcon size={12} color="currentColor" /> 追加
-    </button>
-  );
-}
-
 function FixedAssetRow(props: {
   asset: FixedAsset;
   onOpen: ((itemId: string) => void) | null;
@@ -333,7 +301,7 @@ function FixedAssetCardBody(props: { asset: FixedAsset }) {
         >
           {asset.name}
         </div>
-        <AssetStatusChip label={asset.status} />
+        <AssetStatusChip status={asset.status} />
       </div>
 
       <div
@@ -370,7 +338,8 @@ function FixedAssetCardBody(props: { asset: FixedAsset }) {
               border: `${meterLineWidth}px solid ${palette.brand}`,
               borderTopLeftRadius: index === 0 ? 999 : 0,
               borderBottomLeftRadius: index === 0 ? 999 : 0,
-              borderTopRightRadius: index === progressQuarterCount - 1 ? 999 : 0,
+              borderTopRightRadius:
+                index === progressQuarterCount - 1 ? 999 : 0,
               borderBottomRightRadius:
                 index === progressQuarterCount - 1 ? 999 : 0,
               background: palette.brand,
@@ -421,17 +390,14 @@ function FixedAssetCardBody(props: { asset: FixedAsset }) {
           }}
         >
           現在の価値
-          <AmountText bold>
-            {formatAmount(asset.currentBookValue)}
-          </AmountText>
-          円
+          <AmountText bold>{formatAmount(asset.currentBookValue)}</AmountText>円
         </span>
       </div>
     </div>
   );
 }
 
-function AssetStatusChip(props: { label: string }) {
+function AssetStatusChip(props: { status: FixedAssetStatus }) {
   return (
     <div
       style={{
@@ -446,7 +412,7 @@ function AssetStatusChip(props: { label: string }) {
         fontWeight: fontWeight.bold,
       }}
     >
-      {props.label}
+      {FIXED_ASSET_STATUS_LABELS[props.status]}
     </div>
   );
 }

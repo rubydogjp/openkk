@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import {
   fontSize,
@@ -20,7 +20,7 @@ export function EntryFileActionsButton(props: {
   onExport: ((kind: EntryFileKind) => void) | null;
 }) {
   const [open, setOpen] = useState(false);
-  const { containerRef, popupRef: menuRef } = usePopoverLifecycle<
+  const { containerRef, popupRef } = usePopoverLifecycle<
     HTMLDivElement,
     HTMLDivElement
   >({
@@ -31,8 +31,8 @@ export function EntryFileActionsButton(props: {
   return (
     <div ref={containerRef} style={{ position: "relative" }}>
       <style>{`
-        .bk-menu-item { transition: background 80ms ease; }
-        .bk-menu-item:hover { background: #F1F5F9; }
+        .bk-file-menu-item { transition: background 80ms ease; }
+        .bk-file-menu-item:hover { background: #F1F5F9; }
       `}</style>
       <button
         type="button"
@@ -62,7 +62,7 @@ export function EntryFileActionsButton(props: {
       </button>
       {open ? (
         <div
-          ref={menuRef}
+          ref={popupRef}
           role="menu"
           tabIndex={-1}
           style={{
@@ -175,21 +175,8 @@ function MenuItem({
       type="button"
       role="menuitem"
       onClick={onClick}
-      className="bk-menu-item"
-      style={{
-        height: 34,
-        padding: "0 12px",
-        textAlign: "left",
-        border: "none",
-        background: "transparent",
-        color: palette.text,
-        fontSize: fontSize.base,
-        fontWeight: fontWeight.medium,
-        cursor: "pointer",
-        borderRadius: 6,
-        display: "flex",
-        alignItems: "center",
-      }}
+      className="bk-file-menu-item"
+      style={menuItemStyle}
     >
       {children}
     </button>
@@ -211,22 +198,9 @@ function FileMenuItem({
       <button
         type="button"
         role="menuitem"
-        className="bk-menu-item"
+        className="bk-file-menu-item"
         onClick={() => inputRef.current?.click()}
-        style={{
-          height: 34,
-          padding: "0 12px",
-          border: "none",
-          textAlign: "left",
-          background: "transparent",
-          color: palette.text,
-          fontSize: fontSize.base,
-          fontWeight: fontWeight.medium,
-          cursor: "pointer",
-          borderRadius: 6,
-          display: "flex",
-          alignItems: "center",
-        }}
+        style={menuItemStyle}
       >
         {children}
       </button>
@@ -246,6 +220,21 @@ function FileMenuItem({
     </>
   );
 }
+
+const menuItemStyle: CSSProperties = {
+  height: 34,
+  padding: "0 12px",
+  textAlign: "left",
+  border: "none",
+  background: "transparent",
+  color: palette.text,
+  fontSize: fontSize.base,
+  fontWeight: fontWeight.medium,
+  cursor: "pointer",
+  borderRadius: 6,
+  display: "flex",
+  alignItems: "center",
+};
 
 function ChevronDown() {
   return (

@@ -124,11 +124,7 @@ function TrendChart(props: { points: StepTrendPoint[]; mode: TrendChartMode }) {
               height={innerHeight}
               fill={palette.surface}
             />
-            <TrendGrid
-              ticks={ticks}
-              yFor={yFor}
-              plotWidth={plotWidth}
-            />
+            <TrendGrid ticks={ticks} yFor={yFor} plotWidth={plotWidth} />
             {props.mode === "not-started" ? (
               <EmptyTrendMarks
                 points={props.points}
@@ -461,11 +457,7 @@ function TrendDetailsLink() {
   );
 }
 
-function LegendChip(props: {
-  label: string;
-  color: string;
-  line: boolean;
-}) {
+function LegendChip(props: { label: string; color: string; line: boolean }) {
   const markerStyle = props.line
     ? { width: 12, height: 2 }
     : { width: 8, height: 8 };

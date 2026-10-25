@@ -90,7 +90,7 @@ export function LayoutSizesPage() {
           <div style={{ display: "grid", gap: spacing.s12 }}>
             {tokenEntries(tokenDefaults.sizes).map(([group, defaults]) => (
               <Card key={group} style={null}>
-                <div style={{ ...typography.sectionTitle }}>
+                <div style={typography.sectionTitle}>
                   {SIZE_GROUP_TITLES[group]}
                 </div>
                 {tokenEntries(defaults).map(([name, value]) => (

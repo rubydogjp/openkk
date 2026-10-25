@@ -34,7 +34,9 @@ describe("client/server closing contract", () => {
     await expect(
       createServerUsecases(db).closings.run("user-1", period.id, []),
     ).rejects.toThrow(/do not match the current fiscal-period source data/);
-    expect((await db.fiscalPeriods.getById(period.id))?.phase).toBe("pre_closing");
+    expect((await db.fiscalPeriods.getById(period.id))?.phase).toBe(
+      "pre_closing",
+    );
     expect(await db.entries.getAll(period.id)).toEqual([]);
   });
 
@@ -84,15 +86,24 @@ describe("client/server closing contract", () => {
         },
       });
       const accounts = await server.masterData.getBookAccounts();
-      const taxes = await server.masterData.getTaxCategories();
-      const businesses = await server.masterData.getBusinessCategories();
+      const taxCategories = await server.masterData.getTaxCategories();
+      const businessCategories =
+        await server.masterData.getBusinessCategories();
       const carryover = mapOpeningJournalToRecord(
         journal,
         period.id,
-        Object.fromEntries(accounts.map((account) => [account.id, account.name])),
-        Object.fromEntries(accounts.map((account) => [account.id, account.accountType])),
-        Object.fromEntries(taxes.map((category) => [category.id, category.name])),
-        Object.fromEntries(businesses.map((category) => [category.id, category.name])),
+        Object.fromEntries(
+          accounts.map((account) => [account.id, account.name]),
+        ),
+        Object.fromEntries(
+          accounts.map((account) => [account.id, account.accountType]),
+        ),
+        Object.fromEntries(
+          taxCategories.map((category) => [category.id, category.name]),
+        ),
+        Object.fromEntries(
+          businessCategories.map((category) => [category.id, category.name]),
+        ),
       );
       const entries = buildClosingVirtualEntries({
         fiscalPeriodId: period.id,
@@ -104,8 +115,8 @@ describe("client/server closing contract", () => {
       }).map((entry) =>
         entryRecordToImportPayload(entry, {
           accounts,
-          taxCategories: taxes,
-          businessCategories: businesses,
+          taxCategories,
+          businessCategories,
         }),
       );
 

@@ -1,92 +1,47 @@
 # リリース手順
 
 `packages/` 配下のライブラリを npm に publish する。
-`@rubydogjp/openkk` / `openkk-sim` / `openkk-demo` はアプリなので `private: true`、publish されない。
+`@rubydogjp/openkk` / `openkk-sim` / `openkk-demo` はアプリなので `private: true` で、publish されない。
 
-publish の認証は Trusted Publishing (OIDC) で行う。npm のトークンは使わないので、
-GitHub Secrets に登録するものは無い。
+publish の認証は Trusted Publishing (OIDC) で行い、npm のトークンは使わない。
 
-## バージョンの決まり
+## バージョン
 
 全 workspace が同じバージョンを持ち、リリースタグ `vX.Y.Z` と一致させる。
-タグとパッケージのバージョンがずれていると workflow が publish 前に止まる。
+ずれていると `Release` workflow が publish の前に止まる。
 
 ## 手順
 
-リリースも他の変更と同じく develop で commit し、main へ取り込んでからタグを打つ。
+1. develop の変更を main へ squash で取り込む。
+2. main で `npm run version:set X.Y.Z` を実行し、`release: X.Y.Z` としてコミットして push する。
+   内部依存 (`@rubydogjp/openkk-*`) の範囲と `package-lock.json` も一緒に更新される。
+3. main にタグ `vX.Y.Z` を打って push する。`Release` workflow が検証とテストのあとに publish する。
+4. develop は main から作り直す。develop に main をマージしない。
 
-1. develop でバージョンを上げる。内部依存 (`@rubydogjp/openkk-*`) の範囲と
-   `package-lock.json` も一緒に更新される。
-
-   ```
-   git switch develop
-   npm run version:set X.Y.Z
-   ```
-
-2. 差分を確認してコミットし、develop を push する。
-
-   ```
-   git commit -am "release: X.Y.Z"
-   git push origin develop
-   ```
-
-3. main をリリースの commit まで取り込み、main にタグを打って push する。
-
-   ```
-   git push origin develop:main
-   git switch main
-   git pull --ff-only
-   git tag vX.Y.Z
-   git push origin vX.Y.Z
-   ```
-
-4. `Release` workflow がタグ一致の検証 → 生成物検証 → build → lint → unit/E2E test
-   → 本番依存監査 → `npm publish` を実行する。
-   provenance は OIDC 経由の publish で自動的に付く。
-   npm に同じバージョンが既にあるパッケージは飛ばすので、途中で失敗しても再実行できる。
-
-内容だけ先に確認したい場合は `Release` workflow を手動実行する。
-`dry_run` が既定で有効なので、publish せずに配布物を確認できる。
+npm に同じバージョンがあるパッケージは飛ばすので、途中で失敗しても workflow を再実行できる。
+publish せずに配布物だけ確かめたいときは、`Release` workflow を手動で実行する（既定で dry run）。
 
 ## Trusted Publishing の設定
 
-パッケージごとに「どのリポジトリのどの workflow からの publish を信頼するか」を
-npm 側に登録する。`npm trust` は workspace を解釈しないので、スクリプトで回す。
+パッケージごとに、publish を許す repository と workflow を npm に登録する。
 
 ```
 npm login
 npm run setup-trusted-publishing
 ```
 
-`npm trust` には npm 11.15.0 以上と、アカウントレベルの 2FA が必要。
-2FA バイパスのトークンでは実行できない。
+`npm trust` にはアカウントの 2FA が要る。設定済みのパッケージは飛ばすので、何度実行してもよい。
 
-`npm trust` は 1 件ごとに 2FA を求めるが、最初の認証画面で
-「次の 5 分間はスキップ」を選べば残りはそのまま通る。
-既に設定済みのパッケージは npm が E409 を返すので skip として扱う。
-途中で失敗しても、再実行すれば残りが処理される。
-
-設定内容は `npm trust list <package>` で確認できる。
-
-## 新しいパッケージを追加したとき
-
-Trusted Publishing は**既に npm 上に存在するパッケージにしか設定できない**。
-新しく公開するパッケージは、バージョンを上げた後に初回だけ手元から publish して登録する。
+Trusted Publishing は npm にすでにあるパッケージにしか設定できない。
+新しいパッケージは初回だけ手元から publish してから設定する。
 
 ```
-npm login
 npm publish --workspace <package> --access public
 npm run setup-trusted-publishing
 ```
 
-以降はタグを打てば CI から publish される。
+## 配布物
 
-## 配布物について
-
-- 公開対象のソースは `files: ["dist"]` で `dist` に限定する。`dist` は git 管理外で、
-  `npm ci` 時に root の `prepare` (`build:packages`) が旧出力を削除してから生成する。
-- `package.json` と `LICENSE` は npm の標準ファイルとして同梱される。
-- npm が常に同梱する各パッケージ直下の `LICENSE` は、rootの `LICENSE` と
-  同一であることを公開前検証で確認する。
-- 全ライブラリの公開エントリをNodeからimportできることを検証する。
-  UIの実行にはReact・Next.jsを使用する。
+- 公開するのは `dist` だけ (`files: ["dist"]`)。`dist` は git 管理外で、`npm ci` のときに作られる。
+- 各パッケージの `LICENSE` が root の `LICENSE` と同じであることを、公開前の検証で確かめる。
+- 全ライブラリの公開エントリを Node から import できることをテストで確かめる。

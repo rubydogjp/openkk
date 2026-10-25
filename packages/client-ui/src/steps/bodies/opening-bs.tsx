@@ -43,7 +43,7 @@ import {
   liabilityAccountType,
   liabilityKey,
   parseOpeningAmount,
-  sumOpeningAmounts,
+  sumOpeningSection,
   unrenderedOpeningLines,
 } from "./opening-bs-model.js";
 
@@ -60,8 +60,7 @@ export function OpeningBsBody({
   const [isEditingCompleted, setIsEditingCompleted] = useState(false);
   const currentFiscalPeriod = appState.currentFiscalPeriod;
 
-  const openingBalanceLines =
-    currentFiscalPeriod?.opening.balanceLines ?? [];
+  const openingBalanceLines = currentFiscalPeriod?.opening.balanceLines ?? [];
   const [amounts, setAmounts] = useState<Record<string, string>>(() =>
     buildInitialAmounts(openingBalanceLines),
   );
@@ -85,27 +84,26 @@ export function OpeningBsBody({
     setScreenError(null);
   }, [currentFiscalPeriod?.id, openingBalanceLines]);
 
-  const assetTotal = useMemo(() => {
-    return sumOpeningAmounts([
-      ...assetLabels
-        .filter((label) => label !== "")
-        .map((label) => amounts[assetKey(label)] ?? ""),
-      ...preservedUnrenderedLines
-        .filter((line) => line.accountId.startsWith("a:"))
-        .map((line) => line.amount),
-    ]);
-  }, [amounts, assetLabels, preservedUnrenderedLines]);
-
-  const liabilityTotal = useMemo(() => {
-    return sumOpeningAmounts([
-      ...liabilityLabels
-        .filter((label) => label !== "")
-        .map((label) => amounts[liabilityKey(label)] ?? ""),
-      ...preservedUnrenderedLines
-        .filter((line) => line.accountId.startsWith("l:"))
-        .map((line) => line.amount),
-    ]);
-  }, [amounts, liabilityLabels, preservedUnrenderedLines]);
+  const assetTotal = useMemo(
+    () =>
+      sumOpeningSection(
+        "asset",
+        assetLabels,
+        amounts,
+        preservedUnrenderedLines,
+      ),
+    [amounts, assetLabels, preservedUnrenderedLines],
+  );
+  const liabilityTotal = useMemo(
+    () =>
+      sumOpeningSection(
+        "liability",
+        liabilityLabels,
+        amounts,
+        preservedUnrenderedLines,
+      ),
+    [amounts, liabilityLabels, preservedUnrenderedLines],
+  );
 
   if (currentFiscalPeriod == null) {
     return (
@@ -126,15 +124,14 @@ export function OpeningBsBody({
     !editingLocked &&
     (!isCompleted || isEditingCompleted);
   const amountsAreSafe = assetTotal != null && liabilityTotal != null;
-  const balancesMatch =
-    amountsAreSafe && assetTotal === liabilityTotal;
+  const balancesMatch = amountsAreSafe && assetTotal === liabilityTotal;
 
   const handleSave = async () => {
+    if (!balancesMatch) return;
     const release = saveLock.current.tryAcquire();
     if (release == null) return;
     setIsSaving(true);
     try {
-      if (!balancesMatch) return;
       const enteredLines = (labels: string[], key: (label: string) => string) =>
         labels.flatMap((label) => {
           if (label === "") return [];
@@ -210,9 +207,7 @@ export function OpeningBsBody({
         ) : null}
 
         {!isPeriodLocked && !editingLocked && isCompleted && !isEditing ? (
-          <SavedCommentSection
-            onEdit={() => setIsEditingCompleted(true)}
-          />
+          <SavedOpeningBsNotice onEdit={() => setIsEditingCompleted(true)} />
         ) : null}
 
         <div className="bk-opening-bs">
@@ -255,7 +250,10 @@ export function OpeningBsBody({
                         ariaLabel={`${label} 金額`}
                         value={amounts[id] ?? ""}
                         onChange={(value) =>
-                          setAmounts((previous) => ({ ...previous, [id]: value }))
+                          setAmounts((previous) => ({
+                            ...previous,
+                            [id]: value,
+                          }))
                         }
                       />
                     </div>
@@ -319,7 +317,13 @@ export function OpeningBsBody({
           )}
         </div>
 
-        {screenError != null ? <AppErrorText error={screenError} style={null} fallbackUserMessage={null} /> : null}
+        {screenError != null ? (
+          <AppErrorText
+            error={screenError}
+            style={null}
+            fallbackUserMessage={null}
+          />
+        ) : null}
       </div>
     </>
   );
@@ -329,11 +333,7 @@ function formatOpeningTotal(value: number | null): string {
   return value == null ? "—" : formatAmount(value);
 }
 
-function SavedCommentSection({
-  onEdit,
-}: {
-  onEdit: () => void;
-}) {
+function SavedOpeningBsNotice({ onEdit }: { onEdit: () => void }) {
   return (
     <StepCallout tone="info">
       <div
@@ -418,13 +418,7 @@ function HeaderCell({
   );
 }
 
-function ChipCell({
-  label,
-  type,
-}: {
-  label: string;
-  type: BookAccountType;
-}) {
+function ChipCell({ label, type }: { label: string; type: BookAccountType }) {
   if (label === "") {
     return <div />;
   }
@@ -459,7 +453,9 @@ function AmountCell({
         <AmountInput value={value} onChange={onChange} ariaLabel={ariaLabel} />
       ) : (
         <AmountReadOnlyField
-          value={value !== "" ? formatAmount(Number(value)) : ""}
+          value={
+            value === "" ? "" : formatAmount(parseOpeningAmount(value) ?? 0)
+          }
         />
       )}
     </div>
@@ -483,9 +479,7 @@ function TotalLabelCell({ children }: { children: ReactNode }) {
 function TotalAmountCell({ children }: { children: ReactNode }) {
   return (
     <div style={{ minWidth: 0, textAlign: "right" }}>
-      <AmountText bold>
-        {children}
-      </AmountText>
+      <AmountText bold>{children}</AmountText>
     </div>
   );
 }

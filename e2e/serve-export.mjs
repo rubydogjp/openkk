@@ -3,11 +3,15 @@ import { readFile, stat } from "node:fs/promises";
 import { join, extname, normalize, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", process.env.EXPORT_DIR ?? "packages/openkk/out");
+const EXPORT_ROOT = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "..",
+  process.env.EXPORT_DIR ?? "packages/openkk/out",
+);
 const PORT = Number(process.env.PORT ?? 4307);
-const COI = process.env.COI === "1";
+const CROSS_ORIGIN_ISOLATED = process.env.CROSS_ORIGIN_ISOLATED === "1";
 
-const TYPES = {
+const CONTENT_TYPES = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript",
   ".mjs": "text/javascript",
@@ -18,6 +22,7 @@ const TYPES = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".ico": "image/x-icon",
+  ".ttf": "font/ttf",
   ".woff": "font/woff",
   ".woff2": "font/woff2",
   ".map": "application/json",
@@ -25,11 +30,10 @@ const TYPES = {
 };
 
 async function resolveFile(urlPath) {
-  const clean = normalize(decodeURIComponent(urlPath.split("?")[0])).replace(
-    /^(\.\.[/\\])+/,
-    "",
-  );
-  const base = join(ROOT, clean);
+  const relativePath = normalize(
+    decodeURIComponent(urlPath.split("?")[0]),
+  ).replace(/^(\.\.[/\\])+/, "");
+  const base = join(EXPORT_ROOT, relativePath);
   const candidates = [base, join(base, "index.html"), `${base}.html`];
   for (const candidate of candidates) {
     try {
@@ -42,7 +46,7 @@ async function resolveFile(urlPath) {
 
 const server = createServer(async (request, response) => {
   const headers = {};
-  if (COI) {
+  if (CROSS_ORIGIN_ISOLATED) {
     headers["Cross-Origin-Opener-Policy"] = "same-origin";
     headers["Cross-Origin-Embedder-Policy"] = "require-corp";
   }
@@ -53,11 +57,14 @@ const server = createServer(async (request, response) => {
     return;
   }
   const body = await readFile(file);
-  headers["Content-Type"] = TYPES[extname(file)] ?? "application/octet-stream";
+  headers["Content-Type"] =
+    CONTENT_TYPES[extname(file)] ?? "application/octet-stream";
   response.writeHead(200, headers);
   response.end(body);
 });
 
 server.listen(PORT, () =>
-  console.log(`export server on http://localhost:${PORT} (COI=${COI})`),
+  console.log(
+    `export server on http://localhost:${PORT} (cross-origin isolated: ${CROSS_ORIGIN_ISOLATED})`,
+  ),
 );

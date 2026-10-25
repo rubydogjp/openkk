@@ -27,7 +27,10 @@ test.describe("opening carryover (再振替)", () => {
   }) => {
     await addCarryover(page, "編集前の再振替", "20000");
 
-    await page.getByRole("button", { name: /編集前の再振替/ }).first().click();
+    await page
+      .getByRole("button", { name: /編集前の再振替/ })
+      .first()
+      .click();
     const drawer = page.getByRole("dialog", { name: "仕訳の編集" });
     await expect(drawer).toBeVisible();
 
@@ -45,9 +48,7 @@ test.describe("opening carryover (再振替)", () => {
     await page.getByRole("button", { name: "追加" }).click();
     const createDrawer = page.getByRole("dialog", { name: "仕訳の新規作成" });
     await createDrawer.getByLabel("摘要").fill("複合再振替の往復検証");
-    await createDrawer
-      .getByRole("button", { name: "複合仕訳を追加" })
-      .click();
+    await createDrawer.getByRole("button", { name: "複合仕訳を追加" }).click();
 
     const createAmountsDebit = createDrawer.getByLabel("借方金額");
     const createAmountsCredit = createDrawer.getByLabel("貸方金額");
@@ -91,7 +92,9 @@ test.describe("opening carryover (再振替)", () => {
     await drawer.getByRole("button", { name: "削除", exact: true }).click();
     const confirmDialog = page.getByRole("dialog", { name: "仕訳の削除確認" });
     await expect(confirmDialog).toBeVisible();
-    await confirmDialog.getByRole("button", { name: "削除", exact: true }).click();
+    await confirmDialog
+      .getByRole("button", { name: "削除", exact: true })
+      .click();
 
     await expect(page.getByText("削除対象の再振替")).not.toBeVisible({
       timeout: 5_000,

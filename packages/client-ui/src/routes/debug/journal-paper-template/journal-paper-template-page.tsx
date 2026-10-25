@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 
 import { usePrintDocument } from "@rubydogjp/openkk-client-usecases";
-import { PreviewScaffold } from "../../../print/preview-scaffold.js";
+import { PreviewScaffold } from "../preview-scaffold.js";
 import {
   buildJournalBody,
   buildJournalDocument,
@@ -18,7 +18,9 @@ export function JournalPaperTemplatePage() {
     <PreviewScaffold
       title="仕訳帳 (テンプレート + 例の値)"
       bodyHtml={bodyHtml}
-      onPrint={() => printDocument(buildJournalDocument(JOURNAL_EXAMPLE_ENTRIES))}
+      onPrint={() =>
+        printDocument(buildJournalDocument(JOURNAL_EXAMPLE_ENTRIES))
+      }
     />
   );
 }

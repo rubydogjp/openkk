@@ -3,7 +3,16 @@
 import type { ReactNode } from "react";
 
 import type { EditingPolicy } from "@rubydogjp/openkk-client-domain";
-import { fontSize, fontWeight, palette, radii, shadows, sizes, spacing, typography } from "../shared/design-tokens.js";
+import {
+  fontSize,
+  fontWeight,
+  palette,
+  radii,
+  shadows,
+  sizes,
+  spacing,
+  typography,
+} from "../shared/design-tokens.js";
 import { MaskIcon } from "../shared/icons.js";
 
 export type StatusChipTone = "brand" | "success" | "muted" | "warning";
@@ -72,10 +81,17 @@ export function StepMetaRow({
         <div style={{ height: 1, background: palette.borderSubtle }} />
       ) : null}
 
-      <div className="bk-step-row bk-step-row--center" style={{ minHeight: 56 }}>
+      <div
+        className="bk-step-row bk-step-row--center"
+        style={{ minHeight: 56 }}
+      >
         <div
           className="bk-step-row-label"
-          style={{ fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: palette.textLabel }}
+          style={{
+            fontSize: fontSize.base,
+            fontWeight: fontWeight.semibold,
+            color: palette.textLabel,
+          }}
         >
           {label}
         </div>
@@ -222,7 +238,13 @@ export function ActionChoiceCard({
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         {icon}
-        <div style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold, color: palette.text }}>
+        <div
+          style={{
+            fontSize: fontSize.md,
+            fontWeight: fontWeight.bold,
+            color: palette.text,
+          }}
+        >
           {title}
         </div>
       </div>

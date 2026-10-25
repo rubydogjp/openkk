@@ -4,13 +4,18 @@ import Link from "next/link.js";
 import type { ReactNode } from "react";
 
 import { fontSize, fontWeight } from "../shared/design-tokens.js";
-import { AssistIcon, JournalIcon, StepsIcon } from "../shared/icons.js";
-import { SHELL_PALETTE as PALETTE } from "./shell-palette.js";
+import {
+  AssistIcon,
+  JournalIcon,
+  StepsIcon,
+  type IconProps,
+} from "../shared/icons.js";
+import { SHELL_PALETTE } from "./shell-palette.js";
 
 type NavEntry = {
   href: string;
   label: string;
-  Icon: (props: { size: number; color: string }) => ReactNode;
+  Icon: (props: IconProps) => ReactNode;
 };
 
 const navItems: NavEntry[] = [
@@ -33,8 +38,8 @@ export function ShellNav(props: { pathname: string; enabled: boolean }) {
           gap: 10,
           padding: "10px 12px",
           borderRadius: 8,
-          background: selected ? PALETTE.navActiveBg : "transparent",
-          color: selected ? PALETTE.navActiveText : PALETTE.navText,
+          background: selected ? SHELL_PALETTE.navActiveBg : "transparent",
+          color: selected ? SHELL_PALETTE.navActiveText : SHELL_PALETTE.navText,
           fontSize: fontSize.base,
           fontWeight: selected ? fontWeight.bold : fontWeight.medium,
           textDecoration: "none",
@@ -47,7 +52,7 @@ export function ShellNav(props: { pathname: string; enabled: boolean }) {
               aria-disabled
               style={{ ...commonStyle, cursor: "default" }}
             >
-              <item.Icon size={16} color={PALETTE.navIcon} />
+              <item.Icon size={16} color={SHELL_PALETTE.navIcon} />
               <span>{item.label}</span>
             </div>
           );
@@ -61,7 +66,9 @@ export function ShellNav(props: { pathname: string; enabled: boolean }) {
           >
             <item.Icon
               size={16}
-              color={selected ? PALETTE.navIconActive : PALETTE.navIcon}
+              color={
+                selected ? SHELL_PALETTE.navIconActive : SHELL_PALETTE.navIcon
+              }
             />
             <span>{item.label}</span>
           </Link>

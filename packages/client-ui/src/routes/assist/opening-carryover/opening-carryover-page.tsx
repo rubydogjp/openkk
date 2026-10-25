@@ -24,17 +24,11 @@ import { EntryEditDrawer } from "../../../entries/entry-edit-drawer.js";
 import { entryRecordToDraft } from "../../../entries/entry-edit-model.js";
 import { AssistBreadcrumb } from "../../../assist/assist-breadcrumb.js";
 import { buildNewOpeningCarryoverDraft } from "../../../assist/opening-carryover-draft.js";
+import { AddButton } from "../../../shared/add-button.js";
 import { ClosedPeriodLock } from "../../../shared/closed-period-lock.js";
-import { PlusIcon } from "../../../shared/icons.js";
+import { pathWithSearchParams } from "../../../shared/pathname.js";
 import { CompactLockButton } from "../../../shared/locked-action.js";
-import {
-  fontSize,
-  fontWeight,
-  palette,
-  radii,
-  sizes,
-  spacing,
-} from "../../../shared/design-tokens.js";
+import { sizes } from "../../../shared/design-tokens.js";
 
 export function OpeningCarryoverPage() {
   const router = useRouter();
@@ -86,13 +80,9 @@ export function OpeningCarryoverPage() {
     } else {
       next.set("carryover", carryoverId);
     }
-    const query = next.toString();
-    router.replace(
-      query.length > 0
-        ? `/assist/opening-carryover?${query}`
-        : "/assist/opening-carryover",
-      { scroll: false },
-    );
+    router.replace(pathWithSearchParams("/assist/opening-carryover", next), {
+      scroll: false,
+    });
   };
 
   useEffect(() => {
@@ -152,7 +142,7 @@ export function OpeningCarryoverPage() {
               label={isReadOnlyPeriod ? "記録終了" : "編集ロック"}
             />
           ) : lockMessage == null && fiscalPeriodId != null ? (
-            <AddCarryoverButton onClick={handleAdd} />
+            <AddButton onClick={handleAdd} />
           ) : null}
         </div>
 
@@ -207,23 +197,21 @@ export function OpeningCarryoverPage() {
           onClose={closeDrawer}
           onSave={async (draft) => {
             const carryoverDraft = entryDraftToCarryoverDraft(draft);
-            const ok =
+            const saved =
               newCarryoverDraft == null && drawerCarryover != null
                 ? await assistState.updateOpeningCarryover(
                     drawerCarryover.id,
                     carryoverDraft,
                   )
-                : newCarryoverDraft != null
-                  ? (await assistState.addOpeningCarryover(
-                      fiscalPeriodId,
-                      carryoverDraft,
-                    )) != null
-                  : false;
-            if (ok) {
+                : (await assistState.addOpeningCarryover(
+                    fiscalPeriodId,
+                    carryoverDraft,
+                  )) != null;
+            if (saved) {
               closeDrawer();
             } else {
               throw new AppError({
-                messageForDeveloper: "updateOpeningCarryover returned false",
+                messageForDeveloper: "saving the opening carryover failed",
                 messageForUser: "再振替仕訳の保存に失敗しました",
                 originalMessage: null,
                 statusCode: null,
@@ -255,33 +243,6 @@ export function OpeningCarryoverPage() {
         />
       ) : null}
     </section>
-  );
-}
-
-function AddCarryoverButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        height: sizes.button.compactHeight,
-        minWidth: sizes.button.compactIconTextMinWidth,
-        padding: "0 14px",
-        borderRadius: radii.sm,
-        border: "none",
-        background: palette.brand,
-        color: palette.surface,
-        fontSize: fontSize.base,
-        fontWeight: fontWeight.bold,
-        cursor: "pointer",
-        display: "inline-flex",
-        alignItems: "center",
-        gap: spacing.s6,
-        boxShadow: "0 1px 2px rgba(37, 99, 235, 0.18)",
-      }}
-    >
-      <PlusIcon size={12} color="currentColor" /> 追加
-    </button>
   );
 }
 

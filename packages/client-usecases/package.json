@@ -15,8 +15,8 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@rubydogjp/openkk-client-ports": "^26.2.11",
-    "@rubydogjp/openkk-client-domain": "^26.2.11"
+    "@rubydogjp/openkk-client-domain": "^26.2.11",
+    "@rubydogjp/openkk-client-ports": "^26.2.11"
   },
   "peerDependencies": {
     "react": "^19.0.0"

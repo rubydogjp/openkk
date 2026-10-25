@@ -1,6 +1,10 @@
 import { expect, test } from "@playwright/test";
 import path from "node:path";
-import { advanceToJournalizing, createFiscalPeriod } from "../helpers";
+import {
+  advanceToJournalizing,
+  createFiscalPeriod,
+  importEntriesFile,
+} from "../helpers";
 
 const CSV_FIXTURE = path.resolve("e2e/fixtures/csv-import-test.csv");
 const JSON_FIXTURE = path.resolve("e2e/fixtures/dev-closing-entries.json");
@@ -15,10 +19,7 @@ test.describe("file import", () => {
   test("imports entries from a CSV file and shows import count", async ({
     page,
   }) => {
-    await page.getByRole("button", { name: "ファイル" }).click();
-    await page
-      .locator('input[type="file"][accept*=".csv"]')
-      .setInputFiles(CSV_FIXTURE);
+    await importEntriesFile(page, "csv", CSV_FIXTURE);
 
     await expect(page.getByText(/取り込みました\(取込 3 件/)).toBeVisible({
       timeout: 10_000,
@@ -30,8 +31,7 @@ test.describe("file import", () => {
   test("imports legacy 事業主借 as equity and groups it separately from 事業主貸", async ({
     page,
   }) => {
-    await page.getByRole("button", { name: "ファイル" }).click();
-    await page.locator('input[type="file"][accept*=".csv"]').setInputFiles({
+    await importEntriesFile(page, "csv", {
       name: "legacy-owner-loan.csv",
       mimeType: "text/csv",
       buffer: Buffer.from(
@@ -87,16 +87,10 @@ test.describe("file import", () => {
   test("skips duplicate entries on re-import and reports skip count", async ({
     page,
   }) => {
-    await page.getByRole("button", { name: "ファイル" }).click();
-    await page
-      .locator('input[type="file"][accept*=".csv"]')
-      .setInputFiles(CSV_FIXTURE);
+    await importEntriesFile(page, "csv", CSV_FIXTURE);
     await expect(page.getByText(/取り込みました\(取込 3 件/)).toBeVisible();
 
-    await page.getByRole("button", { name: "ファイル" }).click();
-    await page
-      .locator('input[type="file"][accept*=".csv"]')
-      .setInputFiles(CSV_FIXTURE);
+    await importEntriesFile(page, "csv", CSV_FIXTURE);
     await expect(
       page.getByText(/取り込みました\(取込 0 件 \/ 重複スキップ 3 件\)/),
     ).toBeVisible({ timeout: 10_000 });
@@ -105,10 +99,7 @@ test.describe("file import", () => {
   test("exports entries as CSV and shows export confirmation", async ({
     page,
   }) => {
-    await page.getByRole("button", { name: "ファイル" }).click();
-    await page
-      .locator('input[type="file"][accept*=".csv"]')
-      .setInputFiles(CSV_FIXTURE);
+    await importEntriesFile(page, "csv", CSV_FIXTURE);
     await expect(page.getByText(/取り込みました/)).toBeVisible();
 
     await page.getByRole("button", { name: "ファイル" }).click();

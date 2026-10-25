@@ -16,6 +16,7 @@ import {
   type FixedAssetDraft,
 } from "@rubydogjp/openkk-client-domain";
 import { ClosedPeriodLock } from "../../../shared/closed-period-lock.js";
+import { pathWithSearchParams } from "../../../shared/pathname.js";
 import { LockButton } from "../../../shared/locked-action.js";
 import { FixedAssetEditDrawer } from "../../../assist/fixed-asset-edit-drawer.js";
 import { FixedAssetsScreen } from "../../../assist/fixed-assets-screen.js";
@@ -28,8 +29,9 @@ export function FixedAssetsPage() {
   const openkkConfig = useOpenkkConfig();
   const today = useOpenkkToday();
   const editingLocked = openkkConfig.editingPolicy.locked;
-  const [newAssetDraft, setNewAssetDraft] =
-    useState<FixedAssetDraft | null>(null);
+  const [newAssetDraft, setNewAssetDraft] = useState<FixedAssetDraft | null>(
+    null,
+  );
 
   const currentFiscalPeriod = appState.currentFiscalPeriod;
   const lockMessage = buildPeriodLockMessage(currentFiscalPeriod, null);
@@ -62,12 +64,9 @@ export function FixedAssetsPage() {
       } else {
         next.set("asset", assetId);
       }
-      const query = next.toString();
-      const url =
-        query.length > 0
-          ? `/assist/fixed-assets?${query}`
-          : "/assist/fixed-assets";
-      router.replace(url, { scroll: false });
+      router.replace(pathWithSearchParams("/assist/fixed-assets", next), {
+        scroll: false,
+      });
     },
     [router, searchParams],
   );
@@ -118,9 +117,9 @@ export function FixedAssetsPage() {
           periodEndDate={currentFiscalPeriod.endDate}
           previewAsOf={fixedAssetPreviewAsOf}
           onClose={() => navigateWithAssetParam(null)}
-          onSave={async (draft) => {
-            return await assistState.updateFixedAsset(drawerAsset.id, draft);
-          }}
+          onSave={(draft) =>
+            assistState.updateFixedAsset(drawerAsset.id, draft)
+          }
           onDelete={async () => {
             const ok = await assistState.deleteFixedAsset(drawerAsset.id);
             if (ok) {
@@ -158,12 +157,12 @@ function buildNewFixedAssetDraft(acquisitionDate: string): FixedAssetDraft {
   return {
     name: "",
     account: "工具器具備品",
-    acquisitionCost: "",
-    status: "active",
     acquisitionDate,
+    acquisitionCost: "",
     usefulLife: 3,
     businessRatePercent: 100,
     businessRate: 1,
+    status: "active",
     disposalDate: null,
     disposalPrice: null,
   };

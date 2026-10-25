@@ -177,7 +177,12 @@ export function AccountPicker({
           tabIndex={-1}
           style={popupStyle}
         >
-          <div style={{ padding: 8, borderBottom: `1px solid ${entryDrawerColors.border}` }}>
+          <div
+            style={{
+              padding: 8,
+              borderBottom: `1px solid ${entryDrawerColors.border}`,
+            }}
+          >
             <input
               className="bk-drawer-input"
               value={query}
@@ -333,7 +338,8 @@ export function SuggestionInput({
           background: entryDrawerColors.bg,
           padding: "0 10px",
           fontSize: fontSize.sm,
-          color: value === "" ? entryDrawerColors.muted : entryDrawerColors.blue,
+          color:
+            value === "" ? entryDrawerColors.muted : entryDrawerColors.blue,
           fontWeight: fontWeight.regular,
           textAlign: align,
           cursor: "pointer",
@@ -510,7 +516,8 @@ export function BalanceIndicator({
           gap: 6,
         }}
       >
-        <CheckIcon size={14} color="currentColor" /> 貸借一致 ¥{formatAmount(debitAmount)}
+        <CheckIcon size={14} color="currentColor" /> 貸借一致 ¥
+        {formatAmount(debitAmount)}
       </div>
     );
   }
@@ -525,7 +532,8 @@ export function BalanceIndicator({
         gap: 6,
       }}
     >
-      <WarningIcon size={14} color="currentColor" /> 差額 ¥{formatAmount(Math.abs(debitAmount - creditAmount))}
+      <WarningIcon size={14} color="currentColor" /> 差額 ¥
+      {formatAmount(Math.abs(debitAmount - creditAmount))}
     </div>
   );
 }
@@ -538,8 +546,8 @@ export function ValidationCard({ messages }: { messages: string[] }) {
         width: "100%",
         boxSizing: "border-box",
         borderRadius: radii.sm,
-        border: `1px solid ${entryDrawerColors.red}2E`,
-        background: `${entryDrawerColors.red}0D`,
+        border: `1px solid ${palette.dangerBorder}`,
+        background: palette.dangerBg,
         padding: "10px 12px",
         display: "flex",
         flexDirection: "column",
@@ -556,7 +564,8 @@ export function ValidationCard({ messages }: { messages: string[] }) {
           color: entryDrawerColors.red,
         }}
       >
-        <WarningIcon size={14} color="currentColor" /> 入力内容を確認してください
+        <WarningIcon size={14} color="currentColor" />{" "}
+        入力内容を確認してください
       </div>
       {messages.map((message, index) => (
         <div
@@ -584,10 +593,7 @@ export function DeleteConfirmDialog(props: {
   const dismiss = () => {
     if (!props.deleting) props.onCancel();
   };
-  const dialogRef = useModalLifecycle<HTMLDivElement>(
-    dismiss,
-    cancelButtonRef,
-  );
+  const dialogRef = useModalLifecycle<HTMLDivElement>(dismiss, cancelButtonRef);
   return (
     <div
       role="presentation"
@@ -792,7 +798,6 @@ export function ActionRowButton({
 }) {
   const baseColor = variant === "add" ? palette.success : entryDrawerColors.red;
   const color = enabled ? baseColor : entryDrawerColors.muted;
-  const hasLabel = label != null && label !== "";
   return (
     <button
       type="button"
@@ -831,7 +836,7 @@ export function ActionRowButton({
           <MinusIcon size={12} color="currentColor" />
         )}
       </span>
-      {hasLabel ? (
+      {label != null ? (
         <span
           style={{
             fontSize: fontSize.base,

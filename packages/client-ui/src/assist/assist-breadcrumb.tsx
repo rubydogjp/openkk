@@ -3,6 +3,7 @@
 import Link from "next/link.js";
 
 import { palette, typography } from "../shared/design-tokens.js";
+import type { IconProps } from "../shared/icons.js";
 
 export function AssistBreadcrumb({ current }: { current: string }) {
   return (
@@ -33,7 +34,7 @@ export function AssistBreadcrumb({ current }: { current: string }) {
   );
 }
 
-function LightningIcon({ size, color }: { size: number; color: string }) {
+function LightningIcon({ size, color }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <path

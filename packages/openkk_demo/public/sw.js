@@ -237,8 +237,8 @@ async function cacheFirst(request) {
 }
 
 async function networkFirst(request) {
-  let networkFailure;
-  let serverFailureResponse;
+  let networkFailure = null;
+  let serverFailureResponse = null;
   try {
     const response = await fetch(request);
     if (response.ok) {
@@ -252,7 +252,7 @@ async function networkFirst(request) {
   }
   const cached = await readFromAnyCacheIfAvailable(request);
   if (cached) return cached;
-  if (serverFailureResponse) return serverFailureResponse;
+  if (serverFailureResponse != null) return serverFailureResponse;
   throw networkFailure;
 }
 

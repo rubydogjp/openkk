@@ -25,10 +25,7 @@ const SERVICE_WORKER_BUILD_ID = process.env.NEXT_PUBLIC_BUILD_ID ?? "default";
 const BOOT_PHASE_ATTRIBUTE_NAME = "data-openkk-boot";
 
 type OpenkkBootPhase =
-  | "starting"
-  | "waiting-for-another-tab"
-  | "ready"
-  | "failed";
+  "starting" | "waiting-for-another-tab" | "ready" | "failed";
 
 export function OpenkkAppProviders(props: {
   runtime: OpenkkBundleRuntime;
@@ -94,7 +91,10 @@ export function OpenkkAppProviders(props: {
 
   if (waitingForAnotherTab && backendApi == null) {
     return (
-      <div role="status" style={{ padding: 24, fontSize: 14, color: "#6b7280", lineHeight: 1.8 }}>
+      <div
+        role="status"
+        style={{ padding: 24, fontSize: 14, color: "#6b7280", lineHeight: 1.8 }}
+      >
         このアプリは別のタブで開いています。そのタブを閉じると、ここで自動的に開きます。
       </div>
     );

@@ -7,7 +7,12 @@ import {
 } from "@rubydogjp/openkk-client-usecases";
 
 import { AppErrorText } from "../shared/app-error-text.js";
-import { fontSize, fontWeight, palette, radii } from "../shared/design-tokens.js";
+import {
+  fontSize,
+  fontWeight,
+  palette,
+  radii,
+} from "../shared/design-tokens.js";
 
 const LOAD_ERROR_FALLBACK_MESSAGE =
   "データの読み込みに失敗しました。再読み込みしてください。";

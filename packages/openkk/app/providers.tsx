@@ -14,7 +14,11 @@ import { createFileDbAdapter } from "@rubydogjp/openkk-file-db-adapter";
 
 import { openkkConfig } from "./openkk-config";
 
-const brandConfig: BrandConfig = { marketingSiteUrl: null, productSiteUrl: null, accountIconUrl: null };
+const brandConfig: BrandConfig = {
+  marketingSiteUrl: null,
+  productSiteUrl: null,
+  accountIconUrl: null,
+};
 
 const runtime: OpenkkBundleRuntime = {
   config: openkkConfig,

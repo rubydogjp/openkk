@@ -56,11 +56,8 @@ export function CreateFiscalPeriodPage() {
     if (suggestedName != null) setName(suggestedName);
   }, [endDate, nameEdited]);
 
-  const canCreate = useMemo(() => {
-    return (
-      name.trim() !== "" && startDate.trim() !== "" && endDate.trim() !== ""
-    );
-  }, [endDate, name, startDate]);
+  const hasRequiredFields =
+    name.trim() !== "" && startDate.trim() !== "" && endDate.trim() !== "";
   const dateValidation = useMemo(
     () => validateFiscalPeriodDates(startDate, endDate),
     [endDate, startDate],
@@ -72,14 +69,13 @@ export function CreateFiscalPeriodPage() {
       appState.fiscalPeriods,
       null,
     );
-  const maxActivePeriods =
-    openkkConfig.fiscalPeriodPolicy.maxActivePeriods;
+  const maxActivePeriods = openkkConfig.fiscalPeriodPolicy.maxActivePeriods;
   const atPeriodLimit =
     maxActivePeriods != null &&
     appState.fiscalPeriods.filter((period) => period.archiveStatus === "active")
       .length >= maxActivePeriods;
   const canSubmit =
-    canCreate &&
+    hasRequiredFields &&
     dateValidation.ok &&
     !hasOverlap &&
     !atPeriodLimit &&
@@ -206,10 +202,7 @@ export function CreateFiscalPeriodPage() {
           {atPeriodLimit || editingLocked ? (
             <LockButton label="作成する" />
           ) : (
-            <FormPrimaryButton
-              onClick={handleCreate}
-              disabled={!canSubmit}
-            >
+            <FormPrimaryButton onClick={handleCreate} disabled={!canSubmit}>
               {isCreating ? "作成中…" : "作成する"}
             </FormPrimaryButton>
           )}
@@ -217,7 +210,11 @@ export function CreateFiscalPeriodPage() {
 
         {screenError != null ? (
           <div style={{ marginTop: 16 }}>
-            <AppErrorText error={screenError} style={null} fallbackUserMessage={null} />
+            <AppErrorText
+              error={screenError}
+              style={null}
+              fallbackUserMessage={null}
+            />
           </div>
         ) : null}
       </div>

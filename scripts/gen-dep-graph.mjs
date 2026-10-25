@@ -158,9 +158,7 @@ for (const layer of LAYERS) {
 
 for (const workspacePackage of packages) {
   for (const dependency of workspacePackage.dependencies) {
-    lines.push(
-      `  ${nodeId(workspacePackage.name)} --> ${nodeId(dependency)}`,
-    );
+    lines.push(`  ${nodeId(workspacePackage.name)} --> ${nodeId(dependency)}`);
   }
 }
 lines.push("```");
@@ -201,7 +199,7 @@ for (const workspacePackage of packages) {
 }
 const tableBlock = tableLines.join("\n");
 
-const layerDescLines = LAYERS.filter(
+const layerDescriptionLines = LAYERS.filter(
   (layer) => packagesByLayer[layer.id].length > 0,
 )
   .map((layer) => `| **${layer.label}** | ${layer.note} |`)
@@ -223,7 +221,7 @@ ${mermaidBlock}
 
 | Group | 役割 |
 |---|---|
-${layerDescLines}
+${layerDescriptionLines}
 
 > **Consumer app が差し替える範囲**
 > - **App** グループ → 丸ごと差し替える (自前アプリ)
@@ -270,7 +268,7 @@ const dependencyCount = packages.reduce(
   (count, workspacePackage) => count + workspacePackage.dependencies.length,
   0,
 );
-console.log(`  ${dependencyCount} dep edges`);
+console.log(`  ${dependencyCount} dependency edges`);
 console.log("");
 console.log("Groups:");
 for (const layer of LAYERS) {

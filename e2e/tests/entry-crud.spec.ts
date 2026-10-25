@@ -16,9 +16,7 @@ test.describe("entry CRUD", () => {
   test("manually creates an entry and it appears in the list", async ({
     page,
   }) => {
-    await page
-      .getByRole("button", { name: "最初の仕訳を作成" })
-      .click();
+    await page.getByRole("button", { name: "最初の仕訳を作成" }).click();
 
     const drawer = page.getByRole("dialog", { name: "仕訳の新規作成" });
     await expect(drawer).toBeVisible();
@@ -43,7 +41,9 @@ test.describe("entry CRUD", () => {
     await drawer.getByRole("button", { name: "簡単入力ガイド" }).click();
     await drawer.getByRole("button", { name: "入金" }).click();
     await drawer.getByRole("button", { name: "その他の入金" }).click();
-    await drawer.getByRole("button", { name: "前受金として受け取った" }).click();
+    await drawer
+      .getByRole("button", { name: "前受金として受け取った" })
+      .click();
 
     await expect(drawer.getByLabel("摘要")).toHaveValue("前受金の入金");
     await expect(drawer.getByLabel("借方科目")).toContainText("普通預金");
@@ -66,7 +66,10 @@ test.describe("entry CRUD", () => {
       amount: "10000",
     });
 
-    await page.getByRole("button", { name: /編集前の摘要/ }).first().click();
+    await page
+      .getByRole("button", { name: /編集前の摘要/ })
+      .first()
+      .click();
     const drawer = page.getByRole("dialog", { name: "仕訳の編集" });
     await expect(drawer).toBeVisible();
 
@@ -105,9 +108,7 @@ test.describe("entry CRUD", () => {
       .first()
       .click();
     const reopened = page.getByRole("dialog", { name: "仕訳の編集" });
-    await expect(suggestionButton(reopened, "事業割合 (%)")).toHaveText(
-      "33.5",
-    );
+    await expect(suggestionButton(reopened, "事業割合 (%)")).toHaveText("33.5");
     await expect(suggestionButton(reopened, "課税区分")).toHaveText(
       "独自課税区分",
     );
@@ -124,14 +125,19 @@ test.describe("entry CRUD", () => {
 
     await expect(page.getByText("削除対象の仕訳")).toBeVisible();
 
-    await page.getByRole("button", { name: /削除対象の仕訳/ }).first().click();
+    await page
+      .getByRole("button", { name: /削除対象の仕訳/ })
+      .first()
+      .click();
     const drawer = page.getByRole("dialog", { name: "仕訳の編集" });
     await expect(drawer).toBeVisible();
 
     await drawer.getByRole("button", { name: "削除", exact: true }).click();
     const confirmDialog = page.getByRole("dialog", { name: "仕訳の削除確認" });
     await expect(confirmDialog).toBeVisible();
-    await confirmDialog.getByRole("button", { name: "削除", exact: true }).click();
+    await confirmDialog
+      .getByRole("button", { name: "削除", exact: true })
+      .click();
 
     await expect(page.getByText("削除対象の仕訳")).not.toBeVisible({
       timeout: 5_000,
@@ -190,7 +196,9 @@ test.describe("entry CRUD", () => {
     await expect(deleteButton).toBeFocused();
   });
 
-  test("restores focus when shell menus close with Escape", async ({ page }) => {
+  test("restores focus when shell menus close with Escape", async ({
+    page,
+  }) => {
     const fiscalPeriodButton = page.getByRole("button", {
       name: /仕訳CRUD検証/,
     });

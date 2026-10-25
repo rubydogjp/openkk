@@ -139,9 +139,7 @@ export function EntriesTable(props: {
                   fontSize: fontSize.xs,
                   fontWeight: fontWeight.bold,
                   color: headerTone.color,
-                  textAlign: rightAlignedColumns.has(index)
-                    ? "right"
-                    : "left",
+                  textAlign: rightAlignedColumns.has(index) ? "right" : "left",
                 }}
               >
                 {label}
@@ -205,20 +203,17 @@ export function EntriesTable(props: {
                         weekday={row.weekday}
                       />
                     )}
-                    {row.debit.trim().length > 0 ? (
-                      <AccountChipCell
-                        label={row.debit}
-                        type={row.debitType}
-                      />
+                    {row.debit.trim() !== "" ? (
+                      <AccountChipCell label={row.debit} type={row.debitType} />
                     ) : (
                       <EmptyLineCell align={null} />
                     )}
-                    {row.debitAmount.trim().length > 0 ? (
+                    {row.debitAmount.trim() !== "" ? (
                       <TableAmountCell>{row.debitAmount}</TableAmountCell>
                     ) : (
                       <EmptyLineCell align="right" />
                     )}
-                    {row.credit.trim().length > 0 ? (
+                    {row.credit.trim() !== "" ? (
                       <AccountChipCell
                         label={row.credit}
                         type={row.creditType}
@@ -226,7 +221,7 @@ export function EntriesTable(props: {
                     ) : (
                       <EmptyLineCell align={null} />
                     )}
-                    {row.creditAmount.trim().length > 0 ? (
+                    {row.creditAmount.trim() !== "" ? (
                       <TableAmountCell>{row.creditAmount}</TableAmountCell>
                     ) : (
                       <EmptyLineCell align="right" />
@@ -410,57 +405,7 @@ function EmptyTableIcon() {
   );
 }
 
-export function MonthNavButton(props: {
-  direction: "prev" | "next";
-  enabled: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className="bk-month-nav"
-      onClick={props.onClick}
-      disabled={!props.enabled}
-      aria-label={props.direction === "prev" ? "前の月" : "次の月"}
-      style={{
-        width: 40,
-        height: "100%",
-        borderRadius: 0,
-        border: "none",
-        background: "transparent",
-        color: props.enabled ? entryColors.text : entryColors.muted,
-        cursor: props.enabled ? "pointer" : "default",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 0,
-      }}
-    >
-      <ChevronSmall direction={props.direction} />
-    </button>
-  );
-}
-
-function ChevronSmall({ direction }: { direction: "prev" | "next" }) {
-  const points = direction === "prev" ? "13 6 7 12 13 18" : "11 6 17 12 11 18";
-  return (
-    <svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-      <polyline
-        points={points}
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function RepeatPlaceholderCell({
-  align,
-}: {
-  align: "left" | "right" | null;
-}) {
+function RepeatPlaceholderCell({ align }: { align: "left" | "right" | null }) {
   return (
     <div
       style={{
@@ -591,9 +536,7 @@ export function AccountChipCell(props: {
 function TableAmountCell(props: { children: ReactNode }) {
   return (
     <div style={{ padding: "0 12px", textAlign: "right" }}>
-      <AmountText bold={false}>
-        {props.children}
-      </AmountText>
+      <AmountText bold={false}>{props.children}</AmountText>
     </div>
   );
 }

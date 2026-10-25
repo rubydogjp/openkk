@@ -135,7 +135,11 @@ export function DocumentReceiveBody({
 
       {screenError != null ? (
         <div style={{ marginTop: 16 }}>
-          <AppErrorText error={screenError} style={null} fallbackUserMessage={null} />
+          <AppErrorText
+            error={screenError}
+            style={null}
+            fallbackUserMessage={null}
+          />
         </div>
       ) : null}
     </>

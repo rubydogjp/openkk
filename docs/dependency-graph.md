@@ -57,15 +57,15 @@ graph LR
   rubydogjp_openkk --> rubydogjp_openkk_embedded_backend_adapter
   rubydogjp_openkk --> rubydogjp_openkk_file_db_adapter
   rubydogjp_openkk --> rubydogjp_openkk_frontend
-  rubydogjp_openkk_client --> rubydogjp_openkk_client_ports
   rubydogjp_openkk_client --> rubydogjp_openkk_client_domain
-  rubydogjp_openkk_client --> rubydogjp_openkk_client_usecases
+  rubydogjp_openkk_client --> rubydogjp_openkk_client_ports
   rubydogjp_openkk_client --> rubydogjp_openkk_client_ui
+  rubydogjp_openkk_client --> rubydogjp_openkk_client_usecases
   rubydogjp_openkk_client_ports --> rubydogjp_openkk_client_domain
   rubydogjp_openkk_client_ui --> rubydogjp_openkk_client_domain
   rubydogjp_openkk_client_ui --> rubydogjp_openkk_client_usecases
-  rubydogjp_openkk_client_usecases --> rubydogjp_openkk_client_ports
   rubydogjp_openkk_client_usecases --> rubydogjp_openkk_client_domain
+  rubydogjp_openkk_client_usecases --> rubydogjp_openkk_client_ports
   rubydogjp_openkk_demo --> rubydogjp_openkk_client
   rubydogjp_openkk_demo --> rubydogjp_openkk_embedded_backend
   rubydogjp_openkk_demo --> rubydogjp_openkk_embedded_backend_adapter
@@ -83,15 +83,15 @@ graph LR
   rubydogjp_openkk_memory_db_adapter --> rubydogjp_openkk_sqlite_adapter
   rubydogjp_openkk_platform_browser_adapter --> rubydogjp_openkk_client_ports
   rubydogjp_openkk_print_adapter --> rubydogjp_openkk_client_ports
-  rubydogjp_openkk_server --> rubydogjp_openkk_server_ports
   rubydogjp_openkk_server --> rubydogjp_openkk_server_api
   rubydogjp_openkk_server --> rubydogjp_openkk_server_domain
+  rubydogjp_openkk_server --> rubydogjp_openkk_server_ports
   rubydogjp_openkk_server --> rubydogjp_openkk_server_usecases
   rubydogjp_openkk_server_api --> rubydogjp_openkk_server_domain
   rubydogjp_openkk_server_api --> rubydogjp_openkk_server_ports
   rubydogjp_openkk_server_api --> rubydogjp_openkk_server_usecases
-  rubydogjp_openkk_server_usecases --> rubydogjp_openkk_server_ports
   rubydogjp_openkk_server_usecases --> rubydogjp_openkk_server_domain
+  rubydogjp_openkk_server_usecases --> rubydogjp_openkk_server_ports
   rubydogjp_openkk_sim --> rubydogjp_openkk_client
   rubydogjp_openkk_sim --> rubydogjp_openkk_embedded_backend
   rubydogjp_openkk_sim --> rubydogjp_openkk_embedded_backend_adapter
@@ -137,11 +137,11 @@ graph LR
 | Package | Group | Depends on | Depended by |
 |---|---|---|---|
 | `@rubydogjp/openkk` | app | `@rubydogjp/openkk-client`, `@rubydogjp/openkk-embedded-backend`, `@rubydogjp/openkk-embedded-backend-adapter`, `@rubydogjp/openkk-file-db-adapter`, `@rubydogjp/openkk-frontend` | — |
-| `@rubydogjp/openkk-client` | client | `@rubydogjp/openkk-client-ports`, `@rubydogjp/openkk-client-domain`, `@rubydogjp/openkk-client-usecases`, `@rubydogjp/openkk-client-ui` | `@rubydogjp/openkk`, `@rubydogjp/openkk-demo`, `@rubydogjp/openkk-frontend`, `@rubydogjp/openkk-sim` |
+| `@rubydogjp/openkk-client` | client | `@rubydogjp/openkk-client-domain`, `@rubydogjp/openkk-client-ports`, `@rubydogjp/openkk-client-ui`, `@rubydogjp/openkk-client-usecases` | `@rubydogjp/openkk`, `@rubydogjp/openkk-demo`, `@rubydogjp/openkk-frontend`, `@rubydogjp/openkk-sim` |
 | `@rubydogjp/openkk-client-domain` | client | — | `@rubydogjp/openkk-client`, `@rubydogjp/openkk-client-ports`, `@rubydogjp/openkk-client-ui`, `@rubydogjp/openkk-client-usecases` |
 | `@rubydogjp/openkk-client-ports` | client | `@rubydogjp/openkk-client-domain` | `@rubydogjp/openkk-client`, `@rubydogjp/openkk-client-usecases`, `@rubydogjp/openkk-embedded-backend-adapter`, `@rubydogjp/openkk-platform-browser-adapter`, `@rubydogjp/openkk-print-adapter` |
 | `@rubydogjp/openkk-client-ui` | client | `@rubydogjp/openkk-client-domain`, `@rubydogjp/openkk-client-usecases` | `@rubydogjp/openkk-client` |
-| `@rubydogjp/openkk-client-usecases` | client | `@rubydogjp/openkk-client-ports`, `@rubydogjp/openkk-client-domain` | `@rubydogjp/openkk-client`, `@rubydogjp/openkk-client-ui` |
+| `@rubydogjp/openkk-client-usecases` | client | `@rubydogjp/openkk-client-domain`, `@rubydogjp/openkk-client-ports` | `@rubydogjp/openkk-client`, `@rubydogjp/openkk-client-ui` |
 | `@rubydogjp/openkk-demo` | app | `@rubydogjp/openkk-client`, `@rubydogjp/openkk-embedded-backend`, `@rubydogjp/openkk-embedded-backend-adapter`, `@rubydogjp/openkk-frontend`, `@rubydogjp/openkk-memory-db-adapter` | — |
 | `@rubydogjp/openkk-embedded-backend` | embedded_backend | `@rubydogjp/openkk-server` | `@rubydogjp/openkk`, `@rubydogjp/openkk-demo`, `@rubydogjp/openkk-embedded-backend-adapter`, `@rubydogjp/openkk-sim` |
 | `@rubydogjp/openkk-embedded-backend-adapter` | client_adapters | `@rubydogjp/openkk-client-ports`, `@rubydogjp/openkk-embedded-backend` | `@rubydogjp/openkk`, `@rubydogjp/openkk-demo`, `@rubydogjp/openkk-sim` |
@@ -150,11 +150,11 @@ graph LR
 | `@rubydogjp/openkk-memory-db-adapter` | server_adapters | `@rubydogjp/openkk-server-ports`, `@rubydogjp/openkk-sqlite-adapter` | `@rubydogjp/openkk-demo`, `@rubydogjp/openkk-sim` |
 | `@rubydogjp/openkk-platform-browser-adapter` | client_adapters | `@rubydogjp/openkk-client-ports` | `@rubydogjp/openkk-frontend` |
 | `@rubydogjp/openkk-print-adapter` | client_adapters | `@rubydogjp/openkk-client-ports` | `@rubydogjp/openkk-frontend` |
-| `@rubydogjp/openkk-server` | server | `@rubydogjp/openkk-server-ports`, `@rubydogjp/openkk-server-api`, `@rubydogjp/openkk-server-domain`, `@rubydogjp/openkk-server-usecases` | `@rubydogjp/openkk-embedded-backend` |
+| `@rubydogjp/openkk-server` | server | `@rubydogjp/openkk-server-api`, `@rubydogjp/openkk-server-domain`, `@rubydogjp/openkk-server-ports`, `@rubydogjp/openkk-server-usecases` | `@rubydogjp/openkk-embedded-backend` |
 | `@rubydogjp/openkk-server-api` | server | `@rubydogjp/openkk-server-domain`, `@rubydogjp/openkk-server-ports`, `@rubydogjp/openkk-server-usecases` | `@rubydogjp/openkk-server` |
 | `@rubydogjp/openkk-server-domain` | server | — | `@rubydogjp/openkk-server`, `@rubydogjp/openkk-server-api`, `@rubydogjp/openkk-server-usecases`, `@rubydogjp/openkk-sqlite-adapter` |
 | `@rubydogjp/openkk-server-ports` | server | — | `@rubydogjp/openkk-file-db-adapter`, `@rubydogjp/openkk-memory-db-adapter`, `@rubydogjp/openkk-server`, `@rubydogjp/openkk-server-api`, `@rubydogjp/openkk-server-usecases`, `@rubydogjp/openkk-sqlite-adapter` |
-| `@rubydogjp/openkk-server-usecases` | server | `@rubydogjp/openkk-server-ports`, `@rubydogjp/openkk-server-domain` | `@rubydogjp/openkk-server`, `@rubydogjp/openkk-server-api` |
+| `@rubydogjp/openkk-server-usecases` | server | `@rubydogjp/openkk-server-domain`, `@rubydogjp/openkk-server-ports` | `@rubydogjp/openkk-server`, `@rubydogjp/openkk-server-api` |
 | `@rubydogjp/openkk-sim` | app | `@rubydogjp/openkk-client`, `@rubydogjp/openkk-embedded-backend`, `@rubydogjp/openkk-embedded-backend-adapter`, `@rubydogjp/openkk-frontend`, `@rubydogjp/openkk-memory-db-adapter` | — |
 | `@rubydogjp/openkk-sqlite-adapter` | server_adapters | `@rubydogjp/openkk-server-domain`, `@rubydogjp/openkk-server-ports` | `@rubydogjp/openkk-file-db-adapter`, `@rubydogjp/openkk-memory-db-adapter` |
 

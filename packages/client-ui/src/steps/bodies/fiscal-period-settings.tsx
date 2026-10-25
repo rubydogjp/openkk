@@ -69,28 +69,16 @@ export function FiscalPeriodSettingsBody({
       appState.fiscalPeriods,
       currentFiscalPeriod.id,
     );
-  const canSave = useMemo(() => {
-    return (
-      currentFiscalPeriod != null &&
-      currentFiscalPeriod.phase === "pre_opening" &&
-      !editingLocked &&
-      name.trim() !== "" &&
-      startDate.trim() !== "" &&
-      endDate.trim() !== "" &&
-      dateValidation.ok &&
-      !hasOverlap &&
-      !isStarting
-    );
-  }, [
-    currentFiscalPeriod,
-    dateValidation.ok,
-    editingLocked,
-    endDate,
-    hasOverlap,
-    isStarting,
-    name,
-    startDate,
-  ]);
+  const canSave =
+    currentFiscalPeriod != null &&
+    currentFiscalPeriod.phase === "pre_opening" &&
+    !editingLocked &&
+    name.trim() !== "" &&
+    startDate.trim() !== "" &&
+    endDate.trim() !== "" &&
+    dateValidation.ok &&
+    !hasOverlap &&
+    !isStarting;
 
   if (currentFiscalPeriod == null) {
     return (
@@ -250,7 +238,11 @@ export function FiscalPeriodSettingsBody({
 
       {screenError != null ? (
         <div style={{ marginTop: 16 }}>
-          <AppErrorText error={screenError} style={null} fallbackUserMessage={null} />
+          <AppErrorText
+            error={screenError}
+            style={null}
+            fallbackUserMessage={null}
+          />
         </div>
       ) : null}
     </>

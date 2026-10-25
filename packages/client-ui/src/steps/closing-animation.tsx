@@ -7,6 +7,8 @@ import { MaskIcon } from "../shared/icons.js";
 
 const ANIMATION_DURATION_MS = 8000;
 
+type AccountVisual = { color: string; background: string; icon: string };
+
 export function ClosingExplainerAnimation({
   onCompleted,
 }: {
@@ -16,7 +18,7 @@ export function ClosingExplainerAnimation({
   const [progress, setProgress] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const startTimeRef = useRef<number | null>(null);
-  const rafRef = useRef<number | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
   const onCompletedRef = useRef(onCompleted);
   onCompletedRef.current = onCompleted;
 
@@ -39,14 +41,16 @@ export function ClosingExplainerAnimation({
       const nextProgress = Math.min(elapsed / ANIMATION_DURATION_MS, 1);
       setProgress(nextProgress);
       if (nextProgress < 1) {
-        rafRef.current = requestAnimationFrame(step);
+        animationFrameRef.current = requestAnimationFrame(step);
       } else {
         onCompletedRef.current?.();
       }
     };
-    rafRef.current = requestAnimationFrame(step);
+    animationFrameRef.current = requestAnimationFrame(step);
     return () => {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      if (animationFrameRef.current != null) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
     };
   }, []);
 
@@ -103,7 +107,6 @@ function ClosingAnimationFrame({
   const lerp = (from: number, to: number, amount: number) =>
     from + (to - from) * amount;
 
-  type AccountVisual = { color: string; bg: string; icon: string };
   type Cell = [
     label: string,
     visual: AccountVisual,
@@ -113,12 +116,36 @@ function ClosingAnimationFrame({
     endY: number,
     wobbles: boolean,
   ];
-  const asset = { color: palette.accountAsset, bg: palette.accountAssetBg, icon: "/icons/assets.svg" };
-  const liability = { color: palette.accountLiability, bg: palette.accountLiabilityBg, icon: "/icons/liabilities.svg" };
-  const equity = { color: palette.accountEquity, bg: palette.accountEquityBg, icon: "/icons/net-assets.svg" };
-  const revenue = { color: palette.accountRevenue, bg: palette.accountRevenueBg, icon: "/icons/revenue.svg" };
-  const expense = { color: palette.accountExpense, bg: palette.accountExpenseBg, icon: "/icons/expense.svg" };
-  const profit = { color: palette.accountProfit, bg: palette.accountProfitBg, icon: "/icons/profit.svg" };
+  const asset: AccountVisual = {
+    color: palette.accountAsset,
+    background: palette.accountAssetBg,
+    icon: "/icons/assets.svg",
+  };
+  const liability: AccountVisual = {
+    color: palette.accountLiability,
+    background: palette.accountLiabilityBg,
+    icon: "/icons/liabilities.svg",
+  };
+  const equity: AccountVisual = {
+    color: palette.accountEquity,
+    background: palette.accountEquityBg,
+    icon: "/icons/net-assets.svg",
+  };
+  const revenue: AccountVisual = {
+    color: palette.accountRevenue,
+    background: palette.accountRevenueBg,
+    icon: "/icons/revenue.svg",
+  };
+  const expense: AccountVisual = {
+    color: palette.accountExpense,
+    background: palette.accountExpenseBg,
+    icon: "/icons/expense.svg",
+  };
+  const profit: AccountVisual = {
+    color: palette.accountProfit,
+    background: palette.accountProfitBg,
+    icon: "/icons/profit.svg",
+  };
   const cells: Cell[] = [
     ["資産", asset, initialX(0), rowY(0), bsX(0), bsY(0), false],
     ["資産", asset, initialX(0), rowY(1), bsX(0), bsY(1), false],
@@ -173,95 +200,91 @@ function ClosingAnimationFrame({
         </>
       ) : null}
 
-      {cells.map(([label, visual, startX, startY, endX, endY, wobbles], index) => {
-        const angle = isWobbling && wobbles ? wobbleAngle : 0;
-        return (
-          <div
+      {cells.map(
+        ([label, visual, startX, startY, endX, endY, wobbles], index) => (
+          <AnimationCell
             key={index}
-            style={{
-              position: "absolute",
-              left: lerp(startX, endX, move),
-              top: lerp(startY, endY, move),
-              width: cellWidth,
-              height: cellHeight,
-              borderRadius: 6,
-              background: visual.bg,
-              border: `1px solid ${visual.color}`,
-              boxSizing: "border-box",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 4,
-              fontSize: fontSize.xs,
-              fontWeight: fontWeight.semibold,
-              color: visual.color,
-              transform: angle !== 0 ? `rotate(${angle}rad)` : undefined,
-            }}
-          >
-            <MaskIcon src={visual.icon} color={visual.color} size={10} />
-            <span>{label}</span>
-          </div>
-        );
-      })}
+            label={label}
+            visual={visual}
+            left={lerp(startX, endX, move)}
+            top={lerp(startY, endY, move)}
+            width={cellWidth}
+            height={cellHeight}
+            angle={isWobbling && wobbles ? wobbleAngle : 0}
+            opacity={1}
+          />
+        ),
+      )}
 
       {profitOpacity > 0 ? (
         <>
           {[2, 3].map((row) => (
-            <div
+            <AnimationCell
               key={`profit-${row}`}
-              style={{
-                position: "absolute",
-                left: plX(0),
-                top: plY(row),
-                width: cellWidth,
-                height: cellHeight,
-                borderRadius: 6,
-                background: profit.bg,
-                border: `1px solid ${profit.color}`,
-                boxSizing: "border-box",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 4,
-                fontSize: fontSize.xs,
-                fontWeight: fontWeight.semibold,
-                color: profit.color,
-                opacity: profitOpacity,
-              }}
-            >
-              <MaskIcon src={profit.icon} color={profit.color} size={10} />
-              <span>利益</span>
-            </div>
+              label="利益"
+              visual={profit}
+              left={plX(0)}
+              top={plY(row)}
+              width={cellWidth}
+              height={cellHeight}
+              angle={0}
+              opacity={profitOpacity}
+            />
           ))}
           {[4, 5].map((row) => (
-            <div
+            <AnimationCell
               key={`surplus-${row}`}
-              style={{
-                position: "absolute",
-                left: bsX(1),
-                top: bsY(row),
-                width: cellWidth,
-                height: cellHeight,
-                borderRadius: 6,
-                background: equity.bg,
-                border: `1px solid ${equity.color}`,
-                boxSizing: "border-box",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 4,
-                fontSize: fontSize.xs,
-                fontWeight: fontWeight.semibold,
-                color: equity.color,
-                opacity: profitOpacity,
-              }}
-            >
-              <MaskIcon src={equity.icon} color={equity.color} size={10} />
-              <span>剰余金</span>
-            </div>
+              label="剰余金"
+              visual={equity}
+              left={bsX(1)}
+              top={bsY(row)}
+              width={cellWidth}
+              height={cellHeight}
+              angle={0}
+              opacity={profitOpacity}
+            />
           ))}
         </>
       ) : null}
+    </div>
+  );
+}
+
+function AnimationCell(props: {
+  label: string;
+  visual: AccountVisual;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  angle: number;
+  opacity: number;
+}) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: props.left,
+        top: props.top,
+        width: props.width,
+        height: props.height,
+        borderRadius: 6,
+        background: props.visual.background,
+        border: `1px solid ${props.visual.color}`,
+        boxSizing: "border-box",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 4,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.semibold,
+        color: props.visual.color,
+        transform: props.angle === 0 ? "none" : `rotate(${props.angle}rad)`,
+        opacity: props.opacity,
+      }}
+    >
+      <MaskIcon src={props.visual.icon} color={props.visual.color} size={10} />
+      <span>{props.label}</span>
     </div>
   );
 }

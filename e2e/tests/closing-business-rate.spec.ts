@@ -8,7 +8,9 @@ import {
   expectStep,
   extractReportAmounts,
   goToMonth,
+  importEntriesFile,
   readPrintedReport,
+  saveScreenshot,
 } from "../helpers";
 
 const FIXTURE = "e2e/fixtures/business-rate-entries.json";
@@ -38,7 +40,7 @@ test.describe("家事按分 → 締めフローの帳票一貫性", () => {
     await expect(transferRow).toContainText("事業主貸");
     await expect(transferRow).toContainText("地代家賃");
     await expect(transferRow).toContainText(BUSINESS_RENT);
-    await shot(page, "01-entry-list-business-rate-transfer");
+    await saveScreenshot(page, SHOTS, "01-entry-list-business-rate-transfer");
 
     await page.getByRole("link", { name: "手順" }).click();
     await expectStep(page, "日々の仕訳");
@@ -48,7 +50,7 @@ test.describe("家事按分 → 締めフローの帳票一貫性", () => {
     await clickButton(page, "次の手順へ");
     await expectStep(page, "本締め");
     await expect(page.getByText("仮_財務諸表.pdf")).toBeVisible();
-    await shot(page, "02-pre-closing-documents");
+    await saveScreenshot(page, SHOTS, "02-pre-closing-documents");
 
     const draftJournal = await readPrintedReport(page, "仮_仕訳帳.pdf");
     const draftLedger = await readPrintedReport(page, "仮_総勘定元帳.pdf");
@@ -71,11 +73,11 @@ test.describe("家事按分 → 締めフローの帳票一貫性", () => {
     });
     await expect(page.getByText(`¥${REVENUE}`).first()).toBeVisible();
     await expect(page.getByText(`¥${INCOME}`).first()).toBeVisible();
-    await shot(page, "03-final-summary");
+    await saveScreenshot(page, SHOTS, "03-final-summary");
 
     await page.getByRole("link", { name: "手順" }).click();
     await expectStep(page, "書類を受け取る");
-    await shot(page, "04-final-documents");
+    await saveScreenshot(page, SHOTS, "04-final-documents");
     const finalStatements = await readPrintedReport(page, "財務諸表.pdf");
 
     expect(finalStatements).toContain("事業主貸");
@@ -89,13 +91,6 @@ test.describe("家事按分 → 締めフローの帳票一貫性", () => {
 
 async function importEntries(page: Page) {
   await page.getByRole("link", { name: "仕訳" }).click();
-  await page.getByRole("button", { name: "ファイル" }).click();
-  await page
-    .locator('input[type="file"][accept*=".json"]')
-    .setInputFiles(FIXTURE);
+  await importEntriesFile(page, "json", FIXTURE);
   await expect(page.getByText(/取り込みました\(取込 2 件/)).toBeVisible();
-}
-
-async function shot(page: Page, name: string) {
-  await page.screenshot({ path: `${SHOTS}/${name}.png`, fullPage: true });
 }

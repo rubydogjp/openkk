@@ -31,10 +31,14 @@ import {
   formatAmount,
   parseAmount,
 } from "@rubydogjp/openkk-client-domain";
-import { QuickGuidePanel, QuickGuideTriggerButton } from "./quick-guide-panel.js";
+import {
+  QuickGuidePanel,
+  QuickGuideTriggerButton,
+} from "./quick-guide-panel.js";
 import {
   entryFormStateToEntryDraft,
   entryToFormState,
+  newEntryLinePair,
   type EntryFormState,
   type EntryLinePair,
 } from "./entry-edit-model.js";
@@ -111,9 +115,10 @@ export function EntryEditDrawer(props: {
 
   const [guideStack, setGuideStack] = useState<QuickGuidePage[]>([]);
 
-  const drawerRef = useModalLifecycle<HTMLElement>(() => {
+  const requestClose = () => {
     if (!mutationLock.current.isLocked) props.onClose();
-  }, null);
+  };
+  const drawerRef = useModalLifecycle<HTMLElement>(requestClose, null);
 
   const update = (patch: Partial<EntryFormState>) =>
     setDraft((current) => ({ ...current, ...patch }));
@@ -175,25 +180,7 @@ export function EntryEditDrawer(props: {
       ...current,
       pairs: [
         ...current.pairs,
-        {
-          id: nextLinePairId(),
-          debitAccountId: defaultDebit?.id ?? null,
-          debitAccountName: defaultDebit?.name ?? "",
-          debitAccountType: defaultDebit?.accountType ?? "expense",
-          debitAmount: "",
-          creditAccountId: defaultCredit?.id ?? null,
-          creditAccountName: defaultCredit?.name ?? "",
-          creditAccountType: defaultCredit?.accountType ?? "asset",
-          creditAmount: "",
-          debitPartnerName: null,
-          debitTaxCategoryId: null,
-          debitBusinessCategoryId: null,
-          creditPartnerName: null,
-          creditTaxCategoryId: null,
-          creditBusinessCategoryId: null,
-          debitLineId: null,
-          creditLineId: null,
-        },
+        newEntryLinePair(nextLinePairId(), defaultDebit, defaultCredit),
       ],
     }));
   };
@@ -229,25 +216,6 @@ export function EntryEditDrawer(props: {
       return;
     }
     setDraft((current) => {
-      const newPair: EntryLinePair = {
-        id: nextLinePairId(),
-        debitAccountId: debit.id,
-        debitAccountName: debit.name,
-        debitAccountType: debit.accountType,
-        debitAmount: "",
-        creditAccountId: credit.id,
-        creditAccountName: credit.name,
-        creditAccountType: credit.accountType,
-        creditAmount: "",
-        debitPartnerName: null,
-        debitTaxCategoryId: null,
-        debitBusinessCategoryId: null,
-        creditPartnerName: null,
-        creditTaxCategoryId: null,
-        creditBusinessCategoryId: null,
-        debitLineId: null,
-        creditLineId: null,
-      };
       const templateDescription = template.description?.trim() ?? "";
       const shouldSetDescription =
         templateDescription !== "" && current.description.trim() === "";
@@ -263,7 +231,7 @@ export function EntryEditDrawer(props: {
             ? current.businessRateInput
             : String(Math.max(0, Math.min(100, templateRatePercent))),
         businessRate: templateRatePercent == null ? current.businessRate : null,
-        pairs: [newPair],
+        pairs: [newEntryLinePair(nextLinePairId(), debit, credit)],
       };
     });
     setErrorText(null);
@@ -297,22 +265,19 @@ export function EntryEditDrawer(props: {
     Number.isSafeInteger(creditTotal) &&
     debitTotal === creditTotal &&
     debitTotal > 0;
-  const hasDescription = draft.description.trim().length > 0;
+  const hasDescription = draft.description.trim() !== "";
   const allRowsValid = draft.pairs.every((row) => {
     const hasDebit =
-      row.debitAccountName.trim().length > 0 ||
-      parseAmount(row.debitAmount) > 0;
+      row.debitAccountName.trim() !== "" || parseAmount(row.debitAmount) > 0;
     const hasCredit =
-      row.creditAccountName.trim().length > 0 ||
-      parseAmount(row.creditAmount) > 0;
+      row.creditAccountName.trim() !== "" || parseAmount(row.creditAmount) > 0;
     if (!hasDebit && !hasCredit) return false;
     const debitValid =
       !hasDebit ||
-      (row.debitAccountName.trim().length > 0 &&
-        parseAmount(row.debitAmount) > 0);
+      (row.debitAccountName.trim() !== "" && parseAmount(row.debitAmount) > 0);
     const creditValid =
       !hasCredit ||
-      (row.creditAccountName.trim().length > 0 &&
+      (row.creditAccountName.trim() !== "" &&
         parseAmount(row.creditAmount) > 0);
     return debitValid && creditValid;
   });
@@ -367,7 +332,9 @@ export function EntryEditDrawer(props: {
     setSaving(true);
     setErrorText(null);
     try {
-      await props.onSave(entryFormStateToEntryDraft(draft, props.accountOptions));
+      await props.onSave(
+        entryFormStateToEntryDraft(draft, props.accountOptions),
+      );
     } catch (error) {
       debugAppError(error);
       setErrorText(safeUserErrorMessage(error, "保存に失敗しました"));
@@ -395,10 +362,6 @@ export function EntryEditDrawer(props: {
     }
   };
 
-  const requestClose = () => {
-    if (!mutationLock.current.isLocked) props.onClose();
-  };
-
   const footerMessages =
     triedSave && validationMessages.length > 0
       ? validationMessages
@@ -422,9 +385,7 @@ export function EntryEditDrawer(props: {
         ref={drawerRef}
         role="dialog"
         aria-modal="true"
-        aria-label={
-          props.mode === "create" ? "仕訳の新規作成" : "仕訳の編集"
-        }
+        aria-label={props.mode === "create" ? "仕訳の新規作成" : "仕訳の編集"}
         tabIndex={-1}
         className="bk-entry-drawer"
         style={{
@@ -826,11 +787,7 @@ export function EntryEditDrawer(props: {
                   cursor: saving || deleting ? "default" : "pointer",
                 }}
               >
-                {saving
-                  ? "保存中…"
-                  : props.mode === "create"
-                    ? "作成"
-                    : "保存"}
+                {saving ? "保存中…" : props.mode === "create" ? "作成" : "保存"}
               </button>
             </div>
           </div>

@@ -19,14 +19,14 @@ export type EntryLinePair = {
   debitAccountName: string;
   debitAccountType: BookAccountType;
   debitAmount: string;
-  creditAccountId: string | null;
-  creditAccountName: string;
-  creditAccountType: BookAccountType;
-  creditAmount: string;
   debitPartnerName: string | null;
   debitTaxCategoryId: string | null;
   debitBusinessCategoryId: string | null;
   creditLineId: string | null;
+  creditAccountId: string | null;
+  creditAccountName: string;
+  creditAccountType: BookAccountType;
+  creditAmount: string;
   creditPartnerName: string | null;
   creditTaxCategoryId: string | null;
   creditBusinessCategoryId: string | null;
@@ -53,41 +53,65 @@ export function entryRecordToDraft(record: EntryRecord): EntryDraft {
   };
 }
 
+export function newEntryLinePair(
+  id: string,
+  debit: EntryMasterAccountOption | null,
+  credit: EntryMasterAccountOption | null,
+): EntryLinePair {
+  return {
+    id,
+    debitLineId: null,
+    debitAccountId: debit?.id ?? null,
+    debitAccountName: debit?.name ?? "",
+    debitAccountType: debit?.accountType ?? "expense",
+    debitAmount: "",
+    debitPartnerName: null,
+    debitTaxCategoryId: null,
+    debitBusinessCategoryId: null,
+    creditLineId: null,
+    creditAccountId: credit?.id ?? null,
+    creditAccountName: credit?.name ?? "",
+    creditAccountType: credit?.accountType ?? "asset",
+    creditAmount: "",
+    creditPartnerName: null,
+    creditTaxCategoryId: null,
+    creditBusinessCategoryId: null,
+  };
+}
+
 export function entryToFormState(
-  record: EntryDraft,
+  draft: EntryDraft,
   nextLinePairId: () => string,
 ): EntryFormState {
-  const visualPairs = entryToVisualPairs(record);
-  const pairs = visualPairs.map(
-    ({ debit, credit }): EntryLinePair => ({
-      id: nextLinePairId(),
-      debitLineId: debit?.id ?? null,
-      debitAccountId: debit?.bookAccountId ?? null,
-      debitAccountName: debit?.accountName ?? "",
-      debitAccountType: debit?.accountType ?? "expense",
-      debitAmount: debit?.amount ?? "",
-      debitPartnerName: debit?.partnerName ?? null,
-      debitTaxCategoryId: debit?.taxCategoryId ?? null,
-      debitBusinessCategoryId: debit?.businessCategoryId ?? null,
-      creditLineId: credit?.id ?? null,
-      creditAccountId: credit?.bookAccountId ?? null,
-      creditAccountName: credit?.accountName ?? "",
-      creditAccountType: credit?.accountType ?? "asset",
-      creditAmount: credit?.amount ?? "",
-      creditPartnerName: credit?.partnerName ?? null,
-      creditTaxCategoryId: credit?.taxCategoryId ?? null,
-      creditBusinessCategoryId: credit?.businessCategoryId ?? null,
-    }),
-  );
+  const visualPairs = entryToVisualPairs(draft);
+  const pairs = visualPairs.map(({ debit, credit }): EntryLinePair => ({
+    id: nextLinePairId(),
+    debitLineId: debit?.id ?? null,
+    debitAccountId: debit?.bookAccountId ?? null,
+    debitAccountName: debit?.accountName ?? "",
+    debitAccountType: debit?.accountType ?? "expense",
+    debitAmount: debit?.amount ?? "",
+    debitPartnerName: debit?.partnerName ?? null,
+    debitTaxCategoryId: debit?.taxCategoryId ?? null,
+    debitBusinessCategoryId: debit?.businessCategoryId ?? null,
+    creditLineId: credit?.id ?? null,
+    creditAccountId: credit?.bookAccountId ?? null,
+    creditAccountName: credit?.accountName ?? "",
+    creditAccountType: credit?.accountType ?? "asset",
+    creditAmount: credit?.amount ?? "",
+    creditPartnerName: credit?.partnerName ?? null,
+    creditTaxCategoryId: credit?.taxCategoryId ?? null,
+    creditBusinessCategoryId: credit?.businessCategoryId ?? null,
+  }));
   const metadata = resolveEntryPairMetadata(
     visualPairs[0] ?? { debit: null, credit: null },
   );
   return {
-    date: record.date,
-    description: record.description,
+    date: draft.date,
+    description: draft.description,
     partner: metadata.partner,
-    businessRateInput: record.businessRateInput,
-    businessRate: record.businessRate,
+    businessRateInput: draft.businessRateInput,
+    businessRate: draft.businessRate,
     taxCategory: metadata.taxCategory,
     businessCategory: metadata.businessCategory,
     pairs,
@@ -95,13 +119,13 @@ export function entryToFormState(
 }
 
 export function entryFormStateToEntryDraft(
-  draft: EntryFormState,
+  form: EntryFormState,
   accounts: EntryMasterAccountOption[],
 ): EntryDraft {
   const lines: EntryLine[] = [];
-  for (const pair of draft.pairs) {
+  for (const pair of form.pairs) {
     if (
-      pair.debitAccountName.trim().length > 0 &&
+      pair.debitAccountName.trim() !== "" &&
       parseAmount(pair.debitAmount) > 0
     ) {
       const matched = resolveDraftAccount(
@@ -117,15 +141,15 @@ export function entryFormStateToEntryDraft(
         accountType: pair.debitAccountType,
         amount: pair.debitAmount,
         bookAccountId: matched?.id ?? null,
-        partnerName: pair.debitPartnerName ?? draft.partner,
+        partnerName: pair.debitPartnerName ?? form.partner,
         taxCategoryId: pair.debitTaxCategoryId,
-        taxCategoryName: draft.taxCategory,
+        taxCategoryName: form.taxCategory,
         businessCategoryId: pair.debitBusinessCategoryId,
-        businessCategoryName: draft.businessCategory,
+        businessCategoryName: form.businessCategory,
       });
     }
     if (
-      pair.creditAccountName.trim().length > 0 &&
+      pair.creditAccountName.trim() !== "" &&
       parseAmount(pair.creditAmount) > 0
     ) {
       const matched = resolveDraftAccount(
@@ -141,19 +165,19 @@ export function entryFormStateToEntryDraft(
         accountType: pair.creditAccountType,
         amount: pair.creditAmount,
         bookAccountId: matched?.id ?? null,
-        partnerName: pair.creditPartnerName ?? draft.partner,
+        partnerName: pair.creditPartnerName ?? form.partner,
         taxCategoryId: pair.creditTaxCategoryId,
-        taxCategoryName: draft.taxCategory,
+        taxCategoryName: form.taxCategory,
         businessCategoryId: pair.creditBusinessCategoryId,
-        businessCategoryName: draft.businessCategory,
+        businessCategoryName: form.businessCategory,
       });
     }
   }
   return {
-    date: draft.date,
-    description: draft.description,
-    businessRateInput: draft.businessRateInput,
-    businessRate: draft.businessRate,
+    date: form.date,
+    description: form.description,
+    businessRateInput: form.businessRateInput,
+    businessRate: form.businessRate,
     lines,
   };
 }

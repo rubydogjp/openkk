@@ -37,7 +37,9 @@ const template = readFileSync(
   "utf8",
 );
 if (template.split(routesPlaceholder).length !== 2) {
-  throw new Error("Service worker template must contain one routes placeholder");
+  throw new Error(
+    "Service worker template must contain one routes placeholder",
+  );
 }
 const checkOnly = process.argv.includes("--check");
 const bundleArgument = process.argv.find((argument) =>
@@ -62,7 +64,13 @@ for (const bundle of bundles) {
     routesPlaceholder,
     JSON.stringify(routes, null, 2),
   );
-  const outputPath = path.join(rootDirectory, "packages", bundle, "public", "sw.js");
+  const outputPath = path.join(
+    rootDirectory,
+    "packages",
+    bundle,
+    "public",
+    "sw.js",
+  );
   if (checkOnly) {
     if (readFileSync(outputPath, "utf8") !== generated) {
       staleFiles.push(path.relative(rootDirectory, outputPath));

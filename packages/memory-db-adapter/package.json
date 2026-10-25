@@ -15,9 +15,9 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@sqlite.org/sqlite-wasm": "^3.50.0-build1",
     "@rubydogjp/openkk-server-ports": "^26.2.11",
-    "@rubydogjp/openkk-sqlite-adapter": "^26.2.11"
+    "@rubydogjp/openkk-sqlite-adapter": "^26.2.11",
+    "@sqlite.org/sqlite-wasm": "^3.50.0-build1"
   },
   "files": [
     "dist"

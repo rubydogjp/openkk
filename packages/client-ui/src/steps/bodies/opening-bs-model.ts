@@ -15,9 +15,7 @@ export const liabilityAccountType = (label: string): BookAccountType =>
 
 export function parseOpeningAmount(value: string | number): number | null {
   const parsed =
-    typeof value === "number"
-      ? value
-      : Number(value.replace(/[^0-9]/g, ""));
+    typeof value === "number" ? value : Number(value.replace(/[^0-9]/g, ""));
   if (!Number.isSafeInteger(parsed) || parsed < 0) return null;
   return parsed;
 }
@@ -33,6 +31,23 @@ export function sumOpeningAmounts(
     if (!Number.isSafeInteger(total)) return null;
   }
   return total;
+}
+
+export function sumOpeningSection(
+  side: BalanceSheetSide,
+  labels: string[],
+  amounts: Record<string, string>,
+  preservedLines: OpeningLine[],
+): number | null {
+  const key = side === "asset" ? assetKey : liabilityKey;
+  return sumOpeningAmounts([
+    ...labels
+      .filter((label) => label !== "")
+      .map((label) => amounts[key(label)] ?? ""),
+    ...preservedLines
+      .filter((line) => splitAccountId(line.accountId).side === side)
+      .map((line) => line.amount),
+  ]);
 }
 
 export function buildAssetLabels(
@@ -59,7 +74,7 @@ export function buildInitialAmounts(
     amounts.set(key, (amounts.get(key) ?? 0) + line.amount);
   }
   return Object.fromEntries(
-    [...amounts].map(([accountId, amount]) => [accountId, String(amount)]),
+    [...amounts].map(([key, amount]) => [key, String(amount)]),
   );
 }
 

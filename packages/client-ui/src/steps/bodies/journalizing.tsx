@@ -50,12 +50,12 @@ export function JournalizingBody({
   const preClosingHint = useOpenkkCallout("stepJournalizingPreClosingHint");
   const currentFiscalPeriod = appState.currentFiscalPeriod;
 
-  const preClosingShown =
+  const isPreClosed =
     currentFiscalPeriod?.phase === "pre_closing" ||
     currentFiscalPeriod?.phase === "post_closing";
   useEffect(() => {
-    if (preClosingShown) onBusyChange(false);
-  }, [preClosingShown, onBusyChange]);
+    if (isPreClosed) onBusyChange(false);
+  }, [isPreClosed, onBusyChange]);
   useEffect(() => {
     return () => onBusyChange(false);
   }, [onBusyChange]);
@@ -93,10 +93,6 @@ export function JournalizingBody({
       </>
     );
   }
-
-  const isPreClosed =
-    currentFiscalPeriod.phase === "pre_closing" ||
-    currentFiscalPeriod.phase === "post_closing";
 
   const handleRunPreClosing = async () => {
     const release = preClosingLock.current.tryAcquire();
@@ -254,7 +250,11 @@ export function JournalizingBody({
 
       {screenError != null ? (
         <div style={{ marginTop: 16 }}>
-          <AppErrorText error={screenError} style={null} fallbackUserMessage={null} />
+          <AppErrorText
+            error={screenError}
+            style={null}
+            fallbackUserMessage={null}
+          />
         </div>
       ) : null}
     </>

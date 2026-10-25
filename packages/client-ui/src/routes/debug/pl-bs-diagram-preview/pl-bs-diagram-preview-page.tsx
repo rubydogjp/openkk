@@ -22,7 +22,8 @@ export function PlBsDiagramPreviewPage() {
           PL / BS 図プレビュー
         </h1>
         <p style={{ margin: "10px 0 20px", color: palette.textSoft }}>
-          固定の例の値で PL / BS 図を表示します。実際の期間データは使用しません。
+          固定の例の値で PL / BS
+          図を表示します。実際の期間データは使用しません。
         </p>
         <PlBsDiagramSection pl={EXAMPLE_SUMMARY} bs={EXAMPLE_SUMMARY} />
       </div>

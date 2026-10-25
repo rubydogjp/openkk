@@ -5,10 +5,15 @@ import { useEffect, useState } from "react";
 
 import { useOpenkkAppState } from "@rubydogjp/openkk-client-usecases";
 
-import { fontSize, fontWeight, palette, shadows } from "../shared/design-tokens.js";
+import {
+  fontSize,
+  fontWeight,
+  palette,
+  shadows,
+} from "../shared/design-tokens.js";
 import { usePopoverLifecycle } from "../shared/dismissible-layer.js";
 import { CheckIcon, ChevronDownIcon } from "../shared/icons.js";
-import { SHELL_PALETTE as PALETTE } from "./shell-palette.js";
+import { SHELL_PALETTE } from "./shell-palette.js";
 
 export function ShellFiscalPeriodMenu(props: {
   pathname: string;
@@ -16,37 +21,33 @@ export function ShellFiscalPeriodMenu(props: {
 }) {
   const appState = useOpenkkAppState();
   const router = useRouter();
-  const [workspaceOpen, setWorkspaceOpen] = useState(false);
-  const {
-    containerRef: workspaceMenuContainerRef,
-    popupRef: workspaceMenuRef,
-  } = usePopoverLifecycle<HTMLDivElement, HTMLDivElement>({
-    open: workspaceOpen,
-    onDismiss: () => setWorkspaceOpen(false),
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { containerRef, popupRef } = usePopoverLifecycle<
+    HTMLDivElement,
+    HTMLDivElement
+  >({
+    open: menuOpen,
+    onDismiss: () => setMenuOpen(false),
   });
 
   useEffect(() => {
-    setWorkspaceOpen(false);
+    setMenuOpen(false);
   }, [props.pathname]);
 
-  const fiscalPeriodLabel =
-    appState.currentFiscalPeriod?.name ?? "期間 未選択";
+  const fiscalPeriodLabel = appState.currentFiscalPeriod?.name ?? "期間 未選択";
 
   return (
     <div
-      ref={workspaceMenuContainerRef}
+      ref={containerRef}
       style={{ padding: "0 8px 8px", position: "relative" }}
     >
       <button
         type="button"
-        className="bk-ws-trigger"
+        className="bk-fiscal-period-trigger"
         disabled={!props.enabled}
-        onClick={() => {
-          if (!props.enabled) return;
-          setWorkspaceOpen((open) => !open);
-        }}
+        onClick={() => setMenuOpen((open) => !open)}
         aria-haspopup="menu"
-        aria-expanded={workspaceOpen}
+        aria-expanded={menuOpen}
         style={{
           width: "100%",
           display: "flex",
@@ -55,7 +56,7 @@ export function ShellFiscalPeriodMenu(props: {
           padding: "8px 10px",
           borderRadius: 8,
           border: "none",
-          background: workspaceOpen ? PALETTE.navHoverBg : "transparent",
+          background: menuOpen ? SHELL_PALETTE.navHoverBg : "transparent",
           cursor: props.enabled ? "pointer" : "default",
           opacity: props.enabled ? 1 : 0.55,
           textAlign: "left",
@@ -67,7 +68,7 @@ export function ShellFiscalPeriodMenu(props: {
             minWidth: 0,
             fontSize: fontSize.base,
             fontWeight: fontWeight.semibold,
-            color: PALETTE.titleColor,
+            color: SHELL_PALETTE.titleColor,
             whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
@@ -76,13 +77,13 @@ export function ShellFiscalPeriodMenu(props: {
           {fiscalPeriodLabel}
         </div>
         {props.enabled ? (
-          <ChevronDownIcon size={12} color={PALETTE.subtitleColor} />
+          <ChevronDownIcon size={12} color={SHELL_PALETTE.subtitleColor} />
         ) : null}
       </button>
 
-      {workspaceOpen ? (
+      {menuOpen ? (
         <div
-          ref={workspaceMenuRef}
+          ref={popupRef}
           role="menu"
           tabIndex={-1}
           style={{
@@ -91,7 +92,7 @@ export function ShellFiscalPeriodMenu(props: {
             right: 8,
             top: "100%",
             background: palette.surface,
-            border: `1px solid ${PALETTE.menuBorder}`,
+            border: `1px solid ${SHELL_PALETTE.menuBorder}`,
             borderRadius: 12,
             boxShadow: shadows.popup,
             zIndex: 100,
@@ -133,7 +134,7 @@ export function ShellFiscalPeriodMenu(props: {
                     className="bk-menu-item"
                     onClick={() => {
                       appState.selectFiscalPeriod(period.id);
-                      setWorkspaceOpen(false);
+                      setMenuOpen(false);
                       router.push("/steps");
                     }}
                     style={{
@@ -175,7 +176,7 @@ export function ShellFiscalPeriodMenu(props: {
           )}
           <div
             style={{
-              borderTop: `1px solid ${PALETTE.menuDivider}`,
+              borderTop: `1px solid ${SHELL_PALETTE.menuDivider}`,
               padding: "4px 0 6px",
             }}
           >
@@ -184,7 +185,7 @@ export function ShellFiscalPeriodMenu(props: {
               role="menuitem"
               className="bk-menu-item"
               onClick={() => {
-                setWorkspaceOpen(false);
+                setMenuOpen(false);
                 router.push("/fiscal-periods");
               }}
               style={{

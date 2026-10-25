@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 
 import { usePrintDocument } from "@rubydogjp/openkk-client-usecases";
-import { PreviewScaffold } from "../../../print/preview-scaffold.js";
+import { PreviewScaffold } from "../preview-scaffold.js";
 import {
   buildFinancialStatementsBody,
   buildFinancialStatementsDocument,
@@ -14,7 +14,7 @@ import {
 
 export function FinancialStatementsPaperTemplatePage() {
   const printDocument = usePrintDocument();
-  const args = useMemo(
+  const aggregate = useMemo(
     () =>
       computeFsAggregate({
         entries: JOURNAL_EXAMPLE_ENTRIES,
@@ -23,13 +23,16 @@ export function FinancialStatementsPaperTemplatePage() {
     [],
   );
 
-  const bodyHtml = useMemo(() => buildFinancialStatementsBody(args), [args]);
+  const bodyHtml = useMemo(
+    () => buildFinancialStatementsBody(aggregate),
+    [aggregate],
+  );
 
   return (
     <PreviewScaffold
       title="財務諸表 (テンプレート + 例の値)"
       bodyHtml={bodyHtml}
-      onPrint={() => printDocument(buildFinancialStatementsDocument(args))}
+      onPrint={() => printDocument(buildFinancialStatementsDocument(aggregate))}
     />
   );
 }

@@ -3,7 +3,13 @@
 import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation.js";
 
-import { palette } from "../shared/design-tokens.js";
+import {
+  fontSize,
+  fontWeight,
+  palette,
+  radii,
+  sizes,
+} from "../../shared/design-tokens.js";
 
 export type PreviewScaffoldProps = {
   title: string;
@@ -37,22 +43,35 @@ export function PreviewScaffold({
       `}</style>
 
       <div style={toolbarStyle}>
-        <button type="button" onClick={handleClose} style={navBtnStyle}>✕ 閉じる</button>
-        <span style={{ fontSize: 14, fontWeight: 700, color: palette.textSoft }}>
+        <button type="button" onClick={handleClose} style={closeButtonStyle}>
+          ✕ 閉じる
+        </button>
+        <span
+          style={{
+            fontSize: fontSize.md,
+            fontWeight: fontWeight.bold,
+            color: palette.textSoft,
+          }}
+        >
           {title}
         </span>
-        <button type="button" onClick={onPrint} style={printBtnStyle}>
+        <button type="button" onClick={onPrint} style={printButtonStyle}>
           🖨 印刷 / PDF保存
         </button>
       </div>
 
       <div style={noticeStyle}>
-        このページはテンプレート + 固定の例の値の表示確認用です。実際の期間データは使用しません。
+        このページはテンプレート +
+        固定の例の値の表示確認用です。実際の期間データは使用しません。
       </div>
 
       <div
         className="bk-preview-frame"
-        style={{ background: palette.headerSurface, padding: 16, minHeight: "calc(100vh - 88px)" }}
+        style={{
+          background: palette.headerSurface,
+          padding: 16,
+          minHeight: "calc(100vh - 88px)",
+        }}
         dangerouslySetInnerHTML={{ __html: bodyHtml }}
       />
     </>
@@ -73,31 +92,31 @@ const noticeStyle: CSSProperties = {
   background: palette.formGroupBg,
   padding: "8px 16px",
   borderBottom: `1px solid ${palette.borderSubtle}`,
-  fontSize: 12,
+  fontSize: fontSize.sm,
   color: palette.textSoft,
-  fontWeight: 500,
+  fontWeight: fontWeight.medium,
 };
 
-const navBtnStyle: CSSProperties = {
-  height: 36,
+const closeButtonStyle: CSSProperties = {
+  height: sizes.button.compactHeight,
   padding: "0 12px",
-  borderRadius: 8,
+  borderRadius: radii.sm,
   border: `1px solid ${palette.borderStrong}`,
   background: palette.surface,
   color: palette.textSoft,
-  fontSize: 13,
-  fontWeight: 600,
+  fontSize: fontSize.base,
+  fontWeight: fontWeight.semibold,
   cursor: "pointer",
 };
 
-const printBtnStyle: CSSProperties = {
-  height: 36,
+const printButtonStyle: CSSProperties = {
+  height: sizes.button.compactHeight,
   padding: "0 14px",
-  borderRadius: 8,
+  borderRadius: radii.sm,
   border: "none",
   background: palette.action,
   color: palette.surface,
-  fontSize: 13,
-  fontWeight: 700,
+  fontSize: fontSize.base,
+  fontWeight: fontWeight.bold,
   cursor: "pointer",
 };

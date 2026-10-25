@@ -19,7 +19,6 @@ import {
 import { palette } from "../../shared/design-tokens.js";
 import { normalizePathname } from "../../shared/pathname.js";
 import { StepsPageScreen } from "../../steps/step-page-screen.js";
-import { ArchivedFiscalPeriodScreen } from "./archived-fiscal-period-screen.js";
 
 const STEPPER_PASSTHROUGH_PATHS = new Set<string>([
   "/steps/journalizing/analytics",
@@ -31,10 +30,10 @@ export function StepsLayout({ children }: { children: ReactNode }) {
     return <>{children}</>;
   }
 
-  return <StepsStepperHost pathname={pathname} />;
+  return <StepsStepperHost />;
 }
 
-function StepsStepperHost({ pathname }: { pathname: string }) {
+function StepsStepperHost() {
   const appState = useOpenkkAppState();
   const currentFiscalPeriod = appState.currentFiscalPeriod;
 
@@ -44,13 +43,6 @@ function StepsStepperHost({ pathname }: { pathname: string }) {
         <div style={{ color: palette.textLabel }}>期間を選択してください</div>
       </section>
     );
-  }
-
-  if (
-    currentFiscalPeriod.archiveStatus !== "active" &&
-    pathname !== "/steps/next-fiscal-period"
-  ) {
-    return <ArchivedFiscalPeriodScreen fiscalPeriod={currentFiscalPeriod} />;
   }
 
   const steps = deriveSteps({

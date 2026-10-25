@@ -76,7 +76,7 @@ type OpenkkBackendPort = {
 
 `OpenkkServerPort` is the same shape without `maintenance`.
 
-Archived fiscal periods are read-only. Mutations against them must fail with `OpenkkApiErrorDto` and `statusCode: 409`.
+Archived fiscal periods are read-only. Mutations other than `purgeArchivedData` must fail with `OpenkkApiErrorDto` and `statusCode: 409`.
 
 ## Value Rules
 
@@ -94,7 +94,7 @@ Archived fiscal periods are read-only. Mutations against them must fail with `Op
 
 `FiscalPeriodArchiveImportInput` creates a new active period in the archived `phase`.
 
-`fiscalPeriods.createNext` creates the next period atomically from a closed period with completed document receipt. It carries balances, selected reversals and active fixed assets from stored data. The source data must be available, and the next start date must follow the source end date.
+`fiscalPeriods.createNext` creates the next period atomically from a closed period with completed document receipt. It carries balances, selected reversals and active fixed assets from stored data. The source may already be archived but not purged, and the next start date must follow the source end date.
 
 ## Fiscal Period Lifecycle Policy
 

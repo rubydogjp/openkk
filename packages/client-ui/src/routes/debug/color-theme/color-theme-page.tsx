@@ -5,6 +5,7 @@ import {
   fontSize,
   fontWeight,
   shadows,
+  sizes,
   tokenDefaults,
   typography,
 } from "../../../shared/design-tokens.js";
@@ -323,7 +324,7 @@ export function ColorThemePage() {
         color: paletteValues.text,
       }}
     >
-      <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+      <div style={{ maxWidth: sizes.content.debugMaxWidth, margin: "0 auto" }}>
         <BackLink />
         <div style={{ marginTop: 22, display: "grid", gap: 18 }}>
           <ColorPalettes />
@@ -678,9 +679,7 @@ function ApplicationSample() {
                     background:
                       index === 1 ? paletteValues.surfaceTint : "transparent",
                     color:
-                      index === 1
-                        ? paletteValues.text
-                        : paletteValues.textSoft,
+                      index === 1 ? paletteValues.text : paletteValues.textSoft,
                     fontSize: fontSize.sm,
                     fontWeight:
                       index === 1 ? fontWeight.bold : fontWeight.semibold,
@@ -995,13 +994,7 @@ function AccountPill({ label, kind }: { label: string; kind: AccountKind }) {
 }
 
 type AccountKind =
-  | "asset"
-  | "liability"
-  | "equity"
-  | "revenue"
-  | "expense"
-  | "profit"
-  | "loss";
+  "asset" | "liability" | "equity" | "revenue" | "expense" | "profit" | "loss";
 
 const accountVisuals: Record<
   AccountKind,
@@ -1094,11 +1087,7 @@ function Kicker({ children }: { children: ReactNode }) {
   );
 }
 
-function buttonStyle(
-  bg: string,
-  fg: string,
-  border: string,
-): CSSProperties {
+function buttonStyle(bg: string, fg: string, border: string): CSSProperties {
   return {
     height: 36,
     padding: "0 14px",

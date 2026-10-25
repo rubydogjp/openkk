@@ -27,7 +27,7 @@ E2E テスト:
 
 ```bash
 npm run test:e2e        # Sim版の操作シナリオ
-npm run test:e2e:export # 無印版の静的export smoke
+npm run test:e2e:export # 無印版をビルドして静的exportを検証
 npm run build:apps && npm run test:e2e:export:built # 無印版・デモ版の公開用ビルドを検証
 ```
 

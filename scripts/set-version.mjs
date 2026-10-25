@@ -5,9 +5,9 @@ import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(here, "..");
-const packagesDir = path.join(root, "packages");
+const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
+const rootDirectory = path.resolve(scriptDirectory, "..");
+const packagesDirectory = path.join(rootDirectory, "packages");
 
 const version = process.argv[2];
 
@@ -25,31 +25,39 @@ if (!/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(version)) {
 const isInternal = (name) =>
   name === "@rubydogjp/openkk" || name.startsWith("@rubydogjp/openkk-");
 
-const DEP_FIELDS = ["dependencies", "devDependencies", "peerDependencies"];
+const DEPENDENCY_FIELDS = [
+  "dependencies",
+  "devDependencies",
+  "peerDependencies",
+];
 
 const changed = [];
 
-for (const entry of readdirSync(packagesDir, { withFileTypes: true })) {
+for (const entry of readdirSync(packagesDirectory, { withFileTypes: true })) {
   if (!entry.isDirectory()) continue;
 
-  const pkgJsonPath = path.join(packagesDir, entry.name, "package.json");
-  const before = readFileSync(pkgJsonPath, "utf8");
-  const pkg = JSON.parse(before);
+  const packageJsonPath = path.join(
+    packagesDirectory,
+    entry.name,
+    "package.json",
+  );
+  const before = readFileSync(packageJsonPath, "utf8");
+  const workspacePackage = JSON.parse(before);
 
-  pkg.version = version;
+  workspacePackage.version = version;
 
-  for (const field of DEP_FIELDS) {
-    const deps = pkg[field];
-    if (!deps) continue;
-    for (const name of Object.keys(deps)) {
-      if (isInternal(name)) deps[name] = `^${version}`;
+  for (const field of DEPENDENCY_FIELDS) {
+    const dependencies = workspacePackage[field];
+    if (!dependencies) continue;
+    for (const name of Object.keys(dependencies)) {
+      if (isInternal(name)) dependencies[name] = `^${version}`;
     }
   }
 
-  const after = `${JSON.stringify(pkg, null, 2)}${before.endsWith("\n") ? "\n" : ""}`;
+  const after = `${JSON.stringify(workspacePackage, null, 2)}${before.endsWith("\n") ? "\n" : ""}`;
   if (after !== before) {
-    writeFileSync(pkgJsonPath, after);
-    changed.push(pkg.name);
+    writeFileSync(packageJsonPath, after);
+    changed.push(workspacePackage.name);
   }
 }
 
@@ -57,6 +65,6 @@ console.log(`set version ${version} on ${changed.length} packages:`);
 for (const name of changed.sort()) console.log(`  ${name}`);
 
 execFileSync("npm", ["install", "--package-lock-only", "--ignore-scripts"], {
-  cwd: root,
+  cwd: rootDirectory,
   stdio: "inherit",
 });

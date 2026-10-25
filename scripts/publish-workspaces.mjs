@@ -5,23 +5,25 @@ import { fileURLToPath } from "node:url";
 import { execFileSync, spawnSync } from "node:child_process";
 import path from "node:path";
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(here, "..");
+const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
+const rootDirectory = path.resolve(scriptDirectory, "..");
 const dryRun = process.argv.includes("--dry-run");
 
-const rootPkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
+const rootPackage = JSON.parse(
+  readFileSync(path.join(rootDirectory, "package.json"), "utf8"),
+);
 
-const targets = rootPkg.workspaces
+const targets = rootPackage.workspaces
   .map((workspace) => ({
     workspace,
-    pkg: JSON.parse(
-      readFileSync(path.join(root, workspace, "package.json"), "utf8"),
+    workspacePackage: JSON.parse(
+      readFileSync(path.join(rootDirectory, workspace, "package.json"), "utf8"),
     ),
   }))
-  .filter(({ pkg }) => !pkg.private);
+  .filter(({ workspacePackage }) => !workspacePackage.private);
 
-for (const { workspace, pkg } of targets) {
-  const spec = `${pkg.name}@${pkg.version}`;
+for (const { workspace, workspacePackage } of targets) {
+  const spec = `${workspacePackage.name}@${workspacePackage.version}`;
   if (isPublished(spec)) {
     console.log(`  skip ${spec}`);
     continue;
@@ -36,14 +38,14 @@ for (const { workspace, pkg } of targets) {
       "public",
       ...(dryRun ? ["--dry-run"] : []),
     ],
-    { cwd: root, stdio: "inherit" },
+    { cwd: rootDirectory, stdio: "inherit" },
   );
   console.log(`  ok   ${spec}`);
 }
 
 function isPublished(spec) {
   const result = spawnSync("npm", ["view", spec, "version"], {
-    cwd: root,
+    cwd: rootDirectory,
     encoding: "utf8",
   });
   if (result.status === 0) return result.stdout.trim() !== "";

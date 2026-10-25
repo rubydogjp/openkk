@@ -25,20 +25,17 @@ import { ArchivedFiscalPeriodScreen } from "../routes/steps/archived-fiscal-peri
 import { FiscalPeriodsContent } from "./fiscal-periods-content.js";
 import { SignInContent } from "./sign-in-content.js";
 import {
-  ARCHIVED_WORKSPACE_PATH,
+  ARCHIVED_FISCAL_PERIOD_PATH,
   FISCAL_PERIOD_PICKER_PATH,
   resolveShellContentMode,
-  shouldRedirectArchivedWorkspace,
+  shouldRedirectArchivedFiscalPeriod,
   shouldRedirectMissingFiscalPeriod,
   type ShellContentMode,
 } from "./shell-content-mode.js";
 import { ShellAccountMenu } from "./shell-account-menu.js";
 import { ShellFiscalPeriodMenu } from "./shell-fiscal-period-menu.js";
 import { ShellNav } from "./shell-nav.js";
-import {
-  SHELL_PALETTE as PALETTE,
-  SHELL_SIDEBAR_WIDTH as SIDEBAR_WIDTH,
-} from "./shell-palette.js";
+import { SHELL_PALETTE } from "./shell-palette.js";
 import { useShellAuthActions } from "./use-shell-auth-actions.js";
 
 export function OpenkkShellLayout(props: { children: ReactNode }) {
@@ -77,14 +74,14 @@ export function OpenkkShellLayout(props: { children: ReactNode }) {
 
   useEffect(() => {
     if (
-      shouldRedirectArchivedWorkspace({
+      shouldRedirectArchivedFiscalPeriod({
         isReady: appState.isReady,
         hasSession: session != null,
         pathname,
         currentFiscalPeriod,
       })
     ) {
-      router.replace(ARCHIVED_WORKSPACE_PATH);
+      router.replace(ARCHIVED_FISCAL_PERIOD_PATH);
     }
   }, [appState.isReady, currentFiscalPeriod, pathname, router, session]);
 
@@ -138,9 +135,7 @@ function ShellChrome({
 }) {
   const appState = useOpenkkAppState();
   const openkkConfig = useOpenkkConfig();
-  const hasPeriod =
-    appState.currentFiscalPeriodId != null &&
-    appState.currentFiscalPeriodId !== "";
+  const hasPeriod = appState.currentFiscalPeriodId != null;
   const navEnabled = contentMode !== "sign-in" && hasPeriod;
   const hasSession = contentMode !== "sign-in";
   const auth = useShellAuthActions();
@@ -149,10 +144,10 @@ function ShellChrome({
   const sidebarRef = useDismissibleLayer<HTMLElement>({
     open: drawerOpen,
     onDismiss: () => setDrawerOpen(false),
-    trapFocus: true,
     initialFocusRef: null,
     focusOnOpen: true,
     restoreFocus: true,
+    trapFocus: true,
   });
 
   useEffect(() => {
@@ -162,11 +157,11 @@ function ShellChrome({
   return (
     <>
       <style>{`
-        .bk-nav-item:hover { background: ${PALETTE.navHoverBg}; }
-        .bk-nav-item-active:hover { background: ${PALETTE.navActiveBg}; }
-        .bk-user-trigger:hover { background: ${PALETTE.navHoverBg}; }
-        .bk-ws-trigger:hover { background: ${PALETTE.navHoverBg}; }
-        .bk-menu-item:hover:not(:disabled) { background: ${PALETTE.navHoverBg}; }
+        .bk-nav-item:hover { background: ${SHELL_PALETTE.navHoverBg}; }
+        .bk-nav-item-active:hover { background: ${SHELL_PALETTE.navActiveBg}; }
+        .bk-user-trigger:hover { background: ${SHELL_PALETTE.navHoverBg}; }
+        .bk-fiscal-period-trigger:hover { background: ${SHELL_PALETTE.navHoverBg}; }
+        .bk-menu-item:hover:not(:disabled) { background: ${SHELL_PALETTE.navHoverBg}; }
       `}</style>
 
       <div className="bk-mobile-topbar">
@@ -225,7 +220,7 @@ function ShellChrome({
         style={{
           height: "100vh",
           display: "grid",
-          gridTemplateColumns: `${SIDEBAR_WIDTH} 1fr`,
+          gridTemplateColumns: `${sizes.shell.sidebarWidth} 1fr`,
           overflow: "hidden",
         }}
       >
@@ -241,12 +236,12 @@ function ShellChrome({
               : "bk-shell-sidebar"
           }
           style={{
-            background: PALETTE.sidebarBg,
-            borderRight: `1px solid ${PALETTE.sidebarBorder}`,
+            background: SHELL_PALETTE.sidebarBg,
+            borderRight: `1px solid ${SHELL_PALETTE.sidebarBorder}`,
             display: "flex",
             flexDirection: "column",
             position: "relative",
-            width: SIDEBAR_WIDTH,
+            width: sizes.shell.sidebarWidth,
           }}
         >
           <div
@@ -269,7 +264,7 @@ function ShellChrome({
                 style={{
                   fontSize: fontSize.md,
                   fontWeight: fontWeight.bold,
-                  color: PALETTE.titleColor,
+                  color: SHELL_PALETTE.titleColor,
                   whiteSpace: "nowrap",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
@@ -282,7 +277,7 @@ function ShellChrome({
                   marginTop: 1,
                   fontSize: fontSize.xs,
                   fontWeight: fontWeight.semibold,
-                  color: PALETTE.subtitleColor,
+                  color: SHELL_PALETTE.subtitleColor,
                   lineHeight: 1.2,
                   whiteSpace: "nowrap",
                   overflow: "hidden",
@@ -328,7 +323,11 @@ function ShellChrome({
                 borderBottom: `1px solid ${palette.dangerBorder}`,
               }}
             >
-              <AppErrorText error={auth.authActionError} style={null} fallbackUserMessage={null} />
+              <AppErrorText
+                error={auth.authActionError}
+                style={null}
+                fallbackUserMessage={null}
+              />
             </div>
           ) : null}
           <DataLoadErrorBanner />

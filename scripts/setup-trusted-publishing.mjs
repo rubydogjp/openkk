@@ -5,35 +5,48 @@ import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import path from "node:path";
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(here, "..");
-const packagesDir = path.join(root, "packages");
+const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
+const rootDirectory = path.resolve(scriptDirectory, "..");
+const packagesDirectory = path.join(rootDirectory, "packages");
 
 const WORKFLOW_FILE = "release.yml";
 
-const rootPkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
-const repoMatch = /github\.com[/:]([^/]+\/[^/.]+)/.exec(rootPkg.repository?.url ?? "");
+const rootPackage = JSON.parse(
+  readFileSync(path.join(rootDirectory, "package.json"), "utf8"),
+);
+const repoMatch = /github\.com[/:]([^/]+\/[^/.]+)/.exec(
+  rootPackage.repository?.url ?? "",
+);
 
 if (!repoMatch) {
-  console.error("package.json の repository.url から owner/repo を判定できません");
+  console.error(
+    "package.json の repository.url から owner/repo を判定できません",
+  );
   process.exit(1);
 }
 
 const repo = repoMatch[1];
 
-const targets = readdirSync(packagesDir, { withFileTypes: true })
+const targets = readdirSync(packagesDirectory, { withFileTypes: true })
   .filter((entry) => entry.isDirectory())
   .map((entry) =>
     JSON.parse(
-      readFileSync(path.join(packagesDir, entry.name, "package.json"), "utf8"),
+      readFileSync(
+        path.join(packagesDirectory, entry.name, "package.json"),
+        "utf8",
+      ),
     ),
   )
-  .filter((pkg) => !pkg.private)
-  .map((pkg) => pkg.name)
+  .filter((workspacePackage) => !workspacePackage.private)
+  .map((workspacePackage) => workspacePackage.name)
   .sort();
 
-console.log(`${repo} / ${WORKFLOW_FILE} を ${targets.length} パッケージに設定します`);
-console.log("最初の 2FA 画面で「次の 5 分間はスキップ」を選ぶと、残りは無認証で通ります。");
+console.log(
+  `${repo} / ${WORKFLOW_FILE} を ${targets.length} パッケージに設定します`,
+);
+console.log(
+  "最初の 2FA 画面で「次の 5 分間はスキップ」を選ぶと、残りは無認証で通ります。",
+);
 console.log("");
 
 const failed = [];
@@ -77,14 +90,16 @@ function trust(name) {
         "--allow-publish",
         "--yes",
       ],
-      { cwd: root, stdio: ["inherit", "inherit", "pipe"] },
+      { cwd: rootDirectory, stdio: ["inherit", "inherit", "pipe"] },
     );
     let stderr = "";
     child.stderr.on("data", (chunk) => {
       process.stderr.write(chunk);
       stderr += chunk;
     });
-    child.on("error", (error) => resolve({ status: null, stderr: String(error) }));
+    child.on("error", (error) =>
+      resolve({ status: null, stderr: String(error) }),
+    );
     child.on("close", (status) => resolve({ status, stderr }));
   });
 }

@@ -25,8 +25,12 @@ describe("validateBusinessRate", () => {
 
 describe("validateEntryDate", () => {
   it("accepts both inclusive fiscal-period boundaries", () => {
-    expect(validateEntryDate("2026-01-01", "2026-01-01", "2026-12-31")).toBeNull();
-    expect(validateEntryDate("2026-12-31", "2026-01-01", "2026-12-31")).toBeNull();
+    expect(
+      validateEntryDate("2026-01-01", "2026-01-01", "2026-12-31"),
+    ).toBeNull();
+    expect(
+      validateEntryDate("2026-12-31", "2026-01-01", "2026-12-31"),
+    ).toBeNull();
   });
 
   it("rejects invalid calendar dates", () => {

@@ -1,4 +1,4 @@
-import { palette, sizes } from "../shared/design-tokens.js";
+import { palette } from "../shared/design-tokens.js";
 
 export const SHELL_PALETTE = {
   sidebarBg: palette.chromeSurface,
@@ -20,5 +20,3 @@ export const SHELL_PALETTE = {
   menuDivider: palette.borderSubtle,
   menuBorder: palette.borderSubtle,
 };
-
-export const SHELL_SIDEBAR_WIDTH = sizes.shell.sidebarWidth;

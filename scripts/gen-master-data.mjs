@@ -2,9 +2,9 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const rootDirectory = join(dirname(fileURLToPath(import.meta.url)), "..");
 const sourceRelativePath = "resources/gen/bookkeeping_master_data.json";
-const sourcePath = join(root, sourceRelativePath);
+const sourcePath = join(rootDirectory, sourceRelativePath);
 const catalog = JSON.parse(readFileSync(sourcePath, "utf8"));
 const checkOnly = process.argv.includes("--check");
 
@@ -12,7 +12,13 @@ validateCatalog(catalog);
 
 const outputs = [
   {
-    path: join(root, "packages", "server-domain", "src", "generated-master-data.ts"),
+    path: join(
+      rootDirectory,
+      "packages",
+      "server-domain",
+      "src",
+      "generated-master-data.ts",
+    ),
     source: buildTypescript(catalog, {
       accountTypeName: "MasterBookAccountType",
       declareAccountType: true,
@@ -21,7 +27,7 @@ const outputs = [
   },
   {
     path: join(
-      root,
+      rootDirectory,
       "packages",
       "client-domain",
       "src",
@@ -31,8 +37,7 @@ const outputs = [
     source: buildTypescript(catalog, {
       accountTypeName: "BookAccountType",
       declareAccountType: false,
-      header:
-        'import type { BookAccountType } from "./book-account.js";\n\n',
+      header: 'import type { BookAccountType } from "./book-account.js";\n\n',
     }),
   },
 ];
@@ -41,7 +46,7 @@ const staleOutputs = [];
 for (const output of outputs) {
   if (checkOnly) {
     if (readFileSync(output.path, "utf8") !== output.source) {
-      staleOutputs.push(relative(root, output.path));
+      staleOutputs.push(relative(rootDirectory, output.path));
     }
   } else {
     writeFileSync(output.path, output.source);
@@ -49,9 +54,7 @@ for (const output of outputs) {
 }
 
 if (staleOutputs.length > 0) {
-  throw new Error(
-    `Generated master data is stale: ${staleOutputs.join(", ")}`,
-  );
+  throw new Error(`Generated master data is stale: ${staleOutputs.join(", ")}`);
 }
 
 if (!checkOnly) {
@@ -204,16 +207,14 @@ function buildTypescript(
 
   source += "export const DEFAULT_TAX_CATEGORIES: DefaultTaxCategory[] = [\n";
   for (const category of value.taxCategories) {
-    source +=
-      `  { id: ${quoted(category.id)}, name: ${quoted(category.name)}, rate: ${category.rate} },\n`;
+    source += `  { id: ${quoted(category.id)}, name: ${quoted(category.name)}, rate: ${category.rate} },\n`;
   }
   source += "];\n\n";
 
   source +=
     "export const DEFAULT_BUSINESS_CATEGORIES: DefaultBusinessCategory[] = [\n";
   for (const category of value.businessCategories) {
-    source +=
-      `  { id: ${quoted(category.id)}, name: ${quoted(category.name)} },\n`;
+    source += `  { id: ${quoted(category.id)}, name: ${quoted(category.name)} },\n`;
   }
   return source + "];\n";
 }

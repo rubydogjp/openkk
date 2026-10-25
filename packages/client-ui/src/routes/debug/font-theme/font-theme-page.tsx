@@ -7,6 +7,7 @@ import {
   fontWeight,
   palette,
   radii,
+  sizes,
   spacing,
   tokenDefaults,
   typography,
@@ -25,63 +26,63 @@ const typeTokens: TypeToken[] = [
   {
     name: "Meta",
     styleToken: "meta",
-    role: "11px / ラベルより弱い補助メタ。",
+    role: "ラベルより弱い補助メタ。",
     sample: "最終更新 12:34",
     description: "更新時刻など、本文より弱いメタ情報に使う。",
   },
   {
     name: "Helper",
     styleToken: "helper",
-    role: "12px / 説明・補足・validation。",
+    role: "説明・補足・validation。",
     sample: "この項目はあとから変更できます。",
     description: "入力補助や検証メッセージなど、本文を支える説明に使う。",
   },
   {
     name: "Input",
     styleToken: "input",
-    role: "14px / 入力値と steps の導入文。",
+    role: "入力値と steps の導入文。",
     sample: "5月分 売上入金",
     description: "編集対象の値と、手順ページの短い導入文に使う。",
   },
   {
     name: "Control",
     styleToken: "control",
-    role: "13px / ボタン・select・menu item。",
+    role: "ボタン・select・menu item。",
     sample: "追加",
     description: "ボタンやメニューなど、操作できる要素に使う。",
   },
   {
     name: "Amount",
     styleToken: "amount",
-    role: "13px / 金額・数値列。",
+    role: "金額・数値列。",
     sample: "1,234,567",
     description: "等幅フォントで桁を揃える金額・数値列に使う。",
   },
   {
     name: "Section Title",
     styleToken: "sectionTitle",
-    role: "15px / カード・drawer 内の小見出し。",
+    role: "カード・drawer 内の小見出し。",
     sample: "取引情報",
     description: "カードや drawer 内の小見出しに使う。",
   },
   {
     name: "Content Title",
     styleToken: "contentTitle",
-    role: "18px / steps の H2 相当。",
+    role: "steps の H2 相当。",
     sample: "月別の収支推移を確認する",
     description: "手順ページ本文の章見出しに使う。",
   },
   {
     name: "Dialog Title",
     styleToken: "dialogTitle",
-    role: "20px / モーダル・空状態の短い独立タイトル。",
+    role: "モーダル・空状態の短い独立タイトル。",
     sample: "期間がロックされています",
     description: "モーダルや空状態の独立したタイトルに使う。",
   },
   {
     name: "Page Title",
     styleToken: "pageTitle",
-    role: "24px / ページ H1。",
+    role: "ページ H1。",
     sample: "決算書を作成する",
     description: "通常画面の最上位タイトルに使う。",
   },
@@ -144,7 +145,7 @@ export function FontThemePage() {
         padding: spacing.s24,
       }}
     >
-      <div style={{ maxWidth: 1120, margin: "0 auto" }}>
+      <div style={{ maxWidth: sizes.content.debugMaxWidth, margin: "0 auto" }}>
         <Link
           href="/debug"
           style={{ ...typography.control, color: palette.action }}
@@ -186,7 +187,7 @@ export function FontThemePage() {
           <div style={gridStyle}>
             {familyTokens.map((token) => (
               <Card key={token.name} style={null}>
-                <div style={{ ...typography.sectionTitle }}>{token.name}</div>
+                <div style={typography.sectionTitle}>{token.name}</div>
                 <code style={codeStyle}>{token.value}</code>
                 <p
                   style={{
@@ -217,10 +218,7 @@ export function FontThemePage() {
           </div>
         </Section>
 
-        <Section
-          title="Type Scale"
-          lead="用途ごとに一つの token を選びます。"
-        >
+        <Section title="Type Scale" lead="用途ごとに一つの token を選びます。">
           <div style={{ display: "grid", gap: spacing.s10 }}>
             {typeTokens.map((token) => (
               <TypeRow key={token.name} token={token} />
@@ -276,7 +274,6 @@ export function FontThemePage() {
             <FormAndTableSample />
           </div>
         </Section>
-
       </div>
     </main>
   );
@@ -297,7 +294,7 @@ function TypeRow({ token }: { token: TypeToken }) {
       }}
     >
       <div>
-        <div style={{ ...typography.sectionTitle }}>{token.name}</div>
+        <div style={typography.sectionTitle}>{token.name}</div>
         <code style={codeStyle}>{cssText}</code>
       </div>
       <div>

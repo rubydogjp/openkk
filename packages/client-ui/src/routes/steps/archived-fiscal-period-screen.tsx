@@ -157,7 +157,7 @@ export function ArchivedFiscalPeriodScreen({
             variant={null}
             icon={null}
           >
-            期間一覧へ
+            期間のリストへ
           </StepPrimaryButton>
           {archivePayloadPurged ? null : (
             <StepPrimaryButton
@@ -173,7 +173,11 @@ export function ArchivedFiscalPeriodScreen({
 
         {screenError != null ? (
           <div style={{ marginTop: 16 }}>
-            <AppErrorText error={screenError} style={null} fallbackUserMessage={null} />
+            <AppErrorText
+              error={screenError}
+              style={null}
+              fallbackUserMessage={null}
+            />
           </div>
         ) : null}
       </div>

@@ -1,6 +1,13 @@
 "use client";
 
-import { fontSize, fontWeight, palette, radii, spacing } from "../shared/design-tokens.js";
+import {
+  fontSize,
+  fontWeight,
+  palette,
+  radii,
+  spacing,
+} from "../shared/design-tokens.js";
+import type { IconProps } from "../shared/icons.js";
 
 export function MaintenanceScreen(props: { title: string; message: string }) {
   const title = props.title.trim() === "" ? "メンテナンス中" : props.title;
@@ -55,9 +62,15 @@ export function MaintenanceScreen(props: { title: string; message: string }) {
   );
 }
 
-function WrenchIcon({ size, color }: { size: number; color: string }) {
+function WrenchIcon({ size, color }: IconProps) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
       <path
         d="M14.7 6.3a4 4 0 0 0-5.4 5.2L3 17.8 6.2 21l6.3-6.3a4 4 0 0 0 5.2-5.4l-2.3 2.3-2.2-.6-.6-2.2 2.1-2.5z"
         stroke={color}

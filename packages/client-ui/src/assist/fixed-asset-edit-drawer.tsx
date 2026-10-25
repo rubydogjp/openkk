@@ -104,9 +104,10 @@ export function FixedAssetEditDrawer({
   });
   const canSave = validationError == null;
 
-  const drawerRef = useModalLifecycle<HTMLElement>(() => {
+  const requestClose = () => {
     if (!mutationLock.current.isLocked) onClose();
-  }, null);
+  };
+  const drawerRef = useModalLifecycle<HTMLElement>(requestClose, null);
 
   const handleSave = async () => {
     if (!canSave) {
@@ -156,10 +157,6 @@ export function FixedAssetEditDrawer({
     } finally {
       release();
     }
-  };
-
-  const requestClose = () => {
-    if (!mutationLock.current.isLocked) onClose();
   };
 
   return (
@@ -225,14 +222,18 @@ export function FixedAssetEditDrawer({
             <DateInput
               value={draft.acquisitionDate}
               max={periodEndDate}
-              onChange={(value) => setDraft({ ...draft, acquisitionDate: value })}
+              onChange={(value) =>
+                setDraft({ ...draft, acquisitionDate: value })
+              }
               min={null}
             />
           </Field>
           <Field label="取得価額">
             <AmountInput
               value={draft.acquisitionCost}
-              onChange={(value) => setDraft({ ...draft, acquisitionCost: value })}
+              onChange={(value) =>
+                setDraft({ ...draft, acquisitionCost: value })
+              }
               ariaLabel={null}
             />
           </Field>
@@ -268,7 +269,9 @@ export function FixedAssetEditDrawer({
                 value={draft.disposalDate ?? ""}
                 min={laterIsoDate(draft.acquisitionDate, periodStartDate)}
                 max={periodEndDate}
-                onChange={(value) => setDraft({ ...draft, disposalDate: value })}
+                onChange={(value) =>
+                  setDraft({ ...draft, disposalDate: value })
+                }
               />
             </Field>
           ) : null}
@@ -276,7 +279,9 @@ export function FixedAssetEditDrawer({
             <Field label="売却額">
               <AmountInput
                 value={draft.disposalPrice ?? ""}
-                onChange={(value) => setDraft({ ...draft, disposalPrice: value })}
+                onChange={(value) =>
+                  setDraft({ ...draft, disposalPrice: value })
+                }
                 ariaLabel={null}
               />
             </Field>

@@ -1,6 +1,18 @@
 {
   "name": "openkk",
+  "version": "1.0.0",
   "private": true,
+  "description": "オープン会計 — open-source double-entry bookkeeping library for sole proprietors. Hexagonal architecture with swappable backend and storage adapters.",
+  "license": "MIT",
+  "author": "rbdog <rbdog@rubydog.jp>",
+  "homepage": "https://github.com/rubydogjp/openkk#readme",
+  "bugs": {
+    "url": "https://github.com/rubydogjp/openkk/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rubydogjp/openkk.git"
+  },
   "workspaces": [
     "packages/client-domain",
     "packages/client-ports",
@@ -36,6 +48,9 @@
     "lint": "npm run lint --workspaces --if-present && tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test --config=e2e/playwright.config.ts",
+    "test:e2e:export": "npm run build -w @rubydogjp/openkk && npm run test:e2e:export:built -- --project=original",
+    "test:e2e:export:built": "playwright test --config=e2e/playwright.export.config.ts",
     "gen-deps": "node scripts/gen-dep-graph.mjs",
     "check:dependency-graph": "node scripts/gen-dep-graph.mjs --check",
     "gen-service-workers": "node scripts/gen-service-workers.mjs",
@@ -44,17 +59,13 @@
     "check:master-data": "node scripts/gen-master-data.mjs --check",
     "gen-theme-docs": "node scripts/gen-theme-docs.mjs",
     "check:theme-docs": "node scripts/gen-theme-docs.mjs --check",
+    "gen-icons": "node scripts/gen-icons.mjs",
+    "check:icons": "node scripts/gen-icons.mjs --check",
     "version:set": "node scripts/set-version.mjs",
     "setup-trusted-publishing": "node scripts/setup-trusted-publishing.mjs",
     "dev:vscode:openkk": "npm run dev:vscode -w @rubydogjp/openkk",
     "dev:vscode:sim": "npm run dev:vscode -w @rubydogjp/openkk-sim",
-    "dev:vscode:demo": "npm run dev:vscode -w @rubydogjp/openkk-demo",
-    "test:e2e": "playwright test --config=e2e/playwright.config.ts",
-    "test:e2e:export": "npm run test:e2e:export:original",
-    "test:e2e:export:original": "npm run build -w @rubydogjp/openkk && npm run test:e2e:export:built -- --project=original",
-    "test:e2e:export:built": "playwright test --config=e2e/playwright.export.config.ts",
-    "gen-icons": "node scripts/gen-icons.mjs",
-    "check:icons": "node scripts/gen-icons.mjs --check"
+    "dev:vscode:demo": "npm run dev:vscode -w @rubydogjp/openkk-demo"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
@@ -62,17 +73,5 @@
     "sharp": "^0.35.5",
     "typescript": "^6.0.3",
     "vitest": "^5.0.3"
-  },
-  "version": "1.0.0",
-  "description": "オープン会計 — open-source double-entry bookkeeping library for sole proprietors. Hexagonal architecture with swappable backend and storage adapters.",
-  "license": "MIT",
-  "author": "rbdog <rbdog@rubydog.jp>",
-  "homepage": "https://github.com/rubydogjp/openkk#readme",
-  "bugs": {
-    "url": "https://github.com/rubydogjp/openkk/issues"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/rubydogjp/openkk.git"
   }
 }

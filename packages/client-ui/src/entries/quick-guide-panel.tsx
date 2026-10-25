@@ -35,7 +35,10 @@ export function QuickGuidePanel({
         flexShrink: 0,
       }}
     >
-
+      <style>{`
+        .bk-quick-guide-option { transition: background 80ms ease; }
+        .bk-quick-guide-option:hover { background: ${palette.hoverSubtle}; }
+      `}</style>
       <div
         style={{
           display: "flex",
@@ -134,10 +137,6 @@ function QuickGuideOptionRow({
         cursor: "pointer",
       }}
     >
-      <style>{`
-        .bk-quick-guide-option { transition: background 80ms ease; }
-        .bk-quick-guide-option:hover { background: ${palette.hoverSubtle}; }
-      `}</style>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{

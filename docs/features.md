@@ -63,7 +63,7 @@
 | 機能 | 説明 |
 |---|---|
 | 再振替仕訳の登録 | 翌期作成時に未払・前払などの候補から対象を選択。期首仕訳は後から編集可能 |
-| バーチャル行として表示 | 1月の仕訳一覧に「再振替」バッジ付きで自動表示 |
+| バーチャル行として表示 | 期首の月の仕訳一覧に「再振替」バッジ付きで自動表示 |
 | 期首残高の入力 | 資産・負債の期首残高 (`opening.balanceLines`) を貸借一致で入力 |
 
 ---
@@ -79,7 +79,7 @@
 | 3. 日々の仕訳 | 仕訳の入力・インポート・進捗グラフの確認。完了時に `runPreClosing` で仮締めし仮の帳票3点を生成 |
 | 4. 本締め | 最終帳票3点を生成・財務諸表サマリーを表示。本締め後は変更不可 |
 | 5. 書類を受け取る | 生成済み帳票を確認し受取完了 |
-| 6. 次の期間へ | BS 繰越・再振替・固定資産データの引き継ぎを確認 |
+| 6. 次の期間へ | BS 繰越・再振替・固定資産データの引き継ぎを確認。圧縮保存もここで行う |
 
 仮締め (`runPreClosing`) は `journalizing → pre_closing`、本締め (`runFinal`) は `pre_closing → post_closing` に遷移させる。本締め前なら `cancelPreClosing` で記帳に戻れる。
 
@@ -136,12 +136,12 @@
 
 ## バンドル一覧
 
-版は実行時切替ではなく **バンドル（別パッケージのアプリ）** で分ける。`bundle`（版）と `brand`（ロゴ/表示名）は独立した概念。
+版は実行時切替ではなく **バンドル（別パッケージのアプリ）** で分ける。`bundle`（版）と `brand`（サイト URL・アカウントアイコン）は独立した概念。
 
 | bundle | パッケージ | 表示名 (`bundleLabel`) | DB | シードデータ | 認証 |
 |---|---|---|---|---|---|
 | `sim` | `@rubydogjp/openkk-sim` (`packages/openkk_sim`) | Sim版 | memory + 固定時計 | なし (任意に作成) | embedded |
-| `demo` | `@rubydogjp/openkk-demo` (`packages/openkk_demo`) | デモ版 | memory | あり (buildOpenkkDemoSeed) | embedded |
+| `demo` | `@rubydogjp/openkk-demo` (`packages/openkk_demo`) | デモ版 | memory + 固定時計 | あり (buildOpenkkDemoSeed) | embedded |
 | `original` | `@rubydogjp/openkk` (`packages/openkk`) | 無印版 | SQLite OPFS | なし | embedded |
 
 共通配線は `@rubydogjp/openkk-frontend`（`packages/frontend`）に集約。

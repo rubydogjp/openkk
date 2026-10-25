@@ -14,12 +14,12 @@ import {
   useOpenkkAppState,
   useOpenkkConfig,
 } from "@rubydogjp/openkk-client-usecases";
+import { AddButton } from "../shared/add-button.js";
 import { AppErrorText } from "../shared/app-error-text.js";
 import { LockButton } from "../shared/locked-action.js";
 import { ExclusiveActionLock } from "../shared/exclusive-action-lock.js";
 import { usePopoverLifecycle } from "../shared/dismissible-layer.js";
 import { formatCalendarDate } from "../shared/calendar-date.js";
-import { PlusIcon } from "../shared/icons.js";
 import {
   fontSize,
   fontWeight,
@@ -27,7 +27,6 @@ import {
   radii,
   shadows,
   sizes,
-  spacing,
   typography,
 } from "../shared/design-tokens.js";
 
@@ -42,7 +41,6 @@ export function FiscalPeriodsContent() {
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const [isImportingArchive, setIsImportingArchive] = useState(false);
   const [screenError, setScreenError] = useState<unknown>(null);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const { containerRef: fileMenuContainerRef, popupRef: fileMenuRef } =
     usePopoverLifecycle<HTMLDivElement, HTMLDivElement>({
       open: fileMenuOpen,
@@ -54,7 +52,6 @@ export function FiscalPeriodsContent() {
     if (release == null) return;
     setIsImportingArchive(true);
     try {
-      setStatusMessage(null);
       setScreenError(null);
       assertFiscalPeriodArchiveByteLength(file.size);
       const bytes = new Uint8Array(await file.arrayBuffer());
@@ -62,7 +59,6 @@ export function FiscalPeriodsContent() {
       const createdId = await appState.importArchivedFiscalPeriod(payload);
       appState.selectFiscalPeriod(createdId);
       router.push("/steps");
-      setStatusMessage("圧縮済みファイルを展開しました");
     } catch (error) {
       setScreenError(
         AppError.from(error, {
@@ -72,7 +68,6 @@ export function FiscalPeriodsContent() {
           statusCode: null,
         }),
       );
-      setStatusMessage(null);
     } finally {
       setIsImportingArchive(false);
       release();
@@ -207,9 +202,7 @@ export function FiscalPeriodsContent() {
           {editingLocked ? (
             <LockButton label="追加" />
           ) : (
-            <AddPeriodButton
-              onClick={() => router.push("/fiscal-periods/new")}
-            />
+            <AddButton onClick={() => router.push("/fiscal-periods/new")} />
           )}
         </div>
 
@@ -220,21 +213,13 @@ export function FiscalPeriodsContent() {
             router.push("/steps");
           }}
         />
-        {statusMessage != null ? (
-          <div
-            style={{
-              marginTop: 12,
-              fontSize: fontSize.sm,
-              fontWeight: fontWeight.semibold,
-              color: palette.success,
-            }}
-          >
-            {statusMessage}
-          </div>
-        ) : null}
         {screenError != null ? (
           <div style={{ marginTop: 12 }}>
-            <AppErrorText error={screenError} style={null} fallbackUserMessage={null} />
+            <AppErrorText
+              error={screenError}
+              style={null}
+              fallbackUserMessage={null}
+            />
           </div>
         ) : null}
       </div>
@@ -265,15 +250,15 @@ function FiscalPeriodsTable({
       }}
     >
       <style>{`
-        .bk-fp-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
-        .bk-fp-scroll::-webkit-scrollbar-track { background: transparent; }
-        .bk-fp-scroll::-webkit-scrollbar-thumb {
+        .bk-fiscal-periods-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+        .bk-fiscal-periods-scroll::-webkit-scrollbar-track { background: transparent; }
+        .bk-fiscal-periods-scroll::-webkit-scrollbar-thumb {
           background: #CBD5E1;
           border-radius: 999px;
           border: 2px solid transparent;
           background-clip: padding-box;
         }
-        .bk-fp-scroll::-webkit-scrollbar-thumb:hover {
+        .bk-fiscal-periods-scroll::-webkit-scrollbar-thumb:hover {
           background: #94A3B8;
           border: 2px solid transparent;
           background-clip: padding-box;
@@ -286,7 +271,7 @@ function FiscalPeriodsTable({
         <FiscalPeriodsEmptyState />
       ) : (
         <div
-          className="bk-fp-scroll"
+          className="bk-fiscal-periods-scroll"
           style={{
             flex: 1,
             minHeight: 0,
@@ -535,34 +520,6 @@ function EmptyPeriodsIcon() {
         strokeLinecap="round"
       />
     </svg>
-  );
-}
-
-function AddPeriodButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        height: sizes.button.compactHeight,
-        minWidth: sizes.button.compactIconTextMinWidth,
-        padding: "0 14px",
-        borderRadius: radii.sm,
-        border: "none",
-        background: palette.brand,
-        color: palette.surface,
-        fontSize: fontSize.base,
-        fontWeight: fontWeight.bold,
-        cursor: "pointer",
-        display: "inline-flex",
-        alignItems: "center",
-        gap: spacing.s6,
-        boxShadow: shadows.primaryButton,
-      }}
-    >
-      <PlusIcon size={12} color="currentColor" />
-      追加
-    </button>
   );
 }
 

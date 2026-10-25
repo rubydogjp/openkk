@@ -7,9 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation.js";
 import {
   AppError,
   assertEntryImportSize,
-  buildVirtualBusinessRateTransferRows,
-  buildVirtualFixedAssetRows,
-  buildVirtualOpeningCarryoverRows,
+  buildVirtualEntryRows,
   decodeJournalImportBytes,
   exportEntriesAsCsv,
   exportEntriesAsJson,
@@ -21,8 +19,6 @@ import {
   formatYearMonthKey,
   isMaterializedVirtualEntry,
   parseYearMonth,
-  virtualEntryLocalId,
-  type EntryPreviewRow,
   type YearMonth,
 } from "@rubydogjp/openkk-client-domain";
 import {
@@ -44,6 +40,7 @@ import {
 import { EntryEditDrawer } from "../../entries/entry-edit-drawer.js";
 import { entryRecordToDraft } from "../../entries/entry-edit-model.js";
 import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
+import { pathWithSearchParams } from "../../shared/pathname.js";
 
 export function EntriesPage() {
   const router = useRouter();
@@ -114,7 +111,7 @@ export function EntriesPage() {
   const periodEndMonth = currentFiscalPeriod
     ? parseYearMonth(currentFiscalPeriod.endDate)
     : null;
-  const canGoPrev =
+  const canGoPrevious =
     periodStartMonth == null ||
     compareYearMonth(displayedMonth, periodStartMonth) > 0;
   const canGoNext =
@@ -143,51 +140,28 @@ export function EntriesPage() {
     fiscalPeriodId == null
       ? []
       : entriesState.listFiscalPeriodEntries(fiscalPeriodId);
-  const virtualRows = useMemo<EntryPreviewRow[]>(() => {
-    if (fiscalPeriodId == null) return [];
-    const materializedLocalIds = new Set(
-      fullPeriodEntries
-        .map((entry) => entry.localId)
-        .filter(
-          (localId): localId is string => localId != null,
-        ),
-    );
-    const realEntries = fullPeriodEntries.filter(
-      (entry) => !isMaterializedVirtualEntry(entry),
-    );
-    return [
-      ...buildVirtualOpeningCarryoverRows({
-        fiscalPeriodId,
-        records: assistState.listOpeningCarryovers(fiscalPeriodId),
-        yearMonth,
-      }),
-      ...buildVirtualFixedAssetRows({
-        fiscalPeriodId,
-        assets: assistState.listFixedAssets(fiscalPeriodId),
-        periodStartDate: currentFiscalPeriod?.startDate ?? null,
-        periodEndDate: currentFiscalPeriod?.endDate ?? null,
-        yearMonth,
-      }),
-      ...buildVirtualBusinessRateTransferRows({
-        fiscalPeriodId,
-        periodStartDate: currentFiscalPeriod?.startDate ?? null,
-        periodEndDate: currentFiscalPeriod?.endDate ?? null,
-        entries: realEntries,
-        assets: assistState.listFixedAssets(fiscalPeriodId),
-        carryovers: assistState.listOpeningCarryovers(fiscalPeriodId),
-        yearMonth,
-      }),
-    ].filter(
-      (row) => !materializedLocalIds.has(virtualEntryLocalId(row.recordId)),
-    );
-  }, [
-    assistState,
-    currentFiscalPeriod?.startDate,
-    currentFiscalPeriod?.endDate,
-    fiscalPeriodId,
-    fullPeriodEntries,
-    yearMonth,
-  ]);
+  const virtualRows = useMemo(
+    () =>
+      fiscalPeriodId == null
+        ? []
+        : buildVirtualEntryRows({
+            fiscalPeriodId,
+            periodStartDate: currentFiscalPeriod?.startDate ?? null,
+            periodEndDate: currentFiscalPeriod?.endDate ?? null,
+            entries: fullPeriodEntries,
+            assets: assistState.listFixedAssets(fiscalPeriodId),
+            carryovers: assistState.listOpeningCarryovers(fiscalPeriodId),
+            yearMonth,
+          }),
+    [
+      assistState,
+      currentFiscalPeriod?.startDate,
+      currentFiscalPeriod?.endDate,
+      fiscalPeriodId,
+      fullPeriodEntries,
+      yearMonth,
+    ],
+  );
   const tableRows = useMemo(
     () =>
       [...rows, ...virtualRows].sort((left, right) => {
@@ -226,10 +200,7 @@ export function EntriesPage() {
       next.set("month", formatYearMonthKey(nextMonth));
       next.delete("entry");
       next.delete("virtualEntry");
-      const query = next.toString();
-      router.replace(query.length > 0 ? `/entries?${query}` : "/entries", {
-        scroll: false,
-      });
+      router.replace(pathWithSearchParams("/entries", next), { scroll: false });
     },
     [
       currentFiscalPeriod?.endDate,
@@ -239,35 +210,14 @@ export function EntriesPage() {
     ],
   );
 
-  const navigateWithEntryParam = useCallback(
-    (entryId: string | null) => {
-      const next = new URLSearchParams(searchParams.toString());
-      next.set("month", yearMonth);
-      next.delete("virtualEntry");
-      if (entryId == null) {
-        next.delete("entry");
-      } else {
-        next.set("entry", entryId);
-      }
-      const query = next.toString();
-      const url = query.length > 0 ? `/entries?${query}` : "/entries";
-      router.replace(url, { scroll: false });
-    },
-    [router, searchParams, yearMonth],
-  );
-  const navigateWithVirtualEntryParam = useCallback(
-    (virtualEntryId: string | null) => {
+  const navigateWithDrawerParam = useCallback(
+    (key: "entry" | "virtualEntry", id: string | null) => {
       const next = new URLSearchParams(searchParams.toString());
       next.set("month", yearMonth);
       next.delete("entry");
-      if (virtualEntryId == null) {
-        next.delete("virtualEntry");
-      } else {
-        next.set("virtualEntry", virtualEntryId);
-      }
-      const query = next.toString();
-      const url = query.length > 0 ? `/entries?${query}` : "/entries";
-      router.replace(url, { scroll: false });
+      next.delete("virtualEntry");
+      if (id != null) next.set(key, id);
+      router.replace(pathWithSearchParams("/entries", next), { scroll: false });
     },
     [router, searchParams, yearMonth],
   );
@@ -275,17 +225,17 @@ export function EntriesPage() {
   const openDrawer = useCallback(
     (entryId: string) => {
       setNewEntryDraft(null);
-      navigateWithEntryParam(entryId);
+      navigateWithDrawerParam("entry", entryId);
     },
-    [navigateWithEntryParam],
+    [navigateWithDrawerParam],
   );
   const closeDrawer = useCallback(
-    () => navigateWithEntryParam(null),
-    [navigateWithEntryParam],
+    () => navigateWithDrawerParam("entry", null),
+    [navigateWithDrawerParam],
   );
   const closeVirtualDrawer = useCallback(
-    () => navigateWithVirtualEntryParam(null),
-    [navigateWithVirtualEntryParam],
+    () => navigateWithDrawerParam("virtualEntry", null),
+    [navigateWithDrawerParam],
   );
   const closeNewEntryDrawer = useCallback(() => {
     setNewEntryDraft(null);
@@ -392,9 +342,9 @@ export function EntriesPage() {
       <EntriesScreen
         monthLabel={`${displayedMonth.year}年${displayedMonth.month}月`}
         rows={tableRows}
-        canGoPrev={canGoPrev}
+        canGoPrevious={canGoPrevious}
         canGoNext={canGoNext}
-        onPrev={() => navigateWithMonth(shiftMonth(displayedMonth, -1))}
+        onPrevious={() => navigateWithMonth(shiftMonth(displayedMonth, -1))}
         onNext={() => navigateWithMonth(shiftMonth(displayedMonth, 1))}
         lockedMessage={screenLockedMessage}
         readOnly={isReadOnlyPeriod || editingLocked}
@@ -408,7 +358,7 @@ export function EntriesPage() {
           lockedMessage == null && !isReadOnlyPeriod && !editingLocked
             ? () => {
                 if (fiscalPeriodId == null) return;
-                navigateWithEntryParam(null);
+                navigateWithDrawerParam("entry", null);
                 setNewEntryDraft(
                   buildNewEntryDraft(
                     resolveNewEntryDefaultDate({
@@ -428,7 +378,7 @@ export function EntriesPage() {
             ? (row) => {
                 if (row.virtual != null) {
                   setNewEntryDraft(null);
-                  navigateWithVirtualEntryParam(row.virtual.id);
+                  navigateWithDrawerParam("virtualEntry", row.virtual.id);
                   return;
                 }
                 if (isReadOnlyPeriod) return;
@@ -564,14 +514,17 @@ function buildNewEntryDraft(
     accountOptions[0];
   return {
     date: defaultDate,
+    description: "",
+    businessRateInput: "",
+    businessRate: null,
     lines: [
       {
+        id: null,
         side: "debit",
         accountName: debit?.name ?? "",
         accountType: debit?.accountType ?? "expense",
         amount: "",
         bookAccountId: debit?.id ?? null,
-        id: null,
         partnerName: null,
         taxCategoryId: null,
         taxCategoryName: "対象外",
@@ -579,12 +532,12 @@ function buildNewEntryDraft(
         businessCategoryName: null,
       },
       {
+        id: null,
         side: "credit",
         accountName: credit?.name ?? "",
         accountType: credit?.accountType ?? "asset",
         amount: "",
         bookAccountId: credit?.id ?? null,
-        id: null,
         partnerName: null,
         taxCategoryId: null,
         taxCategoryName: "対象外",
@@ -592,9 +545,6 @@ function buildNewEntryDraft(
         businessCategoryName: null,
       },
     ],
-    description: "",
-    businessRateInput: "",
-    businessRate: null,
   };
 }
 
@@ -641,10 +591,7 @@ function parseMonthParam(value: string | null): YearMonth | null {
   if (value == null) return null;
   const matched = value.match(/^(\d{4})-(\d{2})$/);
   if (matched == null) return null;
-  const year = Number(matched[1]);
   const month = Number(matched[2]);
-  if (Number.isNaN(year) || Number.isNaN(month) || month < 1 || month > 12) {
-    return null;
-  }
-  return { year, month };
+  if (month < 1 || month > 12) return null;
+  return { year: Number(matched[1]), month };
 }

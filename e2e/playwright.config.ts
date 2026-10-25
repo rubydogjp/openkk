@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const OPENKK_DEV_URL = "http://localhost:4306";
+const OPENKK_DEV_PORT = 4306;
 
 export default defineConfig({
   testDir: "./tests",
@@ -12,13 +12,13 @@ export default defineConfig({
   reporter: [["list"]],
   use: {
     ...devices["Desktop Chrome"],
-    baseURL: OPENKK_DEV_URL,
+    baseURL: `http://localhost:${OPENKK_DEV_PORT}`,
     screenshot: "on",
     trace: "on-first-retry",
   },
   webServer: {
     command: "npm --workspace @rubydogjp/openkk-sim run dev:e2e",
-    port: 4306,
+    port: OPENKK_DEV_PORT,
     reuseExistingServer: false,
     timeout: 180_000,
   },

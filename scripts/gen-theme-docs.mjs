@@ -5,13 +5,14 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(here, "..");
+const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
+const rootDirectory = path.resolve(scriptDirectory, "..");
 const tokensPath = path.join(
-  root,
+  rootDirectory,
   "packages/client-ui/src/shared/design-tokens.ts",
 );
-const outFile = path.join(root, "docs", "theming.md");
+const outputPath = path.join(rootDirectory, "docs", "theming.md");
+const checkOnly = process.argv.includes("--check");
 
 const ts = createRequire(tokensPath)("typescript");
 const { outputText } = ts.transpileModule(readFileSync(tokensPath, "utf8"), {
@@ -24,12 +25,12 @@ const tokens = await import(
   `data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`
 );
 
-const parseVar = (value) => {
+const parseCssVariable = (value) => {
   const match = /^var\((--openkk-[a-z0-9-]+),\s*([\s\S]+)\)$/.exec(value);
   return match ? { name: match[1], fallback: match[2] } : null;
 };
 
-const flat = [
+const flatGroups = [
   ["色 (palette)", tokens.palette, "palette"],
   ["影 (shadows)", tokens.shadows, "shadows"],
   ["フォーカスリング (rings)", tokens.rings, "rings"],
@@ -40,20 +41,23 @@ const flat = [
   ["角丸 (radii)", tokens.radii, "radii"],
 ];
 
-const groups = flat.map(([label, group, key]) => ({
+const groups = flatGroups.map(([label, group, key]) => ({
   label,
   entries: Object.entries(group)
-    .map(([name, value]) => ({ key: `${key}.${name}`, ...parseVar(value) }))
+    .map(([name, value]) => ({
+      key: `${key}.${name}`,
+      ...parseCssVariable(value),
+    }))
     .filter((entry) => entry.name),
 }));
 
 groups.push({
   label: "寸法 (sizes)",
-  entries: Object.entries(tokens.sizes).flatMap(([sub, group]) =>
+  entries: Object.entries(tokens.sizes).flatMap(([sizeGroup, group]) =>
     Object.entries(group)
       .map(([name, value]) => ({
-        key: `sizes.${sub}.${name}`,
-        ...parseVar(value),
+        key: `sizes.${sizeGroup}.${name}`,
+        ...parseCssVariable(value),
       }))
       .filter((entry) => entry.name),
   ),
@@ -63,9 +67,9 @@ groups.push({
   label: "文字スタイル (typography)",
   entries: Object.entries(tokens.typography).flatMap(([token, style]) =>
     Object.entries(style)
-      .map(([prop, value]) => ({
-        key: `typography.${token}.${prop}`,
-        ...parseVar(value),
+      .map(([property, value]) => ({
+        key: `typography.${token}.${property}`,
+        ...parseCssVariable(value),
       }))
       .filter((entry) => entry.name),
   ),
@@ -91,7 +95,7 @@ ${entries
   )
   .join("\n");
 
-const md = `<!-- npm run gen-theme-docs で生成。直接編集しない。 -->
+const markdown = `<!-- npm run gen-theme-docs で生成。直接編集しない。 -->
 
 # テーマの差し替え
 
@@ -145,11 +149,13 @@ const md = `<!-- npm run gen-theme-docs で生成。直接編集しない。 -->
 
 ${tables}`;
 
-if (process.argv.includes("--check")) {
-  if (readFileSync(outFile, "utf8") !== md) {
+if (checkOnly) {
+  if (readFileSync(outputPath, "utf8") !== markdown) {
     throw new Error("Generated theme documentation is stale: docs/theming.md");
   }
 } else {
-  writeFileSync(outFile, md);
-  console.log(`wrote ${path.relative(root, outFile)} (${total} variables)`);
+  writeFileSync(outputPath, markdown);
+  console.log(
+    `wrote ${path.relative(rootDirectory, outputPath)} (${total} variables)`,
+  );
 }

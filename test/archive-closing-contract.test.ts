@@ -15,9 +15,15 @@ import { createMemoryDbAdapter } from "../packages/memory-db-adapter/src/index.j
 import { createOpenkkServer } from "../packages/server/src/index.js";
 
 describe("archived closing reports", () => {
-  it.each((["active", "sold", "disposed"] as const).flatMap((status) =>
-    ["PC", "資".repeat(400), "😀".repeat(200)].map((name) => ({ status, name, nameLength: name.length })),
-  ))(
+  it.each(
+    (["active", "sold", "disposed"] as const).flatMap((status) =>
+      ["PC", "資".repeat(400), "😀".repeat(200)].map((name) => ({
+        status,
+        name,
+        nameLength: name.length,
+      })),
+    ),
+  )(
     "preserves closing amounts after restoring a $status asset with a $nameLength character name",
     async ({ status, name }) => {
       const server = createOpenkkServer(await createMemoryDbAdapter(null), {
@@ -49,8 +55,9 @@ describe("archived closing reports", () => {
         });
       }
       const accounts = await server.masterData.getBookAccounts();
-      const taxes = await server.masterData.getTaxCategories();
-      const businesses = await server.masterData.getBusinessCategories();
+      const taxCategories = await server.masterData.getTaxCategories();
+      const businessCategories =
+        await server.masterData.getBusinessCategories();
       const today = new Date(2026, 11, 31);
       const preview = buildClosingVirtualEntries({
         fiscalPeriodId: period.id,
@@ -60,49 +67,68 @@ describe("archived closing reports", () => {
         assets: [mapFixedAsset(asset, "工具器具備品", today, period.endDate)],
         carryovers: [],
       });
-      expect(preview.every((entry) => entry.description.length <= 400)).toBe(true);
-      expect(preview.every((entry) => !/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(entry.description))).toBe(true);
+      expect(preview.every((entry) => entry.description.length <= 400)).toBe(
+        true,
+      );
+      expect(
+        preview.every(
+          (entry) =>
+            !/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(entry.description),
+        ),
+      ).toBe(true);
       await server.preClosings.run(period.id);
       await server.closings.run(
         period.id,
         preview.map((entry) =>
           entryRecordToImportPayload(entry, {
             accounts,
-            taxCategories: taxes,
-            businessCategories: businesses,
+            taxCategories,
+            businessCategories,
           }),
         ),
       );
       const closed = await server.fiscalPeriods.patch(period.id, {
         documentsReceivedCompleted: true,
       });
-      const zip = createFiscalPeriodArchiveZip(buildFiscalPeriodArchivePayload({
-        createdAt: today.toISOString(),
-        fiscalPeriod: closed,
-        entries: await server.entries.getAll(period.id),
-        fixedAssets: [asset],
-        closings: archiveClosingRecords(closed),
-      }));
-      const restoredServer = createOpenkkServer(await createMemoryDbAdapter(null), {
-        userId: "user-1",
-      });
+      const zip = createFiscalPeriodArchiveZip(
+        buildFiscalPeriodArchivePayload({
+          createdAt: today.toISOString(),
+          fiscalPeriod: closed,
+          entries: await server.entries.getAll(period.id),
+          fixedAssets: [asset],
+          closings: archiveClosingRecords(closed),
+        }),
+      );
+      const restoredServer = createOpenkkServer(
+        await createMemoryDbAdapter(null),
+        {
+          userId: "user-1",
+        },
+      );
       const restored = await restoredServer.fiscalPeriods.importArchived(
         readFiscalPeriodArchiveZip(zip),
       );
-      const restoredAssets = await restoredServer.fixedAssets.getAll(restored.id);
+      const restoredAssets = await restoredServer.fixedAssets.getAll(
+        restored.id,
+      );
       expect(restoredAssets[0]!.id).not.toBe(asset.id);
-      const entries = (await restoredServer.entries.getAll(restored.id)).map((entry) =>
-        entryRecord({
-          ...entry,
-          lines: entry.lines.map((line) => ({
-            ...line,
-            accountName: accounts.find((account) => account.id === line.bookAccountId)!.name,
-            accountType: accounts.find((account) => account.id === line.bookAccountId)!.accountType,
-            amount: String(line.amount),
-            taxCategoryName: null,
-            businessCategoryName: null,
-          })),
-        }),
+      const entries = (await restoredServer.entries.getAll(restored.id)).map(
+        (entry) =>
+          entryRecord({
+            ...entry,
+            lines: entry.lines.map((line) => ({
+              ...line,
+              accountName: accounts.find(
+                (account) => account.id === line.bookAccountId,
+              )!.name,
+              accountType: accounts.find(
+                (account) => account.id === line.bookAccountId,
+              )!.accountType,
+              amount: String(line.amount),
+              taxCategoryName: null,
+              businessCategoryName: null,
+            })),
+          }),
       );
       const reportEntries = withClosingVirtualEntries({
         fiscalPeriodId: restored.id,
@@ -117,7 +143,9 @@ describe("archived closing reports", () => {
       });
 
       expect(reportEntries).toEqual(entries);
-      expect(computeFsAggregate({ entries: reportEntries, openingBalanceLines: [] })).toEqual(
+      expect(
+        computeFsAggregate({ entries: reportEntries, openingBalanceLines: [] }),
+      ).toEqual(
         computeFsAggregate({ entries: preview, openingBalanceLines: [] }),
       );
     },

@@ -2,7 +2,7 @@ import type {
   BookAccountType,
   EntryLine,
   EntryRecord,
-  FixedAsset,
+  FixedAssetApiRecord,
   OpeningBalanceLine,
 } from "@rubydogjp/openkk-client";
 
@@ -775,112 +775,90 @@ export function buildDemoEntries(): EntryRecord[] {
   );
 }
 
-export const demoFixedAssetItems: FixedAsset[] = [
+export type DemoFixedAsset = Pick<
+  FixedAssetApiRecord,
+  | "id"
+  | "name"
+  | "bookAccountId"
+  | "status"
+  | "acquisitionDate"
+  | "acquisitionCost"
+  | "usefulLife"
+  | "businessRate"
+  | "disposalDate"
+  | "disposalPrice"
+>;
+
+export const demoFixedAssetItems: DemoFixedAsset[] = [
   {
     id: "fa-1",
-    fiscalPeriodId: "fp-2026",
     name: "MacBook Pro 14インチ",
-    accountName: "工具器具備品",
     bookAccountId: "acct_equipment",
-    depreciationStartLabel: "2025年6月〜",
-    remainingDepreciationLabel: "残り 30か月",
-    depreciationProgress: 0.38,
-    currentBookValue: 283_500,
     status: "active",
     acquisitionDate: "2025-06-15",
+    acquisitionCost: 378_000,
     usefulLife: 4,
     businessRate: 0.8,
-    acquisitionCost: 378_000,
     disposalDate: null,
     disposalPrice: null,
   },
   {
     id: "fa-2",
-    fiscalPeriodId: "fp-2026",
     name: "業務用デスク・チェアセット",
-    accountName: "工具器具備品",
     bookAccountId: "acct_equipment",
-    depreciationStartLabel: "2023年8月〜",
-    remainingDepreciationLabel: "残り 56か月",
-    depreciationProgress: 0.42,
-    currentBookValue: 92_188,
     status: "active",
     acquisitionDate: "2023-08-20",
+    acquisitionCost: 147_500,
     usefulLife: 8,
     businessRate: 1,
-    acquisitionCost: 147_500,
     disposalDate: null,
     disposalPrice: null,
   },
   {
     id: "fa-3",
-    fiscalPeriodId: "fp-2026",
     name: "社用車(軽自動車)",
-    accountName: "車両運搬具",
     bookAccountId: "acct_vehicle",
-    depreciationStartLabel: "2024年3月〜",
-    remainingDepreciationLabel: "残り 38か月",
-    depreciationProgress: 0.47,
-    currentBookValue: 888_000,
     status: "active",
     acquisitionDate: "2024-03-10",
+    acquisitionCost: 1_480_000,
     usefulLife: 6,
     businessRate: 0.7,
-    acquisitionCost: 1_480_000,
     disposalDate: null,
     disposalPrice: null,
   },
   {
     id: "fa-4",
-    fiscalPeriodId: "fp-2026",
     name: "4Kモニター 27インチ",
-    accountName: "工具器具備品",
     bookAccountId: "acct_equipment",
-    depreciationStartLabel: "2026年4月〜",
-    remainingDepreciationLabel: "残り 52か月",
-    depreciationProgress: 0.13,
-    currentBookValue: 50_240,
     status: "active",
     acquisitionDate: "2026-04-03",
+    acquisitionCost: 62_800,
     usefulLife: 5,
     businessRate: 1,
-    acquisitionCost: 62_800,
     disposalDate: null,
     disposalPrice: null,
   },
   {
     id: "fa-5",
-    fiscalPeriodId: "fp-2026",
     name: "撮影用ミラーレス一眼",
-    accountName: "機械装置",
     bookAccountId: "acct_machine",
-    depreciationStartLabel: "2024年10月〜2026年9月",
-    remainingDepreciationLabel: "売却済み",
-    depreciationProgress: 0.68,
-    currentBookValue: 112_000,
     status: "sold",
     acquisitionDate: "2024-10-01",
+    acquisitionCost: 248_000,
     usefulLife: 5,
     businessRate: 1,
     disposalDate: "2026-09-30",
     disposalPrice: 130_000,
-    acquisitionCost: 248_000,
   },
   {
     id: "fa-6",
-    fiscalPeriodId: "fp-2026",
     name: "プリンター複合機",
-    accountName: "工具器具備品",
     bookAccountId: "acct_equipment",
-    depreciationStartLabel: "2023年4月〜2026年3月",
-    remainingDepreciationLabel: "除却済み",
-    depreciationProgress: 1,
-    currentBookValue: 0,
     status: "disposed",
     acquisitionDate: "2023-04-01",
+    acquisitionCost: 89_500,
     usefulLife: 5,
     businessRate: 1,
-    acquisitionCost: 89_500,
     disposalDate: "2026-03-31",
     disposalPrice: null,
   },
