@@ -205,7 +205,7 @@ describe("entry scenario rows", () => {
           acquisitionCost: 1_200_000,
           usefulLife: 5,
           businessRate: 1,
-          status: "売却済",
+          status: "sold",
           disposalDate: "2026-06-15",
           disposalPrice: 700_000,
         }),
@@ -258,7 +258,7 @@ describe("entry scenario rows", () => {
           acquisitionCost: 1_200_000,
           usefulLife: 5,
           businessRate: 1,
-          status: "廃棄済",
+          status: "disposed",
           disposalDate: "2026-06-15",
         }),
       ],
@@ -306,7 +306,7 @@ describe("entry scenario rows", () => {
           acquisitionCost: 1_200_000,
           usefulLife: 5,
           businessRate: 1,
-          status: "売却済",
+          status: "sold",
           disposalDate: "2026-06-15",
           disposalPrice: 700_000,
         }),
@@ -456,9 +456,8 @@ function plTotals(rows: ReturnType<typeof recordToPreviewRows>): {
   let expenses = 0;
   for (const source of rows) {
     const row: EntrySummaryRow = entryRecord(source);
-    const rate = row.businessRate;
-    revenue += computeRevenueContribution(row, rate);
-    expenses += computeExpenseContribution(row, rate);
+    revenue += computeRevenueContribution(row);
+    expenses += computeExpenseContribution(row);
   }
   return { revenue, expenses, profit: revenue - expenses };
 }
@@ -471,7 +470,7 @@ function fixedAsset(
     name: "資産",
     accountName: "工具器具備品",
     bookAccountId: "acct_equipment",
-    status: "償却中",
+    status: "active",
     fiscalPeriodId: "fp-2026",
     acquisitionDate: "2026-01-01",
     acquisitionCost: 1,

@@ -18,7 +18,10 @@ import {
   buildPeriodLockMessage,
   compareYearMonth,
   formatIsoLocalDate,
+  formatYearMonthKey,
+  isMaterializedVirtualEntry,
   parseYearMonth,
+  virtualEntryLocalId,
   type EntryPreviewRow,
   type YearMonth,
 } from "@rubydogjp/openkk-client-domain";
@@ -117,7 +120,7 @@ export function EntriesPage() {
   const canGoNext =
     periodEndMonth == null ||
     compareYearMonth(displayedMonth, periodEndMonth) < 0;
-  const yearMonth = formatYearMonth(displayedMonth);
+  const yearMonth = formatYearMonthKey(displayedMonth);
   const lockedMessage = buildPeriodLockMessage(
     currentFiscalPeriod,
     "仕訳を記録できます",
@@ -150,7 +153,7 @@ export function EntriesPage() {
         ),
     );
     const realEntries = fullPeriodEntries.filter(
-      (entry) => entry.localId == null || !entry.localId.startsWith("virtual:"),
+      (entry) => !isMaterializedVirtualEntry(entry),
     );
     return [
       ...buildVirtualOpeningCarryoverRows({
@@ -175,7 +178,7 @@ export function EntriesPage() {
         yearMonth,
       }),
     ].filter(
-      (row) => !materializedLocalIds.has(`virtual:${row.recordId}`),
+      (row) => !materializedLocalIds.has(virtualEntryLocalId(row.recordId)),
     );
   }, [
     assistState,
@@ -220,7 +223,7 @@ export function EntriesPage() {
       setDisplayedMonth(nextMonth);
       setNewEntryDraft(null);
       const next = new URLSearchParams(searchParams.toString());
-      next.set("month", formatYearMonth(nextMonth));
+      next.set("month", formatYearMonthKey(nextMonth));
       next.delete("entry");
       next.delete("virtualEntry");
       const query = next.toString();
@@ -367,7 +370,7 @@ export function EntriesPage() {
       return;
     }
     const manualEntriesForFileExport = fullPeriodEntries.filter(
-      (entry) => !entry.localId?.startsWith("virtual:"),
+      (entry) => !isMaterializedVirtualEntry(entry),
     );
     const data =
       kind === "json"
@@ -547,10 +550,6 @@ function shiftMonth(month: YearMonth, offset: number): YearMonth {
   };
 }
 
-function formatYearMonth(month: YearMonth): string {
-  return `${month.year}-${String(month.month).padStart(2, "0")}`;
-}
-
 function buildNewEntryDraft(
   defaultDate: string,
   accountOptions: EntryMasterAccountOption[],
@@ -614,7 +613,7 @@ function resolveNewEntryDefaultDate(input: {
     return todayText;
   }
 
-  const displayedMonthFirstDate = `${formatYearMonth(input.displayedMonth)}-01`;
+  const displayedMonthFirstDate = `${formatYearMonthKey(input.displayedMonth)}-01`;
   if (
     input.periodStartDate != null &&
     input.periodEndDate != null &&

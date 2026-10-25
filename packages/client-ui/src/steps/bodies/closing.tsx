@@ -6,6 +6,7 @@ import {
   AppError,
   buildClosingVirtualEntries,
   computeFsAggregate,
+  isMaterializedVirtualEntry,
   withClosingVirtualEntries,
 } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text.js";
@@ -22,7 +23,7 @@ import { CheckCircleIcon } from "../../shared/icons.js";
 import { useConfirmDialog } from "../../shared/confirm-dialog.js";
 import { PlBsDiagramSection } from "../../shared/pl-bs-diagram.js";
 import { DocumentFileList } from "../../shared/document-file-tile.js";
-import { useStepDocumentPrinters } from "../use-step-document-printers.js";
+import { useStepDocuments } from "../use-step-documents.js";
 import { ClosingExplainerAnimation } from "../closing-animation.js";
 import { LockButton } from "../../shared/locked-action.js";
 import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
@@ -43,8 +44,8 @@ export function ClosingBody({
   onSwitchToStep,
   onBusyChange,
 }: {
-  onSwitchToStep: ((no: number) => void) | null;
-  onBusyChange: ((busy: boolean) => void) | null;
+  onSwitchToStep: (no: number) => void;
+  onBusyChange: (busy: boolean) => void;
 }) {
   const appState = useOpenkkAppState();
   const config = useOpenkkConfig();
@@ -58,11 +59,10 @@ export function ClosingBody({
   const [animationKey, setAnimationKey] = useState(0);
   const closingMutationLock = useRef(new ExclusiveActionLock());
   const currentFiscalPeriod = appState.currentFiscalPeriod;
-  const { printJournal, printGeneralLedger, printFinancialStatements } =
-    useStepDocumentPrinters(currentFiscalPeriod);
+  const documents = useStepDocuments(currentFiscalPeriod);
 
   useEffect(() => {
-    return () => onBusyChange?.(false);
+    return () => onBusyChange(false);
   }, [onBusyChange]);
 
   const fsSummary = useMemo(() => {
@@ -87,7 +87,7 @@ export function ClosingBody({
     currentFiscalPeriod?.phase === "post_closing" &&
     fsSummary != null;
   useEffect(() => {
-    if (closingResultShown) onBusyChange?.(false);
+    if (closingResultShown) onBusyChange(false);
   }, [closingResultShown, onBusyChange]);
 
   if (currentFiscalPeriod == null) {
@@ -111,11 +111,10 @@ export function ClosingBody({
           "1つ前の手順に戻り、ロックを解除して再び編集できるようにします。",
         ],
         confirmLabel: "取り消す",
-        cancelLabel: null,
       });
       if (!confirmed) return;
       try {
-        await closingApi.cancelPreClosing(currentFiscalPeriod);
+        await closingApi.cancelPreClosing(currentFiscalPeriod.id);
         setScreenError(null);
       } catch (error) {
         setScreenError(
@@ -144,13 +143,12 @@ export function ClosingBody({
           "仮書類を十分にプレビューし、間違いがないことをチェックした上で実行してください。",
         ],
         confirmLabel: "実行する",
-        cancelLabel: null,
       });
       if (!confirmed) return;
 
-      onBusyChange?.(true);
+      onBusyChange(true);
       setShowRunningAnimation(true);
-      setAnimationKey((k) => k + 1);
+      setAnimationKey((key) => key + 1);
       try {
         const entries = prepareAssistEntriesForFinalClosing({
           fiscalPeriodId: currentFiscalPeriod.id,
@@ -159,12 +157,12 @@ export function ClosingBody({
           assistState,
           entriesState,
         });
-        await closingApi.runFinal(currentFiscalPeriod, entries);
+        await closingApi.runFinal(currentFiscalPeriod.id, entries);
         await entriesState.reloadAndWait();
         setScreenError(null);
       } catch (error) {
         setShowRunningAnimation(false);
-        onBusyChange?.(false);
+        onBusyChange(false);
         setScreenError(
           AppError.from(error, {
             fallbackUserMessage: "本締めに失敗しました",
@@ -206,10 +204,7 @@ export function ClosingBody({
             justifyContent: "flex-start",
           }}
         >
-          <StepSecondaryButton
-            onClick={() => onSwitchToStep?.(3)}
-            disabled={false}
-          >
+          <StepSecondaryButton onClick={() => onSwitchToStep(3)}>
             前の手順へ
           </StepSecondaryButton>
         </div>
@@ -222,11 +217,12 @@ export function ClosingBody({
             <StepSectionLabel>仮書類をチェック</StepSectionLabel>
             <DocumentFileList
               actionLabel="確認する"
-              items={[
-                { label: "仮_仕訳帳.pdf", onClick: printJournal, description: null, active: true },
-                { label: "仮_総勘定元帳.pdf", onClick: printGeneralLedger, description: null, active: true },
-                { label: "仮_財務諸表.pdf", onClick: printFinancialStatements, description: null, active: true },
-              ]}
+              items={documents.map((stepDocument) => ({
+                label: `仮_${stepDocument.name}.pdf`,
+                description: stepDocument.description,
+                active: true,
+                onClick: stepDocument.print,
+              }))}
             />
           </section>
         </>
@@ -263,7 +259,7 @@ export function ClosingBody({
               }}
             >
               <StepPrimaryButton
-                onClick={() => onSwitchToStep?.(5)}
+                onClick={() => onSwitchToStep(5)}
                 disabled={false}
                 variant={null}
                 icon={null}
@@ -280,7 +276,7 @@ export function ClosingBody({
           <StepSpacer height={null} />
           <section>
             <StepSectionLabel>選択</StepSectionLabel>
-            <ActionGrid columns={2}>
+            <ActionGrid>
               <ActionChoiceCard
                 icon={<UndoIcon color={palette.textLabel} />}
                 title="前の手順に戻る"
@@ -289,10 +285,7 @@ export function ClosingBody({
                   editingLocked ? (
                     <LockButton label="取り消す" />
                   ) : (
-                    <StepSecondaryButton
-                      onClick={handleCancelPreClosing}
-                      disabled={false}
-                    >
+                    <StepSecondaryButton onClick={handleCancelPreClosing}>
                       取り消す
                     </StepSecondaryButton>
                   )
@@ -346,7 +339,7 @@ function prepareAssistEntriesForFinalClosing(input: {
 }) {
   const manualEntriesForFinalClosing = input.entriesState
     .listFiscalPeriodEntries(input.fiscalPeriodId)
-    .filter((entry) => !entry.localId?.startsWith("virtual:"));
+    .filter((entry) => !isMaterializedVirtualEntry(entry));
   const entries = buildClosingVirtualEntries({
     fiscalPeriodId: input.fiscalPeriodId,
     periodStartDate: input.periodStartDate,

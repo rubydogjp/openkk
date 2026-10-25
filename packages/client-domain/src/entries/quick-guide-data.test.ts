@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_BOOK_ACCOUNTS } from "./default-master-data.js";
+import { DEFAULT_BOOK_ACCOUNTS } from "./generated-master-data.js";
 import {
   guideOptions,
   guideTitle,

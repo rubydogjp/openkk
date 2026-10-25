@@ -4,17 +4,14 @@ import {
   DEFAULT_FISCAL_PERIOD_POLICY,
   type OpenkkConfig,
 } from "@rubydogjp/openkk-client";
-import { parseOpenkkEnv } from "@rubydogjp/openkk-frontend";
 
 const BUNDLE = "demo";
 
-const env = parseOpenkkEnv(process.env.NEXT_PUBLIC_OPENKK_ENV ?? null);
 const userId = "openkk-demo-user";
 const fixedToday = new Date(2026, 8, 5);
 
 export const openkkConfig: OpenkkConfig = {
   clock: createFixedClock(fixedToday),
-  env,
   bundleLabel: "デモ版",
   authMode: "embedded",
   embeddedUser: {

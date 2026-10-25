@@ -6,7 +6,7 @@ import { palette, radii, sizes, spacing, typography } from "./design-tokens.js";
 
 export type DocumentFileItem = {
   label: string;
-  description: string | null;
+  description: string;
   active: boolean;
   onClick: (() => void) | null;
 };
@@ -16,7 +16,7 @@ export function DocumentFileList({
   actionLabel,
 }: {
   items: DocumentFileItem[];
-  actionLabel: string | null;
+  actionLabel: string;
 }) {
   return (
     <div style={listStyle}>
@@ -24,7 +24,7 @@ export function DocumentFileList({
         <DocumentFileTile
           key={item.label}
           {...item}
-          actionLabel={actionLabel ?? "受け取る"}
+          actionLabel={actionLabel}
           showDivider={index > 0}
         />
       ))}
@@ -40,7 +40,6 @@ function DocumentFileTile(
 ) {
   const isActive = props.active;
   const isClickable = isActive && props.onClick != null;
-  const description = props.description ?? documentDescription(props.label);
   return (
     <div
       style={{
@@ -70,7 +69,7 @@ function DocumentFileTile(
           {props.label}
         </span>
         <span style={{ ...typography.helper, color: palette.textSoft }}>
-          {description}
+          {props.description}
         </span>
       </span>
       <button
@@ -86,19 +85,6 @@ function DocumentFileTile(
       </button>
     </div>
   );
-}
-
-function documentDescription(label: string): string {
-  if (label.includes("仕訳帳")) {
-    return "日付順に並んだ, すべての取引記録";
-  }
-  if (label.includes("総勘定元帳")) {
-    return "種類ごとに並び替えて整理された記録";
-  }
-  if (label.includes("財務諸表")) {
-    return "一般に PL, BS と呼ばれる書類";
-  }
-  return "";
 }
 
 const listStyle: CSSProperties = {

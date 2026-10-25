@@ -20,6 +20,8 @@ const profit: BalanceSheetSlot = { kind: "profit" };
 
 export const ALLOWANCE_FOR_DOUBTFUL_ACCOUNTS = "貸倒引当金";
 
+export const OPENING_EQUITY_LABELS = new Set<string>(["事業主借", "元入金"]);
+
 export const BALANCE_SHEET_ROWS: ReadonlyArray<BalanceSheetRow> = [
   { asset: account("現金"), liability: account("支払手形") },
   { asset: account("当座預金"), liability: account("買掛金") },

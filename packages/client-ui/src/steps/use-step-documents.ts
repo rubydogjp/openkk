@@ -15,9 +15,15 @@ import {
   usePrintDocument,
 } from "@rubydogjp/openkk-client-usecases";
 
-export function useStepDocumentPrinters(
+export type StepDocument = {
+  name: string;
+  description: string;
+  print: () => void;
+};
+
+export function useStepDocuments(
   fiscalPeriod: FiscalPeriod | null,
-) {
+): StepDocument[] {
   const entriesState = useOpenkkEntries();
   const assistState = useOpenkkAssist();
   const printDocument = usePrintDocument();
@@ -40,30 +46,41 @@ export function useStepDocumentPrinters(
 
   const printGeneralLedger = () => {
     if (fiscalPeriod == null) return;
-    const openingBalanceLines = fiscalPeriod.opening.balanceLines;
     printDocument(
       buildGeneralLedgerDocument(
         closingEntries(fiscalPeriod),
-        openingBalanceLines,
+        fiscalPeriod.opening.balanceLines,
       ),
     );
   };
 
   const printFinancialStatements = () => {
     if (fiscalPeriod == null) return;
-    const openingBalanceLines = fiscalPeriod.opening.balanceLines;
-    const { amounts, bsRows, expenseWriteIns } = computeFsAggregate({
-      entries: closingEntries(fiscalPeriod),
-      openingBalanceLines,
-    });
     printDocument(
-      buildFinancialStatementsDocument({
-        amounts,
-        bsRows,
-        expenseWriteIns,
-      }),
+      buildFinancialStatementsDocument(
+        computeFsAggregate({
+          entries: closingEntries(fiscalPeriod),
+          openingBalanceLines: fiscalPeriod.opening.balanceLines,
+        }),
+      ),
     );
   };
 
-  return { printJournal, printGeneralLedger, printFinancialStatements };
+  return [
+    {
+      name: "仕訳帳",
+      description: "日付順に並んだ, すべての取引記録",
+      print: printJournal,
+    },
+    {
+      name: "総勘定元帳",
+      description: "種類ごとに並び替えて整理された記録",
+      print: printGeneralLedger,
+    },
+    {
+      name: "財務諸表",
+      description: "一般に PL, BS と呼ばれる書類",
+      print: printFinancialStatements,
+    },
+  ];
 }

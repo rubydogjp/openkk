@@ -1,10 +1,10 @@
 import type { EntryRecord } from "../entries/entry-record.js";
 import type { OpeningBalanceLine } from "../shared/models.js";
 import { parseAmount } from "../shared/parse-utils.js";
-import { OPENING_EQUITY_LABELS } from "../steps/summary.js";
 import {
   ALLOWANCE_FOR_DOUBTFUL_ACCOUNTS,
   BALANCE_SHEET_ROWS,
+  OPENING_EQUITY_LABELS,
   balanceSheetExtraSlotCount,
   balanceSheetRowLabel,
   type BalanceSheetSlot,
@@ -19,7 +19,7 @@ export type FsBsRow = {
   liabilityClosing: number | null;
 };
 
-export type FsExpenseWriteIn = { label: string; amount: number };
+export type FsExpenseWriteIn = { row: number; label: string; amount: number };
 
 export type FsSummary = {
   revenue: number;
@@ -36,6 +36,35 @@ export type FsAggregate = {
   expenseWriteIns: FsExpenseWriteIn[];
   summary: FsSummary;
 };
+
+const NAMED_EXPENSE_ACCOUNTS = new Set<string>([
+  "租税公課",
+  "荷造運賃",
+  "水道光熱費",
+  "旅費交通費",
+  "通信費",
+  "広告宣伝費",
+  "接待交際費",
+  "保険料",
+  "修繕費",
+  "消耗品費",
+  "減価償却費",
+  "福利厚生費",
+  "給与手当",
+  "外注費",
+  "支払利息",
+  "地代家賃",
+  "貸倒損失",
+  "会議費",
+  "雑費",
+]);
+
+const RESERVE_AND_FAMILY_ACCOUNTS = new Set<string>([
+  "専従者給与",
+  "貸倒引当金繰入",
+]);
+
+const EXPENSE_WRITE_IN_ROWS = [26, 27, 28, 29, 30];
 
 function addAmount(map: Map<string, number>, name: string, delta: number) {
   if (!name) return;
@@ -240,33 +269,6 @@ export function computeFsAggregate({
   const purchasesAmount = sumByNames(costOfSalesByName, ["仕入", "商品仕入高"]);
   const purchases = purchasesAmount > 0 ? purchasesAmount : null;
 
-  const NAMED_EXPENSE_ACCOUNTS = new Set<string>([
-    "租税公課",
-    "荷造運賃",
-    "水道光熱費",
-    "旅費交通費",
-    "通信費",
-    "広告宣伝費",
-    "接待交際費",
-    "保険料",
-    "修繕費",
-    "消耗品費",
-    "減価償却費",
-    "福利厚生費",
-    "給与手当",
-    "外注費",
-    "支払利息",
-    "地代家賃",
-    "貸倒損失",
-    "会議費",
-    "雑費",
-  ]);
-
-  const RESERVE_AND_FAMILY_ACCOUNTS = new Set<string>([
-    "専従者給与",
-    "貸倒引当金繰入",
-  ]);
-  const WRITE_IN_SLOT_COUNT = 4;
   const writeInCandidates = [...expenseByName.entries()]
     .filter(
       ([name, value]) =>
@@ -275,15 +277,19 @@ export function computeFsAggregate({
         !RESERVE_AND_FAMILY_ACCOUNTS.has(name),
     )
     .sort((left, right) => right[1] - left[1]);
-  const expenseWriteIns = writeInCandidates
-    .slice(0, WRITE_IN_SLOT_COUNT)
-    .map(([label, amount]) => ({ label, amount }));
+  const expenseWriteIns: FsExpenseWriteIn[] = writeInCandidates
+    .slice(0, EXPENSE_WRITE_IN_ROWS.length)
+    .map(([label, amount], slot) => ({
+      row: EXPENSE_WRITE_IN_ROWS[slot]!,
+      label,
+      amount,
+    }));
   const writeInOverflow = writeInCandidates
-    .slice(WRITE_IN_SLOT_COUNT)
+    .slice(EXPENSE_WRITE_IN_ROWS.length)
     .reduce((sum, [, value]) => sum + value, 0);
   const miscTotal = (expenseByName.get("雑費") ?? 0) + writeInOverflow;
-  const writeInAmount = (slot: number): number | null =>
-    expenseWriteIns[slot] ? expenseWriteIns[slot]!.amount : null;
+  const writeInAmount = (row: number): number | null =>
+    expenseWriteIns.find((writeIn) => writeIn.row === row)?.amount ?? null;
 
   const amounts: Record<number, number | null> = {
     1: salesForDisplay !== 0 ? salesForDisplay : null,
@@ -310,12 +316,12 @@ export function computeFsAggregate({
     22: expense("支払利息"),
     23: expense("地代家賃"),
     24: expense("貸倒損失"),
-    25: null,
-    26: expense("会議費"),
-    27: writeInAmount(0),
-    28: writeInAmount(1),
-    29: writeInAmount(2),
-    30: writeInAmount(3),
+    25: expense("会議費"),
+    26: writeInAmount(26),
+    27: writeInAmount(27),
+    28: writeInAmount(28),
+    29: writeInAmount(29),
+    30: writeInAmount(30),
     31: miscTotal > 0 ? miscTotal : null,
     32: operatingExpensesForDisplay,
     33: ordinaryIncomeForDisplay,

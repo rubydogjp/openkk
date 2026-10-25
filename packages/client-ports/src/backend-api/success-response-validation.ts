@@ -48,7 +48,7 @@ export function isValidSuccessBody(
     case "entryImportMany":
       return (
         isObject(body) &&
-        isNonNegativeInteger(body.importedCount) &&
+        isNonNegativeSafeInteger(body.importedCount) &&
         isEntryRecordArray(body.entries) &&
         body.importedCount === body.entries.length
       );
@@ -438,21 +438,9 @@ function isIsoDateString(value: unknown): value is string {
   );
 }
 
-function isNonNegativeInteger(value: unknown): value is number {
-  return Number.isInteger(value) && Number(value) >= 0;
-}
-
 function isArrayOf<T>(
   value: unknown,
   predicate: (item: unknown) => item is T,
-): value is T[];
-function isArrayOf(
-  value: unknown,
-  predicate: (item: unknown) => boolean,
-): boolean;
-function isArrayOf(
-  value: unknown,
-  predicate: (item: unknown) => boolean,
-): boolean {
+): value is T[] {
   return Array.isArray(value) && value.every(predicate);
 }

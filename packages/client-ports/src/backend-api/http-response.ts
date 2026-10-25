@@ -22,7 +22,7 @@ export function resolveOpenkkHttpResponse<Key extends OpenkkHttpEndpointKey>(
       throw {
         messageForDeveloper: `${key} returned a malformed success response`,
         messageForUser: "バックエンドから不正な応答を受信しました",
-        originalMessage: summarizeResponseBody(response.body),
+        originalMessage: stringifyUnknown(response.body),
         statusCode: response.status,
         code: null,
       } satisfies OpenkkApiErrorDto;
@@ -43,7 +43,7 @@ export function resolveOpenkkHttpResponse<Key extends OpenkkHttpEndpointKey>(
         response.status >= 500
           ? "サーバー処理でエラーが発生しました"
           : "リクエストを処理できませんでした",
-      originalMessage: summarizeResponseBody(response.body),
+      originalMessage: stringifyUnknown(response.body),
       statusCode: response.status,
       code: null,
     } satisfies OpenkkApiErrorDto;
@@ -52,7 +52,7 @@ export function resolveOpenkkHttpResponse<Key extends OpenkkHttpEndpointKey>(
   throw {
     messageForDeveloper: `${key} expected HTTP ${endpoint.successStatus} but received ${response.status}`,
     messageForUser: "バックエンドから不正な応答を受信しました",
-    originalMessage: summarizeResponseBody(response.body),
+    originalMessage: stringifyUnknown(response.body),
     statusCode: Number.isInteger(response.status) ? response.status : null,
     code: null,
   } satisfies OpenkkApiErrorDto;
@@ -107,11 +107,6 @@ function isHttpStatus(value: unknown): value is number {
   );
 }
 
-function summarizeResponseBody(body: unknown): string | null {
-  if (body === undefined || body === null) return null;
-  return stringifyUnknown(body);
-}
-
 function stringifyUnknown(value: unknown): string | null {
   if (value == null) return null;
   if (typeof value === "string") {
@@ -132,12 +127,20 @@ function stringifyUnknown(value: unknown): string | null {
   }
 }
 
+const MAX_SUMMARY_STRING_LENGTH = 500;
+const MAX_SUMMARY_COLLECTION_SIZE = 20;
+const MAX_SUMMARY_DEPTH = 4;
+const MAX_SUMMARY_NODES = 100;
+const MAX_RESPONSE_SUMMARY_LENGTH = 2_000;
+
 function toBoundedSummaryValue(value: unknown): unknown {
   const seen = new WeakSet<object>();
-  let remainingNodes = 100;
+  let remainingNodes = MAX_SUMMARY_NODES;
   const visit = (current: unknown, depth: number): unknown => {
     if (typeof current === "string") {
-      return current.length <= 500 ? current : `${current.slice(0, 500)}…`;
+      return current.length <= MAX_SUMMARY_STRING_LENGTH
+        ? current
+        : `${current.slice(0, MAX_SUMMARY_STRING_LENGTH)}…`;
     }
     if (
       current == null ||
@@ -148,31 +151,32 @@ function toBoundedSummaryValue(value: unknown): unknown {
     }
     if (typeof current !== "object") return String(current);
     if (seen.has(current)) return "[circular]";
-    if (depth >= 4 || remainingNodes <= 0) return "[truncated]";
+    if (depth >= MAX_SUMMARY_DEPTH || remainingNodes <= 0) return "[truncated]";
     seen.add(current);
     remainingNodes -= 1;
     if (Array.isArray(current)) {
-      const result = current.slice(0, 20).map((item) => visit(item, depth + 1));
-      if (current.length > 20) {
-        result.push(`[${current.length - 20} more items]`);
+      const result = current
+        .slice(0, MAX_SUMMARY_COLLECTION_SIZE)
+        .map((item) => visit(item, depth + 1));
+      if (current.length > MAX_SUMMARY_COLLECTION_SIZE) {
+        result.push(
+          `[${current.length - MAX_SUMMARY_COLLECTION_SIZE} more items]`,
+        );
       }
       return result;
     }
     const result: Record<string, unknown> = {};
     const keys = Object.keys(current);
-    for (const key of keys.slice(0, 20)) {
-      result[key] = visit(
-        (current as Record<string, unknown>)[key],
-        depth + 1,
-      );
+    for (const key of keys.slice(0, MAX_SUMMARY_COLLECTION_SIZE)) {
+      result[key] = visit((current as Record<string, unknown>)[key], depth + 1);
     }
-    if (keys.length > 20) result["…"] = `${keys.length - 20} more keys`;
+    if (keys.length > MAX_SUMMARY_COLLECTION_SIZE) {
+      result["…"] = `${keys.length - MAX_SUMMARY_COLLECTION_SIZE} more keys`;
+    }
     return result;
   };
   return visit(value, 0);
 }
-
-const MAX_RESPONSE_SUMMARY_LENGTH = 2_000;
 
 function truncateSummary(value: string): string {
   return value.length <= MAX_RESPONSE_SUMMARY_LENGTH

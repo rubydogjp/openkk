@@ -12,7 +12,7 @@ export function createOpenkkEmbeddedBackend(
   db: OpenkkDbPort,
   config: OpenkkEmbeddedBackendConfig,
 ): OpenkkServerPort {
-  return createOpenkkServer(db, { userId: config.userId });
+  return createOpenkkServer(db, config);
 }
 
 export type { OpenkkDbPort };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   BackendApiProvider,
   BrandConfigProvider,
@@ -32,7 +32,7 @@ type OpenkkBootPhase =
 
 export function OpenkkAppProviders(props: {
   runtime: OpenkkBundleRuntime;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   const { runtime } = props;
   const [backendApi, setBackendApi] = useState<OpenkkBackendPort | null>(null);

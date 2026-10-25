@@ -51,7 +51,7 @@ it("restores an archive containing multiple entry import batches", async () => {
     lines: lines.map(({ side, bookAccountId, amount, partnerName, taxCategoryId, businessCategoryId }) => ({
       side, bookAccountId, amount, partnerName, taxCategoryId, businessCategoryId,
     })),
-  })).sort((a, b) => a.localId!.localeCompare(b.localId!));
+  })).sort((left, right) => left.localId!.localeCompare(right.localId!));
   expect(restoredEntries).toHaveLength(10_002);
   expect(content(restoredEntries)).toEqual(content(entries));
 }, 30_000);

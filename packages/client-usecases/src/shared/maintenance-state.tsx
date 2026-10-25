@@ -54,13 +54,13 @@ export function OpenkkMaintenanceProvider(props: { children: ReactNode }) {
         refreshVersions.current.isCurrent(refreshVersion) &&
         isMaintenanceModeError(error)
       ) {
-        setStatus((prev) => prev ?? FALLBACK_MAINTENANCE_STATUS);
+        setStatus((current) => current ?? FALLBACK_MAINTENANCE_STATUS);
       }
     }
   }, [api]);
 
   const enterMaintenance = useCallback(() => {
-    setStatus((prev) => prev ?? FALLBACK_MAINTENANCE_STATUS);
+    setStatus((current) => current ?? FALLBACK_MAINTENANCE_STATUS);
     void refreshStatus();
   }, [refreshStatus]);
 

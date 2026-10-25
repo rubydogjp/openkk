@@ -33,7 +33,7 @@ import {
 export function FiscalPeriodSettingsBody({
   onSwitchToStep,
 }: {
-  onSwitchToStep: ((stepNo: number) => void) | null;
+  onSwitchToStep: (no: number) => void;
 }) {
   const appState = useOpenkkAppState();
   const config = useOpenkkConfig();
@@ -123,7 +123,6 @@ export function FiscalPeriodSettingsBody({
         "内容に間違いがないことを確認した上で開始してください。",
       ],
       confirmLabel: "開始する",
-      cancelLabel: null,
     });
     if (!confirmed) {
       release();
@@ -222,7 +221,7 @@ export function FiscalPeriodSettingsBody({
           }}
         >
           <StepPrimaryButton
-            onClick={() => onSwitchToStep?.(2)}
+            onClick={() => onSwitchToStep(2)}
             disabled={false}
             variant={null}
             icon={null}

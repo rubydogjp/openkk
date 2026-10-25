@@ -45,7 +45,7 @@ describe("fixedAssetDraftToPatch", () => {
     expect(
       fixedAssetDraftToPatch(
         draft({
-          status: "売却済",
+          status: "sold",
           disposalDate: "2026-09-20",
           disposalPrice: "50,000",
         }),
@@ -63,7 +63,7 @@ describe("fixedAssetDraftToPatch", () => {
     expect(
       fixedAssetDraftToPatch(
         draft({
-          status: "廃棄済",
+          status: "disposed",
           disposalDate: "2026-10-01",
           disposalPrice: "50,000",
         }),
@@ -80,7 +80,7 @@ describe("fixedAssetDraftToPatch", () => {
     expect(
       fixedAssetDraftToPatch(
         draft({
-          status: "償却中",
+          status: "active",
           disposalDate: "2026-09-20",
           disposalPrice: "50,000",
         }),
@@ -97,7 +97,7 @@ describe("fixedAssetDraftToPatch", () => {
     expect(
       fixedAssetDraftToPatch(
         draft({
-          status: "完了",
+          status: "retired",
           disposalDate: "2026-09-20",
           disposalPrice: "50,000",
         }),
@@ -145,7 +145,7 @@ describe("nextOpeningCarryoverId", () => {
 
   it("does not reuse a suffix after deletion (no collision)", () => {
     const journals = [{ id: "oc-fp-2026-1" }, { id: "oc-fp-2026-2" }];
-    const afterDelete = journals.filter((j) => j.id !== "oc-fp-2026-1");
+    const afterDelete = journals.filter((journal) => journal.id !== "oc-fp-2026-1");
     expect(nextOpeningCarryoverId("fp-2026", afterDelete)).toBe("oc-fp-2026-3");
   });
 
@@ -404,7 +404,7 @@ function draft(overrides: Partial<FixedAssetDraft> = {}): FixedAssetDraft {
     acquisitionCost: "300,000",
     usefulLife: 4,
     businessRatePercent: 80,
-    status: "償却中",
+    status: "active",
     businessRate: null,
     disposalDate: null,
     disposalPrice: null,
@@ -419,7 +419,7 @@ function previewAsset(overrides: Partial<FixedAsset> = {}): FixedAsset {
     name: "業務用PC",
     accountName: "工具器具備品",
     bookAccountId: "acct_equipment",
-    status: "償却中",
+    status: "active",
     acquisitionDate: "2026-04-01",
     acquisitionCost: 300_000,
     usefulLife: 4,

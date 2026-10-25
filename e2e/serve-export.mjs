@@ -40,22 +40,22 @@ async function resolveFile(urlPath) {
   return null;
 }
 
-const server = createServer(async (req, res) => {
+const server = createServer(async (request, response) => {
   const headers = {};
   if (COI) {
     headers["Cross-Origin-Opener-Policy"] = "same-origin";
     headers["Cross-Origin-Embedder-Policy"] = "require-corp";
   }
-  const file = await resolveFile(req.url ?? "/");
+  const file = await resolveFile(request.url ?? "/");
   if (!file) {
-    res.writeHead(404, headers);
-    res.end("Not found");
+    response.writeHead(404, headers);
+    response.end("Not found");
     return;
   }
   const body = await readFile(file);
   headers["Content-Type"] = TYPES[extname(file)] ?? "application/octet-stream";
-  res.writeHead(200, headers);
-  res.end(body);
+  response.writeHead(200, headers);
+  response.end(body);
 });
 
 server.listen(PORT, () =>

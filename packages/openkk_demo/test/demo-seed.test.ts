@@ -12,7 +12,6 @@ import { buildOpenkkDemoSeed } from "../demo/demo-seed";
 
 const config: OpenkkConfig = {
   clock: createFixedClock(new Date(2026, 8, 5)),
-  env: "prod",
   bundleLabel: "デモ版",
   authMode: "embedded",
   embeddedUser: { kind: "embedded", id: "openkk-demo-user", displayName: "" },

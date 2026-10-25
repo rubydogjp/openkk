@@ -20,7 +20,7 @@ type CustomUser = {
 };
 ```
 
-ヘルパ: `isEmbeddedUser` / `isCustomUser` / `userCanSignOut` / `userEmail`（`@rubydogjp/openkk-client-domain`）。
+ヘルパ: `userCanSignOut` / `userEmail`（`@rubydogjp/openkk-client-domain`）。
 
 ## モード選択
 

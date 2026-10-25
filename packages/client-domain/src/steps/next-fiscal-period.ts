@@ -5,6 +5,25 @@ import {
   parseIsoLocalDate,
 } from "../shared/parse-utils.js";
 
+const REVERSIBLE_BALANCE_ACCOUNTS = new Set([
+  "未収入金",
+  "未収収益",
+  "前払金",
+  "前払費用",
+  "棚卸資産",
+  "商品",
+  "製品",
+  "原材料",
+  "仕掛品",
+  "貯蔵品",
+  "未払金",
+  "未払費用",
+  "前受金",
+  "前受収益",
+]);
+
+const PROFIT_LOSS_TYPES = new Set(["revenue", "expense", "cost_of_sales"]);
+
 export type NextFiscalPeriodSuggestion = {
   name: string;
   startDate: string;
@@ -34,25 +53,6 @@ function addDaysToIsoDate(value: string, days: number): string | null {
   date.setDate(date.getDate() + days);
   return formatIsoLocalDate(date);
 }
-
-const REVERSIBLE_BALANCE_ACCOUNTS = new Set([
-  "未収入金",
-  "未収収益",
-  "前払金",
-  "前払費用",
-  "棚卸資産",
-  "商品",
-  "製品",
-  "原材料",
-  "仕掛品",
-  "貯蔵品",
-  "未払金",
-  "未払費用",
-  "前受金",
-  "前受収益",
-]);
-
-const PROFIT_LOSS_TYPES = new Set(["revenue", "expense", "cost_of_sales"]);
 
 export function isOpeningCarryoverCandidate(entry: EntryRecord): boolean {
   return (
@@ -102,9 +102,5 @@ function addYearsToIsoDate(value: string, years: number): string | null {
   const year = date.getFullYear() + years;
   const month = date.getMonth();
   const day = Math.min(date.getDate(), new Date(year, month + 1, 0).getDate());
-  return [
-    String(year).padStart(4, "0"),
-    String(month + 1).padStart(2, "0"),
-    String(day).padStart(2, "0"),
-  ].join("-");
+  return formatIsoLocalDate(new Date(year, month, day));
 }

@@ -22,7 +22,7 @@ export function usePlatformAdapter(): PlatformPort {
   if (value == null) {
     throw new AppError({
       messageForDeveloper:
-        "usePlatformAdapter must be used within a PlatformAdapterProvider",
+        "usePlatformAdapter must be used within PlatformAdapterProvider",
       messageForUser: "アプリの初期化に失敗しました",
       originalMessage: null,
       statusCode: null,

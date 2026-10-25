@@ -23,12 +23,7 @@ import type {
   PeriodLockMessage,
 } from "@rubydogjp/openkk-client-domain";
 
-export {
-  AccountChip,
-  AccountChipCell,
-  EntriesTable,
-  type EntriesHeaderTone,
-} from "./entries-table.js";
+export { AccountChipCell, EntriesTable } from "./entries-table.js";
 
 const entryColors = {
   blue: palette.brand,
@@ -49,7 +44,7 @@ function EntriesMonthSwitcher(props: {
         display: "inline-flex",
         alignItems: "stretch",
         height: sizes.button.compactHeight,
-        background: "#FFFFFF",
+        background: palette.surface,
         border: `1px solid ${switcherBorder}`,
         borderRadius: radii.sm,
         overflow: "hidden",
@@ -79,7 +74,7 @@ function EntriesMonthSwitcher(props: {
           letterSpacing: "0.01em",
           borderLeft: `1px solid ${switcherBorder}`,
           borderRight: `1px solid ${switcherBorder}`,
-          background: "#FFFFFF",
+          background: palette.surface,
         }}
       >
         {props.label}

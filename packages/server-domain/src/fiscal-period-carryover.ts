@@ -12,6 +12,30 @@ import type {
 } from "./models.js";
 import { assertEntryLinesBalanced } from "./validation.js";
 
+const CAPITAL_ACCOUNTS = new Set([
+  "事業主貸",
+  "事業主借",
+  "元入金",
+  "青色申告特別控除前の所得金額",
+]);
+const PROFIT_LOSS_TYPES = new Set(["revenue", "expense", "cost_of_sales"]);
+const REVERSIBLE_BALANCE_ACCOUNTS = new Set([
+  "未収入金",
+  "未収収益",
+  "前払金",
+  "前払費用",
+  "棚卸資産",
+  "商品",
+  "製品",
+  "原材料",
+  "仕掛品",
+  "貯蔵品",
+  "未払金",
+  "未払費用",
+  "前受金",
+  "前受収益",
+]);
+
 export function assertFiscalPeriodCanCarryOver(
   source: {
     endDate: string;
@@ -150,7 +174,7 @@ function reverseLine(
 ): EntryLineRecord {
   return {
     id,
-    side: line.side === "debit" ? ("credit" as const) : ("debit" as const),
+    side: line.side === "debit" ? "credit" : "debit",
     bookAccountId: line.bookAccountId,
     amount,
     partnerName: line.partnerName,
@@ -166,27 +190,3 @@ function requireAccount(id: string) {
   }
   return account;
 }
-
-const CAPITAL_ACCOUNTS = new Set([
-  "事業主貸",
-  "事業主借",
-  "元入金",
-  "青色申告特別控除前の所得金額",
-]);
-const PROFIT_LOSS_TYPES = new Set(["revenue", "expense", "cost_of_sales"]);
-const REVERSIBLE_BALANCE_ACCOUNTS = new Set([
-  "未収入金",
-  "未収収益",
-  "前払金",
-  "前払費用",
-  "棚卸資産",
-  "商品",
-  "製品",
-  "原材料",
-  "仕掛品",
-  "貯蔵品",
-  "未払金",
-  "未払費用",
-  "前受金",
-  "前受収益",
-]);

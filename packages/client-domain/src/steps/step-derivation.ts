@@ -33,7 +33,6 @@ export function deriveSteps(input: {
 }
 
 function deriveContiguousStepStatuses(rawDoneFlags: boolean[]): StepStatus[] {
-  if (rawDoneFlags.length === 0) return [];
   const statuses: StepStatus[] = [];
   let blocked = false;
   for (const isRawDone of rawDoneFlags) {

@@ -105,7 +105,7 @@ export function ShellAccountMenu(props: {
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             className="bk-user-trigger"
-            onClick={() => setMenuOpen((v) => !v)}
+            onClick={() => setMenuOpen((open) => !open)}
             style={{
               width: "100%",
               display: "flex",

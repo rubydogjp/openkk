@@ -2,6 +2,7 @@ import {
   assertEntryCollectionItemLimit,
   assertEntryCollectionLineLimit,
   assertEntryMatchesRules,
+  serverConflictError,
   serverNotFoundError,
   serverValidationError,
 } from "@rubydogjp/openkk-server-domain";
@@ -62,20 +63,8 @@ export function createEntriesDb(db: SqlDb): EntriesDb {
           "create entry",
         );
         assertEntryMatchesRules(input, period, "Entry");
-        await db.exec({
-          sql: `INSERT INTO entries(id, fiscal_period_id, date, local_id, description, business_rate, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
-          bind: [
-            id,
-            fiscalPeriodId,
-            record.date,
-            record.localId,
-            record.description,
-            record.businessRate,
-            now,
-            now,
-          ],
-        });
-        await insertEntryLines(db, record);
+        await assertLocalIdAvailable(db, fiscalPeriodId, input.localId, null);
+        await insertEntry(db, record, now);
       });
       return record;
     },
@@ -96,6 +85,12 @@ export function createEntriesDb(db: SqlDb): EntriesDb {
           "update entry",
         );
         assertEntryMatchesRules(input, period, "Entry");
+        await assertLocalIdAvailable(
+          db,
+          existing.fiscalPeriodId,
+          input.localId,
+          id,
+        );
         const now = nowMs();
         const updated: EntryDbRecord = {
           ...existing,
@@ -287,6 +282,48 @@ async function loadEntries(
     assertDbStoredEntryRecord(record, period);
   }
   return [...records.values()];
+}
+
+async function assertLocalIdAvailable(
+  db: SqlDb,
+  fiscalPeriodId: string,
+  localId: string | null,
+  ownEntryId: string | null,
+): Promise<void> {
+  if (localId == null) return;
+  const rows = (await db.exec({
+    sql: `SELECT 1 FROM entries WHERE fiscal_period_id = ? AND local_id = ? AND id IS NOT ?`,
+    bind: [fiscalPeriodId, localId, ownEntryId],
+    returnValue: "resultRows",
+    rowMode: "array",
+  })) as Array<[number]>;
+  if (rows[0] != null) {
+    throw serverConflictError(
+      `Entry localId ${localId} already exists in fiscal period ${fiscalPeriodId}`,
+      "同じ識別子の仕訳がすでに登録されています",
+    );
+  }
+}
+
+export async function insertEntry(
+  db: SqlDb,
+  entry: EntryDbRecord,
+  now: number,
+): Promise<void> {
+  await db.exec({
+    sql: `INSERT INTO entries(id, fiscal_period_id, date, local_id, description, business_rate, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
+    bind: [
+      entry.id,
+      entry.fiscalPeriodId,
+      entry.date,
+      entry.localId,
+      entry.description,
+      entry.businessRate,
+      now,
+      now,
+    ],
+  });
+  await insertEntryLines(db, entry);
 }
 
 export async function insertEntryLines(

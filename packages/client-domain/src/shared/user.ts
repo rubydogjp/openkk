@@ -15,14 +15,6 @@ export type CustomUser = {
 
 export type OpenkkUser = EmbeddedUser | CustomUser;
 
-export function isEmbeddedUser(user: OpenkkUser): user is EmbeddedUser {
-  return user.kind === "embedded";
-}
-
-export function isCustomUser(user: OpenkkUser): user is CustomUser {
-  return user.kind === "custom";
-}
-
 export function userCanSignOut(user: OpenkkUser): boolean {
   return user.kind === "custom";
 }

@@ -20,7 +20,7 @@
   "devDependencies": {
     "typescript": "^6.0.3"
   },
-  "description": "オープン会計 PlatformPort implementation for web browsers — PWA install, service worker, localStorage, downloads, navigation and clipboard",
+  "description": "オープン会計 PlatformPort implementation for web browsers — PWA install, service worker, localStorage, downloads and navigation",
   "license": "MIT",
   "author": "rbdog <rbdog@rubydog.jp>",
   "homepage": "https://github.com/rubydogjp/openkk#readme",

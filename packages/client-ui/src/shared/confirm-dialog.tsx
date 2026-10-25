@@ -4,37 +4,24 @@ import { useEffect, useId, useRef, useState } from "react";
 
 import { ConfirmDialogResolver } from "./confirm-dialog-resolver.js";
 import { useModalLifecycle } from "./dismissible-layer.js";
-import { CheckCircleIcon, ErrorIcon, WarningIcon } from "./icons.js";
+import { CheckCircleIcon, ErrorIcon } from "./icons.js";
 import { fontSize, fontWeight, palette, radii, shadows, sizes, typography } from "./design-tokens.js";
 
-export type ConfirmDialogTone = "confirm" | "warning" | "danger" | "success";
+export type ConfirmDialogTone = "danger" | "success";
 
 export type ConfirmDialogOptions = {
   tone: ConfirmDialogTone;
   title: string;
   body: string[];
-  confirmLabel: string | null;
-  cancelLabel: string | null;
+  confirmLabel: string;
 };
 
 const toneMap = {
-  confirm: {
-    iconBg: palette.actionBg,
-    iconColor: palette.action,
-    primaryBg: palette.action,
-    Icon: CheckCircleIcon,
-  },
   success: {
     iconBg: palette.successBg,
     iconColor: palette.success,
     primaryBg: palette.success,
     Icon: CheckCircleIcon,
-  },
-  warning: {
-    iconBg: palette.warningBg,
-    iconColor: palette.warning,
-    primaryBg: palette.warning,
-    Icon: WarningIcon,
   },
   danger: {
     iconBg: palette.dangerBg,
@@ -52,7 +39,6 @@ function ConfirmDialogView(
     title,
     body,
     confirmLabel,
-    cancelLabel,
     onConfirm,
     onCancel,
   } = props;
@@ -172,14 +158,14 @@ function ConfirmDialogView(
               onClick={onCancel}
               style={cancelStyle}
             >
-              {cancelLabel ?? "キャンセル"}
+              キャンセル
             </button>
             <button
               type="button"
               onClick={onConfirm}
               style={{ ...confirmBaseStyle, background: toneStyle.primaryBg }}
             >
-              {confirmLabel ?? "実行する"}
+              {confirmLabel}
             </button>
           </div>
         </div>
@@ -199,10 +185,10 @@ export function useConfirmDialog() {
     [],
   );
 
-  const confirm = (opts: ConfirmDialogOptions): Promise<boolean> =>
+  const confirm = (dialogOptions: ConfirmDialogOptions): Promise<boolean> =>
     new Promise((resolve) => {
       resolverRef.current.start(resolve);
-      setOptions(opts);
+      setOptions(dialogOptions);
     });
 
   const dismiss = (result: boolean) => {

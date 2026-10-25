@@ -1,5 +1,6 @@
 import {
   assertUniqueIds,
+  findOverlappingActiveFiscalPeriod,
   requireObject,
   serverValidationError,
 } from "@rubydogjp/openkk-server-domain";
@@ -8,8 +9,9 @@ import type {
   DbSnapshot,
   FiscalPeriodDbRecord,
 } from "@rubydogjp/openkk-server-ports";
-import { insertEntryLines } from "./entry-store.js";
-import { replaceOpening } from "./opening-store.js";
+import { insertEntry } from "./entry-store.js";
+import { insertFiscalPeriodRow } from "./fiscal-period-store.js";
+import { insertFixedAsset } from "./fixed-asset-store.js";
 import {
   serializeFiscalPeriodDbData,
   serializeFixedAssetDbData,
@@ -27,7 +29,7 @@ export async function seedStores(db: SqlDb, seed: DbSnapshot): Promise<void> {
   const now = nowMs();
   const preparedSeed = prepareAndValidateSeed(seed);
   await runInTransaction(db, async () => {
-    await seedStoresInner(db, preparedSeed, now);
+    await insertSeedRecords(db, preparedSeed, now);
   });
 }
 
@@ -67,11 +69,7 @@ function prepareAndValidateSeed(seed: unknown): DbSnapshot {
     periodsById.set(record.id, record);
     if (record.archiveStatus !== "active") continue;
     const activePeriods = activePeriodsByUser.get(record.userId) ?? [];
-    const overlap = activePeriods.find(
-      (existing) =>
-        record.startDate <= existing.endDate &&
-        record.endDate >= existing.startDate,
-    );
+    const overlap = findOverlappingActiveFiscalPeriod(record, activePeriods);
     if (overlap != null) {
       throw serverValidationError(
         `Seed fiscal period ${record.id} overlaps active fiscal period ${overlap.id}`,
@@ -155,45 +153,18 @@ function assertSeedOwner(
   }
 }
 
-async function seedStoresInner(
+async function insertSeedRecords(
   db: SqlDb,
   seed: DbSnapshot,
   now: number,
 ): Promise<void> {
   for (const record of seed.fiscalPeriods) {
-    const serializedRecord = serializeFiscalPeriodDbData(record);
-    await db.exec({
-      sql: `INSERT INTO fiscal_periods(id, user_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
-      bind: [record.id, record.userId, serializedRecord, now, now],
-    });
-    await replaceOpening(db, record.id, record.opening);
+    await insertFiscalPeriodRow(db, record, now);
   }
   for (const entry of seed.entries) {
-    await db.exec({
-      sql: `INSERT INTO entries(id, fiscal_period_id, date, local_id, description, business_rate, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
-      bind: [
-        entry.id,
-        entry.fiscalPeriodId,
-        entry.date,
-        entry.localId,
-        entry.description,
-        entry.businessRate,
-        now,
-        now,
-      ],
-    });
-    await insertEntryLines(db, entry);
+    await insertEntry(db, entry, now);
   }
   for (const asset of seed.fixedAssets) {
-    await db.exec({
-      sql: `INSERT INTO fixed_assets(id, fiscal_period_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
-      bind: [
-        asset.id,
-        asset.fiscalPeriodId,
-        serializeFixedAssetDbData(asset),
-        now,
-        now,
-      ],
-    });
+    await insertFixedAsset(db, asset, now);
   }
 }

@@ -1,3 +1,4 @@
+import type { FiscalPeriodArchiveStatus } from "../shared/models.js";
 import { parseIsoLocalDate } from "../shared/parse-utils.js";
 import { compareYearMonth, parseYearMonth } from "./year-month.js";
 
@@ -41,7 +42,7 @@ export function hasActiveFiscalPeriodOverlap(
     id: string;
     startDate: string;
     endDate: string;
-    archiveStatus: string;
+    archiveStatus: FiscalPeriodArchiveStatus;
   }>,
   excludedPeriodId: string | null,
 ): boolean {

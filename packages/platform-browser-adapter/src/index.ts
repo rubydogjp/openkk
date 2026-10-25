@@ -1,7 +1,6 @@
 import type { PlatformPort } from "@rubydogjp/openkk-client-ports";
 
 import { browserAppInstall } from "./app-install.js";
-import { browserClipboard } from "./clipboard.js";
 import { browserFiles } from "./files.js";
 import { browserNavigation } from "./navigation.js";
 import { browserOfflineCache } from "./offline-cache.js";
@@ -13,5 +12,4 @@ export const platformBrowserAdapter: PlatformPort = {
   storage: browserStorage,
   files: browserFiles,
   navigation: browserNavigation,
-  clipboard: browserClipboard,
 };

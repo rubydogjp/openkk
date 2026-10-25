@@ -24,7 +24,7 @@ export function Section({
       <h2 style={{ ...typography.contentTitle, margin: 0 }}>{title}</h2>
       <p
         style={{
-          ...typography.body,
+          ...typography.helper,
           color: palette.textSoft,
           margin: "6px 0 14px",
         }}

@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation.js";
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 
 import {
   useOpenkkAppState,
@@ -14,6 +14,7 @@ import {
   buildAnalyticsEntries,
   buildStepTrendPoints,
   type FiscalPeriodPhase,
+  type StepItem,
 } from "@rubydogjp/openkk-client-domain";
 import { palette } from "../../shared/design-tokens.js";
 import { normalizePathname } from "../../shared/pathname.js";
@@ -24,7 +25,7 @@ const STEPPER_PASSTHROUGH_PATHS = new Set<string>([
   "/steps/journalizing/analytics",
 ]);
 
-export function StepsLayout({ children }: { children: React.ReactNode }) {
+export function StepsLayout({ children }: { children: ReactNode }) {
   const pathname = normalizePathname(usePathname());
   if (STEPPER_PASSTHROUGH_PATHS.has(pathname)) {
     return <>{children}</>;
@@ -80,7 +81,7 @@ function StepsPageScreenWithChart({
   currentStartDate,
   currentEndDate,
 }: {
-  steps: ReturnType<typeof deriveSteps>;
+  steps: StepItem[];
   currentFiscalPeriodId: string;
   currentPhase: FiscalPeriodPhase;
   currentStartDate: string;

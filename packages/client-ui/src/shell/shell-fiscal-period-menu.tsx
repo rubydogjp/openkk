@@ -43,7 +43,7 @@ export function ShellFiscalPeriodMenu(props: {
         disabled={!props.enabled}
         onClick={() => {
           if (!props.enabled) return;
-          setWorkspaceOpen((v) => !v);
+          setWorkspaceOpen((open) => !open);
         }}
         aria-haspopup="menu"
         aria-expanded={workspaceOpen}

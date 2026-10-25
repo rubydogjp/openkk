@@ -6,7 +6,7 @@ import {
 } from "../entries/entry-record.js";
 import type { BookAccountType } from "../entries/book-account.js";
 import { formatAmount, parseAmount } from "../shared/parse-utils.js";
-import { OPENING_EQUITY_LABELS } from "../steps/summary.js";
+import { OPENING_EQUITY_LABELS } from "../shared/balance-sheet-layout.js";
 import { buildPrintDocument, escapeHtml } from "./print-shell.js";
 import { buildPortraitPage } from "./portrait-page.js";
 import {
@@ -38,7 +38,6 @@ const PREFERRED_LEDGER_ORDER = [
   "広告宣伝費",
   "接待交際費",
   "消耗品費",
-  "研修費",
   "会議費",
   "工具器具備品",
   "事業主貸",
@@ -98,32 +97,20 @@ function buildLedger(
       monthSubtotals.set(monthKey, { debit: 0, credit: 0 });
     const subtotal = monthSubtotals.get(monthKey)!;
     const amount = parseAmount(line.amount);
+    const isDebit = line.side === "debit";
 
-    if (line.side === "debit") {
-      balance = debitNormal ? balance + amount : balance - amount;
-      subtotal.debit += amount;
-      lines.push({
-        date: entry.date,
-        counterAccount: counterAccountsForLine(entry, line),
-        memo: entry.description,
-        metadata: formatEntryMetadata(resolveEntryLineMetadata(line)),
-        debitAmount: amount,
-        creditAmount: 0,
-        balance,
-      });
-    } else {
-      balance = debitNormal ? balance - amount : balance + amount;
-      subtotal.credit += amount;
-      lines.push({
-        date: entry.date,
-        counterAccount: counterAccountsForLine(entry, line),
-        memo: entry.description,
-        metadata: formatEntryMetadata(resolveEntryLineMetadata(line)),
-        debitAmount: 0,
-        creditAmount: amount,
-        balance,
-      });
-    }
+    balance = isDebit === debitNormal ? balance + amount : balance - amount;
+    if (isDebit) subtotal.debit += amount;
+    else subtotal.credit += amount;
+    lines.push({
+      date: entry.date,
+      counterAccount: counterAccountsForLine(entry, line),
+      memo: entry.description,
+      metadata: formatEntryMetadata(resolveEntryLineMetadata(line)),
+      debitAmount: isDebit ? amount : 0,
+      creditAmount: isDebit ? 0 : amount,
+      balance,
+    });
   }
 
   return {

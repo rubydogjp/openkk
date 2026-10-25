@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { createOpenkkServer } from "./index.js";
 import { MAX_FIXED_ASSET_USEFUL_LIFE_YEARS } from "@rubydogjp/openkk-server-domain";
 import type {
-  EntryApiRecord,
   EntryUpsertInput,
   FiscalPeriodApiRecord,
   FiscalPeriodCreateInput,
@@ -14,9 +13,14 @@ import type {
   MasterBookAccountDbRecord,
   MasterBusinessCategoryDbRecord,
   MasterTaxCategoryDbRecord,
-  FiscalPeriodOpeningApiRecord,
   OpenkkDbPort,
 } from "@rubydogjp/openkk-server-ports";
+import {
+  entry,
+  entryLinesWithIds,
+  fiscalPeriod,
+  fixedAsset,
+} from "../test-support/api-records.js";
 
 describe("openkk server fixed asset API", () => {
   it("rejects invalid acquisition dates before persisting", async () => {
@@ -219,7 +223,7 @@ describe("openkk server fixed asset API", () => {
         disposalPrice: -1,
       }),
     ).rejects.toThrow(
-      /Fixed asset disposal price must be a non-negative finite number/,
+      /Fixed asset disposal price must be a non-negative safe integer/,
     );
 
     expect((await server.fixedAssets.getAll("fp-1"))[0]?.status).toBe("active");
@@ -593,80 +597,4 @@ function createFixedAssetDb(
       },
     },
   };
-}
-
-const TEST_TIMESTAMP = "1970-01-01T00:00:00.000Z";
-
-function entryLinesWithIds(
-  lines: EntryUpsertInput["lines"],
-): EntryApiRecord["lines"] {
-  return lines.map((line, index) => ({ ...line, id: `line-${index + 1}` }));
-}
-
-function fiscalPeriod(
-  overrides: Partial<FiscalPeriodApiRecord>,
-): FiscalPeriodApiRecord {
-  const base: FiscalPeriodApiRecord = {
-    id: "fp-1",
-    userId: "user-1",
-    name: "2026年分",
-    startDate: "2026-01-01",
-    endDate: "2026-12-31",
-    phase: "journalizing",
-    archiveStatus: "active",
-    openingBalancesCompleted: true,
-    documentsReceivedCompleted: false,
-    opening: emptyOpening(),
-    createdAt: TEST_TIMESTAMP,
-    updatedAt: TEST_TIMESTAMP,
-    archivedAt: null,
-  };
-  const period = Object.assign(base, overrides);
-  return {
-    ...period,
-    opening: overrides.opening ?? emptyOpening(),
-  };
-}
-
-function emptyOpening(): FiscalPeriodOpeningApiRecord {
-  return { balanceLines: [], journals: [] };
-}
-
-function entry(overrides: Partial<EntryApiRecord>): EntryApiRecord {
-  const base: EntryApiRecord = {
-    id: "entry-1",
-    userId: "user-1",
-    fiscalPeriodId: "fp-1",
-    date: "2026-01-01",
-    description: "entry",
-    localId: null,
-    businessRate: 1,
-    lines: [],
-    createdAt: TEST_TIMESTAMP,
-    updatedAt: TEST_TIMESTAMP,
-  };
-  return Object.assign(base, overrides);
-}
-
-function fixedAsset(
-  overrides: Partial<FixedAssetApiRecord>,
-): FixedAssetApiRecord {
-  const base: FixedAssetApiRecord = {
-    id: "asset-1",
-    userId: "user-1",
-    fiscalPeriodId: "fp-1",
-    name: "asset",
-    acquisitionDate: "2026-01-01",
-    acquisitionCost: 0,
-    usefulLife: 0,
-    depreciationMethod: "straight_line",
-    businessRate: 1,
-    status: "active",
-    disposalDate: null,
-    disposalPrice: null,
-    bookAccountId: "",
-    createdAt: TEST_TIMESTAMP,
-    updatedAt: TEST_TIMESTAMP,
-  };
-  return Object.assign(base, overrides);
 }

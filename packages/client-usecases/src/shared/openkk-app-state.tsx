@@ -12,6 +12,7 @@ import {
 
 import type {
   FiscalPeriodApiRecord,
+  FiscalPeriodCreateInput,
   FiscalPeriodPatchInput,
   FiscalPeriodNextCreateInput,
 } from "@rubydogjp/openkk-client-ports";
@@ -20,7 +21,6 @@ import {
   buildBootstrapFiscalPeriodId,
   buildBootstrapUser,
   type FiscalPeriodArchivePayload,
-  type CustomUser,
   type FiscalPeriod,
   type OpenkkUser,
   type Session,
@@ -40,6 +40,7 @@ import {
 import { assertAuthUnchanged } from "./auth-operation-guard.js";
 import { usePlatformAdapter } from "./platform-adapter-context.js";
 import { readStoredUser } from "./stored-user.js";
+import { buildCustomUser } from "./custom-user.js";
 import { createSignInReturnPathStore } from "./sign-in-return-path.js";
 import { wrapWithSessionExpiry } from "./session-expiry.js";
 
@@ -54,11 +55,7 @@ type OpenkkAppState = {
   isReady: boolean;
   fiscalPeriodLoadError: unknown;
   reloadFiscalPeriods: () => void;
-  createFiscalPeriod: (input: {
-    name: string;
-    startDate: string;
-    endDate: string;
-  }) => Promise<string>;
+  createFiscalPeriod: (input: FiscalPeriodCreateInput) => Promise<string>;
   createNextFiscalPeriod: (
     input: FiscalPeriodNextCreateInput,
   ) => Promise<string>;
@@ -426,17 +423,13 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
             completed.completionCode,
           );
           assertAuthUnchanged(authVersion.current, operationVersion);
-          const signedInUser: CustomUser = {
-            kind: "custom",
+          const signedInUser = buildCustomUser({
             id: token.userId,
-            displayName: token.displayName ?? token.userId,
-            email:
-              token.email == null || token.email.trim() === ""
-                ? null
-                : token.email.trim(),
+            displayName: token.displayName,
+            email: token.email,
             iconUrl: token.iconUrl,
-            authProvider: token.authProvider ?? "custom",
-          };
+            authProvider: token.authProvider,
+          });
           replaceUser(signedInUser);
           return signedInUser;
         });

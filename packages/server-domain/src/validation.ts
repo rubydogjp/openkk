@@ -70,7 +70,7 @@ export function assertUniqueIds(
   const ids = new Set<string>();
   for (const item of items) {
     const id = requireObject(item, label).id;
-    if (typeof id !== "string" || id.trim() === "") {
+    if (!isNonBlankString(id)) {
       throw serverValidationError(`${label} id is required`, messageForUser);
     }
     if (ids.has(id)) {
@@ -118,7 +118,7 @@ export function assertTextFieldLength(value: string, label: string): void {
   if (value.length > MAX_TEXT_FIELD_LENGTH) {
     throw serverValidationError(
       `${label} exceeds the ${MAX_TEXT_FIELD_LENGTH.toLocaleString("en-US")} character limit`,
-      `入力できる文字数は${MAX_TEXT_FIELD_LENGTH.toLocaleString()}文字までです`,
+      `入力できる文字数は${MAX_TEXT_FIELD_LENGTH.toLocaleString("ja-JP")}文字までです`,
     );
   }
 }
@@ -174,7 +174,7 @@ export function assertNonNegativeSafeInteger(
 ): asserts value is number {
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
     throw serverValidationError(
-      `${label} must be a non-negative finite number and a safe integer`,
+      `${label} must be a non-negative safe integer`,
       null,
     );
   }
@@ -214,7 +214,7 @@ export function assertEntryLinesBalanced(
   if (lines.length > MAX_ENTRY_LINES) {
     throw serverValidationError(
       `${label} exceeds the ${MAX_ENTRY_LINES.toLocaleString("en-US")} line limit`,
-      `1件の仕訳に登録できる明細は${MAX_ENTRY_LINES.toLocaleString()}件までです`,
+      `1件の仕訳に登録できる明細は${MAX_ENTRY_LINES.toLocaleString("ja-JP")}件までです`,
     );
   }
   let debitTotal = 0;

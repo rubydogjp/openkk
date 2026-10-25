@@ -22,7 +22,7 @@ function depreciatingAsset(
     name: "業務用PC",
     accountName: "工具器具備品",
     bookAccountId: "acct_equipment",
-    status: "償却中",
+    status: "active",
     acquisitionDate: "2025-01-01",
     acquisitionCost: 1_200_000,
     usefulLife: 5,
@@ -112,7 +112,7 @@ describe("buildVirtualFixedAssetRows", () => {
       fiscalPeriodId: "fp-2026",
       assets: [
         depreciatingAsset({
-          status: "売却済",
+          status: "sold",
           disposalDate: "2026-06-15",
           disposalPrice: 900_000,
         }),
@@ -156,7 +156,7 @@ describe("buildVirtualFixedAssetRows", () => {
       fiscalPeriodId: "fp-2026",
       assets: [
         depreciatingAsset({
-          status: "完了",
+          status: "retired",
           acquisitionDate: "2023-01-01",
           usefulLife: 4,
         }),

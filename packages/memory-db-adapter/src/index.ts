@@ -1,8 +1,5 @@
 import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
-import {
-  type DbSnapshot,
-  type OpenkkDbPort,
-} from "@rubydogjp/openkk-server-ports";
+import type { DbSnapshot, OpenkkDbPort } from "@rubydogjp/openkk-server-ports";
 import {
   createSqliteDbAdapter,
   runMigrations,

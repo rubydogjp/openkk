@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import {
+  formatAmount,
   MAX_TEXT_FIELD_LENGTH,
   type BookAccountType,
 } from "@rubydogjp/openkk-client-domain";
@@ -94,7 +95,6 @@ export function AccountPicker({
   accountType,
   onChange,
   options,
-  fullWidth,
   ariaLabel,
 }: {
   selectedId: string | null;
@@ -102,8 +102,7 @@ export function AccountPicker({
   accountType: BookAccountType;
   onChange: (option: EntryMasterAccountOption) => void;
   options: EntryMasterAccountOption[];
-  fullWidth: boolean;
-  ariaLabel: string | null;
+  ariaLabel: string;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -127,22 +126,16 @@ export function AccountPicker({
     value === "" ? entryDrawerColors.border : accountPalette.foreground;
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        position: "relative",
-        width: fullWidth ? "100%" : undefined,
-      }}
-    >
+    <div ref={containerRef} style={{ position: "relative", width: "100%" }}>
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={ariaLabel ?? undefined}
+        aria-label={ariaLabel}
         style={{
           height: sizes.account.tableHeight,
-          width: fullWidth ? "100%" : sizes.account.tableWidth,
+          width: "100%",
           boxSizing: "border-box",
           border: `1px solid ${border}`,
           borderRadius: radii.sm,
@@ -188,7 +181,7 @@ export function AccountPicker({
             <input
               className="bk-drawer-input"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(event) => setQuery(event.target.value)}
               placeholder="勘定科目を検索"
               style={{
                 width: "100%",
@@ -296,12 +289,11 @@ export function SuggestionInput({
   value: string;
   onChange: (value: string) => void;
   options: string[];
-  placeholder: string | null;
-  ariaLabel: string | null;
-  align: "left" | "right" | null;
-  inputMode: "numeric" | "decimal" | null;
+  placeholder: string;
+  ariaLabel: string;
+  align: "left" | "right";
+  inputMode: "decimal" | null;
 }) {
-  const textAlign = align ?? "left";
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(value);
   const { containerRef, popupRef } = usePopoverLifecycle<
@@ -331,7 +323,7 @@ export function SuggestionInput({
         onClick={() => setOpen((current) => !current)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={ariaLabel ?? undefined}
+        aria-label={ariaLabel}
         style={{
           height: 30,
           width: "100%",
@@ -343,12 +335,11 @@ export function SuggestionInput({
           fontSize: fontSize.sm,
           color: value === "" ? entryDrawerColors.muted : entryDrawerColors.blue,
           fontWeight: fontWeight.regular,
-          textAlign,
+          textAlign: align,
           cursor: "pointer",
           display: "flex",
           alignItems: "center",
-          justifyContent:
-            textAlign === "right" ? "flex-end" : "flex-start",
+          justifyContent: align === "right" ? "flex-end" : "flex-start",
           fontVariantNumeric: inputMode == null ? undefined : "tabular-nums",
         }}
       >
@@ -358,17 +349,17 @@ export function SuggestionInput({
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
             width: "100%",
-            textAlign,
+            textAlign: align,
           }}
         >
-          {value === "" ? (placeholder ?? "選択") : value}
+          {value === "" ? placeholder : value}
         </span>
       </button>
       {open ? (
         <div
           ref={popupRef}
           role="dialog"
-          aria-label={ariaLabel ?? placeholder ?? "候補を選択"}
+          aria-label={ariaLabel}
           tabIndex={-1}
           style={popupStyle}
         >
@@ -385,15 +376,15 @@ export function SuggestionInput({
               className="bk-drawer-input"
               value={query}
               maxLength={MAX_TEXT_FIELD_LENGTH}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
                   commit(query.trim());
                 }
               }}
               inputMode={inputMode ?? undefined}
-              placeholder={placeholder ?? "入力 / 検索"}
+              placeholder={placeholder}
               style={{
                 flex: 1,
                 height: 30,
@@ -414,7 +405,7 @@ export function SuggestionInput({
                 borderRadius: 6,
                 border: "none",
                 background: entryDrawerColors.green,
-                color: "#FFFFFF",
+                color: palette.surface,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -462,12 +453,12 @@ export function TextFieldInput({
 }: {
   value: string;
   onChange: (value: string) => void;
-  ariaLabel: string | null;
+  ariaLabel: string;
 }) {
   return (
     <input
       className="bk-drawer-input"
-      aria-label={ariaLabel ?? undefined}
+      aria-label={ariaLabel}
       value={value}
       maxLength={MAX_TEXT_FIELD_LENGTH}
       onChange={(event) => onChange(event.target.value)}
@@ -519,7 +510,7 @@ export function BalanceIndicator({
           gap: 6,
         }}
       >
-        <CheckIcon size={14} color="currentColor" /> 貸借一致 ¥{debitAmount.toLocaleString()}
+        <CheckIcon size={14} color="currentColor" /> 貸借一致 ¥{formatAmount(debitAmount)}
       </div>
     );
   }
@@ -534,7 +525,7 @@ export function BalanceIndicator({
         gap: 6,
       }}
     >
-      <WarningIcon size={14} color="currentColor" /> 差額 ¥{Math.abs(debitAmount - creditAmount).toLocaleString()}
+      <WarningIcon size={14} color="currentColor" /> 差額 ¥{formatAmount(Math.abs(debitAmount - creditAmount))}
     </div>
   );
 }
@@ -768,7 +759,7 @@ export const primaryButtonStyle: CSSProperties = {
   borderRadius: radii.sm,
   border: "none",
   background: entryDrawerColors.blue,
-  color: "#FFFFFF",
+  color: palette.surface,
   ...typography.control,
   fontWeight: fontWeight.bold,
   boxShadow: shadows.primaryButton,

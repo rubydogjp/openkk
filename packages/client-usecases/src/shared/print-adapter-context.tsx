@@ -22,7 +22,7 @@ export function usePrintAdapter(): PrintPort {
   if (value == null) {
     throw new AppError({
       messageForDeveloper:
-        "usePrintAdapter must be used within a PrintAdapterProvider",
+        "usePrintAdapter must be used within PrintAdapterProvider",
       messageForUser: "印刷機能の初期化に失敗しました",
       originalMessage: null,
       statusCode: null,

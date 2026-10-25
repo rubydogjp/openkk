@@ -1,7 +1,5 @@
 import type { EmbeddedUser } from "./user.js";
 
-export type OpenkkEnv = "dev" | "stg" | "prod";
-
 export type OpenkkAuthMode = "embedded" | "custom";
 
 export type FiscalPeriodArchiveRetention = "persistent" | "ephemeral";
@@ -46,7 +44,6 @@ export interface OpenkkClock {
 
 export interface OpenkkConfig {
   clock: OpenkkClock;
-  env: OpenkkEnv;
   bundleLabel: string;
   authMode: OpenkkAuthMode;
   embeddedUser: EmbeddedUser;

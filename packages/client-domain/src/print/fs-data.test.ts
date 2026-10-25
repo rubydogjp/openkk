@@ -211,29 +211,32 @@ describe("computeFsAggregate", () => {
     const aggregate = computeFsAggregate({
       openingBalanceLines: [],
       entries: [
-        expenseEntry("会議費", "6,000"), // 名前付き行(26)へ
+        expenseEntry("会議費", "6,000"), // 名前付き行(25)へ
         expenseEntry("新聞図書費", "5,000"),
         expenseEntry("支払手数料", "4,000"),
         expenseEntry("諸会費", "3,000"),
         expenseEntry("研究開発費", "2,000"),
-        expenseEntry("寄付金", "1,000"), // スロット超過 → 雑費へ
+        expenseEntry("寄付金", "1,000"),
+        expenseEntry("リース料", "700"), // スロット超過 → 雑費へ
         expenseEntry("雑費", "500"),
       ],
     });
 
-    expect(aggregate.amounts[26]).toBe(6_000);
+    expect(aggregate.amounts[25]).toBe(6_000);
     expect(aggregate.expenseWriteIns).toEqual([
-      { label: "新聞図書費", amount: 5_000 },
-      { label: "支払手数料", amount: 4_000 },
-      { label: "諸会費", amount: 3_000 },
-      { label: "研究開発費", amount: 2_000 },
+      { row: 26, label: "新聞図書費", amount: 5_000 },
+      { row: 27, label: "支払手数料", amount: 4_000 },
+      { row: 28, label: "諸会費", amount: 3_000 },
+      { row: 29, label: "研究開発費", amount: 2_000 },
+      { row: 30, label: "寄付金", amount: 1_000 },
     ]);
-    expect(aggregate.amounts[27]).toBe(5_000);
-    expect(aggregate.amounts[30]).toBe(2_000);
-    expect(aggregate.amounts[31]).toBe(1_500);
-    expect(aggregate.amounts[32]).toBe(21_500);
+    expect(aggregate.amounts[26]).toBe(5_000);
+    expect(aggregate.amounts[30]).toBe(1_000);
+    expect(aggregate.amounts[31]).toBe(1_200);
+    expect(aggregate.amounts[32]).toBe(22_200);
     expect(
-      (aggregate.amounts[26] ?? 0) +
+      (aggregate.amounts[25] ?? 0) +
+        (aggregate.amounts[26] ?? 0) +
         (aggregate.amounts[27] ?? 0) +
         (aggregate.amounts[28] ?? 0) +
         (aggregate.amounts[29] ?? 0) +

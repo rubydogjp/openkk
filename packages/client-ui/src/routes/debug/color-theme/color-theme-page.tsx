@@ -1,4 +1,5 @@
 import Link from "next/link.js";
+import type { CSSProperties, ReactNode } from "react";
 
 import {
   fontSize,
@@ -7,6 +8,7 @@ import {
   tokenDefaults,
   typography,
 } from "../../../shared/design-tokens.js";
+import { MaskIcon } from "../../../shared/icons.js";
 
 type PaletteToken = {
   group: string;
@@ -14,12 +16,11 @@ type PaletteToken = {
   value: string;
   purpose: string;
   examples: string[];
-  preview: "surface" | "border" | "button" | "message" | "text" | null;
+  preview: "surface" | "border" | "button" | "message" | "text";
   fg: string | null;
   bg: string | null;
   border: string | null;
 };
-
 
 const paletteValues = tokenDefaults.palette;
 
@@ -28,7 +29,7 @@ const paletteTokens: PaletteToken[] = [
     group: "Canvas / Surface",
     name: "Page Bg",
     value: paletteValues.pageBg,
-    purpose: "画面全体の基本背景。現状に合わせて白を基準にする。",
+    purpose: "画面全体の基本背景。",
     examples: ["/entries の作業面", "詳細 drawer 背景", "一覧ページの余白"],
     preview: "surface",
     border: paletteValues.borderSubtle,
@@ -146,24 +147,13 @@ const paletteTokens: PaletteToken[] = [
     border: null,
   },
   {
-    group: "Brand",
-    name: "Brand Ink",
-    value: paletteValues.brandInk,
-    purpose: "ロゴ、製品名、ブランド面。ボタン意味色には使わない。",
-    examples: ["オープン会計ロゴ文字", "ブランドマーク", "デモ CTA の黒面"],
-    preview: "surface",
-    fg: paletteValues.brandPaper,
-    border: paletteValues.brandInk,
-    bg: null,
-  },
-  {
     group: "Action",
     name: "Action",
     value: paletteValues.action,
     purpose: "通常の主操作。保存、次へ、開く。",
     examples: ["保存する", "仕訳を追加", "リストを開く"],
     preview: "button",
-    fg: paletteValues.brandPaper,
+    fg: paletteValues.surface,
     border: paletteValues.action,
     bg: null,
   },
@@ -190,24 +180,13 @@ const paletteTokens: PaletteToken[] = [
     fg: null,
   },
   {
-    group: "Decision",
-    name: "Decision",
-    value: paletteValues.decision,
-    purpose: "大きな決断・前進操作。完了、開始、確定。",
-    examples: ["決算を確定", "開始する", "取り込みを実行"],
-    preview: "button",
-    fg: paletteValues.brandPaper,
-    border: paletteValues.decision,
-    bg: null,
-  },
-  {
     group: "Success",
     name: "Success",
     value: paletteValues.success,
-    purpose: "成功状態、完了表示。",
-    examples: ["完了 chip", "成功 toast", "チェック済み icon"],
+    purpose: "成功状態、完了表示、開始・確定などの前進操作。",
+    examples: ["完了 chip", "開始する", "本締めを実行"],
     preview: "button",
-    fg: paletteValues.brandPaper,
+    fg: paletteValues.surface,
     border: paletteValues.success,
     bg: null,
   },
@@ -229,7 +208,7 @@ const paletteTokens: PaletteToken[] = [
     purpose: "注意・確認待ち。破壊的ではない警告。",
     examples: ["未分類があります", "仮締め前の注意", "要確認 chip"],
     preview: "button",
-    fg: paletteValues.brandPaper,
+    fg: paletteValues.surface,
     border: paletteValues.warning,
     bg: null,
   },
@@ -251,7 +230,7 @@ const paletteTokens: PaletteToken[] = [
     purpose: "危険・削除・エラー。",
     examples: ["削除する", "エラー icon", "破棄 action"],
     preview: "button",
-    fg: paletteValues.brandPaper,
+    fg: paletteValues.surface,
     border: paletteValues.danger,
     bg: null,
   },
@@ -274,7 +253,7 @@ const paletteTokens: PaletteToken[] = [
     examples: ["普通預金", "売掛金", "現金"],
     preview: "message",
     fg: paletteValues.accountAsset,
-    border: paletteValues.accountAssetBorder,
+    border: paletteValues.accountAsset,
     bg: null,
   },
   {
@@ -285,7 +264,7 @@ const paletteTokens: PaletteToken[] = [
     examples: ["借入金", "未払金", "買掛金"],
     preview: "message",
     fg: paletteValues.accountLiability,
-    border: paletteValues.accountLiabilityBorder,
+    border: paletteValues.accountLiability,
     bg: null,
   },
   {
@@ -296,7 +275,7 @@ const paletteTokens: PaletteToken[] = [
     examples: ["元入金", "事業主借", "事業主貸"],
     preview: "message",
     fg: paletteValues.accountEquity,
-    border: paletteValues.accountEquityBorder,
+    border: paletteValues.accountEquity,
     bg: null,
   },
   {
@@ -307,7 +286,7 @@ const paletteTokens: PaletteToken[] = [
     examples: ["売上高", "雑収入", "受取利息"],
     preview: "message",
     fg: paletteValues.accountRevenue,
-    border: paletteValues.accountRevenueBorder,
+    border: paletteValues.accountRevenue,
     bg: null,
   },
   {
@@ -318,29 +297,18 @@ const paletteTokens: PaletteToken[] = [
     examples: ["通信費", "消耗品費", "旅費交通費"],
     preview: "message",
     fg: paletteValues.accountExpense,
-    border: paletteValues.accountExpenseBorder,
+    border: paletteValues.accountExpense,
     bg: null,
   },
   {
     group: "Account Visual",
     name: "Account Profit",
     value: paletteValues.accountProfit,
-    purpose: "利益カテゴリ専用。純資産/収益と同じ緑。",
+    purpose: "利益カテゴリ専用。資産/費用と同じ青。",
     examples: ["利益", "当期利益", "黒字"],
     preview: "message",
     fg: paletteValues.accountProfit,
-    border: paletteValues.accountProfitBorder,
-    bg: null,
-  },
-  {
-    group: "Account Visual",
-    name: "Account Loss",
-    value: paletteValues.accountLoss,
-    purpose: "損失カテゴリ専用。負債と同じ赤。",
-    examples: ["損失", "当期損失", "赤字"],
-    preview: "message",
-    fg: paletteValues.accountLoss,
-    border: paletteValues.accountLossBorder,
+    border: paletteValues.accountProfit,
     bg: null,
   },
 ];
@@ -474,7 +442,7 @@ function TokenPreview({ token }: { token: PaletteToken }) {
         <button
           style={buttonStyle(
             token.value,
-            token.fg ?? paletteValues.brandPaper,
+            token.fg ?? paletteValues.surface,
             token.border ?? token.value,
           )}
         >
@@ -539,7 +507,7 @@ function TokenPreview({ token }: { token: PaletteToken }) {
   return null;
 }
 
-function tokenCardStyle(token: PaletteToken): React.CSSProperties {
+function tokenCardStyle(token: PaletteToken): CSSProperties {
   if (token.group === "Account Visual") {
     return {
       minHeight: 144,
@@ -596,7 +564,6 @@ function tokenCardStyle(token: PaletteToken): React.CSSProperties {
 
 function cardTextColor(token: PaletteToken): string {
   if (token.group === "Account Visual") return token.value;
-  if (token.name === "Brand Ink") return paletteValues.brandPaper;
   if (token.preview === "button") return token.value;
   if (token.preview === "message") return token.fg ?? paletteValues.text;
   if (token.preview === "text") return token.fg ?? token.value;
@@ -605,7 +572,6 @@ function cardTextColor(token: PaletteToken): string {
 
 function cardDescriptionColor(token: PaletteToken): string {
   if (token.group === "Account Visual") return paletteValues.textSoft;
-  if (token.name === "Brand Ink") return paletteValues.brandPaper;
   if (token.preview === "message") return paletteValues.textSoft;
   if (token.preview === "text") return token.fg ?? paletteValues.textSoft;
   return paletteValues.textSoft;
@@ -613,7 +579,6 @@ function cardDescriptionColor(token: PaletteToken): string {
 
 function cardCodeColor(token: PaletteToken): string {
   if (token.group === "Account Visual") return token.value;
-  if (token.name === "Brand Ink") return paletteValues.brandPaper;
   if (token.preview === "message") return token.fg ?? paletteValues.textLabel;
   return paletteValues.textLabel;
 }
@@ -632,8 +597,6 @@ function accountBackgroundForToken(token: PaletteToken): string {
       return paletteValues.accountExpenseBg;
     case "Account Profit":
       return paletteValues.accountProfitBg;
-    case "Account Loss":
-      return paletteValues.accountLossBg;
     default:
       return paletteValues.surface;
   }
@@ -681,7 +644,7 @@ function ApplicationSample() {
                   width: 28,
                   height: 28,
                   borderRadius: 8,
-                  background: paletteValues.brandInk,
+                  background: paletteValues.text,
                 }}
               />
               <div>
@@ -689,7 +652,7 @@ function ApplicationSample() {
                   style={{
                     fontSize: fontSize.base,
                     fontWeight: fontWeight.bold,
-                    color: paletteValues.brandInk,
+                    color: paletteValues.text,
                   }}
                 >
                   オープン会計
@@ -730,9 +693,9 @@ function ApplicationSample() {
             <button
               style={{
                 ...buttonStyle(
-                  paletteValues.brandInk,
-                  paletteValues.brandPaper,
-                  paletteValues.brandInk,
+                  paletteValues.text,
+                  paletteValues.surface,
+                  paletteValues.text,
                 ),
                 width: "100%",
                 marginTop: 290,
@@ -955,7 +918,7 @@ function ButtonMatrix() {
         <button style={outlineButtonStyle(paletteValues.action)}>
           キャンセル
         </button>
-        <button style={primaryButtonStyle(paletteValues.decision)}>確定</button>
+        <button style={primaryButtonStyle(paletteValues.success)}>確定</button>
         <button style={primaryButtonStyle(paletteValues.danger)}>削除</button>
         <button style={neutralButtonStyle()}>詳細</button>
       </div>
@@ -1016,7 +979,7 @@ function AccountPill({ label, kind }: { label: string; kind: AccountKind }) {
         fontWeight: fontWeight.bold,
       }}
     >
-      <AccountIcon kind={kind} color={visual.color} size={16} />
+      <MaskIcon src={visual.icon} color={visual.color} size={16} />
       <span
         style={{
           minWidth: 0,
@@ -1042,48 +1005,41 @@ type AccountKind =
 
 const accountVisuals: Record<
   AccountKind,
-  { color: string; bg: string; border: string; icon: string }
+  { color: string; bg: string; icon: string }
 > = {
   asset: {
     color: paletteValues.accountAsset,
     bg: paletteValues.accountAssetBg,
-    border: paletteValues.accountAssetBorder,
     icon: "/icons/assets.svg",
   },
   liability: {
     color: paletteValues.accountLiability,
     bg: paletteValues.accountLiabilityBg,
-    border: paletteValues.accountLiabilityBorder,
     icon: "/icons/liabilities.svg",
   },
   equity: {
     color: paletteValues.accountEquity,
     bg: paletteValues.accountEquityBg,
-    border: paletteValues.accountEquityBorder,
     icon: "/icons/net-assets.svg",
   },
   revenue: {
     color: paletteValues.accountRevenue,
     bg: paletteValues.accountRevenueBg,
-    border: paletteValues.accountRevenueBorder,
     icon: "/icons/revenue.svg",
   },
   expense: {
     color: paletteValues.accountExpense,
     bg: paletteValues.accountExpenseBg,
-    border: paletteValues.accountExpenseBorder,
     icon: "/icons/expense.svg",
   },
   profit: {
     color: paletteValues.accountProfit,
     bg: paletteValues.accountProfitBg,
-    border: paletteValues.accountProfitBorder,
     icon: "/icons/profit.svg",
   },
   loss: {
-    color: paletteValues.accountLoss,
-    bg: paletteValues.accountLossBg,
-    border: paletteValues.accountLossBorder,
+    color: paletteValues.danger,
+    bg: paletteValues.dangerBg,
     icon: "/icons/loss.svg",
   },
 };
@@ -1102,42 +1058,9 @@ function accountKindForToken(token: PaletteToken): AccountKind | null {
       return "expense";
     case "Account Profit":
       return "profit";
-    case "Account Loss":
-      return "loss";
     default:
       return null;
   }
-}
-
-function AccountIcon({
-  kind,
-  color,
-  size,
-}: {
-  kind: AccountKind;
-  color: string;
-  size: number;
-}) {
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        width: size,
-        height: size,
-        display: "block",
-        flexShrink: 0,
-        backgroundColor: color,
-        maskImage: `url('${accountVisuals[kind].icon}')`,
-        maskPosition: "center",
-        maskRepeat: "no-repeat",
-        maskSize: "contain",
-        WebkitMaskImage: `url('${accountVisuals[kind].icon}')`,
-        WebkitMaskPosition: "center",
-        WebkitMaskRepeat: "no-repeat",
-        WebkitMaskSize: "contain",
-      }}
-    />
-  );
 }
 
 function BackLink() {
@@ -1156,7 +1079,7 @@ function BackLink() {
   );
 }
 
-function Kicker({ children }: { children: React.ReactNode }) {
+function Kicker({ children }: { children: ReactNode }) {
   return (
     <div
       style={{
@@ -1175,7 +1098,7 @@ function buttonStyle(
   bg: string,
   fg: string,
   border: string,
-): React.CSSProperties {
+): CSSProperties {
   return {
     height: 36,
     padding: "0 14px",
@@ -1193,9 +1116,9 @@ function buttonStyle(
   };
 }
 
-function primaryButtonStyle(color: string): React.CSSProperties {
+function primaryButtonStyle(color: string): CSSProperties {
   return {
-    ...buttonStyle(color, paletteValues.brandPaper, color),
+    ...buttonStyle(color, paletteValues.surface, color),
     boxShadow:
       color === paletteValues.action
         ? "0 1px 2px rgba(37, 99, 235, 0.22)"
@@ -1203,11 +1126,11 @@ function primaryButtonStyle(color: string): React.CSSProperties {
   };
 }
 
-function outlineButtonStyle(color: string): React.CSSProperties {
+function outlineButtonStyle(color: string): CSSProperties {
   return buttonStyle(paletteValues.surface, color, color);
 }
 
-function neutralButtonStyle(): React.CSSProperties {
+function neutralButtonStyle(): CSSProperties {
   return buttonStyle(
     paletteValues.surface,
     paletteValues.textSoft,
@@ -1215,7 +1138,7 @@ function neutralButtonStyle(): React.CSSProperties {
   );
 }
 
-function accountContainerGroupStyle(): React.CSSProperties {
+function accountContainerGroupStyle(): CSSProperties {
   return {
     marginTop: 8,
     display: "flex",

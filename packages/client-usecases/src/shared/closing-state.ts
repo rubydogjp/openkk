@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import type { FiscalPeriod } from "@rubydogjp/openkk-client-domain";
 import type { EntryUpsertInput } from "@rubydogjp/openkk-client-ports";
 
 import { useBackendApi } from "./backend-api-context.js";
@@ -10,12 +9,12 @@ import { useOpenkkConfig } from "./openkk-config-context.js";
 import { assertEditingUnlocked } from "./editing-policy.js";
 
 export type OpenkkClosing = {
-  runPreClosing: (fiscalPeriod: FiscalPeriod) => Promise<void>;
+  runPreClosing: (fiscalPeriodId: string) => Promise<void>;
   runFinal: (
-    fiscalPeriod: FiscalPeriod,
+    fiscalPeriodId: string,
     entries: EntryUpsertInput[],
   ) => Promise<void>;
-  cancelPreClosing: (fiscalPeriod: FiscalPeriod) => Promise<void>;
+  cancelPreClosing: (fiscalPeriodId: string) => Promise<void>;
 };
 
 export function useOpenkkClosing(): OpenkkClosing {
@@ -24,24 +23,24 @@ export function useOpenkkClosing(): OpenkkClosing {
   const appState = useOpenkkAppState();
   return useMemo<OpenkkClosing>(
     () => ({
-      async runPreClosing(fiscalPeriod) {
+      async runPreClosing(fiscalPeriodId) {
         assertEditingUnlocked(config.editingPolicy, "closing.runPreClosing");
         const authOperationVersion = appState.captureAuthOperationVersion();
-        const period = await backendApi.preClosings.run(fiscalPeriod.id);
+        const period = await backendApi.preClosings.run(fiscalPeriodId);
         appState.assertAuthOperationCurrent(authOperationVersion);
         appState.syncFiscalPeriod(period);
       },
-      async runFinal(fiscalPeriod, entries) {
+      async runFinal(fiscalPeriodId, entries) {
         assertEditingUnlocked(config.editingPolicy, "closing.runFinal");
         const authOperationVersion = appState.captureAuthOperationVersion();
-        const period = await backendApi.closings.run(fiscalPeriod.id, entries);
+        const period = await backendApi.closings.run(fiscalPeriodId, entries);
         appState.assertAuthOperationCurrent(authOperationVersion);
         appState.syncFiscalPeriod(period);
       },
-      async cancelPreClosing(fiscalPeriod) {
+      async cancelPreClosing(fiscalPeriodId) {
         assertEditingUnlocked(config.editingPolicy, "closing.cancelPreClosing");
         const authOperationVersion = appState.captureAuthOperationVersion();
-        const period = await backendApi.preClosings.cancel(fiscalPeriod.id);
+        const period = await backendApi.preClosings.cancel(fiscalPeriodId);
         appState.assertAuthOperationCurrent(authOperationVersion);
         appState.syncFiscalPeriod(period);
       },

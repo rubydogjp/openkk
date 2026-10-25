@@ -56,7 +56,7 @@ packages/
 
 HTTP バックエンドは `embedded-backend-adapter` と同じ位置で差し替える。
 
-実行環境（プラットフォーム）に依存する機能は `PlatformPort` に集める。対象はアプリのインストール、オフラインキャッシュの登録、key-value 保存、ファイル保存、外部URL・認証リダイレクトの遷移、クリップボード。UI とユースケースは `usePlatformAdapter` 経由で呼び、`window` や `navigator` を直接触らない。ネイティブアプリなど別のプラットフォームで動かす場合は `platform-browser-adapter` と同じ位置に実装を追加し、`PlatformAdapterProvider` に渡す。ポップオーバーの外側クリック検知など、Web ビューである限り共通の DOM 操作は UI に残す。
+実行環境（プラットフォーム）に依存する機能は `PlatformPort` に集める。対象はアプリのインストール、オフラインキャッシュの登録、key-value 保存、ファイル保存、外部URL・認証リダイレクトの遷移。UI とユースケースは `usePlatformAdapter` 経由で呼び、`window` や `navigator` を直接触らない。ネイティブアプリなど別のプラットフォームで動かす場合は `platform-browser-adapter` と同じ位置に実装を追加し、`PlatformAdapterProvider` に渡す。ポップオーバーの外側クリック検知など、Web ビューである限り共通の DOM 操作は UI に残す。
 
 ### 3. 4 層依存方向
 

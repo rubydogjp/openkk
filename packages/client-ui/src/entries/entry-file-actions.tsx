@@ -11,6 +11,7 @@ import {
   spacing,
 } from "../shared/design-tokens.js";
 import { usePopoverLifecycle } from "../shared/dismissible-layer.js";
+import { MaskIcon } from "../shared/icons.js";
 
 export type EntryFileKind = "json" | "csv";
 
@@ -44,7 +45,7 @@ export function EntryFileActionsButton(props: {
           padding: "0 14px",
           borderRadius: radii.sm,
           border: `1px solid ${palette.borderSubtle}`,
-          background: open ? "#F1F5F9" : "#FFFFFF",
+          background: open ? "#F1F5F9" : palette.surface,
           color: palette.text,
           fontSize: fontSize.base,
           fontWeight: fontWeight.semibold,
@@ -55,7 +56,7 @@ export function EntryFileActionsButton(props: {
           transition: "background 80ms ease",
         }}
       >
-        <FileOpenIcon />
+        <MaskIcon src="/icons/file-open.svg" size={16} color="currentColor" />
         ファイル
         <ChevronDown />
       </button>
@@ -70,7 +71,7 @@ export function EntryFileActionsButton(props: {
             right: 0,
             zIndex: 60,
             minWidth: 240,
-            background: "#FFFFFF",
+            background: palette.surface,
             border: `1px solid ${palette.borderSubtle}`,
             borderRadius: radii.md,
             boxShadow:
@@ -257,28 +258,5 @@ function ChevronDown() {
         strokeLinejoin="round"
       />
     </svg>
-  );
-}
-
-function FileOpenIcon() {
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        width: 16,
-        height: 16,
-        display: "block",
-        flexShrink: 0,
-        backgroundColor: "currentColor",
-        maskImage: "url('/icons/file-open.svg')",
-        maskPosition: "center",
-        maskRepeat: "no-repeat",
-        maskSize: "contain",
-        WebkitMaskImage: "url('/icons/file-open.svg')",
-        WebkitMaskPosition: "center",
-        WebkitMaskRepeat: "no-repeat",
-        WebkitMaskSize: "contain",
-      }}
-    />
   );
 }

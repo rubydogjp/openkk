@@ -7,6 +7,7 @@ import {
   assertNonNegativeSafeInteger,
   assertPositiveInteger,
   assertUnitRate,
+  isNonBlankString,
   MAX_FIXED_ASSET_USEFUL_LIFE_YEARS,
   requireObject,
 } from "./validation.js";
@@ -40,7 +41,7 @@ export function assertFixedAssetMatchesRules(
   period: { startDate: string; endDate: string },
 ): asserts asset is FixedAsset {
   const value = requireObject(asset, "Fixed asset");
-  if (typeof value.name !== "string" || value.name.trim() === "") {
+  if (!isNonBlankString(value.name)) {
     throw serverValidationError(
       "Fixed asset name is required",
       "固定資産の名称を入力してください",

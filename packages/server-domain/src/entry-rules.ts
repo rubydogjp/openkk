@@ -5,6 +5,7 @@ import {
   assertEntryLinesBalanced,
   assertIsoDate,
   assertUnitRate,
+  isNonBlankString,
   requireObject,
 } from "./validation.js";
 
@@ -14,10 +15,7 @@ export function assertEntryMatchesRules(
   label: string,
 ): asserts entry is Entry {
   const value = requireObject(entry, label);
-  if (
-    typeof value.description !== "string" ||
-    value.description.trim() === ""
-  ) {
+  if (!isNonBlankString(value.description)) {
     throw serverValidationError(`${label} description is required`, null);
   }
   assertIsoDate(value.date, `${label} date`);
@@ -27,10 +25,7 @@ export function assertEntryMatchesRules(
       "仕訳日付を会計期間内にしてください",
     );
   }
-  if (
-    value.localId !== null &&
-    (typeof value.localId !== "string" || value.localId.trim() === "")
-  ) {
+  if (value.localId !== null && !isNonBlankString(value.localId)) {
     throw serverValidationError(
       `${label} localId must be a non-blank string or null`,
       null,
@@ -51,10 +46,7 @@ export function assertEntryLineMatchesRules(
   label: string,
 ): asserts line is EntryLine {
   const value = requireObject(line, `${label} line`);
-  if (
-    typeof value.bookAccountId !== "string" ||
-    value.bookAccountId.trim() === ""
-  ) {
+  if (!isNonBlankString(value.bookAccountId)) {
     throw serverValidationError(`${label} line book account is required`, null);
   }
   if (getDefaultBookAccount(value.bookAccountId) == null) {

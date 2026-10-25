@@ -23,9 +23,8 @@ function plTotals(rows: EntrySummaryRow[]): {
   let revenue = 0;
   let expenses = 0;
   for (const row of rows) {
-    const rate = row.businessRate;
-    revenue += computeRevenueContribution(row, rate);
-    expenses += computeExpenseContribution(row, rate);
+    revenue += computeRevenueContribution(row);
+    expenses += computeExpenseContribution(row);
   }
   return { revenue, expenses };
 }
@@ -58,8 +57,11 @@ describe("summary contributions", () => {
 
   it("routes the home-use portion out of the expense contribution (家事按分)", () => {
     const expense = computeExpenseContribution(
-      entry({ debitType: "expense", debitAmount: "20,000" }),
-      parseBusinessRate("50"),
+      entry({
+        businessRate: parseBusinessRate("50"),
+        debitType: "expense",
+        debitAmount: "20,000",
+      }),
     );
     expect(expense).toBe(10_000);
   });

@@ -3,7 +3,10 @@
 import Link from "next/link.js";
 import { useEffect, useRef, useState } from "react";
 
-import type { StepTrendPoint } from "@rubydogjp/openkk-client-domain";
+import {
+  formatAmount,
+  type StepTrendPoint,
+} from "@rubydogjp/openkk-client-domain";
 import { fontSize, fontWeight, palette } from "../shared/design-tokens.js";
 import { useReportWorkInProgress } from "../shared/work-in-progress.js";
 
@@ -27,21 +30,14 @@ function slotCenterX(index: number, slotWidth: number): number {
 
 export function JournalizingCurrentTrendChart(props: {
   points: StepTrendPoint[];
-  detailsHref: string | null;
 }) {
-  return (
-    <TrendChart
-      points={props.points}
-      mode="current"
-      detailsHref={props.detailsHref}
-    />
-  );
+  return <TrendChart points={props.points} mode="current" />;
 }
 
 export function JournalizingCompletedTrendChart(props: {
   points: StepTrendPoint[];
 }) {
-  return <TrendChart points={props.points} mode="completed" detailsHref={null} />;
+  return <TrendChart points={props.points} mode="completed" />;
 }
 
 export function JournalizingNotStartedTrendChart(props: {
@@ -57,14 +53,10 @@ export function JournalizingNotStartedTrendChart(props: {
           profit: 0,
           isCurrent: false,
         }));
-  return <TrendChart points={points} mode="not-started" detailsHref={null} />;
+  return <TrendChart points={points} mode="not-started" />;
 }
 
-function TrendChart(props: {
-  points: StepTrendPoint[];
-  mode: TrendChartMode;
-  detailsHref: string | null;
-}) {
+function TrendChart(props: { points: StepTrendPoint[]; mode: TrendChartMode }) {
   const scale =
     props.mode === "not-started"
       ? { min: -100000, max: 100000, step: 50000 }
@@ -178,9 +170,7 @@ function TrendChart(props: {
           </svg>
         </div>
       </div>
-      {props.detailsHref != null ? (
-        <TrendDetailsLink href={props.detailsHref} />
-      ) : null}
+      {props.mode === "current" ? <TrendDetailsLink /> : null}
     </div>
   );
 }
@@ -425,7 +415,7 @@ function ProfitPoints(props: {
   });
 }
 
-function TrendDetailsLink(props: { href: string }) {
+function TrendDetailsLink() {
   return (
     <div
       style={{
@@ -437,7 +427,7 @@ function TrendDetailsLink(props: { href: string }) {
       }}
     >
       <Link
-        href={props.href}
+        href="/steps/journalizing/analytics"
         style={{
           fontSize: fontSize.sm,
           fontWeight: fontWeight.bold,
@@ -544,7 +534,7 @@ function roundedBarPath(input: {
 }
 
 function compactYen(value: number) {
-  return Math.round(value / 1000).toLocaleString("ja-JP");
+  return formatAmount(Math.round(value / 1000));
 }
 
 function buildNiceScale(maximumAbsoluteValue: number) {

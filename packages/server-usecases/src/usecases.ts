@@ -1,8 +1,8 @@
 import {
   assertClosingEntriesMatch,
   assertFiscalPeriodCanCarryOver,
+  assertNoOverlappingActiveFiscalPeriod,
   buildExpectedClosingEntries,
-  serverConflictError,
   serverNotFoundError,
 } from "@rubydogjp/openkk-server-domain";
 import type {
@@ -135,18 +135,10 @@ function createFiscalPeriodsUsecase(db: OpenkkDbPort) {
       input: FiscalPeriodArchiveImportInput,
     ) {
       const normalized = normalizeArchiveImportInput(input);
-      const overlap = (await db.fiscalPeriods.getAll(userId)).find(
-        (period) =>
-          period.archiveStatus === "active" &&
-          normalized.fiscalPeriod.startDate <= period.endDate &&
-          normalized.fiscalPeriod.endDate >= period.startDate,
+      assertNoOverlappingActiveFiscalPeriod(
+        normalized.fiscalPeriod,
+        await db.fiscalPeriods.getAll(userId),
       );
-      if (overlap != null) {
-        throw serverConflictError(
-          `Archived fiscal period ${normalized.fiscalPeriod.startDate} to ${normalized.fiscalPeriod.endDate} overlaps active fiscal period ${overlap.id}`,
-          "既存の会計期間と日付が重複しています",
-        );
-      }
       return db.fiscalPeriods.importArchived(userId, normalized);
     },
     async patch(userId: string, id: string, patch: FiscalPeriodPatchInput) {

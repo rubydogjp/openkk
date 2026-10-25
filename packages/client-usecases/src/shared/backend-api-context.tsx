@@ -21,8 +21,7 @@ export function useBackendApi(): OpenkkBackendPort {
   const value = useContext(BackendApiContext);
   if (value == null) {
     throw new AppError({
-      messageForDeveloper:
-        "useBackendApi: BackendApiProvider が祖先にありません。app boot 時に inject してください。",
+      messageForDeveloper: "useBackendApi must be used within BackendApiProvider",
       messageForUser: "アプリの初期化に失敗しました",
       originalMessage: null,
       statusCode: null,

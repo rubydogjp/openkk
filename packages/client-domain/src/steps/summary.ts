@@ -9,19 +9,13 @@ export type EntrySummaryRow = {
   lines: EntryLine[];
 };
 
-function businessRateAdjustedLines(
-  record: EntrySummaryRow,
-  rate: number,
-): EntryLine[] {
-  return applyBusinessRateToLines(record.lines, rate);
+function businessRateAdjustedLines(record: EntrySummaryRow): EntryLine[] {
+  return applyBusinessRateToLines(record.lines, record.businessRate);
 }
 
-export function computeRevenueContribution(
-  record: EntrySummaryRow,
-  rate: number,
-): number {
+export function computeRevenueContribution(record: EntrySummaryRow): number {
   let value = 0;
-  for (const line of businessRateAdjustedLines(record, rate)) {
+  for (const line of businessRateAdjustedLines(record)) {
     if (line.accountType !== "revenue") continue;
     const amount = parseAmount(line.amount);
     value += line.side === "credit" ? amount : -amount;
@@ -29,12 +23,9 @@ export function computeRevenueContribution(
   return value;
 }
 
-export function computeExpenseContribution(
-  record: EntrySummaryRow,
-  rate: number,
-): number {
+export function computeExpenseContribution(record: EntrySummaryRow): number {
   let value = 0;
-  for (const line of businessRateAdjustedLines(record, rate)) {
+  for (const line of businessRateAdjustedLines(record)) {
     if (
       line.accountType !== "expense" &&
       line.accountType !== "cost_of_sales"
@@ -46,5 +37,3 @@ export function computeExpenseContribution(
   }
   return value;
 }
-
-export const OPENING_EQUITY_LABELS = new Set<string>(["事業主借", "元入金"]);

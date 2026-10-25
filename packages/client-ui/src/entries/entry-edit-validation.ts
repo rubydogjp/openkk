@@ -63,7 +63,7 @@ export function validateEntryLineCount(count: number): string | null {
     return "仕訳明細の件数を確認できませんでした。";
   }
   if (count > MAX_ENTRY_LINES) {
-    return `1件の仕訳に登録できる明細は${MAX_ENTRY_LINES.toLocaleString()}件までです。`;
+    return `1件の仕訳に登録できる明細は${MAX_ENTRY_LINES.toLocaleString("ja-JP")}件までです。`;
   }
   return null;
 }

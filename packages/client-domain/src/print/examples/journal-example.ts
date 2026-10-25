@@ -3,6 +3,7 @@ import type {
   EntryRecord,
 } from "../../entries/entry-record.js";
 import type { BookAccountType } from "../../entries/book-account.js";
+import type { OpeningBalanceLine } from "../../shared/models.js";
 
 const FISCAL_PERIOD_ID = "fp-example";
 
@@ -47,6 +48,13 @@ function exampleEntry(input: ExampleEntry): EntryRecord {
     localId: null,
   };
 }
+
+export const JOURNAL_EXAMPLE_OPENING_BALANCE_LINES: OpeningBalanceLine[] = [
+  { id: "a:現金", accountId: "a:現金", amount: 50000 },
+  { id: "a:普通預金", accountId: "a:普通預金", amount: 1500000 },
+  { id: "a:工具器具備品", accountId: "a:工具器具備品", amount: 200000 },
+  { id: "l:元入金", accountId: "l:元入金", amount: 1750000 },
+];
 
 export const JOURNAL_EXAMPLE_ENTRIES: EntryRecord[] = [
   exampleEntry({

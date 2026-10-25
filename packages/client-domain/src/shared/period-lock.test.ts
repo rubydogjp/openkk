@@ -27,41 +27,41 @@ function period(overrides: Partial<FiscalPeriod> = {}): FiscalPeriod {
 
 describe("buildPeriodLockMessage", () => {
   it("returns locked message when period is null", () => {
-    const msg = buildPeriodLockMessage(null, null);
-    expect(msg).not.toBeNull();
-    expect(msg?.title).toBeTruthy();
+    const message = buildPeriodLockMessage(null, null);
+    expect(message).not.toBeNull();
+    expect(message?.title).toBeTruthy();
   });
 
   it("returns locked message when phase is pre_opening", () => {
-    const msg = buildPeriodLockMessage(period({ phase: "pre_opening" }), null);
-    expect(msg).not.toBeNull();
+    const message = buildPeriodLockMessage(period({ phase: "pre_opening" }), null);
+    expect(message).not.toBeNull();
   });
 
   it("returns locked message when phase is post_closing", () => {
-    const msg = buildPeriodLockMessage(period({ phase: "post_closing" }), null);
-    expect(msg).not.toBeNull();
+    const message = buildPeriodLockMessage(period({ phase: "post_closing" }), null);
+    expect(message).not.toBeNull();
   });
 
   it("returns locked message when pre-closing", () => {
-    const msg = buildPeriodLockMessage(period({ phase: "pre_closing" }), null);
-    expect(msg).not.toBeNull();
+    const message = buildPeriodLockMessage(period({ phase: "pre_closing" }), null);
+    expect(message).not.toBeNull();
   });
 
   it("returns locked message when archived", () => {
-    const msg = buildPeriodLockMessage(period({ archiveStatus: "archived" }), null);
-    expect(msg?.description).toContain("圧縮保存済み");
+    const message = buildPeriodLockMessage(period({ archiveStatus: "archived" }), null);
+    expect(message?.description).toContain("圧縮保存済み");
   });
 
   it("returns null (unlocked) when journalizing and not closed", () => {
-    const msg = buildPeriodLockMessage(period({ phase: "journalizing" }), null);
-    expect(msg).toBeNull();
+    const message = buildPeriodLockMessage(period({ phase: "journalizing" }), null);
+    expect(message).toBeNull();
   });
 
   it("incorporates custom subjectVerb in the description", () => {
-    const msg = buildPeriodLockMessage(
+    const message = buildPeriodLockMessage(
       period({ phase: "pre_opening" }),
       "入力できます",
     );
-    expect(msg?.description).toContain("入力できます");
+    expect(message?.description).toContain("入力できます");
   });
 });

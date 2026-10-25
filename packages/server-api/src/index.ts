@@ -2,6 +2,7 @@ import {
   assertEntryCollectionItemLimit,
   assertEntryCollectionLineLimit,
   assertFiscalPeriodPatchMatchesPhase,
+  assertNoOverlappingActiveFiscalPeriod,
   assertNonBlankString,
   serverConflictError,
   serverNotFoundError,
@@ -21,7 +22,6 @@ import {
   assertFiscalPeriodContainsExistingData,
   assertFiscalPeriodPatchInput,
   assertFiscalPeriodReadyForPreClosing,
-  assertNoOverlappingFiscalPeriod,
   assertPeriodDataAvailable,
   assertPeriodPhase,
   assertPeriodPhaseOneOf,
@@ -86,7 +86,7 @@ export function createOpenkkServerApi(
         assertNonBlankString(code, "Auth completion code");
         await usecases.auth.redeemCompletionCode(code);
         return {
-          userId: userId,
+          userId,
           displayName: null,
           email: null,
           iconUrl: null,
@@ -167,7 +167,11 @@ export function createOpenkkServerApi(
         for (const input of inputs) {
           assertEditableEntryInput(input, period, null);
         }
-        const entries = await usecases.entries.importMany(userId, fiscalPeriodId, inputs);
+        const entries = await usecases.entries.importMany(
+          userId,
+          fiscalPeriodId,
+          inputs,
+        );
         return { importedCount: entries.length, entries };
       },
     },
@@ -175,7 +179,7 @@ export function createOpenkkServerApi(
       getAll: () => usecases.fiscalPeriods.getAll(userId),
       create: async (input) => {
         assertFiscalPeriodCreateInput(input);
-        assertNoOverlappingFiscalPeriod(
+        assertNoOverlappingActiveFiscalPeriod(
           input,
           await usecases.fiscalPeriods.getAll(userId),
         );
@@ -183,7 +187,7 @@ export function createOpenkkServerApi(
       },
       createNext: async (input) => {
         assertFiscalPeriodNextCreateInput(input);
-        assertNoOverlappingFiscalPeriod(
+        assertNoOverlappingActiveFiscalPeriod(
           input,
           await usecases.fiscalPeriods.getAll(userId),
         );
@@ -200,7 +204,7 @@ export function createOpenkkServerApi(
         }
         assertFiscalPeriodPatchMatchesPhase(current, patch);
         assertFiscalPeriodPatchInput(current, patch);
-        if (patch.startDate != null || patch.endDate != null) {
+        if (patch.startDate !== undefined || patch.endDate !== undefined) {
           const effectivePeriod = {
             startDate: patch.startDate ?? current.startDate,
             endDate: patch.endDate ?? current.endDate,
@@ -210,7 +214,7 @@ export function createOpenkkServerApi(
             usecases.entries.getAll(userId, id),
             usecases.fixedAssets.getAll(userId, id),
           ]);
-          assertNoOverlappingFiscalPeriod(
+          assertNoOverlappingActiveFiscalPeriod(
             effectivePeriod,
             periods.filter((period) => period.id !== id),
           );

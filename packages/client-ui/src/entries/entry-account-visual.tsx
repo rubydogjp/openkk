@@ -1,6 +1,7 @@
 import type { BookAccountType } from "@rubydogjp/openkk-client-domain";
 
 import { palette } from "../shared/design-tokens.js";
+import { MaskIcon } from "../shared/icons.js";
 
 export type EntryAccountPalette = {
   background: string;
@@ -45,25 +46,11 @@ export function EntryAccountIcon(props: {
   color: string;
   size: number;
 }) {
-  const iconPath = entryAccountIconPath(props.type);
   return (
-    <span
-      aria-hidden="true"
-      style={{
-        width: props.size,
-        height: props.size,
-        display: "block",
-        flexShrink: 0,
-        backgroundColor: props.color,
-        maskImage: `url('${iconPath}')`,
-        maskPosition: "center",
-        maskRepeat: "no-repeat",
-        maskSize: "contain",
-        WebkitMaskImage: `url('${iconPath}')`,
-        WebkitMaskPosition: "center",
-        WebkitMaskRepeat: "no-repeat",
-        WebkitMaskSize: "contain",
-      }}
+    <MaskIcon
+      src={entryAccountIconPath(props.type)}
+      size={props.size}
+      color={props.color}
     />
   );
 }

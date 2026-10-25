@@ -23,13 +23,6 @@ type TypeToken = {
 
 const typeTokens: TypeToken[] = [
   {
-    name: "Fine Print",
-    styleToken: "finePrint",
-    role: "10px / 軸・曜日など、短いメタ表示だけ。",
-    sample: "05/21 WED",
-    description: "グラフ軸やカレンダーなど、表示密度が高い場所に限定する。",
-  },
-  {
     name: "Meta",
     styleToken: "meta",
     role: "11px / ラベルより弱い補助メタ。",
@@ -44,25 +37,11 @@ const typeTokens: TypeToken[] = [
     description: "入力補助や検証メッセージなど、本文を支える説明に使う。",
   },
   {
-    name: "Body",
-    styleToken: "body",
-    role: "13px / アプリ本文とテーブル本文の標準。",
-    sample: "売上、経費、決算整理を順番に確認します。",
-    description: "本文とテーブルの標準サイズとして使う。",
-  },
-  {
     name: "Input",
     styleToken: "input",
     role: "14px / 入力値と steps の導入文。",
     sample: "5月分 売上入金",
     description: "編集対象の値と、手順ページの短い導入文に使う。",
-  },
-  {
-    name: "Label",
-    styleToken: "label",
-    role: "12px / フォーム・表ヘッダー・固定ラベル。",
-    sample: "取引日",
-    description: "入力欄や列の意味を示す固定ラベルに使う。",
   },
   {
     name: "Control",
@@ -77,20 +56,6 @@ const typeTokens: TypeToken[] = [
     role: "13px / 金額・数値列。",
     sample: "1,234,567",
     description: "等幅フォントで桁を揃える金額・数値列に使う。",
-  },
-  {
-    name: "Chip",
-    styleToken: "chip",
-    role: "12px / 取引先・事業割合などのタグ。",
-    sample: "取引先: RubyDog",
-    description: "取引先や事業割合などの補助属性に使う。",
-  },
-  {
-    name: "Account Label",
-    styleToken: "accountLabel",
-    role: "13px / 勘定科目コンテナ。",
-    sample: "売上高",
-    description: "仕訳行の主情報となる勘定科目名に使う。",
   },
   {
     name: "Section Title",
@@ -202,23 +167,21 @@ export function FontThemePage() {
           </h1>
           <p
             style={{
-              ...typography.body,
+              ...typography.helper,
               maxWidth: 780,
               margin: "10px 0 0",
               color: palette.textSoft,
             }}
           >
-            一般的な type scale
-            の考え方に合わせ、サイズを増やすのではなく役割を減らして整理します。
-            基本フォントは NotoSansJP、金額・等幅表示だけ NotoSansMono
-            です。その他のフォントはフォント読み込み失敗時の最終 fallback
-            に限ります。
+            役割ごとに文字スタイルを1つ選びます。基本フォントは
+            NotoSansJP、金額・等幅表示だけ NotoSansMono です。その他のフォントは
+            フォント読み込み失敗時の最終 fallback に限ります。
           </p>
         </header>
 
         <Section
           title="Font Families"
-          lead="フォントファミリーは NotoSansJP / NotoSansMono の 2 系統へ寄せ切ります。"
+          lead="フォントファミリーは NotoSansJP / NotoSansMono の 2 系統です。"
         >
           <div style={gridStyle}>
             {familyTokens.map((token) => (
@@ -227,7 +190,7 @@ export function FontThemePage() {
                 <code style={codeStyle}>{token.value}</code>
                 <p
                   style={{
-                    ...typography.body,
+                    ...typography.helper,
                     color: palette.textSoft,
                     margin: "10px 0 0",
                   }}
@@ -292,7 +255,7 @@ export function FontThemePage() {
                 </div>
                 <p
                   style={{
-                    ...typography.body,
+                    ...typography.helper,
                     color: palette.textSoft,
                     margin: "8px 0 0",
                   }}
@@ -345,7 +308,7 @@ function TypeRow({ token }: { token: TypeToken }) {
           {token.role}
         </div>
       </div>
-      <p style={{ ...typography.body, color: palette.textSoft, margin: 0 }}>
+      <p style={{ ...typography.helper, color: palette.textSoft, margin: 0 }}>
         {token.description}
       </p>
     </Card>
@@ -383,7 +346,7 @@ function DocsSample() {
       </h4>
       <ul
         style={{
-          ...typography.body,
+          ...typography.helper,
           color: palette.text,
           margin: 0,
           paddingLeft: 20,
@@ -403,7 +366,7 @@ function DocsSample() {
           border: `1px solid ${palette.actionBorder}`,
           borderRadius: radii.md,
           padding: spacing.s14,
-          ...typography.body,
+          ...typography.helper,
           color: palette.text,
         }}
       >
@@ -430,7 +393,7 @@ function FormAndTableSample() {
           <label
             style={{ display: "grid", gap: spacing.s6, marginTop: spacing.s14 }}
           >
-            <span style={{ ...typography.label, color: palette.textLabel }}>
+            <span style={{ ...typography.control, color: palette.textLabel }}>
               摘要
             </span>
             <input
@@ -470,7 +433,7 @@ function FormAndTableSample() {
               style={{
                 ...buttonBase,
                 background: palette.action,
-                color: palette.textOnDark,
+                color: palette.surface,
               }}
             >
               追加
@@ -488,8 +451,8 @@ function FormAndTableSample() {
             <button
               style={{
                 ...buttonBase,
-                background: palette.decision,
-                color: palette.textOnDark,
+                background: palette.success,
+                color: palette.surface,
               }}
             >
               確定
@@ -498,7 +461,7 @@ function FormAndTableSample() {
               style={{
                 ...buttonBase,
                 background: palette.danger,
-                color: palette.textOnDark,
+                color: palette.surface,
               }}
             >
               削除
@@ -541,7 +504,7 @@ function FormAndTableSample() {
                   key={header}
                   style={{
                     padding: "8px 10px",
-                    ...typography.label,
+                    ...typography.control,
                     color: palette.textLabel,
                   }}
                 >
@@ -556,7 +519,7 @@ function FormAndTableSample() {
                 alignItems: "center",
               }}
             >
-              <div style={{ padding: 10, ...typography.body }}>05/21</div>
+              <div style={{ padding: 10, ...typography.helper }}>05/21</div>
               <div style={{ padding: 10 }}>
                 <span
                   style={{
@@ -567,9 +530,9 @@ function FormAndTableSample() {
                     padding: "0 10px",
                     borderRadius: radii.sm,
                     background: palette.accountRevenueBg,
-                    border: `1px solid ${palette.accountRevenueBorder}`,
+                    border: `1px solid ${palette.accountRevenue}`,
                     color: palette.accountRevenue,
-                    ...typography.accountLabel,
+                    ...typography.control,
                   }}
                 >
                   売上高
@@ -585,7 +548,7 @@ function FormAndTableSample() {
                     background: palette.surfaceTint,
                     border: `1px solid ${palette.borderSubtle}`,
                     color: palette.textSoft,
-                    ...typography.chip,
+                    ...typography.helper,
                   }}
                 >
                   取引先: RubyDog

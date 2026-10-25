@@ -77,25 +77,12 @@ const paletteDefaults = {
   textSoft: slate.s600,
   textLabel: slate.s500,
   textMuted: slate.s400,
-  textOnDark: slate.white,
 
-  brandInk: slate.s900,
-  brandPaper: slate.white,
   action: "#1D4ED8",
-  actionHover: "#1E40AF",
   actionBg: "#EEF5FF",
   actionBorder: "#93C5FD",
-  decision: "#15803D",
-  decisionHover: "#166534",
-  decisionBg: "#ECFDF3",
-  decisionBorder: "#86EFAC",
   brand: "#1D4ED8",
-  brandHover: "#1E40AF",
-  brandShadow: "rgba(37, 99, 235, 0.22)",
-  brandActiveBg: "#EEF5FF",
-  brandActiveBgStrong: "#DBEAFE",
   brandTint: "#EEF5FF",
-  brandBorder: "#93C5FD",
 
   success: "#15803D",
   successBg: "#ECFDF3",
@@ -109,25 +96,16 @@ const paletteDefaults = {
 
   accountAsset: "#2563EB",
   accountAssetBg: "#EFF6FF",
-  accountAssetBorder: "#BFDBFE",
   accountLiability: "#E11D48",
   accountLiabilityBg: "#FFF1F2",
-  accountLiabilityBorder: "#FDA4AF",
   accountEquity: "#15803D",
   accountEquityBg: "#ECFDF3",
-  accountEquityBorder: "#86EFAC",
   accountRevenue: "#15803D",
   accountRevenueBg: "#ECFDF3",
-  accountRevenueBorder: "#86EFAC",
   accountExpense: "#2563EB",
   accountExpenseBg: "#EFF6FF",
-  accountExpenseBorder: "#BFDBFE",
   accountProfit: "#2563EB",
   accountProfitBg: "#EFF6FF",
-  accountProfitBorder: "#BFDBFE",
-  accountLoss: "#E11D48",
-  accountLossBg: "#FFF1F2",
-  accountLossBorder: "#FDA4AF",
 };
 
 const shadowDefaults = {
@@ -200,7 +178,6 @@ const sizeDefaults = {
     ctaHeight: 44,
     ctaMinWidth: 112,
     iconOnly: 36,
-    mobileHit: 48,
   },
   field: {
     height: 40,
@@ -211,7 +188,6 @@ const sizeDefaults = {
   },
   account: {
     tableHeight: 36,
-    inlineHeight: 28,
     tableWidth: 136,
   },
   shell: {
@@ -232,12 +208,9 @@ const sizeDefaults = {
 };
 
 const typographyDefaults = {
-  finePrint: { fontSize: "micro", lineHeight: 1.4, fontWeight: "semibold" },
   meta: { fontSize: "xs", lineHeight: 1.45, fontWeight: "medium" },
   helper: { fontSize: "sm", lineHeight: 1.6, fontWeight: "regular" },
-  body: { fontSize: "base", lineHeight: 1.7, fontWeight: "regular" },
   input: { fontSize: "md", lineHeight: 1.45, fontWeight: "regular" },
-  label: { fontSize: "sm", lineHeight: 1.4, fontWeight: "semibold" },
   control: { fontSize: "base", lineHeight: 1.4, fontWeight: "semibold" },
   amount: {
     fontFamily: "mono",
@@ -245,8 +218,6 @@ const typographyDefaults = {
     lineHeight: 1.4,
     fontWeight: "semibold",
   },
-  chip: { fontSize: "sm", lineHeight: 1.35, fontWeight: "regular" },
-  accountLabel: { fontSize: "base", lineHeight: 1.35, fontWeight: "bold" },
   sectionTitle: { fontSize: "lg", lineHeight: 1.45, fontWeight: "bold" },
   contentTitle: { fontSize: "xl", lineHeight: 1.4, fontWeight: "bold" },
   dialogTitle: { fontSize: 20, lineHeight: 1.3, fontWeight: "bold" },
@@ -324,16 +295,11 @@ function typographyStyle(token: TypographyToken): TypographyStyle {
 }
 
 export const typography = {
-  finePrint: typographyStyle("finePrint"),
   meta: typographyStyle("meta"),
   helper: typographyStyle("helper"),
-  body: typographyStyle("body"),
   input: typographyStyle("input"),
-  label: typographyStyle("label"),
   control: typographyStyle("control"),
   amount: typographyStyle("amount"),
-  chip: typographyStyle("chip"),
-  accountLabel: typographyStyle("accountLabel"),
   sectionTitle: typographyStyle("sectionTitle"),
   contentTitle: typographyStyle("contentTitle"),
   dialogTitle: typographyStyle("dialogTitle"),

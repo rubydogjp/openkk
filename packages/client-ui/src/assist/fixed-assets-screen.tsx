@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 
-import type { FixedAsset } from "@rubydogjp/openkk-client-domain";
+import { formatAmount, type FixedAsset } from "@rubydogjp/openkk-client-domain";
 import { AmountText } from "../shared/amount-field.js";
 import {
   fontSize,
@@ -406,8 +406,8 @@ function FixedAssetCardBody(props: { asset: FixedAsset }) {
           }}
         >
           購入額
-          <AmountText bold={false} muted={false}>
-            {asset.acquisitionCost.toLocaleString("ja-JP")}
+          <AmountText bold={false}>
+            {formatAmount(asset.acquisitionCost)}
           </AmountText>
           円
         </span>
@@ -421,8 +421,8 @@ function FixedAssetCardBody(props: { asset: FixedAsset }) {
           }}
         >
           現在の価値
-          <AmountText bold muted={false}>
-            {asset.currentBookValue.toLocaleString("ja-JP")}
+          <AmountText bold>
+            {formatAmount(asset.currentBookValue)}
           </AmountText>
           円
         </span>

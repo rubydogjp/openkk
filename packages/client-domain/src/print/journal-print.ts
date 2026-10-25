@@ -3,6 +3,7 @@ import {
   resolveEntryPairMetadata,
   type EntryLine,
   type EntryRecord,
+  type EntryVisualPair,
 } from "../entries/entry-record.js";
 import { formatAmount, parseAmount } from "../shared/parse-utils.js";
 import { buildPrintDocument, escapeHtml } from "./print-shell.js";
@@ -120,7 +121,7 @@ export function buildJournalBody(entries: EntryRecord[]): string {
 
 type JournalPageEntry = {
   entry: EntryRecord;
-  pairs: ReturnType<typeof entryToVisualPairs>;
+  pairs: EntryVisualPair[];
   pairOffset: number;
 };
 

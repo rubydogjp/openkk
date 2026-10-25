@@ -135,14 +135,14 @@ describe("fiscal period archive", () => {
       ],
       closings: [],
     });
-    const legacy = {
+    const version1 = {
       ...current,
       manifest: { ...current.manifest, version: 1 as const },
     };
 
     expect(
-      readFiscalPeriodArchiveZip(createFiscalPeriodArchiveZip(legacy)),
-    ).toEqual(legacy);
+      readFiscalPeriodArchiveZip(createFiscalPeriodArchiveZip(version1)),
+    ).toEqual(version1);
   });
 
   it("rejects payloads with an unsupported manifest format", () => {

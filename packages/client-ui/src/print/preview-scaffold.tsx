@@ -1,26 +1,25 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation.js";
 
 import { palette } from "../shared/design-tokens.js";
 
 export type PreviewScaffoldProps = {
   title: string;
-  notice: string;
   bodyHtml: string;
   onPrint: () => void;
 };
 
 export function PreviewScaffold({
   title,
-  notice,
   bodyHtml,
   onPrint,
 }: PreviewScaffoldProps) {
   const router = useRouter();
 
   function handleClose() {
-    if (typeof window !== "undefined" && (window.history.length <= 1 || window.opener)) {
+    if (window.history.length <= 1 || window.opener) {
       window.close();
     } else {
       router.back();
@@ -47,7 +46,9 @@ export function PreviewScaffold({
         </button>
       </div>
 
-      <div style={noticeStyle}>{notice}</div>
+      <div style={noticeStyle}>
+        このページはテンプレート + 固定の例の値の表示確認用です。実際の期間データは使用しません。
+      </div>
 
       <div
         className="bk-preview-frame"
@@ -58,7 +59,7 @@ export function PreviewScaffold({
   );
 }
 
-const toolbarStyle: React.CSSProperties = {
+const toolbarStyle: CSSProperties = {
   background: palette.formGroupBg,
   borderBottom: `1px solid ${palette.borderSubtle}`,
   padding: "10px 16px",
@@ -68,7 +69,7 @@ const toolbarStyle: React.CSSProperties = {
   gap: 16,
 };
 
-const noticeStyle: React.CSSProperties = {
+const noticeStyle: CSSProperties = {
   background: palette.formGroupBg,
   padding: "8px 16px",
   borderBottom: `1px solid ${palette.borderSubtle}`,
@@ -77,7 +78,7 @@ const noticeStyle: React.CSSProperties = {
   fontWeight: 500,
 };
 
-const navBtnStyle: React.CSSProperties = {
+const navBtnStyle: CSSProperties = {
   height: 36,
   padding: "0 12px",
   borderRadius: 8,
@@ -89,7 +90,7 @@ const navBtnStyle: React.CSSProperties = {
   cursor: "pointer",
 };
 
-const printBtnStyle: React.CSSProperties = {
+const printBtnStyle: CSSProperties = {
   height: 36,
   padding: "0 14px",
   borderRadius: 8,

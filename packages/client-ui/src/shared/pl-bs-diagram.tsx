@@ -2,6 +2,8 @@
 
 import type { ReactNode } from "react";
 
+import { formatAmount } from "@rubydogjp/openkk-client-domain";
+
 import { fontFamily, fontSize, fontWeight, palette } from "./design-tokens.js";
 import { MaskIcon } from "./icons.js";
 import {
@@ -242,7 +244,7 @@ function block(
 
 function formatDiagramYen(value: number): string {
   const absolute = Math.abs(Math.round(value));
-  const formatted = new Intl.NumberFormat("ja-JP").format(absolute);
+  const formatted = formatAmount(absolute);
   return value < 0 ? `-¥${formatted}` : `¥${formatted}`;
 }
 

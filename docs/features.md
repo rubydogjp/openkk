@@ -136,7 +136,7 @@
 
 ## バンドル一覧
 
-版は実行時切替ではなく **バンドル（別パッケージのアプリ）** で分ける。`bundle`（版）・`env`（実行環境）・`brand`（ロゴ/表示名）は直交した独立概念。
+版は実行時切替ではなく **バンドル（別パッケージのアプリ）** で分ける。`bundle`（版）と `brand`（ロゴ/表示名）は独立した概念。
 
 | bundle | パッケージ | 表示名 (`bundleLabel`) | DB | シードデータ | 認証 |
 |---|---|---|---|---|---|
@@ -144,7 +144,7 @@
 | `demo` | `@rubydogjp/openkk-demo` (`packages/openkk_demo`) | デモ版 | memory | あり (buildOpenkkDemoSeed) | embedded |
 | `original` | `@rubydogjp/openkk` (`packages/openkk`) | 無印版 | SQLite OPFS | なし | embedded |
 
-`env`（`NEXT_PUBLIC_OPENKK_ENV` = `dev` / `stg` / `prod`、既定 `prod`）はログレベル等の実行環境のみを指し、bundle とは独立に設定する。共通配線は `@rubydogjp/openkk-frontend`（`packages/frontend`）に集約。
+共通配線は `@rubydogjp/openkk-frontend`（`packages/frontend`）に集約。
 
 ---
 

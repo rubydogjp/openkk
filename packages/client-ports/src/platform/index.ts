@@ -29,15 +29,10 @@ export interface PlatformNavigation {
   reloadAt(path: string): void;
 }
 
-export interface PlatformClipboard {
-  writeText(text: string): Promise<void>;
-}
-
 export interface PlatformPort {
   appInstall: PlatformAppInstall;
   offlineCache: PlatformOfflineCache;
   storage: PlatformKeyValueStorage;
   files: PlatformFiles;
   navigation: PlatformNavigation;
-  clipboard: PlatformClipboard;
 }

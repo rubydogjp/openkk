@@ -26,49 +26,14 @@ import { runInTransaction } from "./transaction.js";
 export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
   return {
     async getAll(fiscalPeriodId) {
-      const rows = (await db.exec({
-        sql: `SELECT fa.data, fp.user_id, fa.created_at, fa.updated_at, fp.data
-          FROM fixed_assets fa
-          JOIN fiscal_periods fp ON fp.id = fa.fiscal_period_id
-          WHERE fa.fiscal_period_id = ? ORDER BY fa.created_at ASC, fa.id ASC`,
-        bind: [fiscalPeriodId],
-        returnValue: "resultRows",
-        rowMode: "array",
-      })) as Array<[string, string, number, number, string]>;
-      const firstRow = rows[0];
-      if (firstRow == null) return [];
-      const period = parseFiscalPeriodDbData(firstRow[4]);
-      return rows.map(([data, userId, createdAt, updatedAt]) => {
-        const asset: FixedAssetDbRecord = {
-          ...parseFixedAssetDbData(data),
-          userId,
-          createdAt: msToIso(createdAt),
-          updatedAt: msToIso(updatedAt),
-        };
-        assertFixedAssetMatchesRules(asset, period);
-        return asset;
-      });
+      return loadFixedAssets(
+        db,
+        `WHERE fa.fiscal_period_id = ? ORDER BY fa.created_at ASC, fa.id ASC`,
+        [fiscalPeriodId],
+      );
     },
     async getById(id) {
-      const rows = (await db.exec({
-        sql: `SELECT fa.data, fp.user_id, fa.created_at, fa.updated_at, fp.data
-          FROM fixed_assets fa
-          JOIN fiscal_periods fp ON fp.id = fa.fiscal_period_id
-          WHERE fa.id = ?`,
-        bind: [id],
-        returnValue: "resultRows",
-        rowMode: "array",
-      })) as Array<[string, string, number, number, string]>;
-      const row = rows[0];
-      if (row == null) return null;
-      const asset: FixedAssetDbRecord = {
-        ...parseFixedAssetDbData(row[0]),
-        userId: row[1],
-        createdAt: msToIso(row[2]),
-        updatedAt: msToIso(row[3]),
-      };
-      assertFixedAssetMatchesRules(asset, parseFiscalPeriodDbData(row[4]));
-      return asset;
+      return (await loadFixedAssets(db, `WHERE fa.id = ?`, [id]))[0] ?? null;
     },
     async create(userId, fiscalPeriodId, input) {
       const id = newId("fa");
@@ -100,47 +65,29 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
           "create fixed asset",
         );
         assertFixedAssetMatchesRules(record, period);
-        await db.exec({
-          sql: `INSERT INTO fixed_assets(id, fiscal_period_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
-          bind: [
-            id,
-            fiscalPeriodId,
-            serializeFixedAssetDbData(record),
-            now,
-            now,
-          ],
-        });
+        await insertFixedAsset(db, record, now);
       });
       return record;
     },
     async patch(id, patch) {
       return runInTransaction(db, async () => {
-        const rows = (await db.exec({
-          sql: `SELECT fa.data, fp.user_id, fa.created_at
-            FROM fixed_assets fa
-            JOIN fiscal_periods fp ON fp.id = fa.fiscal_period_id
-            WHERE fa.id = ?`,
-          bind: [id],
-          returnValue: "resultRows",
-          rowMode: "array",
-        })) as Array<[string, string, number]>;
-        const row = rows[0];
-        if (row == null)
+        const existing =
+          (await loadFixedAssets(db, `WHERE fa.id = ?`, [id]))[0] ?? null;
+        if (existing == null) {
           throw serverNotFoundError(`fixed asset not found: ${id}`);
-        const now = nowMs();
-        const existing: FixedAssetDbRecord = {
-          ...parseFixedAssetDbData(row[0]),
-          userId: row[1],
-          createdAt: msToIso(row[2]),
-          updatedAt: msToIso(now),
-        };
+        }
         const period = await assertDbFiscalPeriodAllows(
           db,
           existing.fiscalPeriodId,
           ["journalizing"],
           "update fixed asset",
         );
-        const updated = applyPatch(existing, patch, FIXED_ASSET_PATCH_KEYS);
+        const now = nowMs();
+        const updated = applyPatch(
+          { ...existing, updatedAt: msToIso(now) },
+          patch,
+          FIXED_ASSET_PATCH_KEYS,
+        );
         assertFixedAssetMatchesRules(updated, period);
         await db.exec({
           sql: `UPDATE fixed_assets SET data = ?, updated_at = ? WHERE id = ?`,
@@ -171,4 +118,47 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
       });
     },
   };
+}
+
+async function loadFixedAssets(
+  db: SqlDb,
+  whereAndOrder: string,
+  bind: unknown[],
+): Promise<FixedAssetDbRecord[]> {
+  const rows = (await db.exec({
+    sql: `SELECT fa.data, fp.user_id, fa.created_at, fa.updated_at, fp.data
+      FROM fixed_assets fa
+      JOIN fiscal_periods fp ON fp.id = fa.fiscal_period_id
+      ${whereAndOrder}`,
+    bind,
+    returnValue: "resultRows",
+    rowMode: "array",
+  })) as Array<[string, string, number, number, string]>;
+  return rows.map(([data, userId, createdAt, updatedAt, periodData]) => {
+    const asset: FixedAssetDbRecord = {
+      ...parseFixedAssetDbData(data),
+      userId,
+      createdAt: msToIso(createdAt),
+      updatedAt: msToIso(updatedAt),
+    };
+    assertFixedAssetMatchesRules(asset, parseFiscalPeriodDbData(periodData));
+    return asset;
+  });
+}
+
+export async function insertFixedAsset(
+  db: SqlDb,
+  asset: FixedAssetDbRecord,
+  now: number,
+): Promise<void> {
+  await db.exec({
+    sql: `INSERT INTO fixed_assets(id, fiscal_period_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
+    bind: [
+      asset.id,
+      asset.fiscalPeriodId,
+      serializeFixedAssetDbData(asset),
+      now,
+      now,
+    ],
+  });
 }

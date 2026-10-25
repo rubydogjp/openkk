@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import type { BrandConfig, OpenkkBackendPort } from "@rubydogjp/openkk-client";
 import {
   OpenkkAppProviders,
@@ -25,7 +27,7 @@ const runtime: OpenkkBundleRuntime = {
   registerServiceWorker: true,
 };
 
-export function Providers(props: { children: React.ReactNode }) {
+export function Providers(props: { children: ReactNode }) {
   return (
     <OpenkkAppProviders runtime={runtime}>{props.children}</OpenkkAppProviders>
   );

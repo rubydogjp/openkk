@@ -28,7 +28,6 @@ import {
 import { PlBsDiagramSection } from "../../../../shared/pl-bs-diagram.js";
 
 type MonthTile = {
-  year: number;
   month: number;
   key: string;
   revenue: number;
@@ -72,12 +71,10 @@ export function JournalizingAnalyticsPage() {
       let revenue = 0;
       let expenses = 0;
       for (const record of monthRecords) {
-        const rate = record.businessRate;
-        revenue += computeRevenueContribution(record, rate);
-        expenses += computeExpenseContribution(record, rate);
+        revenue += computeRevenueContribution(record);
+        expenses += computeExpenseContribution(record);
       }
       return {
-        year: yearMonth.year,
         month: yearMonth.month,
         key: monthKey,
         revenue,
@@ -187,7 +184,7 @@ export function JournalizingAnalyticsPage() {
                     onClick={() => {
                       setExpandedMonths((current) =>
                         current.includes(tile.key)
-                          ? current.filter((v) => v !== tile.key)
+                          ? current.filter((key) => key !== tile.key)
                           : [...current, tile.key],
                       );
                     }}

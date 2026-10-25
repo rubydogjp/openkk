@@ -38,8 +38,8 @@ export function JournalizingBody({
   onBusyChange,
   trendPoints,
 }: {
-  onSwitchToStep: ((no: number) => void) | null;
-  onBusyChange: ((busy: boolean) => void) | null;
+  onSwitchToStep: (no: number) => void;
+  onBusyChange: (busy: boolean) => void;
   trendPoints: StepTrendPoint[];
 }) {
   const router = useRouter();
@@ -54,10 +54,10 @@ export function JournalizingBody({
     currentFiscalPeriod?.phase === "pre_closing" ||
     currentFiscalPeriod?.phase === "post_closing";
   useEffect(() => {
-    if (preClosingShown) onBusyChange?.(false);
+    if (preClosingShown) onBusyChange(false);
   }, [preClosingShown, onBusyChange]);
   useEffect(() => {
-    return () => onBusyChange?.(false);
+    return () => onBusyChange(false);
   }, [onBusyChange]);
   const { confirm, dialog } = useConfirmDialog();
   const [screenError, setScreenError] = useState<unknown>(null);
@@ -86,10 +86,7 @@ export function JournalizingBody({
             justifyContent: "flex-start",
           }}
         >
-          <StepSecondaryButton
-            onClick={() => onSwitchToStep?.(2)}
-            disabled={false}
-          >
+          <StepSecondaryButton onClick={() => onSwitchToStep(2)}>
             前の手順へ
           </StepSecondaryButton>
         </div>
@@ -113,7 +110,6 @@ export function JournalizingBody({
           "編集はロックされますが、確認してから解除することができます。",
         ],
         confirmLabel: "実行する",
-        cancelLabel: null,
       });
       if (!confirmed) return;
       if (
@@ -131,16 +127,15 @@ export function JournalizingBody({
             "内容を確認したうえで、そのまま進める場合のみ実行してください。",
           ],
           confirmLabel: "実行する",
-          cancelLabel: null,
         });
         if (!forceConfirmed) return;
       }
-      onBusyChange?.(true);
+      onBusyChange(true);
       try {
-        await closingApi.runPreClosing(currentFiscalPeriod);
+        await closingApi.runPreClosing(currentFiscalPeriod.id);
         setScreenError(null);
       } catch (error) {
-        onBusyChange?.(false);
+        onBusyChange(false);
         setScreenError(
           AppError.from(error, {
             fallbackUserMessage: "仮締めの更新に失敗しました",
@@ -172,7 +167,7 @@ export function JournalizingBody({
             }}
           >
             <StepPrimaryButton
-              onClick={() => onSwitchToStep?.(4)}
+              onClick={() => onSwitchToStep(4)}
               disabled={false}
               variant={null}
               icon={null}
@@ -215,10 +210,7 @@ export function JournalizingBody({
               <StepSpacer height={null} />
               <section>
                 <StepSectionLabel>記録中</StepSectionLabel>
-                <JournalizingCurrentTrendChart
-                  points={trendPoints}
-                  detailsHref="/steps/journalizing/analytics"
-                />
+                <JournalizingCurrentTrendChart points={trendPoints} />
               </section>
             </>
           ) : null}

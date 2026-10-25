@@ -41,12 +41,12 @@ describe("resolveFixedAssetDraftPreviewDate", () => {
     const periodEnd = new Date(2026, 11, 31);
 
     expect(
-      resolveFixedAssetDraftPreviewDate(periodEnd, "償却中", "2027-08-31", null),
+      resolveFixedAssetDraftPreviewDate(periodEnd, "active", "2027-08-31", null),
     ).toBe(periodEnd);
   });
 
   it("uses a valid disposal date for sold and disposed assets", () => {
-    for (const status of ["売却済", "廃棄済"] as const) {
+    for (const status of ["sold", "disposed"] as const) {
       const result = resolveFixedAssetDraftPreviewDate(
         new Date(2026, 11, 31),
         status,
@@ -65,7 +65,7 @@ describe("resolveFixedAssetDraftPreviewDate", () => {
     const periodEnd = new Date(2026, 11, 31);
 
     expect(
-      resolveFixedAssetDraftPreviewDate(periodEnd, "売却済", "2026-02-30", null),
+      resolveFixedAssetDraftPreviewDate(periodEnd, "sold", "2026-02-30", null),
     ).toBe(periodEnd);
   });
 
@@ -74,7 +74,7 @@ describe("resolveFixedAssetDraftPreviewDate", () => {
     const periodEnd = new Date(2026, 11, 31);
 
     expect(
-      resolveFixedAssetDraftPreviewDate(today, "完了", null, periodEnd),
+      resolveFixedAssetDraftPreviewDate(today, "retired", null, periodEnd),
     ).toBe(periodEnd);
   });
 });
@@ -90,7 +90,7 @@ describe("computeFixedAssetDraftPeriodDepreciation", () => {
           acquisitionCost: "1,200,000",
           usefulLife: 5,
           businessRatePercent: 100,
-          status: "償却中",
+          status: "active",
           businessRate: null,
           disposalDate: null,
           disposalPrice: null,
@@ -111,7 +111,7 @@ describe("validateFixedAssetDraft", () => {
       acquisitionCost: "180000",
       usefulLife: 4,
       businessRatePercent: 100,
-      status: "償却中",
+      status: "active",
       businessRate: null,
       disposalDate: null,
       disposalPrice: null,
@@ -148,7 +148,7 @@ describe("validateFixedAssetDraft", () => {
     expect(
       validate(
         draft({
-          status: "廃棄済",
+          status: "disposed",
           acquisitionDate: "2026-04-01",
           disposalDate: "2026-03-31",
         }),
@@ -157,7 +157,7 @@ describe("validateFixedAssetDraft", () => {
     expect(
       validate(
         draft({
-          status: "廃棄済",
+          status: "disposed",
           acquisitionDate: "2025-04-01",
           disposalDate: "2025-12-31",
         }),
@@ -167,7 +167,7 @@ describe("validateFixedAssetDraft", () => {
 
   it("accepts a zero-yen sale only when an explicit price was entered", () => {
     const sale: Partial<FixedAssetDraft> = {
-      status: "売却済",
+      status: "sold",
       disposalDate: "2026-10-01",
     };
 
@@ -176,7 +176,7 @@ describe("validateFixedAssetDraft", () => {
   });
 
   it("does not allow early completion", () => {
-    expect(validate(draft({ status: "完了" }), 2)).toMatch(/完了していない/);
-    expect(validate(draft({ status: "完了" }), 1)).toBeNull();
+    expect(validate(draft({ status: "retired" }), 2)).toMatch(/完了していない/);
+    expect(validate(draft({ status: "retired" }), 1)).toBeNull();
   });
 });

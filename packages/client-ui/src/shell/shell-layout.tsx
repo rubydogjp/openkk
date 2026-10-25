@@ -41,7 +41,7 @@ import {
 } from "./shell-palette.js";
 import { useShellAuthActions } from "./use-shell-auth-actions.js";
 
-export function OpenkkShellLayout(props: { children: React.ReactNode }) {
+export function OpenkkShellLayout(props: { children: ReactNode }) {
   const pathname = normalizePathname(usePathname());
   const router = useRouter();
   const appState = useOpenkkAppState();

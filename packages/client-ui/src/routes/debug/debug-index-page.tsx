@@ -48,7 +48,7 @@ const debugItems = [
   {
     href: "/debug/layout-sizes",
     title: "レイアウト寸法",
-    subtitle: "余白 / ボタン / 領域サイズの現状整理",
+    subtitle: "余白 / 角丸 / 部品と領域の寸法",
   },
 ] as const;
 

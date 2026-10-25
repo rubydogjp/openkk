@@ -1,6 +1,7 @@
 "use client";
 
 import { fontSize, fontWeight, palette } from "../shared/design-tokens.js";
+import { MaskIcon } from "../shared/icons.js";
 import {
   guideDescription,
   guideOptions,
@@ -237,31 +238,8 @@ export function QuickGuideTriggerButton({ onClick }: { onClick: () => void }) {
         .bk-quick-guide-trigger { transition: background 80ms ease; }
         .bk-quick-guide-trigger:hover { background: rgba(5, 150, 105, 0.08); }
       `}</style>
-      <BeginnerIcon color={palette.success} />
+      <MaskIcon src="/icons/beginner.svg" size={16} color={palette.success} />
       簡単入力ガイド
     </button>
-  );
-}
-
-function BeginnerIcon({ color }: { color: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        width: 16,
-        height: 16,
-        display: "block",
-        flexShrink: 0,
-        backgroundColor: color,
-        maskImage: "url('/icons/beginner.svg')",
-        maskPosition: "center",
-        maskRepeat: "no-repeat",
-        maskSize: "contain",
-        WebkitMaskImage: "url('/icons/beginner.svg')",
-        WebkitMaskPosition: "center",
-        WebkitMaskRepeat: "no-repeat",
-        WebkitMaskSize: "contain",
-      }}
-    />
   );
 }

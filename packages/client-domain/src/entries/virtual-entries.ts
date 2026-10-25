@@ -1,4 +1,7 @@
-import type { FixedAsset } from "../assist/fixed-asset-data.js";
+import {
+  fixedAssetStatusRequiresDisposal,
+  type FixedAsset,
+} from "../assist/fixed-asset-data.js";
 import {
   computePeriodDepreciation,
   computeStraightLineDepreciation,
@@ -13,6 +16,7 @@ import {
   excludeBusinessRateTransfer,
   recordToPreviewRows,
   VIRTUAL_ENTRY_LOCAL_ID_PREFIX,
+  virtualEntryLocalId,
   type EntryRecord,
 } from "./entry-record.js";
 import { formatAmount, parseIsoLocalDate } from "../shared/parse-utils.js";
@@ -20,7 +24,9 @@ import { MAX_TEXT_FIELD_LENGTH, truncateText } from "../shared/text-limits.js";
 
 const BUSINESS_RATE_TRANSFER_ROW_ID = "business-rate-transfer";
 
-function isMaterializedVirtualEntry(entry: EntryRecord): boolean {
+export function isMaterializedVirtualEntry(entry: {
+  localId: string | null;
+}): boolean {
   return (
     entry.localId != null &&
     entry.localId.startsWith(VIRTUAL_ENTRY_LOCAL_ID_PREFIX)
@@ -46,7 +52,7 @@ function openingCarryoverEntry(record: OpeningCarryoverRecord): EntryRecord {
     lines: record.lines.map((line) => ({ ...line, id: null })),
     description: record.description,
     businessRate: record.businessRate,
-    localId: `${VIRTUAL_ENTRY_LOCAL_ID_PREFIX}${id}`,
+    localId: virtualEntryLocalId(id),
   };
 }
 
@@ -135,9 +141,9 @@ function fixedAssetEntries(
   periodEndDate: string | null,
 ): EntryRecord[] {
   const dateText =
-    asset.status === "償却中" || asset.status === "完了"
-      ? periodEndDate
-      : asset.disposalDate;
+    fixedAssetStatusRequiresDisposal(asset.status)
+      ? asset.disposalDate
+      : periodEndDate;
   if (dateText == null) return [];
   const asOf = parseIsoLocalDate(dateText);
   if (asOf == null) return [];
@@ -147,7 +153,7 @@ function fixedAssetEntries(
     asOf,
     dateText,
   });
-  if (asset.status === "売却済" || asset.status === "廃棄済") {
+  if (fixedAssetStatusRequiresDisposal(asset.status)) {
     const bookValue = computeStraightLineDepreciation({
       acquisitionDate: asset.acquisitionDate,
       acquisitionCost: asset.acquisitionCost,
@@ -155,7 +161,7 @@ function fixedAssetEntries(
       asOf,
     }).currentBookValue;
     entries.push(
-      ...(asset.status === "売却済"
+      ...(asset.status === "sold"
         ? buildSaleEntries({ asset, disposalDate: dateText, bookValue })
         : buildRetirementEntries({ asset, disposalDate: dateText, bookValue })),
     );
@@ -314,7 +320,7 @@ function buildFixedAssetEntriesFromLines(input: {
       weekday: "",
       description: input.description,
       businessRate: input.businessRate,
-      localId: `${VIRTUAL_ENTRY_LOCAL_ID_PREFIX}${input.recordId}`,
+      localId: virtualEntryLocalId(input.recordId),
       lines: [
         ...input.debits.map((line) => ({ ...line, side: "debit" as const })),
         ...input.credits.map((line) => ({ ...line, side: "credit" as const })),

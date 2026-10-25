@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import {
   AppError,
+  formatAmount,
   type BookAccountType,
 } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text.js";
@@ -49,7 +50,7 @@ import {
 export function OpeningBsBody({
   onSwitchToStep,
 }: {
-  onSwitchToStep: ((no: number) => void) | null;
+  onSwitchToStep: (no: number) => void;
 }) {
   const config = useOpenkkConfig();
   const appState = useOpenkkAppState();
@@ -162,7 +163,7 @@ export function OpeningBsBody({
       if (!updated) return;
       setScreenError(null);
       setIsEditingCompleted(false);
-      onSwitchToStep?.(3);
+      onSwitchToStep(3);
     } catch (error) {
       setScreenError(
         AppError.from(error, {
@@ -288,17 +289,14 @@ export function OpeningBsBody({
           }}
         >
           {isNotStarted ? (
-            <StepSecondaryButton
-              onClick={() => onSwitchToStep?.(1)}
-              disabled={false}
-            >
+            <StepSecondaryButton onClick={() => onSwitchToStep(1)}>
               前の手順へ
             </StepSecondaryButton>
           ) : editingLocked && !isCompleted ? (
             <LockButton label="保存して次へ" />
           ) : !isEditing ? (
             <StepPrimaryButton
-              onClick={() => onSwitchToStep?.(3)}
+              onClick={() => onSwitchToStep(3)}
               disabled={false}
               variant={null}
               icon={null}
@@ -328,7 +326,7 @@ export function OpeningBsBody({
 }
 
 function formatOpeningTotal(value: number | null): string {
-  return value == null ? "—" : value.toLocaleString("ja-JP");
+  return value == null ? "—" : formatAmount(value);
 }
 
 function SavedCommentSection({
@@ -461,7 +459,7 @@ function AmountCell({
         <AmountInput value={value} onChange={onChange} ariaLabel={ariaLabel} />
       ) : (
         <AmountReadOnlyField
-          value={value !== "" ? Number(value).toLocaleString("ja-JP") : ""}
+          value={value !== "" ? formatAmount(Number(value)) : ""}
         />
       )}
     </div>
@@ -485,7 +483,7 @@ function TotalLabelCell({ children }: { children: ReactNode }) {
 function TotalAmountCell({ children }: { children: ReactNode }) {
   return (
     <div style={{ minWidth: 0, textAlign: "right" }}>
-      <AmountText bold muted={false}>
+      <AmountText bold>
         {children}
       </AmountText>
     </div>

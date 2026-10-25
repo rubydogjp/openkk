@@ -17,7 +17,6 @@ import {
   useOpenkkToday,
 } from "../shared/openkk-config-context.js";
 import { assertEditingUnlocked } from "../shared/editing-policy.js";
-import { isSelectedFiscalPeriodDataPurged } from "../shared/archive-data-policy.js";
 import { KeyedAsyncStateVersion } from "../shared/async-state-version.js";
 import { KeyedAsyncMutationQueue } from "../shared/async-mutation-queue.js";
 import {
@@ -110,10 +109,8 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
   selectedFiscalPeriodId.current = appState.currentFiscalPeriodId;
   const currentFiscalPeriod = appState.currentFiscalPeriod;
   const currentFiscalPeriodEndDate = currentFiscalPeriod?.endDate ?? null;
-  const currentFiscalPeriodDataPurged = isSelectedFiscalPeriodDataPurged(
-    appState.fiscalPeriods,
-    appState.currentFiscalPeriodId,
-  );
+  const currentFiscalPeriodDataPurged =
+    currentFiscalPeriod?.archiveStatus === "purged";
   const fixedAssetPreviewAsOf = useMemo(
     () => capFixedAssetPreviewDate(today, currentFiscalPeriodEndDate),
     [today, currentFiscalPeriodEndDate],
@@ -365,17 +362,14 @@ export function OpenkkAssistProvider(props: { children: ReactNode }) {
           });
       },
       getOpeningCarryover(carryoverId) {
-        const fiscalPeriodId = appState.currentFiscalPeriodId;
-        if (fiscalPeriodId == null) return null;
-        const period = appState.fiscalPeriods.find(
-          (candidate) => candidate.id === fiscalPeriodId,
+        const period = appState.currentFiscalPeriod;
+        const journal = period?.opening.journals.find(
+          (item) => item.id === carryoverId,
         );
-        const journals = period?.opening.journals ?? [];
-        const journal = journals.find((item) => item.id === carryoverId);
-        if (journal == null) return null;
+        if (period == null || journal == null) return null;
         return mapOpeningJournalToRecord(
           journal,
-          fiscalPeriodId,
+          period.id,
           bookAccountNameById,
           bookAccountTypeById,
           taxCategoryNameById,

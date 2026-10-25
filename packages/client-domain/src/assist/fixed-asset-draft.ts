@@ -1,27 +1,31 @@
 import {
+  fixedAssetStatusRequiresDisposal,
   type FixedAsset,
   type FixedAssetDraft,
 } from "./fixed-asset-data.js";
-import { computePeriodDepreciation } from "./fixed-asset-depreciation.js";
-import { parseAmount, parseIsoLocalDate } from "../shared/parse-utils.js";
-
-export const MAX_FIXED_ASSET_USEFUL_LIFE_YEARS = 100;
+import {
+  computePeriodDepreciation,
+  MAX_FIXED_ASSET_USEFUL_LIFE_YEARS,
+} from "./fixed-asset-depreciation.js";
+import {
+  formatAmount,
+  parseAmount,
+  parseIsoLocalDate,
+} from "../shared/parse-utils.js";
 
 export function fixedAssetToDraft(asset: FixedAsset): FixedAssetDraft {
   return {
     name: asset.name,
     account: asset.accountName,
     acquisitionDate: asset.acquisitionDate,
-    acquisitionCost: asset.acquisitionCost.toLocaleString("ja-JP"),
+    acquisitionCost: formatAmount(asset.acquisitionCost),
     usefulLife: asset.usefulLife,
     businessRatePercent: asset.businessRate * 100,
     businessRate: asset.businessRate,
     status: asset.status,
     disposalDate: asset.disposalDate,
     disposalPrice:
-      asset.disposalPrice == null
-        ? null
-        : asset.disposalPrice.toLocaleString("ja-JP"),
+      asset.disposalPrice == null ? null : formatAmount(asset.disposalPrice),
   };
 }
 
@@ -43,9 +47,10 @@ export function resolveFixedAssetDraftPreviewDate(
   disposalDate: string | null,
   retirementAsOf: Date | null,
 ): Date {
-  if (status === "完了") return retirementAsOf ?? periodAsOf;
-  const requiresDisposal = status === "売却済" || status === "廃棄済";
-  if (!requiresDisposal || disposalDate == null) return periodAsOf;
+  if (status === "retired") return retirementAsOf ?? periodAsOf;
+  if (!fixedAssetStatusRequiresDisposal(status) || disposalDate == null) {
+    return periodAsOf;
+  }
   return parseIsoLocalDate(disposalDate) ?? periodAsOf;
 }
 
@@ -102,9 +107,7 @@ export function validateFixedAssetDraft(input: {
   ) {
     return "事業割合は0〜100%で入力してください";
   }
-  const needsDisposal =
-    draft.status === "売却済" || draft.status === "廃棄済";
-  if (needsDisposal) {
+  if (fixedAssetStatusRequiresDisposal(draft.status)) {
     const disposalDate = draft.disposalDate;
     if (disposalDate == null || parseIsoLocalDate(disposalDate) == null) {
       return "正しい処分日を入力してください";
@@ -120,7 +123,7 @@ export function validateFixedAssetDraft(input: {
       return "処分日は会計期間内にしてください";
     }
   }
-  if (draft.status === "売却済") {
+  if (draft.status === "sold") {
     const disposalPriceText = draft.disposalPrice;
     if (disposalPriceText == null || disposalPriceText.trim() === "") {
       return "売却額は安全に計算できる0以上の整数で入力してください";
@@ -133,7 +136,7 @@ export function validateFixedAssetDraft(input: {
       return "売却額は安全に計算できる0以上の整数で入力してください";
     }
   }
-  if (draft.status === "完了" && input.currentBookValue > 1) {
+  if (draft.status === "retired" && input.currentBookValue > 1) {
     return "期末時点で償却が完了していない固定資産は完了にできません";
   }
   return null;

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 
 import type { EditingPolicy } from "@rubydogjp/openkk-client-domain";
 import { fontSize, fontWeight, palette, radii, shadows, sizes, spacing, typography } from "../shared/design-tokens.js";
+import { MaskIcon } from "../shared/icons.js";
 
 export type StatusChipTone = "brand" | "success" | "muted" | "warning";
 
@@ -116,7 +117,7 @@ export function StepSpacer({ height }: { height: number | null }) {
   return <div style={{ height: height ?? 28 }} />;
 }
 
-type StepCalloutTone = "action" | "info" | "warning" | "alert";
+type StepCalloutTone = "action" | "info" | "warning";
 
 const STEP_CALLOUT_TONE: Record<
   StepCalloutTone,
@@ -140,12 +141,6 @@ const STEP_CALLOUT_TONE: Record<
     fg: palette.warning,
     icon: "/icons/warning.svg",
   },
-  alert: {
-    bg: palette.dangerBg,
-    border: palette.dangerBorder,
-    fg: palette.danger,
-    icon: "/icons/failed.svg",
-  },
 };
 
 export function StepCallout({
@@ -153,9 +148,9 @@ export function StepCallout({
   tone,
 }: {
   children: ReactNode;
-  tone: StepCalloutTone | null;
+  tone: StepCalloutTone;
 }) {
-  const style = STEP_CALLOUT_TONE[tone ?? "action"];
+  const style = STEP_CALLOUT_TONE[tone];
   return (
     <div
       style={{
@@ -168,25 +163,9 @@ export function StepCallout({
         alignItems: "flex-start",
       }}
     >
-      <span
-        aria-hidden="true"
-        style={{
-          width: 20,
-          height: 20,
-          flexShrink: 0,
-          marginTop: 2,
-          display: "block",
-          backgroundColor: style.fg,
-          maskImage: `url('${style.icon}')`,
-          maskPosition: "center",
-          maskRepeat: "no-repeat",
-          maskSize: "contain",
-          WebkitMaskImage: `url('${style.icon}')`,
-          WebkitMaskPosition: "center",
-          WebkitMaskRepeat: "no-repeat",
-          WebkitMaskSize: "contain",
-        }}
-      />
+      <span style={{ marginTop: 2, flexShrink: 0 }}>
+        <MaskIcon src={style.icon} size={20} color={style.fg} />
+      </span>
       <div
         style={{
           flex: 1,
@@ -270,18 +249,12 @@ export function ActionChoiceCard({
   );
 }
 
-export function ActionGrid({
-  columns,
-  children,
-}: {
-  columns: 1 | 2;
-  children: ReactNode;
-}) {
+export function ActionGrid({ children }: { children: ReactNode }) {
   return (
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: columns === 2 ? "1fr 1fr" : "1fr",
+        gridTemplateColumns: "1fr 1fr",
         gap: 14,
         alignItems: "stretch",
       }}
@@ -359,7 +332,7 @@ export function StepPrimaryButton({
   onClick: () => void;
   children: ReactNode;
   disabled: boolean;
-  variant: "primary" | "success" | null;
+  variant: "success" | null;
   icon: ReactNode | null;
 }) {
   const background = variant === "success" ? palette.success : palette.brand;
@@ -406,17 +379,14 @@ export function StepPrimaryButton({
 export function StepSecondaryButton({
   onClick,
   children,
-  disabled,
 }: {
   onClick: () => void;
   children: ReactNode;
-  disabled: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={disabled}
       style={{
         height: sizes.button.compactHeight,
         minWidth: sizes.button.compactMinWidth,
@@ -427,8 +397,7 @@ export function StepSecondaryButton({
         color: palette.text,
         fontSize: fontSize.base,
         fontWeight: fontWeight.bold,
-        cursor: disabled ? "default" : "pointer",
-        opacity: disabled ? 0.5 : 1,
+        cursor: "pointer",
       }}
     >
       {children}

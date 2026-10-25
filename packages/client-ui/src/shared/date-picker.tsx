@@ -115,7 +115,7 @@ function DatePickerDialog(props: {
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
   const cells: Array<number | null> = [];
   for (let i = 0; i < firstWeekday; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  for (let day = 1; day <= daysInMonth; day++) cells.push(day);
   while (cells.length % 7 !== 0) cells.push(null);
 
   const isSelected = (day: number) =>

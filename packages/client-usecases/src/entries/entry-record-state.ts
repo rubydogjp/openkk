@@ -2,10 +2,9 @@ import type { EntryRecord } from "@rubydogjp/openkk-client-domain";
 
 export function replaceFiscalPeriodEntryRecords(
   current: EntryRecord[],
-  fiscalPeriodId: string | null,
+  fiscalPeriodId: string,
   nextRecords: EntryRecord[],
 ): EntryRecord[] {
-  if (fiscalPeriodId == null) return [];
   return [
     ...current.filter((record) => record.fiscalPeriodId !== fiscalPeriodId),
     ...nextRecords,

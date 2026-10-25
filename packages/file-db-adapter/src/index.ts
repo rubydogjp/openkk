@@ -1,7 +1,4 @@
-import {
-  type DbSnapshot,
-  type OpenkkDbPort,
-} from "@rubydogjp/openkk-server-ports";
+import type { DbSnapshot, OpenkkDbPort } from "@rubydogjp/openkk-server-ports";
 import {
   createSqliteDbAdapter,
   type SqlDb,
@@ -10,7 +7,7 @@ export { type DbSnapshot } from "@rubydogjp/openkk-server-ports";
 
 export type FileDbAdapterOptions = {
   vfsName: string;
-  dbFileName: string | null;
+  dbFileName: string;
   onWaitingForAnotherTab: (() => void) | null;
 };
 
@@ -98,8 +95,7 @@ export function createFileDbAdapter(
   options: FileDbAdapterOptions,
   seed: DbSnapshot | null,
 ): Promise<OpenkkDbPort> {
-  const dbFileName = options.dbFileName ?? "openkk.sqlite3";
-  const adapterKey = `${options.vfsName}\n${dbFileName}`;
+  const adapterKey = `${options.vfsName}\n${options.dbFileName}`;
   if (cachedAdapter != null && cachedAdapterKey !== adapterKey) {
     throw new Error(
       "file DB adapter is already initialized with different options",
@@ -122,7 +118,7 @@ export function createFileDbAdapter(
             }
           },
           options.onWaitingForAnotherTab,
-          { vfsName: options.vfsName, dbFileName },
+          { vfsName: options.vfsName, dbFileName: options.dbFileName },
         );
         return await createSqliteDbAdapter(db, seed);
       } catch (error) {

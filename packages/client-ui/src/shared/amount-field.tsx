@@ -2,6 +2,8 @@
 
 import { useState, type ReactNode } from "react";
 
+import { formatAmount } from "@rubydogjp/openkk-client-domain";
+
 import { fontFamily, fontWeight, palette, radii, sizes, typography } from "./design-tokens.js";
 
 const AMOUNT_FONT = {
@@ -14,18 +16,16 @@ const AMOUNT_FONT = {
 export function AmountText({
   children,
   bold,
-  muted,
 }: {
   children: ReactNode;
   bold: boolean;
-  muted: boolean;
 }) {
   return (
     <span
       style={{
         ...AMOUNT_FONT,
         fontWeight: bold ? fontWeight.bold : fontWeight.semibold,
-        color: muted ? palette.textMuted : palette.text,
+        color: palette.text,
         display: "inline-block",
       }}
     >
@@ -105,5 +105,5 @@ function formatGrouped(value: string): string {
   if (digitsOnly === "" || digitsOnly === "-") return "";
   const amount = parseInt(digitsOnly, 10);
   if (!Number.isFinite(amount)) return "";
-  return amount.toLocaleString("ja-JP");
+  return formatAmount(amount);
 }

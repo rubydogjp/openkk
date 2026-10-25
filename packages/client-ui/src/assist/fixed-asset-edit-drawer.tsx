@@ -26,6 +26,8 @@ import {
 import {
   computeFixedAssetDraftPeriodDepreciation,
   computeStraightLineDepreciation,
+  FIXED_ASSET_STATUS_LABELS,
+  fixedAssetStatusRequiresDisposal,
   MAX_FIXED_ASSET_USEFUL_LIFE_YEARS,
   formatAmount,
   parseAmount,
@@ -61,9 +63,8 @@ export function FixedAssetEditDrawer({
   const [errorText, setErrorText] = useState<string | null>(null);
   const mutationLock = useRef(new ExclusiveActionLock());
   const { confirm, dialog } = useConfirmDialog();
-  const needsDisposalDate =
-    draft.status === "売却済" || draft.status === "廃棄済";
-  const needsDisposalPrice = draft.status === "売却済";
+  const needsDisposalDate = fixedAssetStatusRequiresDisposal(draft.status);
+  const needsDisposalPrice = draft.status === "sold";
 
   const calculatedPreview = useMemo(() => {
     const asOf = resolveFixedAssetDraftPreviewDate(
@@ -139,7 +140,6 @@ export function FixedAssetEditDrawer({
         title: "固定資産を削除する",
         body: ["この固定資産を削除します。"],
         confirmLabel: "削除する",
-        cancelLabel: null,
       });
       if (!confirmed) return;
       setDeleting(true);
@@ -343,16 +343,12 @@ export function FixedAssetEditDrawer({
             <FormSecondaryButton
               onClick={requestClose}
               disabled={saving || deleting}
-              type={null}
             >
               キャンセル
             </FormSecondaryButton>
             <FormPrimaryButton
               onClick={handleSave}
               disabled={saving || deleting}
-              type={null}
-              variant={null}
-              icon={null}
             >
               {saving ? "保存中…" : "保存"}
             </FormPrimaryButton>
@@ -559,7 +555,7 @@ function StatusField({
   value: FixedAssetStatus;
   onChange: (value: FixedAssetStatus) => void;
 }) {
-  const options: FixedAssetStatus[] = ["償却中", "完了", "売却済", "廃棄済"];
+  const options: FixedAssetStatus[] = ["active", "retired", "sold", "disposed"];
   return (
     <select
       value={value}
@@ -568,7 +564,7 @@ function StatusField({
     >
       {options.map((option) => (
         <option key={option} value={option}>
-          {option}
+          {FIXED_ASSET_STATUS_LABELS[option]}
         </option>
       ))}
     </select>

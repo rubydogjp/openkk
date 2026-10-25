@@ -124,7 +124,7 @@ function fixedAssetItemToApiRecord(
     usefulLife: item.usefulLife,
     depreciationMethod: "straight_line",
     businessRate: item.businessRate,
-    status: fixedAssetStatusToApi(item.status),
+    status: item.status,
     disposalDate: item.disposalDate,
     disposalPrice: item.disposalPrice,
     bookAccountId: item.bookAccountId,
@@ -133,9 +133,3 @@ function fixedAssetItemToApiRecord(
   };
 }
 
-function fixedAssetStatusToApi(status: string): FixedAssetApiRecord["status"] {
-  if (status === "売却済") return "sold";
-  if (status === "廃棄済") return "disposed";
-  if (status === "完了") return "retired";
-  return "active";
-}

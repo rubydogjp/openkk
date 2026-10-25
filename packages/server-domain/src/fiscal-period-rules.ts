@@ -117,6 +117,44 @@ export function assertFiscalPeriodClosingRecords(
   }
 }
 
+export function findOverlappingActiveFiscalPeriod<
+  Period extends {
+    archiveStatus: FiscalPeriodArchiveStatus;
+    startDate: string;
+    endDate: string;
+  },
+>(
+  range: { startDate: string; endDate: string },
+  periods: ReadonlyArray<Period>,
+): Period | null {
+  return (
+    periods.find(
+      (period) =>
+        period.archiveStatus === "active" &&
+        range.startDate <= period.endDate &&
+        range.endDate >= period.startDate,
+    ) ?? null
+  );
+}
+
+export function assertNoOverlappingActiveFiscalPeriod(
+  range: { startDate: string; endDate: string },
+  periods: ReadonlyArray<{
+    id: string;
+    archiveStatus: FiscalPeriodArchiveStatus;
+    startDate: string;
+    endDate: string;
+  }>,
+): void {
+  const overlap = findOverlappingActiveFiscalPeriod(range, periods);
+  if (overlap != null) {
+    throw serverConflictError(
+      `Fiscal period ${range.startDate} to ${range.endDate} overlaps active fiscal period ${overlap.id}`,
+      "既存の会計期間と日付が重複しています",
+    );
+  }
+}
+
 export function assertFiscalPeriodArchiveState(
   state: {
     archiveStatus: FiscalPeriodArchiveStatus;

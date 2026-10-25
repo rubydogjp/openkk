@@ -31,26 +31,30 @@ export function resolveEntryLineMetadata(line: EntryLine): EntryLineMetadata {
   };
 }
 
-export function resolveEntryPairMetadata(pair: {
+export type EntryVisualPair = {
   debit: EntryLine | null;
   credit: EntryLine | null;
-}): EntryLineMetadata {
+};
+
+export function resolveEntryPairMetadata(
+  pair: EntryVisualPair,
+): EntryLineMetadata {
   const debit =
     pair.debit == null ? null : resolveEntryLineMetadata(pair.debit);
   const credit =
     pair.credit == null ? null : resolveEntryLineMetadata(pair.credit);
   return {
     partner: combinePairedMetadata(
-      debit == null ? null : debit.partner,
-      credit == null ? null : credit.partner,
+      debit?.partner ?? null,
+      credit?.partner ?? null,
     ),
     taxCategory: combinePairedMetadata(
-      debit == null ? null : debit.taxCategory,
-      credit == null ? null : credit.taxCategory,
+      debit?.taxCategory ?? null,
+      credit?.taxCategory ?? null,
     ),
     businessCategory: combinePairedMetadata(
-      debit == null ? null : debit.businessCategory,
-      credit == null ? null : credit.businessCategory,
+      debit?.businessCategory ?? null,
+      credit?.businessCategory ?? null,
     ),
   };
 }
@@ -128,7 +132,13 @@ export function entryLineAccountKey(line: EntryLine): string {
 
 export const VIRTUAL_ENTRY_LOCAL_ID_PREFIX = "virtual:";
 
-export const BUSINESS_RATE_TRANSFER_LOCAL_ID = `${VIRTUAL_ENTRY_LOCAL_ID_PREFIX}business-rate-transfer`;
+export function virtualEntryLocalId(recordId: string): string {
+  return `${VIRTUAL_ENTRY_LOCAL_ID_PREFIX}${recordId}`;
+}
+
+export const BUSINESS_RATE_TRANSFER_LOCAL_ID = virtualEntryLocalId(
+  "business-rate-transfer",
+);
 
 export function excludeBusinessRateTransfer<
   T extends { localId: string | null },
@@ -231,16 +241,14 @@ export type EntryRecord = {
   localId: string | null;
 };
 
-export function entryToVisualPairs(record: EntryRecord): Array<{
-  debit: EntryLine | null;
-  credit: EntryLine | null;
-}> {
-  const lines = record.lines;
+export function entryToVisualPairs(entry: {
+  lines: EntryLine[];
+}): EntryVisualPair[] {
+  const lines = entry.lines;
   const debits = lines.filter((line) => line.side === "debit");
   const credits = lines.filter((line) => line.side === "credit");
   const rowCount = Math.max(debits.length, credits.length, 1);
-  const pairs: Array<{ debit: EntryLine | null; credit: EntryLine | null }> =
-    [];
+  const pairs: EntryVisualPair[] = [];
   for (let index = 0; index < rowCount; index += 1) {
     pairs.push({
       debit: debits[index] ?? null,

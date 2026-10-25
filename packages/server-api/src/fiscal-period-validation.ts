@@ -127,24 +127,6 @@ export function assertFiscalPeriodNextCreateInput(
   );
 }
 
-export function assertNoOverlappingFiscalPeriod(
-  input: { startDate: string; endDate: string },
-  existingPeriods: FiscalPeriodApiRecord[],
-): void {
-  const overlap = existingPeriods.find(
-    (period) =>
-      period.archiveStatus === "active" &&
-      input.startDate <= period.endDate &&
-      input.endDate >= period.startDate,
-  );
-  if (overlap != null) {
-    throw serverConflictError(
-      `Fiscal period ${input.startDate} to ${input.endDate} overlaps active fiscal period ${overlap.id} (${overlap.startDate} to ${overlap.endDate})`,
-      "既存の会計期間と日付が重複しています",
-    );
-  }
-}
-
 export function assertFiscalPeriodContainsExistingData(
   period: Pick<FiscalPeriodApiRecord, "startDate" | "endDate">,
   entries: ReadonlyArray<Pick<EntryApiRecord, "id" | "date">>,

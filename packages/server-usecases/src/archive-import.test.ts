@@ -232,7 +232,7 @@ describe("normalizeArchiveImportInput", () => {
     ).toThrow(/entry\.line\.taxCategoryId must be a string/);
   });
 
-  it("rejects wrong types instead of applying legacy archive defaults", () => {
+  it("rejects wrong types instead of substituting defaults", () => {
     const invalidLocalId = validArchiveInput();
     invalidLocalId.entries[0]!.localId = 123;
     expect(() =>
@@ -559,7 +559,7 @@ describe("normalizeArchiveImportInput", () => {
     );
   });
 
-  it("rejects duplicate opening record IDs before reaching SQLite", () => {
+  it("rejects duplicate opening record IDs before reaching the database", () => {
     const duplicateBalanceId = validArchiveInput();
     archiveOpening(duplicateBalanceId).balanceLines[1]!.id = "cash";
     expect(() =>
@@ -585,8 +585,8 @@ describe("normalizeArchiveImportInput", () => {
     ).toThrow(/archive opening journal carry-1 line has a duplicate id/);
   });
 
-  it("normalizes category display names from legacy archives to master IDs", () => {
-    const input = legacyArchiveInput();
+  it("normalizes category display names from version 1 archives to master IDs", () => {
+    const input = version1ArchiveInput();
     const lines = input.entries[0]!.lines as Array<Record<string, unknown>>;
     lines[0]!.taxCategoryId = "課税 10%";
     lines[0]!.businessCategoryId = "第5種（サービス業等）";
@@ -622,8 +622,8 @@ describe("normalizeArchiveImportInput", () => {
     );
   });
 
-  it("reads legacy opening field names", () => {
-    const input = legacyArchiveInput();
+  it("reads version 1 opening field names", () => {
+    const input = version1ArchiveInput();
 
     const normalized = normalizeArchiveImportInput(input);
 
@@ -631,8 +631,8 @@ describe("normalizeArchiveImportInput", () => {
     expect(normalized.fiscalPeriod.opening.journals).toHaveLength(1);
   });
 
-  it("reads a missing opening in legacy archives as empty", () => {
-    const input = legacyArchiveInput();
+  it("reads a missing opening in version 1 archives as empty", () => {
+    const input = version1ArchiveInput();
     configureArchivePhase(input, "journalizing");
     input.fiscalPeriod.opening = null;
 
@@ -644,8 +644,8 @@ describe("normalizeArchiveImportInput", () => {
     });
   });
 
-  it("reads a started pre_opening period from legacy archives as journalizing", () => {
-    const input = legacyArchiveInput();
+  it("reads a started pre_opening period from version 1 archives as journalizing", () => {
+    const input = version1ArchiveInput();
     configureArchivePhase(input, "pre_opening");
     input.fiscalPeriod.settingsCompleted = true;
 
@@ -654,8 +654,8 @@ describe("normalizeArchiveImportInput", () => {
     expect(normalized.fiscalPeriod.phase).toBe("journalizing");
   });
 
-  it("keeps an unstarted pre_opening period from legacy archives", () => {
-    const input = legacyArchiveInput();
+  it("keeps an unstarted pre_opening period from version 1 archives", () => {
+    const input = version1ArchiveInput();
     configureArchivePhase(input, "pre_opening");
     input.fiscalPeriod.settingsCompleted = false;
 
@@ -664,8 +664,8 @@ describe("normalizeArchiveImportInput", () => {
     expect(normalized.fiscalPeriod.phase).toBe("pre_opening");
   });
 
-  it("clears legacy disposal fields that the fixed asset status does not use", () => {
-    const input = legacyArchiveInput();
+  it("clears version 1 disposal fields that the fixed asset status does not use", () => {
+    const input = version1ArchiveInput();
     input.fixedAssets[0]!.status = "active";
     input.fixedAssets[0]!.disposalDate = "2026-12-01";
     input.fixedAssets[0]!.disposalPrice = 0;
@@ -690,8 +690,8 @@ describe("normalizeArchiveImportInput", () => {
     });
   });
 
-  it("reads a blank legacy entry localId as null", () => {
-    const input = legacyArchiveInput();
+  it("reads a blank version 1 entry localId as null", () => {
+    const input = version1ArchiveInput();
     input.entries[0]!.localId = "";
 
     const normalized = normalizeArchiveImportInput(input);
@@ -733,7 +733,7 @@ function captureError(fn: () => unknown): unknown {
   throw new Error("expected function to throw");
 }
 
-function legacyArchiveInput(): FiscalPeriodArchiveImportInput {
+function version1ArchiveInput(): FiscalPeriodArchiveImportInput {
   const input = validArchiveInput();
   const opening = archiveOpening(input);
   input.manifest.version = 1;

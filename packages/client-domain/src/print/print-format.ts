@@ -1,5 +1,7 @@
+import { formatAmount } from "../shared/parse-utils.js";
+
 export function formatAmountOrBlank(amount: number): string {
-  return amount === 0 ? "" : new Intl.NumberFormat("ja-JP").format(amount);
+  return amount === 0 ? "" : formatAmount(amount);
 }
 
 export function formatPrintDate(isoDate: string): string {

@@ -14,7 +14,7 @@ type Incoming =
   | { id: number; type: "init"; payload: { vfsName: string; dbFileName: string } }
   | { id: number; type: "exec"; payload: ExecArg };
 
-const ctx = self as unknown as {
+const workerScope = self as unknown as {
   onmessage: ((event: MessageEvent<Incoming>) => void) | null;
   postMessage(message: unknown): void;
 };
@@ -35,7 +35,7 @@ async function acquireSingleTabLock(name: string): Promise<void> {
     });
   });
   if (acquiredImmediately) return;
-  ctx.postMessage({ event: "waiting_for_another_tab" });
+  workerScope.postMessage({ event: "waiting_for_another_tab" });
   await new Promise<void>((resolve) => {
     void locks.request(name, { mode: "exclusive" }, () => {
       resolve();
@@ -59,12 +59,12 @@ async function init(payload: {
   db = opfsDb;
 }
 
-ctx.onmessage = async (event) => {
+workerScope.onmessage = async (event) => {
   const message = event.data;
   try {
     if (message.type === "init") {
       await init(message.payload);
-      ctx.postMessage({ id: message.id, ok: true, result: null });
+      workerScope.postMessage({ id: message.id, ok: true, result: null });
       return;
     }
     if (db == null) throw new Error("db not initialized");
@@ -72,13 +72,13 @@ ctx.onmessage = async (event) => {
     const wantsRows =
       typeof arg === "object" && arg.returnValue === "resultRows";
     const result = db.exec(arg);
-    ctx.postMessage({
+    workerScope.postMessage({
       id: message.id,
       ok: true,
       result: wantsRows ? result : null,
     });
   } catch (error) {
-    ctx.postMessage({
+    workerScope.postMessage({
       id: message.id,
       ok: false,
       error: error instanceof Error ? error.message : String(error),

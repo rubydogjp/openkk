@@ -5,11 +5,9 @@ import { buildPrintDocument, escapeHtml } from "./print-shell.js";
 function writeInLabelOverrides(
   writeIns: ReadonlyArray<FsExpenseWriteIn>,
 ): Record<number, string> {
-  const overrides: Record<number, string> = {};
-  writeIns.slice(0, 4).forEach((writeIn, slot) => {
-    overrides[27 + slot] = writeIn.label;
-  });
-  return overrides;
+  return Object.fromEntries(
+    writeIns.map((writeIn) => [writeIn.row, writeIn.label]),
+  );
 }
 
 function formatOptionalAmount(amount: number | null): string {
@@ -87,8 +85,8 @@ const CENTER_GROUPS: PLGroup[] = [
       { label: "利子割引料", index: 22, height: 24, note: null },
       { label: "地代家賃", index: 23, height: 24, note: null },
       { label: "貸倒金", index: 24, height: 24, note: null },
-      { label: "研修費", index: 25, height: 24, note: null },
-      { label: "会議費", index: 26, height: 24, note: null },
+      { label: "会議費", index: 25, height: 24, note: null },
+      { label: "", index: 26, height: 24, note: null },
       { label: "", index: 27, height: 24, note: null },
       { label: "", index: 28, height: 24, note: null },
       { label: "", index: 29, height: 24, note: null },

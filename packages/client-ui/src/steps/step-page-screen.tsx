@@ -1,14 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation.js";
-import {
-  Fragment,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
 import { fontSize, fontWeight, palette, sizes, typography } from "../shared/design-tokens.js";
 import { useReportWorkInProgress } from "../shared/work-in-progress.js";
@@ -90,15 +83,15 @@ export function StepsPageScreen({
   }, [urlActiveStep, currentStepNumber, router]);
 
   useEffect(() => {
-    let el: HTMLElement | null = mainRef.current?.parentElement ?? null;
-    while (el != null) {
-      if (el.scrollHeight > el.clientHeight) {
-        el.scrollTop = 0;
+    let element: HTMLElement | null = mainRef.current?.parentElement ?? null;
+    while (element != null) {
+      if (element.scrollHeight > element.clientHeight) {
+        element.scrollTop = 0;
         return;
       }
-      el = el.parentElement;
+      element = element.parentElement;
     }
-    if (typeof window !== "undefined") window.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0 });
   }, [activeStepNo]);
 
   const active = items.find((step) => step.no === activeStepNo) ?? items[0];
@@ -383,28 +376,28 @@ function WindowedStepperDots({
 }) {
   const activeIndex = steps.findIndex((step) => step.no === activeNo);
   if (activeIndex < 0) return null;
-  const prev = activeIndex > 0 ? steps[activeIndex - 1] : null;
+  const previous = activeIndex > 0 ? steps[activeIndex - 1] : null;
   const current = steps[activeIndex];
   const next = activeIndex < steps.length - 1 ? steps[activeIndex + 1] : null;
 
-  const hasMorePrev = activeIndex > 1;
+  const hasMorePrevious = activeIndex > 1;
   const hasMoreNext = activeIndex < steps.length - 2;
 
   if (current == null) return null;
 
   return (
     <>
-      {hasMorePrev ? <OverflowMarker /> : null}
-      {prev != null ? (
+      {hasMorePrevious ? <OverflowMarker /> : null}
+      {previous != null ? (
         <StepperDot
-          step={prev}
+          step={previous}
           active={false}
-          onClick={() => onSelect(prev.no)}
+          onClick={() => onSelect(previous.no)}
         />
       ) : (
         <EmptySlot />
       )}
-      {prev != null ? <StepperConnector /> : null}
+      {previous != null ? <StepperConnector /> : null}
       <StepperDot
         step={current}
         active
@@ -442,5 +435,3 @@ function OverflowMarker() {
     />
   );
 }
-
-export type { ReactNode };

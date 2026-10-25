@@ -10,6 +10,12 @@ import type {
   FiscalPeriodApiRecord,
 } from "@rubydogjp/openkk-server-ports";
 
+const LINE_TEXT_FIELDS = [
+  ["partnerName", "Entry line partner"],
+  ["taxCategoryId", "Entry line tax category"],
+  ["businessCategoryId", "Entry line business category"],
+] as const;
+
 export function assertEditableEntryInput(
   input: unknown,
   period: FiscalPeriodApiRecord,
@@ -26,27 +32,10 @@ export function assertEditableEntryInput(
     assertTextFieldLength(input.description, "Entry description");
   }
   for (const line of input.lines) {
-    if (
-      !existing?.lines.some((saved) => saved.partnerName === line.partnerName)
-    ) {
-      assertTextFieldLength(line.partnerName, "Entry line partner");
-    }
-    if (
-      !existing?.lines.some(
-        (saved) => saved.taxCategoryId === line.taxCategoryId,
-      )
-    ) {
-      assertTextFieldLength(line.taxCategoryId, "Entry line tax category");
-    }
-    if (
-      !existing?.lines.some(
-        (saved) => saved.businessCategoryId === line.businessCategoryId,
-      )
-    ) {
-      assertTextFieldLength(
-        line.businessCategoryId,
-        "Entry line business category",
-      );
+    for (const [field, label] of LINE_TEXT_FIELDS) {
+      if (!existing?.lines.some((saved) => saved[field] === line[field])) {
+        assertTextFieldLength(line[field], label);
+      }
     }
   }
 }

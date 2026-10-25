@@ -17,50 +17,6 @@ export function FormStyles() {
   return <style>{formInputStyles}</style>;
 }
 
-export function FormStack({
-  gap,
-  children,
-}: {
-  gap: number | string | null;
-  children: ReactNode;
-}) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: gap ?? spacing.s28,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-export function FormField({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <label style={{ display: "flex", flexDirection: "column" }}>
-      <span
-        style={{
-          marginBottom: spacing.s8,
-          color: palette.textLabel,
-          letterSpacing: "0.01em",
-          ...typography.label,
-        }}
-      >
-        {label}
-      </span>
-      {children}
-    </label>
-  );
-}
-
 export function FormTextInput({
   value,
   onChange,
@@ -193,27 +149,6 @@ export function FormErrorText({ children }: { children: ReactNode }) {
   );
 }
 
-export function FormActions({
-  align,
-  children,
-}: {
-  align: "start" | "end" | null;
-  children: ReactNode;
-}) {
-  return (
-    <div
-      style={{
-        marginTop: spacing.s12,
-        display: "flex",
-        justifyContent: align !== "start" ? "flex-end" : "flex-start",
-        gap: spacing.s10,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
 const baseButtonStyle: CSSProperties = {
   height: sizes.button.formHeight,
   minWidth: sizes.button.formPrimaryMinWidth,
@@ -229,43 +164,26 @@ export function FormPrimaryButton({
   children,
   onClick,
   disabled,
-  type,
-  variant,
-  icon,
 }: {
   children: ReactNode;
   onClick: (() => void) | null;
   disabled: boolean;
-  type: "button" | "submit" | null;
-  variant: "primary" | "success" | null;
-  icon: ReactNode | null;
 }) {
-  const background = variant === "success" ? palette.success : palette.brand;
-  const shadow =
-    variant === "success"
-      ? "0 1px 2px rgba(5, 150, 105, 0.28)"
-      : shadows.primaryButton;
   return (
     <button
-      type={type ?? "button"}
+      type="button"
       onClick={onClick ?? undefined}
       disabled={disabled}
       style={{
         ...baseButtonStyle,
-        background,
+        background: palette.brand,
         color: palette.surface,
         opacity: disabled ? 0.5 : 1,
         cursor: disabled ? "default" : "pointer",
-        boxShadow: disabled ? "none" : shadow,
-        display: "inline-flex",
-        alignItems: "center",
-        gap: spacing.s8,
+        boxShadow: disabled ? "none" : shadows.primaryButton,
       }}
     >
-      {icon != null ? (
-        <span style={{ display: "inline-flex", alignItems: "center" }}>{icon}</span>
-      ) : null}
-      <span>{children}</span>
+      {children}
     </button>
   );
 }
@@ -274,16 +192,14 @@ export function FormSecondaryButton({
   children,
   onClick,
   disabled,
-  type,
 }: {
   children: ReactNode;
   onClick: (() => void) | null;
   disabled: boolean;
-  type: "button" | "submit" | null;
 }) {
   return (
     <button
-      type={type ?? "button"}
+      type="button"
       onClick={onClick ?? undefined}
       disabled={disabled}
       style={{

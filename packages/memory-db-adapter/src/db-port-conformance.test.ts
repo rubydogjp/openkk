@@ -1,8 +1,5 @@
 import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
-import {
-  type DbSnapshot,
-  type OpenkkDbPort,
-} from "@rubydogjp/openkk-server-ports";
+import type { DbSnapshot, OpenkkDbPort } from "@rubydogjp/openkk-server-ports";
 import {
   createSqliteDbAdapter,
   runMigrations,
@@ -21,8 +18,8 @@ async function createDeferredSqlTransportAdapter(
   seed: DbSnapshot | null,
 ): Promise<OpenkkDbPort> {
   const sqlite3 = await sqlite3InitModule({
-    print: () => undefined,
-    printErr: (msg: string) => console.error("[sqlite-wasm]", msg),
+    print: () => {},
+    printErr: (message: string) => console.error("[sqlite-wasm]", message),
   });
   const db = new sqlite3.oo1.DB(":memory:");
   runMigrations(db);

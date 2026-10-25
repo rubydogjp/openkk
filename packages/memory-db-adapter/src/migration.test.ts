@@ -10,8 +10,8 @@ import { describe, expect, it } from "vitest";
 
 async function createVersion1Db() {
   const sqlite3 = await sqlite3InitModule({
-    print: () => undefined,
-    printErr: () => undefined,
+    print: () => {},
+    printErr: () => {},
   });
   const db = new sqlite3.oo1.DB(":memory:");
   db.exec(SCHEMA_MIGRATIONS[0]!.sql);

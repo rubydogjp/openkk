@@ -1,4 +1,5 @@
 import {
+  entryToVisualPairs,
   formatBusinessRatePercent,
   parseAmount,
   resolveEntryPairMetadata,
@@ -56,15 +57,9 @@ export function entryToFormState(
   record: EntryDraft,
   nextLinePairId: () => string,
 ): EntryFormState {
-  const lines = record.lines;
-  const debits = lines.filter((line) => line.side === "debit");
-  const credits = lines.filter((line) => line.side === "credit");
-  const rowCount = Math.max(debits.length, credits.length, 1);
-  const pairs: EntryLinePair[] = [];
-  for (let i = 0; i < rowCount; i += 1) {
-    const debit = debits[i] ?? null;
-    const credit = credits[i] ?? null;
-    pairs.push({
+  const visualPairs = entryToVisualPairs(record);
+  const pairs = visualPairs.map(
+    ({ debit, credit }): EntryLinePair => ({
       id: nextLinePairId(),
       debitLineId: debit?.id ?? null,
       debitAccountId: debit?.bookAccountId ?? null,
@@ -82,12 +77,11 @@ export function entryToFormState(
       creditPartnerName: credit?.partnerName ?? null,
       creditTaxCategoryId: credit?.taxCategoryId ?? null,
       creditBusinessCategoryId: credit?.businessCategoryId ?? null,
-    });
-  }
-  const metadata = resolveEntryPairMetadata({
-    debit: debits[0] ?? null,
-    credit: credits[0] ?? null,
-  });
+    }),
+  );
+  const metadata = resolveEntryPairMetadata(
+    visualPairs[0] ?? { debit: null, credit: null },
+  );
   return {
     date: record.date,
     description: record.description,

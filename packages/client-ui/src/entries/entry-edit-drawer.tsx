@@ -26,9 +26,9 @@ import {
   resolveGuideBookAccount,
   type QuickGuideOption,
   type QuickGuidePage,
-  mergeOptions,
   type QuickGuideTemplate,
   MAX_ENTRY_LINES,
+  formatAmount,
   parseAmount,
 } from "@rubydogjp/openkk-client-domain";
 import { QuickGuidePanel, QuickGuideTriggerButton } from "./quick-guide-panel.js";
@@ -208,9 +208,11 @@ export function EntryEditDrawer(props: {
   const openGuide = () => setGuideStack(["top"]);
   const closeGuide = () => setGuideStack([]);
   const pushGuide = (next: QuickGuidePage) =>
-    setGuideStack((prev) => [...prev, next]);
+    setGuideStack((current) => [...current, next]);
   const popGuide = () =>
-    setGuideStack((prev) => (prev.length <= 1 ? [] : prev.slice(0, -1)));
+    setGuideStack((current) =>
+      current.length <= 1 ? [] : current.slice(0, -1),
+    );
 
   const findAccountByName = (name: string): EntryMasterAccountOption | null =>
     resolveGuideBookAccount(name, props.accountOptions);
@@ -352,9 +354,9 @@ export function EntryEditDrawer(props: {
     );
   if (!isBalanced && amountValidationMessage == null)
     validationMessages.push(
-      `借方金額と貸方金額の合計を一致させてください。差額: ¥${Math.abs(
-        debitTotal - creditTotal,
-      ).toLocaleString()}`,
+      `借方金額と貸方金額の合計を一致させてください。差額: ¥${formatAmount(
+        Math.abs(debitTotal - creditTotal),
+      )}`,
     );
 
   const handleSave = async () => {
@@ -440,7 +442,7 @@ export function EntryEditDrawer(props: {
           flexDirection: "column",
           animation: DRAWER_SLIDE_IN_ANIMATION,
         }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
       >
         <style>{`
           ${DRAWER_SLIDE_IN_KEYFRAMES}
@@ -581,7 +583,6 @@ export function EntryEditDrawer(props: {
                               })
                             }
                             options={props.accountOptions}
-                            fullWidth
                           />
                         </StackedField>
                         <StackedField label="貸方科目">
@@ -598,7 +599,6 @@ export function EntryEditDrawer(props: {
                               })
                             }
                             options={props.accountOptions}
-                            fullWidth
                           />
                         </StackedField>
                         <StackedField label="借方金額">
@@ -682,7 +682,7 @@ export function EntryEditDrawer(props: {
                       options={props.suggestions.partner}
                       ariaLabel="取引先"
                       placeholder="取引先を入力"
-                      align={null}
+                      align="left"
                       inputMode={null}
                     />
                   </div>
@@ -726,7 +726,7 @@ export function EntryEditDrawer(props: {
                       )}
                       ariaLabel="課税区分"
                       placeholder="未選択"
-                      align={null}
+                      align="left"
                       inputMode={null}
                     />
                   </div>
@@ -749,7 +749,7 @@ export function EntryEditDrawer(props: {
                       )}
                       ariaLabel="事業区分"
                       placeholder="未選択"
-                      align={null}
+                      align="left"
                       inputMode={null}
                     />
                   </div>
@@ -845,4 +845,19 @@ export function EntryEditDrawer(props: {
       </aside>
     </>
   );
+}
+
+function mergeOptions(
+  primary: Iterable<string>,
+  secondary: Iterable<string>,
+): string[] {
+  const merged: string[] = [];
+  const seen = new Set<string>();
+  for (const option of [...primary, ...secondary]) {
+    const trimmed = option.trim();
+    if (trimmed === "" || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    merged.push(trimmed);
+  }
+  return merged;
 }

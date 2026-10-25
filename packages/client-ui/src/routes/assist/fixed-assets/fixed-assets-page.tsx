@@ -159,7 +159,7 @@ function buildNewFixedAssetDraft(acquisitionDate: string): FixedAssetDraft {
     name: "",
     account: "工具器具備品",
     acquisitionCost: "",
-    status: "償却中",
+    status: "active",
     acquisitionDate,
     usefulLife: 3,
     businessRatePercent: 100,

@@ -48,10 +48,10 @@ function isStandalone(): boolean {
 
 function experimentalInstall(): (() => Promise<unknown>) | null {
   if (typeof navigator === "undefined") return null;
-  const nav = navigator as NavigatorWithExperimentalInstall;
-  const install = nav.install;
+  const experimentalNavigator = navigator as NavigatorWithExperimentalInstall;
+  const install = experimentalNavigator.install;
   return typeof install === "function"
-    ? () => Promise.resolve(install.call(nav))
+    ? () => Promise.resolve(install.call(experimentalNavigator))
     : null;
 }
 

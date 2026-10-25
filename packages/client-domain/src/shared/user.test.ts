@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  isCustomUser,
-  isEmbeddedUser,
   userCanSignOut,
   userEmail,
   type CustomUser,
@@ -25,13 +23,6 @@ const custom: CustomUser = {
 };
 
 describe("OpenkkUser helpers", () => {
-  it("discriminates embedded vs custom", () => {
-    expect(isEmbeddedUser(embedded)).toBe(true);
-    expect(isCustomUser(embedded)).toBe(false);
-    expect(isEmbeddedUser(custom)).toBe(false);
-    expect(isCustomUser(custom)).toBe(true);
-  });
-
   it("only custom users can sign out", () => {
     expect(userCanSignOut(embedded)).toBe(false);
     expect(userCanSignOut(custom)).toBe(true);

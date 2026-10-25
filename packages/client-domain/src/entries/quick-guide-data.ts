@@ -720,17 +720,19 @@ export function resolveGuideBookAccount<
     null;
 
   for (const alias of aliases) {
-    const norm = normalizeAccountName(alias);
+    const normalizedAlias = normalizeAccountName(alias);
     const chosen = prefer(
-      accounts.filter((account) => normalizeAccountName(account.name) === norm),
+      accounts.filter(
+        (account) => normalizeAccountName(account.name) === normalizedAlias,
+      ),
     );
     if (chosen != null) return chosen;
   }
   for (const alias of aliases) {
-    const norm = normalizeAccountName(alias);
+    const normalizedAlias = normalizeAccountName(alias);
     const chosen = prefer(
       accounts.filter((account) =>
-        normalizeAccountName(account.name).includes(norm),
+        normalizeAccountName(account.name).includes(normalizedAlias),
       ),
     );
     if (chosen != null) return chosen;

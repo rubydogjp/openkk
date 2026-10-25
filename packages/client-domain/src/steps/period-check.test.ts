@@ -46,13 +46,13 @@ describe("hasActiveFiscalPeriodOverlap", () => {
       id: "fp-active",
       startDate: "2026-01-01",
       endDate: "2026-12-31",
-      archiveStatus: "active",
+      archiveStatus: "active" as const,
     },
     {
       id: "fp-archived",
       startDate: "2025-01-01",
       endDate: "2025-12-31",
-      archiveStatus: "archived",
+      archiveStatus: "archived" as const,
     },
   ];
 

@@ -48,7 +48,7 @@
 
 ## 変数一覧
 
-全 170 個。
+全 131 個。
 
 ### 色 (palette)
 
@@ -71,24 +71,11 @@
 | `--openkk-color-text-soft` | `palette.textSoft` | `#475569` |
 | `--openkk-color-text-label` | `palette.textLabel` | `#64748B` |
 | `--openkk-color-text-muted` | `palette.textMuted` | `#94A3B8` |
-| `--openkk-color-text-on-dark` | `palette.textOnDark` | `#FFFFFF` |
-| `--openkk-color-brand-ink` | `palette.brandInk` | `#0F172A` |
-| `--openkk-color-brand-paper` | `palette.brandPaper` | `#FFFFFF` |
 | `--openkk-color-action` | `palette.action` | `#1D4ED8` |
-| `--openkk-color-action-hover` | `palette.actionHover` | `#1E40AF` |
 | `--openkk-color-action-bg` | `palette.actionBg` | `#EEF5FF` |
 | `--openkk-color-action-border` | `palette.actionBorder` | `#93C5FD` |
-| `--openkk-color-decision` | `palette.decision` | `#15803D` |
-| `--openkk-color-decision-hover` | `palette.decisionHover` | `#166534` |
-| `--openkk-color-decision-bg` | `palette.decisionBg` | `#ECFDF3` |
-| `--openkk-color-decision-border` | `palette.decisionBorder` | `#86EFAC` |
 | `--openkk-color-brand` | `palette.brand` | `#1D4ED8` |
-| `--openkk-color-brand-hover` | `palette.brandHover` | `#1E40AF` |
-| `--openkk-color-brand-shadow` | `palette.brandShadow` | `rgba(37, 99, 235, 0.22)` |
-| `--openkk-color-brand-active-bg` | `palette.brandActiveBg` | `#EEF5FF` |
-| `--openkk-color-brand-active-bg-strong` | `palette.brandActiveBgStrong` | `#DBEAFE` |
 | `--openkk-color-brand-tint` | `palette.brandTint` | `#EEF5FF` |
-| `--openkk-color-brand-border` | `palette.brandBorder` | `#93C5FD` |
 | `--openkk-color-success` | `palette.success` | `#15803D` |
 | `--openkk-color-success-bg` | `palette.successBg` | `#ECFDF3` |
 | `--openkk-color-success-border` | `palette.successBorder` | `#86EFAC` |
@@ -100,25 +87,16 @@
 | `--openkk-color-danger-border` | `palette.dangerBorder` | `#FECACA` |
 | `--openkk-color-account-asset` | `palette.accountAsset` | `#2563EB` |
 | `--openkk-color-account-asset-bg` | `palette.accountAssetBg` | `#EFF6FF` |
-| `--openkk-color-account-asset-border` | `palette.accountAssetBorder` | `#BFDBFE` |
 | `--openkk-color-account-liability` | `palette.accountLiability` | `#E11D48` |
 | `--openkk-color-account-liability-bg` | `palette.accountLiabilityBg` | `#FFF1F2` |
-| `--openkk-color-account-liability-border` | `palette.accountLiabilityBorder` | `#FDA4AF` |
 | `--openkk-color-account-equity` | `palette.accountEquity` | `#15803D` |
 | `--openkk-color-account-equity-bg` | `palette.accountEquityBg` | `#ECFDF3` |
-| `--openkk-color-account-equity-border` | `palette.accountEquityBorder` | `#86EFAC` |
 | `--openkk-color-account-revenue` | `palette.accountRevenue` | `#15803D` |
 | `--openkk-color-account-revenue-bg` | `palette.accountRevenueBg` | `#ECFDF3` |
-| `--openkk-color-account-revenue-border` | `palette.accountRevenueBorder` | `#86EFAC` |
 | `--openkk-color-account-expense` | `palette.accountExpense` | `#2563EB` |
 | `--openkk-color-account-expense-bg` | `palette.accountExpenseBg` | `#EFF6FF` |
-| `--openkk-color-account-expense-border` | `palette.accountExpenseBorder` | `#BFDBFE` |
 | `--openkk-color-account-profit` | `palette.accountProfit` | `#2563EB` |
 | `--openkk-color-account-profit-bg` | `palette.accountProfitBg` | `#EFF6FF` |
-| `--openkk-color-account-profit-border` | `palette.accountProfitBorder` | `#BFDBFE` |
-| `--openkk-color-account-loss` | `palette.accountLoss` | `#E11D48` |
-| `--openkk-color-account-loss-bg` | `palette.accountLossBg` | `#FFF1F2` |
-| `--openkk-color-account-loss-border` | `palette.accountLossBorder` | `#FDA4AF` |
 
 ### 影 (shadows)
 
@@ -205,12 +183,10 @@
 | `--openkk-size-button-cta-height` | `sizes.button.ctaHeight` | `44px` |
 | `--openkk-size-button-cta-min-width` | `sizes.button.ctaMinWidth` | `112px` |
 | `--openkk-size-button-icon-only` | `sizes.button.iconOnly` | `36px` |
-| `--openkk-size-button-mobile-hit` | `sizes.button.mobileHit` | `48px` |
 | `--openkk-size-field-height` | `sizes.field.height` | `40px` |
 | `--openkk-size-field-padding-x` | `sizes.field.paddingX` | `12px` |
 | `--openkk-size-chip-height` | `sizes.chip.height` | `30px` |
 | `--openkk-size-account-table-height` | `sizes.account.tableHeight` | `36px` |
-| `--openkk-size-account-inline-height` | `sizes.account.inlineHeight` | `28px` |
 | `--openkk-size-account-table-width` | `sizes.account.tableWidth` | `136px` |
 | `--openkk-size-shell-sidebar-width` | `sizes.shell.sidebarWidth` | `216px` |
 | `--openkk-size-shell-mobile-topbar-height` | `sizes.shell.mobileTopbarHeight` | `48px` |
@@ -226,24 +202,15 @@
 
 | CSS 変数 | トークン | 既定値 |
 | --- | --- | --- |
-| `--openkk-typography-fine-print-font-size` | `typography.finePrint.fontSize` | `var(--openkk-font-size-micro, 10px)` |
-| `--openkk-typography-fine-print-line-height` | `typography.finePrint.lineHeight` | `1.4` |
-| `--openkk-typography-fine-print-font-weight` | `typography.finePrint.fontWeight` | `var(--openkk-font-weight-semibold, 600)` |
 | `--openkk-typography-meta-font-size` | `typography.meta.fontSize` | `var(--openkk-font-size-xs, 11px)` |
 | `--openkk-typography-meta-line-height` | `typography.meta.lineHeight` | `1.45` |
 | `--openkk-typography-meta-font-weight` | `typography.meta.fontWeight` | `var(--openkk-font-weight-medium, 500)` |
 | `--openkk-typography-helper-font-size` | `typography.helper.fontSize` | `var(--openkk-font-size-sm, 12px)` |
 | `--openkk-typography-helper-line-height` | `typography.helper.lineHeight` | `1.6` |
 | `--openkk-typography-helper-font-weight` | `typography.helper.fontWeight` | `var(--openkk-font-weight-regular, 400)` |
-| `--openkk-typography-body-font-size` | `typography.body.fontSize` | `var(--openkk-font-size-base, 13px)` |
-| `--openkk-typography-body-line-height` | `typography.body.lineHeight` | `1.7` |
-| `--openkk-typography-body-font-weight` | `typography.body.fontWeight` | `var(--openkk-font-weight-regular, 400)` |
 | `--openkk-typography-input-font-size` | `typography.input.fontSize` | `var(--openkk-font-size-md, 14px)` |
 | `--openkk-typography-input-line-height` | `typography.input.lineHeight` | `1.45` |
 | `--openkk-typography-input-font-weight` | `typography.input.fontWeight` | `var(--openkk-font-weight-regular, 400)` |
-| `--openkk-typography-label-font-size` | `typography.label.fontSize` | `var(--openkk-font-size-sm, 12px)` |
-| `--openkk-typography-label-line-height` | `typography.label.lineHeight` | `1.4` |
-| `--openkk-typography-label-font-weight` | `typography.label.fontWeight` | `var(--openkk-font-weight-semibold, 600)` |
 | `--openkk-typography-control-font-size` | `typography.control.fontSize` | `var(--openkk-font-size-base, 13px)` |
 | `--openkk-typography-control-line-height` | `typography.control.lineHeight` | `1.4` |
 | `--openkk-typography-control-font-weight` | `typography.control.fontWeight` | `var(--openkk-font-weight-semibold, 600)` |
@@ -251,12 +218,6 @@
 | `--openkk-typography-amount-line-height` | `typography.amount.lineHeight` | `1.4` |
 | `--openkk-typography-amount-font-weight` | `typography.amount.fontWeight` | `var(--openkk-font-weight-semibold, 600)` |
 | `--openkk-typography-amount-font-family` | `typography.amount.fontFamily` | `var(--openkk-font-family-mono, var(--font-mono), "Noto Sans Mono", ui-monospace, monospace)` |
-| `--openkk-typography-chip-font-size` | `typography.chip.fontSize` | `var(--openkk-font-size-sm, 12px)` |
-| `--openkk-typography-chip-line-height` | `typography.chip.lineHeight` | `1.35` |
-| `--openkk-typography-chip-font-weight` | `typography.chip.fontWeight` | `var(--openkk-font-weight-regular, 400)` |
-| `--openkk-typography-account-label-font-size` | `typography.accountLabel.fontSize` | `var(--openkk-font-size-base, 13px)` |
-| `--openkk-typography-account-label-line-height` | `typography.accountLabel.lineHeight` | `1.35` |
-| `--openkk-typography-account-label-font-weight` | `typography.accountLabel.fontWeight` | `var(--openkk-font-weight-bold, 700)` |
 | `--openkk-typography-section-title-font-size` | `typography.sectionTitle.fontSize` | `var(--openkk-font-size-lg, 15px)` |
 | `--openkk-typography-section-title-line-height` | `typography.sectionTitle.lineHeight` | `1.45` |
 | `--openkk-typography-section-title-font-weight` | `typography.sectionTitle.fontWeight` | `var(--openkk-font-weight-bold, 700)` |

@@ -1,5 +1,6 @@
 import {
   computeStraightLineDepreciation,
+  fixedAssetStatusRequiresDisposal,
   formatAmount,
   parseAmount,
   parseIsoLocalDate,
@@ -8,14 +9,12 @@ import {
   type BookAccountType,
   type FixedAssetDraft,
   type FixedAsset,
-  type FixedAssetStatus,
   type OpeningCarryoverDraft,
   type OpeningCarryoverRecord,
 } from "@rubydogjp/openkk-client-domain";
 import type {
   EntryLineApiRecord,
   FixedAssetApiRecord,
-  FixedAssetApiStatus,
   FixedAssetPatchInput,
   OpeningJournalApiRecord,
 } from "@rubydogjp/openkk-client-ports";
@@ -150,16 +149,16 @@ export function resolveFixedAssetAccountId(
 export function mapFixedAsset(
   asset: FixedAssetApiRecord,
   accountName: string | null,
-  today: Date,
+  previewAsOf: Date,
   fiscalPeriodEndDate: string | null,
 ): FixedAsset {
   const isClosed = asset.status !== "active";
   const asOf =
     asset.status === "retired" && fiscalPeriodEndDate != null
-      ? (parseIsoLocalDate(fiscalPeriodEndDate) ?? today)
+      ? (parseIsoLocalDate(fiscalPeriodEndDate) ?? previewAsOf)
       : isClosed && asset.disposalDate != null
-        ? (parseIsoLocalDate(asset.disposalDate) ?? today)
-        : today;
+        ? (parseIsoLocalDate(asset.disposalDate) ?? previewAsOf)
+        : previewAsOf;
   const depreciation = computeStraightLineDepreciation({
     acquisitionDate: asset.acquisitionDate,
     acquisitionCost: asset.acquisitionCost,
@@ -172,7 +171,7 @@ export function mapFixedAsset(
     name: asset.name,
     accountName: accountName ?? asset.bookAccountId,
     bookAccountId: asset.bookAccountId,
-    status: mapFixedAssetStatusLabel(asset.status),
+    status: asset.status,
     acquisitionDate: asset.acquisitionDate,
     acquisitionCost: asset.acquisitionCost,
     usefulLife: asset.usefulLife,
@@ -196,12 +195,12 @@ export function fixedAssetDraftToPatch(
     acquisitionCost: parseAmount(draft.acquisitionCost),
     usefulLife: Math.max(1, Math.round(draft.usefulLife) || 1),
     businessRate: fixedAssetDraftBusinessRate(draft),
-    status: mapFixedAssetStatusApi(draft.status),
-    disposalDate: requiresFixedAssetDisposal(draft.status)
+    status: draft.status,
+    disposalDate: fixedAssetStatusRequiresDisposal(draft.status)
       ? requireDraftValue(draft.disposalDate, "disposalDate")
       : null,
     disposalPrice:
-      draft.status === "売却済"
+      draft.status === "sold"
         ? parseAmount(requireDraftValue(draft.disposalPrice, "disposalPrice"))
         : null,
     bookAccountId,
@@ -213,30 +212,6 @@ function requireDraftValue(value: string | null, field: string): string {
   return value;
 }
 
-function mapFixedAssetStatusLabel(
-  status: FixedAssetApiStatus,
-): FixedAssetStatus {
-  const labels: Record<FixedAssetApiStatus, FixedAssetStatus> = {
-    active: "償却中",
-    sold: "売却済",
-    disposed: "廃棄済",
-    retired: "完了",
-  };
-  return labels[status];
-}
-
-function mapFixedAssetStatusApi(
-  statusLabel: FixedAssetStatus,
-): FixedAssetApiStatus {
-  const statuses: Record<FixedAssetStatus, FixedAssetApiStatus> = {
-    償却中: "active",
-    完了: "retired",
-    売却済: "sold",
-    廃棄済: "disposed",
-  };
-  return statuses[statusLabel];
-}
-
 export function fixedAssetDraftBusinessRate(draft: FixedAssetDraft): number {
   return (
     draft.businessRate ??
@@ -244,6 +219,3 @@ export function fixedAssetDraftBusinessRate(draft: FixedAssetDraft): number {
   );
 }
 
-function requiresFixedAssetDisposal(statusLabel: string): boolean {
-  return statusLabel === "売却済" || statusLabel === "廃棄済";
-}

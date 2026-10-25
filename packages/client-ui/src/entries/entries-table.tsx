@@ -14,12 +14,11 @@ import {
   sizes,
   spacing,
 } from "../shared/design-tokens.js";
+import { MaskIcon } from "../shared/icons.js";
 import {
   EntryAccountIcon,
   entryAccountPalette,
 } from "./entry-account-visual.js";
-
-export type EntriesHeaderTone = "default" | "warning";
 
 const entryColors = {
   blue: palette.brand,
@@ -60,14 +59,14 @@ export function EntriesTable(props: {
   readOnly: boolean;
   activeRecordId: string | null;
   fillHeight: boolean;
-  headerTone: EntriesHeaderTone | null;
+  headerTone: "warning" | null;
 }) {
   const onOpen = props.onOpenEntry;
   const isEmpty = props.rows.length === 0;
   const { fillHeight } = props;
   const activeRecordId = props.activeRecordId;
   const isReadOnly = props.readOnly;
-  const headerTone = resolveEntriesHeaderTone(props.headerTone ?? "default");
+  const headerTone = resolveEntriesHeaderTone(props.headerTone);
   return (
     <div
       style={{
@@ -171,9 +170,9 @@ export function EntriesTable(props: {
                     }
                     onKeyDown={
                       rowClickable
-                        ? (e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
+                        ? (event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
                               onOpen(row, index);
                             }
                           }
@@ -186,7 +185,7 @@ export function EntriesTable(props: {
                       gridTemplateColumns,
                       alignItems: "center",
                       height: 52,
-                      background: "#FFFFFF",
+                      background: entryColors.cardBg,
                       borderTop:
                         isRecordHead && index > 0
                           ? `1px solid ${entryColors.border}`
@@ -294,26 +293,22 @@ export function EntriesTable(props: {
   );
 }
 
-function resolveEntriesHeaderTone(tone: EntriesHeaderTone): {
+function resolveEntriesHeaderTone(tone: "warning" | null): {
   background: string;
   color: string;
   border: string;
 } {
-  switch (tone) {
-    case "warning":
-      return {
+  return tone === "warning"
+    ? {
         background: palette.warningBg,
         color: entryColors.headerText,
         border: palette.warningBorder,
-      };
-    case "default":
-    default:
-      return {
+      }
+    : {
         background: entryColors.headerBg,
         color: entryColors.headerText,
         border: entryColors.headerBorder,
       };
-  }
 }
 
 function EntriesEmptyState(props: { onAddEntry: (() => void) | null }) {
@@ -539,67 +534,11 @@ function VirtualEntryDateCell({ label }: { label: string }) {
         placeItems: "center",
       }}
     >
-      <span
-        aria-hidden="true"
-        style={{
-          width: 24,
-          height: 24,
-          display: "block",
-          backgroundColor: palette.warning,
-          maskImage: "url('/icons/assist-filled.svg')",
-          maskRepeat: "no-repeat",
-          maskPosition: "center",
-          maskSize: "contain",
-          WebkitMaskImage: "url('/icons/assist-filled.svg')",
-          WebkitMaskRepeat: "no-repeat",
-          WebkitMaskPosition: "center",
-          WebkitMaskSize: "contain",
-        }}
+      <MaskIcon
+        src="/icons/assist-filled.svg"
+        size={24}
+        color={palette.warning}
       />
-    </div>
-  );
-}
-
-export function AccountChip(props: {
-  label: string;
-  type: BookAccountType;
-}) {
-  const accountPalette = entryAccountPalette(props.type);
-  return (
-    <div
-      style={{
-        height: sizes.account.inlineHeight,
-        width: sizes.account.tableWidth,
-        borderRadius: radii.sm,
-        padding: "0 10px",
-        display: "inline-flex",
-        alignItems: "center",
-        gap: spacing.s8,
-        background: accountPalette.background,
-        border: `1px solid ${accountPalette.foreground}`,
-        color: accountPalette.foreground,
-        fontSize: fontSize.sm,
-        fontWeight: fontWeight.bold,
-        overflow: "hidden",
-        whiteSpace: "nowrap",
-        textOverflow: "ellipsis",
-      }}
-    >
-      <EntryAccountIcon
-        type={props.type}
-        color={accountPalette.foreground}
-        size={14}
-      />
-      <span
-        style={{
-          minWidth: 0,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {props.label}
-      </span>
     </div>
   );
 }
@@ -652,7 +591,7 @@ export function AccountChipCell(props: {
 function TableAmountCell(props: { children: ReactNode }) {
   return (
     <div style={{ padding: "0 12px", textAlign: "right" }}>
-      <AmountText bold={false} muted={false}>
+      <AmountText bold={false}>
         {props.children}
       </AmountText>
     </div>
@@ -668,7 +607,7 @@ function TableTagCell(props: { text: string; align: "right" | null }) {
           height: sizes.chip.height,
           padding: "0 10px",
           borderRadius: radii.pill,
-          background: "#FFFFFF",
+          background: entryColors.cardBg,
           border: `1px solid ${isEmpty ? entryColors.tagBorder : entryColors.blue}`,
           color: isEmpty ? entryColors.muted : entryColors.blue,
           display: "flex",

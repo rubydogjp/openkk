@@ -200,7 +200,6 @@ export function CreateFiscalPeriodPage() {
               if (!createLock.current.isLocked) router.push("/steps");
             }}
             disabled={isCreating}
-            type={null}
           >
             キャンセル
           </FormSecondaryButton>
@@ -210,9 +209,6 @@ export function CreateFiscalPeriodPage() {
             <FormPrimaryButton
               onClick={handleCreate}
               disabled={!canSubmit}
-              type={null}
-              variant={null}
-              icon={null}
             >
               {isCreating ? "作成中…" : "作成する"}
             </FormPrimaryButton>

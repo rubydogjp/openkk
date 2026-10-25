@@ -66,7 +66,7 @@ const DEFAULT_CARRIES: CarryOptions = {
 export function NextFiscalPeriodBody({
   onSwitchToStep,
 }: {
-  onSwitchToStep: ((no: number) => void) | null;
+  onSwitchToStep: (no: number) => void;
 }) {
   const config = useOpenkkConfig();
   const nextPeriodFooter = useOpenkkCallout("stepNextFiscalPeriodFooter");
@@ -139,7 +139,6 @@ export function NextFiscalPeriodBody({
     activePeriodCount >= policy.maxActivePeriods;
 
   const canEnterPage = currentFiscalPeriod.phase === "post_closing";
-  const isNotStarted = !canEnterPage;
   const reversalCandidates = entriesState
     .listFiscalPeriodEntries(currentFiscalPeriod.id)
     .filter(isOpeningCarryoverCandidate);
@@ -219,7 +218,7 @@ export function NextFiscalPeriodBody({
   };
 
   const toggleCarry = (id: keyof CarryOptions) =>
-    setCarries((prev) => ({ ...prev, [id]: !prev[id] }));
+    setCarries((current) => ({ ...current, [id]: !current[id] }));
 
   const handleArchive = async () => {
     if (!canArchive) return;
@@ -271,11 +270,11 @@ export function NextFiscalPeriodBody({
               <FormTextInput
                 value={name}
                 onChange={(value) => {
-                  if (isNotStarted) return;
+                  if (!canEnterPage) return;
                   setNameEdited(true);
                   setName(value);
                 }}
-                readOnly={isNotStarted}
+                readOnly={!canEnterPage}
                 width={280}
                 placeholder="例: 2027年分"
               />
@@ -292,16 +291,16 @@ export function NextFiscalPeriodBody({
                   start={startDate}
                   end={endDate}
                   onChangeStart={(value) => {
-                    if (!isNotStarted) setStartDate(value);
+                    if (canEnterPage) setStartDate(value);
                   }}
                   onChangeEnd={(value) => {
-                    if (!isNotStarted) setEndDate(value);
+                    if (canEnterPage) setEndDate(value);
                   }}
-                  readOnly={isNotStarted}
+                  readOnly={!canEnterPage}
                 />
-                {!isNotStarted && !dateValidation.ok ? (
+                {canEnterPage && !dateValidation.ok ? (
                   <FormErrorText>{dateValidation.message}</FormErrorText>
-                ) : !isNotStarted && hasOverlap ? (
+                ) : canEnterPage && hasOverlap ? (
                   <FormErrorText>
                     既存の有効な会計期間と日付が重複しています。
                   </FormErrorText>
@@ -340,10 +339,10 @@ export function NextFiscalPeriodBody({
                     inputId={`carry-${item.id}`}
                     checked={carries[item.id]}
                     onChange={() => {
-                      if (!isNotStarted) toggleCarry(item.id);
+                      if (canEnterPage) toggleCarry(item.id);
                     }}
                     label={item.label}
-                    disabled={isNotStarted}
+                    disabled={!canEnterPage}
                   />
                 ))}
               </div>
@@ -419,10 +418,7 @@ export function NextFiscalPeriodBody({
                     gap: 12,
                   }}
                 >
-                  <StepSecondaryButton
-                    onClick={() => setPendingAdvance(false)}
-                    disabled={false}
-                  >
+                  <StepSecondaryButton onClick={() => setPendingAdvance(false)}>
                     キャンセル
                   </StepSecondaryButton>
                   <StepPrimaryButton
@@ -473,10 +469,7 @@ export function NextFiscalPeriodBody({
               justifyContent: "flex-start",
             }}
           >
-            <StepSecondaryButton
-              onClick={() => onSwitchToStep?.(5)}
-              disabled={false}
-            >
+            <StepSecondaryButton onClick={() => onSwitchToStep(5)}>
               前の手順へ
             </StepSecondaryButton>
           </div>

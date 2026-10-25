@@ -7,18 +7,19 @@ import { PreviewScaffold } from "../../../print/preview-scaffold.js";
 import {
   buildFinancialStatementsBody,
   buildFinancialStatementsDocument,
-  FINANCIAL_STATEMENTS_EXAMPLE_AMOUNTS,
-  FINANCIAL_STATEMENTS_EXAMPLE_BS_ROWS,
+  computeFsAggregate,
+  JOURNAL_EXAMPLE_ENTRIES,
+  JOURNAL_EXAMPLE_OPENING_BALANCE_LINES,
 } from "@rubydogjp/openkk-client-domain";
 
 export function FinancialStatementsPaperTemplatePage() {
   const printDocument = usePrintDocument();
   const args = useMemo(
-    () => ({
-      amounts: FINANCIAL_STATEMENTS_EXAMPLE_AMOUNTS,
-      bsRows: FINANCIAL_STATEMENTS_EXAMPLE_BS_ROWS,
-      expenseWriteIns: [],
-    }),
+    () =>
+      computeFsAggregate({
+        entries: JOURNAL_EXAMPLE_ENTRIES,
+        openingBalanceLines: JOURNAL_EXAMPLE_OPENING_BALANCE_LINES,
+      }),
     [],
   );
 
@@ -27,7 +28,6 @@ export function FinancialStatementsPaperTemplatePage() {
   return (
     <PreviewScaffold
       title="財務諸表 (テンプレート + 例の値)"
-      notice="このページはテンプレート + 固定の例の値の表示確認用です。実際の期間データは使用しません。"
       bodyHtml={bodyHtml}
       onPrint={() => printDocument(buildFinancialStatementsDocument(args))}
     />

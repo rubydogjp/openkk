@@ -1,5 +1,6 @@
 import {
   isOpenkkApiErrorDto,
+  OPENKK_HTTP_ENDPOINTS,
   resolveOpenkkHttpResponse,
   type OpenkkApiErrorDto,
   type OpenkkBackendPort,
@@ -181,258 +182,190 @@ async function dispatchEmbeddedHttp(
   body: unknown,
 ): Promise<OpenkkHttpResponse> {
   try {
-    switch (key) {
-      case "authStartSession": {
-        const request = body as EndpointRequest<"authStartSession">;
-        return {
-          status: 200,
-          body: await server.auth.startSession(request.redirectUrl),
-        };
-      }
-      case "authCompleteSession": {
-        const request = body as EndpointRequest<"authCompleteSession">;
-        return {
-          status: 200,
-          body: await server.auth.completeSession(request.state, request.code),
-        };
-      }
-      case "authRedeemCompletionCode": {
-        const request = body as EndpointRequest<"authRedeemCompletionCode">;
-        return {
-          status: 200,
-          body: await server.auth.redeemCompletionCode(request.completionCode),
-        };
-      }
-      case "authSignOut":
-        await server.auth.signOut();
-        return { status: 204, body: null };
-      case "preClosingRun": {
-        const request = body as EndpointRequest<"preClosingRun">;
-        return {
-          status: 200,
-          body: {
-            fiscalPeriod: await server.preClosings.run(request.fiscalPeriodId),
-          },
-        };
-      }
-      case "preClosingCancel": {
-        const request = body as EndpointRequest<"preClosingCancel">;
-        return {
-          status: 200,
-          body: {
-            fiscalPeriod: await server.preClosings.cancel(
-              request.fiscalPeriodId,
-            ),
-          },
-        };
-      }
-      case "closingRun": {
-        const request = body as EndpointRequest<"closingRun">;
-        return {
-          status: 200,
-          body: {
-            fiscalPeriod: await server.closings.run(
-              request.fiscalPeriodId,
-              request.entries,
-            ),
-          },
-        };
-      }
-      case "entriesGetAll": {
-        const request = body as EndpointRequest<"entriesGetAll">;
-        return {
-          status: 200,
-          body: {
-            entries: await server.entries.getAll(request.fiscalPeriodId),
-          },
-        };
-      }
-      case "entryCreate": {
-        const request = body as EndpointRequest<"entryCreate">;
-        return {
-          status: 201,
-          body: {
-            entry: await server.entries.create(
-              request.fiscalPeriodId,
-              request.input,
-            ),
-          },
-        };
-      }
-      case "entryUpdate": {
-        const request = body as EndpointRequest<"entryUpdate">;
-        return {
-          status: 200,
-          body: {
-            entry: await server.entries.update(
-              request.fiscalPeriodId,
-              request.id,
-              request.input,
-            ),
-          },
-        };
-      }
-      case "entryRemove": {
-        const request = body as EndpointRequest<"entryRemove">;
-        await server.entries.remove(request.fiscalPeriodId, request.id);
-        return { status: 204, body: null };
-      }
-      case "entryImportMany": {
-        const request = body as EndpointRequest<"entryImportMany">;
-        return {
-          status: 200,
-          body: await server.entries.importMany(
-            request.fiscalPeriodId,
-            request.entries,
-          ),
-        };
-      }
-      case "fiscalPeriodsGetAll":
-        return {
-          status: 200,
-          body: { fiscalPeriods: await server.fiscalPeriods.getAll() },
-        };
-      case "fiscalPeriodCreate": {
-        const request = body as EndpointRequest<"fiscalPeriodCreate">;
-        return {
-          status: 201,
-          body: {
-            fiscalPeriod: await server.fiscalPeriods.create(request.input),
-          },
-        };
-      }
-      case "fiscalPeriodNextCreate": {
-        const request = body as EndpointRequest<"fiscalPeriodNextCreate">;
-        return {
-          status: 201,
-          body: { fiscalPeriod: await server.fiscalPeriods.createNext(request.input) },
-        };
-      }
-      case "fiscalPeriodImportArchived": {
-        const request = body as EndpointRequest<"fiscalPeriodImportArchived">;
-        return {
-          status: 201,
-          body: {
-            fiscalPeriod: await server.fiscalPeriods.importArchived(
-              request.input,
-            ),
-          },
-        };
-      }
-      case "fiscalPeriodPatch": {
-        const request = body as EndpointRequest<"fiscalPeriodPatch">;
-        return {
-          status: 200,
-          body: {
-            fiscalPeriod: await server.fiscalPeriods.patch(
-              request.id,
-              request.input,
-            ),
-          },
-        };
-      }
-      case "fiscalPeriodStart": {
-        const request = body as EndpointRequest<"fiscalPeriodStart">;
-        return {
-          status: 200,
-          body: { fiscalPeriod: await server.fiscalPeriods.start(request.id) },
-        };
-      }
-      case "fiscalPeriodArchive": {
-        const request = body as EndpointRequest<"fiscalPeriodArchive">;
-        return {
-          status: 200,
-          body: { fiscalPeriod: await server.fiscalPeriods.archive(request.id) },
-        };
-      }
-      case "fiscalPeriodPurgeArchivedData": {
-        const request =
-          body as EndpointRequest<"fiscalPeriodPurgeArchivedData">;
-        return {
-          status: 200,
-          body: {
-            fiscalPeriod: await server.fiscalPeriods.purgeArchivedData(
-              request.id,
-            ),
-          },
-        };
-      }
-      case "fiscalPeriodRemove": {
-        const request = body as EndpointRequest<"fiscalPeriodRemove">;
-        await server.fiscalPeriods.remove(request.id);
-        return { status: 204, body: null };
-      }
-      case "fixedAssetsGetAll": {
-        const request = body as EndpointRequest<"fixedAssetsGetAll">;
-        return {
-          status: 200,
-          body: {
-            fixedAssets: await server.fixedAssets.getAll(
-              request.fiscalPeriodId,
-            ),
-          },
-        };
-      }
-      case "fixedAssetCreate": {
-        const request = body as EndpointRequest<"fixedAssetCreate">;
-        return {
-          status: 201,
-          body: {
-            fixedAsset: await server.fixedAssets.create(
-              request.fiscalPeriodId,
-              request.input,
-            ),
-          },
-        };
-      }
-      case "fixedAssetPatch": {
-        const request = body as EndpointRequest<"fixedAssetPatch">;
-        return {
-          status: 200,
-          body: {
-            fixedAsset: await server.fixedAssets.patch(
-              request.fiscalPeriodId,
-              request.id,
-              request.input,
-            ),
-          },
-        };
-      }
-      case "fixedAssetRemove": {
-        const request = body as EndpointRequest<"fixedAssetRemove">;
-        await server.fixedAssets.remove(request.fiscalPeriodId, request.id);
-        return { status: 204, body: null };
-      }
-      case "masterBookAccounts":
-        return {
-          status: 200,
-          body: {
-            bookAccounts: await server.masterData.getBookAccounts(),
-          },
-        };
-      case "masterTaxCategories":
-        return {
-          status: 200,
-          body: {
-            taxCategories: await server.masterData.getTaxCategories(),
-          },
-        };
-      case "masterBusinessCategories":
-        return {
-          status: 200,
-          body: {
-            businessCategories: await server.masterData.getBusinessCategories(),
-          },
-        };
-      case "maintenanceGet":
-        return { status: 200, body: EMBEDDED_MAINTENANCE_STATUS };
-      default: {
-        const unsupported: never = key;
-        throw new Error(`unsupported endpoint: ${String(unsupported)}`);
-      }
-    }
+    return {
+      status: OPENKK_HTTP_ENDPOINTS[key].successStatus,
+      body: await embeddedResponseBody(server, key, body),
+    };
   } catch (error) {
     return serverErrorToEmbeddedHttpResponse(error);
+  }
+}
+
+async function embeddedResponseBody(
+  server: OpenkkServerPort,
+  key: OpenkkHttpEndpointKey,
+  body: unknown,
+): Promise<unknown> {
+  switch (key) {
+    case "authStartSession": {
+      const request = body as EndpointRequest<"authStartSession">;
+      return await server.auth.startSession(request.redirectUrl);
+    }
+    case "authCompleteSession": {
+      const request = body as EndpointRequest<"authCompleteSession">;
+      return await server.auth.completeSession(request.state, request.code);
+    }
+    case "authRedeemCompletionCode": {
+      const request = body as EndpointRequest<"authRedeemCompletionCode">;
+      return await server.auth.redeemCompletionCode(request.completionCode);
+    }
+    case "authSignOut":
+      await server.auth.signOut();
+      return null;
+    case "preClosingRun": {
+      const request = body as EndpointRequest<"preClosingRun">;
+      return {
+        fiscalPeriod: await server.preClosings.run(request.fiscalPeriodId),
+      };
+    }
+    case "preClosingCancel": {
+      const request = body as EndpointRequest<"preClosingCancel">;
+      return {
+        fiscalPeriod: await server.preClosings.cancel(request.fiscalPeriodId),
+      };
+    }
+    case "closingRun": {
+      const request = body as EndpointRequest<"closingRun">;
+      return {
+        fiscalPeriod: await server.closings.run(
+          request.fiscalPeriodId,
+          request.entries,
+        ),
+      };
+    }
+    case "entriesGetAll": {
+      const request = body as EndpointRequest<"entriesGetAll">;
+      return {
+        entries: await server.entries.getAll(request.fiscalPeriodId),
+      };
+    }
+    case "entryCreate": {
+      const request = body as EndpointRequest<"entryCreate">;
+      return {
+        entry: await server.entries.create(
+          request.fiscalPeriodId,
+          request.input,
+        ),
+      };
+    }
+    case "entryUpdate": {
+      const request = body as EndpointRequest<"entryUpdate">;
+      return {
+        entry: await server.entries.update(
+          request.fiscalPeriodId,
+          request.id,
+          request.input,
+        ),
+      };
+    }
+    case "entryRemove": {
+      const request = body as EndpointRequest<"entryRemove">;
+      await server.entries.remove(request.fiscalPeriodId, request.id);
+      return null;
+    }
+    case "entryImportMany": {
+      const request = body as EndpointRequest<"entryImportMany">;
+      return await server.entries.importMany(
+        request.fiscalPeriodId,
+        request.entries,
+      );
+    }
+    case "fiscalPeriodsGetAll":
+      return { fiscalPeriods: await server.fiscalPeriods.getAll() };
+    case "fiscalPeriodCreate": {
+      const request = body as EndpointRequest<"fiscalPeriodCreate">;
+      return {
+        fiscalPeriod: await server.fiscalPeriods.create(request.input),
+      };
+    }
+    case "fiscalPeriodNextCreate": {
+      const request = body as EndpointRequest<"fiscalPeriodNextCreate">;
+      return {
+        fiscalPeriod: await server.fiscalPeriods.createNext(request.input),
+      };
+    }
+    case "fiscalPeriodImportArchived": {
+      const request = body as EndpointRequest<"fiscalPeriodImportArchived">;
+      return {
+        fiscalPeriod: await server.fiscalPeriods.importArchived(request.input),
+      };
+    }
+    case "fiscalPeriodPatch": {
+      const request = body as EndpointRequest<"fiscalPeriodPatch">;
+      return {
+        fiscalPeriod: await server.fiscalPeriods.patch(
+          request.id,
+          request.input,
+        ),
+      };
+    }
+    case "fiscalPeriodStart": {
+      const request = body as EndpointRequest<"fiscalPeriodStart">;
+      return { fiscalPeriod: await server.fiscalPeriods.start(request.id) };
+    }
+    case "fiscalPeriodArchive": {
+      const request = body as EndpointRequest<"fiscalPeriodArchive">;
+      return { fiscalPeriod: await server.fiscalPeriods.archive(request.id) };
+    }
+    case "fiscalPeriodPurgeArchivedData": {
+      const request = body as EndpointRequest<"fiscalPeriodPurgeArchivedData">;
+      return {
+        fiscalPeriod: await server.fiscalPeriods.purgeArchivedData(request.id),
+      };
+    }
+    case "fiscalPeriodRemove": {
+      const request = body as EndpointRequest<"fiscalPeriodRemove">;
+      await server.fiscalPeriods.remove(request.id);
+      return null;
+    }
+    case "fixedAssetsGetAll": {
+      const request = body as EndpointRequest<"fixedAssetsGetAll">;
+      return {
+        fixedAssets: await server.fixedAssets.getAll(request.fiscalPeriodId),
+      };
+    }
+    case "fixedAssetCreate": {
+      const request = body as EndpointRequest<"fixedAssetCreate">;
+      return {
+        fixedAsset: await server.fixedAssets.create(
+          request.fiscalPeriodId,
+          request.input,
+        ),
+      };
+    }
+    case "fixedAssetPatch": {
+      const request = body as EndpointRequest<"fixedAssetPatch">;
+      return {
+        fixedAsset: await server.fixedAssets.patch(
+          request.fiscalPeriodId,
+          request.id,
+          request.input,
+        ),
+      };
+    }
+    case "fixedAssetRemove": {
+      const request = body as EndpointRequest<"fixedAssetRemove">;
+      await server.fixedAssets.remove(request.fiscalPeriodId, request.id);
+      return null;
+    }
+    case "masterBookAccounts":
+      return {
+        bookAccounts: await server.masterData.getBookAccounts(),
+      };
+    case "masterTaxCategories":
+      return {
+        taxCategories: await server.masterData.getTaxCategories(),
+      };
+    case "masterBusinessCategories":
+      return {
+        businessCategories: await server.masterData.getBusinessCategories(),
+      };
+    case "maintenanceGet":
+      return EMBEDDED_MAINTENANCE_STATUS;
+    default: {
+      const unsupported: never = key;
+      throw new Error(`unsupported endpoint: ${String(unsupported)}`);
+    }
   }
 }
 

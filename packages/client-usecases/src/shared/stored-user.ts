@@ -1,5 +1,7 @@
 import type { OpenkkUser } from "@rubydogjp/openkk-client-domain";
 
+import { buildCustomUser } from "./custom-user.js";
+
 export function readStoredUser(raw: string | null): OpenkkUser | null {
   if (raw == null || raw === "") return null;
   try {
@@ -12,31 +14,20 @@ export function readStoredUser(raw: string | null): OpenkkUser | null {
     ) {
       return null;
     }
-    return {
-      kind: "custom",
+    return buildCustomUser({
       id: parsed.id,
-      displayName:
-        typeof parsed.displayName === "string" &&
-        parsed.displayName.trim() !== ""
-          ? parsed.displayName
-          : parsed.id,
-      email:
-        typeof parsed.email === "string" && parsed.email.trim() !== ""
-          ? parsed.email.trim()
-          : null,
-      iconUrl:
-        parsed.iconUrl === null || isSafeStoredHttpUrl(parsed.iconUrl)
-          ? parsed.iconUrl
-          : null,
-      authProvider:
-        typeof parsed.authProvider === "string" &&
-        parsed.authProvider.trim() !== ""
-          ? parsed.authProvider
-          : "custom",
-    };
+      displayName: stringOrNull(parsed.displayName),
+      email: stringOrNull(parsed.email),
+      iconUrl: isSafeStoredHttpUrl(parsed.iconUrl) ? parsed.iconUrl : null,
+      authProvider: stringOrNull(parsed.authProvider),
+    });
   } catch {
     return null;
   }
+}
+
+function stringOrNull(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

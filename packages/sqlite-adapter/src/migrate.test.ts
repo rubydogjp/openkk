@@ -20,8 +20,8 @@ function createFakeDb(initial: Partial<FakeMeta> = {}): {
   db: MigrationDb;
   state: FakeMeta;
   execLog: Array<string | { sql: string; bind?: unknown[] }>;
-  setExecError: (err: Error | null) => void;
-  setRollbackError: (err: Error | null) => void;
+  setExecError: (error: Error | null) => void;
+  setRollbackError: (error: Error | null) => void;
 } {
   const state: FakeMeta = {
     metaTableExists: initial.metaTableExists ?? false,
@@ -66,11 +66,11 @@ function createFakeDb(initial: Partial<FakeMeta> = {}): {
     db,
     state,
     execLog,
-    setExecError(err) {
-      pendingError = err;
+    setExecError(error) {
+      pendingError = error;
     },
-    setRollbackError(err) {
-      rollbackError = err;
+    setRollbackError(error) {
+      rollbackError = error;
     },
   };
 }
@@ -81,8 +81,8 @@ describe("runMigrations", () => {
     runMigrations(db);
     expect(state.schemaVersion).toBe(SCHEMA_VERSION);
 
-    const beginCount = execLog.filter((e) => e === "BEGIN").length;
-    const commitCount = execLog.filter((e) => e === "COMMIT").length;
+    const beginCount = execLog.filter((sql) => sql === "BEGIN").length;
+    const commitCount = execLog.filter((sql) => sql === "COMMIT").length;
     expect(beginCount).toBe(SCHEMA_VERSION);
     expect(commitCount).toBe(SCHEMA_VERSION);
   });

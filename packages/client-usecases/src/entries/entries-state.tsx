@@ -24,7 +24,6 @@ import { useOpenkkAppState } from "../shared/openkk-app-state.js";
 import { useBackendApi } from "../shared/backend-api-context.js";
 import { useOpenkkConfig } from "../shared/openkk-config-context.js";
 import { assertEditingUnlocked } from "../shared/editing-policy.js";
-import { isSelectedFiscalPeriodDataPurged } from "../shared/archive-data-policy.js";
 import { KeyedAsyncStateVersion } from "../shared/async-state-version.js";
 import { KeyedAsyncMutationQueue } from "../shared/async-mutation-queue.js";
 import {
@@ -70,10 +69,6 @@ export type EntrySuggestions = {
 
 type EntriesState = {
   listFiscalPeriodEntries: (fiscalPeriodId: string) => EntryRecord[];
-  listMonthEntries: (
-    fiscalPeriodId: string,
-    yearMonth: string,
-  ) => EntryRecord[];
   listMonthRows: (
     fiscalPeriodId: string,
     yearMonth: string,
@@ -131,10 +126,8 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
   const sessionUserId = appState.session?.user.id ?? null;
   const periodVersions = useRef(new KeyedAsyncStateVersion<string>());
   const entryMutationQueue = useRef(new KeyedAsyncMutationQueue<string>());
-  const currentFiscalPeriodDataPurged = isSelectedFiscalPeriodDataPurged(
-    appState.fiscalPeriods,
-    appState.currentFiscalPeriodId,
-  );
+  const currentFiscalPeriodDataPurged =
+    appState.currentFiscalPeriod?.archiveStatus === "purged";
   const master = useMemo<EntryLineMaster>(
     () => ({ accounts: bookAccounts, taxCategories, businessCategories }),
     [bookAccounts, taxCategories, businessCategories],
@@ -252,7 +245,6 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
           .filter((record) => record.fiscalPeriodId === fiscalPeriodId)
           .sort((left, right) => left.date.localeCompare(right.date));
       },
-      listMonthEntries,
       listMonthRows(fiscalPeriodId, yearMonth) {
         return listMonthEntries(fiscalPeriodId, yearMonth).flatMap(
           recordToPreviewRows,

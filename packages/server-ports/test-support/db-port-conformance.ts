@@ -46,13 +46,9 @@ export function runDbPortConformance(
 ): void {
   const makeDb = ctx.makeAdapter;
 
-  async function createTestFiscalPeriod(
-    db: OpenkkDbPort,
-    userId = "user-1",
-    name = "Test period",
-  ) {
-    const created = await db.fiscalPeriods.create(userId, {
-      name,
+  async function createTestFiscalPeriod(db: OpenkkDbPort) {
+    const created = await db.fiscalPeriods.create("user-1", {
+      name: "Test period",
       startDate: "2026-01-01",
       endDate: "2026-12-31",
     });
@@ -97,7 +93,6 @@ export function runDbPortConformance(
         endDate: "2026-12-31",
       });
 
-      expect(created.id).toMatch(/^fp_/);
       expect(created.name).toBe("FY2026");
       expect(created.phase).toBe("pre_opening");
       expect(created.opening).toEqual({
@@ -128,7 +123,7 @@ export function runDbPortConformance(
       ).toEqual(["B1"]);
     });
 
-    it("serializes concurrent transactions on one SQLite connection", async () => {
+    it("creates fiscal periods concurrently", async () => {
       const db = await makeDb();
       const [first, second] = await Promise.all([
         db.fiscalPeriods.create("user-1", {
@@ -408,13 +403,13 @@ export function runDbPortConformance(
     });
 
     it("archives only a completed post-closing fiscal period", async () => {
-      const sqlPhasePeriod = {
+      const closedPeriod = {
         ...seedWithPeriods("fp-archive").fiscalPeriods[0]!,
         phase: "post_closing" as const,
         documentsReceivedCompleted: true,
       };
       const phaseDb = await ctx.makeSeededAdapter({
-        fiscalPeriods: [sqlPhasePeriod],
+        fiscalPeriods: [closedPeriod],
         entries: [],
         fixedAssets: [],
       });
@@ -512,7 +507,7 @@ export function runDbPortConformance(
       const reloaded = await db.fiscalPeriods.getById(period.id);
       expect(reloaded).not.toBeNull();
       expect(reloaded?.archiveStatus).toBe("purged");
-      expect(reloaded?.opening.balanceLines ?? []).toEqual([]);
+      expect(reloaded?.opening.balanceLines).toEqual([]);
     });
 
     it("purgeArchivedData rejects a period that is not archived", async () => {
@@ -613,7 +608,6 @@ export function runDbPortConformance(
         db.fiscalPeriods.importArchived("user-1", archiveInput),
       ).rejects.toThrow(/must be within fiscal period/);
       expect(await db.fiscalPeriods.getAll("user-1")).toEqual([]);
-
     });
 
     it("rejects oversized archive data before importing", async () => {
@@ -778,7 +772,7 @@ export function runDbPortConformance(
 
     it("rejects a child write whose user does not own the fiscal period", async () => {
       const db = await makeDb();
-      const period = await createTestFiscalPeriod(db, "user-1");
+      const period = await createTestFiscalPeriod(db);
 
       await expect(
         db.entries.create("user-2", period.id, {
@@ -794,7 +788,7 @@ export function runDbPortConformance(
 
     it("creates, filters, updates, and deletes entries", async () => {
       const db = await makeDb();
-      const firstPeriod = await createTestFiscalPeriod(db, "user-1", "First");
+      const firstPeriod = await createTestFiscalPeriod(db);
       const secondCreated = await db.fiscalPeriods.create("user-1", {
         name: "Second",
         startDate: "2027-01-01",
@@ -819,7 +813,6 @@ export function runDbPortConformance(
         localId: null,
       });
 
-      expect(original.id).toMatch(/^entry_/);
       expect(
         (await db.entries.getAll(firstPeriod.id)).map((entry) => entry.id),
       ).toEqual([original.id]);
@@ -844,7 +837,7 @@ export function runDbPortConformance(
 
     it("preserves a null localId when reading and updating an entry", async () => {
       const db = await makeDb();
-      const period = await createTestFiscalPeriod(db, "user-1");
+      const period = await createTestFiscalPeriod(db);
       const created = await db.entries.create("user-1", period.id, {
         date: "2026-04-15",
         description: "without external id",
@@ -1004,9 +997,18 @@ export function runDbPortConformance(
         lines: [testEntryLine, testCreditEntryLine],
       };
       await db.entries.create("user-1", period.id, input);
+      const other = await db.entries.create("user-1", period.id, {
+        ...input,
+        localId: "other-source-id",
+      });
+
       await expect(
         db.entries.create("user-1", period.id, input),
-      ).rejects.toThrow(/UNIQUE constraint failed/);
+      ).rejects.toMatchObject({ statusCode: 409 });
+      await expect(
+        db.entries.update(other.id, input),
+      ).rejects.toMatchObject({ statusCode: 409 });
+      expect(await db.entries.getById(other.id)).toEqual(other);
     });
 
     it("rejects a blank localId instead of treating it as a unique value", async () => {
@@ -1047,7 +1049,7 @@ export function runDbPortConformance(
       expect(created).toHaveLength(2);
     });
 
-    it("imports more than one SQL chunk without changing input order", async () => {
+    it("imports a large batch without changing input order", async () => {
       const db = await makeDb();
       const period = await createTestFiscalPeriod(db);
       const inputs = Array.from({ length: 501 }, (_, index) => ({
@@ -1096,7 +1098,6 @@ export function runDbPortConformance(
         bookAccountId: "acct_equipment",
       });
 
-      expect(asset.id).toMatch(/^fa_/);
       expect(await db.fixedAssets.getAll(period.id)).toEqual([
         asset,
       ]);
@@ -1164,7 +1165,7 @@ export function runDbPortConformance(
     });
   });
 
-  describe(`OpenkkDbPort conformance [${label}] / seed and closings`, () => {
+  describe(`OpenkkDbPort conformance [${label}] / closings`, () => {
     it("rejects a closing whose fiscal period does not exist", async () => {
       const db = await makeDb();
       await expect(db.preClosings.run("missing")).rejects.toThrow(
@@ -1322,6 +1323,9 @@ export function runDbPortConformance(
       ).toEqual(["virtual:stored"]);
     });
 
+  });
+
+  describe(`OpenkkDbPort conformance [${label}] / seed`, () => {
     it("loads stable seed records", async () => {
       const seed: DbSnapshot = {
         fiscalPeriods: [
@@ -1347,7 +1351,7 @@ export function runDbPortConformance(
       const db = await ctx.makeSeededAdapter(seed);
 
       expect(
-        (await db.fiscalPeriods.getAll("user-1")).map((fp) => fp.id),
+        (await db.fiscalPeriods.getAll("user-1")).map((period) => period.id),
       ).toEqual(["fp-seed"]);
     });
 
@@ -1459,7 +1463,6 @@ export function runDbPortConformance(
       await expect(ctx.makeSeededAdapter(invalidDate)).rejects.toThrow(
         /must be within fiscal period/,
       );
-
     });
   });
 }

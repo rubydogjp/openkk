@@ -7,8 +7,8 @@ import { PreviewScaffold } from "../../../print/preview-scaffold.js";
 import {
   buildGeneralLedgerBody,
   buildGeneralLedgerDocument,
-  GENERAL_LEDGER_EXAMPLE_ENTRIES,
-  GENERAL_LEDGER_EXAMPLE_OPENING_BALANCE_LINES,
+  JOURNAL_EXAMPLE_ENTRIES,
+  JOURNAL_EXAMPLE_OPENING_BALANCE_LINES,
 } from "@rubydogjp/openkk-client-domain";
 
 export function GeneralLedgerPaperTemplatePage() {
@@ -16,8 +16,8 @@ export function GeneralLedgerPaperTemplatePage() {
   const bodyHtml = useMemo(
     () =>
       buildGeneralLedgerBody(
-        GENERAL_LEDGER_EXAMPLE_ENTRIES,
-        GENERAL_LEDGER_EXAMPLE_OPENING_BALANCE_LINES,
+        JOURNAL_EXAMPLE_ENTRIES,
+        JOURNAL_EXAMPLE_OPENING_BALANCE_LINES,
       ),
     [],
   );
@@ -25,13 +25,12 @@ export function GeneralLedgerPaperTemplatePage() {
   return (
     <PreviewScaffold
       title="総勘定元帳 (テンプレート + 例の値)"
-      notice="このページはテンプレート + 固定の例の値の表示確認用です。実際の期間データは使用しません。"
       bodyHtml={bodyHtml}
       onPrint={() =>
         printDocument(
           buildGeneralLedgerDocument(
-            GENERAL_LEDGER_EXAMPLE_ENTRIES,
-            GENERAL_LEDGER_EXAMPLE_OPENING_BALANCE_LINES,
+            JOURNAL_EXAMPLE_ENTRIES,
+            JOURNAL_EXAMPLE_OPENING_BALANCE_LINES,
           ),
         )
       }

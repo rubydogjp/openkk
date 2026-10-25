@@ -263,7 +263,9 @@ function positiveInteger(
 
 function unitRate(record: Record<string, unknown>, key: string): number {
   const rate = finiteNumber(record, key);
-  if (rate < 0 || rate > 1) throw serverValidationError(`${key} must be between 0 and 1`, null);
+  if (rate < 0 || rate > 1) {
+    throw serverValidationError(`${key} must be between 0 and 1`, null);
+  }
   return rate;
 }
 

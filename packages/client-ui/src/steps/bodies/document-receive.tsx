@@ -12,7 +12,7 @@ import { palette } from "../../shared/design-tokens.js";
 import { DocumentFileList } from "../../shared/document-file-tile.js";
 import { LockButton } from "../../shared/locked-action.js";
 import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
-import { useStepDocumentPrinters } from "../use-step-document-printers.js";
+import { useStepDocuments } from "../use-step-documents.js";
 import {
   StepPrimaryButton,
   StepSecondaryButton,
@@ -23,7 +23,7 @@ import {
 export function DocumentReceiveBody({
   onSwitchToStep,
 }: {
-  onSwitchToStep: ((no: number) => void) | null;
+  onSwitchToStep: (no: number) => void;
 }) {
   const appState = useOpenkkAppState();
   const config = useOpenkkConfig();
@@ -32,8 +32,7 @@ export function DocumentReceiveBody({
   const [isCompleting, setIsCompleting] = useState(false);
   const completeLock = useRef(new ExclusiveActionLock());
   const currentFiscalPeriod = appState.currentFiscalPeriod;
-  const { printJournal, printGeneralLedger, printFinancialStatements } =
-    useStepDocumentPrinters(currentFiscalPeriod);
+  const documents = useStepDocuments(currentFiscalPeriod);
 
   if (currentFiscalPeriod == null) {
     return (
@@ -80,27 +79,13 @@ export function DocumentReceiveBody({
       <section>
         <StepSectionLabel>受領する書類</StepSectionLabel>
         <DocumentFileList
-          actionLabel={null}
-          items={[
-            {
-              label: "仕訳帳.pdf",
-              active: canComplete,
-              onClick: canComplete ? printJournal : null,
-              description: null,
-            },
-            {
-              label: "総勘定元帳.pdf",
-              active: canComplete,
-              onClick: canComplete ? printGeneralLedger : null,
-              description: null,
-            },
-            {
-              label: "財務諸表.pdf",
-              active: canComplete,
-              onClick: canComplete ? printFinancialStatements : null,
-              description: null,
-            },
-          ]}
+          actionLabel="受け取る"
+          items={documents.map((stepDocument) => ({
+            label: `${stepDocument.name}.pdf`,
+            description: stepDocument.description,
+            active: canComplete,
+            onClick: canComplete ? stepDocument.print : null,
+          }))}
         />
         {!canComplete ? (
           <div
@@ -110,10 +95,7 @@ export function DocumentReceiveBody({
               justifyContent: "flex-start",
             }}
           >
-            <StepSecondaryButton
-              onClick={() => onSwitchToStep?.(4)}
-              disabled={false}
-            >
+            <StepSecondaryButton onClick={() => onSwitchToStep(4)}>
               前の手順へ
             </StepSecondaryButton>
           </div>
@@ -128,7 +110,7 @@ export function DocumentReceiveBody({
           >
             {isDone ? (
               <StepPrimaryButton
-                onClick={() => onSwitchToStep?.(6)}
+                onClick={() => onSwitchToStep(6)}
                 disabled={false}
                 variant={null}
                 icon={null}

@@ -35,9 +35,8 @@ export function buildStepTrendPoints(input: {
     const key = entry.date.slice(0, 7);
     const bucket = totals.get(key);
     if (bucket == null) continue;
-    const rate = entry.businessRate;
-    bucket.revenue += computeRevenueContribution(entry, rate);
-    bucket.expenses += computeExpenseContribution(entry, rate);
+    bucket.revenue += computeRevenueContribution(entry);
+    bucket.expenses += computeExpenseContribution(entry);
   }
   const todayKey = formatYearMonthKey({
     year: input.today.getFullYear(),

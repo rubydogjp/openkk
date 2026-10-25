@@ -2,16 +2,16 @@
 
 import {
   computeFsAggregate,
-  GENERAL_LEDGER_EXAMPLE_ENTRIES,
-  GENERAL_LEDGER_EXAMPLE_OPENING_BALANCE_LINES,
+  JOURNAL_EXAMPLE_ENTRIES,
+  JOURNAL_EXAMPLE_OPENING_BALANCE_LINES,
 } from "@rubydogjp/openkk-client-domain";
 
 import { palette, typography } from "../../../shared/design-tokens.js";
 import { PlBsDiagramSection } from "../../../shared/pl-bs-diagram.js";
 
 const EXAMPLE_SUMMARY = computeFsAggregate({
-  entries: GENERAL_LEDGER_EXAMPLE_ENTRIES,
-  openingBalanceLines: GENERAL_LEDGER_EXAMPLE_OPENING_BALANCE_LINES,
+  entries: JOURNAL_EXAMPLE_ENTRIES,
+  openingBalanceLines: JOURNAL_EXAMPLE_OPENING_BALANCE_LINES,
 }).summary;
 
 export function PlBsDiagramPreviewPage() {

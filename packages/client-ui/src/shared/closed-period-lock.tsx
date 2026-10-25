@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation.js";
 import { fontSize, fontWeight, palette, radii, sizes, spacing, typography } from "./design-tokens.js";
 
 export type ClosedPeriodLockProps = {
-  title: string | null;
-  description: string | null;
+  title: string;
+  description: string;
 };
 
 export function ClosedPeriodLock({
@@ -43,7 +43,7 @@ export function ClosedPeriodLock({
             🔒
           </div>
           <div style={{ marginTop: 16, fontSize: typography.dialogTitle.fontSize, fontWeight: fontWeight.bold }}>
-            {title ?? "ロックされています"}
+            {title}
           </div>
           <div
             style={{
@@ -53,7 +53,7 @@ export function ClosedPeriodLock({
               lineHeight: 1.55,
             }}
           >
-            {description ?? "この期間は仮締め以降のため編集できません。"}
+            {description}
           </div>
           <div style={{ marginTop: 16 }}>
             <button

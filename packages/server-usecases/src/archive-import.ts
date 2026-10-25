@@ -167,17 +167,22 @@ export function normalizeArchiveImportInput(
       sourceId,
     ),
   );
-  assertArchiveLifecycle({
+  assertFiscalPeriodLifecycleFlags(
+    { phase, openingBalancesCompleted, documentsReceivedCompleted },
+    "archive",
+  );
+  assertFiscalPeriodClosingRecords(
     phase,
-    openingBalancesCompleted,
-    documentsReceivedCompleted,
-    preClosingCount: normalizedClosings.filter(
-      (closing) => closing.kind === "pre_closing",
-    ).length,
-    closingCount: normalizedClosings.filter(
-      (closing) => closing.kind === "closing",
-    ).length,
-  });
+    {
+      hasPreClosing: normalizedClosings.some(
+        (closing) => closing.kind === "pre_closing",
+      ),
+      hasClosing: normalizedClosings.some(
+        (closing) => closing.kind === "closing",
+      ),
+    },
+    "archive",
+  );
   return {
     fiscalPeriod: {
       name: periodName,
@@ -397,24 +402,6 @@ function assertSourceFiscalPeriodId(
   }
 }
 
-function assertArchiveLifecycle(input: {
-  phase: FiscalPeriodPhase;
-  openingBalancesCompleted: boolean;
-  documentsReceivedCompleted: boolean;
-  preClosingCount: number;
-  closingCount: number;
-}): void {
-  assertFiscalPeriodLifecycleFlags(input, "archive");
-  assertFiscalPeriodClosingRecords(
-    input.phase,
-    {
-      hasPreClosing: input.preClosingCount > 0,
-      hasClosing: input.closingCount > 0,
-    },
-    "archive",
-  );
-}
-
 function normalizeSide(value: unknown): EntrySide {
   if (value === "debit" || value === "credit") return value;
   throw serverValidationError("archive line side is invalid", null);
@@ -443,7 +430,7 @@ function requireNonBlankString(value: unknown, label: string): string {
   if (typeof value !== "string") {
     throw serverValidationError(`${label} must be a string`, null);
   }
-  if (value.trim().length === 0) {
+  if (value.trim() === "") {
     throw serverValidationError(`${label} is required`, null);
   }
   return value;

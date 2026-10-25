@@ -7,7 +7,9 @@ import {
 import type { BookAccountType } from "./book-account.js";
 import { AppError } from "../shared/app-error.js";
 import {
+  formatAmount,
   formatBusinessRatePercent,
+  parseAmount,
   parseBusinessRate,
   parseIsoLocalDate,
   weekdayJa,
@@ -74,19 +76,19 @@ export function importEntriesFromJson(input: {
   const seenLocalIds = new Set<string>();
   let importLineCount = 0;
   return parsed.entries.map((entry, index) => {
-    const rowNo = index + 1;
+    const rowNumber = index + 1;
     if (!isRecord(entry)) {
-      throw importFileRowError(`row ${rowNo}: entry must be an object`, rowNo);
+      throw importFileRowError(rowNumber, "entry must be an object");
     }
     const localId = validateRequiredLocalId(
       typeof entry.localId === "string" ? entry.localId : "",
-      rowNo,
+      rowNumber,
       seenLocalIds,
     );
     const normalized = normalizeEntry({
       fiscalPeriodId: input.fiscalPeriodId,
       id: `entry-${input.fiscalPeriodId}-json-${index + 1}`,
-      rowNo,
+      rowNumber,
       localId,
       date: stringValue(entry.date),
       debit: stringValue(entry.debit),
@@ -101,7 +103,7 @@ export function importEntriesFromJson(input: {
       businessRateRatio: entry.businessRateRatio ?? null,
       taxCategory: stringValue(entry.taxCategory),
       businessCategory: stringValue(entry.businessCategory),
-      lines: validateJsonLines(entry.lines, rowNo),
+      lines: validateJsonLines(entry.lines, rowNumber),
     });
     importLineCount += normalized.lines.length;
     assertEntryImportLineCount(importLineCount);
@@ -220,19 +222,19 @@ export function importEntriesFromCsv(input: {
   const seenLocalIds = new Set<string>();
   let importLineCount = 0;
   return rows.slice(1).map((cells, index) => {
-    const rowNo = index + 2;
-    const escapedFields = parseCsvEscapedFields(cells, indexMap, rowNo);
+    const rowNumber = index + 2;
+    const escapedFields = parseCsvEscapedFields(cells, indexMap, rowNumber);
     const read = (field: (typeof journalCsvDataHeaders)[number]) =>
       readJournalCsvCell(cells, indexMap[field], escapedFields.has(field));
     const localId = validateRequiredLocalId(
       read("localId"),
-      rowNo,
+      rowNumber,
       seenLocalIds,
     );
     const normalized = normalizeEntry({
       fiscalPeriodId: input.fiscalPeriodId,
       id: `entry-${input.fiscalPeriodId}-csv-${index + 1}`,
-      rowNo,
+      rowNumber,
       localId,
       date: read("date"),
       debit: read("debit"),
@@ -247,7 +249,7 @@ export function importEntriesFromCsv(input: {
       businessRateRatio: read("businessRateRatio"),
       taxCategory: read("taxCategory"),
       businessCategory: read("businessCategory"),
-      lines: parseCsvLinesCell(read("lines"), rowNo),
+      lines: parseCsvLinesCell(read("lines"), rowNumber),
     });
     importLineCount += normalized.lines.length;
     assertEntryImportLineCount(importLineCount);
@@ -271,19 +273,16 @@ export function decodeJournalImportBytes(bytes: Uint8Array): string {
   }
 }
 
-function parseCsvLinesCell(
-  raw: string,
-  rowNo: number,
-): unknown[] {
+function parseCsvLinesCell(raw: string, rowNumber: number): unknown[] {
   if (raw.trim() === "") return [];
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch {
-    throw importFileRowError(`row ${rowNo}: invalid lines JSON`, rowNo);
+    throw importFileRowError(rowNumber, "invalid lines JSON");
   }
   if (!Array.isArray(parsed)) {
-    throw importFileRowError(`row ${rowNo}: lines must be an array`, rowNo);
+    throw importFileRowError(rowNumber, "lines must be an array");
   }
   return parsed;
 }
@@ -291,8 +290,8 @@ function parseCsvLinesCell(
 function normalizeEntry(input: {
   fiscalPeriodId: string;
   id: string;
-  rowNo: number;
-  localId: string | null;
+  rowNumber: number;
+  localId: string;
   date: string;
   debit: string;
   debitType: string;
@@ -309,15 +308,12 @@ function normalizeEntry(input: {
   lines: unknown[];
 }): EntryRecord {
   if (parseIsoLocalDate(input.date) == null) {
-    throw importFileRowError(
-      `row ${input.rowNo}: invalid date (${input.date})`,
-      input.rowNo,
-    );
+    throw importFileRowError(input.rowNumber, `invalid date (${input.date})`);
   }
   const partner = input.partner.trim();
   const taxCategory = input.taxCategory.trim() || "対象外";
   const businessCategory = input.businessCategory.trim() || "対象外";
-  const importedLines = normalizeLines(input.lines, input.rowNo);
+  const importedLines = normalizeLines(input.lines, input.rowNumber);
   const lines =
     importedLines.length > 0
       ? importedLines
@@ -335,19 +331,19 @@ function normalizeEntry(input: {
     localId: input.localId,
     fiscalPeriodId: input.fiscalPeriodId,
     date: input.date,
-    weekday: weekdayFromDate(input.date),
-    description: input.description || "",
+    weekday: weekdayJa(input.date),
+    description: input.description,
     businessRate: importedBusinessRate(input),
     lines,
   };
-  assertNormalizedEntry(result, input.rowNo);
+  assertNormalizedEntry(result, input.rowNumber);
   return result;
 }
 
 function pairInputToLine(
   side: "debit" | "credit",
   input: {
-    rowNo: number;
+    rowNumber: number;
     debit: string;
     debitType: string;
     debitAmount: string;
@@ -363,12 +359,12 @@ function pairInputToLine(
     accountName: (debit ? input.debit : input.credit).trim(),
     accountType: normalizeType(
       debit ? input.debitType : input.creditType,
-      input.rowNo,
+      input.rowNumber,
       `${side} type`,
     ),
     amount: normalizeAmount(
       debit ? input.debitAmount : input.creditAmount,
-      input.rowNo,
+      input.rowNumber,
       `${side} amount`,
     ),
     bookAccountId: null,
@@ -383,7 +379,7 @@ function pairInputToLine(
 function importedBusinessRate(input: {
   businessRate: string;
   businessRateRatio: unknown;
-  rowNo: number;
+  rowNumber: number;
 }): number {
   const ratio = input.businessRateRatio;
   if (ratio == null || ratio === "") {
@@ -396,34 +392,28 @@ function importedBusinessRate(input: {
         ? Number(ratio.trim())
         : Number.NaN;
   if (!Number.isFinite(rate) || rate < 0 || rate > 1) {
-    throw importFileRowError(
-      `row ${input.rowNo}: invalid businessRateRatio`,
-      input.rowNo,
-    );
+    throw importFileRowError(input.rowNumber, "invalid businessRateRatio");
   }
   return rate;
 }
 
-function normalizeLines(lines: unknown[], rowNo: number): EntryLine[] {
+function normalizeLines(lines: unknown[], rowNumber: number): EntryLine[] {
   assertEntryLineCount(lines.length);
   return lines.map((line, index): EntryLine => {
     if (!isRecord(line)) {
       throw importFileRowError(
-        `row ${rowNo}: line ${index + 1} must be an object`,
-        rowNo,
+        rowNumber,
+        `line ${index + 1} must be an object`,
       );
     }
     if (line.side !== "debit" && line.side !== "credit") {
-      throw importFileRowError(
-        `row ${rowNo}: line ${index + 1} has invalid side`,
-        rowNo,
-      );
+      throw importFileRowError(rowNumber, `line ${index + 1} has invalid side`);
     }
     const accountName = stringValue(line.accountName).trim();
     if (accountName === "") {
       throw importFileRowError(
-        `row ${rowNo}: line ${index + 1} account is required`,
-        rowNo,
+        rowNumber,
+        `line ${index + 1} account is required`,
       );
     }
     const bookAccountId = stringValue(line.bookAccountId).trim();
@@ -439,12 +429,12 @@ function normalizeLines(lines: unknown[], rowNo: number): EntryLine[] {
       accountName,
       accountType: normalizeType(
         stringValue(line.accountType),
-        rowNo,
+        rowNumber,
         `line ${index + 1} account type`,
       ),
       amount: normalizeAmount(
         stringValue(line.amount),
-        rowNo,
+        rowNumber,
         `line ${index + 1} amount`,
       ),
       id: null,
@@ -462,7 +452,7 @@ function normalizeLines(lines: unknown[], rowNo: number): EntryLine[] {
 
 function normalizeType(
   value: string,
-  rowNo: number,
+  rowNumber: number,
   label: string,
 ): BookAccountType {
   if (
@@ -476,29 +466,15 @@ function normalizeType(
     return value;
   }
   if (value.trim() === "") return "asset";
-  throw importFileRowError(
-    `row ${rowNo}: invalid ${label} (${value})`,
-    rowNo,
-  );
+  throw importFileRowError(rowNumber, `invalid ${label} (${value})`);
 }
 
-function normalizeAmount(
-  value: string,
-  rowNo: number,
-  label: string,
-) {
-  const amount = Number(String(value).replaceAll(",", "").trim());
+function normalizeAmount(value: string, rowNumber: number, label: string) {
+  const amount = Number(value.replaceAll(",", "").trim());
   if (!Number.isSafeInteger(amount) || amount < 0) {
-    throw importFileRowError(
-      `row ${rowNo}: invalid ${label} (${value})`,
-      rowNo,
-    );
+    throw importFileRowError(rowNumber, `invalid ${label} (${value})`);
   }
-  return amount.toLocaleString("ja-JP");
-}
-
-function weekdayFromDate(dateText: string) {
-  return weekdayJa(dateText) || "月";
+  return formatAmount(amount);
 }
 
 function escapeCsvField(value: string) {
@@ -520,7 +496,7 @@ function needsSpreadsheetFormulaProtection(value: string): boolean {
 function parseCsvEscapedFields(
   cells: string[],
   indexMap: Record<(typeof csvHeaders)[number], number>,
-  rowNo: number,
+  rowNumber: number,
 ): Set<(typeof journalCsvDataHeaders)[number]> {
   if (
     readCsvCell(cells, indexMap.openkkSchema) !== OPENKK_JOURNAL_CSV_SCHEMA
@@ -532,24 +508,12 @@ function parseCsvEscapedFields(
   try {
     parsed = JSON.parse(raw);
   } catch {
-    throw importFileRowError(
-      `row ${rowNo}: invalid escaped fields metadata`,
-      rowNo,
-    );
+    throw importFileRowError(rowNumber, "invalid escaped fields metadata");
   }
-  if (
-    !Array.isArray(parsed) ||
-    parsed.some(
-      (field) =>
-        !isJournalCsvDataHeader(field),
-    )
-  ) {
-    throw importFileRowError(
-      `row ${rowNo}: invalid escaped fields metadata`,
-      rowNo,
-    );
+  if (!Array.isArray(parsed) || !parsed.every(isJournalCsvDataHeader)) {
+    throw importFileRowError(rowNumber, "invalid escaped fields metadata");
   }
-  return new Set(parsed as Array<(typeof journalCsvDataHeaders)[number]>);
+  return new Set(parsed);
 }
 
 function isJournalCsvDataHeader(
@@ -588,9 +552,9 @@ function parseCsv(text: string) {
   };
 
   for (let i = 0; i < text.length; i += 1) {
-    const ch = text[i];
+    const character = text[i];
     if (state === "quoted") {
-      if (ch === '"') {
+      if (character === '"') {
         if (text[i + 1] === '"') {
           field += '"';
           i += 1;
@@ -598,20 +562,20 @@ function parseCsv(text: string) {
           state = "after_quote";
         }
       } else {
-        field += ch;
+        field += character;
       }
       continue;
     }
 
-    const isLineBreak = ch === "\n" || ch === "\r";
+    const isLineBreak = character === "\n" || character === "\r";
     if (state === "after_quote") {
-      if (ch === ",") {
+      if (character === ",") {
         finishField();
         continue;
       }
       if (isLineBreak) {
         finishRow();
-        if (ch === "\r" && text[i + 1] === "\n") i += 1;
+        if (character === "\r" && text[i + 1] === "\n") i += 1;
         continue;
       }
       throw importFileFormatError(
@@ -619,7 +583,7 @@ function parseCsv(text: string) {
       );
     }
 
-    if (ch === '"') {
+    if (character === '"') {
       if (state !== "start") {
         throw importFileFormatError(
           "CSV has an unexpected quote in an unquoted field",
@@ -628,16 +592,16 @@ function parseCsv(text: string) {
       state = "quoted";
       continue;
     }
-    if (ch === ",") {
+    if (character === ",") {
       finishField();
       continue;
     }
     if (isLineBreak) {
       finishRow();
-      if (ch === "\r" && text[i + 1] === "\n") i += 1;
+      if (character === "\r" && text[i + 1] === "\n") i += 1;
       continue;
     }
-    field += ch;
+    field += character;
     state = "unquoted";
   }
   if (state === "quoted") {
@@ -647,30 +611,27 @@ function parseCsv(text: string) {
   return rows.filter((cells) => cells.some((cell) => cell.trim().length > 0));
 }
 
-function validateJsonLines(
-  value: unknown,
-  rowNo: number,
-): unknown[] {
+function validateJsonLines(value: unknown, rowNumber: number): unknown[] {
   if (value == null) return [];
   if (!Array.isArray(value)) {
-    throw importFileRowError(`row ${rowNo}: lines must be an array`, rowNo);
+    throw importFileRowError(rowNumber, "lines must be an array");
   }
   return value;
 }
 
-function assertNormalizedEntry(entry: EntryRecord, rowNo: number): void {
+function assertNormalizedEntry(entry: EntryRecord, rowNumber: number): void {
   if (entry.description.trim() === "") {
-    throw importFileRowError(`row ${rowNo}: description is required`, rowNo);
+    throw importFileRowError(rowNumber, "description is required");
   }
   for (const line of entry.lines) {
     if (line.accountName.trim() === "") {
-      throw importFileRowError(`row ${rowNo}: account is required`, rowNo);
+      throw importFileRowError(rowNumber, "account is required");
     }
   }
   let debitTotal = 0;
   let creditTotal = 0;
   for (const line of entry.lines) {
-    const amount = numericAmount(line.amount);
+    const amount = parseAmount(line.amount);
     if (line.side === "debit") debitTotal += amount;
     else creditTotal += amount;
     if (
@@ -678,25 +639,21 @@ function assertNormalizedEntry(entry: EntryRecord, rowNo: number): void {
       !Number.isSafeInteger(creditTotal)
     ) {
       throw importFileRowError(
-        `row ${rowNo}: entry totals exceed the safe integer range`,
-        rowNo,
+        rowNumber,
+        "entry totals exceed the safe integer range",
       );
     }
   }
   if (debitTotal <= 0 || creditTotal <= 0 || debitTotal !== creditTotal) {
     throw importFileRowError(
-      `row ${rowNo}: debit and credit totals must be positive and equal`,
-      rowNo,
+      rowNumber,
+      "debit and credit totals must be positive and equal",
     );
   }
   const rate = entry.businessRate;
   if (!Number.isFinite(rate) || rate < 0 || rate > 1) {
-    throw importFileRowError(`row ${rowNo}: invalid business rate`, rowNo);
+    throw importFileRowError(rowNumber, "invalid business rate");
   }
-}
-
-function numericAmount(value: string): number {
-  return Number(value.replaceAll(",", ""));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -716,21 +673,18 @@ function readCsvCell(cells: string[], index: number) {
 
 function validateRequiredLocalId(
   rawLocalId: string,
-  rowNo: number,
+  rowNumber: number,
   seen: Set<string>,
 ) {
   const localId = rawLocalId.trim();
   if (localId.length > 0) {
     if (seen.has(localId)) {
-      throw importFileRowError(
-        `row ${rowNo}: duplicate localId (${localId})`,
-        rowNo,
-      );
+      throw importFileRowError(rowNumber, `duplicate localId (${localId})`);
     }
     seen.add(localId);
     return localId;
   }
-  throw importFileRowError(`row ${rowNo}: localId is required`, rowNo);
+  throw importFileRowError(rowNumber, "localId is required");
 }
 
 function stripBom(text: string): string {
@@ -767,13 +721,10 @@ function importFileFormatError(messageForDeveloper: string): AppError {
   });
 }
 
-function importFileRowError(
-  messageForDeveloper: string,
-  rowNo: number,
-): AppError {
+function importFileRowError(rowNumber: number, problem: string): AppError {
   return new AppError({
-    messageForDeveloper,
-    messageForUser: `${rowNo}行目の取引データを確認できませんでした。ファイルの内容を修正してからもう一度取り込んでください。`,
+    messageForDeveloper: `row ${rowNumber}: ${problem}`,
+    messageForUser: `${rowNumber}行目の取引データを確認できませんでした。ファイルの内容を修正してからもう一度取り込んでください。`,
     originalMessage: null,
     statusCode: null,
     code: null,

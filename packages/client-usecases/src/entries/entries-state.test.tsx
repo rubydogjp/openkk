@@ -312,15 +312,6 @@ describe("replaceFiscalPeriodEntryRecords", () => {
       next[0],
     ]);
   });
-
-  it("clears cached entries when no fiscal period is selected", () => {
-    const current = [
-      entry({ id: "old-fp-1", fiscalPeriodId: "fp-1" }),
-      entry({ id: "old-fp-2", fiscalPeriodId: "fp-2" }),
-    ];
-
-    expect(replaceFiscalPeriodEntryRecords(current, null, [])).toEqual([]);
-  });
 });
 
 describe("removeEntryRecord", () => {

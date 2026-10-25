@@ -1,5 +1,7 @@
 import { parseIsoLocalDate } from "../shared/parse-utils.js";
 
+export const MAX_FIXED_ASSET_USEFUL_LIFE_YEARS = 100;
+
 export type StraightLineDepreciationInput = {
   acquisitionDate: string;
   acquisitionCost: number;
@@ -70,13 +72,16 @@ export function computeStraightLineDepreciation(
         };
   const cost = Math.max(0, Math.round(input.acquisitionCost));
   const usefulLifeYears = Math.max(1, Math.floor(input.usefulLife) || 1);
-  const totalMonths = Math.min(1200, usefulLifeYears * 12);
+  const totalMonths = Math.min(
+    MAX_FIXED_ASSET_USEFUL_LIFE_YEARS * 12,
+    usefulLifeYears * 12,
+  );
 
   const rawElapsed = start == null ? 0 : monthsInService(start, input.asOf);
   const elapsedMonths = Number.isFinite(rawElapsed)
     ? Math.max(0, Math.min(totalMonths, rawElapsed))
     : 0;
-  const progress = totalMonths === 0 ? 1 : elapsedMonths / totalMonths;
+  const progress = elapsedMonths / totalMonths;
 
   const depreciableAmount = Math.max(0, cost - (cost > 0 ? 1 : 0));
   const accumulated = Math.min(

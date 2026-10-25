@@ -6,7 +6,11 @@ import type {
   FixedAssetRecord,
   OpeningJournal,
 } from "./models.js";
-import { MAX_TEXT_FIELD_LENGTH } from "./validation.js";
+import {
+  MAX_FIXED_ASSET_USEFUL_LIFE_YEARS,
+  MAX_TEXT_FIELD_LENGTH,
+  parseIsoDate,
+} from "./validation.js";
 
 export const VIRTUAL_ENTRY_LOCAL_ID_PREFIX = "virtual:";
 const TAX_OUT_OF_SCOPE = "tax_out_of_scope";
@@ -239,13 +243,13 @@ function computePeriodDepreciation(input: {
   periodStartDate: string;
   endDate: string;
 }): number {
-  const start = parseIsoLocalDate(input.periodStartDate);
+  const start = parseIsoDate(input.periodStartDate);
   if (start == null) return 0;
   const dayBeforePeriod = new Date(start);
-  dayBeforePeriod.setDate(dayBeforePeriod.getDate() - 1);
+  dayBeforePeriod.setUTCDate(dayBeforePeriod.getUTCDate() - 1);
   const before = computeDepreciationSnapshot({
     ...input,
-    asOf: formatIsoLocalDate(dayBeforePeriod),
+    asOf: dayBeforePeriod.toISOString().slice(0, 10),
   }).accumulated;
   const through = computeDepreciationSnapshot({
     ...input,
@@ -260,19 +264,19 @@ function computeDepreciationSnapshot(input: {
   usefulLife: number;
   asOf: string;
 }) {
-  const acquisition = parseIsoLocalDate(input.acquisitionDate);
-  const asOf = parseIsoLocalDate(input.asOf);
+  const acquisition = parseIsoDate(input.acquisitionDate);
+  const asOf = parseIsoDate(input.asOf);
   const cost = Math.max(0, Math.round(input.acquisitionCost));
   const totalMonths = Math.min(
-    1200,
+    MAX_FIXED_ASSET_USEFUL_LIFE_YEARS * 12,
     Math.max(1, Math.floor(input.usefulLife) || 1) * 12,
   );
   const rawElapsed =
     acquisition == null || asOf == null
       ? 0
-      : asOf.getFullYear() * 12 +
-        asOf.getMonth() -
-        (acquisition.getFullYear() * 12 + acquisition.getMonth()) +
+      : asOf.getUTCFullYear() * 12 +
+        asOf.getUTCMonth() -
+        (acquisition.getUTCFullYear() * 12 + acquisition.getUTCMonth()) +
         1;
   const elapsedMonths = Number.isFinite(rawElapsed)
     ? Math.max(0, Math.min(totalMonths, rawElapsed))
@@ -297,29 +301,6 @@ export function computeFixedAssetBookValue(input: {
   asOf: string;
 }): number {
   return computeDepreciationSnapshot(input).currentBookValue;
-}
-
-function parseIsoLocalDate(value: string): Date | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (match == null) return null;
-  const date = new Date(
-    Number(match[1]),
-    Number(match[2]) - 1,
-    Number(match[3]),
-  );
-  return date.getFullYear() === Number(match[1]) &&
-    date.getMonth() === Number(match[2]) - 1 &&
-    date.getDate() === Number(match[3])
-    ? date
-    : null;
-}
-
-function formatIsoLocalDate(date: Date): string {
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, "0"),
-    String(date.getDate()).padStart(2, "0"),
-  ].join("-");
 }
 
 function fixedAssetDescription(name: string, suffix: string): string {
