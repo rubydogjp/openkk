@@ -1,6 +1,6 @@
 {
   "name": "@rubydogjp/openkk-platform-browser-adapter",
-  "version": "26.2.11",
+  "version": "26.3.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -15,7 +15,7 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@rubydogjp/openkk-client-ports": "^26.2.11"
+    "@rubydogjp/openkk-client-ports": "^26.3.0"
   },
   "devDependencies": {
     "typescript": "^6.0.3"
