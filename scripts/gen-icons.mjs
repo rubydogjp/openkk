@@ -9,9 +9,41 @@ const rootDirectory = fileURLToPath(new URL("../", import.meta.url));
 const sourcePath = path.join(rootDirectory, "resources/icons.json");
 const options = process.argv.slice(2);
 for (const option of options) {
-  if (option !== "--check") throw new Error(`Unknown option: ${option}`);
+  if (!["--check", "--from-arts"].includes(option))
+    throw new Error(`Unknown option: ${option}`);
 }
 const checkOnly = options.includes("--check");
+if (checkOnly && options.includes("--from-arts")) {
+  throw new Error(
+    "Use --from-arts to sync, then --check to verify generated files",
+  );
+}
+// The icon source is distributed from arts; ordinary OSS builds need no sibling checkout.
+if (options.includes("--from-arts")) {
+  const { DatabaseSync } = await import("node:sqlite");
+  const { formatGenerated } = await import("./format-generated.mjs");
+  const source = path.resolve(
+    rootDirectory,
+    "../arts/doticons/rubydog.doticons",
+  );
+  const db = new DatabaseSync(source, { readOnly: true });
+  try {
+    const exported = {};
+    for (const name of ["openkk", "openkk-demo"]) {
+      const row = db
+        .prepare("SELECT pixels FROM icons WHERE name = ?")
+        .get(name);
+      if (!row) throw new Error(`Missing arts icon: ${name}`);
+      exported[name] = JSON.parse(row.pixels);
+    }
+    await writeFile(
+      sourcePath,
+      await formatGenerated(sourcePath, JSON.stringify(exported)),
+    );
+  } finally {
+    db.close();
+  }
+}
 const icons = JSON.parse(await readFile(sourcePath, "utf8"));
 const bundles = {
   openkk: "openkk",
@@ -119,4 +151,6 @@ for (const [bundle, name] of Object.entries(bundles)) {
   }
 }
 if (stale.length) throw new Error(`Run npm run gen-icons: ${stale.join(", ")}`);
-console.log(checkOnly ? "Brand icons are up to date" : "Brand icons generated");
+console.log(
+  checkOnly ? "Product icons are up to date" : "Product icons generated",
+);

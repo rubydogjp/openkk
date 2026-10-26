@@ -153,7 +153,7 @@ test("favicon・アプリ内・ホーム画面のアイコンを配信する", a
       [...svgText.matchAll(/fill="([^"]+)"/g)].map((match) => match[1]),
     ),
   ].sort();
-  expect(colors).toEqual(["#f29900", "#ffba00", "#ffffff"]);
+  expect(colors).toEqual(["#ff6f00", "#ffb300", "#ffffff"]);
   const favicon = await request.get("/favicon.ico");
   expect((await favicon.body()).readUInt16LE(4)).toBe(3);
   const manifest = await (await request.get("/manifest.json")).json();
