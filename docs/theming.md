@@ -230,3 +230,18 @@
 | `--openkk-typography-page-title-font-size`      | `typography.pageTitle.fontSize`      | `24px`                                                                                        |
 | `--openkk-typography-page-title-line-height`    | `typography.pageTitle.lineHeight`    | `1.25`                                                                                        |
 | `--openkk-typography-page-title-font-weight`    | `typography.pageTitle.fontWeight`    | `var(--openkk-font-weight-bold, 700)`                                                         |
+
+## 製品アイコンと Fruit Colors
+
+製品アイコンは `rubydogjp/arts` の `doticons/rubydog.doticons` で管理し、その配色は
+`colors/palettes.json` の Fruit Colors（Material 400 / 600 / 900）を使う。
+Rubydog 自体のブランドには Google 基本4色を使い、Fruit と区別する。
+
+この文書の操作・成功・注意・エラーなどの意味付き UI テーマは Fruit とは独立している。
+ライブラリの UI テーマの正本は引き続き `packages/client-ui` 内のテーマ定義で、ホストアプリは
+既存の CSS 変数で上書きできる。今回のアイコン配色変更では、その値を変更しない。
+
+同じ親ディレクトリに arts がある場合、`node scripts/gen-icons.mjs --from-arts` でアイコンの
+配布用ソース `resources/icons.json` と SVG / PNG / favicon を更新する。
+通常の `npm run gen-icons` / `npm run check:icons` はリポジトリ内の配布用ソースだけを読み、
+OSS の利用者には arts の checkout を要求しない。
