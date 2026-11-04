@@ -37,7 +37,8 @@
     "packages/frontend",
     "packages/openkk",
     "packages/openkk_sim",
-    "packages/openkk_demo"
+    "packages/openkk_demo",
+    "packages/openkk_file"
   ],
   "scripts": {
     "prepare": "npm run build:packages",
@@ -47,7 +48,7 @@
     "audit:production": "npm audit --omit=dev --audit-level=high",
     "clean:packages": "node scripts/clean-package-builds.mjs",
     "build:packages": "npm run clean:packages && npm run build -w @rubydogjp/openkk-client-domain -w @rubydogjp/openkk-server-domain -w @rubydogjp/openkk-client-ports -w @rubydogjp/openkk-server-ports -w @rubydogjp/openkk-client-usecases -w @rubydogjp/openkk-server-usecases -w @rubydogjp/openkk-client-ui -w @rubydogjp/openkk-server-api -w @rubydogjp/openkk-client -w @rubydogjp/openkk-server -w @rubydogjp/openkk-print-adapter -w @rubydogjp/openkk-platform-browser-adapter -w @rubydogjp/openkk-sqlite-adapter -w @rubydogjp/openkk-file-db-adapter -w @rubydogjp/openkk-memory-db-adapter -w @rubydogjp/openkk-node-sqlite-db-adapter -w @rubydogjp/openkk-document-db-adapter -w @rubydogjp/openkk-embedded-backend -w @rubydogjp/openkk-embedded-backend-adapter -w @rubydogjp/openkk-cli -w @rubydogjp/openkk-frontend",
-    "build:apps": "npm run build -w @rubydogjp/openkk -w @rubydogjp/openkk-sim -w @rubydogjp/openkk-demo",
+    "build:apps": "npm run build -w @rubydogjp/openkk -w @rubydogjp/openkk-sim -w @rubydogjp/openkk-demo -w @rubydogjp/openkk-file",
     "lint": "npm run lint --workspaces --if-present && tsc -p tsconfig.json --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -70,7 +71,8 @@
     "setup-trusted-publishing": "node scripts/setup-trusted-publishing.mjs",
     "dev:vscode:openkk": "npm run dev:vscode -w @rubydogjp/openkk",
     "dev:vscode:sim": "npm run dev:vscode -w @rubydogjp/openkk-sim",
-    "dev:vscode:demo": "npm run dev:vscode -w @rubydogjp/openkk-demo"
+    "dev:vscode:demo": "npm run dev:vscode -w @rubydogjp/openkk-demo",
+    "dev:vscode:file": "npm run dev:vscode -w @rubydogjp/openkk-file"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

@@ -19,7 +19,7 @@ import { runOpeningCommand } from "./opening.js";
 import { runPeriodsCommand } from "./periods.js";
 import { runReportCommand } from "./report.js";
 
-export const DEFAULT_CLI_FILE = "openkk.sqlite3";
+export const DEFAULT_CLI_FILE = "book.openkk";
 export const DEFAULT_CLI_USER_ID = "openkk-original-user";
 export const CLI_FILE_ENV = "OPENKK_FILE";
 

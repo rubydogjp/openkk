@@ -29,6 +29,7 @@ const bundleRoutes = {
   openkk: commonRoutes,
   openkk_sim: [...commonRoutes, "/debug"],
   openkk_demo: commonRoutes,
+  openkk_file: commonRoutes,
 };
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));

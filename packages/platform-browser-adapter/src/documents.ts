@@ -35,6 +35,7 @@ export type BrowserDocumentFileHandle = {
 export type BrowserOpenedDocument = {
   bytes: Uint8Array | null;
   sink: OpenkkDocumentSink;
+  remember(): Promise<void>;
 };
 
 export type BrowserRecentDocument = {
@@ -127,6 +128,7 @@ export const browserDocuments = {
       return {
         bytes: null,
         sink: createDownloadDocumentSink(NEW_OPENKK_DOCUMENT_NAME),
+        remember: rememberNothing,
       };
     }
     const handle = await cancellable(() =>
@@ -137,13 +139,19 @@ export const browserDocuments = {
     );
     if (handle == null) return null;
     await requireWritePermission(handle);
-    await rememberRecent(handle);
-    return { bytes: null, sink: createHandleDocumentSink(handle, null) };
+    return {
+      bytes: null,
+      sink: createHandleDocumentSink(handle, null),
+      remember: () => rememberRecent(handle),
+    };
   },
 
   async listRecent(): Promise<BrowserRecentDocument[]> {
     if (!browserDocuments.canSaveDirectly()) return [];
-    const records = await readAllRecent();
+    const records = await readAllRecent().catch((error: unknown) => {
+      console.warn("[openkk] recent documents unavailable:", error);
+      return [];
+    });
     return records
       .sort((left, right) => right.openedAt - left.openedAt)
       .map(({ id, name }) => ({ id, name }));
@@ -173,10 +181,10 @@ async function openHandle(
   await requireWritePermission(handle);
   const file = await handle.getFile();
   const bytes = new Uint8Array(await file.arrayBuffer());
-  await rememberRecent(handle);
   return {
     bytes,
     sink: createHandleDocumentSink(handle, file.lastModified),
+    remember: () => rememberRecent(handle),
   };
 }
 
@@ -220,6 +228,7 @@ function openWithFileInput(): Promise<BrowserOpenedDocument | null> {
           resolve({
             bytes: new Uint8Array(buffer),
             sink: createDownloadDocumentSink(file.name),
+            remember: rememberNothing,
           }),
         )
         .catch(reject);
@@ -228,7 +237,17 @@ function openWithFileInput(): Promise<BrowserOpenedDocument | null> {
   });
 }
 
+async function rememberNothing(): Promise<void> {}
+
 async function rememberRecent(handle: BrowserDocumentFileHandle) {
+  try {
+    await storeRecent(handle);
+  } catch (error) {
+    console.warn("[openkk] could not remember recent document:", error);
+  }
+}
+
+async function storeRecent(handle: BrowserDocumentFileHandle) {
   const records = await readAllRecent();
   const duplicates: RecentRecord[] = [];
   for (const record of records) {

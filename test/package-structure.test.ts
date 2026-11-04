@@ -10,8 +10,17 @@ const rootDir = path.resolve(import.meta.dirname, "..");
 const packagesDir = path.join(rootDir, "packages");
 const rootLicense = fs.readFileSync(path.join(rootDir, "LICENSE"), "utf8");
 
-const APP_DIRS = new Set(["openkk", "openkk_sim", "openkk_demo"]);
-const UNPUBLISHED_BETA_DIRS = new Set(["cli", "node-sqlite-db-adapter"]);
+const APP_DIRS = new Set([
+  "openkk",
+  "openkk_sim",
+  "openkk_demo",
+  "openkk_file",
+]);
+const UNPUBLISHED_BETA_DIRS = new Set([
+  "cli",
+  "node-sqlite-db-adapter",
+  "document-db-adapter",
+]);
 const rootPackageJson = readJson(path.join(rootDir, "package.json"));
 const workspaceNames = rootPackageJson.workspaces.map((workspace: string) =>
   workspace.replace(/^packages\//, ""),
@@ -202,6 +211,14 @@ describe("openkk workspace structure", () => {
         "embedded-backend",
         "embedded-backend-adapter",
         "file-db-adapter",
+      ],
+      openkk_file: [
+        "client",
+        "frontend",
+        "embedded-backend",
+        "embedded-backend-adapter",
+        "document-db-adapter",
+        "platform-browser-adapter",
       ],
       openkk_sim: [
         "client",

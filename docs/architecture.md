@@ -25,6 +25,7 @@ packages/
 │
 ├── file-db-adapter      OpenkkDbPort 実装 — SQLite Wasm + OPFS（ブラウザ永続化）
 ├── memory-db-adapter    OpenkkDbPort 実装 — インメモリ揮発 DB
+├── document-db-adapter  OpenkkDbPort 実装 — .openkk ファイルのバイト列を開き、変更を知らせる（ファイル版）
 ├── node-sqlite-db-adapter OpenkkDbPort 実装 — node:sqlite の SQLite ファイル（CLI 用・ベータ）
 ├── sqlite-adapter       上記2つが共有するSQL・保存処理・マイグレーション
 ├── embedded-backend-adapter  OpenkkBackendPort 実装 — 同プロセス HTTP 風 bridge
@@ -33,10 +34,11 @@ packages/
 │
 ├── embedded-backend     in-process backend composition root
 ├── cli                  CLI 版 composition root（ベータ。SQLite ファイルを操作する）
-├── frontend             3アプリ共通の provider・composition 配線
+├── frontend             Web アプリ共通の provider・composition 配線
 ├── openkk               無印版 Next.js アプリ（SQLite OPFS）
 ├── openkk_sim           Sim版 Next.js アプリ（memory DB・固定時計・debug）
-└── openkk_demo          デモ版 Next.js アプリ（seed済みmemory DB・再読み込みで初期化）
+├── openkk_demo          デモ版 Next.js アプリ（seed済みmemory DB・再読み込みで初期化）
+└── openkk_file          ファイル版 Next.js アプリ（.openkk ファイルを開いて自動保存）
 ```
 
 ## 設計原則
@@ -49,12 +51,13 @@ packages/
 
 外部依存はすべて interface (port) で抽象化する。
 
-| Port                | 定義場所       | 標準実装                                                           |
-| ------------------- | -------------- | ------------------------------------------------------------------ |
-| `OpenkkDbPort`      | `server-ports` | `file-db-adapter` / `memory-db-adapter` / `node-sqlite-db-adapter` |
-| `OpenkkBackendPort` | `client-ports` | `embedded-backend-adapter`                                         |
-| `PrintPort`         | `client-ports` | `print-adapter`                                                    |
-| `PlatformPort`      | `client-ports` | `platform-browser-adapter`                                         |
+| Port                 | 定義場所       | 標準実装                                                                                            |
+| -------------------- | -------------- | --------------------------------------------------------------------------------------------------- |
+| `OpenkkDbPort`       | `server-ports` | `file-db-adapter` / `memory-db-adapter` / `node-sqlite-db-adapter` / `document-db-adapter`          |
+| `OpenkkBackendPort`  | `client-ports` | `embedded-backend-adapter`                                                                          |
+| `PrintPort`          | `client-ports` | `print-adapter`                                                                                     |
+| `PlatformPort`       | `client-ports` | `platform-browser-adapter`                                                                          |
+| `OpenkkDocumentPort` | `client-ports` | `createOpenkkDocumentSession` (`client-usecases`) + `browserDocuments` (`platform-browser-adapter`) |
 
 HTTP バックエンドは `embedded-backend-adapter` と同じ位置で差し替える。
 
@@ -71,7 +74,7 @@ server side:   api → usecases → ports → domain
 
 ### 4. Composition Roots は薄く
 
-`embedded-backend`、`frontend`、3つのアプリ workspace、`cli` は参照実装。`cli` は React を読み込まないよう、`client` の meta barrel ではなく `client-domain`・`client-ports` を直接使う。独自アプリは自前の composition root でアダプタを組み合わせる。
+`embedded-backend`、`frontend`、4つのアプリ workspace、`cli` は参照実装。`cli` は React を読み込まないよう、`client` の meta barrel ではなく `client-domain`・`client-ports` を直接使う。独自アプリは自前の composition root でアダプタを組み合わせる。
 
 設定は `OpenkkConfig` に定義し、`useOpenkkConfig` で取得する。日付の状態は `useOpenkkToday` で購読する。
 
@@ -105,6 +108,17 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 
 エントリの取込み（`importMany`）は `localId` 単位で冪等で、同一 fiscal period に既存の `localId` はスキップされる。バルク挿入はトランザクションで囲まれ、途中失敗時はロールバックされる。
 
+## ファイル版（1つのファイルを開いて使う）
+
+ファイル版は、エクセルのように帳簿を1つのファイル (`.openkk`) として開く。中身は CLI と同じ SQLite で、同じファイルを両方で扱える。部品は次の順につながる。
+
+- `document-db-adapter`: ファイルのバイト列を SQLite Wasm のメモリ上に開き (`sqlite3_deserialize`)、`OpenkkDbPort` を返す。書き込みのあった操作のあとに `onChange` で知らせ、`exportBytes()` で全体をバイト列に戻す。オープン会計の帳簿でない SQLite と、新しすぎるスキーマは開かない。
+- `createOpenkkDocumentSession` (`client-usecases`): `onChange` を受けて書き出しを重ねず最新だけ保存し、保存の状態 (`saved` / `saving` / `unsaved` / `conflict` / `failed`) を `OpenkkDocumentPort` として出す。書き先は `OpenkkDocumentSink` で、プラットフォームごとに差し替える。
+- `browserDocuments` (`platform-browser-adapter`): File System Access API でファイルを開く・作る・最近使ったファイルを覚え、書く前に更新時刻を確かめる。使えないブラウザではダウンロードで保存する。
+- `openkk_file`: 開いたファイルごとに上の3つと `embedded-backend` を組み、`OpenkkBundleRuntime.document` に渡す。画面は `useOpenkkDocument()` で、ファイル名・保存状態・別のファイルを開く操作を出す。ほかの版は `document: null`。
+
+同じ部品で、デスクトップアプリなど別のプラットフォームのファイル版も、`OpenkkDocumentSink` を実装するだけで作れる。
+
 ## PWA とオフラインキャッシュ
 
 各アプリのService Workerは静的エクスポートを事前保存する。正本は `scripts/service-worker.template.js` に置き、`gen-service-workers.mjs` が各アプリの `public/sw.js` を生成する。debugルートを事前保存するのはSim版だけ。
@@ -129,5 +143,5 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 | E2E               | Playwright | Sim版の操作フローと、無印版・デモ版の静的export・OPFS永続化。締めフローでは仮帳票＝確定帳票＝概要図を実画面で検証                                                                         |
 | パッケージ構造    | vitest     | workspace 整合性チェック                                                                                                                                                                  |
 
-`npm run test:e2e` は Sim版を専用 port 4306 で起動し、既存プロセスを再利用せず実行する。`npm run test:e2e:export` は無印版を静的exportして検査する。生成物・全workspace・3アプリ・両E2Eをまとめた検査は `npm run check:full` で実行できる。
+`npm run test:e2e` は Sim版を専用 port 4306 で起動し、既存プロセスを再利用せず実行する。`npm run test:e2e:export` は無印版を静的exportして検査する。生成物・全workspace・全アプリ・E2Eをまとめた検査は `npm run check:full` で実行できる。
 このリポジトリに `OpenkkDbPort` 実装を追加したら `runDbPortConformance` に通すこと。conformance は `server-ports/test-support/` にあり npm には公開しないので、外部の実装はこのリポジトリを参照する。

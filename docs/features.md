@@ -113,12 +113,14 @@
 
 ## 9. ストレージ (Storage)
 
-| アダプタ            | 用途                               | 永続化                       |
-| ------------------- | ---------------------------------- | ---------------------------- |
-| `file-db-adapter`   | SQLite OPFS (ブラウザ内ファイルDB) | ブラウザを閉じても保持 (PWA) |
-| `memory-db-adapter` | インメモリ (揮発)                  | ページリロードでリセット     |
+| アダプタ                 | 用途                                           | 永続化                                      |
+| ------------------------ | ---------------------------------------------- | ------------------------------------------- |
+| `file-db-adapter`        | SQLite OPFS (ブラウザ内ファイルDB)             | ブラウザを閉じても保持 (PWA)                |
+| `memory-db-adapter`      | インメモリ (揮発)                              | ページリロードでリセット                    |
+| `document-db-adapter`    | `.openkk` ファイル (SQLite) をブラウザ内で開く | 変更のたびにファイルへ自動保存 (ファイル版) |
+| `node-sqlite-db-adapter` | `.openkk` ファイル (SQLite) を Node で開く     | ファイルそのもの (CLI)                      |
 
-どちらも `OpenkkDbPort` を実装しており差し替え可能。SQLとマイグレーションは `sqlite-adapter` で共有する。
+どれも `OpenkkDbPort` を実装しており差し替え可能。`.openkk` は中身が同じ SQLite なので、ファイル版と CLI で同じファイルを扱える。SQLとマイグレーションは `sqlite-adapter` で共有する。
 
 ---
 
@@ -140,11 +142,14 @@
 
 版は実行時切替ではなく **バンドル（別パッケージのアプリ）** で分ける。`bundle`（版）と `brand`（サイト URL・アカウントアイコン）は独立した概念。
 
-| bundle     | パッケージ                                        | 表示名 (`bundleLabel`) | DB                | シードデータ               | 認証     |
-| ---------- | ------------------------------------------------- | ---------------------- | ----------------- | -------------------------- | -------- |
-| `sim`      | `@rubydogjp/openkk-sim` (`packages/openkk_sim`)   | Sim版                  | memory + 固定時計 | なし (任意に作成)          | embedded |
-| `demo`     | `@rubydogjp/openkk-demo` (`packages/openkk_demo`) | デモ版                 | memory + 固定時計 | あり (buildOpenkkDemoSeed) | embedded |
-| `original` | `@rubydogjp/openkk` (`packages/openkk`)           | 無印版                 | SQLite OPFS       | なし                       | embedded |
+| bundle     | パッケージ                                        | 表示名 (`bundleLabel`) | DB                        | シードデータ               | 認証     |
+| ---------- | ------------------------------------------------- | ---------------------- | ------------------------- | -------------------------- | -------- |
+| `sim`      | `@rubydogjp/openkk-sim` (`packages/openkk_sim`)   | Sim版                  | memory + 固定時計         | なし (任意に作成)          | embedded |
+| `demo`     | `@rubydogjp/openkk-demo` (`packages/openkk_demo`) | デモ版                 | memory + 固定時計         | あり (buildOpenkkDemoSeed) | embedded |
+| `original` | `@rubydogjp/openkk` (`packages/openkk`)           | 無印版                 | SQLite OPFS               | なし                       | embedded |
+| `file`     | `@rubydogjp/openkk-file` (`packages/openkk_file`) | ファイル版             | 開いた `.openkk` ファイル | なし                       | embedded |
+
+ファイル版は起動すると「新しい帳簿を作る / ファイルを開く / 最近使ったファイル」を出し、選んだファイルを開いてから通常の画面に入る。Chrome・Edge では File System Access API で開いたファイルへ変更のたびに自動保存し、保存の前にファイルの更新時刻を確かめて、ほかのアプリが書き換えていたら上書きせずに知らせる。それ以外のブラウザではファイル選択で開き、ダウンロードで保存する。開いているファイル名と保存の状態は、左下のアカウントの場所に出す (`OpenkkDocumentPort`)。
 
 共通配線は `@rubydogjp/openkk-frontend`（`packages/frontend`）に集約。
 

@@ -12,13 +12,17 @@ import {
   spacing,
 } from "../shared/design-tokens.js";
 import { CloseIcon, FolderOpenIcon, PlusIcon } from "../shared/icons.js";
+import {
+  useReportWorkInProgress,
+  WorkInProgressProvider,
+} from "../shared/work-in-progress.js";
 
 export type DocumentStartRecentFile = {
   id: string;
   name: string;
 };
 
-export function DocumentStartScreen(props: {
+type DocumentStartScreenProps = {
   title: string;
   canSaveDirectly: boolean;
   recentFiles: DocumentStartRecentFile[];
@@ -28,7 +32,18 @@ export function DocumentStartScreen(props: {
   onOpen: () => void;
   onOpenRecent: (id: string) => void;
   onForgetRecent: (id: string) => void;
-}) {
+};
+
+export function DocumentStartScreen(props: DocumentStartScreenProps) {
+  return (
+    <WorkInProgressProvider>
+      <DocumentStartContent {...props} />
+    </WorkInProgressProvider>
+  );
+}
+
+function DocumentStartContent(props: DocumentStartScreenProps) {
+  useReportWorkInProgress(props.busy);
   return (
     <main
       style={{

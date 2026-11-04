@@ -1,7 +1,8 @@
 # リリース手順
 
 `packages/` 配下のライブラリを npm に publish する。
-`@rubydogjp/openkk` / `openkk-sim` / `openkk-demo` はアプリなので `private: true` で、publish されない。
+`@rubydogjp/openkk` / `openkk-sim` / `openkk-demo` / `openkk-file` はアプリなので `private: true` で、publish されない。
+ベータの `openkk-cli` / `openkk-node-sqlite-db-adapter` / `openkk-document-db-adapter` も、まだ出さないので `private: true` にしている (出すときは外し、下の「新しいパッケージは初回だけ手元から publish」をする)。
 
 publish の認証は Trusted Publishing (OIDC) で行い、npm のトークンは使わない。
 

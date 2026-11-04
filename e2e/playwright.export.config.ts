@@ -15,8 +15,13 @@ export default defineConfig({
       testDir: "./tests-demo",
       use: { baseURL: "http://localhost:4309" },
     },
+    {
+      name: "file",
+      testDir: "./tests-file",
+      use: { baseURL: "http://localhost:4310" },
+    },
   ],
-  webServer: ["openkk", "openkk_demo"].map((bundle, index) => ({
+  webServer: ["openkk", "openkk_demo", "openkk_file"].map((bundle, index) => ({
     command: "node e2e/serve-export.mjs",
     cwd: process.cwd(),
     env: {

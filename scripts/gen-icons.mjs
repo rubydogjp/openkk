@@ -49,6 +49,7 @@ const bundles = {
   openkk: "openkk",
   openkk_sim: "openkk",
   openkk_demo: "openkk-demo",
+  openkk_file: "openkk",
 };
 const stale = [];
 
