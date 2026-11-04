@@ -8,6 +8,47 @@ import type { EntryRecord } from "../entries/entry-record.js";
 import { computeFsAggregate } from "./fs-data.js";
 
 describe("computeFsAggregate", () => {
+  it("shows opening and closing inventory in the cost-of-sales rows", () => {
+    const aggregate = computeFsAggregate({
+      openingBalanceLines: [
+        { id: "a:商品", accountId: "a:商品", amount: 40_000 },
+        { id: "l:元入金", accountId: "l:元入金", amount: 40_000 },
+      ],
+      entries: [
+        entry({
+          debit: "仕入",
+          debitType: "cost_of_sales",
+          debitAmount: "100,000",
+          credit: "普通預金",
+          creditType: "asset",
+          creditAmount: "100,000",
+        }),
+        entry({
+          debit: "期首商品棚卸高",
+          debitType: "cost_of_sales",
+          debitAmount: "40,000",
+          credit: "商品",
+          creditType: "asset",
+          creditAmount: "40,000",
+        }),
+        entry({
+          debit: "商品",
+          debitType: "asset",
+          debitAmount: "25,000",
+          credit: "期末商品棚卸高",
+          creditType: "cost_of_sales",
+          creditAmount: "25,000",
+        }),
+      ],
+    });
+
+    expect(aggregate.amounts[2]).toBe(40_000);
+    expect(aggregate.amounts[3]).toBe(100_000);
+    expect(aggregate.amounts[4]).toBe(140_000);
+    expect(aggregate.amounts[5]).toBe(25_000);
+    expect(aggregate.amounts[6]).toBe(115_000);
+  });
+
   it("builds profit-and-loss and balance-sheet values from real entries", () => {
     const aggregate = computeFsAggregate({
       openingBalanceLines: [

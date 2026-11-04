@@ -77,6 +77,9 @@ function sumValues(map: Map<string, number>): number {
   return total;
 }
 
+const OPENING_INVENTORY_ACCOUNTS = ["期首商品棚卸高", "期首製品棚卸高"];
+const CLOSING_INVENTORY_ACCOUNTS = ["期末商品棚卸高", "期末製品棚卸高"];
+
 function sumByNames(map: Map<string, number>, names: string[]): number {
   return names.reduce((total, name) => total + (map.get(name) ?? 0), 0);
 }
@@ -270,6 +273,14 @@ export function computeFsAggregate({
   };
   const purchasesAmount = sumByNames(costOfSalesByName, ["仕入", "商品仕入高"]);
   const purchases = purchasesAmount > 0 ? purchasesAmount : null;
+  const openingInventoryAmount = sumByNames(
+    costOfSalesByName,
+    OPENING_INVENTORY_ACCOUNTS,
+  );
+  const closingInventoryAmount = -sumByNames(
+    costOfSalesByName,
+    CLOSING_INVENTORY_ACCOUNTS,
+  );
 
   const writeInCandidates = [...expenseByName.entries()]
     .filter(
@@ -295,10 +306,10 @@ export function computeFsAggregate({
 
   const amounts: Record<number, number | null> = {
     1: salesForDisplay !== 0 ? salesForDisplay : null,
-    2: null,
+    2: openingInventoryAmount > 0 ? openingInventoryAmount : null,
     3: purchases,
-    4: purchases ?? 0,
-    5: null,
+    4: openingInventoryAmount + purchasesAmount,
+    5: closingInventoryAmount > 0 ? closingInventoryAmount : null,
     6: costOfSalesTotal,
     7: grossProfitForDisplay,
     8: expense("租税公課"),

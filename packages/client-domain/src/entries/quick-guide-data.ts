@@ -15,7 +15,13 @@ export type QuickGuidePage =
   | "bankToCash"
   | "otherIncoming"
   | "otherSales"
-  | "otherReceivableCollection";
+  | "otherReceivableCollection"
+  | "adjustment"
+  | "prepaidPayment"
+  | "prepaidDeferral"
+  | "borrowing"
+  | "lending"
+  | "inventory";
 
 export type QuickGuideTemplate = {
   debitAccountName: string;
@@ -83,13 +89,25 @@ export function guideTitle(page: QuickGuidePage): string {
       return "その他の売上";
     case "otherReceivableCollection":
       return "その他の回収";
+    case "adjustment":
+      return "簡単入力ガイド - 決算・その他";
+    case "prepaidPayment":
+      return "ユースケース - 1年分などのまとめ払い";
+    case "prepaidDeferral":
+      return "ユースケース - まとめ払いの来年以降の分";
+    case "borrowing":
+      return "ユースケース - 借入と利息";
+    case "lending":
+      return "ユースケース - 貸付と利息";
+    case "inventory":
+      return "ユースケース - 仕入と在庫 (しーくりくりしー)";
   }
 }
 
 export function guideDescription(page: QuickGuidePage): string | null {
   switch (page) {
     case "top":
-      return "入金 / 出金 / 資金移動 から近いケースを選んでください。";
+      return "入金 / 出金 / 資金移動 / 決算・その他 から近いケースを選んでください。";
     case "incoming":
       return "事業口座へ資金が入ってくるときの取引。";
     case "outgoing":
@@ -102,6 +120,18 @@ export function guideDescription(page: QuickGuidePage): string | null {
       return "売掛金以外で売上を計上するケースを選びます。";
     case "otherReceivableCollection":
       return "売掛金以外の債権回収や現金回収を選びます。";
+    case "adjustment":
+      return "まとめ払い・借入・貸付・在庫など、期末の調整が要る取引。";
+    case "prepaidPayment":
+      return "払ったときは全額を経費にします。来年以降の分がある場合は、期末に「まとめ払いの来年以降の分」で前払費用へ移します。";
+    case "prepaidDeferral":
+      return "期末に、来年以降の分の金額だけを経費から前払費用へ移します。次の期間を作るときに再振替で選ぶと、翌期首に経費へ戻ります。";
+    case "borrowing":
+      return "返済額は元本と利息に分けて入力します。元本は借入金、利息は支払利息です。";
+    case "lending":
+      return "返してもらった額は元本と利息に分けて入力します。元本は貸付金、利息は受取利息です。";
+    case "inventory":
+      return "期末に、期首の在庫を売上原価に入れ (しーくり)、期末に残った在庫を売上原価から除きます (くりしー)。\n期末の在庫の仕訳は、次の期間の再振替には選ばず、翌年も「期首の在庫を売上原価に入れる」で入力します。";
     default:
       return null;
   }
@@ -132,6 +162,142 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
           template: null,
           close: false,
         },
+        {
+          title: "決算・その他",
+          subtitle: "まとめ払い、借入・貸付と利息、仕入と在庫",
+          nextPage: "adjustment",
+          template: null,
+          close: false,
+        },
+      ];
+
+    case "adjustment":
+      return [
+        {
+          title: "1年分などの料金をまとめて払った",
+          subtitle: "保険料・サーバー代・年会費など",
+          nextPage: "prepaidPayment",
+          template: null,
+          close: false,
+        },
+        {
+          title: "期末: まとめ払いのうち来年以降の分を前払費用にする",
+          subtitle: null,
+          nextPage: "prepaidDeferral",
+          template: null,
+          close: false,
+        },
+        {
+          title: "お金を借りた・返した・利息を払った",
+          subtitle: null,
+          nextPage: "borrowing",
+          template: null,
+          close: false,
+        },
+        {
+          title: "お金を貸した・返してもらった・利息を受け取った",
+          subtitle: null,
+          nextPage: "lending",
+          template: null,
+          close: false,
+        },
+        {
+          title: "商品の仕入と期末の在庫 (しーくりくりしー)",
+          subtitle: null,
+          nextPage: "inventory",
+          template: null,
+          close: false,
+        },
+      ];
+
+    case "prepaidPayment":
+      return [
+        ...PREPAID_EXPENSES.map(([title, account]) =>
+          pairOption(title, account, "普通預金", `まとめ払い: ${title}`),
+        ),
+        CHOOSE_ACCOUNTS_OPTION,
+      ];
+
+    case "prepaidDeferral":
+      return [
+        ...PREPAID_EXPENSES.map(([title, account]) =>
+          pairOption(
+            title,
+            "前払費用",
+            account,
+            `まとめ払いの来年以降の分: ${title}`,
+          ),
+        ),
+        CHOOSE_ACCOUNTS_OPTION,
+      ];
+
+    case "borrowing":
+      return [
+        pairOption("事業用にお金を借りた", "普通預金", "借入金", "借入"),
+        pairOption(
+          "借入金を返した (元本)",
+          "借入金",
+          "普通預金",
+          "借入金の返済",
+        ),
+        pairOption(
+          "借入金の利息を払った",
+          "支払利息",
+          "普通預金",
+          "借入金の利息",
+        ),
+        pairOption(
+          "期末: まだ払っていない今年分の利息を計上する",
+          "支払利息",
+          "未払費用",
+          "借入金の利息 (未払分)",
+        ),
+      ];
+
+    case "lending":
+      return [
+        pairOption("お金を貸した", "貸付金", "普通預金", "貸付"),
+        pairOption(
+          "貸したお金を返してもらった (元本)",
+          "普通預金",
+          "貸付金",
+          "貸付金の回収",
+        ),
+        pairOption(
+          "貸付金の利息を受け取った",
+          "普通預金",
+          "受取利息",
+          "貸付金の利息",
+        ),
+        pairOption(
+          "期末: まだ受け取っていない今年分の利息を計上する",
+          "未収収益",
+          "受取利息",
+          "貸付金の利息 (未収分)",
+        ),
+      ];
+
+    case "inventory":
+      return [
+        pairOption("商品を仕入れた (あと払い)", "仕入", "買掛金", "商品の仕入"),
+        pairOption(
+          "商品を仕入れた (口座払い)",
+          "仕入",
+          "普通預金",
+          "商品の仕入",
+        ),
+        pairOption(
+          "期末: 期首の在庫を売上原価に入れる (しーくり)",
+          "期首商品棚卸高",
+          "商品",
+          "期首商品棚卸高への振替",
+        ),
+        pairOption(
+          "期末: 期末に残った在庫を売上原価から除く (くりしー)",
+          "商品",
+          "期末商品棚卸高",
+          "期末商品棚卸高への振替",
+        ),
       ];
 
     case "incoming":
@@ -504,6 +670,41 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
         },
       ];
   }
+}
+
+const PREPAID_EXPENSES: ReadonlyArray<readonly [string, string]> = [
+  ["保険料", "保険料"],
+  ["家賃・地代", "地代家賃"],
+  ["サーバー・ドメイン・ソフトの利用料", "通信費"],
+  ["年会費", "諸会費"],
+];
+
+const CHOOSE_ACCOUNTS_OPTION: QuickGuideOption = {
+  title: "科目を自分で選ぶ",
+  subtitle: null,
+  nextPage: null,
+  template: null,
+  close: true,
+};
+
+function pairOption(
+  title: string,
+  debitAccountName: string,
+  creditAccountName: string,
+  description: string,
+): QuickGuideOption {
+  return {
+    title,
+    subtitle: `${debitAccountName} | ${creditAccountName}`,
+    template: {
+      debitAccountName,
+      creditAccountName,
+      description,
+      businessRatePercent: null,
+    },
+    nextPage: null,
+    close: false,
+  };
 }
 
 function expenseOptions(

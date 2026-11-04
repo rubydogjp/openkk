@@ -58,6 +58,33 @@ test.describe("entry CRUD", () => {
     await expect(page.getByText("前受金").first()).toBeVisible();
   });
 
+  test("applies the closing-inventory template from the adjustment guide", async ({
+    page,
+  }) => {
+    await page.getByRole("button", { name: "追加" }).click();
+
+    const drawer = page.getByRole("dialog", { name: "仕訳の新規作成" });
+    await drawer.getByRole("button", { name: "簡単入力ガイド" }).click();
+    await drawer.getByRole("button", { name: /決算・その他/ }).click();
+    await drawer.getByRole("button", { name: /しーくりくりしー/ }).click();
+    await drawer
+      .getByRole("button", { name: /期末に残った在庫を売上原価から除く/ })
+      .click();
+
+    await expect(drawer.getByLabel("摘要")).toHaveValue(
+      "期末商品棚卸高への振替",
+    );
+    await expect(drawer.getByLabel("借方科目")).toContainText("商品");
+    await expect(drawer.getByLabel("貸方科目")).toContainText("期末商品棚卸高");
+
+    await drawer.getByLabel("借方金額").first().fill("25000");
+    await drawer.getByLabel("貸方金額").last().fill("25000");
+    await clickButton(page, "作成");
+
+    await expect(drawer).not.toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText("期末商品棚卸高への振替")).toBeVisible();
+  });
+
   test("edits an entry and the change is reflected in the list", async ({
     page,
   }) => {
