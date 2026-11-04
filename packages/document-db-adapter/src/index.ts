@@ -7,8 +7,6 @@ import {
   type SqlDb,
 } from "@rubydogjp/openkk-sqlite-adapter";
 
-export const OPENKK_DOCUMENT_EXTENSION = ".openkk";
-
 export type DocumentFileProblem = "not_sqlite" | "not_openkk" | "newer_schema";
 
 export class DocumentFileFormatError extends Error {

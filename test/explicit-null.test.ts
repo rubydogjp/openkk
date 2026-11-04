@@ -9,6 +9,7 @@ const EXTERNAL_SHAPE_FILES = new Set([
   "file-db-adapter/src/index.test.ts",
   "file-db-adapter/src/sqlite.worker.ts",
   "node-sqlite-db-adapter/src/index.ts",
+  "platform-browser-adapter/src/documents.ts",
   "sqlite-adapter/src/migrate.test.ts",
   "sqlite-adapter/src/sql-db.ts",
 ]);

@@ -13,3 +13,16 @@ export const platformBrowserAdapter: PlatformPort = {
   files: browserFiles,
   navigation: browserNavigation,
 };
+
+export {
+  BrowserDocumentPermissionError,
+  browserDocuments,
+  createDownloadDocumentSink,
+  createHandleDocumentSink,
+  NEW_OPENKK_DOCUMENT_NAME,
+  OPENKK_DOCUMENT_EXTENSION,
+  OPENKK_DOCUMENT_MIME_TYPE,
+  type BrowserDocumentFileHandle,
+  type BrowserOpenedDocument,
+  type BrowserRecentDocument,
+} from "./documents.js";
