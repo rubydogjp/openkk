@@ -1,6 +1,6 @@
 # CLI 版 (ベータ) の設計
 
-状態: ベータ。OSS に入れておくだけで、告知はしない。下の「進め方」の 1・2 (`node-sqlite-db-adapter` と `cli` の `init`・`periods`) まで実装済み。
+状態: ベータ。OSS に入れておくだけで、告知はしない。`cli` と `node-sqlite-db-adapter` は `private: true` で npm には出さない (出すときは外し、`docs/release.md` の初回 publish と Trusted Publishing の設定をする)。下の「進め方」の 1・2 (`node-sqlite-db-adapter` と `cli` の `init`・`periods`) まで実装済み。
 
 ## 結論
 

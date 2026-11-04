@@ -11,6 +11,7 @@ const packagesDir = path.join(rootDir, "packages");
 const rootLicense = fs.readFileSync(path.join(rootDir, "LICENSE"), "utf8");
 
 const APP_DIRS = new Set(["openkk", "openkk_sim", "openkk_demo"]);
+const UNPUBLISHED_BETA_DIRS = new Set(["cli", "node-sqlite-db-adapter"]);
 const rootPackageJson = readJson(path.join(rootDir, "package.json"));
 const workspaceNames = rootPackageJson.workspaces.map((workspace: string) =>
   workspace.replace(/^packages\//, ""),
@@ -67,7 +68,9 @@ describe("openkk workspace structure", () => {
       (item) => !APP_DIRS.has(item.packageDir),
     )) {
       expect(record.packageJson.name).toBe(packageName(record.packageDir));
-      expect(record.packageJson.private).toBeUndefined();
+      expect(record.packageJson.private).toBe(
+        UNPUBLISHED_BETA_DIRS.has(record.packageDir) ? true : undefined,
+      );
       expect(record.packageJson.main).toBe("./dist/index.js");
       expect(record.packageJson.types).toBe("./dist/index.d.ts");
       expect(record.packageJson.exports["."]).toEqual({
