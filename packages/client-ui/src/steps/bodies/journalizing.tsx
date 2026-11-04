@@ -94,6 +94,12 @@ export function JournalizingBody({
     );
   }
 
+  const isMidPeriod = isCurrentMonthWithinFiscalPeriod(
+    currentFiscalPeriod.startDate,
+    currentFiscalPeriod.endDate,
+    today,
+  );
+
   const handleRunPreClosing = async () => {
     const release = preClosingLock.current.tryAcquire();
     if (release == null) return;
@@ -108,13 +114,7 @@ export function JournalizingBody({
         confirmLabel: "実行する",
       });
       if (!confirmed) return;
-      if (
-        isCurrentMonthWithinFiscalPeriod(
-          currentFiscalPeriod.startDate,
-          currentFiscalPeriod.endDate,
-          today,
-        )
-      ) {
+      if (isMidPeriod) {
         const forceConfirmed = await confirm({
           tone: "danger",
           title: "まだ期中です",
@@ -183,22 +183,6 @@ export function JournalizingBody({
                 ? "記録された取引を「仕訳タブ」で確認できます。"
                 : "1月~12月の取引を「仕訳タブ」で入力して下さい"}
             </div>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                marginTop: 4,
-              }}
-            >
-              <StepPrimaryButton
-                onClick={() => router.push("/entries")}
-                disabled={false}
-                variant={null}
-                icon={null}
-              >
-                仕訳タブへ移動
-              </StepPrimaryButton>
-            </div>
           </StepCallout>
 
           {trendPoints.length > 0 ? (
@@ -210,6 +194,23 @@ export function JournalizingBody({
               </section>
             </>
           ) : null}
+
+          <div
+            style={{
+              marginTop: 16,
+              display: "flex",
+              justifyContent: "flex-end",
+            }}
+          >
+            <StepPrimaryButton
+              onClick={() => router.push("/entries")}
+              disabled={false}
+              variant={null}
+              icon={null}
+            >
+              仕訳タブへ移動
+            </StepPrimaryButton>
+          </div>
 
           <StepSpacer height={null} />
           <section>
@@ -232,6 +233,10 @@ export function JournalizingBody({
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
                 {editingLocked ? (
                   <LockButton label="仮締めを実行" />
+                ) : isMidPeriod ? (
+                  <StepSecondaryButton onClick={handleRunPreClosing}>
+                    仮締めを実行
+                  </StepSecondaryButton>
                 ) : (
                   <StepPrimaryButton
                     onClick={handleRunPreClosing}
