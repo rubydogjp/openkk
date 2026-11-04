@@ -8,7 +8,6 @@ import {
   importEntriesFromCsv,
   importEntriesFromJson,
   isMaterializedVirtualEntry,
-  resolveGuideBookAccount,
   storedEntryToRecord,
   type EntryLineMaster,
   type EntryRecord,
@@ -20,7 +19,11 @@ import {
   type CliCommandContext,
   type CliOptions,
 } from "./command-context.js";
-import { loadEntryRecords, loadMaster } from "./records.js";
+import {
+  loadEntryRecords,
+  loadMaster,
+  requireAccountByExactName,
+} from "./records.js";
 
 const ENTRY_FILE_FORMATS = ["csv", "json"] as const;
 type EntryFileFormat = (typeof ENTRY_FILE_FORMATS)[number];
@@ -145,7 +148,7 @@ function buildSinglePairInput(options: CliOptions, master: EntryLineMaster) {
   const value = Number(amount.replaceAll(",", ""));
   const line = (side: "debit" | "credit", accountName: string) => ({
     side,
-    bookAccountId: requireAccountId(accountName, master),
+    bookAccountId: requireAccountByExactName(accountName, master.accounts).id,
     amount: value,
     partnerName: "",
     taxCategoryId: "tax_out_of_scope",
@@ -158,14 +161,6 @@ function buildSinglePairInput(options: CliOptions, master: EntryLineMaster) {
     businessRate: parseBusinessRatePercent(options.businessRate),
     lines: [line("debit", debit), line("credit", credit)],
   };
-}
-
-function requireAccountId(accountName: string, master: EntryLineMaster) {
-  const account = resolveGuideBookAccount(accountName, master.accounts);
-  if (account == null) {
-    throw new CliUsageError(`勘定科目「${accountName}」が見つかりません`);
-  }
-  return account.id;
 }
 
 function parseBusinessRatePercent(input: string | null): number {

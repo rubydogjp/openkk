@@ -1,7 +1,4 @@
-import {
-  formatAmount,
-  resolveGuideBookAccount,
-} from "@rubydogjp/openkk-client-domain";
+import { formatAmount } from "@rubydogjp/openkk-client-domain";
 import type { OpeningBalanceLineApiRecord } from "@rubydogjp/openkk-client-ports";
 
 import { CliUsageError } from "./cli-io.js";
@@ -9,7 +6,7 @@ import {
   requireFiscalPeriod,
   type CliCommandContext,
 } from "./command-context.js";
-import { loadMaster } from "./records.js";
+import { loadMaster, requireAccountByExactName } from "./records.js";
 
 const ASSET_PREFIX = "a:";
 const LIABILITY_AND_EQUITY_PREFIX = "l:";
@@ -89,10 +86,7 @@ function parseBalanceArgument(
     );
   }
   const [, accountName, amount] = match;
-  const account = resolveGuideBookAccount(accountName!, accounts);
-  if (account == null) {
-    throw new CliUsageError(`勘定科目「${accountName}」が見つかりません`);
-  }
+  const account = requireAccountByExactName(accountName!, accounts);
   const prefix =
     account.accountType === "asset"
       ? ASSET_PREFIX

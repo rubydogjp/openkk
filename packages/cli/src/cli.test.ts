@@ -312,6 +312,23 @@ describe("openkk cli", () => {
         )
       ).stderr,
     ).toContain("存在しない科目");
+    const partial = await run(
+      "entries",
+      "add",
+      id,
+      "--date",
+      "2026-04-01",
+      "--debit",
+      "保険",
+      "--credit",
+      "預金",
+      "--amount",
+      "100",
+      "--description",
+      "部分一致",
+    );
+    expect(partial.code).toBe(2);
+    expect(partial.stderr).toContain("勘定科目「保険」が見つかりません");
     expect((await run("entries", "list", id)).stdout).toContain(
       "仕訳はまだありません",
     );

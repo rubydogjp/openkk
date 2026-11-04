@@ -12,6 +12,10 @@ import type {
   OpenkkBackendPort,
 } from "@rubydogjp/openkk-client-ports";
 
+import { CliUsageError } from "./cli-io.js";
+
+const COST_OF_SALES_ACCOUNT_TYPE = "cost_of_sales";
+
 export async function loadMaster(
   api: OpenkkBackendPort,
 ): Promise<EntryLineMaster> {
@@ -81,4 +85,18 @@ function byId<T extends { id: string }, V>(
   value: (item: T) => V,
 ): Record<string, V> {
   return Object.fromEntries(items.map((item) => [item.id, value(item)]));
+}
+
+export function requireAccountByExactName<
+  T extends { name: string; accountType: string },
+>(accountName: string, accounts: ReadonlyArray<T>): T {
+  const name = accountName.trim();
+  const matches = accounts.filter((account) => account.name === name);
+  const account =
+    matches.find((match) => match.accountType !== COST_OF_SALES_ACCOUNT_TYPE) ??
+    matches[0];
+  if (account == null) {
+    throw new CliUsageError(`勘定科目「${accountName}」が見つかりません`);
+  }
+  return account;
 }
