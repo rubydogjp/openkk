@@ -18,6 +18,7 @@ import {
 } from "../shared/design-tokens.js";
 import { normalizePathname } from "../shared/pathname.js";
 import { DataLoadErrorBanner } from "./data-load-error-banner.js";
+import { DocumentStatusBanner } from "./document-status-banner.js";
 import { AppErrorText } from "../shared/app-error-text.js";
 import { useDismissibleLayer } from "../shared/dismissible-layer.js";
 import { MaintenanceScreen } from "./maintenance-content.js";
@@ -330,6 +331,7 @@ function ShellChrome({
               />
             </div>
           ) : null}
+          <DocumentStatusBanner />
           <DataLoadErrorBanner />
           {children}
         </div>

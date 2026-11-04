@@ -8,6 +8,7 @@ import {
   usePlatformAdapter,
   useOpenkkAppState,
   useOpenkkConfig,
+  useOpenkkDocument,
 } from "@rubydogjp/openkk-client-usecases";
 import { userCanSignOut, userEmail } from "@rubydogjp/openkk-client-domain";
 
@@ -21,14 +22,17 @@ import {
   spacing,
   typography,
 } from "../shared/design-tokens.js";
+import { useConfirmDialog } from "../shared/confirm-dialog.js";
 import { usePopoverLifecycle } from "../shared/dismissible-layer.js";
 import {
   ChevronDownIcon,
   ExternalLinkIcon,
+  FolderOpenIcon,
   LoginIcon,
   LogoutIcon,
   PersonIcon,
 } from "../shared/icons.js";
+import { DOCUMENT_STATUS_LABELS } from "./document-status-banner.js";
 import { SHELL_PALETTE } from "./shell-palette.js";
 
 export function ShellAccountMenu(props: {
@@ -47,11 +51,35 @@ export function ShellAccountMenu(props: {
   const marketingSiteUrl = brandConfig.marketingSiteUrl;
   const productSiteUrl = brandConfig.productSiteUrl;
   const session = appState.session;
-  const displayName = session?.user.displayName ?? "";
-  const email = session != null ? userEmail(session.user) : null;
+  const document = useOpenkkDocument();
+  const displayName = document?.fileName ?? session?.user.displayName ?? "";
+  const email =
+    document != null
+      ? DOCUMENT_STATUS_LABELS[document.status]
+      : session != null
+        ? userEmail(session.user)
+        : null;
   const canSignOut = session != null && userCanSignOut(session.user);
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const { confirm, dialog } = useConfirmDialog();
+
+  async function handleCloseDocument() {
+    setMenuOpen(false);
+    if (document == null) return;
+    if (document.status === "unsaved" || document.status === "failed") {
+      const confirmed = await confirm({
+        tone: "danger",
+        title: "保存していない変更があります",
+        body: [
+          "このまま別のファイルを開くと、保存していない変更は失われます。",
+        ],
+        confirmLabel: "保存せずに閉じる",
+      });
+      if (!confirmed) return;
+    }
+    await document.close();
+  }
   const { containerRef, popupRef } = usePopoverLifecycle<
     HTMLDivElement,
     HTMLDivElement
@@ -71,6 +99,7 @@ export function ShellAccountMenu(props: {
 
   return (
     <div ref={containerRef} style={{ padding: 8, position: "relative" }}>
+      {dialog}
       {hasSession && marketingSiteUrl != null ? (
         <button
           type="button"
@@ -206,6 +235,28 @@ export function ShellAccountMenu(props: {
                   )}
                 </div>
               </div>
+
+              {document != null ? (
+                <div
+                  style={{
+                    padding: "6px 0",
+                    borderBottom: `1px solid ${SHELL_PALETTE.menuDivider}`,
+                  }}
+                >
+                  <MenuButton
+                    icon={
+                      <FolderOpenIcon
+                        size={18}
+                        color={SHELL_PALETTE.menuIconActive}
+                      />
+                    }
+                    label="別のファイルを開く"
+                    labelColor={SHELL_PALETTE.menuTextActive}
+                    disabled={document.status === "saving"}
+                    onClick={() => void handleCloseDocument()}
+                  />
+                </div>
+              ) : null}
 
               {myPagePath != null ? (
                 <div

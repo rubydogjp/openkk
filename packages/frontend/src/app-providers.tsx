@@ -9,6 +9,7 @@ import {
   OpenkkAssistProvider,
   OpenkkCalloutsProvider,
   OpenkkConfigProvider,
+  OpenkkDocumentProvider,
   OpenkkEntriesProvider,
   OpenkkMaintenanceProvider,
   PrintAdapterProvider,
@@ -111,21 +112,23 @@ export function OpenkkAppProviders(props: {
       <BrandConfigProvider config={runtime.brandConfig}>
         <OpenkkCalloutsProvider slots={runtime.calloutSlots}>
           <PlatformAdapterProvider adapter={platformBrowserAdapter}>
-            <BackendApiProvider api={backendApi}>
-              <OpenkkMaintenanceProvider>
-                <PrintAdapterProvider adapter={printAdapter}>
-                  <OpenkkAppStateProvider>
-                    <OpenkkEntriesProvider>
-                      <OpenkkAssistProvider>
-                        <WorkInProgressProvider>
-                          {props.children}
-                        </WorkInProgressProvider>
-                      </OpenkkAssistProvider>
-                    </OpenkkEntriesProvider>
-                  </OpenkkAppStateProvider>
-                </PrintAdapterProvider>
-              </OpenkkMaintenanceProvider>
-            </BackendApiProvider>
+            <OpenkkDocumentProvider document={runtime.document}>
+              <BackendApiProvider api={backendApi}>
+                <OpenkkMaintenanceProvider>
+                  <PrintAdapterProvider adapter={printAdapter}>
+                    <OpenkkAppStateProvider>
+                      <OpenkkEntriesProvider>
+                        <OpenkkAssistProvider>
+                          <WorkInProgressProvider>
+                            {props.children}
+                          </WorkInProgressProvider>
+                        </OpenkkAssistProvider>
+                      </OpenkkEntriesProvider>
+                    </OpenkkAppStateProvider>
+                  </PrintAdapterProvider>
+                </OpenkkMaintenanceProvider>
+              </BackendApiProvider>
+            </OpenkkDocumentProvider>
           </PlatformAdapterProvider>
         </OpenkkCalloutsProvider>
       </BrandConfigProvider>

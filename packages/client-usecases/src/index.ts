@@ -14,3 +14,5 @@ export * from "./entries/entries-state.js";
 export * from "./entries/account-options.js";
 export * from "./assist/assist-state.js";
 export * from "./print/print-state.js";
+export * from "./document/document-session.js";
+export * from "./document/document-context.js";

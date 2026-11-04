@@ -28,6 +28,7 @@ const runtime: OpenkkBundleRuntime = {
   },
   createBackendApi: createMemoryBackendApi,
   registerServiceWorker: false,
+  document: null,
 };
 
 export function Providers(props: { children: ReactNode }) {

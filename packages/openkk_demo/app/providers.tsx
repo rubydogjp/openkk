@@ -21,6 +21,7 @@ const runtime: OpenkkBundleRuntime = {
   calloutSlots: demoCalloutSlots,
   createBackendApi: createDemoBackendApi,
   registerServiceWorker: false,
+  document: null,
 };
 
 export function Providers(props: { children: ReactNode }) {
