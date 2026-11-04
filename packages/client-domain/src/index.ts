@@ -15,6 +15,7 @@ export * from "./entries/entry-record.js";
 export * from "./entries/generated-master-data.js";
 export * from "./entries/category-resolution.js";
 export * from "./entries/book-account.js";
+export * from "./entries/entry-input-mapping.js";
 export * from "./entries/quick-guide-data.js";
 export * from "./entries/virtual-entries.js";
 

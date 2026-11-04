@@ -12,10 +12,8 @@ import {
 
 import {
   AppError,
-  formatAmount,
   recordToPreviewRows,
   draftBusinessRate,
-  weekdayJa,
   type EntryRecord,
   type EntryLine,
   type EntryPreviewRow,
@@ -39,10 +37,10 @@ import {
 import {
   entryLinesToInputs,
   entryRecordToImportPayload,
+  storedEntryToRecord,
   type EntryLineMaster,
-} from "./import-mapping.js";
+} from "@rubydogjp/openkk-client-domain";
 import type {
-  EntryApiRecord,
   EntryUpsertInput,
   MasterBookAccountApiRecord,
   MasterBusinessCategoryApiRecord,
@@ -192,7 +190,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
             current,
             fiscalPeriodId,
             remoteEntries.map((entry) =>
-              mapRemoteEntryToRecord(entry, fiscalPeriodId, master),
+              storedEntryToRecord(entry, fiscalPeriodId, master),
             ),
           ),
         );
@@ -249,7 +247,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
       async loadFiscalPeriodEntries(fiscalPeriodId) {
         const remoteEntries = await backendApi.entries.getAll(fiscalPeriodId);
         return remoteEntries
-          .map((entry) => mapRemoteEntryToRecord(entry, fiscalPeriodId, master))
+          .map((entry) => storedEntryToRecord(entry, fiscalPeriodId, master))
           .sort((left, right) => left.date.localeCompare(right.date));
       },
       listMonthRows(fiscalPeriodId, yearMonth) {
@@ -281,11 +279,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
             localId: null,
           });
           appState.assertAuthOperationCurrent(authOperationVersion);
-          const mapped = mapRemoteEntryToRecord(
-            created,
-            fiscalPeriodId,
-            master,
-          );
+          const mapped = storedEntryToRecord(created, fiscalPeriodId, master);
           setRecords((current) => upsertEntryRecord(current, mapped));
           return mapped.id;
         } finally {
@@ -323,7 +317,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
             setRecords((current) =>
               upsertEntryRecord(
                 current,
-                mapRemoteEntryToRecord(
+                storedEntryToRecord(
                   updated,
                   currentRecord.fiscalPeriodId,
                   master,
@@ -376,7 +370,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
           );
           appState.assertAuthOperationCurrent(authOperationVersion);
           const appended = response.entries.map((entry) =>
-            mapRemoteEntryToRecord(entry, fiscalPeriodId, master),
+            storedEntryToRecord(entry, fiscalPeriodId, master),
           );
           setRecords((current) => appended.reduce(upsertEntryRecord, current));
           return {
@@ -449,7 +443,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
               continue;
             }
             const mappedEntries = remoteEntries.map((entry) =>
-              mapRemoteEntryToRecord(entry, fiscalPeriodId, master),
+              storedEntryToRecord(entry, fiscalPeriodId, master),
             );
             setRecords((current) =>
               replaceFiscalPeriodEntryRecords(
@@ -497,55 +491,6 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
       {props.children}
     </EntriesContext.Provider>
   );
-}
-
-function mapRemoteEntryToRecord(
-  entry: EntryApiRecord,
-  fiscalPeriodId: string,
-  master: EntryLineMaster,
-): EntryRecord {
-  const lines = entry.lines.map((line): EntryLine => {
-    const account = master.accounts.find(
-      (candidate) => candidate.id === line.bookAccountId,
-    );
-    return {
-      side: line.side,
-      accountName: account?.name ?? line.bookAccountId,
-      accountType: account?.accountType ?? "asset",
-      amount: formatAmount(Math.abs(line.amount)),
-      bookAccountId: line.bookAccountId,
-      partnerName: line.partnerName,
-      taxCategoryId: line.taxCategoryId,
-      taxCategoryName: mapCategoryName(
-        line.taxCategoryId,
-        master.taxCategories,
-      ),
-      businessCategoryId: line.businessCategoryId,
-      businessCategoryName: mapCategoryName(
-        line.businessCategoryId,
-        master.businessCategories,
-      ),
-      id: null,
-    };
-  });
-  return {
-    id: entry.id,
-    fiscalPeriodId,
-    date: entry.date,
-    weekday: weekdayJa(entry.date),
-    lines,
-    description: entry.description,
-    businessRate: entry.businessRate,
-    localId: entry.localId,
-  };
-}
-
-function mapCategoryName(
-  id: string,
-  categories: ReadonlyArray<{ id: string; name: string }>,
-): string {
-  if (id.length === 0) return "対象外";
-  return categories.find((category) => category.id === id)?.name ?? id;
 }
 
 function addSuggestion(

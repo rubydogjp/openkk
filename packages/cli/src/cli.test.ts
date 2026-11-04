@@ -35,6 +35,27 @@ function workspace() {
   return { cwd, env, run };
 }
 
+async function startedPeriod(
+  run: ReturnType<typeof workspace>["run"],
+  year = "2026",
+): Promise<string> {
+  if (!(await run("periods", "list")).stdout.includes("..")) await run("init");
+  const created = await run(
+    "periods",
+    "create",
+    "--name",
+    `${year}年分`,
+    "--start",
+    `${year}-01-01`,
+    "--end",
+    `${year}-12-31`,
+    "--json",
+  );
+  const id = (JSON.parse(created.stdout) as { id: string }).id;
+  await run("periods", "start", id);
+  return id;
+}
+
 describe("openkk cli", () => {
   it("creates the book file with init and is idempotent", async () => {
     const { cwd, run } = workspace();
@@ -126,9 +147,173 @@ describe("openkk cli", () => {
     expect(fs.existsSync(path.join(cwd, DEFAULT_CLI_FILE))).toBe(false);
   });
 
+  it("adds, lists, exports, and re-imports entries", async () => {
+    const { cwd, run } = workspace();
+    const id = await startedPeriod(run);
+
+    const added = await run(
+      "entries",
+      "add",
+      id,
+      "--date",
+      "2026-04-01",
+      "--debit",
+      "消耗品費",
+      "--credit",
+      "普通預金",
+      "--amount",
+      "12,000",
+      "--description",
+      "プリンタのインク",
+      "--business-rate",
+      "80",
+    );
+    const listed = await run("entries", "list", id);
+    const exportedCsv = await run(
+      "entries",
+      "export",
+      id,
+      "--out",
+      "journal.csv",
+    );
+    const exportedJson = await run("entries", "export", id, "--format", "json");
+    await run("entries", "import", id, "journal.csv");
+    const reimported = await run("entries", "import", id, "journal.csv");
+
+    expect(added.code).toBe(0);
+    expect(listed.stdout).toContain(
+      "2026-04-01  借 消耗品費 12,000 / 貸 普通預金 12,000  プリンタのインク",
+    );
+    expect(exportedCsv.stdout).toContain("1 件");
+    expect(
+      fs
+        .readFileSync(path.join(cwd, "journal.csv"), "utf8")
+        .startsWith("\uFEFF"),
+    ).toBe(true);
+    expect(JSON.parse(exportedJson.stdout)).toMatchObject({
+      schema: "openkk-journal-v1",
+      entries: [{ description: "プリンタのインク", businessRateRatio: 0.8 }],
+    });
+    expect(reimported.stdout).toContain("取込 0 件 / 重複スキップ 1 件");
+  });
+
+  it("imports a JSON journal into another period", async () => {
+    const { cwd, run } = workspace();
+    const source = await startedPeriod(run);
+    await run(
+      "entries",
+      "add",
+      source,
+      "--date",
+      "2026-05-10",
+      "--debit",
+      "普通預金",
+      "--credit",
+      "売上",
+      "--amount",
+      "50000",
+      "--description",
+      "報酬の入金",
+    );
+    await run(
+      "entries",
+      "export",
+      source,
+      "--format",
+      "json",
+      "--out",
+      "j.json",
+    );
+    const json = JSON.parse(
+      fs.readFileSync(path.join(cwd, "j.json"), "utf8"),
+    ) as {
+      entries: Array<{ date: string }>;
+    };
+    for (const entry of json.entries) entry.date = "2027-05-10";
+    fs.writeFileSync(path.join(cwd, "j.json"), JSON.stringify(json));
+    const target = await startedPeriod(run, "2027");
+
+    const imported = await run("entries", "import", target, "j.json", "--json");
+    const listed = await run("entries", "list", target, "--json");
+
+    expect(JSON.parse(imported.stdout)).toEqual({ imported: 1, skipped: 0 });
+    expect(JSON.parse(listed.stdout)).toMatchObject([
+      {
+        date: "2027-05-10",
+        lines: [{ accountName: "普通預金" }, { accountName: "売上" }],
+      },
+    ]);
+  });
+
+  it("rejects malformed entry input before writing", async () => {
+    const { run } = workspace();
+    const id = await startedPeriod(run);
+    const add = (...extra: string[]) =>
+      run(
+        "entries",
+        "add",
+        id,
+        "--date",
+        "2026-04-01",
+        "--debit",
+        "消耗品費",
+        "--credit",
+        "普通預金",
+        "--description",
+        "テスト",
+        ...extra,
+      );
+
+    expect((await add("--amount", "0")).code).toBe(2);
+    expect(
+      (
+        await run(
+          "entries",
+          "add",
+          id,
+          "--date",
+          "2026-04-01",
+          "--debit",
+          "消耗品費",
+          "--credit",
+          "普通預金",
+          "--amount",
+          "100",
+        )
+      ).code,
+    ).toBe(2);
+    expect((await add("--amount", "1.5")).code).toBe(2);
+    expect((await add("--amount", "100", "--business-rate", "120")).code).toBe(
+      2,
+    );
+    expect(
+      (
+        await run(
+          "entries",
+          "add",
+          id,
+          "--date",
+          "2026-04-01",
+          "--debit",
+          "存在しない科目",
+          "--credit",
+          "普通預金",
+          "--amount",
+          "100",
+          "--description",
+          "テスト",
+        )
+      ).stderr,
+    ).toContain("存在しない科目");
+    expect((await run("entries", "list", id)).stdout).toContain(
+      "仕訳はまだありません",
+    );
+  });
+
   it("rejects unknown commands and options as usage errors", async () => {
     const { run } = workspace();
 
+    expect((await run("constructor")).code).toBe(2);
     expect((await run("entries")).code).toBe(2);
     expect((await run("--bogus")).code).toBe(2);
     expect((await run("--help")).stdout).toContain("使い方");

@@ -10,7 +10,7 @@ import {
 } from "../packages/client-domain/src/index.js";
 import { entryRecord } from "../packages/client-domain/test-support/entry-record.js";
 import { mapFixedAsset } from "../packages/client-usecases/src/assist/assist-state-helpers.js";
-import { entryRecordToImportPayload } from "../packages/client-usecases/src/entries/import-mapping.js";
+import { entryRecordToImportPayload } from "../packages/client-domain/src/entries/entry-input-mapping.js";
 import { createMemoryDbAdapter } from "../packages/memory-db-adapter/src/index.js";
 import { createOpenkkServer } from "../packages/server/src/index.js";
 

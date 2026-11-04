@@ -11,11 +11,20 @@ import {
   type CliIo,
   type CliOutput,
 } from "./cli-io.js";
+import type { CliCommandContext } from "./command-context.js";
+import { runEntriesCommand } from "./entries.js";
 import { runPeriodsCommand } from "./periods.js";
 
 export const DEFAULT_CLI_FILE = "openkk.sqlite3";
 export const DEFAULT_CLI_USER_ID = "openkk-original-user";
 export const CLI_FILE_ENV = "OPENKK_FILE";
+
+const COMMANDS = new Map<string, (context: CliCommandContext) => Promise<void>>(
+  [
+    ["periods", runPeriodsCommand],
+    ["entries", runEntriesCommand],
+  ],
+);
 
 const EXIT_OK = 0;
 const EXIT_FAILURE = 1;
@@ -33,6 +42,14 @@ const USAGE = `オープン会計 CLI (ベータ)
   periods create --name <名称> --start <YYYY-MM-DD> --end <YYYY-MM-DD>
                                          会計期間を作る
   periods start <id>                     会計期間を開始する
+  entries list <期間id>                  仕訳の一覧
+  entries add <期間id> --date <YYYY-MM-DD> --debit <科目> --credit <科目> --amount <金額>
+          --description <摘要> [--business-rate <0〜100>]
+                                         借方・貸方 1 組の仕訳を足す
+  entries import <期間id> <file.csv|file.json>
+                                         仕訳を取り込む (同じ localId は飛ばす)
+  entries export <期間id> [--format csv|json] [--out <file>]
+                                         仕訳を書き出す (既定は CSV を標準出力へ)
 
 オプション:
   --file <path>   帳簿ファイル (既定: 環境変数 ${CLI_FILE_ENV}、なければ ./${DEFAULT_CLI_FILE})
@@ -97,7 +114,8 @@ async function dispatch(
     return EXIT_OK;
   }
 
-  if (command !== "periods") {
+  const runCommand = COMMANDS.get(command);
+  if (runCommand == null) {
     throw new CliUsageError(`${command} というコマンドはありません`);
   }
   if (!fs.existsSync(filePath)) {
@@ -107,7 +125,7 @@ async function dispatch(
   }
   const backend = await openCliBackend(filePath, userId);
   try {
-    await runPeriodsCommand({
+    await runCommand({
       api: backend.api,
       output,
       args,
@@ -115,8 +133,17 @@ async function dispatch(
         name: values.name ?? null,
         start: values.start ?? null,
         end: values.end ?? null,
+        date: values.date ?? null,
+        debit: values.debit ?? null,
+        credit: values.credit ?? null,
+        amount: values.amount ?? null,
+        description: values.description ?? null,
+        businessRate: values["business-rate"] ?? null,
+        format: values.format ?? null,
+        out: values.out ?? null,
         json: values.json ?? false,
       },
+      resolvePath: (target) => path.resolve(io.cwd, target),
     });
   } finally {
     backend.close();
@@ -136,6 +163,14 @@ function parseCliArgs(argv: readonly string[]) {
         name: { type: "string" },
         start: { type: "string" },
         end: { type: "string" },
+        date: { type: "string" },
+        debit: { type: "string" },
+        credit: { type: "string" },
+        amount: { type: "string" },
+        description: { type: "string" },
+        "business-rate": { type: "string" },
+        format: { type: "string" },
+        out: { type: "string" },
         json: { type: "boolean" },
         help: { type: "boolean", short: "h" },
         version: { type: "boolean" },

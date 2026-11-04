@@ -30,7 +30,7 @@ import {
   resolveFixedAssetAccountId,
   upsertFixedAsset,
 } from "./assist-state-helpers.js";
-import type { UnresolvedAccountMessages } from "../entries/import-mapping.js";
+import type { UnresolvedAccountMessages } from "@rubydogjp/openkk-client-domain";
 import {
   capFixedAssetPreviewDate,
   draftBusinessRate,

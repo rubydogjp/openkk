@@ -23,7 +23,7 @@ import {
   entryLinesToInputs,
   type EntryLineMaster,
   type UnresolvedAccountMessages,
-} from "../entries/import-mapping.js";
+} from "@rubydogjp/openkk-client-domain";
 
 export function upsertFixedAsset(
   current: FixedAsset[],

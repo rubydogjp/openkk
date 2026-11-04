@@ -1,25 +1,14 @@
 import { fiscalPeriodPhaseLabel } from "@rubydogjp/openkk-client-domain";
-import type {
-  FiscalPeriodApiRecord,
-  OpenkkBackendPort,
-} from "@rubydogjp/openkk-client-ports";
+import type { FiscalPeriodApiRecord } from "@rubydogjp/openkk-client-ports";
 
-import { CliUsageError, type CliOutput } from "./cli-io.js";
-
-export type PeriodsCommandInput = {
-  api: OpenkkBackendPort;
-  output: CliOutput;
-  args: string[];
-  options: {
-    name: string | null;
-    start: string | null;
-    end: string | null;
-    json: boolean;
-  };
-};
+import { CliUsageError } from "./cli-io.js";
+import {
+  requireFiscalPeriod,
+  type CliCommandContext,
+} from "./command-context.js";
 
 export async function runPeriodsCommand(
-  input: PeriodsCommandInput,
+  input: CliCommandContext,
 ): Promise<void> {
   const [subcommand, ...rest] = input.args;
   const { api, output, options } = input;
@@ -38,7 +27,7 @@ export async function runPeriodsCommand(
       return;
     }
     case "show": {
-      const period = await requirePeriod(api, rest[0] ?? null);
+      const period = await requireFiscalPeriod(api, rest[0] ?? null);
       if (options.json) {
         output.json(period);
         return;
@@ -69,7 +58,7 @@ export async function runPeriodsCommand(
       return;
     }
     case "start": {
-      const period = await requirePeriod(api, rest[0] ?? null);
+      const period = await requireFiscalPeriod(api, rest[0] ?? null);
       const started = await api.fiscalPeriods.start(period.id);
       if (options.json) {
         output.json(started);
@@ -85,22 +74,6 @@ export async function runPeriodsCommand(
           : `periods ${subcommand} というコマンドはありません`,
       );
   }
-}
-
-async function requirePeriod(
-  api: OpenkkBackendPort,
-  id: string | null,
-): Promise<FiscalPeriodApiRecord> {
-  if (id == null || id === "") {
-    throw new CliUsageError("会計期間の ID を指定してください");
-  }
-  const period = (await api.fiscalPeriods.getAll()).find(
-    (candidate) => candidate.id === id,
-  );
-  if (period == null) {
-    throw new CliUsageError(`会計期間 ${id} はありません`);
-  }
-  return period;
 }
 
 function formatPeriodRow(period: FiscalPeriodApiRecord): string {
