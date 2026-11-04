@@ -183,6 +183,7 @@ describe("openkk workspace structure", () => {
       "file-db-adapter": ["server-ports", "sqlite-adapter"],
       "memory-db-adapter": ["server-ports", "sqlite-adapter"],
       "node-sqlite-db-adapter": ["server-ports", "sqlite-adapter"],
+      "document-db-adapter": ["server-ports", "sqlite-adapter"],
       "embedded-backend": ["server"],
       "embedded-backend-adapter": ["client-ports", "embedded-backend"],
       cli: [
@@ -267,6 +268,7 @@ describe("openkk workspace structure", () => {
       "file-db-adapter",
       "memory-db-adapter",
       "node-sqlite-db-adapter",
+      "document-db-adapter",
       "sqlite-adapter",
     ]);
     const REACT_FREE_COMPOSITION_ROOTS = new Set(["cli"]);
