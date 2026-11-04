@@ -12,6 +12,7 @@ import {
   type CliOutput,
 } from "./cli-io.js";
 import type { CliCommandContext } from "./command-context.js";
+import { runArchiveCommand } from "./archive.js";
 import { runEntriesCommand } from "./entries.js";
 import { runPeriodsCommand } from "./periods.js";
 import { runReportCommand } from "./report.js";
@@ -25,6 +26,7 @@ const COMMANDS = new Map<string, (context: CliCommandContext) => Promise<void>>(
     ["periods", runPeriodsCommand],
     ["entries", runEntriesCommand],
     ["report", runReportCommand],
+    ["archive", runArchiveCommand],
   ],
 );
 
@@ -55,6 +57,9 @@ const USAGE = `オープン会計 CLI (ベータ)
   report <期間id> <journal|ledger|fs> [--out <file.html>]
                                          仕訳帳・総勘定元帳・財務諸表を HTML で出す
                                          (本締め前は減価償却などの自動仕訳を含む仮の帳票)
+  archive export <期間id> [--out <file.zip>]
+                                         会計期間を zip に書き出す (Web 版の圧縮保存と同じ形式)
+  archive import <file.zip>              zip を新しい会計期間として取り込む
 
 オプション:
   --file <path>   帳簿ファイル (既定: 環境変数 ${CLI_FILE_ENV}、なければ ./${DEFAULT_CLI_FILE})

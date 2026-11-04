@@ -374,6 +374,63 @@ describe("openkk cli", () => {
     expect(result.stderr).toContain("journal / ledger / fs");
   });
 
+  it("moves a fiscal period between book files through an archive zip", async () => {
+    const { cwd, run } = workspace();
+    const id = await startedPeriod(run);
+    await run(
+      "entries",
+      "add",
+      id,
+      "--date",
+      "2026-07-01",
+      "--debit",
+      "旅費交通費",
+      "--credit",
+      "現金",
+      "--amount",
+      "1,980",
+      "--description",
+      "電車代",
+    );
+
+    const exported = await run("archive", "export", id, "--out", "2026.zip");
+    const missingBook = await run(
+      "--file",
+      "missing.sqlite3",
+      "archive",
+      "import",
+      "2026.zip",
+    );
+    await run("--file", "other.sqlite3", "init");
+    const restored = await run(
+      "--file",
+      "other.sqlite3",
+      "archive",
+      "import",
+      "2026.zip",
+      "--json",
+    );
+    const restoredId = (JSON.parse(restored.stdout) as { id: string }).id;
+    const listed = await run(
+      "--file",
+      "other.sqlite3",
+      "entries",
+      "list",
+      restoredId,
+    );
+
+    expect(exported.stdout).toContain(path.join(cwd, "2026.zip"));
+    expect(missingBook.code).toBe(2);
+    expect(JSON.parse(restored.stdout)).toMatchObject({
+      name: "2026年分",
+      phase: "journalizing",
+      archiveStatus: "active",
+    });
+    expect(listed.stdout).toContain(
+      "借 旅費交通費 1,980 / 貸 現金 1,980  電車代",
+    );
+  });
+
   it("rejects unknown commands and options as usage errors", async () => {
     const { run } = workspace();
 
