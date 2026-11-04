@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation.js";
 
 import {
   AppError,
@@ -8,6 +9,7 @@ import {
   validateFiscalPeriodDates,
 } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text.js";
+import { FISCAL_PERIOD_PICKER_PATH } from "../../shell/shell-content-mode.js";
 import {
   useOpenkkAppState,
   useOpenkkConfig,
@@ -28,6 +30,7 @@ import {
   StepFormRow,
   StepMetaCard,
   StepPrimaryButton,
+  StepSecondaryButton,
 } from "../step-ui.js";
 
 export function FiscalPeriodSettingsBody({
@@ -35,6 +38,7 @@ export function FiscalPeriodSettingsBody({
 }: {
   onSwitchToStep: (no: number) => void;
 }) {
+  const router = useRouter();
   const appState = useOpenkkAppState();
   const config = useOpenkkConfig();
   const editingLocked = config.editingPolicy.locked;
@@ -48,6 +52,7 @@ export function FiscalPeriodSettingsBody({
   const [endDate, setEndDate] = useState(currentFiscalPeriod?.endDate ?? "");
   const [screenError, setScreenError] = useState<unknown>(null);
   const [isStarting, setIsStarting] = useState(false);
+  const [isDiscarding, setIsDiscarding] = useState(false);
   const startLock = useRef(new ExclusiveActionLock());
 
   useEffect(() => {
@@ -140,6 +145,38 @@ export function FiscalPeriodSettingsBody({
     }
   };
 
+  const handleDiscard = async () => {
+    const release = startLock.current.tryAcquire();
+    if (release == null) return;
+    try {
+      const confirmed = await confirm({
+        tone: "danger",
+        title: "この期間を削除",
+        body: [
+          `「${currentFiscalPeriod.name}」を削除します。`,
+          "開始前の期間なので、仕訳などのデータはまだありません。この操作は取り消せません。",
+        ],
+        confirmLabel: "削除する",
+      });
+      if (!confirmed) return;
+      setIsDiscarding(true);
+      await appState.discardFiscalPeriod(currentFiscalPeriod.id);
+      router.push(FISCAL_PERIOD_PICKER_PATH);
+    } catch (error) {
+      setScreenError(
+        AppError.from(error, {
+          fallbackUserMessage: "期間の削除に失敗しました",
+          fallbackDeveloperMessage:
+            "steps/fiscal-period-settings: discard failed",
+          statusCode: null,
+        }),
+      );
+    } finally {
+      setIsDiscarding(false);
+      release();
+    }
+  };
+
   return (
     <>
       <FormStyles />
@@ -222,9 +259,13 @@ export function FiscalPeriodSettingsBody({
           style={{
             marginTop: 16,
             display: "flex",
-            justifyContent: "flex-end",
+            justifyContent: "space-between",
+            gap: 12,
           }}
         >
+          <StepSecondaryButton onClick={handleDiscard}>
+            {isDiscarding ? "削除中…" : "この期間を削除"}
+          </StepSecondaryButton>
           <StepPrimaryButton
             onClick={handleStart}
             disabled={!canSave}
