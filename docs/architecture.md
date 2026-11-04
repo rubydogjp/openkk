@@ -25,12 +25,14 @@ packages/
 │
 ├── file-db-adapter      OpenkkDbPort 実装 — SQLite Wasm + OPFS（ブラウザ永続化）
 ├── memory-db-adapter    OpenkkDbPort 実装 — インメモリ揮発 DB
+├── node-sqlite-db-adapter OpenkkDbPort 実装 — node:sqlite の SQLite ファイル（CLI 用・ベータ）
 ├── sqlite-adapter       上記2つが共有するSQL・保存処理・マイグレーション
 ├── embedded-backend-adapter  OpenkkBackendPort 実装 — 同プロセス HTTP 風 bridge
 ├── print-adapter        PrintPort 実装 — ブラウザ印刷
 ├── platform-browser-adapter PlatformPort 実装 — PWA・localStorage・ダウンロード等のブラウザ機能
 │
 ├── embedded-backend     in-process backend composition root
+├── cli                  CLI 版 composition root（ベータ。SQLite ファイルを操作する）
 ├── frontend             3アプリ共通の provider・composition 配線
 ├── openkk               無印版 Next.js アプリ（SQLite OPFS）
 ├── openkk_sim           Sim版 Next.js アプリ（memory DB・固定時計・debug）
@@ -47,12 +49,12 @@ packages/
 
 外部依存はすべて interface (port) で抽象化する。
 
-| Port                | 定義場所       | 標準実装                                |
-| ------------------- | -------------- | --------------------------------------- |
-| `OpenkkDbPort`      | `server-ports` | `file-db-adapter` / `memory-db-adapter` |
-| `OpenkkBackendPort` | `client-ports` | `embedded-backend-adapter`              |
-| `PrintPort`         | `client-ports` | `print-adapter`                         |
-| `PlatformPort`      | `client-ports` | `platform-browser-adapter`              |
+| Port                | 定義場所       | 標準実装                                                           |
+| ------------------- | -------------- | ------------------------------------------------------------------ |
+| `OpenkkDbPort`      | `server-ports` | `file-db-adapter` / `memory-db-adapter` / `node-sqlite-db-adapter` |
+| `OpenkkBackendPort` | `client-ports` | `embedded-backend-adapter`                                         |
+| `PrintPort`         | `client-ports` | `print-adapter`                                                    |
+| `PlatformPort`      | `client-ports` | `platform-browser-adapter`                                         |
 
 HTTP バックエンドは `embedded-backend-adapter` と同じ位置で差し替える。
 
@@ -69,7 +71,7 @@ server side:   api → usecases → ports → domain
 
 ### 4. Composition Roots は薄く
 
-`embedded-backend`、`frontend`、3つのアプリ workspace は参照実装。独自アプリは自前の composition root でアダプタを組み合わせる。
+`embedded-backend`、`frontend`、3つのアプリ workspace、`cli` は参照実装。`cli` は React を読み込まないよう、`client` の meta barrel ではなく `client-domain`・`client-ports` を直接使う。独自アプリは自前の composition root でアダプタを組み合わせる。
 
 設定は `OpenkkConfig` に定義し、`useOpenkkConfig` で取得する。日付の状態は `useOpenkkToday` で購読する。
 

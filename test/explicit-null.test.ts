@@ -8,6 +8,7 @@ const BUILDER_FILE = /(?:\.test\.tsx?$|^[^/]+\/test-support\/)/;
 const EXTERNAL_SHAPE_FILES = new Set([
   "file-db-adapter/src/index.test.ts",
   "file-db-adapter/src/sqlite.worker.ts",
+  "node-sqlite-db-adapter/src/index.ts",
   "sqlite-adapter/src/migrate.test.ts",
   "sqlite-adapter/src/sql-db.ts",
 ]);

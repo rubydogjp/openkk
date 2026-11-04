@@ -179,8 +179,16 @@ describe("openkk workspace structure", () => {
       "sqlite-adapter": ["server-domain", "server-ports"],
       "file-db-adapter": ["server-ports", "sqlite-adapter"],
       "memory-db-adapter": ["server-ports", "sqlite-adapter"],
+      "node-sqlite-db-adapter": ["server-ports", "sqlite-adapter"],
       "embedded-backend": ["server"],
       "embedded-backend-adapter": ["client-ports", "embedded-backend"],
+      cli: [
+        "client-domain",
+        "client-ports",
+        "embedded-backend",
+        "embedded-backend-adapter",
+        "node-sqlite-db-adapter",
+      ],
       "print-adapter": ["client-ports"],
       "platform-browser-adapter": ["client-ports"],
       frontend: ["client", "print-adapter", "platform-browser-adapter"],
@@ -255,8 +263,10 @@ describe("openkk workspace structure", () => {
       "platform-browser-adapter",
       "file-db-adapter",
       "memory-db-adapter",
+      "node-sqlite-db-adapter",
       "sqlite-adapter",
     ]);
+    const REACT_FREE_COMPOSITION_ROOTS = new Set(["cli"]);
     for (const record of packageRecords) {
       if (ADAPTER_EXEMPTIONS.has(record.packageDir)) continue;
       if (record.packageDir === "client" || record.packageDir === "server") {
@@ -265,7 +275,9 @@ describe("openkk workspace structure", () => {
       const isClientLayer = record.packageDir.startsWith("client-");
       const isServerLayer = record.packageDir.startsWith("server-");
       const forbidden = new Set<string>([
-        ...(isClientLayer ? [] : CLIENT_SUBPACKAGES),
+        ...(isClientLayer || REACT_FREE_COMPOSITION_ROOTS.has(record.packageDir)
+          ? []
+          : CLIENT_SUBPACKAGES),
         ...(isServerLayer ? [] : SERVER_SUBPACKAGES),
       ]);
       const internalImports = findInternalImports(record.dir, true);

@@ -37,11 +37,12 @@ const LAYERS = [
   {
     id: "app",
     label: "App",
-    note: "リファレンスアプリ。consumer が自前アプリに差し替える",
+    note: "リファレンスアプリ (Web 3つと CLI)。consumer が自前アプリに差し替える",
     match: (name) =>
       name === "@rubydogjp/openkk" ||
       name === "@rubydogjp/openkk-sim" ||
-      name === "@rubydogjp/openkk-demo",
+      name === "@rubydogjp/openkk-demo" ||
+      name === "@rubydogjp/openkk-cli",
   },
   {
     id: "app_support",
@@ -79,7 +80,8 @@ const LAYERS = [
     match: (name) =>
       name === "@rubydogjp/openkk-file-db-adapter" ||
       name === "@rubydogjp/openkk-sqlite-adapter" ||
-      name === "@rubydogjp/openkk-memory-db-adapter",
+      name === "@rubydogjp/openkk-memory-db-adapter" ||
+      name === "@rubydogjp/openkk-node-sqlite-db-adapter",
   },
   {
     id: "server",

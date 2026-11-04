@@ -53,3 +53,10 @@ export type FiscalPeriodOpening = {
   balanceLines: OpeningBalanceLine[];
   journals: OpeningJournal[];
 };
+
+export function fiscalPeriodPhaseLabel(phase: FiscalPeriodPhase): string {
+  if (phase === "pre_opening") return "開始前";
+  if (phase === "journalizing") return "記帳中";
+  if (phase === "pre_closing") return "仮締め済み";
+  return "決算後";
+}

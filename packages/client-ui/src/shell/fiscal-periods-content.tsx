@@ -6,9 +6,9 @@ import { useRouter } from "next/navigation.js";
 import {
   AppError,
   assertFiscalPeriodArchiveByteLength,
+  fiscalPeriodPhaseLabel,
   readFiscalPeriodArchiveZip,
   type FiscalPeriod,
-  type FiscalPeriodPhase,
 } from "@rubydogjp/openkk-client-domain";
 import {
   useOpenkkAppState,
@@ -572,20 +572,13 @@ function periodStatusChip(period: FiscalPeriod): {
   }
   return period.phase === "journalizing"
     ? {
-        label: phaseLabel(period.phase),
+        label: fiscalPeriodPhaseLabel(period.phase),
         background: "#DCFCE7",
         foreground: palette.success,
       }
     : {
-        label: phaseLabel(period.phase),
+        label: fiscalPeriodPhaseLabel(period.phase),
         background: palette.formGroupBg,
         foreground: palette.textLabel,
       };
-}
-
-function phaseLabel(phase: FiscalPeriodPhase) {
-  if (phase === "pre_opening") return "開始前";
-  if (phase === "journalizing") return "記帳中";
-  if (phase === "pre_closing") return "仮締め済み";
-  return "決算後";
 }
