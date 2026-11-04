@@ -1,4 +1,7 @@
-import { fiscalPeriodPhaseLabel } from "@rubydogjp/openkk-client-domain";
+import {
+  buildNextFiscalPeriodSuggestion,
+  fiscalPeriodPhaseLabel,
+} from "@rubydogjp/openkk-client-domain";
 import type { FiscalPeriodApiRecord } from "@rubydogjp/openkk-client-ports";
 
 import { CliUsageError } from "./cli-io.js";
@@ -67,10 +70,41 @@ export async function runPeriodsCommand(
       output.line(`開始しました: ${formatPeriodRow(started)}`);
       return;
     }
+    case "receive": {
+      const period = await requireFiscalPeriod(api, rest[0] ?? null);
+      const updated = await api.fiscalPeriods.patch(period.id, {
+        documentsReceivedCompleted: true,
+      });
+      if (options.json) {
+        output.json(updated);
+        return;
+      }
+      output.line(`書類を受け取りました: ${formatPeriodRow(updated)}`);
+      return;
+    }
+    case "next": {
+      const source = await requireFiscalPeriod(api, rest[0] ?? null);
+      const suggestion = buildNextFiscalPeriodSuggestion(source.endDate);
+      const created = await api.fiscalPeriods.createNext({
+        sourceFiscalPeriodId: source.id,
+        name: options.name ?? suggestion.name,
+        startDate: options.start ?? suggestion.startDate,
+        endDate: options.end ?? suggestion.endDate,
+        carryBalances: true,
+        reversalEntryIds: [],
+        carryFixedAssets: true,
+      });
+      if (options.json) {
+        output.json(created);
+        return;
+      }
+      output.line(`次の期間を作成しました: ${formatPeriodRow(created)}`);
+      return;
+    }
     default:
       throw new CliUsageError(
         subcommand == null
-          ? "periods のあとに list / show / create / start を指定してください"
+          ? "periods のあとに list / show / create / start / receive / next を指定してください"
           : `periods ${subcommand} というコマンドはありません`,
       );
   }

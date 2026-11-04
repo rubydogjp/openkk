@@ -13,7 +13,9 @@ import {
 } from "./cli-io.js";
 import type { CliCommandContext } from "./command-context.js";
 import { runArchiveCommand } from "./archive.js";
+import { runClosingCommand } from "./closing.js";
 import { runEntriesCommand } from "./entries.js";
+import { runOpeningCommand } from "./opening.js";
 import { runPeriodsCommand } from "./periods.js";
 import { runReportCommand } from "./report.js";
 
@@ -24,7 +26,9 @@ export const CLI_FILE_ENV = "OPENKK_FILE";
 const COMMANDS = new Map<string, (context: CliCommandContext) => Promise<void>>(
   [
     ["periods", runPeriodsCommand],
+    ["opening", runOpeningCommand],
     ["entries", runEntriesCommand],
+    ["closing", runClosingCommand],
     ["report", runReportCommand],
     ["archive", runArchiveCommand],
   ],
@@ -46,6 +50,11 @@ const USAGE = `オープン会計 CLI (ベータ)
   periods create --name <名称> --start <YYYY-MM-DD> --end <YYYY-MM-DD>
                                          会計期間を作る
   periods start <id>                     会計期間を開始する
+  periods receive <id>                   本締め後の書類を受け取った印を付ける
+  periods next <id> [--name] [--start] [--end]
+                                         期末のBSと固定資産を引き継いで次の期間を作る
+  opening show <期間id>                  期首のBS
+  opening set <期間id> <科目>=<金額> ...  期首のBSを保存する (例: 現金=100000 元入金=100000)
   entries list <期間id>                  仕訳の一覧
   entries add <期間id> --date <YYYY-MM-DD> --debit <科目> --credit <科目> --amount <金額>
           --description <摘要> [--business-rate <0〜100>]
@@ -57,6 +66,9 @@ const USAGE = `オープン会計 CLI (ベータ)
   report <期間id> <journal|ledger|fs> [--out <file.html>]
                                          仕訳帳・総勘定元帳・財務諸表を HTML で出す
                                          (本締め前は減価償却などの自動仕訳を含む仮の帳票)
+  closing pre <期間id> [--yes]           仮締め (期中は --yes が要る)
+  closing cancel <期間id>                仮締めを取り消す
+  closing final <期間id> --yes           本締め (取り消せない)
   archive export <期間id> [--out <file.zip>]
                                          会計期間を zip に書き出す (Web 版の圧縮保存と同じ形式)
   archive import <file.zip>              zip を新しい会計期間として取り込む
@@ -65,6 +77,7 @@ const USAGE = `オープン会計 CLI (ベータ)
   --file <path>   帳簿ファイル (既定: 環境変数 ${CLI_FILE_ENV}、なければ ./${DEFAULT_CLI_FILE})
   --user <id>     データの持ち主 (既定: ${DEFAULT_CLI_USER_ID})
   --json          結果を JSON で出す
+  --yes           確認が要る操作をそのまま実行する
   --help          この説明を出す
   --version       版を出す`;
 
@@ -152,6 +165,7 @@ async function dispatch(
         format: values.format ?? null,
         out: values.out ?? null,
         json: values.json ?? false,
+        yes: values.yes ?? false,
       },
       resolvePath: (target) => path.resolve(io.cwd, target),
       today: () => io.now(),
@@ -183,6 +197,7 @@ function parseCliArgs(argv: readonly string[]) {
         format: { type: "string" },
         out: { type: "string" },
         json: { type: "boolean" },
+        yes: { type: "boolean" },
         help: { type: "boolean", short: "h" },
         version: { type: "boolean" },
       },

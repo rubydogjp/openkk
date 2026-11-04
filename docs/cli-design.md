@@ -1,6 +1,6 @@
 # CLI 版 (ベータ) の設計
 
-状態: ベータ。OSS に入れておくだけで、告知はしない。`cli` と `node-sqlite-db-adapter` は `private: true` で npm には出さない (出すときは外し、`docs/release.md` の初回 publish と Trusted Publishing の設定をする)。下の「進め方」の 1〜5 (`node-sqlite-db-adapter`、`cli` の `init`・`periods`・`entries`・`report`・`archive`) まで実装済み。
+状態: ベータ。OSS に入れておくだけで、告知はしない。`cli` と `node-sqlite-db-adapter` は `private: true` で npm には出さない (出すときは外し、`docs/release.md` の初回 publish と Trusted Publishing の設定をする)。下の「進め方」の 1〜6 (`node-sqlite-db-adapter`、`cli` の `init`・`periods`・`opening`・`entries`・`report`・`closing`・`archive`) まで実装済みで、期首のBSから本締め・次の期間まで CLI だけで回せる。再振替の選択と固定資産の操作はまだ Web 版だけ。
 
 ## 結論
 
@@ -57,8 +57,9 @@ openkk periods list | show | create --name --start --end
 openkk entries list [--json|--csv] | add | import <file> | export
 openkk report journal|ledger|fs --out <file.html>
 openkk archive export <period> <out.zip> | import <zip>
-openkk preclose [--cancel]
-openkk close            # 切り出しの後
+openkk opening show | set <期間id> <科目>=<金額> ...
+openkk closing pre | cancel | final <期間id> [--yes]
+openkk periods receive | next <期間id>
 ```
 
 ## 進め方
@@ -68,7 +69,7 @@ openkk close            # 切り出しの後
 3. `entries` (client-domain の CSV / JSON 関数を使い、往復テストを付ける)
 4. 帳票の組み立てを client-domain へ切り出し、client-ui をそれに置き換えて `report` を足す
 5. `archive export / import` (ブラウザで作った zip を取り込めることをテストする)
-6. `preclose` / `close`
+6. `opening`・`closing`・`periods receive` / `next`
 7. (後) ブラウザ版に DB ファイルの書き出し・読み込みを付ける
 
 パッケージを足すときは、ルートの workspaces、`test/package-structure.test.ts` の `allowedLayers`、`npm run gen-deps` (`docs/dependency-graph.md`)、`docs/architecture.md` の port 表も更新する。

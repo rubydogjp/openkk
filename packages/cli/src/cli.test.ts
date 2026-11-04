@@ -431,6 +431,102 @@ describe("openkk cli", () => {
     );
   });
 
+  it("runs a whole year from opening balances to the next period", async () => {
+    const { cwd, run } = workspace();
+    const id = await startedPeriod(run);
+    const unbalanced = await run(
+      "opening",
+      "set",
+      id,
+      "現金=100000",
+      "元入金=90000",
+    );
+    const opening = await run(
+      "opening",
+      "set",
+      id,
+      "現金=100,000",
+      "元入金=100000",
+    );
+    await run(
+      "entries",
+      "add",
+      id,
+      "--date",
+      "2026-06-30",
+      "--debit",
+      "普通預金",
+      "--credit",
+      "売上",
+      "--amount",
+      "500000",
+      "--description",
+      "上期の報酬",
+    );
+    await run(
+      "entries",
+      "add",
+      id,
+      "--date",
+      "2026-08-20",
+      "--debit",
+      "通信費",
+      "--credit",
+      "普通預金",
+      "--amount",
+      "8800",
+      "--description",
+      "回線",
+      "--business-rate",
+      "50",
+    );
+    const backend = await openCliBackend(
+      path.join(cwd, DEFAULT_CLI_FILE),
+      DEFAULT_CLI_USER_ID,
+    );
+    await backend.api.fixedAssets.create(id, {
+      name: "カメラ",
+      acquisitionDate: "2026-04-01",
+      acquisitionCost: 180000,
+      usefulLife: 5,
+      depreciationMethod: "straight_line",
+      businessRate: 0.8,
+      bookAccountId: "acct_equipment",
+    });
+    backend.close();
+
+    const provisional = await run("report", id, "fs");
+    const midPeriod = await run("closing", "pre", id);
+    const preClosed = await run("closing", "pre", id, "--yes");
+    const unconfirmedFinal = await run("closing", "final", id);
+    const finalized = await run("closing", "final", id, "--yes");
+    const final = await run("report", id, "fs");
+    await run("periods", "receive", id);
+    const next = await run("periods", "next", id, "--json");
+    const nextPeriod = JSON.parse(next.stdout) as {
+      id: string;
+      name: string;
+      startDate: string;
+      openingBalancesCompleted: boolean;
+    };
+    const nextOpening = await run("opening", "show", nextPeriod.id);
+
+    expect(unbalanced.code).toBe(2);
+    expect(opening.stdout).toContain("資産合計 100,000");
+    expect(midPeriod.code).toBe(2);
+    expect(preClosed.stdout).toContain("仮締め済み");
+    expect(unconfirmedFinal.code).toBe(2);
+    expect(finalized.code).toBe(0);
+    expect(finalized.stdout).toContain("決算後");
+    expect(final.stdout).toBe(provisional.stdout);
+    expect(nextPeriod).toMatchObject({
+      name: "2027年分",
+      startDate: "2027-01-01",
+      openingBalancesCompleted: true,
+    });
+    expect(nextOpening.stdout).toContain("工具器具備品");
+  });
+
   it("rejects unknown commands and options as usage errors", async () => {
     const { run } = workspace();
 

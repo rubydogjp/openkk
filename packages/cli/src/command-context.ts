@@ -18,6 +18,7 @@ export type CliOptions = {
   format: string | null;
   out: string | null;
   json: boolean;
+  yes: boolean;
 };
 
 export type CliCommandContext = {

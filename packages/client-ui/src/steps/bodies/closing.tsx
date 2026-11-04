@@ -4,9 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   AppError,
-  buildClosingVirtualEntries,
+  buildFinalClosingEntries,
   computeFsAggregate,
-  isMaterializedVirtualEntry,
   withClosingVirtualEntries,
 } from "@rubydogjp/openkk-client-domain";
 import { AppErrorText } from "../../shared/app-error-text.js";
@@ -150,13 +149,18 @@ export function ClosingBody({
       setShowRunningAnimation(true);
       setAnimationKey((key) => key + 1);
       try {
-        const entries = prepareAssistEntriesForFinalClosing({
-          fiscalPeriodId: currentFiscalPeriod.id,
-          periodStartDate: currentFiscalPeriod.startDate,
-          periodEndDate: currentFiscalPeriod.endDate,
-          assistState,
-          entriesState,
-        });
+        const entries = entriesState.prepareFiscalPeriodEntries(
+          buildFinalClosingEntries({
+            fiscalPeriod: currentFiscalPeriod,
+            entries: entriesState.listFiscalPeriodEntries(
+              currentFiscalPeriod.id,
+            ),
+            assets: assistState.listFixedAssets(currentFiscalPeriod.id),
+            carryovers: assistState.listOpeningCarryovers(
+              currentFiscalPeriod.id,
+            ),
+          }),
+        );
         await closingApi.runFinal(currentFiscalPeriod.id, entries);
         await entriesState.reloadAndWait();
         setScreenError(null);
@@ -326,31 +330,4 @@ export function ClosingBody({
       ) : null}
     </>
   );
-}
-
-function prepareAssistEntriesForFinalClosing(input: {
-  fiscalPeriodId: string;
-  periodStartDate: string;
-  periodEndDate: string;
-  assistState: Pick<
-    ReturnType<typeof useOpenkkAssist>,
-    "listFixedAssets" | "listOpeningCarryovers"
-  >;
-  entriesState: Pick<
-    ReturnType<typeof useOpenkkEntries>,
-    "listFiscalPeriodEntries" | "prepareFiscalPeriodEntries"
-  >;
-}) {
-  const manualEntriesForFinalClosing = input.entriesState
-    .listFiscalPeriodEntries(input.fiscalPeriodId)
-    .filter((entry) => !isMaterializedVirtualEntry(entry));
-  const entries = buildClosingVirtualEntries({
-    fiscalPeriodId: input.fiscalPeriodId,
-    periodStartDate: input.periodStartDate,
-    periodEndDate: input.periodEndDate,
-    entries: manualEntriesForFinalClosing,
-    assets: input.assistState.listFixedAssets(input.fiscalPeriodId),
-    carryovers: input.assistState.listOpeningCarryovers(input.fiscalPeriodId),
-  });
-  return input.entriesState.prepareFiscalPeriodEntries(entries);
 }

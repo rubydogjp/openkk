@@ -1,7 +1,11 @@
 import type { FixedAsset } from "../assist/fixed-asset-data.js";
 import type { OpeningCarryoverRecord } from "../assist/opening-carryover.js";
 import type { EntryRecord } from "../entries/entry-record.js";
-import { withClosingVirtualEntries } from "../entries/virtual-entries.js";
+import {
+  buildClosingVirtualEntries,
+  isMaterializedVirtualEntry,
+  withClosingVirtualEntries,
+} from "../entries/virtual-entries.js";
 import type { FiscalPeriodPhase } from "../shared/models.js";
 import { buildFinancialStatementsDocument } from "./financial-statements-print.js";
 import { computeFsAggregate } from "./fs-data.js";
@@ -75,4 +79,19 @@ export function buildFiscalPeriodReport(
         computeFsAggregate({ entries, openingBalanceLines }),
       );
   }
+}
+
+export function buildFinalClosingEntries(
+  input: FiscalPeriodReportInput,
+): EntryRecord[] {
+  return buildClosingVirtualEntries({
+    fiscalPeriodId: input.fiscalPeriod.id,
+    periodStartDate: input.fiscalPeriod.startDate,
+    periodEndDate: input.fiscalPeriod.endDate,
+    entries: input.entries.filter(
+      (entry) => !isMaterializedVirtualEntry(entry),
+    ),
+    assets: input.assets,
+    carryovers: input.carryovers,
+  });
 }
