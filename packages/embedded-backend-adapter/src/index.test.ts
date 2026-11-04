@@ -212,6 +212,7 @@ function embeddedServer(
       getAll: async () => [],
       create: async () => unused(),
       createNext: async () => unused(),
+      applyCarryover: async () => unused(),
       importArchived: async () => unused(),
       patch: async () => unused(),
       start: async () => unused(),

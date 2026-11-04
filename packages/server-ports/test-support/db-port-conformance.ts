@@ -423,6 +423,190 @@ export function runDbPortConformance(
       expect(archived.archiveStatus).toBe("archived");
     });
 
+    function carryoverSeed(targetPhase: "journalizing" | "pre_closing") {
+      const timestamp = "1970-01-01T00:00:00.000Z";
+      const line = (
+        id: string,
+        side: "debit" | "credit",
+        bookAccountId: string,
+        amount: number,
+      ) => ({
+        id,
+        side,
+        bookAccountId,
+        amount,
+        partnerName: "",
+        taxCategoryId: "tax_out_of_scope",
+        businessCategoryId: "",
+      });
+      const fixedAsset = (
+        id: string,
+        fiscalPeriodId: string,
+        name: string,
+        acquisitionDate: string,
+      ) => ({
+        id,
+        userId: "user-1",
+        fiscalPeriodId,
+        name,
+        acquisitionDate,
+        acquisitionCost: 100000,
+        usefulLife: 4,
+        depreciationMethod: "straight_line" as const,
+        businessRate: 1,
+        status: "active" as const,
+        disposalDate: null,
+        disposalPrice: null,
+        bookAccountId: "acct_equipment",
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      });
+      const [base] = seedWithPeriods("fp-source").fiscalPeriods;
+      const seed: DbSnapshot = {
+        fiscalPeriods: [
+          {
+            ...base!,
+            phase: "post_closing",
+            documentsReceivedCompleted: true,
+            opening: {
+              balanceLines: [
+                { id: "a:現金", accountId: "a:現金", amount: 5000 },
+                { id: "l:元入金", accountId: "l:元入金", amount: 5000 },
+              ],
+              journals: [],
+            },
+          },
+          {
+            ...base!,
+            id: "fp-target",
+            name: "fp-target",
+            startDate: "2027-01-01",
+            endDate: "2027-12-31",
+            phase: targetPhase,
+            opening: {
+              balanceLines: [
+                { id: "a:現金", accountId: "a:現金", amount: 1 },
+                { id: "l:元入金", accountId: "l:元入金", amount: 1 },
+              ],
+              journals: [],
+            },
+          },
+        ],
+        entries: [
+          {
+            id: "e-sales",
+            userId: "user-1",
+            fiscalPeriodId: "fp-source",
+            date: "2026-06-01",
+            description: "sales",
+            localId: null,
+            businessRate: 1,
+            lines: [
+              line("e-sales-d", "debit", "acct_cash", 1000),
+              line("e-sales-c", "credit", "acct_sales", 1000),
+            ],
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          },
+          {
+            id: "e-accrued",
+            userId: "user-1",
+            fiscalPeriodId: "fp-source",
+            date: "2026-12-31",
+            description: "accrued",
+            localId: null,
+            businessRate: 1,
+            lines: [
+              line("e-accrued-d", "debit", "acct_supplies", 300),
+              line("e-accrued-c", "credit", "acct_accrued_expense", 300),
+            ],
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          },
+        ],
+        fixedAssets: [
+          fixedAsset("fa-source", "fp-source", "Camera", "2026-04-01"),
+          fixedAsset("fa-target", "fp-target", "Typed by hand", "2027-02-01"),
+        ],
+      };
+      return seed;
+    }
+
+    it("applyCarryover overwrites the selected items of an existing period", async () => {
+      const db = await ctx.makeSeededAdapter(carryoverSeed("journalizing"));
+
+      const updated = await db.fiscalPeriods.applyCarryover("fp-target", {
+        sourceFiscalPeriodId: "fp-source",
+        carryBalances: true,
+        reversalEntryIds: ["e-accrued"],
+        carryFixedAssets: true,
+      });
+
+      expect(updated.openingBalancesCompleted).toBe(true);
+      expect(updated.opening.balanceLines).toEqual(
+        expect.arrayContaining([
+          { id: "a:現金", accountId: "a:現金", amount: 6000 },
+          { id: "l:元入金", accountId: "l:元入金", amount: 5700 },
+        ]),
+      );
+      expect(updated.opening.journals).toHaveLength(1);
+      expect(updated.opening.journals[0]!.date).toBe("2027-01-01");
+      expect(await db.fiscalPeriods.getById("fp-target")).toEqual(updated);
+      const assets = await db.fixedAssets.getAll("fp-target");
+      expect(assets.map((asset) => asset.name)).toEqual(["Camera"]);
+    });
+
+    it("applyCarryover leaves unselected items untouched", async () => {
+      const db = await ctx.makeSeededAdapter(carryoverSeed("journalizing"));
+      const before = await db.fiscalPeriods.getById("fp-target");
+
+      const updated = await db.fiscalPeriods.applyCarryover("fp-target", {
+        sourceFiscalPeriodId: "fp-source",
+        carryBalances: false,
+        reversalEntryIds: null,
+        carryFixedAssets: true,
+      });
+
+      expect(updated.opening).toEqual(before!.opening);
+      const assets = await db.fixedAssets.getAll("fp-target");
+      expect(assets.map((asset) => asset.name)).toEqual(["Camera"]);
+    });
+
+    it("applyCarryover rejects a pre-closed target without changes", async () => {
+      const db = await ctx.makeSeededAdapter(carryoverSeed("pre_closing"));
+      const before = await db.fiscalPeriods.getById("fp-target");
+
+      await expect(
+        db.fiscalPeriods.applyCarryover("fp-target", {
+          sourceFiscalPeriodId: "fp-source",
+          carryBalances: true,
+          reversalEntryIds: null,
+          carryFixedAssets: true,
+        }),
+      ).rejects.toThrow();
+
+      expect(await db.fiscalPeriods.getById("fp-target")).toEqual(before);
+      expect(await db.fixedAssets.getAll("fp-target")).toHaveLength(1);
+    });
+
+    it("applyCarryover rejects a source that is not fully closed", async () => {
+      const seed = carryoverSeed("journalizing");
+      seed.fiscalPeriods[0] = {
+        ...seed.fiscalPeriods[0]!,
+        documentsReceivedCompleted: false,
+      };
+      const db = await ctx.makeSeededAdapter(seed);
+
+      await expect(
+        db.fiscalPeriods.applyCarryover("fp-target", {
+          sourceFiscalPeriodId: "fp-source",
+          carryBalances: true,
+          reversalEntryIds: null,
+          carryFixedAssets: false,
+        }),
+      ).rejects.toThrow();
+    });
+
     it("deletes child entries and fixed assets with the fiscal period", async () => {
       const db = await makeDb();
       const period = await db.fiscalPeriods.create("user-1", {

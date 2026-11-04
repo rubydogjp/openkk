@@ -46,6 +46,10 @@ import {
   sumOpeningSection,
   unrenderedOpeningLines,
 } from "./opening-bs-model.js";
+import {
+  carryoverSourceCandidates,
+  OpeningBsCarryover,
+} from "./opening-bs-carryover.js";
 
 export function OpeningBsBody({
   onSwitchToStep,
@@ -123,6 +127,10 @@ export function OpeningBsBody({
     !isPeriodLocked &&
     !editingLocked &&
     (!isCompleted || isEditingCompleted);
+  const carryoverSources =
+    currentFiscalPeriod.phase === "journalizing" && !editingLocked
+      ? carryoverSourceCandidates(currentFiscalPeriod, appState.fiscalPeriods)
+      : [];
   const amountsAreSafe = assetTotal != null && liabilityTotal != null;
   const balancesMatch = amountsAreSafe && assetTotal === liabilityTotal;
 
@@ -208,6 +216,13 @@ export function OpeningBsBody({
 
         {!isPeriodLocked && !editingLocked && isCompleted && !isEditing ? (
           <SavedOpeningBsNotice onEdit={() => setIsEditingCompleted(true)} />
+        ) : null}
+
+        {carryoverSources.length > 0 && !isEditingCompleted ? (
+          <OpeningBsCarryover
+            target={currentFiscalPeriod}
+            sources={carryoverSources}
+          />
         ) : null}
 
         <div className="bk-opening-bs">
@@ -360,7 +375,7 @@ function SavedOpeningBsNotice({ onEdit }: { onEdit: () => void }) {
             lineHeight: 1.6,
           }}
         >
-          仮締めまでの間は編集することが可能です
+          仮締めまでの間は、いつでも金額を編集したり、前の期間から引き継ぎ直したりできます
         </div>
         <div
           style={{

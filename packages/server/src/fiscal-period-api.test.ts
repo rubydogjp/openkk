@@ -269,6 +269,73 @@ describe("openkk server fiscal period API", () => {
     );
   });
 
+  it("validates carryover application before touching storage", async () => {
+    const db = createFiscalPeriodDb([
+      fiscalPeriod({
+        id: "fp-source",
+        userId: "user-1",
+        phase: "post_closing",
+        documentsReceivedCompleted: true,
+      }),
+      fiscalPeriod({
+        id: "fp-target",
+        userId: "user-1",
+        startDate: "2027-01-01",
+        endDate: "2027-12-31",
+      }),
+      fiscalPeriod({
+        id: "fp-pre-closed",
+        userId: "user-1",
+        phase: "pre_closing",
+        startDate: "2028-01-01",
+        endDate: "2028-12-31",
+      }),
+      fiscalPeriod({
+        id: "fp-other-user",
+        userId: "user-2",
+        phase: "post_closing",
+        documentsReceivedCompleted: true,
+        startDate: "2025-01-01",
+        endDate: "2025-12-31",
+      }),
+    ]);
+    const server = createOpenkkServer(db, { userId: "user-1" });
+    const input = {
+      sourceFiscalPeriodId: "fp-source",
+      carryBalances: true,
+      reversalEntryIds: null,
+      carryFixedAssets: false,
+    };
+
+    await expect(
+      server.fiscalPeriods.applyCarryover("fp-target", {
+        ...input,
+        carryBalances: false,
+      }),
+    ).rejects.toThrow(/at least one item/);
+    await expect(
+      server.fiscalPeriods.applyCarryover("fp-target", {
+        ...input,
+        sourceFiscalPeriodId: "fp-target",
+      }),
+    ).rejects.toThrow(/must differ/);
+    await expect(
+      server.fiscalPeriods.applyCarryover("fp-pre-closed", input),
+    ).rejects.toThrow(/cannot apply carryover from phase pre_closing/);
+    await expect(
+      server.fiscalPeriods.applyCarryover("fp-target", {
+        ...input,
+        sourceFiscalPeriodId: "fp-other-user",
+      }),
+    ).rejects.toThrow(/not found/);
+    await expect(
+      server.fiscalPeriods.applyCarryover("fp-source", {
+        ...input,
+        sourceFiscalPeriodId: "fp-target",
+      }),
+    ).rejects.toThrow(/cannot apply carryover from phase post_closing/);
+  });
+
   it("rejects patches to archived fiscal periods", async () => {
     const db = createFiscalPeriodDb([
       fiscalPeriod({
@@ -748,6 +815,9 @@ function createFiscalPeriodDb(
       },
       async createNext() {
         throw new Error("unexpected createNext call");
+      },
+      async applyCarryover() {
+        throw new Error("unexpected applyCarryover call");
       },
       async importArchived(
         userId: string,

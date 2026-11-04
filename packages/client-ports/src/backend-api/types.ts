@@ -131,6 +131,13 @@ export type FiscalPeriodNextCreateInput = {
   carryFixedAssets: boolean;
 };
 
+export type FiscalPeriodCarryoverApplyInput = {
+  sourceFiscalPeriodId: string;
+  carryBalances: boolean;
+  reversalEntryIds: string[] | null;
+  carryFixedAssets: boolean;
+};
+
 export type FiscalPeriodPatchInput = {
   name?: string;
   startDate?: string;
@@ -287,6 +294,13 @@ export type FiscalPeriodNextCreateRequest = {
 export type FiscalPeriodNextCreateResponse = {
   fiscalPeriod: FiscalPeriodApiRecord;
 };
+export type FiscalPeriodCarryoverApplyRequest = {
+  id: string;
+  input: FiscalPeriodCarryoverApplyInput;
+};
+export type FiscalPeriodCarryoverApplyResponse = {
+  fiscalPeriod: FiscalPeriodApiRecord;
+};
 export type FiscalPeriodImportArchivedRequest = {
   input: FiscalPeriodArchiveImportInput;
 };
@@ -427,6 +441,11 @@ export type OpenkkHttpEndpointSpecs = {
     FiscalPeriodNextCreateRequest,
     FiscalPeriodNextCreateResponse,
     201
+  >;
+  fiscalPeriodCarryoverApply: OpenkkHttpEndpointSpec<
+    FiscalPeriodCarryoverApplyRequest,
+    FiscalPeriodCarryoverApplyResponse,
+    200
   >;
   fiscalPeriodImportArchived: OpenkkHttpEndpointSpec<
     FiscalPeriodImportArchivedRequest,
@@ -574,6 +593,11 @@ export const OPENKK_HTTP_ENDPOINTS = {
     path: "/fiscal-periods/create-next",
     successStatus: 201,
   },
+  fiscalPeriodCarryoverApply: {
+    method: "POST",
+    path: "/fiscal-periods/{id}/apply-carryover",
+    successStatus: 200,
+  },
   fiscalPeriodImportArchived: {
     method: "POST",
     path: "/fiscal-periods/import-archived",
@@ -698,6 +722,10 @@ export interface FiscalPeriodsApi {
   create(input: FiscalPeriodCreateInput): Promise<FiscalPeriodApiRecord>;
   createNext(
     input: FiscalPeriodNextCreateInput,
+  ): Promise<FiscalPeriodApiRecord>;
+  applyCarryover(
+    id: string,
+    input: FiscalPeriodCarryoverApplyInput,
   ): Promise<FiscalPeriodApiRecord>;
   importArchived(
     input: FiscalPeriodArchiveImportInput,
