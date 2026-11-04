@@ -69,6 +69,43 @@ test("carries archived text into a persistent next period and keeps it when edit
   await expect(journal.getByLabel("借方金額").first()).toHaveValue("2,000");
 });
 
+test("overwrites an opened period's opening BS and fixed assets from a chosen source", async ({
+  page,
+}) => {
+  await page.goto("/fiscal-periods");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "2026.zip",
+    mimeType: "application/zip",
+    buffer: Buffer.from(await archivedPeriod()),
+  });
+  await expectStep(page, "次の期間へ");
+  await page.getByText("期末のBS → 翌期首のBS").click();
+  await page.getByText("固定資産データ").click();
+  await clickButton(page, "次期を作成");
+  await expectStep(page, "期間を開始");
+  await clickButton(page, "開始する");
+  await clickButton(page, "開始する");
+  await expectStep(page, "期首のBSを入力");
+
+  await clickButton(page, "前の期間から引き継ぐ");
+  const panel = page.getByRole("region", { name: "前の期間から引き継ぐ" });
+  await expect(panel.getByLabel("引き継ぎ元")).toHaveValue(/.+/);
+  await panel.getByText("固定資産データ").click();
+  await clickButton(page, "引き継いで上書き");
+  await clickButton(page, "上書きする");
+
+  await expectStep(page, "日々の仕訳");
+  await page.locator('button[aria-label="期首のBSを入力"]').first().click();
+  await expectStep(page, "期首のBSを入力");
+  await expect(page.getByText("保存済み")).toBeVisible();
+  const liabilities = page.getByRole("region", { name: "負債・純資産の部" });
+  await expect(liabilities.getByText("未払金", { exact: true })).toBeVisible();
+  await expect(liabilities.getByText("1,000", { exact: true })).toBeVisible();
+
+  await openFixedAssets(page);
+  await expect(page.getByText(storedText, { exact: true })).toBeVisible();
+});
+
 async function archivedPeriod(): Promise<Uint8Array> {
   const {
     archiveClosingRecords,

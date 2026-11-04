@@ -565,6 +565,9 @@ function createEntryDb(
       async createNext() {
         throw new Error("unexpected createNext call");
       },
+      async applyCarryover() {
+        throw new Error("unexpected applyCarryover call");
+      },
       async importArchived() {
         return fiscalPeriod({ id: "fp-archive", archiveStatus: "archived" });
       },

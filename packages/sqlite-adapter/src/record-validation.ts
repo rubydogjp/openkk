@@ -49,6 +49,23 @@ export function assertDbOpeningForPeriod(
   });
 }
 
+export function assertDbCarryoverTargetAllowed(
+  period: FiscalPeriodDbData,
+): void {
+  if (period.archiveStatus !== "active") {
+    throw serverConflictError(
+      `archived fiscal period cannot receive carryover: ${period.id}`,
+      "圧縮保存済みの会計期間は変更できません",
+    );
+  }
+  if (period.phase !== "pre_opening" && period.phase !== "journalizing") {
+    throw serverConflictError(
+      `fiscal period cannot receive carryover from phase ${period.phase}: ${period.id}`,
+      "仮締め以降の会計期間には引き継げません",
+    );
+  }
+}
+
 export function assertDbFiscalPeriodPatchAllowed(
   period: FiscalPeriodDbData,
   patch: FiscalPeriodDbPatchInput,

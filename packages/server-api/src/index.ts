@@ -19,6 +19,7 @@ import {
   archivedFiscalPeriodError,
   assertFiscalPeriodCreateInput,
   assertFiscalPeriodNextCreateInput,
+  assertFiscalPeriodCarryoverApplyInput,
   assertFiscalPeriodContainsExistingData,
   assertFiscalPeriodPatchInput,
   assertFiscalPeriodReadyForPreClosing,
@@ -192,6 +193,22 @@ export function createOpenkkServerApi(
           await usecases.fiscalPeriods.getAll(userId),
         );
         return usecases.fiscalPeriods.createNext(userId, input);
+      },
+      applyCarryover: async (id, input) => {
+        const current = await requireOwnedFiscalPeriod(id);
+        assertPeriodPhaseOneOf(
+          current,
+          ["pre_opening", "journalizing"],
+          "apply carryover",
+        );
+        assertFiscalPeriodCarryoverApplyInput(input);
+        if (input.sourceFiscalPeriodId === id) {
+          throw serverValidationError(
+            "Carryover source must differ from the target",
+            "引き継ぎ元に同じ期間は選べません",
+          );
+        }
+        return usecases.fiscalPeriods.applyCarryover(userId, id, input);
       },
       importArchived: (input) =>
         usecases.fiscalPeriods.importArchived(userId, input),

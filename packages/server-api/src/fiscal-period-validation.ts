@@ -14,6 +14,7 @@ import type {
   FiscalPeriodApiRecord,
   FiscalPeriodCreateInput,
   FiscalPeriodNextCreateInput,
+  FiscalPeriodCarryoverApplyInput,
   FiscalPeriodOpeningApiRecord,
   FiscalPeriodPatchInput,
   FixedAssetApiRecord,
@@ -125,6 +126,45 @@ export function assertFiscalPeriodNextCreateInput(
     "Reversal entry id",
     "同じ仕訳が再振替に重複して指定されています",
   );
+}
+
+export function assertFiscalPeriodCarryoverApplyInput(
+  input: unknown,
+): asserts input is FiscalPeriodCarryoverApplyInput {
+  const value = requireObject(input, "Carryover input");
+  assertNonBlankString(value.sourceFiscalPeriodId, "Source fiscal period id");
+  if (
+    typeof value.carryBalances !== "boolean" ||
+    typeof value.carryFixedAssets !== "boolean"
+  ) {
+    throw serverValidationError("Carryover options must be booleans", null);
+  }
+  if (value.reversalEntryIds !== null) {
+    if (
+      !Array.isArray(value.reversalEntryIds) ||
+      value.reversalEntryIds.length > MAX_ENTRY_IMPORT_ITEMS
+    ) {
+      throw serverValidationError(
+        "Reversal entry ids must be null or a bounded array",
+        null,
+      );
+    }
+    assertUniqueStrings(
+      value.reversalEntryIds,
+      "Reversal entry id",
+      "同じ仕訳が再振替に重複して指定されています",
+    );
+  }
+  if (
+    !value.carryBalances &&
+    !value.carryFixedAssets &&
+    value.reversalEntryIds === null
+  ) {
+    throw serverValidationError(
+      "Carryover requires at least one item",
+      "引き継ぐ項目を選んでください",
+    );
+  }
 }
 
 export function assertFiscalPeriodContainsExistingData(

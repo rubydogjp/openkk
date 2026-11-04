@@ -4,6 +4,7 @@ import type {
   EntryDbUpsertInput,
   FiscalPeriodDbCreateInput,
   FiscalPeriodNextDbCreateInput,
+  FiscalPeriodCarryoverDbApplyInput,
   FiscalPeriodDbPatchInput,
   FiscalPeriodDbRecord,
   FixedAssetDbCreateInput,
@@ -33,6 +34,10 @@ export interface FiscalPeriodsDb {
   createNext(
     userId: string,
     input: FiscalPeriodNextDbCreateInput,
+  ): Promise<FiscalPeriodDbRecord>;
+  applyCarryover(
+    id: string,
+    input: FiscalPeriodCarryoverDbApplyInput,
   ): Promise<FiscalPeriodDbRecord>;
   importArchived(
     userId: string,

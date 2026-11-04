@@ -8,6 +8,7 @@ import {
 import type {
   EntryUpsertInput,
   FiscalPeriodArchiveImportInput,
+  FiscalPeriodCarryoverApplyInput,
   FiscalPeriodCreateInput,
   FiscalPeriodNextCreateInput,
   FiscalPeriodPatchInput,
@@ -129,6 +130,20 @@ function createFiscalPeriodsUsecase(db: OpenkkDbPort) {
       );
       assertFiscalPeriodCanCarryOver(source, input.startDate);
       return db.fiscalPeriods.createNext(userId, input);
+    },
+    async applyCarryover(
+      userId: string,
+      id: string,
+      input: FiscalPeriodCarryoverApplyInput,
+    ) {
+      const target = await requireOwnedFiscalPeriod(db, userId, id);
+      const source = await requireOwnedFiscalPeriod(
+        db,
+        userId,
+        input.sourceFiscalPeriodId,
+      );
+      assertFiscalPeriodCanCarryOver(source, target.startDate);
+      return db.fiscalPeriods.applyCarryover(id, input);
     },
     async importArchived(
       userId: string,

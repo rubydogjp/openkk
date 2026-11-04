@@ -69,6 +69,7 @@ export type EntrySuggestions = {
 
 type EntriesState = {
   listFiscalPeriodEntries: (fiscalPeriodId: string) => EntryRecord[];
+  loadFiscalPeriodEntries: (fiscalPeriodId: string) => Promise<EntryRecord[]>;
   listMonthRows: (
     fiscalPeriodId: string,
     yearMonth: string,
@@ -243,6 +244,12 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
       listFiscalPeriodEntries(fiscalPeriodId) {
         return records
           .filter((record) => record.fiscalPeriodId === fiscalPeriodId)
+          .sort((left, right) => left.date.localeCompare(right.date));
+      },
+      async loadFiscalPeriodEntries(fiscalPeriodId) {
+        const remoteEntries = await backendApi.entries.getAll(fiscalPeriodId);
+        return remoteEntries
+          .map((entry) => mapRemoteEntryToRecord(entry, fiscalPeriodId, master))
           .sort((left, right) => left.date.localeCompare(right.date));
       },
       listMonthRows(fiscalPeriodId, yearMonth) {

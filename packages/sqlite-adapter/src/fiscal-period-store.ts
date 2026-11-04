@@ -17,6 +17,8 @@ import type {
   FiscalPeriodDbCreateInput,
   FiscalPeriodsDb,
   FixedAssetDbRecord,
+  OpeningBalanceLineDbRecord,
+  OpeningJournalDbRecord,
 } from "@rubydogjp/openkk-server-ports";
 import { createEntriesDb, insertEntry } from "./entry-store.js";
 import { createFixedAssetsDb, insertFixedAsset } from "./fixed-asset-store.js";
@@ -37,12 +39,79 @@ import {
 } from "./persistence-codec.js";
 import {
   assertDbArchiveImportSizeLimits,
+  assertDbCarryoverTargetAllowed,
   assertDbFiscalPeriodPatchAllowed,
   assertDbOpeningForPeriod,
 } from "./record-validation.js";
 import { newId, nowMs } from "./runtime.js";
 import type { SqlDb } from "./sql-db.js";
 import { runInTransaction } from "./transaction.js";
+
+async function requireCarryoverSource(
+  periods: FiscalPeriodsDb,
+  userId: string,
+  sourceFiscalPeriodId: string,
+): Promise<FiscalPeriodDbRecord> {
+  const source = await periods.getById(sourceFiscalPeriodId);
+  if (source == null || source.userId !== userId) {
+    throw serverNotFoundError(
+      `fiscal period not found: ${sourceFiscalPeriodId}`,
+    );
+  }
+  return source;
+}
+
+async function buildCarryover(
+  db: SqlDb,
+  source: FiscalPeriodDbRecord,
+  startDate: string,
+  options: { carryBalances: boolean; reversalEntryIds: string[] },
+): Promise<{
+  balanceLines: OpeningBalanceLineDbRecord[] | null;
+  journals: OpeningJournalDbRecord[] | null;
+}> {
+  const entries = await createEntriesDb(db).getAll(source.id);
+  const entriesById = new Map(entries.map((entry) => [entry.id, entry]));
+  const selected = options.reversalEntryIds.map((id) => {
+    const entry = entriesById.get(id);
+    if (entry == null) {
+      throw serverNotFoundError(
+        `Reversal entry ${id} not found in fiscal period ${source.id}`,
+      );
+    }
+    return entry;
+  });
+  return {
+    balanceLines: options.carryBalances
+      ? buildCarryoverOpeningBalances({
+          openingBalanceLines: source.opening.balanceLines,
+          entries,
+        })
+      : null,
+    journals: buildCarryoverOpeningJournals({ entries: selected, startDate }),
+  };
+}
+
+async function copyActiveFixedAssets(
+  db: SqlDb,
+  source: FiscalPeriodDbRecord,
+  target: FiscalPeriodDbRecord,
+  now: number,
+): Promise<void> {
+  const assets = await createFixedAssetsDb(db).getAll(source.id);
+  for (const asset of assets) {
+    if (asset.status !== "active") continue;
+    const carried: FixedAssetDbRecord = {
+      ...asset,
+      id: newId("fa"),
+      fiscalPeriodId: target.id,
+      createdAt: target.updatedAt,
+      updatedAt: target.updatedAt,
+    };
+    assertFixedAssetMatchesRules(carried, target);
+    await insertFixedAsset(db, carried, now);
+  }
+}
 
 export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
   const periods: FiscalPeriodsDb = {
@@ -79,55 +148,72 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
     },
     async createNext(userId, input) {
       return runInTransaction(db, async () => {
-        const source = await periods.getById(input.sourceFiscalPeriodId);
-        if (source == null || source.userId !== userId) {
-          throw serverNotFoundError(
-            `fiscal period not found: ${input.sourceFiscalPeriodId}`,
-          );
-        }
+        const source = await requireCarryoverSource(
+          periods,
+          userId,
+          input.sourceFiscalPeriodId,
+        );
         assertFiscalPeriodCanCarryOver(source, input.startDate);
-        const entries = await createEntriesDb(db).getAll(source.id);
-        const entriesById = new Map(entries.map((entry) => [entry.id, entry]));
-        const selected = input.reversalEntryIds.map((id) => {
-          const entry = entriesById.get(id);
-          if (entry == null) {
-            throw serverNotFoundError(
-              `Reversal entry ${id} not found in fiscal period ${source.id}`,
-            );
-          }
-          return entry;
-        });
         const now = nowMs();
         const record = newFiscalPeriodRecord(userId, input, now);
-        const opening = record.opening;
-        opening.balanceLines = input.carryBalances
-          ? buildCarryoverOpeningBalances({
-              openingBalanceLines: source.opening.balanceLines,
-              entries,
-            })
-          : [];
-        opening.journals = buildCarryoverOpeningJournals({
-          entries: selected,
-          startDate: record.startDate,
+        const carried = await buildCarryover(db, source, record.startDate, {
+          carryBalances: input.carryBalances,
+          reversalEntryIds: input.reversalEntryIds,
         });
+        record.opening.balanceLines = carried.balanceLines ?? [];
+        record.opening.journals = carried.journals ?? [];
         record.openingBalancesCompleted = input.carryBalances;
         await insertFiscalPeriod(db, record, now);
         if (input.carryFixedAssets) {
-          const assets = await createFixedAssetsDb(db).getAll(source.id);
-          for (const asset of assets) {
-            if (asset.status !== "active") continue;
-            const carried: FixedAssetDbRecord = {
-              ...asset,
-              id: newId("fa"),
-              fiscalPeriodId: record.id,
-              createdAt: record.createdAt,
-              updatedAt: record.updatedAt,
-            };
-            assertFixedAssetMatchesRules(carried, record);
-            await insertFixedAsset(db, carried, now);
-          }
+          await copyActiveFixedAssets(db, source, record, now);
         }
         return record;
+      });
+    },
+    async applyCarryover(id, input) {
+      return runInTransaction(db, async () => {
+        const current = await requireFiscalPeriodRecord(db, id);
+        assertDbCarryoverTargetAllowed(current);
+        const source = await requireCarryoverSource(
+          periods,
+          current.userId,
+          input.sourceFiscalPeriodId,
+        );
+        assertFiscalPeriodCanCarryOver(source, current.startDate);
+        const carried = await buildCarryover(db, source, current.startDate, {
+          carryBalances: input.carryBalances,
+          reversalEntryIds: input.reversalEntryIds ?? [],
+        });
+        const now = nowMs();
+        const updated: FiscalPeriodDbRecord = {
+          ...current,
+          updatedAt: msToIso(now),
+          openingBalancesCompleted:
+            input.carryBalances || current.openingBalancesCompleted,
+          opening: {
+            balanceLines: input.carryBalances
+              ? (carried.balanceLines ?? [])
+              : current.opening.balanceLines,
+            journals:
+              input.reversalEntryIds != null
+                ? (carried.journals ?? [])
+                : current.opening.journals,
+          },
+        };
+        assertDbOpeningForPeriod(updated.opening, updated);
+        await db.exec({
+          sql: `UPDATE fiscal_periods SET data = ?, updated_at = ? WHERE id = ?`,
+          bind: [serializeFiscalPeriodDbData(updated), now, id],
+        });
+        await replaceOpening(db, id, updated.opening);
+        if (input.carryFixedAssets) {
+          await db.exec({
+            sql: `DELETE FROM fixed_assets WHERE fiscal_period_id = ?`,
+            bind: [id],
+          });
+          await copyActiveFixedAssets(db, source, updated, now);
+        }
+        return updated;
       });
     },
     async importArchived(userId, input) {
