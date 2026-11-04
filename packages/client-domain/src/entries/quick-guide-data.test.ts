@@ -37,6 +37,7 @@ describe("quick guide data", () => {
 
   it("resolves duplicated expense names to the 販管費 account, not 製造原価", () => {
     const expenseNames = [
+      "保険料",
       "消耗品費",
       "通信費",
       "水道光熱費",
