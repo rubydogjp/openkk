@@ -13,7 +13,6 @@ import {
   type EntryLineMaster,
   type EntryRecord,
 } from "@rubydogjp/openkk-client-domain";
-import type { OpenkkBackendPort } from "@rubydogjp/openkk-client-ports";
 
 import { CliUsageError } from "./cli-io.js";
 import {
@@ -21,6 +20,7 @@ import {
   type CliCommandContext,
   type CliOptions,
 } from "./command-context.js";
+import { loadEntryRecords, loadMaster } from "./records.js";
 
 const ENTRY_FILE_FORMATS = ["csv", "json"] as const;
 type EntryFileFormat = (typeof ENTRY_FILE_FORMATS)[number];
@@ -120,28 +120,6 @@ export async function runEntriesCommand(
           : `entries ${subcommand} というコマンドはありません`,
       );
   }
-}
-
-async function loadMaster(api: OpenkkBackendPort): Promise<EntryLineMaster> {
-  const [accounts, taxCategories, businessCategories] = await Promise.all([
-    api.masterData.getBookAccounts(),
-    api.masterData.getTaxCategories(),
-    api.masterData.getBusinessCategories(),
-  ]);
-  return { accounts, taxCategories, businessCategories };
-}
-
-async function loadEntryRecords(
-  api: OpenkkBackendPort,
-  fiscalPeriodId: string,
-): Promise<EntryRecord[]> {
-  const [entries, master] = await Promise.all([
-    api.entries.getAll(fiscalPeriodId),
-    loadMaster(api),
-  ]);
-  return entries
-    .map((entry) => storedEntryToRecord(entry, fiscalPeriodId, master))
-    .sort((left, right) => left.date.localeCompare(right.date));
 }
 
 function buildSinglePairInput(options: CliOptions, master: EntryLineMaster) {

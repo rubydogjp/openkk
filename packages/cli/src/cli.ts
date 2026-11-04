@@ -14,6 +14,7 @@ import {
 import type { CliCommandContext } from "./command-context.js";
 import { runEntriesCommand } from "./entries.js";
 import { runPeriodsCommand } from "./periods.js";
+import { runReportCommand } from "./report.js";
 
 export const DEFAULT_CLI_FILE = "openkk.sqlite3";
 export const DEFAULT_CLI_USER_ID = "openkk-original-user";
@@ -23,6 +24,7 @@ const COMMANDS = new Map<string, (context: CliCommandContext) => Promise<void>>(
   [
     ["periods", runPeriodsCommand],
     ["entries", runEntriesCommand],
+    ["report", runReportCommand],
   ],
 );
 
@@ -50,6 +52,9 @@ const USAGE = `オープン会計 CLI (ベータ)
                                          仕訳を取り込む (同じ localId は飛ばす)
   entries export <期間id> [--format csv|json] [--out <file>]
                                          仕訳を書き出す (既定は CSV を標準出力へ)
+  report <期間id> <journal|ledger|fs> [--out <file.html>]
+                                         仕訳帳・総勘定元帳・財務諸表を HTML で出す
+                                         (本締め前は減価償却などの自動仕訳を含む仮の帳票)
 
 オプション:
   --file <path>   帳簿ファイル (既定: 環境変数 ${CLI_FILE_ENV}、なければ ./${DEFAULT_CLI_FILE})
@@ -144,6 +149,7 @@ async function dispatch(
         json: values.json ?? false,
       },
       resolvePath: (target) => path.resolve(io.cwd, target),
+      today: () => io.now(),
     });
   } finally {
     backend.close();

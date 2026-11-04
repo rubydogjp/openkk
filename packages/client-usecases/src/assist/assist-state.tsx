@@ -17,14 +17,16 @@ import {
   useOpenkkToday,
 } from "../shared/openkk-config-context.js";
 import { assertEditingUnlocked } from "../shared/editing-policy.js";
+import {
+  mapFixedAsset,
+  mapOpeningJournalToRecord,
+} from "@rubydogjp/openkk-client-domain";
 import { KeyedAsyncStateVersion } from "../shared/async-state-version.js";
 import { KeyedAsyncMutationQueue } from "../shared/async-mutation-queue.js";
 import {
   buildOpeningJournalLines,
   fixedAssetDraftToPatch,
   listFixedAssetsForPeriod,
-  mapFixedAsset,
-  mapOpeningJournalToRecord,
   nextOpeningCarryoverId,
   fixedAssetDraftBusinessRate,
   resolveFixedAssetAccountId,

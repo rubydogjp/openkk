@@ -3,7 +3,13 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { CLI_FILE_ENV, DEFAULT_CLI_FILE, runOpenkkCli } from "./index.js";
+import { openCliBackend } from "./backend.js";
+import {
+  CLI_FILE_ENV,
+  DEFAULT_CLI_FILE,
+  DEFAULT_CLI_USER_ID,
+  runOpenkkCli,
+} from "./index.js";
 
 const tempDirs: string[] = [];
 
@@ -29,6 +35,7 @@ function workspace() {
       },
       cwd,
       env: (name) => env.get(name) ?? null,
+      now: () => new Date("2026-12-31T12:00:00"),
     });
     return { code, stdout, stderr };
   };
@@ -308,6 +315,63 @@ describe("openkk cli", () => {
     expect((await run("entries", "list", id)).stdout).toContain(
       "仕訳はまだありません",
     );
+  });
+
+  it("writes provisional reports that include generated closing entries", async () => {
+    const { cwd, run } = workspace();
+    const id = await startedPeriod(run);
+    await run(
+      "entries",
+      "add",
+      id,
+      "--date",
+      "2026-03-15",
+      "--debit",
+      "普通預金",
+      "--credit",
+      "売上",
+      "--amount",
+      "300000",
+      "--description",
+      "春の案件",
+    );
+    const backend = await openCliBackend(
+      path.join(cwd, DEFAULT_CLI_FILE),
+      DEFAULT_CLI_USER_ID,
+    );
+    await backend.api.fixedAssets.create(id, {
+      name: "ノートパソコン",
+      acquisitionDate: "2026-01-10",
+      acquisitionCost: 240000,
+      usefulLife: 4,
+      depreciationMethod: "straight_line",
+      businessRate: 1,
+      bookAccountId: "acct_equipment",
+    });
+    backend.close();
+
+    const journal = await run("report", id, "journal");
+    const written = await run("report", id, "fs", "--out", "fs.html");
+    const fsHtml = fs.readFileSync(path.join(cwd, "fs.html"), "utf8");
+
+    expect(journal.code).toBe(0);
+    expect(journal.stdout).toMatch(/^<!doctype html>/i);
+    expect(journal.stdout).toContain("春の案件");
+    expect(journal.stdout).toContain("減価償却費");
+    expect(journal.stdout).toContain("ノートパソコン");
+    expect(written.stdout).toContain("財務諸表を書き出しました");
+    expect(fsHtml).toContain("300,000");
+    expect(fsHtml).toContain("減価償却費");
+  });
+
+  it("rejects an unknown report kind", async () => {
+    const { run } = workspace();
+    const id = await startedPeriod(run);
+
+    const result = await run("report", id, "balance");
+
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain("journal / ledger / fs");
   });
 
   it("rejects unknown commands and options as usage errors", async () => {

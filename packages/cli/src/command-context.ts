@@ -26,6 +26,7 @@ export type CliCommandContext = {
   args: string[];
   options: CliOptions;
   resolvePath(target: string): string;
+  today(): Date;
 };
 
 export async function requireFiscalPeriod(

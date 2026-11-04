@@ -23,6 +23,7 @@ export * from "./assist/fixed-asset-data.js";
 export * from "./assist/fixed-asset-draft.js";
 export * from "./assist/fixed-asset-depreciation.js";
 export * from "./assist/opening-carryover.js";
+export * from "./assist/stored-record-mapping.js";
 
 export * from "./archive/fiscal-period-archive.js";
 export {
@@ -41,6 +42,7 @@ export * from "./steps/next-fiscal-period.js";
 export * from "./print/financial-statements-print.js";
 export * from "./print/entry-metadata.js";
 export * from "./print/fs-data.js";
+export * from "./print/fiscal-period-reports.js";
 export * from "./print/general-ledger-print.js";
 export * from "./print/journal-print.js";
 export * from "./print/print-shell.js";

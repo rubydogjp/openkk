@@ -3,6 +3,7 @@ export type CliIo = {
   stderr(text: string): void;
   cwd: string;
   env(name: string): string | null;
+  now(): Date;
 };
 
 export type CliOutput = {

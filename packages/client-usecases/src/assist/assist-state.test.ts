@@ -5,11 +5,11 @@ import {
   resolveFixedAssetAccountId,
   fixedAssetDraftToPatch,
   listFixedAssetsForPeriod,
-  mapOpeningJournalToRecord,
   nextOpeningCarryoverId,
   upsertFixedAsset,
 } from "./assist-state-helpers.js";
 import {
+  mapOpeningJournalToRecord,
   formatBusinessRatePercent,
   type FixedAsset,
   type BookAccount,
