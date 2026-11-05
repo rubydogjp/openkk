@@ -3,6 +3,12 @@ import {
   createSqliteDbAdapter,
   type SqlDb,
 } from "@rubydogjp/openkk-sqlite-adapter";
+
+import {
+  browserPersistentStorage,
+  requestPersistentStorage,
+} from "./persistent-storage.js";
+
 export { type DbSnapshot } from "@rubydogjp/openkk-server-ports";
 
 export type FileDbAdapterOptions = {
@@ -120,7 +126,9 @@ export function createFileDbAdapter(
           options.onWaitingForAnotherTab,
           { vfsName: options.vfsName, dbFileName: options.dbFileName },
         );
-        return await createSqliteDbAdapter(db, seed);
+        const adapter = await createSqliteDbAdapter(db, seed);
+        void requestPersistentStorage(browserPersistentStorage());
+        return adapter;
       } catch (error) {
         cachedAdapter = null;
         cachedAdapterKey = null;

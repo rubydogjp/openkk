@@ -1,1 +1,1 @@
-export { InstallPage as default } from "@rubydogjp/openkk-client";
+export { BrowserStorageInstallPage as default } from "@rubydogjp/openkk-client";

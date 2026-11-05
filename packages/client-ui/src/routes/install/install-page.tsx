@@ -18,6 +18,9 @@ import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 
 const INSTALL_AVAILABILITY_TIMEOUT_MS = 2500;
 
+const BROWSER_STORAGE_NOTICE =
+  "ブラウザのまま使うと、しばらく開かないときや端末の空きが少ないときに、ブラウザが帳簿のデータを消すことがあります（Safari では 7 日ほど開かないだけで消えることがあります）。ホーム画面（Mac では Dock）に追加すると消えにくくなります。";
+
 type Phase =
   | "checking"
   | "ready"
@@ -34,10 +37,22 @@ const phaseMessage: Record<Phase, string> = {
   dismissed:
     "ホーム画面への追加をキャンセルしました。このままブラウザで使えます。",
   unsupported:
-    "このブラウザでは、このページのボタンから追加を始められません。ブラウザのメニューに「アプリをインストール」や「ホーム画面に追加」がある場合は、そこから追加できます。",
+    "このブラウザでは、このページのボタンから追加を始められません。ブラウザのメニューに「アプリをインストール」「ホーム画面に追加」「Dock に追加」などがある場合は、そこから追加できます。",
 };
 
 export function InstallPage() {
+  return <InstallScreen keepsBooksInBrowser={false} />;
+}
+
+export function BrowserStorageInstallPage() {
+  return <InstallScreen keepsBooksInBrowser />;
+}
+
+function InstallScreen({
+  keepsBooksInBrowser,
+}: {
+  keepsBooksInBrowser: boolean;
+}) {
   const router = useRouter();
   const openkkConfig = useOpenkkConfig();
   const appInstall = usePlatformAdapter().appInstall;
@@ -149,6 +164,19 @@ export function InstallPage() {
       >
         {phase === "installed" ? "アプリを開く" : "ブラウザで開く"}
       </InstallButton>
+      {keepsBooksInBrowser && phase !== "installed" ? (
+        <p
+          style={{
+            margin: "8px 0 0",
+            maxWidth: 480,
+            lineHeight: 1.8,
+            fontSize: fontSize.sm,
+            color: palette.textLabel,
+          }}
+        >
+          {BROWSER_STORAGE_NOTICE}
+        </p>
+      ) : null}
     </main>
   );
 }
