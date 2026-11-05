@@ -465,6 +465,9 @@ function createFixedAssetDb(
       async applyCarryover() {
         throw new Error("unexpected applyCarryover call");
       },
+      async applyCarryoverFromArchive() {
+        throw new Error("unexpected applyCarryoverFromArchive call");
+      },
       async importArchived() {
         return fiscalPeriod({ id: "fp-archive", archiveStatus: "archived" });
       },

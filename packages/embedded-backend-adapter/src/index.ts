@@ -108,6 +108,13 @@ export function createOpenkkEmbeddedBackendAdapter(
         });
         return response.fiscalPeriod;
       },
+      applyCarryoverFromArchive: async (id, input) => {
+        const response = await request(
+          "fiscalPeriodCarryoverFromArchiveApply",
+          { id, input },
+        );
+        return response.fiscalPeriod;
+      },
       importArchived: async (input) => {
         const response = await request("fiscalPeriodImportArchived", { input });
         return response.fiscalPeriod;
@@ -295,6 +302,16 @@ async function embeddedResponseBody(
       const request = body as EndpointRequest<"fiscalPeriodCarryoverApply">;
       return {
         fiscalPeriod: await server.fiscalPeriods.applyCarryover(
+          request.id,
+          request.input,
+        ),
+      };
+    }
+    case "fiscalPeriodCarryoverFromArchiveApply": {
+      const request =
+        body as EndpointRequest<"fiscalPeriodCarryoverFromArchiveApply">;
+      return {
+        fiscalPeriod: await server.fiscalPeriods.applyCarryoverFromArchive(
           request.id,
           request.input,
         ),

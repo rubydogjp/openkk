@@ -76,6 +76,13 @@ export type FiscalPeriodCarryoverDbApplyInput = {
   carryFixedAssets: boolean;
 };
 
+export type FiscalPeriodCarryoverFromArchiveDbApplyInput = {
+  archive: FiscalPeriodArchiveDbImportInput;
+  carryBalances: boolean;
+  reversalEntryIndexes: number[] | null;
+  carryFixedAssets: boolean;
+};
+
 export type FiscalPeriodDbPatchInput = {
   name?: string;
   startDate?: string;

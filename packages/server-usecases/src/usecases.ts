@@ -9,6 +9,7 @@ import type {
   EntryUpsertInput,
   FiscalPeriodArchiveImportInput,
   FiscalPeriodCarryoverApplyInput,
+  FiscalPeriodCarryoverFromArchiveApplyInput,
   FiscalPeriodCreateInput,
   FiscalPeriodNextCreateInput,
   FiscalPeriodPatchInput,
@@ -144,6 +145,19 @@ function createFiscalPeriodsUsecase(db: OpenkkDbPort) {
       );
       assertFiscalPeriodCanCarryOver(source, target.startDate);
       return db.fiscalPeriods.applyCarryover(id, input);
+    },
+    async applyCarryoverFromArchive(
+      userId: string,
+      id: string,
+      input: FiscalPeriodCarryoverFromArchiveApplyInput,
+    ) {
+      await requireOwnedFiscalPeriod(db, userId, id);
+      return db.fiscalPeriods.applyCarryoverFromArchive(id, {
+        archive: normalizeArchiveImportInput(input.archive),
+        carryBalances: input.carryBalances,
+        reversalEntryIndexes: input.reversalEntryIndexes,
+        carryFixedAssets: input.carryFixedAssets,
+      });
     },
     async importArchived(
       userId: string,
