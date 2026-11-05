@@ -26,3 +26,14 @@ export {
   type BrowserOpenedDocument,
   type BrowserRecentDocument,
 } from "./documents.js";
+export {
+  canUseInAppBooks,
+  createInAppBooks,
+  createWorkerBookWriter,
+  inAppBooks,
+  type InAppBook,
+  type InAppBooks,
+  type InAppBooksDependencies,
+  type InAppBooksDirectory,
+  type InAppBookWriter,
+} from "./in-app-books.js";

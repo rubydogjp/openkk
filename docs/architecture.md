@@ -119,6 +119,14 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 
 同じ部品で、デスクトップアプリなど別のプラットフォームのファイル版も、`OpenkkDocumentSink` を実装するだけで作れる。
 
+### アプリの中の帳簿 (OPFS)
+
+ファイルを書けないブラウザ (スマホ・Safari・Firefox) では、帳簿のファイルをアプリの中 (OPFS の `openkk-books/`) に置く (`inAppBooks`、`platform-browser-adapter`)。中身はファイル版と同じ `.openkk` で、`BrowserOpenedDocument` (バイト列と `OpenkkDocumentSink`) を返すので、上の部品をそのまま使える。
+
+- 書き込みは worker の sync access handle で行う (Safari でも書けるように)。手順は `in-app-book-protocol.ts` にあり、控え (`.next`) を書き切ってから「準備済み」の印 (`.ready`) を置き、本体を書いてから両方を消す。開くときに印が残っていれば、本体を控えで戻す。印がなく控えだけ残っていれば、本体はそのままで控えを消す。
+- OPFS の更新時刻はすぐ続けて書くと変わらないので、書く前の確かめは更新時刻ではなく中身で行う。最後に読んだ・書いた中身と今のファイルが違えば `conflict` を返す (別のタブが先に保存した場合)。
+- 開く・作るときに `navigator.storage.persist()` を求める。
+
 ## PWA とオフラインキャッシュ
 
 各アプリのService Workerは静的エクスポートを事前保存する。正本は `scripts/service-worker.template.js` に置き、`gen-service-workers.mjs` が各アプリの `public/sw.js` を生成する。debugルートを事前保存するのはSim版だけ。
