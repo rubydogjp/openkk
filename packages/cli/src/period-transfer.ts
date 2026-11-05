@@ -29,6 +29,26 @@ export async function buildFiscalPeriodArchiveZipFromBook(
   );
 }
 
+export async function carryOverFromBook(
+  source: OpenkkBackendPort,
+  sourcePeriod: FiscalPeriodApiRecord,
+  target: OpenkkBackendPort,
+  targetPeriodId: string,
+  createdAt: Date,
+): Promise<FiscalPeriodApiRecord> {
+  const zip = await buildFiscalPeriodArchiveZipFromBook(
+    source,
+    sourcePeriod,
+    createdAt,
+  );
+  return target.fiscalPeriods.applyCarryoverFromArchive(targetPeriodId, {
+    archive: readFiscalPeriodArchiveZip(zip),
+    carryBalances: true,
+    reversalEntryIndexes: null,
+    carryFixedAssets: true,
+  });
+}
+
 export async function copyFiscalPeriodToBook(
   source: OpenkkBackendPort,
   period: FiscalPeriodApiRecord,

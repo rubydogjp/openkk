@@ -504,6 +504,119 @@ describe("openkk cli", () => {
     );
   });
 
+  it("starts the next year in a file of its own and carries over once the year is closed", async () => {
+    const { cwd, run } = workspace();
+    const id = await startedPeriod(run);
+    await run("opening", "set", id, "現金=100000", "元入金=100000");
+    await run(
+      "entries",
+      "add",
+      id,
+      "--date",
+      "2026-06-30",
+      "--debit",
+      "普通預金",
+      "--credit",
+      "売上",
+      "--amount",
+      "500000",
+      "--description",
+      "上期の報酬",
+    );
+
+    const early = await run(
+      "periods",
+      "next",
+      id,
+      "--out",
+      "2027.openkk",
+      "--json",
+    );
+    const earlyResult = JSON.parse(early.stdout) as {
+      file: string;
+      carriedOver: boolean;
+      fiscalPeriod: { id: string; name: string };
+    };
+    const nextId = earlyResult.fiscalPeriod.id;
+    const note = await run("periods", "next", id, "--out", "2027-note.openkk");
+    const emptyOpening = await run(
+      "--file",
+      "2027.openkk",
+      "opening",
+      "show",
+      nextId,
+    );
+    const tooEarly = await run(
+      "--file",
+      "2027.openkk",
+      "opening",
+      "carry",
+      nextId,
+      "--from",
+      DEFAULT_CLI_FILE,
+    );
+
+    await run("closing", "pre", id, "--yes");
+    await run("closing", "final", id, "--yes");
+    await run("periods", "receive", id);
+
+    const carried = await run(
+      "--file",
+      "2027.openkk",
+      "opening",
+      "carry",
+      nextId,
+      "--from",
+      DEFAULT_CLI_FILE,
+    );
+    const carriedOpening = await run(
+      "--file",
+      "2027.openkk",
+      "opening",
+      "show",
+      nextId,
+    );
+    const closedNext = await run(
+      "periods",
+      "next",
+      id,
+      "--out",
+      "2027-closed.openkk",
+      "--json",
+    );
+    const closedResult = JSON.parse(closedNext.stdout) as {
+      carriedOver: boolean;
+      fiscalPeriod: { openingBalancesCompleted: boolean };
+    };
+    const missingSource = await run(
+      "--file",
+      "2027.openkk",
+      "opening",
+      "carry",
+      nextId,
+    );
+
+    expect(earlyResult).toMatchObject({
+      file: path.join(cwd, "2027.openkk"),
+      carriedOver: false,
+      fiscalPeriod: { name: "2027年分" },
+    });
+    expect(note.stdout).toContain("引き継いでいません");
+    expect(note.stdout).toContain("opening carry");
+    expect(emptyOpening.stdout).toContain("まだ入力されていません");
+    expect(tooEarly.code).toBe(1);
+    expect(tooEarly.stderr).toContain("本締めと書類の受領");
+    expect(carried.code).toBe(0);
+    expect(carried.stdout).toContain("引き継ぎました: 2026年分 → 2027年分");
+    expect(carriedOpening.stdout).toContain("現金  100,000");
+    expect(carriedOpening.stdout).toContain("普通預金  500,000");
+    expect(closedResult).toMatchObject({
+      carriedOver: true,
+      fiscalPeriod: { openingBalancesCompleted: true },
+    });
+    expect(missingSource.code).toBe(2);
+  });
+
   it("runs a whole year from opening balances to the next period", async () => {
     const { cwd, run } = workspace();
     const id = await startedPeriod(run);

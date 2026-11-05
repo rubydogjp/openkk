@@ -1,11 +1,16 @@
 import { formatAmount } from "@rubydogjp/openkk-client-domain";
-import type { OpeningBalanceLineApiRecord } from "@rubydogjp/openkk-client-ports";
+import type {
+  FiscalPeriodApiRecord,
+  OpeningBalanceLineApiRecord,
+  OpenkkBackendPort,
+} from "@rubydogjp/openkk-client-ports";
 
 import { CliUsageError } from "./cli-io.js";
 import {
   requireFiscalPeriod,
   type CliCommandContext,
 } from "./command-context.js";
+import { carryOverFromBook } from "./period-transfer.js";
 import { loadMaster, requireAccountByExactName } from "./records.js";
 
 const ASSET_PREFIX = "a:";
@@ -66,10 +71,42 @@ export async function runOpeningCommand(
       );
       return;
     }
+    case "carry": {
+      const target = await requireFiscalPeriod(api, periodId ?? null);
+      if (options.from == null) {
+        throw new CliUsageError(
+          "引き継ぎ元の帳簿ファイルを --from で指定してください",
+        );
+      }
+      const sourceBook = await context.openBook(
+        context.resolvePath(options.from),
+      );
+      try {
+        const source = await requireCarryoverSource(
+          sourceBook.api,
+          options.fromPeriod,
+        );
+        const updated = await carryOverFromBook(
+          sourceBook.api,
+          source,
+          api,
+          target.id,
+          context.today(),
+        );
+        if (options.json) {
+          output.json(updated);
+          return;
+        }
+        output.line(`引き継ぎました: ${source.name} → ${updated.name}`);
+      } finally {
+        sourceBook.close();
+      }
+      return;
+    }
     default:
       throw new CliUsageError(
         subcommand == null
-          ? "opening のあとに show / set を指定してください"
+          ? "opening のあとに show / set / carry を指定してください"
           : `opening ${subcommand} というコマンドはありません`,
       );
   }
@@ -127,4 +164,19 @@ function sumLines(
   return lines
     .filter((line) => line.accountId.startsWith(prefix))
     .reduce((total, line) => total + line.amount, 0);
+}
+
+async function requireCarryoverSource(
+  api: OpenkkBackendPort,
+  periodId: string | null,
+): Promise<FiscalPeriodApiRecord> {
+  if (periodId != null) return requireFiscalPeriod(api, periodId);
+  const periods = await api.fiscalPeriods.getAll();
+  const [onlyPeriod] = periods;
+  if (periods.length !== 1 || onlyPeriod == null) {
+    throw new CliUsageError(
+      `引き継ぎ元の帳簿に会計期間が ${periods.length} つあります。--from-period で選んでください`,
+    );
+  }
+  return onlyPeriod;
 }

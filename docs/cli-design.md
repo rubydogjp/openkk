@@ -60,6 +60,8 @@ openkk archive export <period> <out.zip> | import <zip>
 openkk opening show | set <期間id> <科目>=<金額> ...
 openkk closing pre | cancel | final <期間id> [--yes]
 openkk periods receive | next <期間id>
+openkk periods next <期間id> --out <file.openkk>   # 次の期間を新しいファイルに作る (本締め・書類の受け取り済みなら引き継ぐ)
+openkk opening carry <期間id> --from <file.openkk> [--from-period <id>]   # 別のファイルの期間から引き継ぐ (上書き)
 openkk periods export <期間id> [--out <file.openkk>]   # その期間だけを入れた帳簿ファイルを作る (1 期間 = 1 ファイル)
 ```
 

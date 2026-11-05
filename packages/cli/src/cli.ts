@@ -53,10 +53,15 @@ const USAGE = `オープン会計 CLI (ベータ)
   periods receive <id>                   本締め後の書類を受け取った印を付ける
   periods next <id> [--name] [--start] [--end]
                                          期末のBSと固定資産を引き継いで次の期間を作る
+  periods next <id> --out <file.openkk> [--name] [--start] [--end]
+                                         次の期間を新しい帳簿ファイルに作る
+                                         (元の期間が本締めと書類の受け取りを終えていれば引き継ぐ)
   periods export <id> [--out <file.openkk>]
                                          会計期間を 1 冊の帳簿ファイルに書き出す (中身はその期間だけ)
   opening show <期間id>                  期首のBS
   opening set <期間id> <科目>=<金額> ...  期首のBSを保存する (例: 現金=100000 元入金=100000)
+  opening carry <期間id> --from <file.openkk> [--from-period <id>]
+                                         別の帳簿ファイルの期間から期首のBSと固定資産を引き継ぐ (上書き)
   entries list <期間id>                  仕訳の一覧
   entries add <期間id> --date <YYYY-MM-DD> --debit <科目> --credit <科目> --amount <金額>
           --description <摘要> [--business-rate <0〜100>]
@@ -152,6 +157,7 @@ async function dispatch(
   try {
     await runCommand({
       api: backend.api,
+      bookPath: filePath,
       output,
       args,
       options: {
@@ -166,6 +172,8 @@ async function dispatch(
         businessRate: values["business-rate"] ?? null,
         format: values.format ?? null,
         out: values.out ?? null,
+        from: values.from ?? null,
+        fromPeriod: values["from-period"] ?? null,
         json: values.json ?? false,
         yes: values.yes ?? false,
       },
@@ -174,6 +182,12 @@ async function dispatch(
       createBook: async (bookPath) => {
         if (fs.existsSync(bookPath)) {
           throw new CliUsageError(`すでにファイルがあります: ${bookPath}`);
+        }
+        return openCliBackend(bookPath, userId);
+      },
+      openBook: async (bookPath) => {
+        if (!fs.existsSync(bookPath)) {
+          throw new CliUsageError(`帳簿ファイルがありません: ${bookPath}`);
         }
         return openCliBackend(bookPath, userId);
       },
@@ -204,6 +218,8 @@ function parseCliArgs(argv: readonly string[]) {
         "business-rate": { type: "string" },
         format: { type: "string" },
         out: { type: "string" },
+        from: { type: "string" },
+        "from-period": { type: "string" },
         json: { type: "boolean" },
         yes: { type: "boolean" },
         help: { type: "boolean", short: "h" },
