@@ -3,6 +3,7 @@ import type {
   OpenkkBackendPort,
 } from "@rubydogjp/openkk-client-ports";
 
+import type { CliBackend } from "./backend.js";
 import { CliUsageError, type CliOutput } from "./cli-io.js";
 
 export type CliOptions = {
@@ -28,6 +29,7 @@ export type CliCommandContext = {
   options: CliOptions;
   resolvePath(target: string): string;
   today(): Date;
+  createBook(filePath: string): Promise<CliBackend>;
 };
 
 export async function requireFiscalPeriod(

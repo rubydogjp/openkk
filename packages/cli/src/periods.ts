@@ -1,4 +1,5 @@
 import {
+  buildFiscalPeriodBookFilename,
   buildNextFiscalPeriodSuggestion,
   fiscalPeriodPhaseLabel,
 } from "@rubydogjp/openkk-client-domain";
@@ -9,6 +10,7 @@ import {
   requireFiscalPeriod,
   type CliCommandContext,
 } from "./command-context.js";
+import { copyFiscalPeriodToBook } from "./period-transfer.js";
 
 export async function runPeriodsCommand(
   input: CliCommandContext,
@@ -101,10 +103,33 @@ export async function runPeriodsCommand(
       output.line(`次の期間を作成しました: ${formatPeriodRow(created)}`);
       return;
     }
+    case "export": {
+      const period = await requireFiscalPeriod(api, rest[0] ?? null);
+      const bookPath = input.resolvePath(
+        options.out ?? buildFiscalPeriodBookFilename(period),
+      );
+      const book = await input.createBook(bookPath);
+      try {
+        const copied = await copyFiscalPeriodToBook(
+          api,
+          period,
+          book.api,
+          input.today(),
+        );
+        if (options.json) {
+          output.json({ file: bookPath, fiscalPeriod: copied });
+          return;
+        }
+        output.line(`書き出しました: ${bookPath}  ${formatPeriodRow(copied)}`);
+      } finally {
+        book.close();
+      }
+      return;
+    }
     default:
       throw new CliUsageError(
         subcommand == null
-          ? "periods のあとに list / show / create / start / receive / next を指定してください"
+          ? "periods のあとに list / show / create / start / receive / next / export を指定してください"
           : `periods ${subcommand} というコマンドはありません`,
       );
   }

@@ -53,6 +53,8 @@ const USAGE = `オープン会計 CLI (ベータ)
   periods receive <id>                   本締め後の書類を受け取った印を付ける
   periods next <id> [--name] [--start] [--end]
                                          期末のBSと固定資産を引き継いで次の期間を作る
+  periods export <id> [--out <file.openkk>]
+                                         会計期間を 1 冊の帳簿ファイルに書き出す (中身はその期間だけ)
   opening show <期間id>                  期首のBS
   opening set <期間id> <科目>=<金額> ...  期首のBSを保存する (例: 現金=100000 元入金=100000)
   entries list <期間id>                  仕訳の一覧
@@ -169,6 +171,12 @@ async function dispatch(
       },
       resolvePath: (target) => path.resolve(io.cwd, target),
       today: () => io.now(),
+      createBook: async (bookPath) => {
+        if (fs.existsSync(bookPath)) {
+          throw new CliUsageError(`すでにファイルがあります: ${bookPath}`);
+        }
+        return openCliBackend(bookPath, userId);
+      },
     });
   } finally {
     backend.close();

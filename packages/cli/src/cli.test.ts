@@ -391,6 +391,62 @@ describe("openkk cli", () => {
     expect(result.stderr).toContain("journal / ledger / fs");
   });
 
+  it("exports one fiscal period into a book file of its own", async () => {
+    const { cwd, run } = workspace();
+    const id = await startedPeriod(run);
+    await run(
+      "entries",
+      "add",
+      id,
+      "--date",
+      "2026-07-01",
+      "--debit",
+      "旅費交通費",
+      "--credit",
+      "現金",
+      "--amount",
+      "1,980",
+      "--description",
+      "電車代",
+    );
+    await startedPeriod(run, "2027");
+
+    const exported = await run("periods", "export", id);
+    const listed = await run(
+      "--file",
+      "2026年分.openkk",
+      "periods",
+      "list",
+      "--json",
+    );
+    const bookPeriods = JSON.parse(listed.stdout) as Array<{
+      id: string;
+      name: string;
+      phase: string;
+    }>;
+    const bookEntries = await run(
+      "--file",
+      "2026年分.openkk",
+      "entries",
+      "list",
+      bookPeriods[0]?.id ?? "",
+    );
+    const overwrite = await run("periods", "export", id);
+    const sourcePeriods = JSON.parse(
+      (await run("periods", "list", "--json")).stdout,
+    ) as unknown[];
+
+    expect(exported.code).toBe(0);
+    expect(exported.stdout).toContain(path.join(cwd, "2026年分.openkk"));
+    expect(bookPeriods.map((period) => [period.name, period.phase])).toEqual([
+      ["2026年分", "journalizing"],
+    ]);
+    expect(bookEntries.stdout).toContain("電車代");
+    expect(overwrite.code).toBe(2);
+    expect(overwrite.stderr).toContain("すでにファイルがあります");
+    expect(sourcePeriods).toHaveLength(2);
+  });
+
   it("moves a fiscal period between book files through an archive zip", async () => {
     const { cwd, run } = workspace();
     const id = await startedPeriod(run);
