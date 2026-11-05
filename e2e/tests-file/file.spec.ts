@@ -5,6 +5,13 @@ import { expect, test, type Page } from "@playwright/test";
 import { clickButton, expectStep } from "../helpers";
 
 const NEW_BOOK_NAME = "帳簿.openkk";
+const tempDirs: string[] = [];
+
+test.afterEach(() => {
+  for (const dir of tempDirs.splice(0)) {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
@@ -164,9 +171,14 @@ async function getFile(page: Page, fileName: string): Promise<number[]> {
   }, fileName);
 }
 
-async function saveToTempFile(bytes: number[], fileName: string) {
+function makeTempDir() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "openkk-file-e2e-"));
-  const filePath = path.join(dir, fileName);
+  tempDirs.push(dir);
+  return dir;
+}
+
+async function saveToTempFile(bytes: number[], fileName: string) {
+  const filePath = path.join(makeTempDir(), fileName);
   fs.writeFileSync(filePath, Buffer.from(bytes));
   return filePath;
 }
@@ -174,8 +186,7 @@ async function saveToTempFile(bytes: number[], fileName: string) {
 async function createCliBook(fileName: string, periodName: string) {
   const { createNodeSqliteDbAdapter } =
     await import("@rubydogjp/openkk-node-sqlite-db-adapter");
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "openkk-file-e2e-"));
-  const filePath = path.join(dir, fileName);
+  const filePath = path.join(makeTempDir(), fileName);
   const adapter = await createNodeSqliteDbAdapter(filePath, null);
   await adapter.db.fiscalPeriods.create("openkk-original-user", {
     name: periodName,
