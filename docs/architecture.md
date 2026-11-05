@@ -127,6 +127,15 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 - OPFS の更新時刻はすぐ続けて書くと変わらないので、書く前の確かめは更新時刻ではなく中身で行う。最後に読んだ・書いた中身と今のファイルが違えば `conflict` を返す (別のタブが先に保存した場合)。
 - 開く・作るときに `navigator.storage.persist()` を求める。
 
+### フォルダの帳簿 (パソコンの Chrome・Edge)
+
+ファイルを書けるブラウザでは、最初に 1 回だけフォルダを選び (`showDirectoryPicker`)、そのハンドルを IndexedDB (`openkk-book-folder`) に覚える (`folderBooks`、`platform-browser-adapter`)。期間ごとの `.openkk` はアプリがそのフォルダに作る。
+
+- `folderBooks` と `inAppBooks` は同じ形の置き場 (`BookPlace`: `list` / `open` / `create` / `remove`) で、アプリはファイルを書けるか (`canUseFolderBooks()`) でどちらかを選ぶ。
+- 新しい帳簿のファイルは最初の保存のときに作る (保存せずにやめても空のファイルを残さない)。その名前のファイルが先にできていれば `conflict` を返す。
+- 開いた帳簿の書き込みは、ファイル版と同じく更新時刻で確かめる (実際のファイルでは更新時刻が当てになる)。
+- ブラウザが許可を忘れたとき (`permission()` が `prompt`) は、利用者の操作から `requestAccess()` を呼んで許可をもらい直す。
+
 ## PWA とオフラインキャッシュ
 
 各アプリのService Workerは静的エクスポートを事前保存する。正本は `scripts/service-worker.template.js` に置き、`gen-service-workers.mjs` が各アプリの `public/sw.js` を生成する。debugルートを事前保存するのはSim版だけ。

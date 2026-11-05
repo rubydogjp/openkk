@@ -3,9 +3,13 @@ import type {
   OpenkkDocumentWriteResult,
 } from "@rubydogjp/openkk-client-ports";
 
-import type { BrowserOpenedDocument } from "./documents.js";
 import {
-  IN_APP_BOOK_EXTENSION,
+  newestFirst,
+  uniqueBookName,
+  type BookPlace,
+  type StoredBook,
+} from "./book-place.js";
+import {
   IN_APP_BOOKS_DIRECTORY,
   isInAppBookName,
   type BookRequest,
@@ -14,12 +18,6 @@ import {
   browserPersistentStorage,
   requestPersistentStorage,
 } from "./persistent-storage.js";
-
-export type InAppBook = {
-  name: string;
-  size: number;
-  lastModified: number;
-};
 
 export type InAppBookWriter = {
   send(request: BookRequest): Promise<void>;
@@ -34,13 +32,6 @@ export type InAppBooksDependencies = {
   openDirectory(): Promise<InAppBooksDirectory>;
   writer: InAppBookWriter;
   requestPersistence(): Promise<unknown>;
-};
-
-export type InAppBooks = {
-  list(): Promise<InAppBook[]>;
-  open(name: string): Promise<BrowserOpenedDocument>;
-  create(desiredName: string): Promise<BrowserOpenedDocument>;
-  remove(name: string): Promise<void>;
 };
 
 type WorkerAnswer = { id: number; ok: boolean; error: string | null };
@@ -59,15 +50,9 @@ function sameBytes(left: Uint8Array, right: Uint8Array): boolean {
   return true;
 }
 
-function bookNameWithCopyNumber(base: string, copy: number): string {
-  return copy === 1
-    ? `${base}${IN_APP_BOOK_EXTENSION}`
-    : `${base} (${copy})${IN_APP_BOOK_EXTENSION}`;
-}
-
 export function createInAppBooks(
   dependencies: InAppBooksDependencies,
-): InAppBooks {
+): BookPlace {
   async function readFile(name: string): Promise<File | null> {
     const directory = await dependencies.openDirectory();
     try {
@@ -106,9 +91,9 @@ export function createInAppBooks(
     };
   }
 
-  async function list(): Promise<InAppBook[]> {
+  async function list(): Promise<StoredBook[]> {
     const directory = await dependencies.openDirectory();
-    const books: InAppBook[] = [];
+    const books: StoredBook[] = [];
     for await (const entry of directory.values()) {
       if (entry.kind !== "file" || !isInAppBookName(entry.name)) continue;
       const file = await (await directory.getFileHandle(entry.name)).getFile();
@@ -118,18 +103,7 @@ export function createInAppBooks(
         lastModified: file.lastModified,
       });
     }
-    return books.sort((left, right) => right.lastModified - left.lastModified);
-  }
-
-  async function uniqueName(desiredName: string): Promise<string> {
-    const base = desiredName.endsWith(IN_APP_BOOK_EXTENSION)
-      ? desiredName.slice(0, -IN_APP_BOOK_EXTENSION.length)
-      : desiredName;
-    const taken = new Set((await list()).map((book) => book.name));
-    for (let copy = 1; ; copy += 1) {
-      const candidate = bookNameWithCopyNumber(base, copy);
-      if (!taken.has(candidate)) return candidate;
-    }
+    return newestFirst(books);
   }
 
   return {
@@ -149,7 +123,13 @@ export function createInAppBooks(
       void dependencies.requestPersistence();
       return {
         bytes: null,
-        sink: createSink(await uniqueName(desiredName), null),
+        sink: createSink(
+          uniqueBookName(
+            desiredName,
+            new Set((await list()).map((book) => book.name)),
+          ),
+          null,
+        ),
         remember: rememberNothing,
       };
     },

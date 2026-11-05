@@ -26,13 +26,22 @@ export {
   type BrowserOpenedDocument,
   type BrowserRecentDocument,
 } from "./documents.js";
+export { type BookPlace, type StoredBook } from "./book-place.js";
+export {
+  BookFolderMissingError,
+  canUseFolderBooks,
+  createFolderBooks,
+  folderBooks,
+  type BookFolderHandle,
+  type FolderBooks,
+  type FolderBooksDependencies,
+  type FolderPermission,
+} from "./folder-books.js";
 export {
   canUseInAppBooks,
   createInAppBooks,
   createWorkerBookWriter,
   inAppBooks,
-  type InAppBook,
-  type InAppBooks,
   type InAppBooksDependencies,
   type InAppBooksDirectory,
   type InAppBookWriter,
