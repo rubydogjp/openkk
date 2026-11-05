@@ -1,6 +1,6 @@
 {
   "name": "@rubydogjp/openkk-node-sqlite-db-adapter",
-  "version": "26.3.0",
+  "version": "26.3.1",
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
@@ -16,8 +16,8 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@rubydogjp/openkk-server-ports": "^26.3.0",
-    "@rubydogjp/openkk-sqlite-adapter": "^26.3.0"
+    "@rubydogjp/openkk-server-ports": "^26.3.1",
+    "@rubydogjp/openkk-sqlite-adapter": "^26.3.1"
   },
   "files": [
     "dist"
