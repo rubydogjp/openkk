@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  isInAppBookName,
   PENDING_COPY_SUFFIX,
   READY_MARK_SUFFIX,
   recoverBook,
@@ -90,12 +89,5 @@ describe("in-app book saving", () => {
     await removeBook(directory, BOOK);
 
     expect(files.size).toBe(0);
-  });
-
-  it("treats only .openkk files as books", () => {
-    expect(isInAppBookName(BOOK)).toBe(true);
-    expect(isInAppBookName(`${BOOK}${PENDING_COPY_SUFFIX}`)).toBe(false);
-    expect(isInAppBookName(`${BOOK}${READY_MARK_SUFFIX}`)).toBe(false);
-    expect(isInAppBookName("notes.txt")).toBe(false);
   });
 });

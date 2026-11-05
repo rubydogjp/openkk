@@ -3,18 +3,14 @@ import type {
   OpenkkDocumentWriteResult,
 } from "@rubydogjp/openkk-client-ports";
 
-import {
-  newestFirst,
-  uniqueBookName,
-  type BookPlace,
-  type StoredBook,
-} from "./book-place.js";
+import { listBooks, uniqueBookName, type BookPlace } from "./book-place.js";
 import {
   BrowserDocumentPermissionError,
   createHandleDocumentSink,
+  rememberNothing,
   type BrowserDocumentFileHandle,
 } from "./documents.js";
-import { isInAppBookName } from "./in-app-book-protocol.js";
+import { isNotFoundError } from "./file-system-errors.js";
 
 const FOLDER_DATABASE_NAME = "openkk-book-folder";
 const FOLDER_STORE_NAME = "folder";
@@ -57,12 +53,6 @@ export class BookFolderMissingError extends Error {
   }
 }
 
-function isNotFound(error: unknown): boolean {
-  return error instanceof DOMException && error.name === "NotFoundError";
-}
-
-async function rememberNothing(): Promise<void> {}
-
 async function findFile(
   folder: BookFolderHandle,
   name: string,
@@ -70,7 +60,7 @@ async function findFile(
   try {
     return await folder.getFileHandle(name, { create: false });
   } catch (error) {
-    if (isNotFound(error)) return null;
+    if (isNotFoundError(error)) return null;
     throw error;
   }
 }
@@ -108,21 +98,8 @@ export function createFolderBooks(
     return folder;
   }
 
-  async function list(): Promise<StoredBook[]> {
-    const folder = await requireFolder();
-    const books: StoredBook[] = [];
-    for await (const entry of folder.values()) {
-      if (entry.kind !== "file" || !isInAppBookName(entry.name)) continue;
-      const file = await (
-        await folder.getFileHandle(entry.name, { create: false })
-      ).getFile();
-      books.push({
-        name: entry.name,
-        size: file.size,
-        lastModified: file.lastModified,
-      });
-    }
-    return newestFirst(books);
+  async function list() {
+    return listBooks(await requireFolder());
   }
 
   return {
@@ -139,12 +116,11 @@ export function createFolderBooks(
     },
     async create(desiredName) {
       const folder = await requireFolder();
-      const taken = new Set((await list()).map((book) => book.name));
       return {
         bytes: null,
         sink: createFileOnFirstSaveSink(
           folder,
-          uniqueBookName(desiredName, taken),
+          uniqueBookName(desiredName, await list()),
         ),
         remember: rememberNothing,
       };

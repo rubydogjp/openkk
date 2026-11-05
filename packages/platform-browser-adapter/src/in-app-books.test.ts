@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { type BookFileDirectory } from "./book-place.js";
 import {
   PENDING_COPY_SUFFIX,
   READY_MARK_SUFFIX,
@@ -7,11 +8,7 @@ import {
   type BookDirectory,
   type BookRequest,
 } from "./in-app-book-protocol.js";
-import {
-  createInAppBooks,
-  createWorkerBookWriter,
-  type InAppBooksDirectory,
-} from "./in-app-books.js";
+import { createInAppBooks, createWorkerBookWriter } from "./in-app-books.js";
 
 type StoredFile = { bytes: Uint8Array; lastModified: number };
 
@@ -30,7 +27,7 @@ function fakeInAppStorage() {
       files.delete(name);
     },
   };
-  const directory: InAppBooksDirectory = {
+  const directory: BookFileDirectory = {
     async *values() {
       for (const name of files.keys()) yield { kind: "file", name };
     },

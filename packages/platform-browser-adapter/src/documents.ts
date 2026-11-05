@@ -237,7 +237,7 @@ function openWithFileInput(): Promise<BrowserOpenedDocument | null> {
   });
 }
 
-async function rememberNothing(): Promise<void> {}
+export async function rememberNothing(): Promise<void> {}
 
 async function rememberRecent(handle: BrowserDocumentFileHandle) {
   try {

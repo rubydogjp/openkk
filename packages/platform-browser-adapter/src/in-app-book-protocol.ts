@@ -1,5 +1,4 @@
 export const IN_APP_BOOKS_DIRECTORY = "openkk-books";
-export const IN_APP_BOOK_EXTENSION = ".openkk";
 export const PENDING_COPY_SUFFIX = ".next";
 export const READY_MARK_SUFFIX = ".ready";
 
@@ -15,10 +14,6 @@ export type BookRequest =
   | { type: "write"; name: string; bytes: Uint8Array }
   | { type: "recover"; name: string }
   | { type: "remove"; name: string };
-
-export function isInAppBookName(name: string): boolean {
-  return name.endsWith(IN_APP_BOOK_EXTENSION);
-}
 
 export async function writeBook(
   directory: BookDirectory,

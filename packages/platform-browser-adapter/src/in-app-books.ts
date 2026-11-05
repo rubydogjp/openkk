@@ -4,14 +4,15 @@ import type {
 } from "@rubydogjp/openkk-client-ports";
 
 import {
-  newestFirst,
+  listBooks,
   uniqueBookName,
+  type BookFileDirectory,
   type BookPlace,
-  type StoredBook,
 } from "./book-place.js";
+import { rememberNothing } from "./documents.js";
+import { isNotFoundError } from "./file-system-errors.js";
 import {
   IN_APP_BOOKS_DIRECTORY,
-  isInAppBookName,
   type BookRequest,
 } from "./in-app-book-protocol.js";
 import {
@@ -23,24 +24,13 @@ export type InAppBookWriter = {
   send(request: BookRequest): Promise<void>;
 };
 
-export type InAppBooksDirectory = {
-  values(): AsyncIterable<{ kind: string; name: string }>;
-  getFileHandle(name: string): Promise<{ getFile(): Promise<File> }>;
-};
-
 export type InAppBooksDependencies = {
-  openDirectory(): Promise<InAppBooksDirectory>;
+  openDirectory(): Promise<BookFileDirectory>;
   writer: InAppBookWriter;
   requestPersistence(): Promise<unknown>;
 };
 
 type WorkerAnswer = { id: number; ok: boolean; error: string | null };
-
-function isNotFound(error: unknown): boolean {
-  return error instanceof DOMException && error.name === "NotFoundError";
-}
-
-async function rememberNothing(): Promise<void> {}
 
 function sameBytes(left: Uint8Array, right: Uint8Array): boolean {
   if (left.byteLength !== right.byteLength) return false;
@@ -56,9 +46,11 @@ export function createInAppBooks(
   async function readFile(name: string): Promise<File | null> {
     const directory = await dependencies.openDirectory();
     try {
-      return await (await directory.getFileHandle(name)).getFile();
+      return await (
+        await directory.getFileHandle(name, { create: false })
+      ).getFile();
     } catch (error) {
-      if (isNotFound(error)) return null;
+      if (isNotFoundError(error)) return null;
       throw error;
     }
   }
@@ -91,19 +83,8 @@ export function createInAppBooks(
     };
   }
 
-  async function list(): Promise<StoredBook[]> {
-    const directory = await dependencies.openDirectory();
-    const books: StoredBook[] = [];
-    for await (const entry of directory.values()) {
-      if (entry.kind !== "file" || !isInAppBookName(entry.name)) continue;
-      const file = await (await directory.getFileHandle(entry.name)).getFile();
-      books.push({
-        name: entry.name,
-        size: file.size,
-        lastModified: file.lastModified,
-      });
-    }
-    return newestFirst(books);
+  async function list() {
+    return listBooks(await dependencies.openDirectory());
   }
 
   return {
@@ -123,13 +104,7 @@ export function createInAppBooks(
       void dependencies.requestPersistence();
       return {
         bytes: null,
-        sink: createSink(
-          uniqueBookName(
-            desiredName,
-            new Set((await list()).map((book) => book.name)),
-          ),
-          null,
-        ),
+        sink: createSink(uniqueBookName(desiredName, await list()), null),
         remember: rememberNothing,
       };
     },
@@ -198,7 +173,7 @@ export const inAppBooks = createInAppBooks({
     const root = await navigator.storage.getDirectory();
     return (await root.getDirectoryHandle(IN_APP_BOOKS_DIRECTORY, {
       create: true,
-    })) as unknown as InAppBooksDirectory;
+    })) as unknown as BookFileDirectory;
   },
   writer: createWorkerBookWriter(
     () =>

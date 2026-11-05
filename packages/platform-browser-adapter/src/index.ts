@@ -26,7 +26,11 @@ export {
   type BrowserOpenedDocument,
   type BrowserRecentDocument,
 } from "./documents.js";
-export { type BookPlace, type StoredBook } from "./book-place.js";
+export {
+  type BookFileDirectory,
+  type BookPlace,
+  type StoredBook,
+} from "./book-place.js";
 export {
   BookFolderMissingError,
   canUseFolderBooks,
@@ -43,6 +47,5 @@ export {
   createWorkerBookWriter,
   inAppBooks,
   type InAppBooksDependencies,
-  type InAppBooksDirectory,
   type InAppBookWriter,
 } from "./in-app-books.js";

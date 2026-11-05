@@ -1,3 +1,4 @@
+import { isNotFoundError } from "./file-system-errors.js";
 import {
   IN_APP_BOOKS_DIRECTORY,
   runBookRequest,
@@ -41,10 +42,6 @@ const workerScope = self as unknown as {
   postMessage(message: unknown): void;
 };
 
-function isNotFound(error: unknown): boolean {
-  return error instanceof DOMException && error.name === "NotFoundError";
-}
-
 async function openBooksDirectory(): Promise<BookDirectory> {
   const root = await (
     navigator.storage as unknown as StorageRoot
@@ -58,7 +55,7 @@ async function openBooksDirectory(): Promise<BookDirectory> {
         const handle = await directory.getFileHandle(name, { create: false });
         return new Uint8Array(await (await handle.getFile()).arrayBuffer());
       } catch (error) {
-        if (isNotFound(error)) return null;
+        if (isNotFoundError(error)) return null;
         throw error;
       }
     },
@@ -77,7 +74,7 @@ async function openBooksDirectory(): Promise<BookDirectory> {
       try {
         await directory.removeEntry(name);
       } catch (error) {
-        if (!isNotFound(error)) throw error;
+        if (!isNotFoundError(error)) throw error;
       }
     },
   };
