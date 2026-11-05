@@ -3,7 +3,43 @@ import {
   advanceToJournalizing,
   clickButton,
   createFiscalPeriod,
+  waitUntilBootPhase,
 } from "../helpers";
+
+type PersistentStorageProbe = { persistentStorageRequests: string[] };
+
+test("asks the browser to keep the OPFS book data once it opens", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const storage = navigator.storage;
+    const persisted = storage.persisted.bind(storage);
+    const persist = storage.persist.bind(storage);
+    const requests: string[] = [];
+    Object.assign(window, { persistentStorageRequests: requests });
+    storage.persisted = async () => {
+      requests.push("persisted");
+      return persisted();
+    };
+    storage.persist = async () => {
+      requests.push("persist");
+      return persist();
+    };
+  });
+
+  await page.goto("/");
+  await waitUntilBootPhase(page, "ready");
+
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as PersistentStorageProbe)
+            .persistentStorageRequests,
+      ),
+    )
+    .toEqual(["persisted", "persist"]);
+});
 
 test("persists a fiscal period and entry across reloads in OPFS", async ({
   page,

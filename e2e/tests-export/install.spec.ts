@@ -1,5 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
+const BROWSER_STORAGE_NOTICE = "ブラウザが帳簿のデータを消すことがあります";
+
 test("追加できる環境では目的と操作を案内する", async ({ page }) => {
   await page.goto("/install");
   await expect(
@@ -9,6 +11,9 @@ test("追加できる環境では目的と操作を案内する", async ({ page 
     page.getByText("インストールせずに、ブラウザで使うこともできます。", {
       exact: false,
     }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(BROWSER_STORAGE_NOTICE, { exact: false }),
   ).toBeVisible();
   await offerInstall(page, "accepted");
   await expect(page.getByRole("status")).toContainText(
@@ -26,6 +31,9 @@ test("追加できる環境では目的と操作を案内する", async ({ page 
   await expect(
     page.getByRole("button", { name: "アプリを開く" }),
   ).toBeEnabled();
+  await expect(
+    page.getByText(BROWSER_STORAGE_NOTICE, { exact: false }),
+  ).toHaveCount(0);
 });
 
 test("追加をキャンセルしてもブラウザで使い始められる", async ({ page }) => {
@@ -50,6 +58,7 @@ test("ボタンから追加できない場合はメニューとブラウザ利�
   });
   await page.goto("/install");
   await expect(page.getByRole("status")).toContainText("ブラウザのメニューに");
+  await expect(page.getByRole("status")).toContainText("「Dock に追加」");
   await page.getByRole("button", { name: "ブラウザで開く" }).click();
   await expect(page.getByRole("heading", { name: "期間の選択" })).toBeVisible();
 });

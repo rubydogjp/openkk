@@ -129,6 +129,20 @@ test("期首BSの科目と金額が狭い幅やサイドバー表示の境界で
   }
 });
 
+test("データを残さないので、インストール画面に消える注意を出さない", async ({
+  page,
+}) => {
+  await page.goto("/install");
+  await expect(
+    page.getByRole("heading", { name: "オープン会計をインストール" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("ブラウザが帳簿のデータを消すことがあります", {
+      exact: false,
+    }),
+  ).toHaveCount(0);
+});
+
 test("favicon・アプリ内・ホーム画面のアイコンを配信する", async ({
   page,
   request,

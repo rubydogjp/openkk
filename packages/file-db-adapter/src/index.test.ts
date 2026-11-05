@@ -145,6 +145,20 @@ describe("createFileDbAdapter — behavior parity over the worker proxy", () => 
     };
   }
 
+  it("asks the browser to keep the OPFS data once the database opens", async () => {
+    const storage = {
+      persisted: vi.fn(async () => false),
+      persist: vi.fn(async () => true),
+    };
+    vi.stubGlobal("navigator", { storage });
+
+    await makeDb();
+
+    await vi.waitFor(() => {
+      expect(storage.persist).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("persists and reads a fiscal period through the worker proxy", async () => {
     const db = await makeDb();
     const created = await seedFiscalPeriod(db);
@@ -195,6 +209,32 @@ describe("createFileDbAdapter", () => {
     vi.resetModules();
     FakeWorker.outcomes = [];
     FakeWorker.instances = [];
+  });
+
+  it("does not ask the browser to keep data when the database fails to open", async () => {
+    const storage = {
+      persisted: vi.fn(async () => false),
+      persist: vi.fn(async () => true),
+    };
+    vi.stubGlobal("navigator", { storage });
+    vi.stubGlobal("Worker", FakeWorker);
+    FakeWorker.outcomes = [
+      { kind: "response", ok: false, error: "sqlite init failed" },
+    ];
+    const { createFileDbAdapter } = await import("./index.js");
+
+    await expect(
+      createFileDbAdapter(
+        {
+          vfsName: "opfs-test",
+          dbFileName: "test.sqlite3",
+          onWaitingForAnotherTab: null,
+        },
+        null,
+      ),
+    ).rejects.toThrow("sqlite init failed");
+    expect(storage.persisted).not.toHaveBeenCalled();
+    expect(storage.persist).not.toHaveBeenCalled();
   });
 
   it("clears a failed initialization so callers can retry", async () => {
