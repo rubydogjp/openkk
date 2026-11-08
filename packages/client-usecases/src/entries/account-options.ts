@@ -2,7 +2,10 @@ import type {
   MasterBookAccountApiRecord,
   MasterBookAccountApiBalanceSheetSection,
 } from "@rubydogjp/openkk-client-ports";
-import type { BookAccountType } from "@rubydogjp/openkk-client-domain";
+import {
+  BALANCE_SHEET_SECTION_LABELS,
+  type BookAccountType,
+} from "@rubydogjp/openkk-client-domain";
 
 export type EntryMasterAccountOption = {
   id: string;
@@ -10,19 +13,6 @@ export type EntryMasterAccountOption = {
   selectionLabel: string;
   accountType: BookAccountType;
   balanceSheetSection: MasterBookAccountApiBalanceSheetSection;
-};
-
-const BALANCE_SHEET_SECTION_LABELS: Record<
-  MasterBookAccountApiBalanceSheetSection,
-  string
-> = {
-  current_asset: "流動資産",
-  fixed_asset: "固定資産",
-  deferred_asset: "繰延資産",
-  current_liability: "流動負債",
-  long_term_liability: "固定負債",
-  equity: "純資産",
-  none: "",
 };
 
 export function buildEntryMasterAccountOptions(

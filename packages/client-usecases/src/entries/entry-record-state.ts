@@ -24,13 +24,3 @@ export function upsertEntryRecord(
 ): EntryRecord[] {
   return [...current.filter((record) => record.id !== next.id), next];
 }
-
-export function earliestEntryDate(
-  entries: ReadonlyArray<EntryRecord>,
-): string | null {
-  let earliest: string | null = null;
-  for (const entry of entries) {
-    if (earliest == null || entry.date < earliest) earliest = entry.date;
-  }
-  return earliest;
-}

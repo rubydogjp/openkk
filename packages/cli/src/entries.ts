@@ -1,19 +1,29 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
+  AppError,
+  buildJournalTableRows,
   decodeJournalImportBytes,
+  diffJournalTableEntries,
   entryRecordToImportPayload,
-  exportEntriesAsCsv,
   exportEntriesAsJson,
-  importEntriesFromCsv,
+  formatJournalTableCsv,
   importEntriesFromJson,
   isMaterializedVirtualEntry,
+  journalTableOperations,
+  parseJournalTableCsv,
+  readJournalTableEntries,
   storedEntryToRecord,
   type EntryLineMaster,
   type EntryRecord,
+  type JournalTableChanges,
 } from "@rubydogjp/openkk-client-domain";
+import type {
+  FiscalPeriodApiRecord,
+  OpenkkBackendPort,
+} from "@rubydogjp/openkk-client-ports";
 
-import { CliUsageError } from "./cli-io.js";
+import { CliUsageError, type CliOutput } from "./cli-io.js";
 import {
   requireFiscalPeriod,
   type CliCommandContext,
@@ -28,7 +38,6 @@ import {
 const ENTRY_FILE_FORMATS = ["csv", "json"] as const;
 type EntryFileFormat = (typeof ENTRY_FILE_FORMATS)[number];
 
-const CSV_BYTE_ORDER_MARK = "﻿";
 const FULL_BUSINESS_RATE_PERCENT = 100;
 const AMOUNT_PATTERN = /^[1-9]\d{0,2}(?:,?\d{3})*$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -75,13 +84,18 @@ export async function runEntriesCommand(
         throw new CliUsageError("取り込むファイルを指定してください");
       }
       const filePath = context.resolvePath(file);
-      const format = options.format ?? path.extname(filePath).slice(1);
-      const text = decodeJournalImportBytes(fs.readFileSync(filePath));
-      const imported = parseEntryFile(
-        requireEntryFileFormat(format),
-        text,
-        period.id,
+      const format = requireEntryFileFormat(
+        options.format ?? path.extname(filePath).slice(1),
       );
+      const text = decodeJournalImportBytes(fs.readFileSync(filePath));
+      if (format === "csv") {
+        await replaceEntriesFromCsv(context, period, text);
+        return;
+      }
+      const imported = importEntriesFromJson({
+        text,
+        fiscalPeriodId: period.id,
+      });
       const master = await loadMaster(api);
       const response = await api.entries.importMany(
         period.id,
@@ -100,13 +114,17 @@ export async function runEntriesCommand(
     case "export": {
       const period = await requireFiscalPeriod(api, periodId ?? null);
       const format = requireEntryFileFormat(options.format ?? "csv");
-      const manualEntries = (await loadEntryRecords(api, period.id)).filter(
+      const [entries, master] = await Promise.all([
+        loadEntryRecords(api, period.id),
+        loadMaster(api),
+      ]);
+      const manualEntries = entries.filter(
         (entry) => !isMaterializedVirtualEntry(entry),
       );
       const data =
         format === "json"
           ? `${exportEntriesAsJson(manualEntries)}\n`
-          : `${CSV_BYTE_ORDER_MARK}${exportEntriesAsCsv(manualEntries)}\n`;
+          : formatJournalTableCsv(buildJournalTableRows(manualEntries, master));
       if (options.out == null) {
         output.raw(data);
         return;
@@ -187,14 +205,89 @@ function requireEntryFileFormat(format: string): EntryFileFormat {
   return normalized as EntryFileFormat;
 }
 
-function parseEntryFile(
-  format: EntryFileFormat,
+async function replaceEntriesFromCsv(
+  context: CliCommandContext,
+  period: FiscalPeriodApiRecord,
   text: string,
+): Promise<void> {
+  const { api, output, options } = context;
+  const [current, master] = await Promise.all([
+    loadEntryRecords(api, period.id),
+    loadMaster(api),
+  ]);
+  const result = readJournalTableEntries(parseJournalTableCsv(text), {
+    fiscalPeriodId: period.id,
+    startDate: period.startDate,
+    endDate: period.endDate,
+    master,
+  });
+  if (!result.ok) {
+    throw new AppError({
+      messageForDeveloper: "cli: journal CSV has rows that cannot be read",
+      messageForUser: [
+        "取り込めない行があります。CSV を直してから、もう一度取り込んでください。",
+        ...result.problems.map(
+          (problem) => `  ${problem.rowNumber} 行目: ${problem.message}`,
+        ),
+      ].join("\n"),
+      originalMessage: null,
+      statusCode: null,
+      code: null,
+    });
+  }
+  const changes = diffJournalTableEntries(current, result.entries, master);
+  const hasChanges =
+    changes.added.length + changes.changed.length + changes.removed.length > 0;
+  if (hasChanges && !options.yes) {
+    throw new CliUsageError(
+      `CSV で仕訳を置き換えます (${describeChanges(changes)})。ファイルにない仕訳は消えます。反映するときは --yes を付けてください`,
+    );
+  }
+  if (hasChanges) await applyChanges(api, period.id, changes, master);
+  if (options.json) {
+    output.json({
+      added: changes.added.length,
+      changed: changes.changed.length,
+      removed: changes.removed.length,
+      unchanged: changes.unchangedCount,
+    });
+    return;
+  }
+  reportChanges(output, hasChanges, changes);
+}
+
+async function applyChanges(
+  api: OpenkkBackendPort,
   fiscalPeriodId: string,
-): EntryRecord[] {
-  return format === "json"
-    ? importEntriesFromJson({ text, fiscalPeriodId })
-    : importEntriesFromCsv({ text, fiscalPeriodId });
+  changes: JournalTableChanges,
+  master: EntryLineMaster,
+): Promise<void> {
+  const operations = journalTableOperations(changes, master);
+  for (const id of operations.removeIds) {
+    await api.entries.remove(fiscalPeriodId, id);
+  }
+  for (const update of operations.updates) {
+    await api.entries.update(fiscalPeriodId, update.id, update.input);
+  }
+  if (operations.creates.length > 0) {
+    await api.entries.importMany(fiscalPeriodId, operations.creates);
+  }
+}
+
+function reportChanges(
+  output: CliOutput,
+  hasChanges: boolean,
+  changes: JournalTableChanges,
+): void {
+  output.line(
+    hasChanges
+      ? `置き換えました (${describeChanges(changes)})`
+      : "CSV は今の仕訳と同じです",
+  );
+}
+
+function describeChanges(changes: JournalTableChanges): string {
+  return `追加 ${changes.added.length} 件 / 変更 ${changes.changed.length} 件 / 削除 ${changes.removed.length} 件 / そのまま ${changes.unchangedCount} 件`;
 }
 
 function formatEntryRow(record: EntryRecord): string {

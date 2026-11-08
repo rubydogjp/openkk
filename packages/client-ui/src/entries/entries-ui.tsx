@@ -6,10 +6,6 @@ import { useDismissibleLayer } from "../shared/dismissible-layer.js";
 import { DrawerFrame } from "../shared/drawer-frame.js";
 import { AssistIcon } from "../shared/icons.js";
 import { CompactLockButton } from "../shared/locked-action.js";
-import {
-  EntryFileActionsButton,
-  type EntryFileKind,
-} from "./entry-file-actions.js";
 import { EntriesTable } from "./entries-table.js";
 import {
   fontSize,
@@ -19,6 +15,7 @@ import {
   sizes,
   spacing,
 } from "../shared/design-tokens.js";
+import type { ReactNode } from "react";
 import type {
   EntryPreviewRow,
   PeriodLockMessage,
@@ -137,7 +134,59 @@ export type EntryStatusMessage = {
   text: string;
 };
 
+export type EntriesView = "month" | "table";
+
+export function EntriesViewSwitch(props: {
+  view: EntriesView;
+  onChange: (view: EntriesView) => void;
+}) {
+  const options: Array<{ view: EntriesView; label: string }> = [
+    { view: "month", label: "月ごと" },
+    { view: "table", label: "表" },
+  ];
+  return (
+    <div
+      role="group"
+      aria-label="仕訳の見かた"
+      style={{
+        display: "inline-flex",
+        padding: 2,
+        borderRadius: radii.sm,
+        border: `1px solid ${palette.borderSubtle}`,
+        background: palette.formGroupBg,
+      }}
+    >
+      {options.map((option) => {
+        const selected = option.view === props.view;
+        return (
+          <button
+            key={option.view}
+            type="button"
+            aria-pressed={selected}
+            onClick={() => props.onChange(option.view)}
+            style={{
+              height: `calc(${sizes.button.compactHeight} - 6px)`,
+              padding: "0 14px",
+              borderRadius: radii.sm,
+              border: "none",
+              background: selected ? palette.surface : "transparent",
+              boxShadow: selected ? "0 1px 2px rgba(15, 23, 42, 0.08)" : "none",
+              color: selected ? palette.text : palette.textSoft,
+              fontSize: fontSize.base,
+              fontWeight: fontWeight.semibold,
+              cursor: "pointer",
+            }}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function EntriesScreen(props: {
+  viewSwitch: ReactNode;
   monthLabel: string;
   rows: EntryPreviewRow[];
   canGoPrevious: boolean;
@@ -146,8 +195,6 @@ export function EntriesScreen(props: {
   onNext: () => void;
   readOnly: boolean;
   onAddEntry: (() => void) | null;
-  onImportFile: ((kind: EntryFileKind, file: File) => void) | null;
-  onExport: ((kind: EntryFileKind) => void) | null;
   onOpenEntry: ((row: EntryPreviewRow, index: number) => void) | null;
   activeRecordId: string | null;
   statusMessage: EntryStatusMessage | null;
@@ -166,7 +213,6 @@ export function EntriesScreen(props: {
     );
   }
 
-  const showFileMenu = props.onImportFile != null || props.onExport != null;
   const isReadOnly = props.readOnly;
 
   return (
@@ -199,20 +245,17 @@ export function EntriesScreen(props: {
             marginBottom: 14,
           }}
         >
-          <EntriesMonthSwitcher
-            label={props.monthLabel}
-            canGoPrevious={props.canGoPrevious}
-            canGoNext={props.canGoNext}
-            onPrevious={props.onPrevious}
-            onNext={props.onNext}
-          />
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {props.viewSwitch}
+            <EntriesMonthSwitcher
+              label={props.monthLabel}
+              canGoPrevious={props.canGoPrevious}
+              canGoNext={props.canGoNext}
+              onPrevious={props.onPrevious}
+              onNext={props.onNext}
+            />
+          </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {showFileMenu ? (
-              <EntryFileActionsButton
-                onImportFile={props.onImportFile}
-                onExport={props.onExport}
-              />
-            ) : null}
             {isReadOnly ? (
               <CompactLockButton label="記録終了" />
             ) : props.onAddEntry != null ? (
@@ -440,7 +483,7 @@ function VirtualEntrySummaryRow(props: {
   );
 }
 
-function StatusBanner({ message }: { message: EntryStatusMessage }) {
+export function StatusBanner({ message }: { message: EntryStatusMessage }) {
   const colors = (() => {
     switch (message.kind) {
       case "success":

@@ -7,18 +7,26 @@ import { useRouter, useSearchParams } from "next/navigation.js";
 import {
   AppError,
   assertEntryImportSize,
+  buildFiscalPeriodJournalFilename,
+  buildJournalTableRows,
   buildVirtualEntryRows,
   decodeJournalImportBytes,
-  exportEntriesAsCsv,
+  diffJournalTableEntries,
   exportEntriesAsJson,
-  importEntriesFromCsv,
+  formatJournalTableCsv,
   importEntriesFromJson,
+  journalEntryNumber,
+  parseJournalTableCsv,
+  readJournalTableEntries,
   buildPeriodLockMessage,
   compareYearMonth,
   formatIsoLocalDate,
   formatYearMonthKey,
   isMaterializedVirtualEntry,
   parseYearMonth,
+  type EntryRecord,
+  type JournalTableChanges,
+  type JournalTableProblem,
   type YearMonth,
 } from "@rubydogjp/openkk-client-domain";
 import {
@@ -33,14 +41,38 @@ import {
 } from "@rubydogjp/openkk-client-usecases";
 import {
   EntriesScreen,
+  EntriesViewSwitch,
   VirtualEntryDrawer,
+  type EntriesView,
   type EntryFileKind,
   type EntryStatusMessage,
 } from "../../entries/entries-ui.js";
+import {
+  JournalTableScreen,
+  type JournalTableReview,
+  type JournalTableScreenRow,
+} from "../../entries/journal-table-screen.js";
 import { EntryEditDrawer } from "../../entries/entry-edit-drawer.js";
 import { entryRecordToDraft } from "../../entries/entry-edit-model.js";
 import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 import { pathWithSearchParams } from "../../shared/pathname.js";
+
+type JournalTableImport =
+  | {
+      kind: "changes";
+      fiscalPeriodId: string;
+      incoming: EntryRecord[];
+      changes: JournalTableChanges;
+      applying: boolean;
+    }
+  | {
+      kind: "problems";
+      fiscalPeriodId: string;
+      problems: JournalTableProblem[];
+    };
+
+const TABLE_VIEW_PARAM = "view";
+const TABLE_VIEW_VALUE = "table";
 
 export function EntriesPage() {
   const router = useRouter();
@@ -69,6 +101,11 @@ export function EntriesPage() {
   );
   const [newEntryDraft, setNewEntryDraft] = useState<EntryDraft | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [tableImport, setTableImport] = useState<JournalTableImport | null>(
+    null,
+  );
+  const view: EntriesView =
+    searchParams.get(TABLE_VIEW_PARAM) === TABLE_VIEW_VALUE ? "table" : "month";
   const importLock = useRef(new ExclusiveActionLock());
   const selectedFiscalPeriodId = useRef(fiscalPeriodId);
   selectedFiscalPeriodId.current = fiscalPeriodId;
@@ -97,6 +134,7 @@ export function EntriesPage() {
 
   useEffect(() => {
     setNewEntryDraft(null);
+    setTableImport(null);
   }, [fiscalPeriodId]);
 
   useEffect(() => {
@@ -253,7 +291,7 @@ export function EntriesPage() {
   );
 
   const handleImportFile = async (kind: EntryFileKind, file: File) => {
-    if (fiscalPeriodId == null) {
+    if (fiscalPeriodId == null || currentFiscalPeriod == null) {
       setStatusMessage({ kind: "error", text: "期間が未選択です" });
       return;
     }
@@ -272,10 +310,31 @@ export function EntriesPage() {
       const text = decodeJournalImportBytes(
         new Uint8Array(await file.arrayBuffer()),
       );
-      const importedEntries =
-        kind === "json"
-          ? importEntriesFromJson({ text, fiscalPeriodId })
-          : importEntriesFromCsv({ text, fiscalPeriodId });
+      if (kind === "csv") {
+        const result = readJournalTableEntries(parseJournalTableCsv(text), {
+          fiscalPeriodId,
+          startDate: currentFiscalPeriod.startDate,
+          endDate: currentFiscalPeriod.endDate,
+          master: entriesState.journalTableMaster,
+        });
+        setTableImport(
+          result.ok
+            ? {
+                kind: "changes",
+                fiscalPeriodId,
+                incoming: result.entries,
+                changes: diffJournalTableEntries(
+                  fullPeriodEntries,
+                  result.entries,
+                  entriesState.journalTableMaster,
+                ),
+                applying: false,
+              }
+            : { kind: "problems", fiscalPeriodId, problems: result.problems },
+        );
+        return;
+      }
+      const importedEntries = importEntriesFromJson({ text, fiscalPeriodId });
       if (selectedFiscalPeriodId.current !== fiscalPeriodId) {
         throw new AppError({
           messageForDeveloper: "entries: fiscal period changed during import",
@@ -291,10 +350,6 @@ export function EntriesPage() {
         importedEntries,
       );
       if (selectedFiscalPeriodId.current !== fiscalPeriodId) return;
-      const earliestDate = result.earliestImportedDate;
-      if (result.imported > 0 && earliestDate != null) {
-        navigateWithMonth(parseYearMonth(earliestDate));
-      }
       setStatusMessage({
         kind: "success",
         text: `取り込みました(取込 ${result.imported} 件 / 重複スキップ ${result.skipped} 件)`,
@@ -314,19 +369,59 @@ export function EntriesPage() {
     }
   };
 
+  const handleApplyTableImport = async () => {
+    if (tableImport?.kind !== "changes") return;
+    const release = importLock.current.tryAcquire();
+    if (release == null) return;
+    const { changes } = tableImport;
+    setTableImport({ ...tableImport, applying: true });
+    try {
+      await entriesState.applyJournalTableChanges(
+        tableImport.fiscalPeriodId,
+        changes,
+      );
+      setStatusMessage({
+        kind: "success",
+        text: `反映しました(追加 ${changes.added.length} 件 / 変更 ${changes.changed.length} 件 / 削除 ${changes.removed.length} 件)`,
+      });
+    } catch (error) {
+      setStatusMessage({
+        kind: "error",
+        text: AppError.from(error, {
+          fallbackUserMessage:
+            "反映の途中で失敗しました。同じ CSV をもう一度取り込むと、残りを反映できます",
+          fallbackDeveloperMessage: "entries: apply journal table failed",
+          statusCode: null,
+        }).messageForUser,
+      });
+    } finally {
+      setTableImport(null);
+      release();
+    }
+  };
+
   const handleExport = (kind: EntryFileKind) => {
-    if (fiscalPeriodId == null) {
+    if (currentFiscalPeriod == null) {
       setStatusMessage({ kind: "error", text: "期間が未選択です" });
       return;
     }
-    const manualEntriesForFileExport = fullPeriodEntries.filter(
-      (entry) => !isMaterializedVirtualEntry(entry),
-    );
     const data =
       kind === "json"
-        ? exportEntriesAsJson(manualEntriesForFileExport)
-        : `\uFEFF${exportEntriesAsCsv(manualEntriesForFileExport)}`;
-    const filename = `${fiscalPeriodId}_journal.${kind}`;
+        ? exportEntriesAsJson(
+            fullPeriodEntries.filter(
+              (entry) => !isMaterializedVirtualEntry(entry),
+            ),
+          )
+        : formatJournalTableCsv(
+            buildJournalTableRows(
+              fullPeriodEntries,
+              entriesState.journalTableMaster,
+            ),
+          );
+    const filename = buildFiscalPeriodJournalFilename(
+      currentFiscalPeriod,
+      kind,
+    );
     files.save(
       new TextEncoder().encode(data),
       filename,
@@ -337,58 +432,117 @@ export function EntriesPage() {
     setStatusMessage({ kind: "success", text: `${filename} を出力しました` });
   };
 
+  const switchView = (next: EntriesView) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "table") params.set(TABLE_VIEW_PARAM, TABLE_VIEW_VALUE);
+    else params.delete(TABLE_VIEW_PARAM);
+    params.delete("entry");
+    params.delete("virtualEntry");
+    setNewEntryDraft(null);
+    setTableImport(null);
+    router.replace(pathWithSearchParams("/entries", params), { scroll: false });
+  };
+  const viewSwitch = <EntriesViewSwitch view={view} onChange={switchView} />;
+
+  const entriesByNumber = new Map(
+    fullPeriodEntries.map((entry) => [journalEntryNumber(entry), entry]),
+  );
+  const journalTableRows: JournalTableScreenRow[] =
+    view !== "table"
+      ? []
+      : tableImport?.kind === "changes"
+        ? buildReviewRows(tableImport, entriesState.journalTableMaster)
+        : buildJournalTableRows(
+            fullPeriodEntries,
+            entriesState.journalTableMaster,
+          ).map((row) => ({ ...row, entryKey: row.entryNumber, status: null }));
+  const tableReview: JournalTableReview | null =
+    tableImport == null
+      ? null
+      : tableImport.kind === "problems"
+        ? { kind: "problems", problems: tableImport.problems }
+        : {
+            kind: "changes",
+            added: tableImport.changes.added.length,
+            changed: tableImport.changes.changed.length,
+            removed: tableImport.changes.removed.length,
+            unchanged: tableImport.changes.unchangedCount,
+            applying: tableImport.applying,
+          };
+
   return (
     <>
-      <EntriesScreen
-        monthLabel={`${displayedMonth.year}年${displayedMonth.month}月`}
-        rows={tableRows}
-        canGoPrevious={canGoPrevious}
-        canGoNext={canGoNext}
-        onPrevious={() => navigateWithMonth(shiftMonth(displayedMonth, -1))}
-        onNext={() => navigateWithMonth(shiftMonth(displayedMonth, 1))}
-        lockedMessage={screenLockedMessage}
-        readOnly={isReadOnlyPeriod || editingLocked}
-        statusMessage={statusMessage}
-        activeRecordId={
-          !isReadOnlyPeriod && !editingLocked && drawerEntry != null
-            ? drawerEntry.id
-            : null
-        }
-        onAddEntry={
-          lockedMessage == null && !isReadOnlyPeriod && !editingLocked
-            ? () => {
-                if (fiscalPeriodId == null) return;
-                navigateWithDrawerParam("entry", null);
-                setNewEntryDraft(
-                  buildNewEntryDraft(
-                    resolveNewEntryDefaultDate({
-                      today,
-                      displayedMonth,
-                      periodStartDate: currentFiscalPeriod?.startDate ?? null,
-                      periodEndDate: currentFiscalPeriod?.endDate ?? null,
-                    }),
-                    entriesState.accountOptions,
-                  ),
-                );
-              }
-            : null
-        }
-        onOpenEntry={
-          lockedMessage == null && !editingLocked
-            ? (row) => {
-                if (row.virtual != null) {
-                  setNewEntryDraft(null);
-                  navigateWithDrawerParam("virtualEntry", row.virtual.id);
-                  return;
+      {view === "table" ? (
+        <JournalTableScreen
+          viewSwitch={viewSwitch}
+          rows={journalTableRows}
+          review={tableReview}
+          statusMessage={statusMessage}
+          lockedMessage={screenLockedMessage}
+          onImportFile={canImport && !isImporting ? handleImportFile : null}
+          onExport={fiscalPeriodId != null ? handleExport : null}
+          onOpenRow={
+            lockedMessage == null && !isReadOnlyPeriod && !editingLocked
+              ? (row) => {
+                  const entry = entriesByNumber.get(row.entryKey);
+                  if (entry != null) openDrawer(entry.id);
                 }
-                if (isReadOnlyPeriod) return;
-                openDrawer(row.recordId);
-              }
-            : null
-        }
-        onImportFile={canImport && !isImporting ? handleImportFile : null}
-        onExport={fiscalPeriodId != null ? handleExport : null}
-      />
+              : null
+          }
+          onApplyReview={() => void handleApplyTableImport()}
+          onDismissReview={() => setTableImport(null)}
+        />
+      ) : (
+        <EntriesScreen
+          viewSwitch={viewSwitch}
+          monthLabel={`${displayedMonth.year}年${displayedMonth.month}月`}
+          rows={tableRows}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={() => navigateWithMonth(shiftMonth(displayedMonth, -1))}
+          onNext={() => navigateWithMonth(shiftMonth(displayedMonth, 1))}
+          lockedMessage={screenLockedMessage}
+          readOnly={isReadOnlyPeriod || editingLocked}
+          statusMessage={statusMessage}
+          activeRecordId={
+            !isReadOnlyPeriod && !editingLocked && drawerEntry != null
+              ? drawerEntry.id
+              : null
+          }
+          onAddEntry={
+            lockedMessage == null && !isReadOnlyPeriod && !editingLocked
+              ? () => {
+                  if (fiscalPeriodId == null) return;
+                  navigateWithDrawerParam("entry", null);
+                  setNewEntryDraft(
+                    buildNewEntryDraft(
+                      resolveNewEntryDefaultDate({
+                        today,
+                        displayedMonth,
+                        periodStartDate: currentFiscalPeriod?.startDate ?? null,
+                        periodEndDate: currentFiscalPeriod?.endDate ?? null,
+                      }),
+                      entriesState.accountOptions,
+                    ),
+                  );
+                }
+              : null
+          }
+          onOpenEntry={
+            lockedMessage == null && !editingLocked
+              ? (row) => {
+                  if (row.virtual != null) {
+                    setNewEntryDraft(null);
+                    navigateWithDrawerParam("virtualEntry", row.virtual.id);
+                    return;
+                  }
+                  if (isReadOnlyPeriod) return;
+                  openDrawer(row.recordId);
+                }
+              : null
+          }
+        />
+      )}
       {fiscalPeriodId != null &&
       drawerEntry != null &&
       newEntryDraft == null &&
@@ -594,4 +748,35 @@ function parseMonthParam(value: string | null): YearMonth | null {
   const month = Number(matched[2]);
   if (month < 1 || month > 12) return null;
   return { year: Number(matched[1]), month };
+}
+
+function buildReviewRows(
+  review: { incoming: EntryRecord[]; changes: JournalTableChanges },
+  master: Parameters<typeof buildJournalTableRows>[1],
+): JournalTableScreenRow[] {
+  const { changes } = review;
+  const statuses = new Map<string, JournalTableScreenRow["status"]>([
+    ...changes.added.map(
+      (entry) => [journalEntryNumber(entry), "added"] as const,
+    ),
+    ...changes.changed.map(
+      ({ next }) => [journalEntryNumber(next), "changed"] as const,
+    ),
+    ...changes.removed.map(
+      (entry) => [journalEntryNumber(entry), "removed"] as const,
+    ),
+  ]);
+  const unnumbered = new Set(
+    changes.added
+      .filter((entry) => entry.localId == null)
+      .map((entry) => entry.id),
+  );
+  return buildJournalTableRows([...review.incoming, ...changes.removed], master)
+    .map((row) => ({
+      ...row,
+      entryNumber: unnumbered.has(row.entryNumber) ? "" : row.entryNumber,
+      entryKey: row.entryNumber,
+      status: statuses.get(row.entryNumber) ?? null,
+    }))
+    .sort((left, right) => left.date.localeCompare(right.date));
 }

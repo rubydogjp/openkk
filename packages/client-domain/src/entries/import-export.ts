@@ -6,6 +6,7 @@ import {
 } from "./entry-record.js";
 import type { BookAccountType } from "./book-account.js";
 import { AppError } from "../shared/app-error.js";
+import { stripByteOrderMark } from "../shared/csv.js";
 import {
   formatAmount,
   formatBusinessRatePercent,
@@ -111,33 +112,6 @@ export function importEntriesFromJson(input: {
   });
 }
 
-const journalCsvDataHeaders = [
-  "localId",
-  "date",
-  "weekday",
-  "debit",
-  "debitType",
-  "debitAmount",
-  "credit",
-  "creditType",
-  "creditAmount",
-  "description",
-  "partner",
-  "businessRate",
-  "businessRateRatio",
-  "taxCategory",
-  "businessCategory",
-  "lines",
-] as const;
-
-const csvHeaders = [
-  ...journalCsvDataHeaders,
-  "openkkSchema",
-  "openkkEscapedFields",
-] as const;
-
-const OPENKK_JOURNAL_CSV_SCHEMA = "openkk-journal-csv-v1";
-
 function journalFields(entry: EntryRecord) {
   const pair = entryToVisualPairs(entry)[0] ?? {
     debit: null,
@@ -154,105 +128,6 @@ function journalFields(entry: EntryRecord) {
   };
 }
 
-export function exportEntriesAsCsv(entries: EntryRecord[]) {
-  const lines = [csvHeaders.join(",")];
-  for (const entry of entries) {
-    const fields = journalFields(entry);
-    const rawValues = [
-      entry.localId ?? entry.id,
-      entry.date,
-      entry.weekday,
-      fields.debit,
-      fields.debitType,
-      fields.debitAmount,
-      fields.credit,
-      fields.creditType,
-      fields.creditAmount,
-      entry.description,
-      fields.partner,
-      formatBusinessRatePercent(entry.businessRate),
-      String(entry.businessRate),
-      fields.taxCategory,
-      fields.businessCategory,
-      JSON.stringify(entry.lines),
-    ];
-    const escapedFields: Array<(typeof journalCsvDataHeaders)[number]> = [];
-    const safeValues = rawValues.map((value, index) => {
-      if (!needsSpreadsheetFormulaProtection(value)) return value;
-      const fieldName = journalCsvDataHeaders[index];
-      if (fieldName != null) escapedFields.push(fieldName);
-      return `'${value}`;
-    });
-    lines.push(
-      [...safeValues, OPENKK_JOURNAL_CSV_SCHEMA, JSON.stringify(escapedFields)]
-        .map(escapeCsvField)
-        .join(","),
-    );
-  }
-  return lines.join("\n");
-}
-
-export function importEntriesFromCsv(input: {
-  text: string;
-  fiscalPeriodId: string;
-}): EntryRecord[] {
-  assertEntryImportSize(input.text.length);
-  const rows = parseCsv(stripBom(input.text));
-  const header = rows[0] ?? [];
-  const indexMap = Object.fromEntries(
-    csvHeaders.map((name) => [name, header.indexOf(name)]),
-  ) as Record<(typeof csvHeaders)[number], number>;
-  if (
-    indexMap.localId < 0 ||
-    indexMap.date < 0 ||
-    indexMap.debit < 0 ||
-    indexMap.credit < 0
-  ) {
-    throw importFileFormatError(
-      "CSV header missing required columns: localId, date, debit, credit",
-    );
-  }
-  if (rows.length < 2) return [];
-  assertEntryImportItemCount(rows.length - 1);
-
-  const seenLocalIds = new Set<string>();
-  let importLineCount = 0;
-  return rows.slice(1).map((cells, index) => {
-    const rowNumber = index + 2;
-    const escapedFields = parseCsvEscapedFields(cells, indexMap, rowNumber);
-    const read = (field: (typeof journalCsvDataHeaders)[number]) =>
-      readJournalCsvCell(cells, indexMap[field], escapedFields.has(field));
-    const localId = validateRequiredLocalId(
-      read("localId"),
-      rowNumber,
-      seenLocalIds,
-    );
-    const normalized = normalizeEntry({
-      fiscalPeriodId: input.fiscalPeriodId,
-      id: `entry-${input.fiscalPeriodId}-csv-${index + 1}`,
-      rowNumber,
-      localId,
-      date: read("date"),
-      debit: read("debit"),
-      debitType: read("debitType"),
-      debitAmount: read("debitAmount"),
-      credit: read("credit"),
-      creditType: read("creditType"),
-      creditAmount: read("creditAmount"),
-      description: read("description"),
-      partner: read("partner"),
-      businessRate: read("businessRate"),
-      businessRateRatio: read("businessRateRatio"),
-      taxCategory: read("taxCategory"),
-      businessCategory: read("businessCategory"),
-      lines: parseCsvLinesCell(read("lines"), rowNumber),
-    });
-    importLineCount += normalized.lines.length;
-    assertEntryImportLineCount(importLineCount);
-    return normalized;
-  });
-}
-
 export function decodeJournalImportBytes(bytes: Uint8Array): string {
   assertEntryImportSize(bytes.byteLength);
   try {
@@ -267,20 +142,6 @@ export function decodeJournalImportBytes(bytes: Uint8Array): string {
       code: null,
     });
   }
-}
-
-function parseCsvLinesCell(raw: string, rowNumber: number): unknown[] {
-  if (raw.trim() === "") return [];
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    throw importFileRowError(rowNumber, "invalid lines JSON");
-  }
-  if (!Array.isArray(parsed)) {
-    throw importFileRowError(rowNumber, "lines must be an array");
-  }
-  return parsed;
 }
 
 function normalizeEntry(input: {
@@ -469,138 +330,6 @@ function normalizeAmount(value: string, rowNumber: number, label: string) {
   return formatAmount(amount);
 }
 
-function escapeCsvField(value: string) {
-  if (
-    value.includes(",") ||
-    value.includes('"') ||
-    value.includes("\n") ||
-    value.includes("\r")
-  ) {
-    return `"${value.replaceAll('"', '""')}"`;
-  }
-  return value;
-}
-
-function needsSpreadsheetFormulaProtection(value: string): boolean {
-  return /^[=+\-@\t\r\n]/.test(value);
-}
-
-function parseCsvEscapedFields(
-  cells: string[],
-  indexMap: Record<(typeof csvHeaders)[number], number>,
-  rowNumber: number,
-): Set<(typeof journalCsvDataHeaders)[number]> {
-  if (readCsvCell(cells, indexMap.openkkSchema) !== OPENKK_JOURNAL_CSV_SCHEMA) {
-    return new Set();
-  }
-  const raw = readCsvCell(cells, indexMap.openkkEscapedFields);
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    throw importFileRowError(rowNumber, "invalid escaped fields metadata");
-  }
-  if (!Array.isArray(parsed) || !parsed.every(isJournalCsvDataHeader)) {
-    throw importFileRowError(rowNumber, "invalid escaped fields metadata");
-  }
-  return new Set(parsed);
-}
-
-function isJournalCsvDataHeader(
-  value: unknown,
-): value is (typeof journalCsvDataHeaders)[number] {
-  return (
-    typeof value === "string" &&
-    (journalCsvDataHeaders as readonly string[]).includes(value)
-  );
-}
-
-function readJournalCsvCell(
-  cells: string[],
-  index: number,
-  formulaProtected: boolean,
-): string {
-  const value = readCsvCell(cells, index);
-  return formulaProtected && value.startsWith("'") ? value.slice(1) : value;
-}
-
-function parseCsv(text: string) {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let field = "";
-  let state: "start" | "unquoted" | "quoted" | "after_quote" = "start";
-
-  const finishField = () => {
-    row.push(field);
-    field = "";
-    state = "start";
-  };
-  const finishRow = () => {
-    finishField();
-    rows.push(row);
-    row = [];
-  };
-
-  for (let i = 0; i < text.length; i += 1) {
-    const character = text[i];
-    if (state === "quoted") {
-      if (character === '"') {
-        if (text[i + 1] === '"') {
-          field += '"';
-          i += 1;
-        } else {
-          state = "after_quote";
-        }
-      } else {
-        field += character;
-      }
-      continue;
-    }
-
-    const isLineBreak = character === "\n" || character === "\r";
-    if (state === "after_quote") {
-      if (character === ",") {
-        finishField();
-        continue;
-      }
-      if (isLineBreak) {
-        finishRow();
-        if (character === "\r" && text[i + 1] === "\n") i += 1;
-        continue;
-      }
-      throw importFileFormatError(
-        "CSV has an unexpected character after a closing quote",
-      );
-    }
-
-    if (character === '"') {
-      if (state !== "start") {
-        throw importFileFormatError(
-          "CSV has an unexpected quote in an unquoted field",
-        );
-      }
-      state = "quoted";
-      continue;
-    }
-    if (character === ",") {
-      finishField();
-      continue;
-    }
-    if (isLineBreak) {
-      finishRow();
-      if (character === "\r" && text[i + 1] === "\n") i += 1;
-      continue;
-    }
-    field += character;
-    state = "unquoted";
-  }
-  if (state === "quoted") {
-    throw importFileFormatError("CSV has an unterminated quoted field");
-  }
-  finishRow();
-  return rows.filter((cells) => cells.some((cell) => cell.trim().length > 0));
-}
-
 function validateJsonLines(value: unknown, rowNumber: number): unknown[] {
   if (value == null) return [];
   if (!Array.isArray(value)) {
@@ -656,11 +385,6 @@ function stringValue(value: unknown): string {
     : "";
 }
 
-function readCsvCell(cells: string[], index: number) {
-  if (index < 0) return "";
-  return cells[index] ?? "";
-}
-
 function validateRequiredLocalId(
   rawLocalId: string,
   rowNumber: number,
@@ -677,13 +401,9 @@ function validateRequiredLocalId(
   throw importFileRowError(rowNumber, "localId is required");
 }
 
-function stripBom(text: string): string {
-  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
-}
-
 function parseEntriesJson(text: string): Record<string, unknown> {
   try {
-    const parsed: unknown = JSON.parse(stripBom(text));
+    const parsed: unknown = JSON.parse(stripByteOrderMark(text));
     if (!isRecord(parsed)) {
       throw new Error("journal JSON root must be an object");
     }

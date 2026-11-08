@@ -29,7 +29,6 @@ import {
   type EntryMasterAccountOption,
 } from "./account-options.js";
 import {
-  earliestEntryDate,
   removeEntryRecord,
   replaceFiscalPeriodEntryRecords,
   upsertEntryRecord,
@@ -37,8 +36,10 @@ import {
 import {
   entryLinesToInputs,
   entryRecordToImportPayload,
+  journalTableOperations,
   storedEntryToRecord,
-  type EntryLineMaster,
+  type JournalTableChanges,
+  type JournalTableMaster,
 } from "@rubydogjp/openkk-client-domain";
 import type {
   EntryUpsertInput,
@@ -85,11 +86,15 @@ type EntriesState = {
   ) => Promise<{
     imported: number;
     skipped: number;
-    earliestImportedDate: string | null;
   }>;
   prepareFiscalPeriodEntries: (
     importedEntries: EntryRecord[],
   ) => EntryUpsertInput[];
+  journalTableMaster: JournalTableMaster;
+  applyJournalTableChanges: (
+    fiscalPeriodId: string,
+    changes: JournalTableChanges,
+  ) => Promise<void>;
 
   accountOptions: EntryMasterAccountOption[];
   taxCategoryOptions: EntryMasterCategoryOption[];
@@ -127,7 +132,7 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
   const entryMutationQueue = useRef(new KeyedAsyncMutationQueue<string>());
   const currentFiscalPeriodDataPurged =
     appState.currentFiscalPeriod?.archiveStatus === "purged";
-  const master = useMemo<EntryLineMaster>(
+  const master = useMemo<JournalTableMaster>(
     () => ({ accounts: bookAccounts, taxCategories, businessCategories }),
     [bookAccounts, taxCategories, businessCategories],
   );
@@ -379,8 +384,51 @@ export function OpenkkEntriesProvider(props: { children: ReactNode }) {
               0,
               importedEntries.length - response.importedCount,
             ),
-            earliestImportedDate: earliestEntryDate(appended),
           };
+        } finally {
+          periodVersions.current.invalidate(fiscalPeriodId);
+        }
+      },
+      journalTableMaster: master,
+      async applyJournalTableChanges(fiscalPeriodId, changes) {
+        assertEditingUnlocked(
+          config.editingPolicy,
+          "entries.applyJournalTableChanges",
+        );
+        const authOperationVersion = appState.captureAuthOperationVersion();
+        periodVersions.current.invalidate(fiscalPeriodId);
+        const operations = journalTableOperations(changes, master);
+        try {
+          for (const id of operations.removeIds) {
+            await backendApi.entries.remove(fiscalPeriodId, id);
+            appState.assertAuthOperationCurrent(authOperationVersion);
+          }
+          for (const update of operations.updates) {
+            await backendApi.entries.update(
+              fiscalPeriodId,
+              update.id,
+              update.input,
+            );
+            appState.assertAuthOperationCurrent(authOperationVersion);
+          }
+          if (operations.creates.length > 0) {
+            await backendApi.entries.importMany(
+              fiscalPeriodId,
+              operations.creates,
+            );
+            appState.assertAuthOperationCurrent(authOperationVersion);
+          }
+          const remoteEntries = await backendApi.entries.getAll(fiscalPeriodId);
+          appState.assertAuthOperationCurrent(authOperationVersion);
+          setRecords((current) =>
+            replaceFiscalPeriodEntryRecords(
+              current,
+              fiscalPeriodId,
+              remoteEntries.map((entry) =>
+                storedEntryToRecord(entry, fiscalPeriodId, master),
+              ),
+            ),
+          );
         } finally {
           periodVersions.current.invalidate(fiscalPeriodId);
         }

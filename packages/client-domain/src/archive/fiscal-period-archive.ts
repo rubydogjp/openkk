@@ -125,6 +125,13 @@ export function buildFiscalPeriodArchiveFilename(input: {
   return `${fiscalPeriodFileBase(input.name)}_${input.startDate}_${input.endDate}.zip`;
 }
 
+export function buildFiscalPeriodJournalFilename(
+  input: { name: string },
+  extension: "csv" | "json",
+): string {
+  return `${fiscalPeriodFileBase(input.name)}_仕訳.${extension}`;
+}
+
 export function buildFiscalPeriodBookFilename(input: { name: string }): string {
   return `${fiscalPeriodFileBase(input.name)}${OPENKK_BOOK_FILE_EXTENSION}`;
 }

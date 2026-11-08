@@ -184,8 +184,18 @@ describe("openkk cli", () => {
       "journal.csv",
     );
     const exportedJson = await run("entries", "export", id, "--format", "json");
-    await run("entries", "import", id, "journal.csv");
     const reimported = await run("entries", "import", id, "journal.csv");
+    const csvPath = path.join(cwd, "journal.csv");
+    fs.writeFileSync(
+      csvPath,
+      fs
+        .readFileSync(csvPath, "utf8")
+        .replaceAll(",12000,", ",15000,")
+        .concat(",2026-04-02,消耗品費,500,現金,500,切手,,,,\n"),
+    );
+    const unconfirmed = await run("entries", "import", id, "journal.csv");
+    const replaced = await run("entries", "import", id, "journal.csv", "--yes");
+    const relisted = await run("entries", "list", id);
 
     expect(added.code).toBe(0);
     expect(listed.stdout).toContain(
@@ -201,7 +211,36 @@ describe("openkk cli", () => {
       schema: "openkk-journal-v1",
       entries: [{ description: "プリンタのインク", businessRateRatio: 0.8 }],
     });
-    expect(reimported.stdout).toContain("取込 0 件 / 重複スキップ 1 件");
+    expect(reimported.stdout).toContain("CSV は今の仕訳と同じです");
+    expect(unconfirmed.code).toBe(2);
+    expect(unconfirmed.stderr).toContain(
+      "追加 1 件 / 変更 1 件 / 削除 0 件 / そのまま 0 件",
+    );
+    expect(replaced.stdout).toContain(
+      "置き換えました (追加 1 件 / 変更 1 件 / 削除 0 件 / そのまま 0 件)",
+    );
+    expect(relisted.stdout).toContain(
+      "2026-04-01  借 消耗品費 15,000 / 貸 普通預金 15,000  プリンタのインク",
+    );
+    expect(relisted.stdout).toContain(
+      "2026-04-02  借 消耗品費 500 / 貸 現金 500  切手",
+    );
+  });
+
+  it("refuses a journal CSV with rows it cannot read", async () => {
+    const { cwd, run } = workspace();
+    const id = await startedPeriod(run);
+    fs.writeFileSync(
+      path.join(cwd, "bad.csv"),
+      "日付,借方科目,借方金額,貸方科目,貸方金額\n2026-04-01,消耗品,100,現金,100\n",
+    );
+
+    const result = await run("entries", "import", id, "bad.csv", "--yes");
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain(
+      "2 行目: 借方: 勘定科目「消耗品」が見つかりません",
+    );
   });
 
   it("imports a JSON journal into another period", async () => {
