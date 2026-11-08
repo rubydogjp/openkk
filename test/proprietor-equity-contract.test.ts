@@ -6,6 +6,7 @@ import {
   DEFAULT_BOOK_ACCOUNTS,
   DEFAULT_BUSINESS_CATEGORIES,
   DEFAULT_TAX_CATEGORIES,
+  importEntriesFromLegacyCsv,
   importEntriesFromJson,
   type EntryRecord as ClientEntryRecord,
 } from "../packages/client-domain/src/index.js";
@@ -148,34 +149,46 @@ describe("事業主借 equity contract", () => {
     },
   );
 
-  it("imports a legacy name-only JSON entry with the liability classification", () => {
-    const legacy = {
-      localId: "legacy-owner-loan",
-      date: "2026-06-01",
-      debit: "現金",
-      debitType: "asset",
-      debitAmount: "30000",
-      credit: "事業主借",
-      creditType: "liability",
-      creditAmount: "30000",
-      description: "旧形式の事業主借",
-      businessRate: "100%",
-    };
-    const [record] = importEntriesFromJson({
-      text: JSON.stringify({ entries: [legacy] }),
-      fiscalPeriodId: "fp-2026",
-    });
-    expect(record!.lines[1]).toMatchObject({
-      bookAccountId: null,
-      accountType: "liability",
-    });
-    const payload = entryRecordToImportPayload(record!, master);
-    expect(payload.lines).toEqual([
-      line("debit", "acct_cash", 30_000),
-      line("credit", OWNER_LOAN, 30_000),
-    ]);
-    expect(clientEntry(payload).lines[1]?.accountType).toBe("equity");
-  });
+  it.each(["csv", "json"] as const)(
+    "imports legacy name-only %s with the liability classification",
+    (format) => {
+      const legacy = {
+        localId: "legacy-owner-loan",
+        date: "2026-06-01",
+        debit: "現金",
+        debitType: "asset",
+        debitAmount: "30000",
+        credit: "事業主借",
+        creditType: "liability",
+        creditAmount: "30000",
+        description: "旧形式の事業主借",
+        businessRate: "100%",
+      };
+      const text =
+        format === "json"
+          ? JSON.stringify({ entries: [legacy] })
+          : [
+              Object.keys(legacy).join(","),
+              Object.values(legacy).join(","),
+            ].join("\n");
+      const [record] = (
+        format === "json" ? importEntriesFromJson : importEntriesFromLegacyCsv
+      )({
+        text,
+        fiscalPeriodId: "fp-2026",
+      });
+      expect(record!.lines[1]).toMatchObject({
+        bookAccountId: null,
+        accountType: "liability",
+      });
+      const payload = entryRecordToImportPayload(record!, master);
+      expect(payload.lines).toEqual([
+        line("debit", "acct_cash", 30_000),
+        line("credit", OWNER_LOAN, 30_000),
+      ]);
+      expect(clientEntry(payload).lines[1]?.accountType).toBe("equity");
+    },
+  );
 
   it.each([null, OWNER_LOAN] as const)(
     "accepts the old classification with account ID %j",

@@ -15,6 +15,8 @@ import {
   exportEntriesAsJson,
   formatJournalTableCsv,
   importEntriesFromJson,
+  importEntriesFromLegacyCsv,
+  isLegacyJournalCsv,
   journalEntryNumber,
   parseJournalTableCsv,
   readJournalTableEntries,
@@ -310,7 +312,8 @@ export function EntriesPage() {
       const text = decodeJournalImportBytes(
         new Uint8Array(await file.arrayBuffer()),
       );
-      if (kind === "csv") {
+      const legacyCsv = kind === "csv" && isLegacyJournalCsv(text);
+      if (kind === "csv" && !legacyCsv) {
         const result = readJournalTableEntries(parseJournalTableCsv(text), {
           fiscalPeriodId,
           startDate: currentFiscalPeriod.startDate,
@@ -334,7 +337,9 @@ export function EntriesPage() {
         );
         return;
       }
-      const importedEntries = importEntriesFromJson({ text, fiscalPeriodId });
+      const importedEntries = legacyCsv
+        ? importEntriesFromLegacyCsv({ text, fiscalPeriodId })
+        : importEntriesFromJson({ text, fiscalPeriodId });
       if (selectedFiscalPeriodId.current !== fiscalPeriodId) {
         throw new AppError({
           messageForDeveloper: "entries: fiscal period changed during import",
@@ -352,7 +357,7 @@ export function EntriesPage() {
       if (selectedFiscalPeriodId.current !== fiscalPeriodId) return;
       setStatusMessage({
         kind: "success",
-        text: `取り込みました(取込 ${result.imported} 件 / 重複スキップ ${result.skipped} 件)`,
+        text: `${legacyCsv ? "以前の形式の CSV なので、足すだけで" : ""}取り込みました(取込 ${result.imported} 件 / 重複スキップ ${result.skipped} 件)`,
       });
     } catch (error) {
       setStatusMessage({

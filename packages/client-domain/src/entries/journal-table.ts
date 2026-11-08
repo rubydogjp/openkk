@@ -186,8 +186,8 @@ export function parseJournalTableCsv(text: string): JournalTableFileRow[] {
   const names = header.map((name) => name.trim());
   if (names.includes("localId")) {
     throw journalTableFileError(
-      "journal CSV uses the previous format",
-      "以前の形式のCSVです。今の形式で書き出したCSVを使うか、JSONで取り込んでください。",
+      "journal CSV uses the previous format; read it with importEntriesFromLegacyCsv",
+      "以前の形式のCSVです。",
     );
   }
   const columns = JOURNAL_TABLE_FIELDS.map((field) =>

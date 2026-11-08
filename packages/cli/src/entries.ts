@@ -9,6 +9,8 @@ import {
   exportEntriesAsJson,
   formatJournalTableCsv,
   importEntriesFromJson,
+  importEntriesFromLegacyCsv,
+  isLegacyJournalCsv,
   isMaterializedVirtualEntry,
   journalTableOperations,
   parseJournalTableCsv,
@@ -88,14 +90,14 @@ export async function runEntriesCommand(
         options.format ?? path.extname(filePath).slice(1),
       );
       const text = decodeJournalImportBytes(fs.readFileSync(filePath));
-      if (format === "csv") {
+      const legacyCsv = format === "csv" && isLegacyJournalCsv(text);
+      if (format === "csv" && !legacyCsv) {
         await replaceEntriesFromCsv(context, period, text);
         return;
       }
-      const imported = importEntriesFromJson({
-        text,
-        fiscalPeriodId: period.id,
-      });
+      const imported = legacyCsv
+        ? importEntriesFromLegacyCsv({ text, fiscalPeriodId: period.id })
+        : importEntriesFromJson({ text, fiscalPeriodId: period.id });
       const master = await loadMaster(api);
       const response = await api.entries.importMany(
         period.id,
@@ -107,7 +109,7 @@ export async function runEntriesCommand(
         return;
       }
       output.line(
-        `取り込みました (取込 ${response.importedCount} 件 / 重複スキップ ${skipped} 件)`,
+        `${legacyCsv ? "以前の形式の CSV なので、足すだけで" : ""}取り込みました (取込 ${response.importedCount} 件 / 重複スキップ ${skipped} 件)`,
       );
       return;
     }

@@ -227,6 +227,42 @@ describe("openkk cli", () => {
     );
   });
 
+  it("adds entries from a CSV in the previous format without replacing", async () => {
+    const { cwd, run } = workspace();
+    const id = await startedPeriod(run);
+    await run(
+      "entries",
+      "add",
+      id,
+      "--date",
+      "2026-04-01",
+      "--debit",
+      "消耗品費",
+      "--credit",
+      "普通預金",
+      "--amount",
+      "1000",
+      "--description",
+      "あとで入力した仕訳",
+    );
+    fs.writeFileSync(
+      path.join(cwd, "old.csv"),
+      [
+        "localId,date,debit,debitType,debitAmount,credit,creditType,creditAmount,description,businessRate",
+        "old-1,2026-03-01,通信費,expense,8000,普通預金,asset,8000,以前の CSV の仕訳,100",
+      ].join("\n"),
+    );
+
+    const imported = await run("entries", "import", id, "old.csv");
+    const listed = await run("entries", "list", id);
+
+    expect(imported.stdout).toContain(
+      "以前の形式の CSV なので、足すだけで取り込みました (取込 1 件 / 重複スキップ 0 件)",
+    );
+    expect(listed.stdout).toContain("以前の CSV の仕訳");
+    expect(listed.stdout).toContain("あとで入力した仕訳");
+  });
+
   it("refuses a journal CSV with rows it cannot read", async () => {
     const { cwd, run } = workspace();
     const id = await startedPeriod(run);

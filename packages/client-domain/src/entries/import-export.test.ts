@@ -10,6 +10,8 @@ import {
   decodeJournalImportBytes,
   exportEntriesAsJson,
   importEntriesFromJson,
+  importEntriesFromLegacyCsv,
+  isLegacyJournalCsv,
 } from "./import-export.js";
 import {
   assertEntryImportItemCount,
@@ -603,3 +605,111 @@ function captureError(fn: () => unknown): unknown {
   }
   throw new Error("expected function to throw");
 }
+
+describe("importEntriesFromLegacyCsv", () => {
+  const header = [
+    "localId",
+    "date",
+    "weekday",
+    "debit",
+    "debitType",
+    "debitAmount",
+    "credit",
+    "creditType",
+    "creditAmount",
+    "description",
+    "partner",
+    "businessRate",
+    "businessRateRatio",
+    "taxCategory",
+    "businessCategory",
+    "lines",
+    "openkkSchema",
+    "openkkEscapedFields",
+  ].join(",");
+  const quote = (value: string) => `"${value.replaceAll('"', '""')}"`;
+  const lines = [
+    {
+      side: "debit",
+      accountName: "普通預金",
+      accountType: "asset",
+      amount: "89,790",
+      bookAccountId: "acct_bank",
+    },
+    {
+      side: "credit",
+      accountName: "売上",
+      accountType: "revenue",
+      amount: "100,000",
+      bookAccountId: "acct_sales",
+    },
+    {
+      side: "debit",
+      accountName: "事業主貸",
+      accountType: "equity",
+      amount: "10,210",
+      bookAccountId: "acct_withdrawal",
+    },
+  ];
+  const row = [
+    "reward-1",
+    "2026-04-25",
+    "土",
+    "普通預金",
+    "asset",
+    quote("89,790"),
+    "売上",
+    "revenue",
+    quote("100,000"),
+    "'=報酬の入金",
+    "△△社",
+    "100",
+    "1",
+    "対象外",
+    "対象外",
+    quote(JSON.stringify(lines)),
+    "openkk-journal-csv-v1",
+    quote(JSON.stringify(["description"])),
+  ].join(",");
+
+  it("recognises the previous CSV format by its localId column", () => {
+    expect(isLegacyJournalCsv(`﻿${header}\n${row}`)).toBe(true);
+    expect(
+      isLegacyJournalCsv("仕訳番号,日付,借方科目,借方金額,貸方科目,貸方金額"),
+    ).toBe(false);
+  });
+
+  it("reads every line of a compound entry and undoes the formula protection", () => {
+    const [imported] = importEntriesFromLegacyCsv({
+      text: `﻿${header}\n${row}\n`,
+      fiscalPeriodId: "fp-2",
+    });
+
+    expect(imported).toMatchObject({
+      localId: "reward-1",
+      fiscalPeriodId: "fp-2",
+      description: "=報酬の入金",
+      businessRate: 1,
+    });
+    expect(
+      imported!.lines.map((line) => [
+        line.side,
+        line.bookAccountId,
+        line.amount,
+      ]),
+    ).toEqual([
+      ["debit", "acct_bank", "89,790"],
+      ["credit", "acct_sales", "100,000"],
+      ["debit", "acct_withdrawal", "10,210"],
+    ]);
+  });
+
+  it("asks for the columns it needs", () => {
+    expect(() =>
+      importEntriesFromLegacyCsv({
+        text: "localId,description\ne1,test",
+        fiscalPeriodId: "fp-1",
+      }),
+    ).toThrow(/CSV header missing/);
+  });
+});

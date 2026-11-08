@@ -93,32 +93,24 @@ test.describe("journal table import and export", () => {
     ).toBeVisible();
   });
 
-  test("imports legacy 事業主借 from JSON as equity and groups it separately from 事業主貸", async ({
+  test("adds legacy 事業主借 from a CSV in the previous format as equity, apart from 事業主貸", async ({
     page,
   }) => {
-    await importEntriesFile(page, "json", {
-      name: "legacy-owner-loan.json",
-      mimeType: "application/json",
-      buffer: Buffer.from(
-        JSON.stringify({
-          entries: [
-            {
-              localId: "legacy-owner-loan",
-              date: "2026-05-01",
-              debit: "現金",
-              debitType: "asset",
-              debitAmount: "30000",
-              credit: "事業主借",
-              creditType: "liability",
-              creditAmount: "30000",
-              description: "旧分類の事業主借",
-              businessRate: "100%",
-            },
-          ],
-        }),
+    await importEntriesFile(
+      page,
+      "csv",
+      csvFile(
+        [
+          "localId,date,debit,debitType,debitAmount,credit,creditType,creditAmount,description,businessRate",
+          "legacy-owner-loan,2026-05-01,現金,asset,30000,事業主借,liability,30000,旧分類の事業主借,100%",
+        ].join("\n"),
       ),
-    });
-    await expect(page.getByText(/取り込みました\(取込 1 件/)).toBeVisible();
+    );
+    await expect(
+      page.getByText(
+        "以前の形式の CSV なので、足すだけで取り込みました(取込 1 件 / 重複スキップ 0 件)",
+      ),
+    ).toBeVisible();
     await page.getByText("旧分類の事業主借", { exact: true }).click();
     const drawer = page.getByRole("dialog", { name: "仕訳の編集" });
     await expect(drawer.getByLabel("貸方科目")).toContainText("事業主借");
