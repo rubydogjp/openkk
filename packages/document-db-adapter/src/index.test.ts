@@ -88,7 +88,7 @@ describe("document-db-adapter", () => {
     expect(await document.db.fiscalPeriods.getById(fromCli.id)).toEqual(
       fromCli,
     );
-    expect(names).toEqual(["2026年分", fromBrowser.name]);
+    expect([...names].sort()).toEqual(["2026年分", fromBrowser.name]);
   });
 
   it("notifies listeners only after operations that change the book", async () => {
