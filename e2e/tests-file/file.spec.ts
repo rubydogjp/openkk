@@ -190,7 +190,7 @@ test("starts the next period in a new book next to the closed one", async ({
   await page.reload();
   await openBookFromList(page, fileName);
   await expectStep(page, "次の期間へ");
-  await expect(page.getByText("2027年分.openkk (新しい帳簿)")).toBeVisible();
+  await expect(page.getByText("新しい帳簿のファイル")).toBeVisible();
   const reversal = page.getByRole("checkbox", { name: /年末の未払い/ });
   await reversal.locator("..").click();
   await expect(reversal).toBeChecked();

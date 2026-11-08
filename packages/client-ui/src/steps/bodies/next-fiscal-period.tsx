@@ -5,7 +5,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AppError,
   buildFiscalPeriodArchiveFilename,
-  buildFiscalPeriodBookFilename,
   buildNextFiscalPeriodSuggestion,
   fiscalPeriodNameForEndDate,
   hasActiveFiscalPeriodOverlap,
@@ -314,11 +313,7 @@ export function NextFiscalPeriodBody({
             hint={null}
           />
           {createNextBook != null ? (
-            <StepMetaRow
-              label="ファイル"
-              value={`${buildFiscalPeriodBookFilename({ name })} (新しい帳簿)`}
-              divider
-            />
+            <StepMetaRow label="保存先" value="新しい帳簿のファイル" divider />
           ) : null}
         </StepMetaCard>
       </section>
