@@ -37,6 +37,7 @@ function harness(saveMode: OpenkkDocumentSaveMode) {
     onClose: () => {
       closed += 1;
     },
+    openNextBook: async () => {},
   });
   const statuses: string[] = [];
   session.subscribe(() => statuses.push(session.getStatus()));

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AppError,
   buildFiscalPeriodArchiveFilename,
+  buildFiscalPeriodBookFilename,
   buildNextFiscalPeriodSuggestion,
   fiscalPeriodNameForEndDate,
   hasActiveFiscalPeriodOverlap,
@@ -14,6 +15,7 @@ import {
 import { AppErrorText } from "../../shared/app-error-text.js";
 import {
   useFiscalPeriodArchiveExport,
+  useNextFiscalPeriodBook,
   usePlatformAdapter,
   useOpenkkAppState,
   useOpenkkCallout,
@@ -67,6 +69,7 @@ export function NextFiscalPeriodBody({
   const config = useOpenkkConfig();
   const nextPeriodFooter = useOpenkkCallout("stepNextFiscalPeriodFooter");
   const exportArchive = useFiscalPeriodArchiveExport();
+  const createNextBook = useNextFiscalPeriodBook();
   const appState = useOpenkkAppState();
   const files = usePlatformAdapter().files;
   const entriesState = useOpenkkEntries();
@@ -175,7 +178,7 @@ export function NextFiscalPeriodBody({
     setIsCreating(true);
     let createdId: string | null = null;
     try {
-      createdId = await appState.createNextFiscalPeriod({
+      const input = {
         sourceFiscalPeriodId: currentFiscalPeriod.id,
         name,
         startDate,
@@ -183,7 +186,12 @@ export function NextFiscalPeriodBody({
         carryBalances: carries.bs,
         reversalEntryIds: carries.transfer ? reversalEntryIds : [],
         carryFixedAssets: carries.fixed,
-      });
+      };
+      if (createNextBook != null) {
+        await createNextBook(input);
+        return;
+      }
+      createdId = await appState.createNextFiscalPeriod(input);
       appState.assertAuthOperationCurrent(authOperationVersion);
       if (isEphemeral && currentArchived) {
         await appState.purgeArchivedFiscalPeriod(currentFiscalPeriod.id);
@@ -305,6 +313,13 @@ export function NextFiscalPeriodBody({
             }
             hint={null}
           />
+          {createNextBook != null ? (
+            <StepMetaRow
+              label="ファイル"
+              value={`${buildFiscalPeriodBookFilename({ name })} (新しい帳簿)`}
+              divider
+            />
+          ) : null}
         </StepMetaCard>
       </section>
 

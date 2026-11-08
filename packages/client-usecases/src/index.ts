@@ -16,3 +16,4 @@ export * from "./assist/assist-state.js";
 export * from "./print/print-state.js";
 export * from "./document/document-session.js";
 export * from "./document/document-context.js";
+export * from "./document/next-fiscal-period-book.js";

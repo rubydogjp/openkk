@@ -2,6 +2,7 @@ import type {
   OpenkkDocumentPort,
   OpenkkDocumentSaveStatus,
   OpenkkDocumentSink,
+  OpenkkNextBookInput,
 } from "@rubydogjp/openkk-client-ports";
 
 export type OpenkkDocumentSession = OpenkkDocumentPort & {
@@ -12,6 +13,7 @@ export function createOpenkkDocumentSession(options: {
   sink: OpenkkDocumentSink;
   exportBytes: () => Uint8Array;
   onClose: () => void;
+  openNextBook: (input: OpenkkNextBookInput) => Promise<void>;
 }): OpenkkDocumentSession {
   const { sink } = options;
   const listeners = new Set<() => void>();
@@ -81,5 +83,6 @@ export function createOpenkkDocumentSession(options: {
       if (writing != null) await writing;
       options.onClose();
     },
+    openNextBook: options.openNextBook,
   };
 }

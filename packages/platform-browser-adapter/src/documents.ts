@@ -50,7 +50,6 @@ type RecentRecord = BrowserRecentDocument & {
 
 type PickerWindow = Window & {
   showOpenFilePicker?(options: unknown): Promise<BrowserDocumentFileHandle[]>;
-  showSaveFilePicker?(options: unknown): Promise<BrowserDocumentFileHandle>;
   launchQueue?: {
     setConsumer(
       consumer: (params: { files: BrowserDocumentFileHandle[] }) => void,
@@ -102,11 +101,7 @@ export function createDownloadDocumentSink(
 
 export const browserDocuments = {
   canSaveDirectly(): boolean {
-    const picker = window as PickerWindow;
-    return (
-      typeof picker.showOpenFilePicker === "function" &&
-      typeof picker.showSaveFilePicker === "function"
-    );
+    return typeof (window as PickerWindow).showOpenFilePicker === "function";
   },
 
   async open(): Promise<BrowserOpenedDocument | null> {
@@ -123,26 +118,11 @@ export const browserDocuments = {
     return openHandle(handle);
   },
 
-  async create(): Promise<BrowserOpenedDocument | null> {
-    if (!browserDocuments.canSaveDirectly()) {
-      return {
-        bytes: null,
-        sink: createDownloadDocumentSink(NEW_OPENKK_DOCUMENT_NAME),
-        remember: rememberNothing,
-      };
-    }
-    const handle = await cancellable(() =>
-      (window as PickerWindow).showSaveFilePicker!({
-        suggestedName: NEW_OPENKK_DOCUMENT_NAME,
-        types: PICKER_TYPES,
-      }),
-    );
-    if (handle == null) return null;
-    await requireWritePermission(handle);
+  createForDownload(desiredName: string): BrowserOpenedDocument {
     return {
       bytes: null,
-      sink: createHandleDocumentSink(handle, null),
-      remember: () => rememberRecent(handle),
+      sink: createDownloadDocumentSink(desiredName),
+      remember: rememberNothing,
     };
   },
 

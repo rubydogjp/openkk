@@ -31,7 +31,7 @@ export function DocumentStatusBanner() {
       ? {
           tone: "danger" as const,
           message:
-            "ほかのアプリでこのファイルが変更されたため、自動保存を止めました。最新の内容で開き直してください。",
+            "ほかのアプリやタブでこの帳簿が変更されたため、自動保存を止めました。最新の内容で開き直してください。",
           actionLabel: "開き直す",
           action: document.close,
         }

@@ -11,7 +11,10 @@ export const BUNDLE_LABEL = "ファイル版";
 
 export const BOOK_OWNER_USER_ID = "openkk-original-user";
 
-export function buildDocumentConfig(fileName: string): OpenkkConfig {
+export function buildDocumentConfig(
+  fileName: string,
+  initialFiscalPeriodId: string | null,
+): OpenkkConfig {
   return {
     clock: createSystemClock(),
     bundleLabel: BUNDLE_LABEL,
@@ -21,7 +24,7 @@ export function buildDocumentConfig(fileName: string): OpenkkConfig {
       id: BOOK_OWNER_USER_ID,
       displayName: fileName,
     },
-    initialFiscalPeriodId: null,
+    initialFiscalPeriodId,
     sessionStorageKey: `openkk.${BUNDLE}.session.user_id`,
     fiscalPeriodStorageKey: `openkk.${BUNDLE}.fiscal_period_id`,
     fiscalPeriodPolicy: DEFAULT_FISCAL_PERIOD_POLICY,

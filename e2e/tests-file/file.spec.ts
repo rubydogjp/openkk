@@ -27,7 +27,6 @@ test.beforeEach(async ({ page }) => {
     if (sessionStorage.getItem("openkk-test-no-file-access") === "1") {
       pickerWindow.showDirectoryPicker = undefined;
       pickerWindow.showOpenFilePicker = undefined;
-      pickerWindow.showSaveFilePicker = undefined;
       return;
     }
     pickerWindow.showDirectoryPicker = async () =>
@@ -68,7 +67,8 @@ test("keeps the books in the chosen folder and autosaves every change", async ({
   await page.reload();
   await expect(page.getByText(`フォルダ: ${PICKED_FOLDER}`)).toBeVisible();
   await openBookFromList(page, NEW_BOOK_NAME);
-  await expect(page.getByText("ファイル版の期間")).toBeVisible();
+  await expectStep(page, "期間を開始");
+  await expect(page.getByText("ファイル版の期間").first()).toBeVisible();
 });
 
 test("opens a book made by the CLI and writes back changes the CLI can read", async ({
@@ -81,9 +81,9 @@ test("opens a book made by the CLI and writes back changes the CLI can read", as
   await putFile(page, PICKED_FOLDER, fileName, fs.readFileSync(cliPath));
   await page.reload();
   await openBookFromList(page, fileName);
-  await expect(page.getByText("CLIで作った期間")).toBeVisible();
+  await expect(page.getByText("CLIで作った期間").first()).toBeVisible();
 
-  await startPeriodFromList(page, "CLIで作った期間");
+  await startOpenedPeriod(page);
   await expectSaved(page);
   fs.writeFileSync(
     cliPath,
@@ -103,7 +103,7 @@ test("opens a book file outside the folder", async ({ page }) => {
   await putFile(page, null, fileName, fs.readFileSync(cliPath));
   await openWithPicker(page, fileName);
   await expectBookOpen(page, fileName);
-  await expect(page.getByText("フォルダの外の期間")).toBeVisible();
+  await expect(page.getByText("フォルダの外の期間").first()).toBeVisible();
 });
 
 test("stops autosaving when another app changes the file", async ({ page }) => {
@@ -117,7 +117,7 @@ test("stops autosaving when another app changes the file", async ({ page }) => {
 
   await page.waitForTimeout(50);
   await putFile(page, PICKED_FOLDER, fileName, fs.readFileSync(cliPath));
-  await startPeriodFromList(page, "共有する期間");
+  await startOpenedPeriod(page);
 
   await expect(
     page.getByRole("alert").filter({ hasText: "自動保存を止めました" }),
@@ -166,7 +166,7 @@ test("keeps the books inside the app when the browser cannot write files", async
   await clickButton(page, "ファイルを取り込む");
   await (await chooser).setFiles(cliPath);
   await expectBookOpen(page, "imported.openkk");
-  await expect(page.getByText("取り込んだ期間")).toBeVisible();
+  await expect(page.getByText("取り込んだ期間").first()).toBeVisible();
   await expectSaved(page);
 
   await page.reload();
@@ -176,7 +176,45 @@ test("keeps the books inside the app when the browser cannot write files", async
     "imported.openkk",
   );
   await openBookFromList(page, NEW_BOOK_NAME);
-  await expect(page.getByText("アプリの中の期間")).toBeVisible();
+  await expect(page.getByText("アプリの中の期間").first()).toBeVisible();
+});
+
+test("starts the next period in a new book next to the closed one", async ({
+  page,
+}) => {
+  const fileName = "2026年分.openkk";
+  const closedPath = await createClosedCliBook(fileName);
+  await page.goto("/");
+  await clickButton(page, "帳簿を置くフォルダを選ぶ");
+  await putFile(page, PICKED_FOLDER, fileName, fs.readFileSync(closedPath));
+  await page.reload();
+  await openBookFromList(page, fileName);
+  await expectStep(page, "次の期間へ");
+  await expect(page.getByText("2027年分.openkk (新しい帳簿)")).toBeVisible();
+  const reversal = page.getByRole("checkbox", { name: /年末の未払い/ });
+  await reversal.locator("..").click();
+  await expect(reversal).toBeChecked();
+
+  await clickButton(page, "次期を作成");
+  await expectBookOpen(page, "2027年分.openkk");
+  await expectStep(page, "期間を開始");
+  await expectSaved(page);
+
+  const nextPath = await saveToTempFile(
+    await getFile(page, PICKED_FOLDER, "2027年分.openkk"),
+    "2027年分.openkk",
+  );
+  expect(await readCliOpenings(nextPath)).toEqual([
+    {
+      name: "2027年分",
+      phase: "pre_opening",
+      balanceAccounts: expect.arrayContaining(["l:未払金"]),
+      journals: ["再振替: 年末の未払い"],
+    },
+  ]);
+  expect(await readCliPeriods(closedPath)).toEqual([
+    { name: "2026年分", phase: "post_closing" },
+  ]);
 });
 
 async function expectBookOpen(page: Page, fileName: string) {
@@ -199,9 +237,7 @@ async function addFiscalPeriodInApp(page: Page, name: string) {
   await expectStep(page, "期間を開始");
 }
 
-async function startPeriodFromList(page: Page, name: string) {
-  await expect(page.getByRole("heading", { name: "期間の選択" })).toBeVisible();
-  await page.getByText(name).click();
+async function startOpenedPeriod(page: Page) {
   await expectStep(page, "期間を開始");
   await clickButton(page, "開始する");
   await clickButton(page, "開始する");
@@ -289,6 +325,63 @@ async function createCliBook(fileName: string, periodName: string) {
   return filePath;
 }
 
+async function createClosedCliBook(fileName: string) {
+  const { createNodeSqliteDbAdapter } =
+    await import("@rubydogjp/openkk-node-sqlite-db-adapter");
+  const { buildExpectedClosingEntries, createOpenkkServer } =
+    await import("@rubydogjp/openkk-server");
+  const filePath = path.join(makeTempDir(), fileName);
+  const adapter = await createNodeSqliteDbAdapter(filePath, null);
+  try {
+    const server = createOpenkkServer(adapter.db, {
+      userId: "openkk-original-user",
+    });
+    const period = await server.fiscalPeriods.create({
+      name: "2026年分",
+      startDate: "2026-01-01",
+      endDate: "2026-12-31",
+    });
+    await server.fiscalPeriods.start(period.id);
+    await server.fiscalPeriods.patch(period.id, {
+      openingBalancesCompleted: true,
+    });
+    await adapter.db.entries.create(period.userId, period.id, {
+      date: period.endDate,
+      description: "年末の未払い",
+      localId: null,
+      businessRate: 1,
+      lines: [
+        { side: "debit" as const, bookAccountId: "acct_supplies" },
+        { side: "credit" as const, bookAccountId: "acct_accrued_expense" },
+      ].map((line) => ({
+        ...line,
+        amount: 1000,
+        partnerName: "",
+        taxCategoryId: "",
+        businessCategoryId: "",
+      })),
+    });
+    await server.preClosings.run(period.id);
+    await server.closings.run(
+      period.id,
+      buildExpectedClosingEntries({
+        periodStartDate: period.startDate,
+        periodEndDate: period.endDate,
+        entries: await server.entries.getAll(period.id),
+        fixedAssets: [],
+        openingJournals: [],
+        bookAccounts: await server.masterData.getBookAccounts(),
+      }),
+    );
+    await server.fiscalPeriods.patch(period.id, {
+      documentsReceivedCompleted: true,
+    });
+  } finally {
+    adapter.close();
+  }
+  return filePath;
+}
+
 async function readCliPeriods(
   filePath: string,
 ): Promise<Array<{ name: string; phase: string }>> {
@@ -298,6 +391,24 @@ async function readCliPeriods(
   try {
     return (await adapter.db.fiscalPeriods.getAll("openkk-original-user")).map(
       ({ name, phase }) => ({ name, phase }),
+    );
+  } finally {
+    adapter.close();
+  }
+}
+
+async function readCliOpenings(filePath: string) {
+  const { createNodeSqliteDbAdapter } =
+    await import("@rubydogjp/openkk-node-sqlite-db-adapter");
+  const adapter = await createNodeSqliteDbAdapter(filePath, null);
+  try {
+    return (await adapter.db.fiscalPeriods.getAll("openkk-original-user")).map(
+      ({ name, phase, opening }) => ({
+        name,
+        phase,
+        balanceAccounts: opening.balanceLines.map((line) => line.accountId),
+        journals: opening.journals.map((journal) => journal.description),
+      }),
     );
   } finally {
     adapter.close();

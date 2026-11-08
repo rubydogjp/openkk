@@ -116,6 +116,7 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 - `createOpenkkDocumentSession` (`client-usecases`): `onChange` を受けて書き出しを重ねず最新だけ保存し、保存の状態 (`saved` / `saving` / `unsaved` / `conflict` / `failed`) を `OpenkkDocumentPort` として出す。書き先は `OpenkkDocumentSink` で、プラットフォームごとに差し替える。
 - `browserDocuments` (`platform-browser-adapter`): File System Access API でファイルを開く・作る・最近使ったファイルを覚え、書く前に更新時刻を確かめる。使えないブラウザではダウンロードで保存する。
 - `openkk_file`: 開いたファイルごとに上の3つと `embedded-backend` を組み、`OpenkkBundleRuntime.document` に渡す。画面は `useOpenkkDocument()` で、ファイル名・保存状態・別のファイルを開く操作を出す。ほかの版は `document: null`。
+- 次の期間は新しい帳簿に作る (1 期間 = 1 ファイル)。「次期を作成」は `useNextFiscalPeriodBook` (`client-usecases`) で今の期間を圧縮保存と同じ形にし、`OpenkkDocumentPort.openNextBook` に渡す。`openkk_file` は新しい帳簿に期間を作って引き継ぎ (`applyCarryoverFromArchive`)、同じ置き場に `<期間名>.openkk` として保存して開き直す。帳簿を開くと、いちばん新しい期間を選んだ状態で始まる。
 
 同じ部品で、デスクトップアプリなど別のプラットフォームのファイル版も、`OpenkkDocumentSink` を実装するだけで作れる。
 

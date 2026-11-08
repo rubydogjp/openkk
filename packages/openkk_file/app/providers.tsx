@@ -1,13 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 
 import {
   createOpenkkDocumentSession,
   DocumentStartScreen,
   type BrandConfig,
+  type FiscalPeriodApiRecord,
+  type OpenkkBackendPort,
   type OpenkkDocumentSession,
+  type OpenkkNextBookInput,
 } from "@rubydogjp/openkk-client";
 import {
   OpenkkAppProviders,
@@ -16,6 +25,7 @@ import {
 import {
   createDocumentDbAdapter,
   DocumentFileFormatError,
+  type DocumentDbAdapter,
 } from "@rubydogjp/openkk-document-db-adapter";
 import { createOpenkkEmbeddedBackend } from "@rubydogjp/openkk-embedded-backend";
 import { createOpenkkEmbeddedBackendAdapter } from "@rubydogjp/openkk-embedded-backend-adapter";
@@ -61,6 +71,14 @@ type OpenedBook = {
   session: OpenkkDocumentSession;
 };
 
+type BookEvents = {
+  closed(session: OpenkkDocumentSession): void;
+  nextBook(
+    session: OpenkkDocumentSession,
+    input: OpenkkNextBookInput,
+  ): Promise<void>;
+};
+
 let nextBookKey = 1;
 
 export function Providers(props: { children: ReactNode }) {
@@ -85,10 +103,26 @@ export function Providers(props: { children: ReactNode }) {
     setRecentFiles(recent);
   }, []);
 
-  const handleClosed = useCallback(() => {
-    setBook(null);
-    if (shelfKind != null) void refreshShelf(shelfKind);
-    router.replace(ROOT_PATH);
+  const bookEvents = useMemo((): BookEvents => {
+    const kind = shelfKind ?? detectBookShelfKind();
+    const events: BookEvents = {
+      closed(session) {
+        setBook((current) => (current?.session === session ? null : current));
+        void refreshShelf(kind);
+        router.replace(ROOT_PATH);
+      },
+      async nextBook(session, input) {
+        await session.save();
+        if (session.getStatus() !== "saved") {
+          throw new Error("the current book could not be saved");
+        }
+        const bytes = await buildNextBookBytes(input);
+        const created = await createShelfBook(kind, input.fileName);
+        setBook(await openBook({ ...created, bytes }, true, events));
+        await session.close();
+      },
+    };
+    return events;
   }, [refreshShelf, router, shelfKind]);
 
   const openWith = useCallback(
@@ -101,7 +135,7 @@ export function Providers(props: { children: ReactNode }) {
       try {
         const picked = await pick();
         if (picked == null) return;
-        setBook(await openBook(picked, saveOnOpen, handleClosed));
+        setBook(await openBook(picked, saveOnOpen, bookEvents));
         router.replace(ROOT_PATH);
       } catch (error) {
         console.error("[openkk] document open failed:", error);
@@ -111,7 +145,7 @@ export function Providers(props: { children: ReactNode }) {
         setBusy(false);
       }
     },
-    [handleClosed, refreshShelf, router, shelfKind],
+    [bookEvents, refreshShelf, router, shelfKind],
   );
 
   const runOnShelf = useCallback(
@@ -198,31 +232,63 @@ export function Providers(props: { children: ReactNode }) {
   );
 }
 
+function createBookBackend(db: DocumentDbAdapter["db"]): OpenkkBackendPort {
+  return createOpenkkEmbeddedBackendAdapter(
+    createOpenkkEmbeddedBackend(db, { userId: BOOK_OWNER_USER_ID }),
+  );
+}
+
+async function buildNextBookBytes(
+  input: OpenkkNextBookInput,
+): Promise<Uint8Array> {
+  const adapter = await createDocumentDbAdapter(null);
+  try {
+    const backend = createBookBackend(adapter.db);
+    const created = await backend.fiscalPeriods.create(input.fiscalPeriod);
+    await backend.fiscalPeriods.applyCarryoverFromArchive(
+      created.id,
+      input.carryover,
+    );
+    return adapter.exportBytes();
+  } finally {
+    adapter.close();
+  }
+}
+
 async function openBook(
   picked: BrowserOpenedDocument,
   saveOnOpen: boolean,
-  onClosed: () => void,
+  events: BookEvents,
 ): Promise<OpenedBook> {
   const adapter = await createDocumentDbAdapter(picked.bytes);
-  const session = createOpenkkDocumentSession({
+  const session: OpenkkDocumentSession = createOpenkkDocumentSession({
     sink: picked.sink,
     exportBytes: adapter.exportBytes,
     onClose: () => {
       adapter.close();
-      onClosed();
+      events.closed(session);
     },
+    openNextBook: (input) => events.nextBook(session, input),
   });
   adapter.onChange(() => session.notifyChanged());
   if (saveOnOpen || adapter.changedOnOpen) session.notifyChanged();
   await picked.remember();
-  const backend = createOpenkkEmbeddedBackendAdapter(
-    createOpenkkEmbeddedBackend(adapter.db, { userId: BOOK_OWNER_USER_ID }),
+  const backend = createBookBackend(adapter.db);
+  const latestPeriod = (
+    await backend.fiscalPeriods.getAll()
+  ).reduce<FiscalPeriodApiRecord | null>(
+    (latest, period) =>
+      latest == null || period.startDate > latest.startDate ? period : latest,
+    null,
   );
   return {
     key: nextBookKey++,
     session,
     runtime: {
-      config: buildDocumentConfig(picked.sink.fileName),
+      config: buildDocumentConfig(
+        picked.sink.fileName,
+        latestPeriod?.id ?? null,
+      ),
       brandConfig,
       calloutSlots: {
         stepJournalizingPreClosingHint: null,

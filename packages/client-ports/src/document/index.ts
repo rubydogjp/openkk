@@ -1,7 +1,18 @@
+import type {
+  FiscalPeriodCarryoverFromArchiveApplyInput,
+  FiscalPeriodCreateInput,
+} from "../backend-api/types.js";
+
 export type OpenkkDocumentSaveMode = "auto" | "download";
 
 export type OpenkkDocumentSaveStatus =
   "saved" | "saving" | "unsaved" | "conflict" | "failed";
+
+export type OpenkkNextBookInput = {
+  fileName: string;
+  fiscalPeriod: FiscalPeriodCreateInput;
+  carryover: FiscalPeriodCarryoverFromArchiveApplyInput;
+};
 
 export interface OpenkkDocumentPort {
   readonly fileName: string;
@@ -10,6 +21,7 @@ export interface OpenkkDocumentPort {
   subscribe(listener: () => void): () => void;
   save(): Promise<void>;
   close(): Promise<void>;
+  openNextBook(input: OpenkkNextBookInput): Promise<void>;
 }
 
 export type OpenkkDocumentWriteResult = "written" | "conflict";

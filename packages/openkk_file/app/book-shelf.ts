@@ -83,12 +83,14 @@ function bookPlace(kind: BookShelfKind): BookPlace | null {
   }
 }
 
-export function createShelfBook(
+export async function createShelfBook(
   kind: BookShelfKind,
   desiredName: string,
-): Promise<BrowserOpenedDocument | null> {
+): Promise<BrowserOpenedDocument> {
   const place = bookPlace(kind);
-  return place == null ? browserDocuments.create() : place.create(desiredName);
+  return place == null
+    ? browserDocuments.createForDownload(desiredName)
+    : place.create(desiredName);
 }
 
 export async function openShelfBook(

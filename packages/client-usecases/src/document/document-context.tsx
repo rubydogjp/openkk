@@ -11,6 +11,7 @@ import type {
   OpenkkDocumentPort,
   OpenkkDocumentSaveMode,
   OpenkkDocumentSaveStatus,
+  OpenkkNextBookInput,
 } from "@rubydogjp/openkk-client-ports";
 
 export type OpenkkDocumentState = {
@@ -19,6 +20,7 @@ export type OpenkkDocumentState = {
   status: OpenkkDocumentSaveStatus;
   save: () => Promise<void>;
   close: () => Promise<void>;
+  openNextBook: (input: OpenkkNextBookInput) => Promise<void>;
 };
 
 const DocumentContext = createContext<OpenkkDocumentPort | null>(null);
@@ -61,5 +63,6 @@ export function useOpenkkDocument(): OpenkkDocumentState | null {
     status,
     save: () => document.save(),
     close: () => document.close(),
+    openNextBook: (input) => document.openNextBook(input),
   };
 }
