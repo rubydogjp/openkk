@@ -111,6 +111,7 @@ export function createFolderBooks(
       return {
         bytes: new Uint8Array(await file.arrayBuffer()),
         sink: createHandleDocumentSink(handle, file.lastModified),
+        backup: null,
         remember: rememberNothing,
       };
     },
@@ -122,6 +123,7 @@ export function createFolderBooks(
           folder,
           uniqueBookName(desiredName, await list()),
         ),
+        backup: null,
         remember: rememberNothing,
       };
     },

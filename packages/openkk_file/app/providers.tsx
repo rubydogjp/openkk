@@ -269,6 +269,8 @@ async function openBook(
       events.closed(session);
     },
     openNextBook: (input) => events.nextBook(session, input),
+    backup: picked.backup,
+    now: () => Date.now(),
   });
   adapter.onChange(() => session.notifyChanged());
   if (saveOnOpen || adapter.changedOnOpen) session.notifyChanged();

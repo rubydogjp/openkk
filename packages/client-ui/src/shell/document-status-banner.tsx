@@ -51,24 +51,46 @@ export function DocumentStatusBanner() {
               actionLabel: "ダウンロードして保存",
               action: document.save,
             }
-          : null;
+          : document.backup?.due === true
+            ? {
+                tone: "info" as const,
+                message:
+                  document.backup.lastSavedAt == null
+                    ? "この帳簿のバックアップをまだ保存していません。アプリの中の帳簿は、ブラウザのデータを消すと失われます。"
+                    : "前にバックアップを保存してから 30 日以上たちました。",
+                actionLabel: "バックアップを保存",
+                action: document.backup.save,
+              }
+            : null;
   if (notice == null) return null;
-  const color = notice.tone === "danger" ? palette.danger : palette.warning;
+  const tones = {
+    danger: {
+      color: palette.danger,
+      background: palette.dangerBg,
+      border: palette.dangerBorder,
+    },
+    warning: {
+      color: palette.warning,
+      background: palette.warningBg,
+      border: palette.warningBorder,
+    },
+    info: {
+      color: palette.action,
+      background: palette.actionBg,
+      border: palette.actionBorder,
+    },
+  };
+  const tone = tones[notice.tone];
   return (
     <div
-      role="alert"
+      role={notice.tone === "info" ? "status" : "alert"}
       style={{
         display: "flex",
         alignItems: "center",
         gap: 12,
         padding: "10px 16px",
-        background:
-          notice.tone === "danger" ? palette.dangerBg : palette.warningBg,
-        borderBottom: `1px solid ${
-          notice.tone === "danger"
-            ? palette.dangerBorder
-            : palette.warningBorder
-        }`,
+        background: tone.background,
+        borderBottom: `1px solid ${tone.border}`,
       }}
     >
       <div
@@ -88,9 +110,9 @@ export function DocumentStatusBanner() {
           flexShrink: 0,
           padding: "6px 14px",
           borderRadius: radii.sm,
-          border: `1px solid ${color}`,
+          border: `1px solid ${tone.color}`,
           background: palette.surface,
-          color,
+          color: tone.color,
           fontSize: fontSize.sm,
           fontWeight: fontWeight.bold,
           cursor: "pointer",

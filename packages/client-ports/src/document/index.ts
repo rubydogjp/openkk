@@ -14,9 +14,16 @@ export type OpenkkNextBookInput = {
   carryover: FiscalPeriodCarryoverFromArchiveApplyInput;
 };
 
+export interface OpenkkDocumentBackup {
+  getLastSavedAt(): number | null;
+  isDue(): boolean;
+  save(): Promise<void>;
+}
+
 export interface OpenkkDocumentPort {
   readonly fileName: string;
   readonly saveMode: OpenkkDocumentSaveMode;
+  readonly backup: OpenkkDocumentBackup | null;
   getStatus(): OpenkkDocumentSaveStatus;
   subscribe(listener: () => void): () => void;
   save(): Promise<void>;
@@ -30,4 +37,15 @@ export interface OpenkkDocumentSink {
   readonly fileName: string;
   readonly saveMode: OpenkkDocumentSaveMode;
   write(bytes: Uint8Array): Promise<OpenkkDocumentWriteResult>;
+}
+
+export type OpenkkDocumentBackupResult = "saved" | "cancelled";
+
+export interface OpenkkDocumentBackupSink {
+  readonly firstOpenedAt: number;
+  readonly lastSavedAt: number | null;
+  write(
+    bytes: Uint8Array,
+    savedAt: number,
+  ): Promise<OpenkkDocumentBackupResult>;
 }

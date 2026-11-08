@@ -9,6 +9,7 @@ import {
   type BookFileDirectory,
   type BookPlace,
 } from "./book-place.js";
+import { bookBackups, type BookBackups } from "./book-backup.js";
 import { rememberNothing } from "./documents.js";
 import { isNotFoundError } from "./file-system-errors.js";
 import {
@@ -28,6 +29,7 @@ export type InAppBooksDependencies = {
   openDirectory(): Promise<BookFileDirectory>;
   writer: InAppBookWriter;
   requestPersistence(): Promise<unknown>;
+  backups: BookBackups;
 };
 
 type WorkerAnswer = { id: number; ok: boolean; error: string | null };
@@ -97,19 +99,23 @@ export function createInAppBooks(
       return {
         bytes,
         sink: createSink(name, bytes),
+        backup: dependencies.backups.sinkFor(name),
         remember: rememberNothing,
       };
     },
     async create(desiredName) {
       void dependencies.requestPersistence();
+      const name = uniqueBookName(desiredName, await list());
       return {
         bytes: null,
-        sink: createSink(uniqueBookName(desiredName, await list()), null),
+        sink: createSink(name, null),
+        backup: dependencies.backups.sinkFor(name),
         remember: rememberNothing,
       };
     },
     async remove(name) {
       await dependencies.writer.send({ type: "remove", name });
+      dependencies.backups.forget(name);
     },
   };
 }
@@ -183,4 +189,5 @@ export const inAppBooks = createInAppBooks({
   ),
   requestPersistence: () =>
     requestPersistentStorage(browserPersistentStorage()),
+  backups: bookBackups,
 });

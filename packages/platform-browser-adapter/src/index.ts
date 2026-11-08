@@ -27,6 +27,12 @@ export {
   type BrowserRecentDocument,
 } from "./documents.js";
 export {
+  bookBackups,
+  createBookBackups,
+  type BookBackups,
+  type BookBackupsDependencies,
+} from "./book-backup.js";
+export {
   type BookFileDirectory,
   type BookPlace,
   type StoredBook,

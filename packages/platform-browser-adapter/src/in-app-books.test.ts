@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { createBookBackups } from "./book-backup.js";
 import { type BookFileDirectory } from "./book-place.js";
 import {
   PENDING_COPY_SUFFIX,
@@ -46,6 +47,24 @@ function fakeInAppStorage() {
   };
   const requests: BookRequest[] = [];
   const requestPersistence = vi.fn(async () => "granted");
+  const records = new Map<string, string>();
+  const delivered: Array<{ fileName: string; bytes: number[] }> = [];
+  const backups = createBookBackups({
+    storage: {
+      getItem: (key) => records.get(key) ?? null,
+      setItem: (key, value) => {
+        records.set(key, value);
+      },
+      removeItem: (key) => {
+        records.delete(key);
+      },
+    },
+    now: () => 500,
+    deliver: async (bytes, fileName) => {
+      delivered.push({ fileName, bytes: [...bytes] });
+      return "saved";
+    },
+  });
   const books = createInAppBooks({
     openDirectory: async () => directory,
     writer: {
@@ -55,8 +74,17 @@ function fakeInAppStorage() {
       },
     },
     requestPersistence,
+    backups,
   });
-  return { files, bookDirectory, books, requests, requestPersistence };
+  return {
+    files,
+    bookDirectory,
+    books,
+    requests,
+    requestPersistence,
+    records,
+    delivered,
+  };
 }
 
 describe("in-app books", () => {
@@ -170,14 +198,34 @@ describe("in-app books", () => {
     expect(requestPersistence).toHaveBeenCalledTimes(2);
   });
 
-  it("removes a book", async () => {
-    const { books } = fakeInAppStorage();
+  it("removes a book and forgets its backups", async () => {
+    const { books, records } = fakeInAppStorage();
     const created = await books.create("2026年分");
     await created.sink.write(new Uint8Array([1]));
 
     await books.remove("2026年分.openkk");
 
     expect(await books.list()).toEqual([]);
+    expect(records.size).toBe(0);
+  });
+
+  it("saves a backup of the book under its own name and remembers when", async () => {
+    const { books, delivered } = fakeInAppStorage();
+    const created = await books.create("2026年分");
+    await created.sink.write(new Uint8Array([1]));
+    expect(created.backup).toMatchObject({
+      firstOpenedAt: 500,
+      lastSavedAt: null,
+    });
+
+    await created.backup!.write(new Uint8Array([4, 5]), 900);
+    const reopened = await books.open("2026年分.openkk");
+
+    expect(delivered).toEqual([{ fileName: "2026年分.openkk", bytes: [4, 5] }]);
+    expect(reopened.backup).toMatchObject({
+      firstOpenedAt: 500,
+      lastSavedAt: 900,
+    });
   });
 });
 

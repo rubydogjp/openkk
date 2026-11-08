@@ -1,4 +1,5 @@
 import type {
+  OpenkkDocumentBackupSink,
   OpenkkDocumentSink,
   OpenkkDocumentWriteResult,
 } from "@rubydogjp/openkk-client-ports";
@@ -35,6 +36,7 @@ export type BrowserDocumentFileHandle = {
 export type BrowserOpenedDocument = {
   bytes: Uint8Array | null;
   sink: OpenkkDocumentSink;
+  backup: OpenkkDocumentBackupSink | null;
   remember(): Promise<void>;
 };
 
@@ -122,6 +124,7 @@ export const browserDocuments = {
     return {
       bytes: null,
       sink: createDownloadDocumentSink(desiredName),
+      backup: null,
       remember: rememberNothing,
     };
   },
@@ -164,6 +167,7 @@ async function openHandle(
   return {
     bytes,
     sink: createHandleDocumentSink(handle, file.lastModified),
+    backup: null,
     remember: () => rememberRecent(handle),
   };
 }
@@ -208,6 +212,7 @@ function openWithFileInput(): Promise<BrowserOpenedDocument | null> {
           resolve({
             bytes: new Uint8Array(buffer),
             sink: createDownloadDocumentSink(file.name),
+            backup: null,
             remember: rememberNothing,
           }),
         )

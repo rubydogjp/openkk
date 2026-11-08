@@ -14,6 +14,12 @@ import type {
   OpenkkNextBookInput,
 } from "@rubydogjp/openkk-client-ports";
 
+export type OpenkkDocumentBackupState = {
+  lastSavedAt: number | null;
+  due: boolean;
+  save: () => Promise<void>;
+};
+
 export type OpenkkDocumentState = {
   fileName: string;
   saveMode: OpenkkDocumentSaveMode;
@@ -21,6 +27,7 @@ export type OpenkkDocumentState = {
   save: () => Promise<void>;
   close: () => Promise<void>;
   openNextBook: (input: OpenkkNextBookInput) => Promise<void>;
+  backup: OpenkkDocumentBackupState | null;
 };
 
 const DocumentContext = createContext<OpenkkDocumentPort | null>(null);
@@ -38,6 +45,8 @@ export function OpenkkDocumentProvider(props: {
 
 const subscribeNothing = () => () => {};
 const noStatus = () => null;
+const noLastSavedAt = () => null;
+const notDue = () => false;
 
 export function useOpenkkDocument(): OpenkkDocumentState | null {
   const document = useContext(DocumentContext);
@@ -56,6 +65,21 @@ export function useOpenkkDocument(): OpenkkDocumentState | null {
     store.getSnapshot,
     store.getSnapshot,
   );
+  const backup = document?.backup ?? null;
+  const readLastSavedAt = useMemo(
+    () => (backup == null ? noLastSavedAt : () => backup.getLastSavedAt()),
+    [backup],
+  );
+  const readDue = useMemo(
+    () => (backup == null ? notDue : () => backup.isDue()),
+    [backup],
+  );
+  const lastSavedAt = useSyncExternalStore(
+    store.subscribe,
+    readLastSavedAt,
+    readLastSavedAt,
+  );
+  const due = useSyncExternalStore(store.subscribe, readDue, readDue);
   if (document == null || status == null) return null;
   return {
     fileName: document.fileName,
@@ -64,5 +88,7 @@ export function useOpenkkDocument(): OpenkkDocumentState | null {
     save: () => document.save(),
     close: () => document.close(),
     openNextBook: (input) => document.openNextBook(input),
+    backup:
+      backup == null ? null : { lastSavedAt, due, save: () => backup.save() },
   };
 }

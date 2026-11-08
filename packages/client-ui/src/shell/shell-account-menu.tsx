@@ -30,6 +30,7 @@ import {
   FolderOpenIcon,
   LoginIcon,
   LogoutIcon,
+  MaskIcon,
   PersonIcon,
 } from "../shared/icons.js";
 import { DOCUMENT_STATUS_LABELS } from "./document-status-banner.js";
@@ -243,6 +244,29 @@ export function ShellAccountMenu(props: {
                     borderBottom: `1px solid ${SHELL_PALETTE.menuDivider}`,
                   }}
                 >
+                  {document.backup != null ? (
+                    <MenuButton
+                      icon={
+                        <MaskIcon
+                          src="/icons/document.svg"
+                          size={18}
+                          color={SHELL_PALETTE.menuIconActive}
+                        />
+                      }
+                      label="バックアップを保存"
+                      detail={
+                        document.backup.lastSavedAt == null
+                          ? "まだ保存していません"
+                          : `前回 ${formatBackupDate(document.backup.lastSavedAt)}`
+                      }
+                      labelColor={SHELL_PALETTE.menuTextActive}
+                      disabled={false}
+                      onClick={() => {
+                        setMenuOpen(false);
+                        void document.backup?.save();
+                      }}
+                    />
+                  ) : null}
                   <MenuButton
                     icon={
                       <FolderOpenIcon
@@ -251,6 +275,7 @@ export function ShellAccountMenu(props: {
                       />
                     }
                     label="別のファイルを開く"
+                    detail={null}
                     labelColor={SHELL_PALETTE.menuTextActive}
                     disabled={document.status === "saving"}
                     onClick={() => void handleCloseDocument()}
@@ -273,6 +298,7 @@ export function ShellAccountMenu(props: {
                       />
                     }
                     label="マイページ"
+                    detail={null}
                     labelColor={SHELL_PALETTE.menuTextActive}
                     disabled={false}
                     onClick={() => {
@@ -293,6 +319,7 @@ export function ShellAccountMenu(props: {
                       />
                     }
                     label="公式サイト"
+                    detail={null}
                     labelColor={SHELL_PALETTE.menuLink}
                     disabled={false}
                     onClick={() => {
@@ -313,6 +340,7 @@ export function ShellAccountMenu(props: {
                     />
                   }
                   label="サインアウト"
+                  detail={null}
                   labelColor={
                     canSignOut
                       ? SHELL_PALETTE.menuTextActive
@@ -358,9 +386,16 @@ export function ShellAccountMenu(props: {
   );
 }
 
+function formatBackupDate(time: number): string {
+  const date = new Date(time);
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}`;
+}
+
 function MenuButton(props: {
   icon: ReactNode;
   label: string;
+  detail: string | null;
   labelColor: string;
   disabled: boolean;
   onClick: () => void;
@@ -385,14 +420,21 @@ function MenuButton(props: {
       }}
     >
       {props.icon}
-      <span
-        style={{
-          fontSize: fontSize.base,
-          fontWeight: fontWeight.medium,
-          color: props.labelColor,
-        }}
-      >
-        {props.label}
+      <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <span
+          style={{
+            fontSize: fontSize.base,
+            fontWeight: fontWeight.medium,
+            color: props.labelColor,
+          }}
+        >
+          {props.label}
+        </span>
+        {props.detail != null ? (
+          <span style={{ fontSize: fontSize.xs, color: palette.textLabel }}>
+            {props.detail}
+          </span>
+        ) : null}
       </span>
     </button>
   );

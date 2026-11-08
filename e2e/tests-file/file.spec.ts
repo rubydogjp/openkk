@@ -145,12 +145,7 @@ test("refuses a file that is not an openkk book", async ({ page }) => {
 test("keeps the books inside the app when the browser cannot write files", async ({
   page,
 }) => {
-  await page.goto("/");
-  await page.evaluate(() =>
-    sessionStorage.setItem("openkk-test-no-file-access", "1"),
-  );
-  await page.reload();
-  await expect(page.getByText("アプリの中に保存します")).toBeVisible();
+  await openWithoutFileAccess(page);
 
   await clickButton(page, "新しい帳簿を作る");
   await expectBookOpen(page, NEW_BOOK_NAME);
@@ -177,6 +172,55 @@ test("keeps the books inside the app when the browser cannot write files", async
   );
   await openBookFromList(page, NEW_BOOK_NAME);
   await expect(page.getByText("アプリの中の期間").first()).toBeVisible();
+});
+
+test("saves a backup of a book kept in the app and reminds when one is due", async ({
+  page,
+}) => {
+  await openWithoutFileAccess(page);
+  await clickButton(page, "新しい帳簿を作る");
+  await expectBookOpen(page, NEW_BOOK_NAME);
+  await addFiscalPeriodInApp(page, "バックアップする期間");
+  await expectSaved(page);
+  await expect(page.getByText("バックアップを保存してから")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "アカウントメニュー" }).click();
+  const backupItem = page.getByRole("menuitem", { name: /バックアップを保存/ });
+  await expect(backupItem).toContainText("まだ保存していません");
+  const backupPath = await downloadBackup(page, () => backupItem.click());
+  expect(await readCliPeriods(backupPath)).toEqual([
+    { name: "バックアップする期間", phase: "pre_opening" },
+  ]);
+  await page.getByRole("button", { name: "アカウントメニュー" }).click();
+  await expect(backupItem).toContainText("前回 ");
+  await page.keyboard.press("Escape");
+
+  await page.evaluate((key) => {
+    const record = JSON.parse(localStorage.getItem(key) ?? "{}") as {
+      firstOpenedAt: number;
+    };
+    const longAgo = Date.now() - 40 * 24 * 60 * 60 * 1000;
+    localStorage.setItem(
+      key,
+      JSON.stringify({
+        firstOpenedAt: record.firstOpenedAt,
+        lastSavedAt: longAgo,
+      }),
+    );
+  }, `openkk.book-backup:${NEW_BOOK_NAME}`);
+  await page.reload();
+  await openBookFromList(page, NEW_BOOK_NAME);
+  await expect(page.getByText("バックアップを保存してから")).toHaveCount(0);
+  await startOpenedPeriod(page);
+
+  const reminder = page
+    .getByRole("status")
+    .filter({ hasText: "前にバックアップを保存してから 30 日以上たちました" });
+  await expect(reminder).toBeVisible();
+  await downloadBackup(page, () =>
+    reminder.getByRole("button", { name: "バックアップを保存" }).click(),
+  );
+  await expect(reminder).toHaveCount(0);
 });
 
 test("starts the next period in a new book next to the closed one", async ({
@@ -216,6 +260,25 @@ test("starts the next period in a new book next to the closed one", async ({
     { name: "2026年分", phase: "post_closing" },
   ]);
 });
+
+async function openWithoutFileAccess(page: Page) {
+  await page.goto("/");
+  await page.evaluate(() =>
+    sessionStorage.setItem("openkk-test-no-file-access", "1"),
+  );
+  await page.reload();
+  await expect(page.getByText("アプリの中に保存します")).toBeVisible();
+}
+
+async function downloadBackup(page: Page, start: () => Promise<void>) {
+  const downloadPromise = page.waitForEvent("download");
+  await start();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe(NEW_BOOK_NAME);
+  const filePath = path.join(makeTempDir(), NEW_BOOK_NAME);
+  await download.saveAs(filePath);
+  return filePath;
+}
 
 async function expectBookOpen(page: Page, fileName: string) {
   await expect(

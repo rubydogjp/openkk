@@ -129,6 +129,7 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 - 書き込みは worker の sync access handle で行う (Safari でも書けるように)。手順は `in-app-book-protocol.ts` にあり、控え (`.next`) を書き切ってから「準備済み」の印 (`.ready`) を置き、本体を書いてから両方を消す。開くときに印が残っていれば、本体を控えで戻す。印がなく控えだけ残っていれば、本体はそのままで控えを消す。
 - OPFS の更新時刻はすぐ続けて書くと変わらないので、書く前の確かめは更新時刻ではなく中身で行う。最後に読んだ・書いた中身と今のファイルが違えば `conflict` を返す (別のタブが先に保存した場合)。
 - 開く・作るときに `navigator.storage.persist()` を求める。
+- アプリの中の帳簿には、バックアップの書き先 (`OpenkkDocumentBackupSink`、`bookBackups`) を付ける。スマホは共有シート、それ以外はダウンロードで、帳簿と同じ名前の `.openkk` を渡す。保存した日は localStorage (`openkk.book-backup:<名前>`) に覚える。帳簿を変えていて、前の保存 (まだなら最初に開いた日) から 30 日たっていれば、上の帯で知らせる (`OpenkkDocumentPort.backup`)。
 
 ### フォルダの帳簿 (パソコンの Chrome・Edge)
 
