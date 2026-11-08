@@ -160,5 +160,5 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 | E2E               | Playwright | Sim版の操作フローと、無印版・デモ版の静的export・OPFS永続化。締めフローでは仮帳票＝確定帳票＝概要図を実画面で検証                                                                         |
 | パッケージ構造    | vitest     | workspace 整合性チェック                                                                                                                                                                  |
 
-`npm run test:e2e` は Sim版を専用 port 4306 で起動し、既存プロセスを再利用せず実行する。`npm run test:e2e:export` は無印版を静的exportして検査する。生成物・全workspace・全アプリ・E2Eをまとめた検査は `npm run check:full` で実行できる。
+`npm run test:e2e` は Sim版を専用 port 4306 で起動し、既存プロセスを再利用せず実行する。`npm run test:e2e:export` は無印版を静的exportして検査する。ファイル版の E2E (`tests-file`) は、フォルダの帳簿を試すためにインストール済みの Chrome で動かす (Playwright 同梱の Chromium は、IndexedDB に置いた OPFS のフォルダを読み戻すと落ちる)。生成物・全workspace・全アプリ・E2Eをまとめた検査は `npm run check:full` で実行できる。
 このリポジトリに `OpenkkDbPort` 実装を追加したら `runDbPortConformance` に通すこと。conformance は `server-ports/test-support/` にあり npm には公開しないので、外部の実装はこのリポジトリを参照する。

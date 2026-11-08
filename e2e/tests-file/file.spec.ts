@@ -13,8 +13,10 @@ test.afterEach(() => {
   }
 });
 
+const PICKED_FOLDER = "picked-folder";
+
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
+  await page.addInitScript((folderName) => {
     const root = () => navigator.storage.getDirectory();
     const asPickedFile = (handle: FileSystemFileHandle) => ({
       name: handle.name,
@@ -22,14 +24,14 @@ test.beforeEach(async ({ page }) => {
       createWritable: () => handle.createWritable(),
     });
     const pickerWindow = window as unknown as Record<string, unknown>;
-    pickerWindow.showSaveFilePicker = async (options: {
-      suggestedName: string;
-    }) =>
-      asPickedFile(
-        await (
-          await root()
-        ).getFileHandle(options.suggestedName, { create: true }),
-      );
+    if (sessionStorage.getItem("openkk-test-no-file-access") === "1") {
+      pickerWindow.showDirectoryPicker = undefined;
+      pickerWindow.showOpenFilePicker = undefined;
+      pickerWindow.showSaveFilePicker = undefined;
+      return;
+    }
+    pickerWindow.showDirectoryPicker = async () =>
+      (await root()).getDirectoryHandle(folderName, { create: true });
     pickerWindow.showOpenFilePicker = async () => [
       asPickedFile(
         await (
@@ -39,25 +41,34 @@ test.beforeEach(async ({ page }) => {
         ),
       ),
     ];
-  });
+  }, PICKED_FOLDER);
 });
 
-test("creates a book file and autosaves every change to it", async ({
+test("keeps the books in the chosen folder and autosaves every change", async ({
   page,
 }) => {
   await page.goto("/");
+  await clickButton(page, "帳簿を置くフォルダを選ぶ");
+  await expect(page.getByText(`フォルダ: ${PICKED_FOLDER}`)).toBeVisible();
+  await expect(page.getByText("まだ帳簿はありません")).toBeVisible();
+
   await clickButton(page, "新しい帳簿を作る");
   await expectBookOpen(page, NEW_BOOK_NAME);
   await addFiscalPeriodInApp(page, "ファイル版の期間");
   await expectSaved(page);
 
   const savedPath = await saveToTempFile(
-    await getFile(page, NEW_BOOK_NAME),
+    await getFile(page, PICKED_FOLDER, NEW_BOOK_NAME),
     NEW_BOOK_NAME,
   );
   expect(await readCliPeriods(savedPath)).toEqual([
     { name: "ファイル版の期間", phase: "pre_opening" },
   ]);
+
+  await page.reload();
+  await expect(page.getByText(`フォルダ: ${PICKED_FOLDER}`)).toBeVisible();
+  await openBookFromList(page, NEW_BOOK_NAME);
+  await expect(page.getByText("ファイル版の期間")).toBeVisible();
 });
 
 test("opens a book made by the CLI and writes back changes the CLI can read", async ({
@@ -66,30 +77,46 @@ test("opens a book made by the CLI and writes back changes the CLI can read", as
   const fileName = "cli.openkk";
   const cliPath = await createCliBook(fileName, "CLIで作った期間");
   await page.goto("/");
-  await putFile(page, fileName, fs.readFileSync(cliPath));
-  await openWithPicker(page, fileName);
-  await expectBookOpen(page, fileName);
+  await clickButton(page, "帳簿を置くフォルダを選ぶ");
+  await putFile(page, PICKED_FOLDER, fileName, fs.readFileSync(cliPath));
+  await page.reload();
+  await openBookFromList(page, fileName);
   await expect(page.getByText("CLIで作った期間")).toBeVisible();
 
   await startPeriodFromList(page, "CLIで作った期間");
   await expectSaved(page);
-  fs.writeFileSync(cliPath, Buffer.from(await getFile(page, fileName)));
+  fs.writeFileSync(
+    cliPath,
+    Buffer.from(await getFile(page, PICKED_FOLDER, fileName)),
+  );
 
   expect(await readCliPeriods(cliPath)).toEqual([
     { name: "CLIで作った期間", phase: "journalizing" },
   ]);
 });
 
+test("opens a book file outside the folder", async ({ page }) => {
+  const fileName = "outside.openkk";
+  const cliPath = await createCliBook(fileName, "フォルダの外の期間");
+  await page.goto("/");
+  await clickButton(page, "帳簿を置くフォルダを選ぶ");
+  await putFile(page, null, fileName, fs.readFileSync(cliPath));
+  await openWithPicker(page, fileName);
+  await expectBookOpen(page, fileName);
+  await expect(page.getByText("フォルダの外の期間")).toBeVisible();
+});
+
 test("stops autosaving when another app changes the file", async ({ page }) => {
   const fileName = "shared.openkk";
   const cliPath = await createCliBook(fileName, "共有する期間");
   await page.goto("/");
-  await putFile(page, fileName, fs.readFileSync(cliPath));
-  await openWithPicker(page, fileName);
-  await expectBookOpen(page, fileName);
+  await clickButton(page, "帳簿を置くフォルダを選ぶ");
+  await putFile(page, PICKED_FOLDER, fileName, fs.readFileSync(cliPath));
+  await page.reload();
+  await openBookFromList(page, fileName);
 
   await page.waitForTimeout(50);
-  await putFile(page, fileName, fs.readFileSync(cliPath));
+  await putFile(page, PICKED_FOLDER, fileName, fs.readFileSync(cliPath));
   await startPeriodFromList(page, "共有する期間");
 
   await expect(
@@ -97,20 +124,59 @@ test("stops autosaving when another app changes the file", async ({ page }) => {
   ).toBeVisible();
   await clickButton(page, "開き直す");
   await expect(
-    page.getByRole("button", { name: "ファイルを開く" }),
+    page.getByRole("button", { name: "新しい帳簿を作る" }),
   ).toBeVisible();
 });
 
 test("refuses a file that is not an openkk book", async ({ page }) => {
   await page.goto("/");
-  await putFile(page, "note.openkk", Buffer.from("not a book"));
-  await openWithPicker(page, "note.openkk");
+  await clickButton(page, "帳簿を置くフォルダを選ぶ");
+  await putFile(page, PICKED_FOLDER, "note.openkk", Buffer.from("not a book"));
+  await page.reload();
+  await openBookFromList(page, "note.openkk");
 
   await expect(
     page
       .getByRole("alert")
       .filter({ hasText: "オープン会計の帳簿ではありません" }),
   ).toBeVisible();
+});
+
+test("keeps the books inside the app when the browser cannot write files", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(() =>
+    sessionStorage.setItem("openkk-test-no-file-access", "1"),
+  );
+  await page.reload();
+  await expect(page.getByText("アプリの中に保存します")).toBeVisible();
+
+  await clickButton(page, "新しい帳簿を作る");
+  await expectBookOpen(page, NEW_BOOK_NAME);
+  await addFiscalPeriodInApp(page, "アプリの中の期間");
+  await expectSaved(page);
+
+  const cliPath = await createCliBook("imported.openkk", "取り込んだ期間");
+  await page.reload();
+  await expect(page.getByRole("region", { name: "帳簿" })).toContainText(
+    NEW_BOOK_NAME,
+  );
+  const chooser = page.waitForEvent("filechooser");
+  await clickButton(page, "ファイルを取り込む");
+  await (await chooser).setFiles(cliPath);
+  await expectBookOpen(page, "imported.openkk");
+  await expect(page.getByText("取り込んだ期間")).toBeVisible();
+  await expectSaved(page);
+
+  await page.reload();
+  await page.getByRole("button", { name: "imported.openkk を削除" }).click();
+  await clickButton(page, "削除する");
+  await expect(page.getByRole("region", { name: "帳簿" })).not.toContainText(
+    "imported.openkk",
+  );
+  await openBookFromList(page, NEW_BOOK_NAME);
+  await expect(page.getByText("アプリの中の期間")).toBeVisible();
 });
 
 async function expectBookOpen(page: Page, fileName: string) {
@@ -142,6 +208,14 @@ async function startPeriodFromList(page: Page, name: string) {
   await expectStep(page, "期首のBSを入力");
 }
 
+async function openBookFromList(page: Page, fileName: string) {
+  await page
+    .getByRole("region", { name: "帳簿" })
+    .getByRole("button", { name: fileName })
+    .first()
+    .click();
+}
+
 async function openWithPicker(page: Page, fileName: string) {
   await page.evaluate(
     (name) => sessionStorage.setItem("openkk-test-open-name", name),
@@ -150,12 +224,26 @@ async function openWithPicker(page: Page, fileName: string) {
   await clickButton(page, "ファイルを開く");
 }
 
-async function putFile(page: Page, fileName: string, bytes: Buffer) {
-  await page.evaluate(
-    async ({ name, data }) => {
-      const root = await navigator.storage.getDirectory();
-      const handle = await root.getFileHandle(name, { create: true });
-      const writable = await handle.createWritable();
+async function bookDirectory(page: Page, folder: string | null) {
+  return page.evaluateHandle(async (name) => {
+    const root = await navigator.storage.getDirectory();
+    return name == null
+      ? root
+      : root.getDirectoryHandle(name, { create: true });
+  }, folder);
+}
+
+async function putFile(
+  page: Page,
+  folder: string | null,
+  fileName: string,
+  bytes: Buffer,
+) {
+  const directory = await bookDirectory(page, folder);
+  await directory.evaluate(
+    async (handle, { name, data }) => {
+      const file = await handle.getFileHandle(name, { create: true });
+      const writable = await file.createWritable();
       await writable.write(new Uint8Array(data));
       await writable.close();
     },
@@ -163,10 +251,14 @@ async function putFile(page: Page, fileName: string, bytes: Buffer) {
   );
 }
 
-async function getFile(page: Page, fileName: string): Promise<number[]> {
-  return page.evaluate(async (name) => {
-    const root = await navigator.storage.getDirectory();
-    const file = await (await root.getFileHandle(name)).getFile();
+async function getFile(
+  page: Page,
+  folder: string | null,
+  fileName: string,
+): Promise<number[]> {
+  const directory = await bookDirectory(page, folder);
+  return directory.evaluate(async (handle, name) => {
+    const file = await (await handle.getFileHandle(name)).getFile();
     return [...new Uint8Array(await file.arrayBuffer())];
   }, fileName);
 }

@@ -18,7 +18,7 @@ export default defineConfig({
     {
       name: "file",
       testDir: "./tests-file",
-      use: { baseURL: "http://localhost:4310" },
+      use: { baseURL: "http://localhost:4310", channel: "chrome" },
     },
   ],
   webServer: ["openkk", "openkk_demo", "openkk_file"].map((bundle, index) => ({
