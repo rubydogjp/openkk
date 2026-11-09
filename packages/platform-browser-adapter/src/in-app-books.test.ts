@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
+import {
+  fakeLockManager,
+  settleLocks,
+} from "../test-support/fake-lock-manager.js";
+import { BookInUseError, createBookLocks } from "./book-lock.js";
 import { createBookBackups } from "./book-backup.js";
 import { type BookFileDirectory } from "./book-place.js";
 import {
@@ -75,6 +80,7 @@ function fakeInAppStorage() {
     },
     requestPersistence,
     backups,
+    locks: createBookLocks(fakeLockManager()),
   });
   return {
     files,
@@ -94,6 +100,8 @@ describe("in-app books", () => {
     const created = await books.create("2026年分");
     const result = await created.sink.write(new Uint8Array([7, 8, 9]));
     const listed = await books.list();
+    created.release();
+    await settleLocks();
     const reopened = await books.open("2026年分.openkk");
 
     expect(created.bytes).toBeNull();
@@ -119,6 +127,8 @@ describe("in-app books", () => {
     const { books, bookDirectory, files } = fakeInAppStorage();
     const created = await books.create("2026年分");
     await created.sink.write(new Uint8Array([1]));
+    created.release();
+    await settleLocks();
     const opened = await books.open("2026年分.openkk");
     await runBookRequest(bookDirectory, {
       type: "write",
@@ -130,6 +140,49 @@ describe("in-app books", () => {
 
     expect(result).toBe("conflict");
     expect(files.get("2026年分.openkk")?.bytes).toEqual(new Uint8Array([2, 2]));
+  });
+
+  it("refuses a book that another tab has open until that tab lets it go", async () => {
+    const { books, files } = fakeInAppStorage();
+    const created = await books.create("2026年分");
+    await created.sink.write(new Uint8Array([1]));
+
+    await expect(books.open("2026年分.openkk")).rejects.toThrow(BookInUseError);
+    await expect(books.remove("2026年分.openkk")).rejects.toThrow(
+      BookInUseError,
+    );
+    expect(files.has("2026年分.openkk")).toBe(true);
+
+    created.release();
+    await settleLocks();
+    const reopened = await books.open("2026年分.openkk");
+    expect(reopened.bytes).toEqual(new Uint8Array([1]));
+  });
+
+  it("reads a book that another tab has open without taking it", async () => {
+    const { books } = fakeInAppStorage();
+    const created = await books.create("2026年分");
+    await created.sink.write(new Uint8Array([5, 6]));
+
+    await expect(books.read("2026年分.openkk")).resolves.toEqual(
+      new Uint8Array([5, 6]),
+    );
+    await expect(books.read("2025年分.openkk")).rejects.toThrow(
+      "in-app book not found",
+    );
+    await expect(books.open("2026年分.openkk")).rejects.toThrow(BookInUseError);
+  });
+
+  it("lets the book go when it cannot be opened", async () => {
+    const { books, bookDirectory } = fakeInAppStorage();
+
+    await expect(books.open("2026年分.openkk")).rejects.toThrow(
+      "in-app book not found",
+    );
+    await bookDirectory.write("2026年分.openkk", new Uint8Array([1]));
+    await expect(books.open("2026年分.openkk")).resolves.toMatchObject({
+      bytes: new Uint8Array([1]),
+    });
   });
 
   it("recovers a save that stopped halfway when the book is opened", async () => {
@@ -193,6 +246,8 @@ describe("in-app books", () => {
     const { books, requestPersistence } = fakeInAppStorage();
     const created = await books.create("2026年分");
     await created.sink.write(new Uint8Array([1]));
+    created.release();
+    await settleLocks();
     await books.open("2026年分.openkk");
 
     expect(requestPersistence).toHaveBeenCalledTimes(2);
@@ -202,6 +257,8 @@ describe("in-app books", () => {
     const { books, records } = fakeInAppStorage();
     const created = await books.create("2026年分");
     await created.sink.write(new Uint8Array([1]));
+    created.release();
+    await settleLocks();
 
     await books.remove("2026年分.openkk");
 
@@ -219,6 +276,8 @@ describe("in-app books", () => {
     });
 
     await created.backup!.write(new Uint8Array([4, 5]), 900);
+    created.release();
+    await settleLocks();
     const reopened = await books.open("2026年分.openkk");
 
     expect(delivered).toEqual([{ fileName: "2026年分.openkk", bytes: [4, 5] }]);

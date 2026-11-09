@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 
-import { openkkConfig } from "../openkk-config";
+import { DEBUG_ROUTES_ENABLED } from "../openkk-config";
 
 export function assertDebugRouteEnabled(): void {
-  if (!openkkConfig.debugRoutesEnabled) {
+  if (!DEBUG_ROUTES_ENABLED) {
     notFound();
   }
 }

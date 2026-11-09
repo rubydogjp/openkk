@@ -1,6 +1,9 @@
 import type {
+  EntryApiRecord,
+  FiscalPeriodApiRecord,
   FiscalPeriodCarryoverFromArchiveApplyInput,
   FiscalPeriodCreateInput,
+  FixedAssetApiRecord,
 } from "../backend-api/types.js";
 
 export type OpenkkDocumentSaveMode = "auto" | "download";
@@ -12,6 +15,17 @@ export type OpenkkNextBookInput = {
   fileName: string;
   fiscalPeriod: FiscalPeriodCreateInput;
   carryover: FiscalPeriodCarryoverFromArchiveApplyInput;
+};
+
+export type OpenkkOtherBookRecords = {
+  entries: EntryApiRecord[];
+  fixedAssets: FixedAssetApiRecord[];
+};
+
+export type OpenkkOtherBookPeriod = {
+  bookName: string;
+  fiscalPeriod: FiscalPeriodApiRecord;
+  readRecords(): Promise<OpenkkOtherBookRecords>;
 };
 
 export interface OpenkkDocumentBackup {
@@ -29,6 +43,7 @@ export interface OpenkkDocumentPort {
   save(): Promise<void>;
   close(): Promise<void>;
   openNextBook(input: OpenkkNextBookInput): Promise<void>;
+  readOtherBookPeriods(): Promise<OpenkkOtherBookPeriod[]>;
 }
 
 export type OpenkkDocumentWriteResult = "written" | "conflict";

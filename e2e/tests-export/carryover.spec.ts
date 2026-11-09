@@ -1,12 +1,23 @@
 import { expect, test } from "@playwright/test";
-import { clickButton, expectStep, openFixedAssets } from "../helpers";
+import {
+  clickButton,
+  expectStep,
+  gotoInApp,
+  openFixedAssets,
+  reloadInApp,
+  startWithNewBook,
+} from "../helpers";
 
 const storedText = "保存済みの長い名称😀".repeat(50);
+
+test.beforeEach(async ({ page }) => {
+  await startWithNewBook(page);
+});
 
 test("carries archived text into a persistent next period and keeps it when editing", async ({
   page,
 }) => {
-  await page.goto("/fiscal-periods");
+  await gotoInApp(page, "/fiscal-periods");
   await page.locator('input[type="file"]').setInputFiles({
     name: "2026.zip",
     mimeType: "application/zip",
@@ -21,7 +32,7 @@ test("carries archived text into a persistent next period and keeps it when edit
   await clickButton(page, "開始する");
   await clickButton(page, "開始する");
   await expectStep(page, "日々の仕訳");
-  await page.reload();
+  await reloadInApp(page);
   await expectStep(page, "日々の仕訳");
 
   await openFixedAssets(page);
@@ -60,7 +71,7 @@ test("carries archived text into a persistent next period and keeps it when edit
   }
   await clickButton(page, "保存");
   await expect(journal).not.toBeVisible();
-  await page.reload();
+  await reloadInApp(page);
   await page
     .getByRole("button", { name: new RegExp(`再振替: ${storedText}`) })
     .first()
@@ -72,7 +83,7 @@ test("carries archived text into a persistent next period and keeps it when edit
 test("overwrites an opened period's opening BS and fixed assets from a chosen source", async ({
   page,
 }) => {
-  await page.goto("/fiscal-periods");
+  await gotoInApp(page, "/fiscal-periods");
   await page.locator('input[type="file"]').setInputFiles({
     name: "2026.zip",
     mimeType: "application/zip",
@@ -97,7 +108,9 @@ test("overwrites an opened period's opening BS and fixed assets from a chosen so
   await expectStep(page, "日々の仕訳");
   await page.locator('button[aria-label="期首のBSを入力"]').first().click();
   await expectStep(page, "期首のBSを入力");
-  await expect(page.getByText("保存済み")).toBeVisible();
+  await expect(
+    page.getByText("仮締めまでの間は、いつでも金額を編集したり"),
+  ).toBeVisible();
   const liabilities = page.getByRole("region", { name: "負債・純資産の部" });
   await expect(liabilities.getByText("未払金", { exact: true })).toBeVisible();
   await expect(liabilities.getByText("1,000", { exact: true })).toBeVisible();

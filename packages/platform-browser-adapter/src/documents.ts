@@ -38,6 +38,7 @@ export type BrowserOpenedDocument = {
   sink: OpenkkDocumentSink;
   backup: OpenkkDocumentBackupSink | null;
   remember(): Promise<void>;
+  release(): void;
 };
 
 export type BrowserRecentDocument = {
@@ -126,6 +127,7 @@ export const browserDocuments = {
       sink: createDownloadDocumentSink(desiredName),
       backup: null,
       remember: rememberNothing,
+      release: releaseNothing,
     };
   },
 
@@ -169,6 +171,7 @@ async function openHandle(
     sink: createHandleDocumentSink(handle, file.lastModified),
     backup: null,
     remember: () => rememberRecent(handle),
+    release: releaseNothing,
   };
 }
 
@@ -214,6 +217,7 @@ function openWithFileInput(): Promise<BrowserOpenedDocument | null> {
             sink: createDownloadDocumentSink(file.name),
             backup: null,
             remember: rememberNothing,
+            release: releaseNothing,
           }),
         )
         .catch(reject);
@@ -223,6 +227,8 @@ function openWithFileInput(): Promise<BrowserOpenedDocument | null> {
 }
 
 export async function rememberNothing(): Promise<void> {}
+
+export function releaseNothing(): void {}
 
 async function rememberRecent(handle: BrowserDocumentFileHandle) {
   try {

@@ -3,6 +3,7 @@ import type {
   OpenkkDocumentWriteResult,
 } from "@rubydogjp/openkk-client-ports";
 
+import { browserBookLocks, type BookLocks } from "./book-lock.js";
 import { listBooks, uniqueBookName, type BookPlace } from "./book-place.js";
 import {
   BrowserDocumentPermissionError,
@@ -36,6 +37,7 @@ export type FolderBooksDependencies = {
   pickFolder(): Promise<BookFolderHandle | null>;
   loadFolder(): Promise<BookFolderHandle | null>;
   saveFolder(folder: BookFolderHandle | null): Promise<void>;
+  locks: BookLocks;
 };
 
 export type FolderBooks = BookPlace & {
@@ -102,33 +104,59 @@ export function createFolderBooks(
     return listBooks(await requireFolder());
   }
 
+  function hold(folder: BookFolderHandle, name: string): Promise<() => void> {
+    return dependencies.locks.hold(
+      `openkk-book:folder:${folder.name}/${name}`,
+      name,
+    );
+  }
+
   return {
     list,
     async open(name) {
       const folder = await requireFolder();
-      const handle = await folder.getFileHandle(name, { create: false });
-      const file = await handle.getFile();
-      return {
-        bytes: new Uint8Array(await file.arrayBuffer()),
-        sink: createHandleDocumentSink(handle, file.lastModified),
-        backup: null,
-        remember: rememberNothing,
-      };
+      const release = await hold(folder, name);
+      try {
+        const handle = await folder.getFileHandle(name, { create: false });
+        const file = await handle.getFile();
+        return {
+          bytes: new Uint8Array(await file.arrayBuffer()),
+          sink: createHandleDocumentSink(handle, file.lastModified),
+          backup: null,
+          remember: rememberNothing,
+          release,
+        };
+      } catch (error) {
+        release();
+        throw error;
+      }
+    },
+    async read(name) {
+      const folder = await requireFolder();
+      const file = await (
+        await folder.getFileHandle(name, { create: false })
+      ).getFile();
+      return new Uint8Array(await file.arrayBuffer());
     },
     async create(desiredName) {
       const folder = await requireFolder();
+      const name = uniqueBookName(desiredName, await list());
       return {
         bytes: null,
-        sink: createFileOnFirstSaveSink(
-          folder,
-          uniqueBookName(desiredName, await list()),
-        ),
+        sink: createFileOnFirstSaveSink(folder, name),
         backup: null,
         remember: rememberNothing,
+        release: await hold(folder, name),
       };
     },
     async remove(name) {
-      await (await requireFolder()).removeEntry(name);
+      const folder = await requireFolder();
+      const release = await hold(folder, name);
+      try {
+        await folder.removeEntry(name);
+      } finally {
+        release();
+      }
     },
     async folderName() {
       return (await dependencies.loadFolder())?.name ?? null;
@@ -227,4 +255,5 @@ export const folderBooks = createFolderBooks({
       store.put(folder, CURRENT_FOLDER_KEY),
     );
   },
+  locks: browserBookLocks,
 });

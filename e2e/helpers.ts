@@ -1,7 +1,54 @@
 import { expect, type Page } from "@playwright/test";
 
+export async function keepBooksInApp(page: Page) {
+  await page.addInitScript(() => {
+    const pickerWindow = window as unknown as Record<string, unknown>;
+    pickerWindow.showDirectoryPicker = null;
+    pickerWindow.showOpenFilePicker = null;
+  });
+}
+
+export async function startWithNewBook(page: Page) {
+  await keepBooksInApp(page);
+  await page.goto("/");
+  await clickButton(page, "新しい帳簿を作る");
+  await waitUntilBootPhase(page, "ready");
+  await expectBookSaved(page);
+}
+
+export async function expectBookSaved(page: Page) {
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-openkk-document",
+    "saved",
+    { timeout: 15_000 },
+  );
+}
+
+export async function waitUntilBookSaved(page: Page) {
+  await page.waitForFunction(
+    () => {
+      const status = document.documentElement.getAttribute(
+        "data-openkk-document",
+      );
+      return status == null || status === "saved";
+    },
+    null,
+    { timeout: 15_000 },
+  );
+}
+
+export async function gotoInApp(page: Page, url: string) {
+  await waitUntilBookSaved(page);
+  await page.goto(url);
+}
+
+export async function reloadInApp(page: Page) {
+  await waitUntilBookSaved(page);
+  await page.reload();
+}
+
 export async function createFiscalPeriod(page: Page, name: string) {
-  await page.goto("/fiscal-periods");
+  await gotoInApp(page, "/fiscal-periods");
   await page.getByRole("button", { name: "追加" }).click();
   await expect(page.getByRole("heading", { name: "新しい期間" })).toBeVisible();
   await page.getByPlaceholder("例: 2026年分").fill(name);

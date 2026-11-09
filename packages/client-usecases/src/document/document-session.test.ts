@@ -42,6 +42,7 @@ function harness(saveMode: OpenkkDocumentSaveMode) {
       closed += 1;
     },
     openNextBook: async () => {},
+    readOtherBookPeriods: async () => [],
     backup: null,
     now: () => 0,
   });
@@ -158,6 +159,7 @@ describe("createOpenkkDocumentSession (backup)", () => {
       exportBytes: () => new Uint8Array([7]),
       onClose: () => {},
       openNextBook: async () => {},
+      readOtherBookPeriods: async () => [],
       backup: {
         firstOpenedAt: input.firstOpenedAt,
         lastSavedAt: input.lastSavedAt,

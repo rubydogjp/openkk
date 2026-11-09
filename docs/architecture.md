@@ -23,9 +23,9 @@ packages/
 ├── server-api           OpenkkServerPort を組み立てる factory
 ├── server               上 4 つの meta barrel
 │
-├── file-db-adapter      OpenkkDbPort 実装 — SQLite Wasm + OPFS（ブラウザ永続化）
+├── file-db-adapter      OpenkkDbPort 実装 — SQLite Wasm + OPFS（ブラウザ永続化。無印版は前の版の帳簿を移すときに読む）
 ├── memory-db-adapter    OpenkkDbPort 実装 — インメモリ揮発 DB
-├── document-db-adapter  OpenkkDbPort 実装 — .openkk ファイルのバイト列を開き、変更を知らせる（ファイル版）
+├── document-db-adapter  OpenkkDbPort 実装 — .openkk ファイルのバイト列を開き、変更を知らせる（無印版）
 ├── node-sqlite-db-adapter OpenkkDbPort 実装 — node:sqlite の SQLite ファイル（CLI 用・ベータ）
 ├── sqlite-adapter       上記2つが共有するSQL・保存処理・マイグレーション
 ├── embedded-backend-adapter  OpenkkBackendPort 実装 — 同プロセス HTTP 風 bridge
@@ -35,10 +35,9 @@ packages/
 ├── embedded-backend     in-process backend composition root
 ├── cli                  CLI 版 composition root（ベータ。SQLite ファイルを操作する）
 ├── frontend             Web アプリ共通の provider・composition 配線
-├── openkk               無印版 Next.js アプリ（SQLite OPFS）
+├── openkk               無印版 Next.js アプリ（帳簿の .openkk をフォルダかアプリの中に置いて自動保存）
 ├── openkk_sim           Sim版 Next.js アプリ（memory DB・固定時計・debug）
-├── openkk_demo          デモ版 Next.js アプリ（seed済みmemory DB・再読み込みで初期化）
-└── openkk_file          ファイル版 Next.js アプリ（.openkk ファイルを開いて自動保存）
+└── openkk_demo          デモ版 Next.js アプリ（seed済みmemory DB・再読み込みで初期化）
 ```
 
 ## 設計原則
@@ -102,7 +101,7 @@ server side:   api → usecases → ports → domain
 
 `server-ports` にDB操作契約と境界型を置く。SQL・保存処理・DDLは `sqlite-adapter` が担当する。テーブル構造は [`database-schema.md`](./database-schema.md) を参照。
 
-`file-db-adapter`・`memory-db-adapter` は `sqlite-adapter` を利用し、起動時に `runMigrations()` を呼ぶ。`file-db-adapter` の OPFS SAHPool VFS は1ファイルを1接続でしか開けないため、Web Locks で1タブに限定し、同一プロセス内ではアダプタを1つだけ生成する。ロックは時間で打ち切らず、取れなければ `onWaitingForAnotherTab` で画面に知らせたうえで解放を待つ。別のタブを閉じる、または再読み込みで前の文書が片付くと、そのまま起動が続く。DB を開けたら、ストレージが足りないときなどにブラウザがデータを消さないよう `navigator.storage.persist()` で求める（すでに許可されていれば求めない。Firefox では確認が出るため、結果は待たずに起動を続ける）。起動の段階は `<html data-openkk-boot>`（`starting` / `waiting-for-another-tab` / `ready` / `failed`）に出し、E2E は待ち時間ではなくこの属性の変化を待つ。DB実装を差し替える場合は `OpenkkDbPort` を実装し、DDLはその実装内で管理する。
+`file-db-adapter`・`memory-db-adapter` は `sqlite-adapter` を利用し、起動時に `runMigrations()` を呼ぶ。`file-db-adapter` の OPFS SAHPool VFS は1ファイルを1接続でしか開けないため、Web Locks で1タブに限定し、同一プロセス内ではアダプタを1つだけ生成する。ロックは時間で打ち切らず、取れなければ `onWaitingForAnotherTab` で画面に知らせたうえで解放を待つ。別のタブを閉じる、または再読み込みで前の文書が片付くと、そのまま起動が続く。DB を開けたら、ストレージが足りないときなどにブラウザがデータを消さないよう `navigator.storage.persist()` で求める（すでに許可されていれば求めない。Firefox では確認が出るため、結果は待たずに起動を続ける）。起動の段階は `<html data-openkk-boot>`（`starting` / `waiting-for-another-tab` / `ready` / `failed`）に出し、帳簿を開いているときは保存の状態を `<html data-openkk-document>` に出す。E2E は待ち時間ではなくこれらの属性の変化を待つ (帳簿を開いたまま画面を移るときは、保存が終わってから移る)。DB実装を差し替える場合は `OpenkkDbPort` を実装し、DDLはその実装内で管理する。
 
 SQLite の単一接続では、トランザクションへ別操作が混入しないよう読取を含む公開ポート呼出しを直列化する。直列化は `server-ports` の `serializePortOperations` が担い、`OpenkkDbPort` と `OpenkkServerPort` の両方で使う。
 
@@ -110,21 +109,32 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 
 仕訳の表 (CSV) の取り込みは置き換えで、仕訳番号で突き合わせた削除・更新・追加を順に呼ぶ (`journalTableOperations`)。全体を 1 つのトランザクションにはしないが、同じ CSV をもう一度取り込めば残りだけが反映される。
 
-## ファイル版（1つのファイルを開いて使う）
+## 帳簿のファイル（無印版）
 
-ファイル版は、エクセルのように帳簿を1つのファイル (`.openkk`) として開く。中身は CLI と同じ SQLite で、同じファイルを両方で扱える。部品は次の順につながる。
+無印版は、エクセルのように帳簿を1つのファイル (`.openkk`) として開く。中身は CLI と同じ SQLite で、同じファイルを両方で扱える。部品は次の順につながる。
 
 - `document-db-adapter`: ファイルのバイト列を SQLite Wasm のメモリ上に開き (`sqlite3_deserialize`)、`OpenkkDbPort` を返す。書き込みのあった操作のあとに `onChange` で知らせ、`exportBytes()` で全体をバイト列に戻す。オープン会計の帳簿でない SQLite と、新しすぎるスキーマは開かない。
 - `createOpenkkDocumentSession` (`client-usecases`): `onChange` を受けて書き出しを重ねず最新だけ保存し、保存の状態 (`saved` / `saving` / `unsaved` / `conflict` / `failed`) を `OpenkkDocumentPort` として出す。書き先は `OpenkkDocumentSink` で、プラットフォームごとに差し替える。
 - `browserDocuments` (`platform-browser-adapter`): File System Access API でファイルを開く・作る・最近使ったファイルを覚え、書く前に更新時刻を確かめる。使えないブラウザではダウンロードで保存する。
-- `openkk_file`: 開いたファイルごとに上の3つと `embedded-backend` を組み、`OpenkkBundleRuntime.document` に渡す。画面は `useOpenkkDocument()` で、ファイル名・保存状態・別のファイルを開く操作を出す。ほかの版は `document: null`。
-- 次の期間は新しい帳簿に作る (1 期間 = 1 ファイル)。「次期を作成」は `useNextFiscalPeriodBook` (`client-usecases`) で今の期間を圧縮保存と同じ形にし、`OpenkkDocumentPort.openNextBook` に渡す。`openkk_file` は新しい帳簿に期間を作って引き継ぎ (`applyCarryoverFromArchive`)、同じ置き場に `<期間名>.openkk` として保存して開き直す。帳簿を開くと、いちばん新しい期間を選んだ状態で始まる。
+- `openkk` (無印版): 開いたファイルごとに上の3つと `embedded-backend` を組み、`OpenkkBundleRuntime.document` に渡す。画面は `useOpenkkDocument()` で、ファイル名・保存状態・別の帳簿を開く操作を出す。ほかの版は `document: null`。帳簿を開く前の画面 (帳簿の一覧・インストールの案内) は `OpenkkStartProviders` (`frontend`) で包み、オフラインキャッシュもここで登録する。
+- 次の期間は新しい帳簿に作る (1 期間 = 1 ファイル)。「次期を作成」は `useNextFiscalPeriodBook` (`client-usecases`) で今の期間を圧縮保存と同じ形にし、`OpenkkDocumentPort.openNextBook` に渡す。無印版は新しい帳簿に期間を作って引き継ぎ (`applyCarryoverFromArchive`)、同じ置き場に `<期間名>.openkk` として保存して開き直す。帳簿を開くと、いちばん新しい期間を選んだ状態で始まる。
+- 開始後の期間の「前の期間から引き継ぐ」は、同じ帳簿の期間に加えて、同じ置き場のほかの帳簿の期間も引き継ぎ元に出す (`useOpeningCarryoverSources`)。ほかの帳簿は `OpenkkDocumentPort.readOtherBookPeriods` で読み (`BookPlace.read` はロックを取らない)、選んだ期間を圧縮保存と同じ形にして `applyCarryoverFromArchive` で引き継ぐ。
+- 前に開いていた帳簿 (localStorage の `openkk.original.last_book`) は、次に起動したときに開き直し、そのときの URL のまま画面を出す。「別の帳簿を開く」で閉じると忘れる。
+- 同じ帳簿は 1 つのタブでしか開けない。`BookPlace` は開く・作る・消すときに帳簿ごとの Web Lock (`openkk-book:<置き場>:<名前>`) を取り、取れなければ `BookInUseError` で断る (待たない)。ロックは帳簿を閉じるか、タブを閉じると放す。
 
-同じ部品で、デスクトップアプリなど別のプラットフォームのファイル版も、`OpenkkDocumentSink` を実装するだけで作れる。
+同じ部品で、デスクトップアプリなど別のプラットフォームの版も、`OpenkkDocumentSink` を実装するだけで作れる。
+
+### 前の版の帳簿を移す
+
+26.3 までの無印版は、帳簿を OPFS の SAHPool (`.openkk/` の `/openkk.sqlite3`) に置いていた。新しい版は起動して帳簿の置き場が使えるようになったとき (アプリの中ならすぐ、フォルダならフォルダを選んだとき)、その DB を `exportFileDbBytes` (`file-db-adapter`) で書き出し、期間があれば `帳簿.openkk` として置き場に作って開く (`packages/openkk/app/legacy-book.ts`)。
+
+- 前の DB は消さない。移したら OPFS の直下に印 (`openkk-legacy-book-moved`) を置き、二度は移さない。期間のない DB は移さず、印だけ置く。
+- 前の版のタブが開いていると DB のロック (`openkk-db:openkk.sqlite3`) が取れないので、そのタブを閉じるまで待つ (一覧の画面に知らせる)。2 つのタブで同時に移さないよう、移す処理全体を Web Lock (`openkk-legacy-book-move`) で囲み、中で印を確かめ直す。
+- 書き出しは DB を開いてから `sqlite3_js_db_export` で行う (途中で止まった書き込みの journal があっても、開いたときに戻してから書き出す)。OPFS に `.openkk/` がなければ SQLite を読み込まない。
 
 ### アプリの中の帳簿 (OPFS)
 
-ファイルを書けないブラウザ (スマホ・Safari・Firefox) では、帳簿のファイルをアプリの中 (OPFS の `openkk-books/`) に置く (`inAppBooks`、`platform-browser-adapter`)。中身はファイル版と同じ `.openkk` で、`BrowserOpenedDocument` (バイト列と `OpenkkDocumentSink`) を返すので、上の部品をそのまま使える。
+ファイルを書けないブラウザ (スマホ・Safari・Firefox) では、帳簿のファイルをアプリの中 (OPFS の `openkk-books/`) に置く (`inAppBooks`、`platform-browser-adapter`)。中身はフォルダの帳簿と同じ `.openkk` で、`BrowserOpenedDocument` (バイト列と `OpenkkDocumentSink`) を返すので、上の部品をそのまま使える。
 
 - 書き込みは worker の sync access handle で行う (Safari でも書けるように)。手順は `in-app-book-protocol.ts` にあり、控え (`.next`) を書き切ってから「準備済み」の印 (`.ready`) を置き、本体を書いてから両方を消す。開くときに印が残っていれば、本体を控えで戻す。印がなく控えだけ残っていれば、本体はそのままで控えを消す。
 - OPFS の更新時刻はすぐ続けて書くと変わらないので、書く前の確かめは更新時刻ではなく中身で行う。最後に読んだ・書いた中身と今のファイルが違えば `conflict` を返す (別のタブが先に保存した場合)。
@@ -135,9 +145,9 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 
 ファイルを書けるブラウザでは、最初に 1 回だけフォルダを選び (`showDirectoryPicker`)、そのハンドルを IndexedDB (`openkk-book-folder`) に覚える (`folderBooks`、`platform-browser-adapter`)。期間ごとの `.openkk` はアプリがそのフォルダに作る。
 
-- `folderBooks` と `inAppBooks` は同じ形の置き場 (`BookPlace`: `list` / `open` / `create` / `remove`) で、アプリはファイルを書けるか (`canUseFolderBooks()`) でどちらかを選ぶ。
+- `folderBooks` と `inAppBooks` は同じ形の置き場 (`BookPlace`: `list` / `open` / `read` / `create` / `remove`) で、アプリはファイルを書けるか (`canUseFolderBooks()`) でどちらかを選ぶ。
 - 新しい帳簿のファイルは最初の保存のときに作る (保存せずにやめても空のファイルを残さない)。その名前のファイルが先にできていれば `conflict` を返す。
-- 開いた帳簿の書き込みは、ファイル版と同じく更新時刻で確かめる (実際のファイルでは更新時刻が当てになる)。
+- 開いた帳簿の書き込みは、`browserDocuments` と同じく更新時刻で確かめる (実際のファイルでは更新時刻が当てになる)。
 - ブラウザが許可を忘れたとき (`permission()` が `prompt`) は、利用者の操作から `requestAccess()` を呼んで許可をもらい直す。
 
 ## PWA とオフラインキャッシュ
@@ -153,7 +163,7 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 
 各ビルドは `NEXT_PUBLIC_BUILD_ID` をService Worker URLの `v` クエリへ反映する。有効化時は同じアプリシェルprefixを持つ旧版だけを削除し、他用途のキャッシュは保持する。
 
-`beforeinstallprompt` はインストール画面の描画前に発生し得るため、`platform-browser-adapter` が読み込み時にイベントを購読し、単回利用のpromptをアプリ全体で保持する。composition root はアダプタをモジュールの先頭で import する。データをブラウザに置く無印版はインストール画面に `BrowserStorageInstallPage` を使い、追加済みでないときだけ、ブラウザのまま使うとデータが消えることがある旨（Safari では 7 日ほど開かないと消える）を操作の下に小さく出す。データを残さないデモ版・Sim版と、クラウドに置く版は `InstallPage`（注意書きなし）を使う。
+`beforeinstallprompt` はインストール画面の描画前に発生し得るため、`platform-browser-adapter` が読み込み時にイベントを購読し、単回利用のpromptをアプリ全体で保持する。composition root はアダプタをモジュールの先頭で import する。無印版は、帳簿をアプリの中 (ブラウザ) に置く環境ではインストール画面に `BrowserStorageInstallPage` を使い、追加済みでないときだけ、ブラウザのまま使うとデータが消えることがある旨（Safari では 7 日ほど開かないと消える）を操作の下に小さく出す。帳簿をフォルダに置く環境と、データを残さないデモ版・Sim版、クラウドに置く版は `InstallPage`（注意書きなし）を使う。
 
 ## テスト戦略
 
@@ -161,8 +171,8 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 | ----------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | ユニット          | vitest     | ドメインロジック・パーサー・DB adapter                                                                                                                                                    |
 | DB ポート契約適合 | vitest     | `OpenkkDbPort` 共有 conformance（`server-ports/test-support/db-port-conformance.ts`）を memory/file-db 両実アダプタ＋遅延非同期コアに通し、dev(memory)↔prod(OPFS worker) の挙動一致を保証 |
-| E2E               | Playwright | Sim版の操作フローと、無印版・デモ版の静的export・OPFS永続化。締めフローでは仮帳票＝確定帳票＝概要図を実画面で検証                                                                         |
+| E2E               | Playwright | Sim版の操作フローと、無印版・デモ版の静的export・帳簿の置き場。締めフローでは仮帳票＝確定帳票＝概要図を実画面で検証                                                                       |
 | パッケージ構造    | vitest     | workspace 整合性チェック                                                                                                                                                                  |
 
-`npm run test:e2e` は Sim版を専用 port 4306 で起動し、既存プロセスを再利用せず実行する。`npm run test:e2e:export` は無印版を静的exportして検査する。ファイル版の E2E (`tests-file`) は、フォルダの帳簿を試すためにインストール済みの Chrome で動かす (Playwright 同梱の Chromium は、IndexedDB に置いた OPFS のフォルダを読み戻すと落ちる)。生成物・全workspace・全アプリ・E2Eをまとめた検査は `npm run check:full` で実行できる。
+`npm run test:e2e` は Sim版を専用 port 4306 で起動し、既存プロセスを再利用せず実行する。`npm run test:e2e:export` は無印版を静的exportして検査する。無印版の画面のテスト (`tests-export`) は、ファイルを書けないブラウザのふりをして帳簿をアプリの中に作ってから始める (`startWithNewBook`)。帳簿の置き場のテスト (`tests-books`、project `original-books`) は、フォルダの帳簿を試すためにインストール済みの Chrome で動かす (Playwright 同梱の Chromium は、IndexedDB に置いた OPFS のフォルダを読み戻すと落ちる)。前の版の帳簿は、テストの中で SQLite Wasm を読み込み、前の版と同じ開き方で OPFS に置いて試す。静的exportを配るテスト用のサーバー (`e2e/serve-export.mjs`) は、本番 (Firebase Hosting) と同じく末尾の `/` がないフォルダの URL を `/` 付きへ移す。生成物・全workspace・全アプリ・E2Eをまとめた検査は `npm run check:full` で実行できる。
 このリポジトリに `OpenkkDbPort` 実装を追加したら `runDbPortConformance` に通すこと。conformance は `server-ports/test-support/` にあり npm には公開しないので、外部の実装はこのリポジトリを参照する。

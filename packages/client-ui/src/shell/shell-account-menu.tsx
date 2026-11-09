@@ -72,9 +72,7 @@ export function ShellAccountMenu(props: {
       const confirmed = await confirm({
         tone: "danger",
         title: "保存していない変更があります",
-        body: [
-          "このまま別のファイルを開くと、保存していない変更は失われます。",
-        ],
+        body: ["このまま別の帳簿を開くと、保存していない変更は失われます。"],
         confirmLabel: "保存せずに閉じる",
       });
       if (!confirmed) return;
@@ -274,7 +272,7 @@ export function ShellAccountMenu(props: {
                         color={SHELL_PALETTE.menuIconActive}
                       />
                     }
-                    label="別のファイルを開く"
+                    label="別の帳簿を開く"
                     detail={null}
                     labelColor={SHELL_PALETTE.menuTextActive}
                     disabled={document.status === "saving"}

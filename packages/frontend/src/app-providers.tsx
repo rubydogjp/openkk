@@ -20,10 +20,10 @@ import { platformBrowserAdapter } from "@rubydogjp/openkk-platform-browser-adapt
 import { printAdapter } from "@rubydogjp/openkk-print-adapter";
 
 import type { OpenkkBundleRuntime } from "./bundle-runtime.js";
+import { useOfflineCache } from "./offline-cache.js";
 
-const SERVICE_WORKER_URL = "/sw.js";
-const SERVICE_WORKER_BUILD_ID = process.env.NEXT_PUBLIC_BUILD_ID ?? "default";
 const BOOT_PHASE_ATTRIBUTE_NAME = "data-openkk-boot";
+const DOCUMENT_STATUS_ATTRIBUTE_NAME = "data-openkk-document";
 
 type OpenkkBootPhase =
   "starting" | "waiting-for-another-tab" | "ready" | "failed";
@@ -74,13 +74,24 @@ export function OpenkkAppProviders(props: {
     };
   }, [backendApi, runtime]);
 
+  useOfflineCache(runtime.registerServiceWorker);
+
   useEffect(() => {
-    if (!runtime.registerServiceWorker) return;
-    platformBrowserAdapter.offlineCache.register(
-      SERVICE_WORKER_URL,
-      SERVICE_WORKER_BUILD_ID,
-    );
-  }, [runtime.registerServiceWorker]);
+    const openedDocument = runtime.document;
+    if (openedDocument == null) return;
+    const root = document.documentElement;
+    const showStatus = () =>
+      root.setAttribute(
+        DOCUMENT_STATUS_ATTRIBUTE_NAME,
+        openedDocument.getStatus(),
+      );
+    showStatus();
+    const unsubscribe = openedDocument.subscribe(showStatus);
+    return () => {
+      unsubscribe();
+      root.removeAttribute(DOCUMENT_STATUS_ATTRIBUTE_NAME);
+    };
+  }, [runtime.document]);
 
   if (bootError != null) {
     return (

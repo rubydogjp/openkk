@@ -16,6 +16,7 @@ import type {
   FiscalPeriodPatchInput,
   FiscalPeriodNextCreateInput,
   FiscalPeriodCarryoverApplyInput,
+  FiscalPeriodCarryoverFromArchiveApplyInput,
 } from "@rubydogjp/openkk-client-ports";
 import {
   AppError,
@@ -63,6 +64,10 @@ type OpenkkAppState = {
   applyCarryoverToFiscalPeriod: (
     fiscalPeriodId: string,
     input: FiscalPeriodCarryoverApplyInput,
+  ) => Promise<void>;
+  applyCarryoverFromArchiveToFiscalPeriod: (
+    fiscalPeriodId: string,
+    input: FiscalPeriodCarryoverFromArchiveApplyInput,
   ) => Promise<void>;
   importArchivedFiscalPeriod: (
     payload: FiscalPeriodArchivePayload,
@@ -314,6 +319,23 @@ export function OpenkkAppStateProvider(props: { children: ReactNode }) {
             fiscalPeriodId,
             input,
           );
+          assertAuthUnchanged(authVersion.current, operationVersion);
+          storeFiscalPeriod(updated);
+        });
+      },
+      async applyCarryoverFromArchiveToFiscalPeriod(fiscalPeriodId, input) {
+        assertEditingUnlocked(
+          config.editingPolicy,
+          "appState.applyCarryoverFromArchiveToFiscalPeriod",
+        );
+        const operationVersion = authVersion.current.capture();
+        await fiscalPeriodMutationQueue.current.run(async () => {
+          assertAuthUnchanged(authVersion.current, operationVersion);
+          const updated =
+            await backendApi.fiscalPeriods.applyCarryoverFromArchive(
+              fiscalPeriodId,
+              input,
+            );
           assertAuthUnchanged(authVersion.current, operationVersion);
           storeFiscalPeriod(updated);
         });

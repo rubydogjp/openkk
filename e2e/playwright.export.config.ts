@@ -1,5 +1,7 @@
 import { defineConfig } from "@playwright/test";
 
+const ORIGINAL_URL = "http://localhost:4308";
+
 export default defineConfig({
   timeout: 60_000,
   reporter: [["list"]],
@@ -8,20 +10,20 @@ export default defineConfig({
     {
       name: "original",
       testDir: "./tests-export",
-      use: { baseURL: "http://localhost:4308" },
+      use: { baseURL: ORIGINAL_URL },
+    },
+    {
+      name: "original-books",
+      testDir: "./tests-books",
+      use: { baseURL: ORIGINAL_URL, channel: "chrome" },
     },
     {
       name: "demo",
       testDir: "./tests-demo",
       use: { baseURL: "http://localhost:4309" },
     },
-    {
-      name: "file",
-      testDir: "./tests-file",
-      use: { baseURL: "http://localhost:4310", channel: "chrome" },
-    },
   ],
-  webServer: ["openkk", "openkk_demo", "openkk_file"].map((bundle, index) => ({
+  webServer: ["openkk", "openkk_demo"].map((bundle, index) => ({
     command: "node e2e/serve-export.mjs",
     cwd: process.cwd(),
     env: {

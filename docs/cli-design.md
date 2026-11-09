@@ -4,7 +4,7 @@
 
 ## 結論
 
-- 作業用のストアは **SQLite ファイル** (`.openkk`、既定は `book.openkk`)。ファイル版 (`packages/openkk_file`) と同じ形式で、同じファイルを両方で開ける。zip は会計期間単位の受け渡し (import / export) に使う
+- 作業用のストアは **SQLite ファイル** (`.openkk`、既定は `book.openkk`)。無印版 (`packages/openkk`) の帳簿と同じ形式で、同じファイルを両方で開ける。zip は会計期間単位の受け渡し (import / export) に使う
 - CLI は UI と同じく **composition root** として足す。`embedded-backend` → `embedded-backend-adapter` を同じプロセスでつなぎ、`OpenkkBackendPort` 経由で呼ぶ
 
 ## ファイル形式

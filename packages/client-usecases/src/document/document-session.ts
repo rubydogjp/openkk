@@ -5,6 +5,7 @@ import type {
   OpenkkDocumentSaveStatus,
   OpenkkDocumentSink,
   OpenkkNextBookInput,
+  OpenkkOtherBookPeriod,
 } from "@rubydogjp/openkk-client-ports";
 
 export const DOCUMENT_BACKUP_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -18,6 +19,7 @@ export function createOpenkkDocumentSession(options: {
   exportBytes: () => Uint8Array;
   onClose: () => void;
   openNextBook: (input: OpenkkNextBookInput) => Promise<void>;
+  readOtherBookPeriods: () => Promise<OpenkkOtherBookPeriod[]>;
   backup: OpenkkDocumentBackupSink | null;
   now: () => number;
 }): OpenkkDocumentSession {
@@ -123,5 +125,6 @@ export function createOpenkkDocumentSession(options: {
       options.onClose();
     },
     openNextBook: options.openNextBook,
+    readOtherBookPeriods: options.readOtherBookPeriods,
   };
 }

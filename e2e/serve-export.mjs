@@ -29,19 +29,28 @@ const CONTENT_TYPES = {
   ".txt": "text/plain; charset=utf-8",
 };
 
-async function resolveFile(urlPath) {
-  const relativePath = normalize(
-    decodeURIComponent(urlPath.split("?")[0]),
-  ).replace(/^(\.\.[/\\])+/, "");
-  const base = join(EXPORT_ROOT, relativePath);
-  const candidates = [base, join(base, "index.html"), `${base}.html`];
-  for (const candidate of candidates) {
-    try {
-      const stats = await stat(candidate);
-      if (stats.isFile()) return candidate;
-    } catch {}
+async function isFile(candidate) {
+  try {
+    return (await stat(candidate)).isFile();
+  } catch {
+    return false;
   }
-  return null;
+}
+
+async function resolveFile(urlPath) {
+  const pathname = decodeURIComponent(urlPath.split("?")[0]);
+  const relativePath = normalize(pathname).replace(/^(\.\.[/\\])+/, "");
+  const base = join(EXPORT_ROOT, relativePath);
+  if (await isFile(base)) return { file: base, redirect: null };
+  if (await isFile(join(base, "index.html"))) {
+    return pathname.endsWith("/")
+      ? { file: join(base, "index.html"), redirect: null }
+      : { file: null, redirect: `${urlPath.split("?")[0]}/` };
+  }
+  if (await isFile(`${base}.html`)) {
+    return { file: `${base}.html`, redirect: null };
+  }
+  return { file: null, redirect: null };
 }
 
 const server = createServer(async (request, response) => {
@@ -50,7 +59,14 @@ const server = createServer(async (request, response) => {
     headers["Cross-Origin-Opener-Policy"] = "same-origin";
     headers["Cross-Origin-Embedder-Policy"] = "require-corp";
   }
-  const file = await resolveFile(request.url ?? "/");
+  const url = request.url ?? "/";
+  const { file, redirect } = await resolveFile(url);
+  if (redirect != null) {
+    const query = url.includes("?") ? url.slice(url.indexOf("?")) : "";
+    response.writeHead(301, { ...headers, Location: `${redirect}${query}` });
+    response.end();
+    return;
+  }
   if (!file) {
     response.writeHead(404, headers);
     response.end("Not found");

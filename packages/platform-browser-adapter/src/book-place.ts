@@ -12,6 +12,7 @@ export type StoredBook = {
 export type BookPlace = {
   list(): Promise<StoredBook[]>;
   open(name: string): Promise<BrowserOpenedDocument>;
+  read(name: string): Promise<Uint8Array>;
   create(desiredName: string): Promise<BrowserOpenedDocument>;
   remove(name: string): Promise<void>;
 };

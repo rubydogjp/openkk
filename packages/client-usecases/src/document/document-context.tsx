@@ -12,6 +12,7 @@ import type {
   OpenkkDocumentSaveMode,
   OpenkkDocumentSaveStatus,
   OpenkkNextBookInput,
+  OpenkkOtherBookPeriod,
 } from "@rubydogjp/openkk-client-ports";
 
 export type OpenkkDocumentBackupState = {
@@ -91,4 +92,13 @@ export function useOpenkkDocument(): OpenkkDocumentState | null {
     backup:
       backup == null ? null : { lastSavedAt, due, save: () => backup.save() },
   };
+}
+
+export function useOtherBookPeriodsReader():
+  (() => Promise<OpenkkOtherBookPeriod[]>) | null {
+  const document = useContext(DocumentContext);
+  return useMemo(
+    () => (document == null ? null : () => document.readOtherBookPeriods()),
+    [document],
+  );
 }

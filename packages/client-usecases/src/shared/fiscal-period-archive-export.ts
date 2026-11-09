@@ -8,6 +8,10 @@ import {
   type FiscalPeriod,
   type FiscalPeriodArchivePayload,
 } from "@rubydogjp/openkk-client-domain";
+import type {
+  EntryApiRecord,
+  FixedAssetApiRecord,
+} from "@rubydogjp/openkk-client-ports";
 
 import { useBackendApi } from "./backend-api-context.js";
 import { useOpenkkAppState } from "./openkk-app-state.js";
@@ -25,16 +29,24 @@ export function useFiscalPeriodArchivePayload(): (
         backendApi.fixedAssets.getAll(fiscalPeriod.id),
       ]);
       appState.assertAuthOperationCurrent(authOperationVersion);
-      return buildFiscalPeriodArchivePayload({
-        createdAt: new Date().toISOString(),
-        fiscalPeriod: { ...fiscalPeriod, archiveStatus: "archived" },
-        entries: entries.map((entry) => ({ ...entry })),
-        fixedAssets: fixedAssets.map((asset) => ({ ...asset })),
-        closings: archiveClosingRecords(fiscalPeriod),
-      });
+      return archivePayloadFromRecords(fiscalPeriod, entries, fixedAssets);
     },
     [appState, backendApi],
   );
+}
+
+export function archivePayloadFromRecords(
+  fiscalPeriod: FiscalPeriod,
+  entries: EntryApiRecord[],
+  fixedAssets: FixedAssetApiRecord[],
+): FiscalPeriodArchivePayload {
+  return buildFiscalPeriodArchivePayload({
+    createdAt: new Date().toISOString(),
+    fiscalPeriod: { ...fiscalPeriod, archiveStatus: "archived" },
+    entries: entries.map((entry) => ({ ...entry })),
+    fixedAssets: fixedAssets.map((asset) => ({ ...asset })),
+    closings: archiveClosingRecords(fiscalPeriod),
+  });
 }
 
 export function useFiscalPeriodArchiveExport(): (

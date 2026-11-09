@@ -1,8 +1,10 @@
 import { test, expect, type Page } from "@playwright/test";
+import { keepBooksInApp } from "../helpers";
 
 const BROWSER_STORAGE_NOTICE = "ブラウザが帳簿のデータを消すことがあります";
 
 test("追加できる環境では目的と操作を案内する", async ({ page }) => {
+  await keepBooksInApp(page);
   await page.goto("/install");
   await expect(
     page.getByRole("heading", { name: "オープン会計をインストール" }),
@@ -37,6 +39,7 @@ test("追加できる環境では目的と操作を案内する", async ({ page 
 });
 
 test("追加をキャンセルしてもブラウザで使い始められる", async ({ page }) => {
+  await keepBooksInApp(page);
   await page.goto("/install");
   await expect(page.getByRole("status")).toBeVisible();
   await offerInstall(page, "dismissed");
@@ -47,12 +50,15 @@ test("追加をキャンセルしてもブラウザで使い始められる", as
     "追加をキャンセルしました",
   );
   await page.getByRole("button", { name: "ブラウザで開く" }).click();
-  await expect(page.getByRole("heading", { name: "期間の選択" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "新しい帳簿を作る" }),
+  ).toBeVisible();
 });
 
 test("ボタンから追加できない場合はメニューとブラウザ利用を案内する", async ({
   page,
 }) => {
+  await keepBooksInApp(page);
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "install", { value: undefined });
   });
@@ -60,7 +66,25 @@ test("ボタンから追加できない場合はメニューとブラウザ利�
   await expect(page.getByRole("status")).toContainText("ブラウザのメニューに");
   await expect(page.getByRole("status")).toContainText("「Dock に追加」");
   await page.getByRole("button", { name: "ブラウザで開く" }).click();
-  await expect(page.getByRole("heading", { name: "期間の選択" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "新しい帳簿を作る" }),
+  ).toBeVisible();
+});
+
+test("帳簿をフォルダに置く環境では、ブラウザがデータを消す注意を出さない", async ({
+  page,
+}) => {
+  await page.goto("/install");
+  await expect(
+    page.getByRole("heading", { name: "オープン会計をインストール" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(BROWSER_STORAGE_NOTICE, { exact: false }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "ブラウザで開く" }).click();
+  await expect(
+    page.getByRole("button", { name: "帳簿を置くフォルダを選ぶ" }),
+  ).toBeVisible();
 });
 
 async function offerInstall(page: Page, outcome: "accepted" | "dismissed") {

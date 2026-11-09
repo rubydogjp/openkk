@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  fakeLockManager,
+  settleLocks,
+} from "../test-support/fake-lock-manager.js";
+import { BookInUseError, createBookLocks } from "./book-lock.js";
 import { BrowserDocumentPermissionError } from "./documents.js";
 import {
   BookFolderMissingError,
@@ -81,6 +86,7 @@ function folderBooksWith(initial: BookFolderHandle | null) {
     saveFolder: async (folder) => {
       remembered = folder;
     },
+    locks: createBookLocks(fakeLockManager()),
   });
   return { books, picks, remembered: () => remembered };
 }
@@ -121,12 +127,45 @@ describe("folder books", () => {
     const created = await books.create("2026年分");
     const beforeSave = [...files.keys()];
     const result = await created.sink.write(new Uint8Array([7, 8]));
+    created.release();
+    await settleLocks();
     const reopened = await books.open("2026年分.openkk");
 
     expect(created.sink.fileName).toBe("2026年分.openkk");
     expect(beforeSave).toEqual([]);
     expect(result).toBe("written");
     expect(reopened.bytes).toEqual(new Uint8Array([7, 8]));
+  });
+
+  it("reads a book that another tab has open without taking it", async () => {
+    const { folder, touch } = fakeFolder("帳簿", "granted");
+    touch("2026年分.openkk", new Uint8Array([4, 2]));
+    const { books } = folderBooksWith(folder);
+
+    const opened = await books.open("2026年分.openkk");
+    await expect(books.read("2026年分.openkk")).resolves.toEqual(
+      new Uint8Array([4, 2]),
+    );
+    opened.release();
+  });
+
+  it("refuses a book that another tab has open until that tab lets it go", async () => {
+    const { folder, files, touch } = fakeFolder("帳簿", "granted");
+    touch("2026年分.openkk", new Uint8Array([1]));
+    const { books } = folderBooksWith(folder);
+
+    const opened = await books.open("2026年分.openkk");
+    await expect(books.open("2026年分.openkk")).rejects.toThrow(BookInUseError);
+    await expect(books.remove("2026年分.openkk")).rejects.toThrow(
+      BookInUseError,
+    );
+    expect(files.has("2026年分.openkk")).toBe(true);
+
+    opened.release();
+    await settleLocks();
+    await expect(books.open("2026年分.openkk")).resolves.toMatchObject({
+      bytes: new Uint8Array([1]),
+    });
   });
 
   it("picks a free name and reports a conflict if the name was taken before the first save", async () => {

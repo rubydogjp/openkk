@@ -1,9 +1,10 @@
 import { expect, test } from "@playwright/test";
+import { startWithNewBook } from "../helpers";
 
 test("signs in with the embedded user and disables sign-out", async ({
   page,
 }) => {
-  await page.goto("/");
+  await startWithNewBook(page);
   await expect(page).toHaveURL(/\/fiscal-periods/, { timeout: 15_000 });
   await expect(
     page.getByRole("heading", { name: "サインイン" }),

@@ -41,6 +41,7 @@ type DocumentStartScreenProps = {
   books: DocumentStartBook[];
   recentFiles: DocumentStartRecentFile[];
   busy: boolean;
+  notice: string | null;
   errorMessage: string | null;
   onChooseFolder: () => void;
   onRequestFolderAccess: () => void;
@@ -144,6 +145,10 @@ function DocumentStartContent(props: DocumentStartScreenProps) {
           <Notice tone="warning">
             {`フォルダ「${place.folderName}」の帳簿を開くには、もう一度アクセスを許可してください。`}
           </Notice>
+        ) : null}
+
+        {props.notice != null ? (
+          <Notice tone="info">{props.notice}</Notice>
         ) : null}
 
         {props.errorMessage != null ? (
@@ -434,16 +439,34 @@ function FileList(props: {
   );
 }
 
-function Notice(props: { tone: "warning" | "danger"; children: string }) {
-  const danger = props.tone === "danger";
+const NOTICE_TONES = {
+  info: {
+    role: "status",
+    background: palette.actionBg,
+    border: palette.actionBorder,
+  },
+  warning: {
+    role: "note",
+    background: palette.warningBg,
+    border: palette.warningBorder,
+  },
+  danger: {
+    role: "alert",
+    background: palette.dangerBg,
+    border: palette.dangerBorder,
+  },
+} as const;
+
+function Notice(props: { tone: keyof typeof NOTICE_TONES; children: string }) {
+  const tone = NOTICE_TONES[props.tone];
   return (
     <div
-      role={danger ? "alert" : "note"}
+      role={tone.role}
       style={{
         padding: "10px 14px",
         borderRadius: radii.sm,
-        background: danger ? palette.dangerBg : palette.warningBg,
-        border: `1px solid ${danger ? palette.dangerBorder : palette.warningBorder}`,
+        background: tone.background,
+        border: `1px solid ${tone.border}`,
         fontSize: fontSize.sm,
         color: palette.text,
         lineHeight: 1.7,

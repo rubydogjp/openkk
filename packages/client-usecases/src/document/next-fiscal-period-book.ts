@@ -1,35 +1,13 @@
 "use client";
 
 import { useCallback } from "react";
-import {
-  buildFiscalPeriodBookFilename,
-  type FiscalPeriodArchivePayload,
-} from "@rubydogjp/openkk-client-domain";
-import type {
-  FiscalPeriodCarryoverFromArchiveApplyInput,
-  FiscalPeriodNextCreateInput,
-} from "@rubydogjp/openkk-client-ports";
+import { buildFiscalPeriodBookFilename } from "@rubydogjp/openkk-client-domain";
+import type { FiscalPeriodNextCreateInput } from "@rubydogjp/openkk-client-ports";
 
 import { useFiscalPeriodArchivePayload } from "../shared/fiscal-period-archive-export.js";
+import { carryoverFromArchive } from "../shared/opening-carryover.js";
 import { useOpenkkAppState } from "../shared/openkk-app-state.js";
 import { useOpenkkDocument } from "./document-context.js";
-
-function carryoverFromArchive(
-  archive: FiscalPeriodArchivePayload,
-  input: FiscalPeriodNextCreateInput,
-): FiscalPeriodCarryoverFromArchiveApplyInput {
-  const reversalEntryIds = new Set(input.reversalEntryIds);
-  return {
-    archive,
-    carryBalances: input.carryBalances,
-    reversalEntryIndexes: archive.entries.flatMap((entry, index) =>
-      typeof entry.id === "string" && reversalEntryIds.has(entry.id)
-        ? [index]
-        : [],
-    ),
-    carryFixedAssets: input.carryFixedAssets,
-  };
-}
 
 export function useNextFiscalPeriodBook():
   ((input: FiscalPeriodNextCreateInput) => Promise<void>) | null {
@@ -55,10 +33,11 @@ export function useNextFiscalPeriodBook():
           startDate: input.startDate,
           endDate: input.endDate,
         },
-        carryover: carryoverFromArchive(
-          await buildArchivePayload(source),
-          input,
-        ),
+        carryover: carryoverFromArchive(await buildArchivePayload(source), {
+          carryBalances: input.carryBalances,
+          reversalEntryIds: input.reversalEntryIds,
+          carryFixedAssets: input.carryFixedAssets,
+        }),
       });
     },
     [appState.fiscalPeriods, buildArchivePayload, openNextBook],

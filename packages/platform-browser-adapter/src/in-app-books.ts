@@ -10,6 +10,7 @@ import {
   type BookPlace,
 } from "./book-place.js";
 import { bookBackups, type BookBackups } from "./book-backup.js";
+import { browserBookLocks, type BookLocks } from "./book-lock.js";
 import { rememberNothing } from "./documents.js";
 import { isNotFoundError } from "./file-system-errors.js";
 import {
@@ -30,7 +31,10 @@ export type InAppBooksDependencies = {
   writer: InAppBookWriter;
   requestPersistence(): Promise<unknown>;
   backups: BookBackups;
+  locks: BookLocks;
 };
+
+const LOCK_PREFIX = "openkk-book:in-app:";
 
 type WorkerAnswer = { id: number; ok: boolean; error: string | null };
 
@@ -89,19 +93,35 @@ export function createInAppBooks(
     return listBooks(await dependencies.openDirectory());
   }
 
+  function hold(name: string): Promise<() => void> {
+    return dependencies.locks.hold(`${LOCK_PREFIX}${name}`, name);
+  }
+
   return {
     list,
     async open(name) {
       void dependencies.requestPersistence();
-      await dependencies.writer.send({ type: "recover", name });
+      const release = await hold(name);
+      try {
+        await dependencies.writer.send({ type: "recover", name });
+        const bytes = await readBytes(name);
+        if (bytes == null) throw new Error(`in-app book not found: ${name}`);
+        return {
+          bytes,
+          sink: createSink(name, bytes),
+          backup: dependencies.backups.sinkFor(name),
+          remember: rememberNothing,
+          release,
+        };
+      } catch (error) {
+        release();
+        throw error;
+      }
+    },
+    async read(name) {
       const bytes = await readBytes(name);
       if (bytes == null) throw new Error(`in-app book not found: ${name}`);
-      return {
-        bytes,
-        sink: createSink(name, bytes),
-        backup: dependencies.backups.sinkFor(name),
-        remember: rememberNothing,
-      };
+      return bytes;
     },
     async create(desiredName) {
       void dependencies.requestPersistence();
@@ -111,11 +131,17 @@ export function createInAppBooks(
         sink: createSink(name, null),
         backup: dependencies.backups.sinkFor(name),
         remember: rememberNothing,
+        release: await hold(name),
       };
     },
     async remove(name) {
-      await dependencies.writer.send({ type: "remove", name });
-      dependencies.backups.forget(name);
+      const release = await hold(name);
+      try {
+        await dependencies.writer.send({ type: "remove", name });
+        dependencies.backups.forget(name);
+      } finally {
+        release();
+      }
     },
   };
 }
@@ -190,4 +216,5 @@ export const inAppBooks = createInAppBooks({
   requestPersistence: () =>
     requestPersistentStorage(browserPersistentStorage()),
   backups: bookBackups,
+  locks: browserBookLocks,
 });

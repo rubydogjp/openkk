@@ -37,12 +37,11 @@ const LAYERS = [
   {
     id: "app",
     label: "App",
-    note: "リファレンスアプリ (Web 4つと CLI)。consumer が自前アプリに差し替える",
+    note: "リファレンスアプリ (Web 3つと CLI)。consumer が自前アプリに差し替える",
     match: (name) =>
       name === "@rubydogjp/openkk" ||
       name === "@rubydogjp/openkk-sim" ||
       name === "@rubydogjp/openkk-demo" ||
-      name === "@rubydogjp/openkk-file" ||
       name === "@rubydogjp/openkk-cli",
   },
   {
@@ -99,7 +98,6 @@ function shortName(name) {
   if (name === "@rubydogjp/openkk") return "openkk";
   if (name === "@rubydogjp/openkk-sim") return "openkk-sim";
   if (name === "@rubydogjp/openkk-demo") return "openkk-demo";
-  if (name === "@rubydogjp/openkk-file") return "openkk-file";
   return name.replace(/^@rubydogjp\/openkk-/, "");
 }
 

@@ -3,12 +3,15 @@ import {
   advanceToJournalizing,
   clickButton,
   createFiscalPeriod,
-  waitUntilBootPhase,
+  gotoInApp,
+  keepBooksInApp,
+  reloadInApp,
+  startWithNewBook,
 } from "../helpers";
 
 type PersistentStorageProbe = { persistentStorageRequests: string[] };
 
-test("asks the browser to keep the OPFS book data once it opens", async ({
+test("asks the browser to keep the books once one is made in the app", async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -27,8 +30,10 @@ test("asks the browser to keep the OPFS book data once it opens", async ({
     };
   });
 
+  await keepBooksInApp(page);
   await page.goto("/");
-  await waitUntilBootPhase(page, "ready");
+  await expect(page.getByText("アプリの中に保存します")).toBeVisible();
+  await clickButton(page, "新しい帳簿を作る");
 
   await expect
     .poll(() =>
@@ -41,9 +46,10 @@ test("asks the browser to keep the OPFS book data once it opens", async ({
     .toEqual(["persisted", "persist"]);
 });
 
-test("persists a fiscal period and entry across reloads in OPFS", async ({
+test("keeps a fiscal period and entry in the book across reloads", async ({
   page,
 }) => {
+  await startWithNewBook(page);
   await createFiscalPeriod(page, "保存検証期間");
   await advanceToJournalizing(page);
   await page.getByRole("link", { name: "仕訳" }).click();
@@ -57,7 +63,7 @@ test("persists a fiscal period and entry across reloads in OPFS", async ({
   await expect(drawer).not.toBeVisible();
   await expect(page.getByText("永続化検証の仕訳")).toBeVisible();
 
-  await page.reload();
+  await reloadInApp(page);
   await expect(page.getByText("永続化検証の仕訳")).toBeVisible();
   await page
     .getByRole("button", { name: /永続化検証の仕訳/ })
@@ -67,7 +73,7 @@ test("persists a fiscal period and entry across reloads in OPFS", async ({
   await expect(savedEntry.getByLabel("借方金額").first()).toHaveValue("50,000");
   await expect(savedEntry.getByLabel("貸方金額").last()).toHaveValue("50,000");
 
-  await page.goto("/fiscal-periods");
+  await gotoInApp(page, "/fiscal-periods");
   await expect(
     page.getByRole("button", { name: /^保存検証期間 \d{4}-/ }),
   ).toBeVisible();

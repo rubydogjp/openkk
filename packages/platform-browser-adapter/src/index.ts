@@ -33,6 +33,13 @@ export {
   type BookBackupsDependencies,
 } from "./book-backup.js";
 export {
+  BookInUseError,
+  browserBookLocks,
+  createBookLocks,
+  type BookLockManager,
+  type BookLocks,
+} from "./book-lock.js";
+export {
   type BookFileDirectory,
   type BookPlace,
   type StoredBook,
