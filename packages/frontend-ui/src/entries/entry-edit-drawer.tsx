@@ -63,7 +63,7 @@ import type {
   EntryMasterAccountOption,
   EntryMasterCategoryOption,
   EntrySuggestions,
-} from "../bindings/index.js";
+} from "@rubydogjp/openkk-driver";
 import {
   validateEntryAmounts,
   validateBusinessRate,

@@ -12,7 +12,7 @@ import {
   OpenkkAppProviders,
   OpenkkStartProviders,
   type OpenkkBootEvents,
-  type OpenkkBundleBackend,
+  type OpenkkBundlePorts,
   type OpenkkBundleRuntime,
 } from "@rubydogjp/openkk-client-browser";
 import {
@@ -38,7 +38,7 @@ const BOOKS_LOCK_NAME = "openkk-books";
 const INSTALL_PATH = "/install";
 
 type BooksBoot = {
-  backend: Promise<OpenkkBundleBackend>;
+  ports: Promise<OpenkkBundlePorts>;
   waitingForAnotherTab: boolean;
   onWaitingForAnotherTab: () => void;
 };
@@ -65,7 +65,7 @@ const runtime: OpenkkBundleRuntime = {
     stepJournalizingPreClosingHint: null,
     stepNextFiscalPeriodFooter: null,
   },
-  createBackend: createBooksBackend,
+  createPorts: createBooksPorts,
   registerServiceWorker: true,
 };
 
@@ -90,18 +90,18 @@ export function Providers(props: { children: ReactNode }) {
   );
 }
 
-function createBooksBackend(
+function createBooksPorts(
   events: OpenkkBootEvents,
-): Promise<OpenkkBundleBackend> {
+): Promise<OpenkkBundlePorts> {
   if (booksBoot != null) {
     booksBoot.onWaitingForAnotherTab = events.onWaitingForAnotherTab;
     if (booksBoot.waitingForAnotherTab) events.onWaitingForAnotherTab();
-    return booksBoot.backend;
+    return booksBoot.ports;
   }
   const boot: BooksBoot = {
     waitingForAnotherTab: false,
     onWaitingForAnotherTab: events.onWaitingForAnotherTab,
-    backend: openBooksBackend(() => {
+    ports: openBooksPorts(() => {
       boot.waitingForAnotherTab = true;
       boot.onWaitingForAnotherTab();
     }).catch((error: unknown) => {
@@ -110,12 +110,12 @@ function createBooksBackend(
     }),
   };
   booksBoot = boot;
-  return boot.backend;
+  return boot.ports;
 }
 
-async function openBooksBackend(
+async function openBooksPorts(
   onWaitingForAnotherTab: () => void,
-): Promise<OpenkkBundleBackend> {
+): Promise<OpenkkBundlePorts> {
   const userId = openkkConfig.embeddedUser.id;
   await holdBooksLock(onWaitingForAnotherTab);
   void requestBrowserPersistentStorage();
@@ -144,7 +144,7 @@ async function openBooksBackend(
   forgetFiscalPeriod = bookFiles.forgetFiscalPeriod;
   forgottenFiscalPeriodIds.forEach(forgetFiscalPeriod);
   return {
-    api: createOpenkkEmbeddedBackendAdapter(
+    backend: createOpenkkEmbeddedBackendAdapter(
       createOpenkkBackendApi(books.db, { userId }),
     ),
     bookFiles,

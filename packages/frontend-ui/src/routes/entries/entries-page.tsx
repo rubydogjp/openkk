@@ -38,9 +38,11 @@ import {
   useOpenkkEntries,
   useOpenkkConfig,
   useOpenkkToday,
+} from "../../bindings/index.js";
+import {
   type EntryDraft,
   type EntryMasterAccountOption,
-} from "../../bindings/index.js";
+} from "@rubydogjp/openkk-driver";
 import {
   EntriesScreen,
   EntriesViewSwitch,

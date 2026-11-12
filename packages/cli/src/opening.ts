@@ -1,4 +1,8 @@
-import { formatAmount } from "@rubydogjp/openkk-driver";
+import {
+  carryOverFromBackend,
+  formatAmount,
+  loadJournalMaster,
+} from "@rubydogjp/openkk-driver";
 import type {
   FiscalPeriodApiRecord,
   OpeningBalanceLineApiRecord,
@@ -10,8 +14,7 @@ import {
   requireFiscalPeriod,
   type CliCommandContext,
 } from "./command-context.js";
-import { carryOverFromBook } from "./period-transfer.js";
-import { loadMaster, requireAccountByExactName } from "./records.js";
+import { requireAccountByExactName } from "./records.js";
 
 const ASSET_PREFIX = "a:";
 const LIABILITY_AND_EQUITY_PREFIX = "l:";
@@ -46,7 +49,7 @@ export async function runOpeningCommand(
     }
     case "set": {
       const period = await requireFiscalPeriod(api, periodId ?? null);
-      const master = await loadMaster(api);
+      const master = await loadJournalMaster(api);
       const lines = balances.map((argument) =>
         parseBalanceArgument(argument, master.accounts),
       );
@@ -86,7 +89,7 @@ export async function runOpeningCommand(
           sourceBook.api,
           options.fromPeriod,
         );
-        const updated = await carryOverFromBook(
+        const updated = await carryOverFromBackend(
           sourceBook.api,
           source,
           api,

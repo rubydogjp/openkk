@@ -2,6 +2,7 @@ import fs from "node:fs";
 import {
   assertFiscalPeriodArchiveByteLength,
   buildFiscalPeriodArchiveFilename,
+  buildFiscalPeriodArchiveZip,
   fiscalPeriodPhaseLabel,
   readFiscalPeriodArchiveZip,
 } from "@rubydogjp/openkk-driver";
@@ -11,7 +12,8 @@ import {
   requireFiscalPeriod,
   type CliCommandContext,
 } from "./command-context.js";
-import { buildFiscalPeriodArchiveZipFromBook } from "./period-transfer.js";
+
+const NO_AUTH_CHECK = () => {};
 
 export async function runArchiveCommand(
   context: CliCommandContext,
@@ -21,10 +23,11 @@ export async function runArchiveCommand(
   switch (subcommand) {
     case "export": {
       const period = await requireFiscalPeriod(api, target ?? null);
-      const zip = await buildFiscalPeriodArchiveZipFromBook(
+      const zip = await buildFiscalPeriodArchiveZip(
         api,
         period,
         context.today(),
+        NO_AUTH_CHECK,
       );
       const outPath = context.resolvePath(
         options.out ?? buildFiscalPeriodArchiveFilename(period),

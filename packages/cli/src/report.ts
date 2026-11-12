@@ -2,6 +2,7 @@ import fs from "node:fs";
 import {
   buildFiscalPeriodReport,
   FISCAL_PERIOD_REPORT_LABELS,
+  loadFiscalPeriodReportInput,
   type FiscalPeriodReportKind,
 } from "@rubydogjp/openkk-driver";
 
@@ -10,7 +11,6 @@ import {
   requireFiscalPeriod,
   type CliCommandContext,
 } from "./command-context.js";
-import { loadFiscalPeriodReportInput } from "./records.js";
 
 const REPORT_KIND_BY_ARGUMENT = new Map<string, FiscalPeriodReportKind>([
   ["journal", "journal"],

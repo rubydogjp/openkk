@@ -1,25 +1,18 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { createOpenkkDriver } from "@rubydogjp/openkk-driver";
 import {
-  BackendApiProvider,
   BrandConfigProvider,
-  PlatformAdapterProvider,
-  OpenkkAppStateProvider,
-  OpenkkAssistProvider,
-  OpenkkBookFilesProvider,
   OpenkkCalloutsProvider,
-  OpenkkConfigProvider,
-  OpenkkEntriesProvider,
-  OpenkkMaintenanceProvider,
-  PrintAdapterProvider,
+  OpenkkDriverProvider,
   WorkInProgressProvider,
 } from "@rubydogjp/openkk-frontend-ui";
 import { browserPlatformAdapter } from "@rubydogjp/openkk-browser-platform-adapter";
 import { browserPrintAdapter } from "@rubydogjp/openkk-browser-print-adapter";
 
 import type {
-  OpenkkBundleBackend,
+  OpenkkBundlePorts,
   OpenkkBundleRuntime,
 } from "./bundle-runtime.js";
 import { useOfflineCache } from "./offline-cache.js";
@@ -35,15 +28,26 @@ export function OpenkkAppProviders(props: {
   children: ReactNode;
 }) {
   const { runtime } = props;
-  const [backend, setBackend] = useState<OpenkkBundleBackend | null>(null);
-  const backendApi = backend?.api ?? null;
-  const bookFiles = backend?.bookFiles ?? null;
+  const [ports, setPorts] = useState<OpenkkBundlePorts | null>(null);
+  const bookFiles = ports?.bookFiles ?? null;
+  const driver = useMemo(
+    () =>
+      ports == null
+        ? null
+        : createOpenkkDriver(runtime.config, {
+            backend: ports.backend,
+            platform: browserPlatformAdapter,
+            print: browserPrintAdapter,
+            bookFiles: ports.bookFiles,
+          }),
+    [ports, runtime.config],
+  );
   const [bootError, setBootError] = useState<unknown>(null);
   const [waitingForAnotherTab, setWaitingForAnotherTab] = useState(false);
   const bootPhase: OpenkkBootPhase =
     bootError != null
       ? "failed"
-      : backendApi != null
+      : ports != null
         ? "ready"
         : waitingForAnotherTab
           ? "waiting-for-another-tab"
@@ -54,19 +58,19 @@ export function OpenkkAppProviders(props: {
   }, [bootPhase]);
 
   useEffect(() => {
-    if (backendApi != null) return;
+    if (ports != null) return;
 
     let cancelled = false;
     void (async () => {
       try {
-        const created = await runtime.createBackend({
+        const created = await runtime.createPorts({
           onWaitingForAnotherTab: () => {
             if (!cancelled) setWaitingForAnotherTab(true);
           },
         });
         if (cancelled) return;
         setWaitingForAnotherTab(false);
-        setBackend(created);
+        setPorts(created);
       } catch (error) {
         if (cancelled) return;
         console.error("[openkk] backend init failed:", error);
@@ -76,7 +80,7 @@ export function OpenkkAppProviders(props: {
     return () => {
       cancelled = true;
     };
-  }, [backendApi, runtime]);
+  }, [ports, runtime]);
 
   useOfflineCache(runtime.registerServiceWorker);
 
@@ -109,7 +113,7 @@ export function OpenkkAppProviders(props: {
     );
   }
 
-  if (waitingForAnotherTab && backendApi == null) {
+  if (waitingForAnotherTab && driver == null) {
     return (
       <div
         role="status"
@@ -120,37 +124,19 @@ export function OpenkkAppProviders(props: {
     );
   }
 
-  if (backendApi == null) {
+  if (driver == null) {
     return (
       <div style={{ padding: 24, fontSize: 14, color: "#6b7280" }}>起動中…</div>
     );
   }
 
   return (
-    <OpenkkConfigProvider config={runtime.config}>
-      <BrandConfigProvider config={runtime.brandConfig}>
-        <OpenkkCalloutsProvider slots={runtime.calloutSlots}>
-          <PlatformAdapterProvider adapter={browserPlatformAdapter}>
-            <OpenkkBookFilesProvider bookFiles={bookFiles}>
-              <BackendApiProvider api={backendApi}>
-                <OpenkkMaintenanceProvider>
-                  <PrintAdapterProvider adapter={browserPrintAdapter}>
-                    <OpenkkAppStateProvider>
-                      <OpenkkEntriesProvider>
-                        <OpenkkAssistProvider>
-                          <WorkInProgressProvider>
-                            {props.children}
-                          </WorkInProgressProvider>
-                        </OpenkkAssistProvider>
-                      </OpenkkEntriesProvider>
-                    </OpenkkAppStateProvider>
-                  </PrintAdapterProvider>
-                </OpenkkMaintenanceProvider>
-              </BackendApiProvider>
-            </OpenkkBookFilesProvider>
-          </PlatformAdapterProvider>
-        </OpenkkCalloutsProvider>
-      </BrandConfigProvider>
-    </OpenkkConfigProvider>
+    <BrandConfigProvider config={runtime.brandConfig}>
+      <OpenkkCalloutsProvider slots={runtime.calloutSlots}>
+        <OpenkkDriverProvider driver={driver}>
+          <WorkInProgressProvider>{props.children}</WorkInProgressProvider>
+        </OpenkkDriverProvider>
+      </OpenkkCalloutsProvider>
+    </BrandConfigProvider>
   );
 }

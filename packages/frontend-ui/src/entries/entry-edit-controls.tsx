@@ -14,7 +14,7 @@ import {
   MAX_TEXT_FIELD_LENGTH,
   type BookAccountType,
 } from "@rubydogjp/openkk-driver";
-import type { EntryMasterAccountOption } from "../bindings/index.js";
+import type { EntryMasterAccountOption } from "@rubydogjp/openkk-driver";
 import {
   fontSize,
   fontWeight,

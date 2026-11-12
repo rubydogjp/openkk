@@ -2,27 +2,26 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   AppError,
+  applyJournalTableChanges,
   buildJournalTableRows,
   decodeJournalImportBytes,
   diffJournalTableEntries,
-  entryRecordToImportPayload,
   exportEntriesAsJson,
   formatJournalTableCsv,
   importEntriesFromJson,
   importEntriesFromLegacyCsv,
+  importEntryRecords,
   isLegacyJournalCsv,
   isMaterializedVirtualEntry,
-  journalTableOperations,
+  loadEntryRecords,
+  loadJournalMaster,
   parseJournalTableCsv,
   readJournalTableEntries,
   storedEntryToRecord,
   type EntryLineMaster,
   type EntryRecord,
+  type FiscalPeriodApiRecord,
   type JournalTableChanges,
-} from "@rubydogjp/openkk-driver";
-import type {
-  FiscalPeriodApiRecord,
-  OpenkkBackendPort,
 } from "@rubydogjp/openkk-driver";
 
 import { CliUsageError, type CliOutput } from "./cli-io.js";
@@ -31,11 +30,7 @@ import {
   type CliCommandContext,
   type CliOptions,
 } from "./command-context.js";
-import {
-  loadEntryRecords,
-  loadMaster,
-  requireAccountByExactName,
-} from "./records.js";
+import { requireAccountByExactName } from "./records.js";
 
 const ENTRY_FILE_FORMATS = ["csv", "json"] as const;
 type EntryFileFormat = (typeof ENTRY_FILE_FORMATS)[number];
@@ -43,6 +38,7 @@ type EntryFileFormat = (typeof ENTRY_FILE_FORMATS)[number];
 const FULL_BUSINESS_RATE_PERCENT = 100;
 const AMOUNT_PATTERN = /^[1-9]\d{0,2}(?:,?\d{3})*$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const NO_AUTH_CHECK = () => {};
 
 export async function runEntriesCommand(
   context: CliCommandContext,
@@ -52,7 +48,11 @@ export async function runEntriesCommand(
   switch (subcommand) {
     case "list": {
       const period = await requireFiscalPeriod(api, periodId ?? null);
-      const records = await loadEntryRecords(api, period.id);
+      const records = await loadEntryRecords(
+        api,
+        period.id,
+        await loadJournalMaster(api),
+      );
       if (options.json) {
         output.json(records);
         return;
@@ -66,7 +66,7 @@ export async function runEntriesCommand(
     }
     case "add": {
       const period = await requireFiscalPeriod(api, periodId ?? null);
-      const master = await loadMaster(api);
+      const master = await loadJournalMaster(api);
       const created = await api.entries.create(
         period.id,
         buildSinglePairInput(options, master),
@@ -98,28 +98,26 @@ export async function runEntriesCommand(
       const imported = legacyCsv
         ? importEntriesFromLegacyCsv({ text, fiscalPeriodId: period.id })
         : importEntriesFromJson({ text, fiscalPeriodId: period.id });
-      const master = await loadMaster(api);
-      const response = await api.entries.importMany(
+      const result = await importEntryRecords(
+        api,
         period.id,
-        imported.map((entry) => entryRecordToImportPayload(entry, master)),
+        imported,
+        await loadJournalMaster(api),
       );
-      const skipped = imported.length - response.importedCount;
       if (options.json) {
-        output.json({ imported: response.importedCount, skipped });
+        output.json({ imported: result.imported, skipped: result.skipped });
         return;
       }
       output.line(
-        `${legacyCsv ? "以前の形式の CSV なので、足すだけで" : ""}取り込みました (取込 ${response.importedCount} 件 / 重複スキップ ${skipped} 件)`,
+        `${legacyCsv ? "以前の形式の CSV なので、足すだけで" : ""}取り込みました (取込 ${result.imported} 件 / 重複スキップ ${result.skipped} 件)`,
       );
       return;
     }
     case "export": {
       const period = await requireFiscalPeriod(api, periodId ?? null);
       const format = requireEntryFileFormat(options.format ?? "csv");
-      const [entries, master] = await Promise.all([
-        loadEntryRecords(api, period.id),
-        loadMaster(api),
-      ]);
+      const master = await loadJournalMaster(api);
+      const entries = await loadEntryRecords(api, period.id, master);
       const manualEntries = entries.filter(
         (entry) => !isMaterializedVirtualEntry(entry),
       );
@@ -213,10 +211,8 @@ async function replaceEntriesFromCsv(
   text: string,
 ): Promise<void> {
   const { api, output, options } = context;
-  const [current, master] = await Promise.all([
-    loadEntryRecords(api, period.id),
-    loadMaster(api),
-  ]);
+  const master = await loadJournalMaster(api);
+  const current = await loadEntryRecords(api, period.id, master);
   const result = readJournalTableEntries(parseJournalTableCsv(text), {
     fiscalPeriodId: period.id,
     startDate: period.startDate,
@@ -245,7 +241,15 @@ async function replaceEntriesFromCsv(
       `CSV で仕訳を置き換えます (${describeChanges(changes)})。ファイルにない仕訳は消えます。反映するときは --yes を付けてください`,
     );
   }
-  if (hasChanges) await applyChanges(api, period.id, changes, master);
+  if (hasChanges) {
+    await applyJournalTableChanges(
+      api,
+      period.id,
+      changes,
+      master,
+      NO_AUTH_CHECK,
+    );
+  }
   if (options.json) {
     output.json({
       added: changes.added.length,
@@ -256,24 +260,6 @@ async function replaceEntriesFromCsv(
     return;
   }
   reportChanges(output, hasChanges, changes);
-}
-
-async function applyChanges(
-  api: OpenkkBackendPort,
-  fiscalPeriodId: string,
-  changes: JournalTableChanges,
-  master: EntryLineMaster,
-): Promise<void> {
-  const operations = journalTableOperations(changes, master);
-  for (const id of operations.removeIds) {
-    await api.entries.remove(fiscalPeriodId, id);
-  }
-  for (const update of operations.updates) {
-    await api.entries.update(fiscalPeriodId, update.id, update.input);
-  }
-  if (operations.creates.length > 0) {
-    await api.entries.importMany(fiscalPeriodId, operations.creates);
-  }
 }
 
 function reportChanges(

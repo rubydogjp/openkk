@@ -4,48 +4,46 @@ import {
   createContext,
   useContext,
   useEffect,
-  useState,
+  useMemo,
   type ReactNode,
 } from "react";
-import { AppError, type OpenkkConfig } from "@rubydogjp/openkk-driver";
+import {
+  AppError,
+  createTodayState,
+  type OpenkkConfig,
+  type ReadableState,
+} from "@rubydogjp/openkk-driver";
+
+import { useReadableState } from "./readable-state.js";
 
 const OpenkkConfigContext = createContext<OpenkkConfig | null>(null);
-const OpenkkTodayContext = createContext<Date | null>(null);
+const OpenkkTodayContext = createContext<ReadableState<Date> | null>(null);
 
 export function OpenkkConfigProvider(props: {
   config: OpenkkConfig;
   children: ReactNode;
 }) {
-  const [today, setToday] = useState(() => props.config.clock.today());
-
-  useEffect(() => {
-    setToday(props.config.clock.today());
-    if (props.config.clock.kind === "fixed") return;
-
-    let timer: ReturnType<typeof setTimeout>;
-    const scheduleNextDayUpdate = () => {
-      const current = props.config.clock.today();
-      const nextDate = new Date(
-        current.getFullYear(),
-        current.getMonth(),
-        current.getDate() + 1,
-      );
-      const delay = Math.max(
-        1_000,
-        nextDate.getTime() - current.getTime() + 50,
-      );
-      timer = setTimeout(() => {
-        setToday(props.config.clock.today());
-        scheduleNextDayUpdate();
-      }, delay);
-    };
-    scheduleNextDayUpdate();
-    return () => clearTimeout(timer);
-  }, [props.config.clock]);
+  const today = useMemo(
+    () => createTodayState(props.config.clock),
+    [props.config.clock],
+  );
+  useEffect(() => today.start(), [today]);
 
   return (
+    <OpenkkConfigAndTodayProvider config={props.config} today={today}>
+      {props.children}
+    </OpenkkConfigAndTodayProvider>
+  );
+}
+
+export function OpenkkConfigAndTodayProvider(props: {
+  config: OpenkkConfig;
+  today: ReadableState<Date>;
+  children: ReactNode;
+}) {
+  return (
     <OpenkkConfigContext.Provider value={props.config}>
-      <OpenkkTodayContext.Provider value={today}>
+      <OpenkkTodayContext.Provider value={props.today}>
         {props.children}
       </OpenkkTodayContext.Provider>
     </OpenkkConfigContext.Provider>
@@ -68,8 +66,8 @@ export function useOpenkkConfig(): OpenkkConfig {
 }
 
 export function useOpenkkToday(): Date {
-  const value = useContext(OpenkkTodayContext);
-  if (value == null) {
+  const today = useContext(OpenkkTodayContext);
+  if (today == null) {
     throw new AppError({
       messageForDeveloper:
         "useOpenkkToday must be used within OpenkkConfigProvider",
@@ -79,5 +77,5 @@ export function useOpenkkToday(): Date {
       code: null,
     });
   }
-  return value;
+  return useReadableState(today);
 }

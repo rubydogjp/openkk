@@ -41,7 +41,7 @@ type CustomUser = {
    - `completeSession(state, code)` → 認証完了し `{ completionCode }` を返す。
    - `redeemCompletionCode(completionCode)` → `RedeemCompletionCodeResponse` を返す。未設定の `displayName` / `email` / `iconUrl` / `authProvider` は `null` にする。
    - `signOut()` → サーバ側セッション/Cookie を破棄。
-3. 使う側の状態管理（`openkk-app-state`）が以下を自動で駆動する。実装不要。
+3. 使う側の共有する状態（`driver` の `app`）が以下を自動で駆動する。実装不要。
    - サインイン: `startSignIn` → 外部 URL へリダイレクト → `/auth/result` で `completeSignIn`（= `completeSession` ＋ `redeemCompletionCode`）→ `CustomUser` を保持。`/auth/result` には `AuthResultPage` を置く。
    - サインアウト: `auth.signOut()` を呼び、ローカルのユーザーを破棄。
    - 戻り先: `startSignIn(redirectUrl, returnPath)` の `returnPath` に渡したパスへ、`/auth/result` がサインインの完了後に移動する（`null` なら `/fiscal-periods`）。戻り先は同じサイト内のパスだけを受け付け、15分で失効し、一度使うと消える。独自の完了画面では `takeSignInReturnPath()` で受け取る。
@@ -58,5 +58,5 @@ type CustomUser = {
 使う側は起動時に前回の `CustomUser` を `PlatformPort` の `storage` から復元し、有効かは確かめない。バックエンドは保存ユーザーを信頼せず、自前のトークン/Cookie で認可する。
 
 - アダプタはトークンの更新などで回復できなかったときだけ、`statusCode: 401` のエラーを投げる。
-- `auth` 以外の呼び出しが 401 になると、手元の `CustomUser` を消してサインアウトの状態に戻す。`useBackendApi()` で受け取った backend の呼び出しも含む。
+- `auth` 以外の呼び出しが 401 になると、手元の `CustomUser` を消してサインアウトの状態に戻す。`useBackend()` で受け取った backend の呼び出しも含む。
 - それ以外の失敗では、シェル上部に再読み込み用のエラーバナーを表示する。

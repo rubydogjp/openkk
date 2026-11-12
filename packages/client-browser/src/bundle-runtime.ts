@@ -10,8 +10,8 @@ export type OpenkkBootEvents = {
   onWaitingForAnotherTab: () => void;
 };
 
-export type OpenkkBundleBackend = {
-  api: OpenkkBackendPort;
+export type OpenkkBundlePorts = {
+  backend: OpenkkBackendPort;
   bookFiles: OpenkkBookFilesPort | null;
 };
 
@@ -19,6 +19,6 @@ export interface OpenkkBundleRuntime {
   config: OpenkkConfig;
   brandConfig: BrandConfig;
   calloutSlots: OpenkkCalloutSlots;
-  createBackend: (events: OpenkkBootEvents) => Promise<OpenkkBundleBackend>;
+  createPorts: (events: OpenkkBootEvents) => Promise<OpenkkBundlePorts>;
   registerServiceWorker: boolean;
 }

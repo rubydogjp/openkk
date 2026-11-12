@@ -23,10 +23,10 @@ SQLite スキーマ: [`database-schema.md`](./database-schema.md)
 
 ```
 packages/
-├── driver                    中身 (使う側) — domain: 型と計算 (集計・帳票・減価償却・CSV)。ports: backend・print・platform・book-files
+├── driver                    中身 (使う側) — domain: 型と計算 (集計・帳票・減価償却・CSV)。usecases: 手続きと共有する状態。ports: backend・print・platform・book-files
 ├── engine                    中身 (受ける側) — domain: 記録の決まり。usecases: 記録の操作と持ち主の確かめ。ports: db
 │
-├── frontend-ui               入口 (画面) — React の画面とデザイントークン。bindings/ に、中身と画面を結ぶ Context と hook
+├── frontend-ui               入口 (画面) — React の画面とデザイントークン。bindings/ に、driver の共有する状態を画面に結ぶ Context と hook
 ├── backend-api               入口 (呼び出し) — 契約の型 (contract.ts) と、入力を確かめて engine の usecases を呼ぶ OpenkkBackendApi
 │
 ├── client-browser            動く形 — frontend-ui をブラウザ (Next.js・PWA) で動かす配線
@@ -75,7 +75,7 @@ packages/
 
 HTTP 越しのバックエンドは、`embedded-backend-adapter` と同じ位置で口 backend を実装して差し替える。
 
-実行環境に依存する機能は口 platform に集める。対象はアプリのインストール、オフラインキャッシュの登録、key-value 保存、ファイル保存、外部URL・認証リダイレクトの遷移。画面と手続きは `usePlatformAdapter` 経由で呼び、`window` や `navigator` を直接触らない。ネイティブアプリなど別の環境で動かす場合は `browser-platform-adapter` と同じ位置に実装を足し、`PlatformAdapterProvider` に渡す。ポップオーバーの外側クリック検知など、Web ビューである限り共通の DOM 操作は画面に残す。
+実行環境に依存する機能は口 platform に集める。対象はアプリのインストール、オフラインキャッシュの登録、key-value 保存、ファイル保存、外部URL・認証リダイレクトの遷移。画面は `usePlatformAdapter` 経由で、手続きは渡された口を通して呼び、`window` や `navigator` を直接触らない。ネイティブアプリなど別の環境で動かす場合は `browser-platform-adapter` と同じ位置に実装を足し、`createOpenkkDriver` に渡す。ポップオーバーの外側クリック検知など、Web ビューである限り共通の DOM 操作は画面に残す。
 
 製品ごとに足す機能は口として足し、ない製品では `null` を渡す。帳簿をファイルに保存する・取り込む (`OpenkkBookFilesPort`) は無印版だけが持つ。
 
@@ -83,12 +83,12 @@ HTTP 越しのバックエンドは、`embedded-backend-adapter` と同じ位置
 
 使う側も受ける側も、同じ 4 層で説明できる。interfaces の層にあたるのが入口の箱で、残りの 3 層は中身の箱の中にある。
 
-| 層         | 役割                             | 使う側                                     | 受ける側              |
-| ---------- | -------------------------------- | ------------------------------------------ | --------------------- |
-| interfaces | 呼ばれる入口                     | `frontend-ui`、`cli` のコマンド            | `backend-api`         |
-| usecases   | 手続き                           | `frontend-ui/src/bindings` (React の hook) | `engine/src/usecases` |
-| domain     | 決まり。何も呼ばない             | `driver/src/domain`                        | `engine/src/domain`   |
-| ports      | 外に求める口。実装は口の実装の箱 | `driver/src/ports`                         | `engine/src/ports`    |
+| 層         | 役割                             | 使う側                          | 受ける側              |
+| ---------- | -------------------------------- | ------------------------------- | --------------------- |
+| interfaces | 呼ばれる入口                     | `frontend-ui`、`cli` のコマンド | `backend-api`         |
+| usecases   | 手続き                           | `driver/src/usecases`           | `engine/src/usecases` |
+| domain     | 決まり。何も呼ばない             | `driver/src/domain`             | `engine/src/domain`   |
+| ports      | 外に求める口。実装は口の実装の箱 | `driver/src/ports`              | `engine/src/ports`    |
 
 ```
 interfaces → usecases → domain
@@ -99,7 +99,20 @@ interfaces → usecases → domain
 - 入口の箱には、その形のための技術が入る (`frontend-ui` の React)。動く形と口の実装には、環境の仕組みが入る。
 - 層の向きは、箱の中のフォルダ (`domain`・`ports`・`usecases`、`frontend-ui` の `bindings`) を見て構造のテストが確かめる。
 
-使う側の手続きは、今は React の hook として `frontend-ui/src/bindings` にある。`cli` は同じ手続きを自分の中に書き直して持っている。
+### 使う側の手続きと、共有する状態
+
+`driver/src/usecases` は 2 種類のものを持つ。どちらも React を知らない。
+
+- **状態を持たない関数**: 利用者のひとまとまりの作業 (`loadJournalMaster`・`loadEntryRecords`・`loadFiscalPeriodReportInput`・`applyJournalTableChanges`・`importEntryRecords`・`buildFiscalPeriodArchiveZip`・`carryOverFromBackend` など)。口 backend を受け取って呼ぶ。どの製品も同じものを使い、`cli` はこれを直接呼ぶ。
+- **入れ物 (共有する状態)**: 上の関数を包み、結果を覚えておく。形は `{ getState(), subscribe(listener) }` (`ReadableState`)。`getState()` は、覚えているデータと、そのデータを読む関数と、操作をまとめた 1 つの値を返し、中身が変わるまで同じ値を返す。
+  - `today` (日付。日が変わると知らせる)
+  - `maintenance` (メンテナンスの状態。口 backend を包んで、メンテナンスの誤りを見張る)
+  - `app` (利用者・会計期間の一覧・選んでいる期間。口 backend を包んで、401 でサインアウトに戻す)
+  - `entries`・`assist` (`app` の変化を聞いて、仕訳・固定資産を読み込み直す)
+
+`createOpenkkDriver(config, { backend, platform, print, bookFiles })` が入れ物を作ってつなぐ。作るだけでは何も呼ばない。`start()` で、保存してある値 (利用者・選んでいた期間) を読み戻して読み込みを始め、止める関数を返す。共有する状態を作るのは製品の側で、ブラウザの製品では `client-browser` の `OpenkkAppProviders` が作る。`cli` は作らない。
+
+`frontend-ui/src/bindings` は、入れ物を React に結ぶだけの薄い層にする。`OpenkkDriverProvider` が driver を Context に入れて `start()` し、`useOpenkkAppState`・`useOpenkkEntries`・`useOpenkkAssist`・`useMaintenance` などの hook が `useSyncExternalStore` で入れ物を読む。手続きや非同期の処理は置かない (構造のテストが確かめる)。ブランド (`BrandConfig`) と差し込みの表示 (callout) は画面の設定なので、React の Context のまま `frontend-ui` に置く。
 
 ### 4. どの製品も同じ並びで作る
 
@@ -114,7 +127,7 @@ openkk-cli:  コマンド → 口 backend → embedded-backend-adapter → backe
 - 使う側は保存先の形を知らない。無印版が会計期間ごとに帳簿のファイルを分けているのは口 db の実装の中の話で、期間の一覧・追加・次期の作成・引き継ぎは、どの製品でも同じ `OpenkkBackendPort` の呼び出しになる。
 - 製品は、動く形と口の実装を選んでつなぐだけにする。埋め込みの製品は `createOpenkkBackendApi(db, config)` で受ける側を組み立て、`createOpenkkEmbeddedBackendAdapter` で口 backend につなぐ。`cli` は React を読み込まないよう、`frontend-ui` を使わない。
 
-設定は `OpenkkConfig` に定義し、`useOpenkkConfig` で取得する。日付の状態は `useOpenkkToday` で購読する。
+設定は `OpenkkConfig` に定義し、画面では `useOpenkkConfig` で取得する。日付は `useOpenkkToday` で購読する。
 
 ## 認証について
 

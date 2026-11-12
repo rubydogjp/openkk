@@ -12,13 +12,15 @@ import {
   type FiscalPeriod,
 } from "@rubydogjp/openkk-driver";
 import {
-  bookFileProblemMessage,
-  reviewBookImport,
   useOpenkkAppState,
   useOpenkkBookFiles,
   useOpenkkConfig,
   usePlatformAdapter,
 } from "../bindings/index.js";
+import {
+  bookFileProblemMessage,
+  reviewBookImport,
+} from "@rubydogjp/openkk-driver";
 import { AddButton } from "../shared/add-button.js";
 import { AppErrorText } from "../shared/app-error-text.js";
 import { useConfirmDialog } from "../shared/confirm-dialog.js";

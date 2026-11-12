@@ -3,6 +3,8 @@ import {
   buildNextFiscalPeriodSuggestion,
   fiscalPeriodPhaseLabel,
   isReadyForCarryover,
+  carryOverFromBackend,
+  copyFiscalPeriodToBackend,
 } from "@rubydogjp/openkk-driver";
 import type { FiscalPeriodApiRecord } from "@rubydogjp/openkk-driver";
 
@@ -11,10 +13,6 @@ import {
   requireFiscalPeriod,
   type CliCommandContext,
 } from "./command-context.js";
-import {
-  carryOverFromBook,
-  copyFiscalPeriodToBook,
-} from "./period-transfer.js";
 
 export async function runPeriodsCommand(
   input: CliCommandContext,
@@ -102,7 +100,7 @@ export async function runPeriodsCommand(
           });
           const carriedOver = isReadyForCarryover(source);
           const period = carriedOver
-            ? await carryOverFromBook(
+            ? await carryOverFromBackend(
                 api,
                 source,
                 book.api,
@@ -150,7 +148,7 @@ export async function runPeriodsCommand(
       );
       const book = await input.createBook(bookPath);
       try {
-        const copied = await copyFiscalPeriodToBook(
+        const copied = await copyFiscalPeriodToBackend(
           api,
           period,
           book.api,

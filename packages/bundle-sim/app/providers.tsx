@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import type { BrandConfig } from "@rubydogjp/openkk-driver";
 import {
   OpenkkAppProviders,
-  type OpenkkBundleBackend,
+  type OpenkkBundlePorts,
   type OpenkkBundleRuntime,
 } from "@rubydogjp/openkk-client-browser";
 import { createOpenkkBackendApi } from "@rubydogjp/openkk-backend-api";
@@ -27,7 +27,7 @@ const runtime: OpenkkBundleRuntime = {
     stepJournalizingPreClosingHint: null,
     stepNextFiscalPeriodFooter: null,
   },
-  createBackend: createMemoryBackend,
+  createPorts: createMemoryPorts,
   registerServiceWorker: false,
 };
 
@@ -37,13 +37,13 @@ export function Providers(props: { children: ReactNode }) {
   );
 }
 
-async function createMemoryBackend(): Promise<OpenkkBundleBackend> {
+async function createMemoryPorts(): Promise<OpenkkBundlePorts> {
   const db = await createMemoryDbAdapter(null);
   const backendApi = createOpenkkBackendApi(db, {
     userId: openkkConfig.embeddedUser.id,
   });
   return {
-    api: createOpenkkEmbeddedBackendAdapter(backendApi),
+    backend: createOpenkkEmbeddedBackendAdapter(backendApi),
     bookFiles: null,
   };
 }

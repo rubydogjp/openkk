@@ -17,8 +17,8 @@ import {
   useOpenkkAssist,
   useOpenkkConfig,
   useOpenkkEntries,
-  type EntryDraft,
 } from "../../../bindings/index.js";
+import { type EntryDraft } from "@rubydogjp/openkk-driver";
 import { EntriesTable } from "../../../entries/entries-ui.js";
 import { EntryEditDrawer } from "../../../entries/entry-edit-drawer.js";
 import { entryRecordToDraft } from "../../../entries/entry-edit-model.js";

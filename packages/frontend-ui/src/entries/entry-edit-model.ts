@@ -10,7 +10,7 @@ import {
 import type {
   EntryDraft,
   EntryMasterAccountOption,
-} from "../bindings/index.js";
+} from "@rubydogjp/openkk-driver";
 
 export type EntryLinePair = {
   id: string;

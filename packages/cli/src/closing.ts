@@ -3,6 +3,8 @@ import {
   entryRecordToImportPayload,
   fiscalPeriodPhaseLabel,
   isCurrentMonthWithinFiscalPeriod,
+  loadFiscalPeriodReportInput,
+  loadJournalMaster,
 } from "@rubydogjp/openkk-driver";
 
 import { CliUsageError } from "./cli-io.js";
@@ -10,7 +12,6 @@ import {
   requireFiscalPeriod,
   type CliCommandContext,
 } from "./command-context.js";
-import { loadFiscalPeriodReportInput, loadMaster } from "./records.js";
 
 const CLOSING_SUBCOMMANDS = new Set(["pre", "cancel", "final"]);
 
@@ -60,7 +61,7 @@ export async function runClosingCommand(
       }
       const [input, master] = await Promise.all([
         loadFiscalPeriodReportInput(api, period, context.today()),
-        loadMaster(api),
+        loadJournalMaster(api),
       ]);
       const updated = await api.closings.run(
         period.id,

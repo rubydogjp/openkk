@@ -19,6 +19,7 @@ const ENGINE_PORTS = ["db"];
 const SAME_PROCESS_BRIDGE_PORTS = ["backend", "book-files"];
 const BOXES_AWAITING_SPLIT = new Set(["cli"]);
 const PACKAGE_DIRS_RELEASED_TO_NPM = new Set<string>();
+const ASYNCHRONOUS_PROCEDURE = /\basync\b|\bawait\b|\.then\(/;
 const rootPackageJson = readJson(path.join(rootDir, "package.json"));
 const workspaceNames = rootPackageJson.workspaces.map((workspace: string) =>
   workspace.replace(/^packages\//, ""),
@@ -325,6 +326,17 @@ describe("openkk workspace structure", () => {
       }
     }
     expect(offenders).toEqual([]);
+  });
+
+  it("keeps asynchronous procedures out of the frontend-ui bindings", () => {
+    const bindingsDir = path.join(packagesDir, "frontend-ui/src/bindings");
+    const offenders = sourceFiles(bindingsDir).filter((file) =>
+      ASYNCHRONOUS_PROCEDURE.test(fs.readFileSync(file, "utf8")),
+    );
+    expect(
+      offenders.map((file) => path.relative(rootDir, file)),
+      "procedures and shared state belong to driver/src/usecases",
+    ).toEqual([]);
   });
 
   it("keeps the driver/backend-api REST boundary type names in sync", () => {
