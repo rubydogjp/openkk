@@ -1,8 +1,8 @@
 # openkk-cli (ベータ) の設計
 
-呼び名: 全体 (形式・契約・アプリ・コマンド) を openkk、コマンドラインの道具を openkk-cli と呼ぶ。パッケージは `@rubydogjp/openkk-cli`、コマンドは `openkk`。openkk-cli は端末の中の道具で、無印版 (ブラウザのアプリ) を起動しない。
+呼び名: 全体 (形式・契約・アプリ・コマンド) を openkk、コマンドラインの道具を openkk-cli と呼ぶ。製品の箱は `bundle-cli`、コマンドは `openkk`。openkk-cli は端末の中の道具で、無印版 (ブラウザのアプリ) を起動しない。
 
-状態: ベータ。OSS に入れておくだけで、告知はしない。`cli` と `disk-db-adapter` は npm には出さない ([`release.md`](./release.md))。下の「進め方」の 1〜6 (`disk-db-adapter`、`cli` の `init`・`periods`・`opening`・`entries`・`report`・`closing`・`archive`) まで実装済みで、期首のBSから本締め・次の期間まで CLI だけで回せる。再振替の選択と固定資産の操作はまだ Web 版だけ。
+状態: ベータ。OSS に入れておくだけで、告知はしない。npm には出さない ([`release.md`](./release.md))。下の「進め方」の 1〜6 (`disk-db-adapter`、コマンドの `init`・`periods`・`opening`・`entries`・`report`・`closing`・`archive`) まで実装済みで、期首のBSから本締め・次の期間まで CLI だけで回せる。再振替の選択と固定資産の操作はまだ Web 版だけ。
 
 ## 結論
 
@@ -36,13 +36,19 @@
 
 ## パッケージ構成
 
-| パッケージ                              | 位置づけ                                      | 依存                                                                   |
-| --------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------- |
-| `@rubydogjp/openkk-disk-db-adapter`     | 口 db の実装 (memory・books と並ぶ)           | `engine`, `sqlite-db-adapter`                                          |
-| `@rubydogjp/openkk-cli` (bin: `openkk`) | openkk-cli (入口・動く形・製品に分ける前の箱) | `driver`, `backend-api`, `embedded-backend-adapter`, `disk-db-adapter` |
+箱の種類 ([`architecture.md`](./architecture.md)) に合わせて、入口・動く形・製品の 3 つに分ける。
 
+| 箱                           | 位置づけ                                                                          | 依存                                                                                            |
+| ---------------------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `frontend-cli`               | 入口 (コマンド)。コマンドの表・オプション・文字での出力。端末もファイルも知らない | `driver`                                                                                        |
+| `client-terminal`            | 動く形。端末 (Node.js) で動かす。引数の読み取り・ファイル・出力・終了コード       | `driver`, `frontend-cli`                                                                        |
+| `bundle-cli` (bin: `openkk`) | 製品。帳簿の開き方と既定値を選んで束ねる                                          | `frontend-cli`, `client-terminal`, `backend-api`, `embedded-backend-adapter`, `disk-db-adapter` |
+| `disk-db-adapter`            | 口 db の実装 (memory・books と並ぶ)                                               | `engine`, `sqlite-db-adapter`                                                                   |
+
+- `frontend-cli` は Node の機能 (`node:fs` など) を読み込まない。ファイルの読み書き (`CliFiles`) と帳簿を開くこと (`CliBooks`) は、`client-terminal` から受け取る
 - `frontend-ui` には依存しない (React を引き込むため)
 - `OpenkkBackendApi` を直接呼ばない。帳票・CSV・zip・締め仕訳は使う側 (`driver`) の型で書かれていて、直接呼ぶと使う側と受ける側の型が混ざる (設計原則 1)。`OpenkkBackendPort` 経由なら、HTTP のバックエンドにも差し替えられる
+- 手続きは `driver` の usecases にある関数を呼ぶ (`loadJournalMaster`・`loadEntryRecords`・`loadFiscalPeriodReportInput`・`planJournalImport`・`applyJournalTableChanges`・`buildFinalClosingPayload`・`carryOverFromBackend` など)。画面と同じ関数なので、取り込みの決まりや本締めの仕訳が食い違わない
 
 ### 切り出しが要るもの
 
@@ -75,7 +81,7 @@ openkk periods export <期間id> [--out <file.openkk>]   # その期間だけを
 ## 進め方
 
 1. `disk-db-adapter` を作り、`runDbPortConformance` を一時ファイルと `:memory:` の両方で通す。開き直しても残ること、新しすぎるスキーマを拒否することもテストする
-2. `cli` の土台 (`node:util` の `parseArgs`、`init`・`periods`)
+2. コマンドの土台 (`node:util` の `parseArgs`、`init`・`periods`)
 3. `entries` (`driver` の CSV / JSON 関数を使い、往復テストを付ける)
 4. 帳票の組み立てを `driver` へ切り出し、`frontend-ui` をそれに置き換えて `report` を足す
 5. `archive export / import` (ブラウザで作った zip を取り込めることをテストする)

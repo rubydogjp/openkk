@@ -1,13 +1,10 @@
 {
-  "name": "@rubydogjp/openkk-cli",
+  "name": "@rubydogjp/openkk-frontend-cli",
   "version": "26.3.1",
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "bin": {
-    "openkk": "./dist/bin.js"
-  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -19,10 +16,7 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@rubydogjp/openkk-backend-api": "^26.3.1",
-    "@rubydogjp/openkk-disk-db-adapter": "^26.3.1",
-    "@rubydogjp/openkk-driver": "^26.3.1",
-    "@rubydogjp/openkk-embedded-backend-adapter": "^26.3.1"
+    "@rubydogjp/openkk-driver": "^26.3.1"
   },
   "files": [
     "dist"
@@ -30,7 +24,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "description": "オープン会計 command-line interface for a local SQLite file (beta)",
+  "description": "オープン会計 frontend-cli — the command table of openkk-cli: commands, their options and text output. Knows no terminal or file system",
   "license": "MIT",
   "author": "rbdog <rbdog@rubydog.jp>",
   "homepage": "https://github.com/rubydogjp/openkk#readme",
@@ -40,13 +34,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rubydogjp/openkk.git",
-    "directory": "packages/cli"
+    "directory": "packages/frontend-cli"
   },
   "devDependencies": {
-    "@types/node": "^24.19.0",
     "typescript": "^6.0.3"
-  },
-  "engines": {
-    "node": ">=24"
   }
 }

@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { openCliBackend } from "./backend.js";
+import { openCliBook } from "./book.js";
 import {
   CLI_FILE_ENV,
   DEFAULT_CLI_FILE,
@@ -427,11 +427,11 @@ describe("openkk cli", () => {
       "--description",
       "春の案件",
     );
-    const backend = await openCliBackend(
+    const book = await openCliBook(
       path.join(cwd, DEFAULT_CLI_FILE),
       DEFAULT_CLI_USER_ID,
     );
-    await backend.api.fixedAssets.create(id, {
+    await book.backend.fixedAssets.create(id, {
       name: "ノートパソコン",
       acquisitionDate: "2026-01-10",
       acquisitionCost: 240000,
@@ -440,7 +440,7 @@ describe("openkk cli", () => {
       businessRate: 1,
       bookAccountId: "acct_equipment",
     });
-    backend.close();
+    book.close();
 
     const journal = await run("report", id, "journal");
     const written = await run("report", id, "fs", "--out", "fs.html");
@@ -741,11 +741,11 @@ describe("openkk cli", () => {
       "--business-rate",
       "50",
     );
-    const backend = await openCliBackend(
+    const book = await openCliBook(
       path.join(cwd, DEFAULT_CLI_FILE),
       DEFAULT_CLI_USER_ID,
     );
-    await backend.api.fixedAssets.create(id, {
+    await book.backend.fixedAssets.create(id, {
       name: "カメラ",
       acquisitionDate: "2026-04-01",
       acquisitionCost: 180000,
@@ -754,7 +754,7 @@ describe("openkk cli", () => {
       businessRate: 0.8,
       bookAccountId: "acct_equipment",
     });
-    backend.close();
+    book.close();
 
     const provisional = await run("report", id, "fs");
     const midPeriod = await run("closing", "pre", id);

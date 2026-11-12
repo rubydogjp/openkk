@@ -7,22 +7,14 @@ import {
   assertEntryImportSize,
   buildFiscalPeriodJournalFilename,
   buildJournalTableRows,
+  formatJournalExport,
+  planJournalImport,
   buildVirtualEntryRows,
-  decodeJournalImportBytes,
-  diffJournalTableEntries,
-  exportEntriesAsJson,
-  formatJournalTableCsv,
-  importEntriesFromJson,
-  importEntriesFromLegacyCsv,
-  isLegacyJournalCsv,
   journalEntryNumber,
-  parseJournalTableCsv,
-  readJournalTableEntries,
   buildPeriodLockMessage,
   compareYearMonth,
   formatIsoLocalDate,
   formatYearMonthKey,
-  isMaterializedVirtualEntry,
   parseYearMonth,
   type EntryRecord,
   type JournalTableChanges,
@@ -310,37 +302,37 @@ export function EntriesPage() {
     setIsImporting(true);
     try {
       assertEntryImportSize(file.size);
-      const text = decodeJournalImportBytes(
-        new Uint8Array(await file.arrayBuffer()),
-      );
-      const legacyCsv = kind === "csv" && isLegacyJournalCsv(text);
-      if (kind === "csv" && !legacyCsv) {
-        const result = readJournalTableEntries(parseJournalTableCsv(text), {
-          fiscalPeriodId,
+      const plan = planJournalImport({
+        fileKind: kind,
+        bytes: new Uint8Array(await file.arrayBuffer()),
+        fiscalPeriod: {
+          id: fiscalPeriodId,
           startDate: currentFiscalPeriod.startDate,
           endDate: currentFiscalPeriod.endDate,
-          master: entriesState.journalTableMaster,
+        },
+        currentEntries: fullPeriodEntries,
+        master: entriesState.journalTableMaster,
+      });
+      if (plan.kind === "problems") {
+        setTableImport({
+          kind: "problems",
+          fiscalPeriodId,
+          problems: plan.problems,
         });
-        setTableImport(
-          result.ok
-            ? {
-                kind: "changes",
-                fiscalPeriodId,
-                incoming: result.entries,
-                changes: diffJournalTableEntries(
-                  fullPeriodEntries,
-                  result.entries,
-                  entriesState.journalTableMaster,
-                ),
-                applying: false,
-              }
-            : { kind: "problems", fiscalPeriodId, problems: result.problems },
-        );
         return;
       }
-      const importedEntries = legacyCsv
-        ? importEntriesFromLegacyCsv({ text, fiscalPeriodId })
-        : importEntriesFromJson({ text, fiscalPeriodId });
+      if (plan.kind === "replace") {
+        setTableImport({
+          kind: "changes",
+          fiscalPeriodId,
+          incoming: plan.incoming,
+          changes: plan.changes,
+          applying: false,
+        });
+        return;
+      }
+      const importedEntries = plan.entries;
+      const legacyCsv = plan.fromLegacyCsv;
       if (selectedFiscalPeriodId.current !== fiscalPeriodId) {
         throw new AppError({
           messageForDeveloper: "entries: fiscal period changed during import",
@@ -411,19 +403,11 @@ export function EntriesPage() {
       setStatusMessage({ kind: "error", text: "期間が未選択です" });
       return;
     }
-    const data =
-      kind === "json"
-        ? exportEntriesAsJson(
-            fullPeriodEntries.filter(
-              (entry) => !isMaterializedVirtualEntry(entry),
-            ),
-          )
-        : formatJournalTableCsv(
-            buildJournalTableRows(
-              fullPeriodEntries,
-              entriesState.journalTableMaster,
-            ),
-          );
+    const data = formatJournalExport(
+      kind,
+      fullPeriodEntries,
+      entriesState.journalTableMaster,
+    );
     const filename = buildFiscalPeriodJournalFilename(
       currentFiscalPeriod,
       kind,

@@ -1,17 +1,16 @@
 import {
-  buildFinalClosingEntries,
-  entryRecordToImportPayload,
+  buildFinalClosingPayload,
   fiscalPeriodPhaseLabel,
   isCurrentMonthWithinFiscalPeriod,
   loadFiscalPeriodReportInput,
   loadJournalMaster,
 } from "@rubydogjp/openkk-driver";
 
-import { CliUsageError } from "./cli-io.js";
+import { CliUsageError } from "../cli-output.js";
 import {
   requireFiscalPeriod,
   type CliCommandContext,
-} from "./command-context.js";
+} from "../command-context.js";
 
 const CLOSING_SUBCOMMANDS = new Set(["pre", "cancel", "final"]);
 
@@ -19,7 +18,7 @@ export async function runClosingCommand(
   context: CliCommandContext,
 ): Promise<void> {
   const [subcommand, periodId] = context.args;
-  const { api, output, options } = context;
+  const { backend, output, options } = context;
   if (subcommand == null || !CLOSING_SUBCOMMANDS.has(subcommand)) {
     throw new CliUsageError(
       subcommand == null
@@ -27,7 +26,7 @@ export async function runClosingCommand(
         : `closing ${subcommand} というコマンドはありません`,
     );
   }
-  const period = await requireFiscalPeriod(api, periodId ?? null);
+  const period = await requireFiscalPeriod(backend, periodId ?? null);
   const report = (label: string, phase: typeof period.phase) =>
     output.line(`${label}: ${period.name} (${fiscalPeriodPhaseLabel(phase)})`);
   switch (subcommand) {
@@ -44,12 +43,12 @@ export async function runClosingCommand(
           "まだ期中です。通常は翌2月ごろに実行します。このまま仮締めするときは --yes を付けてください",
         );
       }
-      const updated = await api.preClosings.run(period.id);
+      const updated = await backend.preClosings.run(period.id);
       report("仮締めしました", updated.phase);
       return;
     }
     case "cancel": {
-      const updated = await api.preClosings.cancel(period.id);
+      const updated = await backend.preClosings.cancel(period.id);
       report("仮締めを取り消しました", updated.phase);
       return;
     }
@@ -60,14 +59,12 @@ export async function runClosingCommand(
         );
       }
       const [input, master] = await Promise.all([
-        loadFiscalPeriodReportInput(api, period, context.today()),
-        loadJournalMaster(api),
+        loadFiscalPeriodReportInput(backend, period, context.today()),
+        loadJournalMaster(backend),
       ]);
-      const updated = await api.closings.run(
+      const updated = await backend.closings.run(
         period.id,
-        buildFinalClosingEntries(input).map((entry) =>
-          entryRecordToImportPayload(entry, master),
-        ),
+        buildFinalClosingPayload(input, master),
       );
       report("本締めしました", updated.phase);
       return;

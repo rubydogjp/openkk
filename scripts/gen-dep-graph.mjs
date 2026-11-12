@@ -46,8 +46,8 @@ const LAYERS = [
   {
     id: "bundle",
     label: "製品 (bundle-*)",
-    note: "動く形・口の実装・設定を選んで束ねた、利用者から見た 1 つの製品。コマンドの `cli` は、入口・動く形・製品に分ける前の箱",
-    match: (name) => /^bundle-/.test(boxName(name)) || boxName(name) === "cli",
+    note: "動く形・口の実装・設定を選んで束ねた、利用者から見た 1 つの製品",
+    match: (name) => /^bundle-/.test(boxName(name)),
   },
   {
     id: "runtime",

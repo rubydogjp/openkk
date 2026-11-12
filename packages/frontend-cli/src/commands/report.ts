@@ -1,4 +1,3 @@
-import fs from "node:fs";
 import {
   buildFiscalPeriodReport,
   FISCAL_PERIOD_REPORT_LABELS,
@@ -6,11 +5,11 @@ import {
   type FiscalPeriodReportKind,
 } from "@rubydogjp/openkk-driver";
 
-import { CliUsageError } from "./cli-io.js";
+import { CliUsageError } from "../cli-output.js";
 import {
   requireFiscalPeriod,
   type CliCommandContext,
-} from "./command-context.js";
+} from "../command-context.js";
 
 const REPORT_KIND_BY_ARGUMENT = new Map<string, FiscalPeriodReportKind>([
   ["journal", "journal"],
@@ -28,17 +27,17 @@ export async function runReportCommand(
       "report <期間id> のあとに journal / ledger / fs を指定してください",
     );
   }
-  const period = await requireFiscalPeriod(context.api, periodId ?? null);
+  const period = await requireFiscalPeriod(context.backend, periodId ?? null);
   const html = buildFiscalPeriodReport(
     kind,
-    await loadFiscalPeriodReportInput(context.api, period, context.today()),
+    await loadFiscalPeriodReportInput(context.backend, period, context.today()),
   );
   if (context.options.out == null) {
     context.output.raw(html);
     return;
   }
-  const outPath = context.resolvePath(context.options.out);
-  fs.writeFileSync(outPath, html);
+  const outPath = context.files.resolve(context.options.out);
+  context.files.writeText(outPath, html);
   context.output.line(
     `${FISCAL_PERIOD_REPORT_LABELS[kind].name}を書き出しました: ${outPath}`,
   );

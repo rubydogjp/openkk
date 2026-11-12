@@ -2,7 +2,6 @@ import {
   AppError,
   draftBusinessRate,
   entryLinesToInputs,
-  entryRecordToImportPayload,
   recordToPreviewRows,
   storedEntryToRecord,
   type EntryLine,
@@ -12,7 +11,6 @@ import {
   type JournalTableMaster,
   type OpenkkConfig,
 } from "../../domain/index.js";
-import type { EntryUpsertInput } from "../../ports/index.js";
 import {
   loadEntryRecords,
   loadJournalMaster,
@@ -80,9 +78,6 @@ export type EntriesState = {
     imported: number;
     skipped: number;
   }>;
-  prepareFiscalPeriodEntries: (
-    importedEntries: EntryRecord[],
-  ) => EntryUpsertInput[];
   journalTableMaster: JournalTableMaster;
   applyJournalTableChanges: (
     fiscalPeriodId: string,
@@ -377,12 +372,6 @@ export function createOpenkkEntriesStore(dependencies: {
       } finally {
         periodVersions.invalidate(fiscalPeriodId);
       }
-    },
-    prepareFiscalPeriodEntries(importedEntries: EntryRecord[]) {
-      const master = data.getState().master;
-      return importedEntries.map((entry) =>
-        entryRecordToImportPayload(entry, master),
-      );
     },
     reload() {
       loadMaster();

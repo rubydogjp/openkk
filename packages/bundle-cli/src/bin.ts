@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { runOpenkkCli } from "./cli.js";
+import { runOpenkkCli } from "./openkk-cli.js";
 
 process.exitCode = await runOpenkkCli(process.argv.slice(2), {
   stdout: (text) => process.stdout.write(text),

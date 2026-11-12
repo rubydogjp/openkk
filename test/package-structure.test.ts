@@ -17,7 +17,7 @@ const RECORDING_SIDE = "recording";
 const DRIVER_PORTS = ["backend", "print", "platform", "book-files"];
 const ENGINE_PORTS = ["db"];
 const SAME_PROCESS_BRIDGE_PORTS = ["backend", "book-files"];
-const BOXES_AWAITING_SPLIT = new Set(["cli"]);
+const NEXT_APP_CONFIG_FILE = "next.config.ts";
 const PACKAGE_DIRS_RELEASED_TO_NPM = new Set<string>();
 const ENVIRONMENT_FRAMEWORKS = ["next"];
 const ASYNCHRONOUS_PROCEDURE = /\basync\b|\bawait\b|\.then\(/;
@@ -45,7 +45,7 @@ const packageNameToDir = new Map(
 describe("openkk workspace structure", () => {
   it("loads every published JavaScript entry point in Node.js", () => {
     const entries = packageRecords
-      .filter((record) => !isBundle(record.packageDir))
+      .filter((record) => !isNextApp(record.packageDir))
       .flatMap(({ packageJson }) =>
         Object.entries(packageJson.exports)
           .filter(([, target]) => typeof target === "object")
@@ -74,7 +74,7 @@ describe("openkk workspace structure", () => {
 
   it("keeps library packages on the same public entry shape", () => {
     for (const record of packageRecords.filter(
-      (item) => !isBundle(item.packageDir),
+      (item) => !isNextApp(item.packageDir),
     )) {
       expect(record.packageJson.name).toBe(packageName(record.packageDir));
       expect(record.packageJson.private).toBe(
@@ -107,7 +107,7 @@ describe("openkk workspace structure", () => {
     const offenders: string[] = [];
 
     for (const record of packageRecords.filter(
-      (item) => !isBundle(item.packageDir),
+      (item) => !isNextApp(item.packageDir),
     )) {
       for (const file of sourceFiles(path.join(record.dir, "src"))) {
         const source = fs.readFileSync(file, "utf8");
@@ -134,7 +134,7 @@ describe("openkk workspace structure", () => {
         expect(fs.existsSync(path.join(record.dir, "src/styles.css"))).toBe(
           true,
         );
-      } else if (!isBundle(record.packageDir)) {
+      } else if (!isNextApp(record.packageDir)) {
         expect(styleExport).toBeUndefined();
       }
     }
@@ -143,7 +143,7 @@ describe("openkk workspace structure", () => {
   it("keeps tsconfig layout predictable", () => {
     for (const record of packageRecords) {
       expect(record.tsconfig.extends).toBe("../../tsconfig.base.json");
-      if (isBundle(record.packageDir)) {
+      if (isNextApp(record.packageDir)) {
         expect(record.tsconfig.compilerOptions.jsx).toBe("preserve");
         expect(record.tsconfig.include).toContain("**/*.tsx");
       } else {
@@ -173,7 +173,6 @@ describe("openkk workspace structure", () => {
 
   it("names every package after one of the five box kinds", () => {
     for (const packageDir of packageDirs) {
-      if (BOXES_AWAITING_SPLIT.has(packageDir)) continue;
       expect(BOX_KINDS, packageDir).toContain(boxKind(packageDir));
     }
     for (const packageDir of packageDirs.filter(
@@ -220,8 +219,11 @@ describe("openkk workspace structure", () => {
         "books-db-adapter",
         "book-db-adapter",
       ],
-      cli: [
-        "driver",
+      "frontend-cli": ["driver"],
+      "client-terminal": ["driver", "frontend-cli"],
+      "bundle-cli": [
+        "frontend-cli",
+        "client-terminal",
         "embedded-backend-adapter",
         "backend-api",
         "disk-db-adapter",
@@ -483,8 +485,10 @@ function boxKind(packageDir: string): BoxKind | null {
   return null;
 }
 
-function isBundle(packageDir: string): boolean {
-  return boxKind(packageDir) === "bundle";
+function isNextApp(packageDir: string): boolean {
+  return fs.existsSync(
+    path.join(packagesDir, packageDir, NEXT_APP_CONFIG_FILE),
+  );
 }
 
 function adapterPort(packageDir: string): string | null {

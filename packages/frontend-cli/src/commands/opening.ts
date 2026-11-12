@@ -9,11 +9,12 @@ import type {
   OpenkkBackendPort,
 } from "@rubydogjp/openkk-driver";
 
-import { CliUsageError } from "./cli-io.js";
+import { CliUsageError } from "../cli-output.js";
 import {
+  openExistingBook,
   requireFiscalPeriod,
   type CliCommandContext,
-} from "./command-context.js";
+} from "../command-context.js";
 import { requireAccountByExactName } from "./records.js";
 
 const ASSET_PREFIX = "a:";
@@ -24,10 +25,10 @@ export async function runOpeningCommand(
   context: CliCommandContext,
 ): Promise<void> {
   const [subcommand, periodId, ...balances] = context.args;
-  const { api, output, options } = context;
+  const { backend, output, options } = context;
   switch (subcommand) {
     case "show": {
-      const period = await requireFiscalPeriod(api, periodId ?? null);
+      const period = await requireFiscalPeriod(backend, periodId ?? null);
       if (options.json) {
         output.json(period.opening.balanceLines);
         return;
@@ -48,8 +49,8 @@ export async function runOpeningCommand(
       return;
     }
     case "set": {
-      const period = await requireFiscalPeriod(api, periodId ?? null);
-      const master = await loadJournalMaster(api);
+      const period = await requireFiscalPeriod(backend, periodId ?? null);
+      const master = await loadJournalMaster(backend);
       const lines = balances.map((argument) =>
         parseBalanceArgument(argument, master.accounts),
       );
@@ -61,7 +62,7 @@ export async function runOpeningCommand(
           `資産合計 (${formatAmount(assetTotal)}) と負債・純資産合計 (${formatAmount(liabilityTotal)}) を一致させてください`,
         );
       }
-      const updated = await api.fiscalPeriods.patch(period.id, {
+      const updated = await backend.fiscalPeriods.patch(period.id, {
         openingBalancesCompleted: true,
         opening: { balanceLines: lines, journals: period.opening.journals },
       });
@@ -75,24 +76,25 @@ export async function runOpeningCommand(
       return;
     }
     case "carry": {
-      const target = await requireFiscalPeriod(api, periodId ?? null);
+      const target = await requireFiscalPeriod(backend, periodId ?? null);
       if (options.from == null) {
         throw new CliUsageError(
           "引き継ぎ元の帳簿ファイルを --from で指定してください",
         );
       }
-      const sourceBook = await context.openBook(
-        context.resolvePath(options.from),
+      const sourceBook = await openExistingBook(
+        context,
+        context.files.resolve(options.from),
       );
       try {
         const source = await requireCarryoverSource(
-          sourceBook.api,
+          sourceBook.backend,
           options.fromPeriod,
         );
         const updated = await carryOverFromBackend(
-          sourceBook.api,
+          sourceBook.backend,
           source,
-          api,
+          backend,
           target.id,
           context.today(),
         );
@@ -170,11 +172,11 @@ function sumLines(
 }
 
 async function requireCarryoverSource(
-  api: OpenkkBackendPort,
+  backend: OpenkkBackendPort,
   periodId: string | null,
 ): Promise<FiscalPeriodApiRecord> {
-  if (periodId != null) return requireFiscalPeriod(api, periodId);
-  const periods = await api.fiscalPeriods.getAll();
+  if (periodId != null) return requireFiscalPeriod(backend, periodId);
+  const periods = await backend.fiscalPeriods.getAll();
   const [onlyPeriod] = periods;
   if (periods.length !== 1 || onlyPeriod == null) {
     throw new CliUsageError(

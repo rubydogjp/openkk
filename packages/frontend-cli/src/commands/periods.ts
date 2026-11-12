@@ -8,20 +8,21 @@ import {
 } from "@rubydogjp/openkk-driver";
 import type { FiscalPeriodApiRecord } from "@rubydogjp/openkk-driver";
 
-import { CliUsageError } from "./cli-io.js";
+import { CliUsageError } from "../cli-output.js";
 import {
+  createNewBook,
   requireFiscalPeriod,
   type CliCommandContext,
-} from "./command-context.js";
+} from "../command-context.js";
 
 export async function runPeriodsCommand(
   input: CliCommandContext,
 ): Promise<void> {
   const [subcommand, ...rest] = input.args;
-  const { api, output, options } = input;
+  const { backend, output, options } = input;
   switch (subcommand) {
     case "list": {
-      const periods = await api.fiscalPeriods.getAll();
+      const periods = await backend.fiscalPeriods.getAll();
       if (options.json) {
         output.json(periods);
         return;
@@ -34,7 +35,7 @@ export async function runPeriodsCommand(
       return;
     }
     case "show": {
-      const period = await requireFiscalPeriod(api, rest[0] ?? null);
+      const period = await requireFiscalPeriod(backend, rest[0] ?? null);
       if (options.json) {
         output.json(period);
         return;
@@ -52,7 +53,7 @@ export async function runPeriodsCommand(
           "periods create には --name と --start と --end が要ります",
         );
       }
-      const created = await api.fiscalPeriods.create({
+      const created = await backend.fiscalPeriods.create({
         name: options.name,
         startDate: options.start,
         endDate: options.end,
@@ -65,8 +66,8 @@ export async function runPeriodsCommand(
       return;
     }
     case "start": {
-      const period = await requireFiscalPeriod(api, rest[0] ?? null);
-      const started = await api.fiscalPeriods.start(period.id);
+      const period = await requireFiscalPeriod(backend, rest[0] ?? null);
+      const started = await backend.fiscalPeriods.start(period.id);
       if (options.json) {
         output.json(started);
         return;
@@ -75,8 +76,8 @@ export async function runPeriodsCommand(
       return;
     }
     case "receive": {
-      const period = await requireFiscalPeriod(api, rest[0] ?? null);
-      const updated = await api.fiscalPeriods.patch(period.id, {
+      const period = await requireFiscalPeriod(backend, rest[0] ?? null);
+      const updated = await backend.fiscalPeriods.patch(period.id, {
         documentsReceivedCompleted: true,
       });
       if (options.json) {
@@ -87,13 +88,13 @@ export async function runPeriodsCommand(
       return;
     }
     case "next": {
-      const source = await requireFiscalPeriod(api, rest[0] ?? null);
+      const source = await requireFiscalPeriod(backend, rest[0] ?? null);
       const suggestion = buildNextFiscalPeriodSuggestion(source.endDate);
       if (options.out != null) {
-        const bookPath = input.resolvePath(options.out);
-        const book = await input.createBook(bookPath);
+        const bookPath = input.files.resolve(options.out);
+        const book = await createNewBook(input, bookPath);
         try {
-          const created = await book.api.fiscalPeriods.create({
+          const created = await book.backend.fiscalPeriods.create({
             name: options.name ?? suggestion.name,
             startDate: options.start ?? suggestion.startDate,
             endDate: options.end ?? suggestion.endDate,
@@ -101,9 +102,9 @@ export async function runPeriodsCommand(
           const carriedOver = isReadyForCarryover(source);
           const period = carriedOver
             ? await carryOverFromBackend(
-                api,
+                backend,
                 source,
-                book.api,
+                book.backend,
                 created.id,
                 input.today(),
               )
@@ -125,7 +126,7 @@ export async function runPeriodsCommand(
         }
         return;
       }
-      const created = await api.fiscalPeriods.createNext({
+      const created = await backend.fiscalPeriods.createNext({
         sourceFiscalPeriodId: source.id,
         name: options.name ?? suggestion.name,
         startDate: options.start ?? suggestion.startDate,
@@ -142,16 +143,16 @@ export async function runPeriodsCommand(
       return;
     }
     case "export": {
-      const period = await requireFiscalPeriod(api, rest[0] ?? null);
-      const bookPath = input.resolvePath(
+      const period = await requireFiscalPeriod(backend, rest[0] ?? null);
+      const bookPath = input.files.resolve(
         options.out ?? buildFiscalPeriodBookFilename(period),
       );
-      const book = await input.createBook(bookPath);
+      const book = await createNewBook(input, bookPath);
       try {
         const copied = await copyFiscalPeriodToBackend(
-          api,
+          backend,
           period,
-          book.api,
+          book.backend,
           input.today(),
         );
         if (options.json) {

@@ -1,4 +1,4 @@
-import { CliUsageError } from "./cli-io.js";
+import { CliUsageError } from "../cli-output.js";
 
 const COST_OF_SALES_ACCOUNT_TYPE = "cost_of_sales";
 

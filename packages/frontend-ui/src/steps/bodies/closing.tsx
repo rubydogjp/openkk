@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   AppError,
-  buildFinalClosingEntries,
+  buildFinalClosingPayload,
   computeFsAggregate,
   withClosingVirtualEntries,
 } from "@rubydogjp/openkk-driver";
@@ -149,8 +149,8 @@ export function ClosingBody({
       setShowRunningAnimation(true);
       setAnimationKey((key) => key + 1);
       try {
-        const entries = entriesState.prepareFiscalPeriodEntries(
-          buildFinalClosingEntries({
+        const entries = buildFinalClosingPayload(
+          {
             fiscalPeriod: currentFiscalPeriod,
             entries: entriesState.listFiscalPeriodEntries(
               currentFiscalPeriod.id,
@@ -159,7 +159,8 @@ export function ClosingBody({
             carryovers: assistState.listOpeningCarryovers(
               currentFiscalPeriod.id,
             ),
-          }),
+          },
+          entriesState.journalTableMaster,
         );
         await closingApi.runFinal(currentFiscalPeriod.id, entries);
         await entriesState.reloadAndWait();

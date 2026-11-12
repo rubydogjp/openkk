@@ -1,4 +1,3 @@
-import fs from "node:fs";
 import {
   assertFiscalPeriodArchiveByteLength,
   buildFiscalPeriodArchiveFilename,
@@ -7,11 +6,11 @@ import {
   readFiscalPeriodArchiveZip,
 } from "@rubydogjp/openkk-driver";
 
-import { CliUsageError } from "./cli-io.js";
+import { CliUsageError } from "../cli-output.js";
 import {
   requireFiscalPeriod,
   type CliCommandContext,
-} from "./command-context.js";
+} from "../command-context.js";
 
 const NO_AUTH_CHECK = () => {};
 
@@ -19,20 +18,20 @@ export async function runArchiveCommand(
   context: CliCommandContext,
 ): Promise<void> {
   const [subcommand, target] = context.args;
-  const { api, output, options } = context;
+  const { backend, output, options } = context;
   switch (subcommand) {
     case "export": {
-      const period = await requireFiscalPeriod(api, target ?? null);
+      const period = await requireFiscalPeriod(backend, target ?? null);
       const zip = await buildFiscalPeriodArchiveZip(
-        api,
+        backend,
         period,
         context.today(),
         NO_AUTH_CHECK,
       );
-      const outPath = context.resolvePath(
+      const outPath = context.files.resolve(
         options.out ?? buildFiscalPeriodArchiveFilename(period),
       );
-      fs.writeFileSync(outPath, zip);
+      context.files.writeBytes(outPath, zip);
       output.line(`書き出しました: ${outPath}`);
       return;
     }
@@ -40,11 +39,9 @@ export async function runArchiveCommand(
       if (target == null) {
         throw new CliUsageError("取り込む zip ファイルを指定してください");
       }
-      const bytes = new Uint8Array(
-        fs.readFileSync(context.resolvePath(target)),
-      );
+      const bytes = context.files.readBytes(context.files.resolve(target));
       assertFiscalPeriodArchiveByteLength(bytes.byteLength);
-      const imported = await api.fiscalPeriods.importArchived(
+      const imported = await backend.fiscalPeriods.importArchived(
         readFiscalPeriodArchiveZip(bytes),
       );
       if (options.json) {
