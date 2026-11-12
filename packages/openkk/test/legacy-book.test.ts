@@ -1,208 +1,239 @@
-import { describe, expect, it, vi } from "vitest";
-import { createDocumentDbAdapter } from "@rubydogjp/openkk-document-db-adapter";
-import type {
-  BookPlace,
-  BrowserOpenedDocument,
-} from "@rubydogjp/openkk-platform-browser-adapter";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { bookHasFiscalPeriods, createBookBackend } from "../app/book-backend";
+import {
+  createBooksDbAdapter,
+  createMemoryBookStore,
+  readStoredFiscalPeriodIds,
+  splitBookFile,
+  type BooksDbAdapter,
+  type BookStore,
+} from "@rubydogjp/openkk-books-db-adapter";
+
+import { createNodeSqliteDbAdapter } from "../../node-sqlite-db-adapter/src/index.js";
 import {
   createLegacyBook,
-  LEGACY_BOOK_NAME,
   type LegacyBookDependencies,
 } from "../app/legacy-book";
 
-const LEGACY_BYTES = new Uint8Array([1, 2, 3]);
+const USER = "openkk-original-user";
+const tempDirs: string[] = [];
+const openAdapters: BooksDbAdapter[] = [];
 
-function fakePlace(writeResult: "written" | "conflict") {
-  const written: { name: string; bytes: Uint8Array }[] = [];
-  const released: string[] = [];
-  const place: BookPlace = {
-    list: async () => [],
-    open: async () => {
-      throw new Error("not used");
-    },
-    read: async () => {
-      throw new Error("not used");
-    },
-    async create(desiredName): Promise<BrowserOpenedDocument> {
-      const fileName = desiredName.replace(".openkk", " (2).openkk");
-      return {
-        bytes: null,
-        sink: {
-          fileName,
-          saveMode: "auto",
-          async write(bytes) {
-            if (writeResult === "written")
-              written.push({ name: fileName, bytes });
-            return writeResult;
-          },
-        },
-        backup: null,
-        remember: async () => {},
-        release: () => {
-          released.push(fileName);
-        },
-      };
-    },
-    remove: async () => {},
-  };
-  return { place, written, released };
+afterEach(() => {
+  for (const adapter of openAdapters.splice(0)) adapter.close();
+  for (const dir of tempDirs.splice(0)) {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+const line = {
+  partnerName: "",
+  taxCategoryId: "tax_out_of_scope",
+  businessCategoryId: "",
+};
+
+async function legacyDatabaseBytes(periodCount: number): Promise<Uint8Array> {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "openkk-legacy-"));
+  tempDirs.push(dir);
+  const filePath = path.join(dir, "openkk.sqlite3");
+  const legacy = await createNodeSqliteDbAdapter(filePath, null);
+  for (let index = 0; index < periodCount; index += 1) {
+    const year = 2025 + index;
+    const period = await legacy.db.fiscalPeriods.create(USER, {
+      name: `${year}年分`,
+      startDate: `${year}-01-01`,
+      endDate: `${year}-12-31`,
+    });
+    await legacy.db.fiscalPeriods.start(period.id);
+    await legacy.db.entries.create(USER, period.id, {
+      date: `${year}-06-01`,
+      description: `${year}年の売上`,
+      localId: null,
+      businessRate: 1,
+      lines: [
+        { ...line, side: "debit", bookAccountId: "acct_cash", amount: year },
+        { ...line, side: "credit", bookAccountId: "acct_sales", amount: year },
+      ],
+    });
+  }
+  legacy.close();
+  return new Uint8Array(fs.readFileSync(filePath));
 }
 
-function fakeDependencies(overrides: Partial<LegacyBookDependencies>) {
-  let moved = false;
+function setup(
+  legacyBytes: Uint8Array | null,
+  overrides: Partial<LegacyBookDependencies>,
+) {
+  const state = { moved: false, nextBook: 1 };
   const dependencies: LegacyBookDependencies = {
     marker: {
-      isMoved: async () => moved,
+      isMoved: async () => state.moved,
       markMoved: async () => {
-        moved = true;
+        state.moved = true;
       },
     },
-    hasLegacyDatabase: async () => true,
-    exportLegacyDatabase: vi.fn(async () => LEGACY_BYTES),
-    hasFiscalPeriods: async () => true,
-    exclusively: (work) => work(),
+    exportLegacyDatabase: vi.fn(async () => legacyBytes),
+    splitIntoPeriods: async (bytes) =>
+      (await splitBookFile(bytes)).map((period) => ({
+        fiscalPeriodId: period.fiscalPeriod.id,
+        bytes: period.bytes,
+      })),
+    storedFiscalPeriodIds: readStoredFiscalPeriodIds,
+    newBookName: () => `moved-${state.nextBook++}.openkk`,
     ...overrides,
   };
-  return { dependencies, isMoved: () => moved };
+  return { state, dependencies, legacyBook: createLegacyBook(dependencies) };
+}
+
+async function openBooks(store: BookStore): Promise<BooksDbAdapter> {
+  const adapter = await createBooksDbAdapter({
+    store,
+    newBookName: () => "new.openkk",
+    onFiscalPeriodRemoved: () => {},
+    onSaveError: () => {},
+  });
+  openAdapters.push(adapter);
+  return adapter;
+}
+
+function emptyStore(): BookStore {
+  return createMemoryBookStore(new Map());
 }
 
 describe("legacy book", () => {
-  it("copies the old database into a new book and moves it only once", async () => {
-    const { dependencies, isMoved } = fakeDependencies({});
-    const legacyBook = createLegacyBook(dependencies);
-    const { place, written, released } = fakePlace("written");
+  it("moves each fiscal period of the previous version into its own book", async () => {
+    const store = emptyStore();
+    const { legacyBook, state } = setup(await legacyDatabaseBytes(2), {});
 
-    await expect(legacyBook.hasBookToMove()).resolves.toBe(true);
-    await expect(legacyBook.moveInto(place, () => {})).resolves.toBe(
-      "帳簿 (2).openkk",
-    );
-    expect(written).toEqual([{ name: "帳簿 (2).openkk", bytes: LEGACY_BYTES }]);
-    expect(released).toEqual(["帳簿 (2).openkk"]);
-    expect(isMoved()).toBe(true);
-    await expect(legacyBook.hasBookToMove()).resolves.toBe(false);
+    const moved = await legacyBook.moveInto(store, () => {});
+    const books = await openBooks(store);
+    const periods = await books.db.fiscalPeriods.getAll(USER);
 
-    await expect(legacyBook.moveInto(place, () => {})).resolves.toBeNull();
-    expect(written).toHaveLength(1);
-    expect(dependencies.exportLegacyDatabase).toHaveBeenCalledOnce();
-  });
-
-  it("names the moved book like a new book", () => {
-    expect(LEGACY_BOOK_NAME).toBe("帳簿.openkk");
-  });
-
-  it("makes no book when there is no old database or it has no fiscal period", async () => {
-    for (const overrides of [
-      { exportLegacyDatabase: async () => null },
-      { hasFiscalPeriods: async () => false },
-    ]) {
-      const { dependencies, isMoved } = fakeDependencies(overrides);
-      const { place, written } = fakePlace("written");
-
-      await expect(
-        createLegacyBook(dependencies).moveInto(place, () => {}),
-      ).resolves.toBeNull();
-      expect(written).toEqual([]);
-      expect(isMoved()).toBe(true);
-    }
-  });
-
-  it("has nothing to move without the old database, whatever the marker says", async () => {
-    const isMoved = vi.fn(async () => false);
-    const { dependencies } = fakeDependencies({
-      hasLegacyDatabase: async () => false,
-    });
-    const legacyBook = createLegacyBook({
-      ...dependencies,
-      marker: { isMoved, markMoved: async () => {} },
-    });
-
-    await expect(legacyBook.hasBookToMove()).resolves.toBe(false);
-    expect(isMoved).not.toHaveBeenCalled();
-  });
-
-  it("keeps the old database to move again when the copy cannot be written", async () => {
-    const { dependencies, isMoved } = fakeDependencies({});
-    const { place, released } = fakePlace("conflict");
-
-    await expect(
-      createLegacyBook(dependencies).moveInto(place, () => {}),
-    ).rejects.toThrow("the legacy book could not be written");
-    expect(released).toEqual(["帳簿 (2).openkk"]);
-    expect(isMoved()).toBe(false);
-  });
-
-  it("keeps the old database to move again when it cannot be read", async () => {
-    const { dependencies, isMoved } = fakeDependencies({
-      exportLegacyDatabase: async () => {
-        throw new Error("database disk image is malformed");
-      },
-    });
-    const { place } = fakePlace("written");
-
-    await expect(
-      createLegacyBook(dependencies).moveInto(place, () => {}),
-    ).rejects.toThrow("database disk image is malformed");
-    expect(isMoved()).toBe(false);
-  });
-
-  it("tells when another tab still holds the old database", async () => {
-    const onWaitingForAnotherTab = vi.fn();
-    const { dependencies } = fakeDependencies({
-      exportLegacyDatabase: async (onWaiting) => {
-        onWaiting();
-        return LEGACY_BYTES;
-      },
-    });
-    const { place } = fakePlace("written");
-
-    await createLegacyBook(dependencies).moveInto(
-      place,
-      onWaitingForAnotherTab,
-    );
-    expect(onWaitingForAnotherTab).toHaveBeenCalledOnce();
-  });
-
-  it("checks inside the lock so two tabs do not both move the old database", async () => {
-    let queue = Promise.resolve();
-    const { dependencies } = fakeDependencies({
-      exclusively: <T>(work: () => Promise<T>) => {
-        const run = queue.then(work);
-        queue = run.then(
-          () => {},
-          () => {},
-        );
-        return run;
-      },
-    });
-    const legacyBook = createLegacyBook(dependencies);
-    const { place, written } = fakePlace("written");
-
-    const results = await Promise.all([
-      legacyBook.moveInto(place, () => {}),
-      legacyBook.moveInto(place, () => {}),
+    expect(moved).toHaveLength(2);
+    expect(state.moved).toBe(true);
+    expect(await store.list()).toHaveLength(2);
+    expect(periods.map(({ name, phase }) => [name, phase])).toEqual([
+      ["2025年分", "journalizing"],
+      ["2026年分", "journalizing"],
     ]);
-    expect(results).toEqual(["帳簿 (2).openkk", null]);
-    expect(written).toHaveLength(1);
+    expect(periods.map(({ id }) => id).sort()).toEqual([...moved].sort());
+    for (const period of periods) {
+      const entries = await books.db.entries.getAll(period.id);
+      expect(entries.map(({ description }) => description)).toEqual([
+        `${period.startDate.slice(0, 4)}年の売上`,
+      ]);
+    }
+    expect(books.unreadableBooks).toEqual([]);
   });
-});
 
-describe("bookHasFiscalPeriods", () => {
-  it("tells a book with a fiscal period from an empty one", async () => {
-    const empty = await createDocumentDbAdapter(null);
-    const emptyBytes = empty.exportBytes();
-    const withPeriod = await createDocumentDbAdapter(null);
-    await createBookBackend(withPeriod.db).fiscalPeriods.create({
-      name: "2026年分",
-      startDate: "2026-01-01",
-      endDate: "2026-12-31",
+  it("does not read the previous version again once it was moved", async () => {
+    const store = emptyStore();
+    const { legacyBook, dependencies } = setup(
+      await legacyDatabaseBytes(1),
+      {},
+    );
+
+    await legacyBook.moveInto(store, () => {});
+    const again = await legacyBook.moveInto(store, () => {});
+
+    expect(again).toEqual([]);
+    expect(dependencies.exportLegacyDatabase).toHaveBeenCalledTimes(1);
+    expect(await store.list()).toHaveLength(1);
+  });
+
+  it("marks the move as done when there is no previous version", async () => {
+    const store = emptyStore();
+    const { legacyBook, state } = setup(null, {});
+
+    expect(await legacyBook.moveInto(store, () => {})).toEqual([]);
+    expect(state.moved).toBe(true);
+    expect(await store.list()).toEqual([]);
+  });
+
+  it("marks the move as done when the previous version holds no fiscal period", async () => {
+    const store = emptyStore();
+    const { legacyBook, state } = setup(await legacyDatabaseBytes(0), {});
+
+    expect(await legacyBook.moveInto(store, () => {})).toEqual([]);
+    expect(state.moved).toBe(true);
+    expect(await store.list()).toEqual([]);
+  });
+
+  it("continues after a stopped move without storing a period twice", async () => {
+    const inner = emptyStore();
+    let writes = 0;
+    const failingOnSecondWrite: BookStore = {
+      list: () => inner.list(),
+      read: (name) => inner.read(name),
+      remove: (name) => inner.remove(name),
+      async write(name, bytes) {
+        writes += 1;
+        if (writes === 2) throw new Error("no space left");
+        await inner.write(name, bytes);
+      },
+    };
+    const { legacyBook, state } = setup(await legacyDatabaseBytes(3), {});
+
+    await expect(
+      legacyBook.moveInto(failingOnSecondWrite, () => {}),
+    ).rejects.toThrow("no space left");
+    const movedAfterFailure = state.moved;
+    const storedAfterFailure = (await inner.list()).length;
+    const resumed = await legacyBook.moveInto(failingOnSecondWrite, () => {});
+    const books = await openBooks(inner);
+
+    expect(movedAfterFailure).toBe(false);
+    expect(storedAfterFailure).toBe(1);
+    expect(resumed).toHaveLength(2);
+    expect(state.moved).toBe(true);
+    expect(await inner.list()).toHaveLength(3);
+    expect(await books.db.fiscalPeriods.getAll(USER)).toHaveLength(3);
+    expect(books.unreadableBooks).toEqual([]);
+  });
+
+  it("stores nothing and does not mark the move when the previous version cannot be split", async () => {
+    const store = emptyStore();
+    const { legacyBook, state } = setup(await legacyDatabaseBytes(2), {
+      splitIntoPeriods: async () => {
+        throw new Error("split mismatch");
+      },
     });
-    const withPeriodBytes = withPeriod.exportBytes();
-    empty.close();
-    withPeriod.close();
 
-    await expect(bookHasFiscalPeriods(emptyBytes)).resolves.toBe(false);
-    await expect(bookHasFiscalPeriods(withPeriodBytes)).resolves.toBe(true);
+    await expect(legacyBook.moveInto(store, () => {})).rejects.toThrow(
+      "split mismatch",
+    );
+    expect(state.moved).toBe(false);
+    expect(await store.list()).toEqual([]);
+  });
+
+  it("does not mark the move when the previous version cannot be read", async () => {
+    const store = emptyStore();
+    const { legacyBook, state } = setup(null, {
+      exportLegacyDatabase: async () => {
+        throw new Error("read failed");
+      },
+    });
+
+    await expect(legacyBook.moveInto(store, () => {})).rejects.toThrow(
+      "read failed",
+    );
+    expect(state.moved).toBe(false);
+  });
+
+  it("tells when it waits for a tab of the previous version", async () => {
+    const onWaiting = vi.fn();
+    const { legacyBook } = setup(null, {
+      exportLegacyDatabase: async (onWaitingForAnotherTab) => {
+        onWaitingForAnotherTab();
+        return null;
+      },
+    });
+
+    await legacyBook.moveInto(emptyStore(), onWaiting);
+
+    expect(onWaiting).toHaveBeenCalledTimes(1);
   });
 });

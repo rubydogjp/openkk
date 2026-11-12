@@ -4,14 +4,14 @@ import {
   createFiscalPeriod,
   expectStep,
   gotoInApp,
-  startWithNewBook,
+  startApp,
 } from "../helpers";
 
 test("期首BSを狭い画面で入力し、幅を変えても値を失わず保存できる", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 800, height: 900 });
-  await startWithNewBook(page);
+  await startApp(page);
   await createFiscalPeriod(page, "期首BSの表示確認");
   await clickButton(page, "開始する");
   await clickButton(page, "開始する");

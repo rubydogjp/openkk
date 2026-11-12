@@ -7,35 +7,22 @@ import {
 
 const BUNDLE = "original";
 
-export const BUNDLE_LABEL = "無印版";
+const userId = "openkk-original-user";
 
-export const BOOK_OWNER_USER_ID = "openkk-original-user";
-
-export const DEBUG_ROUTES_ENABLED = false;
-
-export const LAST_BOOK_STORAGE_KEY = `openkk.${BUNDLE}.last_book`;
-
-export function buildBookConfig(
-  displayName: string,
-  initialFiscalPeriodId: string | null,
-): OpenkkConfig {
-  return {
-    clock: createSystemClock(),
-    bundleLabel: BUNDLE_LABEL,
-    authMode: "embedded",
-    embeddedUser: {
-      kind: "embedded",
-      id: BOOK_OWNER_USER_ID,
-      displayName,
-    },
-    initialFiscalPeriodId,
-    sessionStorageKey: `openkk.${BUNDLE}.session.user_id`,
-    fiscalPeriodStorageKey: `openkk.${BUNDLE}.fiscal_period_id`,
-    fiscalPeriodPolicy: DEFAULT_FISCAL_PERIOD_POLICY,
-    editingPolicy: DEFAULT_EDITING_POLICY,
-    debugRoutesEnabled: DEBUG_ROUTES_ENABLED,
-    myPagePath: null,
-  };
-}
-
-export const START_CONFIG = buildBookConfig(BUNDLE_LABEL, null);
+export const openkkConfig: OpenkkConfig = {
+  clock: createSystemClock(),
+  bundleLabel: "無印版",
+  authMode: "embedded",
+  embeddedUser: {
+    kind: "embedded",
+    id: userId,
+    displayName: "このPCのデータ",
+  },
+  initialFiscalPeriodId: null,
+  sessionStorageKey: `openkk.${BUNDLE}.session.user_id`,
+  fiscalPeriodStorageKey: `openkk.${BUNDLE}.fiscal_period_id`,
+  fiscalPeriodPolicy: DEFAULT_FISCAL_PERIOD_POLICY,
+  editingPolicy: DEFAULT_EDITING_POLICY,
+  debugRoutesEnabled: false,
+  myPagePath: null,
+};

@@ -15,6 +15,8 @@ const UNPUBLISHED_BETA_DIRS = new Set([
   "cli",
   "node-sqlite-db-adapter",
   "document-db-adapter",
+  "books-db-adapter",
+  "book-files-adapter",
 ]);
 const rootPackageJson = readJson(path.join(rootDir, "package.json"));
 const workspaceNames = rootPackageJson.workspaces.map((workspace: string) =>
@@ -188,6 +190,17 @@ describe("openkk workspace structure", () => {
       "memory-db-adapter": ["server-ports", "sqlite-adapter"],
       "node-sqlite-db-adapter": ["server-ports", "sqlite-adapter"],
       "document-db-adapter": ["server-ports", "sqlite-adapter"],
+      "books-db-adapter": [
+        "server-domain",
+        "server-ports",
+        "sqlite-adapter",
+        "document-db-adapter",
+      ],
+      "book-files-adapter": [
+        "client-ports",
+        "books-db-adapter",
+        "document-db-adapter",
+      ],
       "embedded-backend": ["server"],
       "embedded-backend-adapter": ["client-ports", "embedded-backend"],
       cli: [
@@ -206,7 +219,8 @@ describe("openkk workspace structure", () => {
         "embedded-backend",
         "embedded-backend-adapter",
         "file-db-adapter",
-        "document-db-adapter",
+        "books-db-adapter",
+        "book-files-adapter",
         "platform-browser-adapter",
       ],
       openkk_sim: [
@@ -275,6 +289,8 @@ describe("openkk workspace structure", () => {
       "memory-db-adapter",
       "node-sqlite-db-adapter",
       "document-db-adapter",
+      "books-db-adapter",
+      "book-files-adapter",
       "sqlite-adapter",
     ]);
     const REACT_FREE_COMPOSITION_ROOTS = new Set(["cli"]);

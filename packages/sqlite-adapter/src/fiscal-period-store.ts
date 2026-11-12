@@ -524,9 +524,11 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       });
     },
     async remove(id) {
-      await db.exec({
-        sql: `DELETE FROM fiscal_periods WHERE id = ?`,
-        bind: [id],
+      await runInTransaction(db, async () => {
+        await db.exec({
+          sql: `DELETE FROM fiscal_periods WHERE id = ?`,
+          bind: [id],
+        });
       });
     },
   };

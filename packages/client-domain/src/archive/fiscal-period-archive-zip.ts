@@ -24,6 +24,17 @@ export const MAX_FISCAL_PERIOD_ARCHIVE_BYTES = 64 * 1024 * 1024;
 export const MAX_FISCAL_PERIOD_ARCHIVE_FILE_BYTES = 32 * 1024 * 1024;
 const MAX_ARCHIVE_FILES = 32;
 
+const ZIP_SIGNATURES = [
+  [0x50, 0x4b, 0x03, 0x04],
+  [0x50, 0x4b, 0x05, 0x06],
+];
+
+export function looksLikeZip(head: Uint8Array): boolean {
+  return ZIP_SIGNATURES.some((signature) =>
+    signature.every((byte, index) => head[index] === byte),
+  );
+}
+
 export function createStoredZip(files: ArchiveZipFile[]): Uint8Array {
   if (files.length > MAX_ARCHIVE_FILES) {
     throw invalidArchiveContentError("archive zip contains too many files");

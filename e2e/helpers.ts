@@ -1,34 +1,24 @@
 import { expect, type Page } from "@playwright/test";
 
-export async function keepBooksInApp(page: Page) {
-  await page.addInitScript(() => {
-    const pickerWindow = window as unknown as Record<string, unknown>;
-    pickerWindow.showDirectoryPicker = null;
-    pickerWindow.showOpenFilePicker = null;
-  });
+const STORAGE_NOTICE_SEEN_KEY = "openkk.book-storage-notice.seen";
+
+export async function skipStorageNotice(page: Page) {
+  await page.addInitScript((key) => {
+    window.localStorage.setItem(key, "1");
+  }, STORAGE_NOTICE_SEEN_KEY);
 }
 
-export async function startWithNewBook(page: Page) {
-  await keepBooksInApp(page);
+export async function startApp(page: Page) {
+  await skipStorageNotice(page);
   await page.goto("/");
-  await clickButton(page, "新しい帳簿を作る");
   await waitUntilBootPhase(page, "ready");
-  await expectBookSaved(page);
 }
 
-export async function expectBookSaved(page: Page) {
-  await expect(page.locator("html")).toHaveAttribute(
-    "data-openkk-document",
-    "saved",
-    { timeout: 15_000 },
-  );
-}
-
-export async function waitUntilBookSaved(page: Page) {
+export async function waitUntilBooksStored(page: Page) {
   await page.waitForFunction(
     () => {
       const status = document.documentElement.getAttribute(
-        "data-openkk-document",
+        "data-openkk-storage",
       );
       return status == null || status === "saved";
     },
@@ -38,12 +28,12 @@ export async function waitUntilBookSaved(page: Page) {
 }
 
 export async function gotoInApp(page: Page, url: string) {
-  await waitUntilBookSaved(page);
+  await waitUntilBooksStored(page);
   await page.goto(url);
 }
 
 export async function reloadInApp(page: Page) {
-  await waitUntilBookSaved(page);
+  await waitUntilBooksStored(page);
   await page.reload();
 }
 

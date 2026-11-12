@@ -13,11 +13,6 @@ export default defineConfig({
       use: { baseURL: ORIGINAL_URL },
     },
     {
-      name: "original-books",
-      testDir: "./tests-books",
-      use: { baseURL: ORIGINAL_URL, channel: "chrome" },
-    },
-    {
       name: "demo",
       testDir: "./tests-demo",
       use: { baseURL: "http://localhost:4309" },

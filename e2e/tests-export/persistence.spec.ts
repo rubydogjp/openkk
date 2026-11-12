@@ -4,14 +4,13 @@ import {
   clickButton,
   createFiscalPeriod,
   gotoInApp,
-  keepBooksInApp,
   reloadInApp,
-  startWithNewBook,
+  startApp,
 } from "../helpers";
 
 type PersistentStorageProbe = { persistentStorageRequests: string[] };
 
-test("asks the browser to keep the books once one is made in the app", async ({
+test("asks the browser to keep the books once the app opens", async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -30,10 +29,7 @@ test("asks the browser to keep the books once one is made in the app", async ({
     };
   });
 
-  await keepBooksInApp(page);
-  await page.goto("/");
-  await expect(page.getByText("アプリの中に保存します")).toBeVisible();
-  await clickButton(page, "新しい帳簿を作る");
+  await startApp(page);
 
   await expect
     .poll(() =>
@@ -49,7 +45,7 @@ test("asks the browser to keep the books once one is made in the app", async ({
 test("keeps a fiscal period and entry in the book across reloads", async ({
   page,
 }) => {
-  await startWithNewBook(page);
+  await startApp(page);
   await createFiscalPeriod(page, "保存検証期間");
   await advanceToJournalizing(page);
   await page.getByRole("link", { name: "仕訳" }).click();

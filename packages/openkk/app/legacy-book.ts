@@ -1,75 +1,67 @@
 import {
+  readStoredFiscalPeriodIds,
+  splitBookFile,
+  type BookStore,
+} from "@rubydogjp/openkk-books-db-adapter";
+import {
   exportFileDbBytes,
   hasFileDbStorage,
 } from "@rubydogjp/openkk-file-db-adapter";
-import {
-  NEW_OPENKK_DOCUMENT_NAME,
-  type BookPlace,
-} from "@rubydogjp/openkk-platform-browser-adapter";
-
-import { bookHasFiscalPeriods } from "./book-backend";
+import { newInAppBookName } from "@rubydogjp/openkk-platform-browser-adapter";
 
 const LEGACY_DATABASE = { vfsName: "openkk", dbFileName: "openkk.sqlite3" };
 const MOVED_MARKER_NAME = "openkk-legacy-book-moved";
-const MOVE_LOCK_NAME = "openkk-legacy-book-move";
-
-export const LEGACY_BOOK_NAME = NEW_OPENKK_DOCUMENT_NAME;
 
 export type LegacyBookMarker = {
   isMoved(): Promise<boolean>;
   markMoved(): Promise<void>;
 };
 
+export type LegacyBookPeriod = {
+  fiscalPeriodId: string;
+  bytes: Uint8Array;
+};
+
 export type LegacyBookDependencies = {
   marker: LegacyBookMarker;
-  hasLegacyDatabase(): Promise<boolean>;
   exportLegacyDatabase(
     onWaitingForAnotherTab: () => void,
   ): Promise<Uint8Array | null>;
-  hasFiscalPeriods(bytes: Uint8Array): Promise<boolean>;
-  exclusively<T>(work: () => Promise<T>): Promise<T>;
+  splitIntoPeriods(bytes: Uint8Array): Promise<LegacyBookPeriod[]>;
+  storedFiscalPeriodIds(store: BookStore): Promise<Set<string>>;
+  newBookName(): string;
 };
 
 export type LegacyBook = {
-  hasBookToMove(): Promise<boolean>;
   moveInto(
-    place: BookPlace,
+    store: BookStore,
     onWaitingForAnotherTab: () => void,
-  ): Promise<string | null>;
+  ): Promise<string[]>;
 };
 
 export function createLegacyBook(
   dependencies: LegacyBookDependencies,
 ): LegacyBook {
   return {
-    async hasBookToMove() {
-      if (!(await dependencies.hasLegacyDatabase())) return false;
-      return !(await dependencies.marker.isMoved());
-    },
-    moveInto(place, onWaitingForAnotherTab) {
-      return dependencies.exclusively(async () => {
-        if (await dependencies.marker.isMoved()) return null;
-        const bytes = await dependencies.exportLegacyDatabase(
-          onWaitingForAnotherTab,
-        );
-        if (bytes == null || !(await dependencies.hasFiscalPeriods(bytes))) {
-          await dependencies.marker.markMoved();
-          return null;
-        }
-        const book = await place.create(LEGACY_BOOK_NAME);
-        try {
-          const written = await book.sink.write(bytes);
-          if (written !== "written") {
-            throw new Error(
-              `the legacy book could not be written: ${book.sink.fileName}`,
-            );
-          }
-        } finally {
-          book.release();
-        }
-        await dependencies.marker.markMoved();
-        return book.sink.fileName;
-      });
+    async moveInto(store, onWaitingForAnotherTab) {
+      if (await dependencies.marker.isMoved()) return [];
+      const bytes = await dependencies.exportLegacyDatabase(
+        onWaitingForAnotherTab,
+      );
+      const periods =
+        bytes == null ? [] : await dependencies.splitIntoPeriods(bytes);
+      const stored =
+        periods.length === 0
+          ? new Set<string>()
+          : await dependencies.storedFiscalPeriodIds(store);
+      const moved: string[] = [];
+      for (const period of periods) {
+        if (stored.has(period.fiscalPeriodId)) continue;
+        await store.write(dependencies.newBookName(), period.bytes);
+        moved.push(period.fiscalPeriodId);
+      }
+      await dependencies.marker.markMoved();
+      return moved;
     },
   };
 }
@@ -105,12 +97,16 @@ const storageRootMarker: LegacyBookMarker = {
 
 export const legacyBook = createLegacyBook({
   marker: storageRootMarker,
-  hasLegacyDatabase: () => hasFileDbStorage(LEGACY_DATABASE.vfsName),
-  exportLegacyDatabase: (onWaitingForAnotherTab) =>
-    exportFileDbBytes({ ...LEGACY_DATABASE, onWaitingForAnotherTab }),
-  hasFiscalPeriods: bookHasFiscalPeriods,
-  exclusively: (work) =>
-    typeof navigator === "object" && navigator.locks != null
-      ? navigator.locks.request(MOVE_LOCK_NAME, work)
-      : work(),
+  async exportLegacyDatabase(onWaitingForAnotherTab) {
+    if (!(await hasFileDbStorage(LEGACY_DATABASE.vfsName))) return null;
+    return exportFileDbBytes({ ...LEGACY_DATABASE, onWaitingForAnotherTab });
+  },
+  async splitIntoPeriods(bytes) {
+    return (await splitBookFile(bytes)).map((period) => ({
+      fiscalPeriodId: period.fiscalPeriod.id,
+      bytes: period.bytes,
+    }));
+  },
+  storedFiscalPeriodIds: readStoredFiscalPeriodIds,
+  newBookName: newInAppBookName,
 });

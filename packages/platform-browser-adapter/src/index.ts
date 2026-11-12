@@ -15,50 +15,31 @@ export const platformBrowserAdapter: PlatformPort = {
 };
 
 export {
-  BrowserDocumentPermissionError,
-  browserDocuments,
-  createDownloadDocumentSink,
-  createHandleDocumentSink,
-  NEW_OPENKK_DOCUMENT_NAME,
-  OPENKK_DOCUMENT_EXTENSION,
-  OPENKK_DOCUMENT_MIME_TYPE,
-  type BrowserDocumentFileHandle,
-  type BrowserOpenedDocument,
-  type BrowserRecentDocument,
-} from "./documents.js";
+  AppLockUnavailableError,
+  browserAppLock,
+  createAppLock,
+  type AppLock,
+  type AppLockManager,
+} from "./app-lock.js";
 export {
-  bookBackups,
-  createBookBackups,
-  type BookBackups,
-  type BookBackupsDependencies,
-} from "./book-backup.js";
+  deliverBookFile,
+  type BookFileDeliveryResult,
+} from "./book-file-delivery.js";
 export {
-  BookInUseError,
-  browserBookLocks,
-  createBookLocks,
-  type BookLockManager,
-  type BookLocks,
-} from "./book-lock.js";
-export {
-  type BookFileDirectory,
-  type BookPlace,
-  type StoredBook,
-} from "./book-place.js";
-export {
-  BookFolderMissingError,
-  canUseFolderBooks,
-  createFolderBooks,
-  folderBooks,
-  type BookFolderHandle,
-  type FolderBooks,
-  type FolderBooksDependencies,
-  type FolderPermission,
-} from "./folder-books.js";
+  bookFileName,
+  isBookFileName,
+  OPENKK_BOOK_EXTENSION,
+  OPENKK_BOOK_MIME_TYPE,
+} from "./book-file-format.js";
 export {
   canUseInAppBooks,
-  createInAppBooks,
+  createInAppBookStore,
   createWorkerBookWriter,
-  inAppBooks,
-  type InAppBooksDependencies,
+  inAppBookStore,
+  newInAppBookName,
+  requestBrowserPersistentStorage,
+  type InAppBookDirectory,
+  type InAppBookStore,
+  type InAppBookStoreDependencies,
   type InAppBookWriter,
-} from "./in-app-books.js";
+} from "./in-app-book-store.js";

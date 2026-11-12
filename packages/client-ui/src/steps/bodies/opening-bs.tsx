@@ -11,7 +11,6 @@ import { AppErrorText } from "../../shared/app-error-text.js";
 import {
   useOpenkkAppState,
   useOpenkkConfig,
-  useOpeningCarryoverSources,
 } from "@rubydogjp/openkk-client-usecases";
 import { AccountChipCell } from "../../entries/entries-ui.js";
 import {
@@ -47,7 +46,10 @@ import {
   sumOpeningSection,
   unrenderedOpeningLines,
 } from "./opening-bs-model.js";
-import { OpeningBsCarryover } from "./opening-bs-carryover.js";
+import {
+  carryoverSourceCandidates,
+  OpeningBsCarryover,
+} from "./opening-bs-carryover.js";
 
 export function OpeningBsBody({
   onSwitchToStep,
@@ -106,12 +108,6 @@ export function OpeningBsBody({
       ),
     [amounts, liabilityLabels, preservedUnrenderedLines],
   );
-  const carryoverSources = useOpeningCarryoverSources(
-    currentFiscalPeriod?.phase === "journalizing" &&
-      !config.editingPolicy.locked
-      ? currentFiscalPeriod
-      : null,
-  );
 
   if (currentFiscalPeriod == null) {
     return (
@@ -131,6 +127,10 @@ export function OpeningBsBody({
     !isPeriodLocked &&
     !editingLocked &&
     (!isCompleted || isEditingCompleted);
+  const carryoverSources =
+    currentFiscalPeriod.phase === "journalizing" && !editingLocked
+      ? carryoverSourceCandidates(currentFiscalPeriod, appState.fiscalPeriods)
+      : [];
   const amountsAreSafe = assetTotal != null && liabilityTotal != null;
   const balancesMatch = amountsAreSafe && assetTotal === liabilityTotal;
 

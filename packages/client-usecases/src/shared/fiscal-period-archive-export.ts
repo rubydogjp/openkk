@@ -6,19 +6,14 @@ import {
   buildFiscalPeriodArchivePayload,
   createFiscalPeriodArchiveZip,
   type FiscalPeriod,
-  type FiscalPeriodArchivePayload,
 } from "@rubydogjp/openkk-client-domain";
-import type {
-  EntryApiRecord,
-  FixedAssetApiRecord,
-} from "@rubydogjp/openkk-client-ports";
 
 import { useBackendApi } from "./backend-api-context.js";
 import { useOpenkkAppState } from "./openkk-app-state.js";
 
-export function useFiscalPeriodArchivePayload(): (
+export function useFiscalPeriodArchiveExport(): (
   fiscalPeriod: FiscalPeriod,
-) => Promise<FiscalPeriodArchivePayload> {
+) => Promise<Uint8Array> {
   const backendApi = useBackendApi();
   const appState = useOpenkkAppState();
   return useCallback(
@@ -29,33 +24,16 @@ export function useFiscalPeriodArchivePayload(): (
         backendApi.fixedAssets.getAll(fiscalPeriod.id),
       ]);
       appState.assertAuthOperationCurrent(authOperationVersion);
-      return archivePayloadFromRecords(fiscalPeriod, entries, fixedAssets);
+      return createFiscalPeriodArchiveZip(
+        buildFiscalPeriodArchivePayload({
+          createdAt: new Date().toISOString(),
+          fiscalPeriod: { ...fiscalPeriod, archiveStatus: "archived" },
+          entries: entries.map((entry) => ({ ...entry })),
+          fixedAssets: fixedAssets.map((asset) => ({ ...asset })),
+          closings: archiveClosingRecords(fiscalPeriod),
+        }),
+      );
     },
     [appState, backendApi],
-  );
-}
-
-export function archivePayloadFromRecords(
-  fiscalPeriod: FiscalPeriod,
-  entries: EntryApiRecord[],
-  fixedAssets: FixedAssetApiRecord[],
-): FiscalPeriodArchivePayload {
-  return buildFiscalPeriodArchivePayload({
-    createdAt: new Date().toISOString(),
-    fiscalPeriod: { ...fiscalPeriod, archiveStatus: "archived" },
-    entries: entries.map((entry) => ({ ...entry })),
-    fixedAssets: fixedAssets.map((asset) => ({ ...asset })),
-    closings: archiveClosingRecords(fiscalPeriod),
-  });
-}
-
-export function useFiscalPeriodArchiveExport(): (
-  fiscalPeriod: FiscalPeriod,
-) => Promise<Uint8Array> {
-  const buildPayload = useFiscalPeriodArchivePayload();
-  return useCallback(
-    async (fiscalPeriod) =>
-      createFiscalPeriodArchiveZip(await buildPayload(fiscalPeriod)),
-    [buildPayload],
   );
 }

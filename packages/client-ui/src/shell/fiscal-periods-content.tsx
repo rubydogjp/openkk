@@ -7,15 +7,21 @@ import {
   AppError,
   assertFiscalPeriodArchiveByteLength,
   fiscalPeriodPhaseLabel,
+  looksLikeZip,
   readFiscalPeriodArchiveZip,
   type FiscalPeriod,
 } from "@rubydogjp/openkk-client-domain";
 import {
+  bookFileProblemMessage,
+  reviewBookImport,
   useOpenkkAppState,
+  useOpenkkBookFiles,
   useOpenkkConfig,
+  usePlatformAdapter,
 } from "@rubydogjp/openkk-client-usecases";
 import { AddButton } from "../shared/add-button.js";
 import { AppErrorText } from "../shared/app-error-text.js";
+import { useConfirmDialog } from "../shared/confirm-dialog.js";
 import { LockButton } from "../shared/locked-action.js";
 import { ExclusiveActionLock } from "../shared/exclusive-action-lock.js";
 import { usePopoverLifecycle } from "../shared/dismissible-layer.js";
@@ -36,6 +42,11 @@ export function FiscalPeriodsContent() {
   const openkkConfig = useOpenkkConfig();
   const editingLocked = openkkConfig.editingPolicy.locked;
   const allowArchiveImport = openkkConfig.fiscalPeriodPolicy.allowArchiveImport;
+  const bookFiles = useOpenkkBookFiles();
+  const platform = usePlatformAdapter();
+  const { confirmWithExtraAction, dialog: bookImportDialog } =
+    useConfirmDialog();
+  const [bookImportNotice, setBookImportNotice] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const archiveImportLock = useRef(new ExclusiveActionLock());
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
@@ -53,6 +64,7 @@ export function FiscalPeriodsContent() {
     setIsImportingArchive(true);
     try {
       setScreenError(null);
+      setBookImportNotice(null);
       assertFiscalPeriodArchiveByteLength(file.size);
       const bytes = new Uint8Array(await file.arrayBuffer());
       const payload = readFiscalPeriodArchiveZip(bytes);
@@ -73,6 +85,79 @@ export function FiscalPeriodsContent() {
       release();
     }
   };
+
+  const handleBookFile = async (file: File) => {
+    if (bookFiles == null) return;
+    const release = archiveImportLock.current.tryAcquire();
+    if (release == null) return;
+    setIsImportingArchive(true);
+    setScreenError(null);
+    setBookImportNotice(null);
+    try {
+      const plan = await bookFiles.inspect(
+        new Uint8Array(await file.arrayBuffer()),
+      );
+      const review = reviewBookImport(plan.items);
+      if (review.kind === "nothing_to_do") {
+        setBookImportNotice(review.message);
+        return;
+      }
+      if (review.kind === "blocked") {
+        setScreenError(bookImportError(review.message));
+        return;
+      }
+      if (review.kind === "confirm") {
+        const confirmed = await confirmWithExtraAction(
+          {
+            tone: "danger",
+            title: "帳簿を置き換えますか？",
+            body: review.messages,
+            confirmLabel: "取り込む",
+          },
+          {
+            label: "先に今のデータを保存",
+            doneLabel: "保存しました",
+            run: async () => {
+              for (const fiscalPeriodId of review.replacedFiscalPeriodIds) {
+                await bookFiles.save(fiscalPeriodId);
+              }
+            },
+          },
+        );
+        if (!confirmed) return;
+      }
+      const importedIds = await plan.apply();
+      const selectedId = importedIds[0] ?? null;
+      if (selectedId != null) {
+        platform.storage.setItem(
+          openkkConfig.fiscalPeriodStorageKey,
+          selectedId,
+        );
+      }
+      platform.navigation.reloadAt("/steps");
+    } catch (error) {
+      setScreenError(
+        bookImportError(
+          bookFileProblemMessage(error) ??
+            "帳簿のファイルを取り込めませんでした",
+        ),
+      );
+    } finally {
+      setIsImportingArchive(false);
+      release();
+    }
+  };
+
+  const handleFileToImport = async (file: File) => {
+    const head = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+    if (allowArchiveImport && looksLikeZip(head)) {
+      await handleArchiveFile(file);
+      return;
+    }
+    await handleBookFile(file);
+  };
+
+  const showFileMenu = allowArchiveImport || bookFiles != null;
 
   return (
     <section
@@ -117,7 +202,7 @@ export function FiscalPeriodsContent() {
             marginBottom: 14,
           }}
         >
-          {allowArchiveImport ? (
+          {showFileMenu ? (
             <div ref={fileMenuContainerRef} style={{ position: "relative" }}>
               {editingLocked ? (
                 <LockButton label="ファイル" />
@@ -141,7 +226,7 @@ export function FiscalPeriodsContent() {
                     opacity: isImportingArchive ? 0.62 : 1,
                   }}
                 >
-                  {isImportingArchive ? "展開中" : "ファイル"}
+                  {isImportingArchive ? "取り込み中" : "ファイル"}
                 </button>
               )}
               {fileMenuOpen ? (
@@ -154,7 +239,7 @@ export function FiscalPeriodsContent() {
                     top: 40,
                     right: 0,
                     zIndex: 5,
-                    minWidth: 220,
+                    width: 260,
                     padding: 6,
                     borderRadius: radii.md,
                     border: `1px solid ${palette.borderStrong}`,
@@ -162,41 +247,57 @@ export function FiscalPeriodsContent() {
                     boxShadow: shadows.popup,
                   }}
                 >
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setFileMenuOpen(false);
-                      fileInputRef.current?.click();
-                    }}
-                    style={{
-                      width: "100%",
-                      border: "none",
-                      background: "transparent",
-                      padding: "9px 10px",
-                      borderRadius: radii.sm,
-                      color: palette.text,
-                      fontSize: fontSize.base,
-                      fontWeight: fontWeight.semibold,
-                      textAlign: "left",
-                      cursor: "pointer",
-                    }}
-                  >
-                    圧縮済みのファイルを選択
-                  </button>
+                  {bookFiles != null ? (
+                    <FileMenuItem
+                      label="ファイルを取り込む"
+                      detail={
+                        allowArchiveImport
+                          ? "保存したファイル (.openkk)。以前の圧縮済みファイル (.zip) も取り込めます"
+                          : "保存したファイル (.openkk)"
+                      }
+                      onClick={() => {
+                        setFileMenuOpen(false);
+                        fileInputRef.current?.click();
+                      }}
+                    />
+                  ) : (
+                    <FileMenuItem
+                      label="圧縮済みのファイルを選択"
+                      detail={null}
+                      onClick={() => {
+                        setFileMenuOpen(false);
+                        fileInputRef.current?.click();
+                      }}
+                    />
+                  )}
                 </div>
               ) : null}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".zip,application/zip"
-                hidden
-                onChange={(event) => {
-                  const file = event.currentTarget.files?.[0] ?? null;
-                  event.currentTarget.value = "";
-                  if (file != null) void handleArchiveFile(file);
-                }}
-              />
+              {bookFiles != null ? (
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  aria-label="取り込むファイル"
+                  hidden
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0] ?? null;
+                    event.currentTarget.value = "";
+                    if (file != null) void handleFileToImport(file);
+                  }}
+                />
+              ) : (
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".zip,application/zip"
+                  aria-label="圧縮済みのファイル"
+                  hidden
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0] ?? null;
+                    event.currentTarget.value = "";
+                    if (file != null) void handleArchiveFile(file);
+                  }}
+                />
+              )}
             </div>
           ) : null}
           {editingLocked ? (
@@ -213,6 +314,19 @@ export function FiscalPeriodsContent() {
             router.push("/steps");
           }}
         />
+        {bookImportDialog}
+        {bookImportNotice != null ? (
+          <div
+            role="status"
+            style={{
+              marginTop: 12,
+              fontSize: fontSize.base,
+              color: palette.textSoft,
+            }}
+          >
+            {bookImportNotice}
+          </div>
+        ) : null}
         {screenError != null ? (
           <div style={{ marginTop: 12 }}>
             <AppErrorText
@@ -224,6 +338,56 @@ export function FiscalPeriodsContent() {
         ) : null}
       </div>
     </section>
+  );
+}
+
+function bookImportError(userMessage: string): AppError {
+  return AppError.from(new Error(userMessage), {
+    fallbackUserMessage: userMessage,
+    fallbackDeveloperMessage: "fiscal-periods: import book file failed",
+    statusCode: null,
+  });
+}
+
+function FileMenuItem(props: {
+  label: string;
+  detail: string | null;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={props.onClick}
+      style={{
+        width: "100%",
+        border: "none",
+        background: "transparent",
+        padding: "9px 10px",
+        borderRadius: radii.sm,
+        color: palette.text,
+        fontSize: fontSize.base,
+        fontWeight: fontWeight.semibold,
+        textAlign: "left",
+        cursor: "pointer",
+        display: "grid",
+        gap: 2,
+      }}
+    >
+      <span>{props.label}</span>
+      {props.detail != null ? (
+        <span
+          style={{
+            fontSize: fontSize.xs,
+            fontWeight: fontWeight.medium,
+            color: palette.textLabel,
+            lineHeight: 1.5,
+          }}
+        >
+          {props.detail}
+        </span>
+      ) : null}
+    </button>
   );
 }
 

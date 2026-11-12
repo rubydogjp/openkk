@@ -50,6 +50,69 @@ const period = {
   endDate: "2026-12-31",
 };
 
+describe("document-db-adapter change stamp", () => {
+  it("reads the stamp a book file carries and keeps it while the book is only read", async () => {
+    const first = await open(null);
+    const created = await first.db.fiscalPeriods.create("user-1", period);
+    const stamp = first.lastChangedAt();
+
+    const reopened = await open(first.exportBytes());
+    await reopened.db.fiscalPeriods.getById(created.id);
+
+    expect(first.lastChangedAtOnOpen).toBeNull();
+    expect(reopened.lastChangedAtOnOpen).toBe(stamp);
+    expect(reopened.lastChangedAt()).toBe(stamp);
+    expect(reopened.changedOnOpen).toBe(false);
+    expect(reopened.listFiscalPeriodIds()).toEqual([created.id]);
+  });
+
+  it("gives a stamp to a book made before books carried one", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "openkk-document-"));
+    tempDirs.push(dir);
+    const filePath = path.join(dir, "old.openkk");
+    (await createNodeSqliteDbAdapter(filePath, null)).close();
+    const database = new DatabaseSync(filePath);
+    database.exec(
+      "UPDATE openkk_meta SET value = '5' WHERE key = 'schema_version'",
+    );
+    database.exec("DELETE FROM openkk_meta WHERE key = 'last_changed_at'");
+    database.close();
+
+    const opened = await open(new Uint8Array(fs.readFileSync(filePath)));
+
+    expect(opened.lastChangedAtOnOpen).toBeNull();
+    expect(opened.changedOnOpen).toBe(true);
+    expect(Number.isSafeInteger(opened.lastChangedAt())).toBe(true);
+  });
+
+  it("keeps the content and can restore the stamp after compacting", async () => {
+    const book = await open(null);
+    const kept = await book.db.fiscalPeriods.create("user-1", period);
+    const dropped = await book.db.fiscalPeriods.create("user-1", {
+      name: "2027年分",
+      startDate: "2027-01-01",
+      endDate: "2027-12-31",
+    });
+    const stamp = book.lastChangedAt();
+    let notified = 0;
+    book.onChange(() => {
+      notified += 1;
+    });
+
+    await book.db.fiscalPeriods.remove(dropped.id);
+    book.compact();
+    book.restoreLastChangedAt(stamp);
+    await book.db.fiscalPeriods.getById(kept.id);
+
+    expect(book.lastChangedAt()).toBe(stamp);
+    expect(book.listFiscalPeriodIds()).toEqual([kept.id]);
+    expect(notified).toBe(1);
+    expect((await open(book.exportBytes())).listFiscalPeriodIds()).toEqual([
+      kept.id,
+    ]);
+  });
+});
+
 describe("document-db-adapter", () => {
   it("round-trips a book through exported bytes", async () => {
     const first = await open(null);

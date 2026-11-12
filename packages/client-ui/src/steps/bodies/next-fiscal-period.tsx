@@ -14,9 +14,9 @@ import {
 import { AppErrorText } from "../../shared/app-error-text.js";
 import {
   useFiscalPeriodArchiveExport,
-  useNextFiscalPeriodBook,
   usePlatformAdapter,
   useOpenkkAppState,
+  useOpenkkBookFile,
   useOpenkkCallout,
   useOpenkkConfig,
   useOpenkkEntries,
@@ -68,13 +68,13 @@ export function NextFiscalPeriodBody({
   const config = useOpenkkConfig();
   const nextPeriodFooter = useOpenkkCallout("stepNextFiscalPeriodFooter");
   const exportArchive = useFiscalPeriodArchiveExport();
-  const createNextBook = useNextFiscalPeriodBook();
   const appState = useOpenkkAppState();
   const files = usePlatformAdapter().files;
   const entriesState = useOpenkkEntries();
   const [screenError, setScreenError] = useState<unknown>(null);
   const [archiveMessage, setArchiveMessage] = useState<string | null>(null);
   const currentFiscalPeriod = appState.currentFiscalPeriod;
+  const bookFile = useOpenkkBookFile(currentFiscalPeriod);
 
   const suggested = useMemo(() => {
     if (currentFiscalPeriod == null)
@@ -177,7 +177,7 @@ export function NextFiscalPeriodBody({
     setIsCreating(true);
     let createdId: string | null = null;
     try {
-      const input = {
+      createdId = await appState.createNextFiscalPeriod({
         sourceFiscalPeriodId: currentFiscalPeriod.id,
         name,
         startDate,
@@ -185,12 +185,7 @@ export function NextFiscalPeriodBody({
         carryBalances: carries.bs,
         reversalEntryIds: carries.transfer ? reversalEntryIds : [],
         carryFixedAssets: carries.fixed,
-      };
-      if (createNextBook != null) {
-        await createNextBook(input);
-        return;
-      }
-      createdId = await appState.createNextFiscalPeriod(input);
+      });
       appState.assertAuthOperationCurrent(authOperationVersion);
       if (isEphemeral && currentArchived) {
         await appState.purgeArchivedFiscalPeriod(currentFiscalPeriod.id);
@@ -246,6 +241,30 @@ export function NextFiscalPeriodBody({
           fallbackUserMessage: "圧縮保存に失敗しました",
           fallbackDeveloperMessage:
             "steps/next-fiscal-period: archiveFiscalPeriod failed",
+          statusCode: null,
+        }),
+      );
+    } finally {
+      setIsArchiving(false);
+      release();
+    }
+  };
+
+  const handleBackup = async () => {
+    if (bookFile == null) return;
+    const release = workflowLock.current.tryAcquire();
+    if (release == null) return;
+    setIsArchiving(true);
+    try {
+      const result = await bookFile.save();
+      setArchiveMessage(result === "saved" ? "ファイルに保存しました" : null);
+      setScreenError(null);
+    } catch (error) {
+      setScreenError(
+        AppError.from(error, {
+          fallbackUserMessage: "バックアップをダウンロードできませんでした",
+          fallbackDeveloperMessage:
+            "steps/next-fiscal-period: book backup failed",
           statusCode: null,
         }),
       );
@@ -312,9 +331,6 @@ export function NextFiscalPeriodBody({
             }
             hint={null}
           />
-          {createNextBook != null ? (
-            <StepMetaRow label="保存先" value="新しい帳簿のファイル" divider />
-          ) : null}
         </StepMetaCard>
       </section>
 
@@ -493,53 +509,96 @@ export function NextFiscalPeriodBody({
 
       <StepSpacer height={44} />
 
-      <section>
-        <StepSectionLabel>長期保存</StepSectionLabel>
-        <StepMetaCard>
-          <StepMetaRow
-            label="圧縮保存"
-            value="手続きが終わった会計期間のデータを長期保存するには圧縮保存しておくことがおすすめです。"
-            divider={false}
-          />
-        </StepMetaCard>
-        <div
-          style={{
-            marginTop: 16,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "flex-end",
-            gap: 12,
-          }}
-        >
-          {archiveMessage != null ? (
-            <span
-              style={{
-                fontSize: fontSize.sm,
-                fontWeight: fontWeight.semibold,
-                color: palette.success,
-              }}
-            >
-              {archiveMessage}
-            </span>
-          ) : null}
-          {editingLocked ? (
-            <LockButton label="圧縮保存" />
-          ) : (
+      {bookFile != null ? (
+        <section>
+          <StepSectionLabel>バックアップ</StepSectionLabel>
+          <StepMetaCard>
+            <StepMetaRow
+              label="ファイル"
+              value={`この会計期間のデータを、そのままファイル (${bookFile.fileName}) としてダウンロードします。左上の「保存」と同じファイルで、期間の選択の「ファイル」から取り込めます。`}
+              divider={false}
+            />
+          </StepMetaCard>
+          <div
+            style={{
+              marginTop: 16,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "flex-end",
+              gap: 12,
+            }}
+          >
+            {archiveMessage != null ? (
+              <span
+                role="status"
+                style={{
+                  fontSize: fontSize.sm,
+                  fontWeight: fontWeight.semibold,
+                  color: palette.success,
+                }}
+              >
+                {archiveMessage}
+              </span>
+            ) : null}
             <StepPrimaryButton
-              onClick={handleArchive}
-              disabled={!canArchive}
+              onClick={handleBackup}
+              disabled={isArchiving || isCreating}
               variant="success"
               icon={null}
             >
-              {currentFiscalPeriod.archiveStatus !== "active"
-                ? "圧縮保存済み"
-                : isArchiving
-                  ? "保存中"
-                  : "圧縮保存"}
+              バックアップをダウンロード
             </StepPrimaryButton>
-          )}
-        </div>
-      </section>
+          </div>
+        </section>
+      ) : (
+        <section>
+          <StepSectionLabel>長期保存</StepSectionLabel>
+          <StepMetaCard>
+            <StepMetaRow
+              label="圧縮保存"
+              value="手続きが終わった会計期間のデータを長期保存するには圧縮保存しておくことがおすすめです。"
+              divider={false}
+            />
+          </StepMetaCard>
+          <div
+            style={{
+              marginTop: 16,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "flex-end",
+              gap: 12,
+            }}
+          >
+            {archiveMessage != null ? (
+              <span
+                style={{
+                  fontSize: fontSize.sm,
+                  fontWeight: fontWeight.semibold,
+                  color: palette.success,
+                }}
+              >
+                {archiveMessage}
+              </span>
+            ) : null}
+            {editingLocked ? (
+              <LockButton label="圧縮保存" />
+            ) : (
+              <StepPrimaryButton
+                onClick={handleArchive}
+                disabled={!canArchive}
+                variant="success"
+                icon={null}
+              >
+                {currentFiscalPeriod.archiveStatus !== "active"
+                  ? "圧縮保存済み"
+                  : isArchiving
+                    ? "保存中"
+                    : "圧縮保存"}
+              </StepPrimaryButton>
+            )}
+          </div>
+        </section>
+      )}
 
       {screenError != null ? (
         <div style={{ marginTop: 16 }}>

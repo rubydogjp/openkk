@@ -9,8 +9,9 @@ import {
   type FiscalPeriod,
 } from "@rubydogjp/openkk-client-domain";
 import {
+  useOpenkkAppState,
   useOpenkkAssist,
-  type OpeningCarryoverSource,
+  useOpenkkEntries,
 } from "@rubydogjp/openkk-client-usecases";
 import { AppErrorText } from "../../shared/app-error-text.js";
 import { useConfirmDialog } from "../../shared/confirm-dialog.js";
@@ -47,43 +48,60 @@ const DEFAULT_CARRY_ITEMS: CarryItems = {
   fixed: false,
 };
 
+export function carryoverSourceCandidates(
+  target: FiscalPeriod,
+  periods: FiscalPeriod[],
+): FiscalPeriod[] {
+  return periods
+    .filter(
+      (period) =>
+        period.id !== target.id &&
+        period.phase === "post_closing" &&
+        period.documentsReceivedCompleted &&
+        period.archiveStatus !== "purged" &&
+        period.endDate < target.startDate,
+    )
+    .sort((left, right) => right.endDate.localeCompare(left.endDate));
+}
+
 export function OpeningBsCarryover({
   target,
   sources,
 }: {
   target: FiscalPeriod;
-  sources: OpeningCarryoverSource[];
+  sources: FiscalPeriod[];
 }) {
+  const appState = useOpenkkAppState();
+  const entriesState = useOpenkkEntries();
   const assist = useOpenkkAssist();
   const { confirm, dialog } = useConfirmDialog();
   const [isOpen, setIsOpen] = useState(false);
-  const [sourceKey, setSourceKey] = useState(sources[0]?.key ?? "");
+  const [sourceId, setSourceId] = useState(sources[0]?.id ?? "");
   const [items, setItems] = useState<CarryItems>(DEFAULT_CARRY_ITEMS);
   const [reversalEntryIds, setReversalEntryIds] = useState<string[]>([]);
   const [sourceEntries, setSourceEntries] = useState<EntryRecord[]>([]);
   const [isApplying, setIsApplying] = useState(false);
   const [screenError, setScreenError] = useState<unknown>(null);
   const applyLock = useRef(new ExclusiveActionLock());
-  const source =
-    sources.find((candidate) => candidate.key === sourceKey) ?? null;
-  const latestSourceKey = sources[0]?.key ?? "";
+  const source = sources.find((period) => period.id === sourceId) ?? null;
+  const loadFiscalPeriodEntries = entriesState.loadFiscalPeriodEntries;
+  const latestSourceId = sources[0]?.id ?? "";
 
   useEffect(() => {
-    setSourceKey(latestSourceKey);
-  }, [target.id, latestSourceKey]);
+    setSourceId(latestSourceId);
+  }, [target.id, latestSourceId]);
 
   useEffect(() => {
     setReversalEntryIds([]);
     setSourceEntries([]);
-  }, [sourceKey, items.transfer]);
+  }, [sourceId, items.transfer]);
 
-  const loadSourceEntries = source?.loadEntries ?? null;
   useEffect(() => {
-    if (!isOpen || !items.transfer || loadSourceEntries == null) return;
+    if (!isOpen || !items.transfer || sourceId === "") return;
     let cancelled = false;
     void (async () => {
       try {
-        const loaded = await loadSourceEntries();
+        const loaded = await loadFiscalPeriodEntries(sourceId);
         if (!cancelled) setSourceEntries(loaded);
       } catch (error) {
         if (!cancelled) setScreenError(error);
@@ -92,7 +110,7 @@ export function OpeningBsCarryover({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, items.transfer, sourceKey]);
+  }, [isOpen, items.transfer, sourceId, loadFiscalPeriodEntries]);
 
   const reversalCandidates = useMemo(
     () => sourceEntries.filter(isOpeningCarryoverCandidate),
@@ -122,7 +140,7 @@ export function OpeningBsCarryover({
         tone: "danger",
         title: "前の期間から引き継ぐ",
         body: [
-          `「${source.label}」から次の項目を引き継ぎ、今の内容を上書きします。`,
+          `「${source.name}」から次の項目を引き継ぎ、今の内容を上書きします。`,
           ...replaced.map((label) => `・${label}`),
           "引き継いだ後も、仮締めまでは編集できます。",
         ],
@@ -130,7 +148,8 @@ export function OpeningBsCarryover({
       });
       if (!confirmed) return;
       setIsApplying(true);
-      await source.apply(target.id, {
+      await appState.applyCarryoverToFiscalPeriod(target.id, {
+        sourceFiscalPeriodId: source.id,
         carryBalances: items.bs,
         reversalEntryIds: items.transfer ? reversalEntryIds : null,
         carryFixedAssets: items.fixed,
@@ -165,13 +184,13 @@ export function OpeningBsCarryover({
           control={
             <select
               aria-label="引き継ぎ元"
-              value={sourceKey}
-              onChange={(event) => setSourceKey(event.target.value)}
+              value={sourceId}
+              onChange={(event) => setSourceId(event.target.value)}
               style={selectStyle}
             >
-              {sources.map((candidate) => (
-                <option key={candidate.key} value={candidate.key}>
-                  {candidate.label}
+              {sources.map((period) => (
+                <option key={period.id} value={period.id}>
+                  {period.name}
                 </option>
               ))}
             </select>

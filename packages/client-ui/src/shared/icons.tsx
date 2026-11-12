@@ -349,24 +349,3 @@ export function CloseIcon({ size, color }: IconProps) {
     </svg>
   );
 }
-
-export function FolderOpenIcon({ size, color }: IconProps) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <path
-        d="M3 7.5V18a2 2 0 0 0 2 2h12.6a2 2 0 0 0 1.9-1.4l2-6.1A1.5 1.5 0 0 0 20 10.5H8.4a2 2 0 0 0-1.9 1.4L4.5 18"
-        stroke={color}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M3 7.5V6a2 2 0 0 1 2-2h3.6l2 2H17a2 2 0 0 1 2 2v2.5"
-        stroke={color}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}

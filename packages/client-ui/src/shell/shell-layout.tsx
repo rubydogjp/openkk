@@ -18,7 +18,13 @@ import {
 } from "../shared/design-tokens.js";
 import { normalizePathname } from "../shared/pathname.js";
 import { DataLoadErrorBanner } from "./data-load-error-banner.js";
-import { DocumentStatusBanner } from "./document-status-banner.js";
+import {
+  ShellBookSave,
+  ShellBookSaveCompact,
+  useShellBookSave,
+} from "./book-save-button.js";
+import { BookStatusBanner } from "./book-status-banner.js";
+import { BookStorageNotice } from "./book-storage-notice.js";
 import { AppErrorText } from "../shared/app-error-text.js";
 import { useDismissibleLayer } from "../shared/dismissible-layer.js";
 import { MaintenanceScreen } from "./maintenance-content.js";
@@ -140,6 +146,9 @@ function ShellChrome({
   const navEnabled = contentMode !== "sign-in" && hasPeriod;
   const hasSession = contentMode !== "sign-in";
   const auth = useShellAuthActions();
+  const bookSave = useShellBookSave(
+    hasSession ? appState.currentFiscalPeriod : null,
+  );
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const sidebarRef = useDismissibleLayer<HTMLElement>({
@@ -202,10 +211,13 @@ function ShellChrome({
             fontSize: fontSize.md,
             fontWeight: fontWeight.bold,
             color: palette.text,
+            whiteSpace: "nowrap",
+            flexShrink: 0,
           }}
         >
           オープン会計
         </span>
+        {bookSave != null ? <ShellBookSaveCompact bookSave={bookSave} /> : null}
       </div>
 
       {drawerOpen ? (
@@ -249,8 +261,9 @@ function ShellChrome({
             style={{
               padding: "14px 12px 6px",
               display: "flex",
+              flexWrap: "wrap",
               alignItems: "center",
-              gap: 10,
+              gap: "6px 10px",
             }}
           >
             <img
@@ -260,34 +273,38 @@ function ShellChrome({
               height={28}
               style={{ display: "block", flexShrink: 0 }}
             />
-            <div style={{ minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: fontSize.md,
-                  fontWeight: fontWeight.bold,
-                  color: SHELL_PALETTE.titleColor,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                オープン会計
+            {bookSave != null ? (
+              <ShellBookSave bookSave={bookSave} />
+            ) : (
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: fontSize.md,
+                    fontWeight: fontWeight.bold,
+                    color: SHELL_PALETTE.titleColor,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  オープン会計
+                </div>
+                <div
+                  style={{
+                    marginTop: 1,
+                    fontSize: fontSize.xs,
+                    fontWeight: fontWeight.semibold,
+                    color: SHELL_PALETTE.subtitleColor,
+                    lineHeight: 1.2,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {openkkConfig.bundleLabel}
+                </div>
               </div>
-              <div
-                style={{
-                  marginTop: 1,
-                  fontSize: fontSize.xs,
-                  fontWeight: fontWeight.semibold,
-                  color: SHELL_PALETTE.subtitleColor,
-                  lineHeight: 1.2,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                {openkkConfig.bundleLabel}
-              </div>
-            </div>
+            )}
           </div>
 
           <ShellFiscalPeriodMenu pathname={pathname} enabled={navEnabled} />
@@ -331,11 +348,15 @@ function ShellChrome({
               />
             </div>
           ) : null}
-          <DocumentStatusBanner />
+          <BookStatusBanner
+            bookFile={bookSave?.bookFile ?? null}
+            onSave={bookSave?.save ?? null}
+          />
           <DataLoadErrorBanner />
           {children}
         </div>
       </main>
+      {hasSession ? <BookStorageNotice /> : null}
     </>
   );
 }

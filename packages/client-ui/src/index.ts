@@ -28,7 +28,6 @@ export * from "./shell/shell-layout.js";
 export * from "./shell/sign-in-content.js";
 export * from "./shell/fiscal-periods-content.js";
 export * from "./shell/maintenance-content.js";
-export * from "./shell/document-start-screen.js";
 
 export { EntriesPage } from "./routes/entries/entries-page.js";
 export { AssistPage } from "./routes/assist/assist-page.js";
