@@ -1,0 +1,44 @@
+{
+  "name": "@rubydogjp/openkk-document-db-adapter",
+  "version": "26.3.1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@rubydogjp/openkk-server-ports": "^26.3.1",
+    "@rubydogjp/openkk-sqlite-adapter": "^26.3.1",
+    "@sqlite.org/sqlite-wasm": "^3.50.0-build1"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "description": "オープン会計 OpenkkDbPort implementation that opens a whole book from SQLite file bytes (SQLite Wasm) and reports changes so the host can save the file",
+  "license": "MIT",
+  "author": "rbdog <rbdog@rubydog.jp>",
+  "homepage": "https://github.com/rubydogjp/openkk#readme",
+  "bugs": {
+    "url": "https://github.com/rubydogjp/openkk/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rubydogjp/openkk.git",
+    "directory": "packages/document-db-adapter"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.0",
+    "typescript": "^6.0.3"
+  }
+}
