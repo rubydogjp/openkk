@@ -9,15 +9,15 @@ import {
   importEntriesFromLegacyCsv,
   importEntriesFromJson,
   type EntryRecord as ClientEntryRecord,
-} from "../packages/client-domain/src/index.js";
-import { entryRecordToImportPayload } from "../packages/client-domain/src/entries/entry-input-mapping.js";
+} from "../packages/driver/src/domain/index.js";
+import { entryRecordToImportPayload } from "../packages/driver/src/domain/entries/entry-input-mapping.js";
 import { createMemoryDbAdapter } from "../packages/memory-db-adapter/src/index.js";
 import {
   buildCarryoverOpeningBalances,
   type Entry,
   type EntryLine,
-} from "../packages/server-domain/src/index.js";
-import { createOpenkkServer } from "../packages/server/src/index.js";
+} from "../packages/engine/src/domain/index.js";
+import { createOpenkkServer } from "../packages/backend-api/src/index.js";
 
 const OWNER_LOAN = "acct_proprietor_loan";
 const master = {

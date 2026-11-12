@@ -4,7 +4,7 @@
     {
       "label": "openkk: original",
       "type": "npm",
-      "script": "dev:vscode:openkk",
+      "script": "dev:vscode:original",
       "path": "./",
       "isBackground": true,
       "problemMatcher": {

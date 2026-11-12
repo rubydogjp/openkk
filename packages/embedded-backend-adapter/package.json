@@ -1,6 +1,7 @@
 {
   "name": "@rubydogjp/openkk-embedded-backend-adapter",
   "version": "26.3.1",
+  "private": true,
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -15,13 +16,14 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@rubydogjp/openkk-client-ports": "^26.3.1",
-    "@rubydogjp/openkk-embedded-backend": "^26.3.1"
+    "@rubydogjp/openkk-backend-api": "^26.3.1",
+    "@rubydogjp/openkk-driver": "^26.3.1",
+    "@rubydogjp/openkk-engine": "^26.3.1"
   },
   "devDependencies": {
     "typescript": "^6.0.3"
   },
-  "description": "オープン会計 OpenkkBackendPort implementation that wraps an in-process openkk-embedded-backend. Inject any OpenkkDbPort.",
+  "description": "オープン会計 OpenkkBackendPort implementation that calls backend-api and the engine in the same process. Inject any OpenkkDbPort.",
   "license": "MIT",
   "author": "rbdog <rbdog@rubydog.jp>",
   "homepage": "https://github.com/rubydogjp/openkk#readme",

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { parseArgs } from "node:util";
-import { AppError } from "@rubydogjp/openkk-client-domain";
+import { AppError } from "@rubydogjp/openkk-driver";
 
 import { openCliBackend } from "./backend.js";
 import {

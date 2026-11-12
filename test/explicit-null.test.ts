@@ -6,12 +6,12 @@ import { describe, expect, it } from "vitest";
 const packagesDir = path.resolve(import.meta.dirname, "../packages");
 const BUILDER_FILE = /(?:\.test\.tsx?$|^[^/]+\/test-support\/)/;
 const EXTERNAL_SHAPE_FILES = new Set([
-  "file-db-adapter/src/index.test.ts",
-  "file-db-adapter/src/sqlite.worker.ts",
-  "node-sqlite-db-adapter/src/index.ts",
-  "platform-browser-adapter/src/documents.ts",
-  "sqlite-adapter/src/migrate.test.ts",
-  "sqlite-adapter/src/sql-db.ts",
+  "legacy-db-adapter/src/index.test.ts",
+  "legacy-db-adapter/src/sqlite.worker.ts",
+  "disk-db-adapter/src/index.ts",
+  "browser-platform-adapter/src/documents.ts",
+  "sqlite-db-adapter/src/migrate.test.ts",
+  "sqlite-db-adapter/src/sql-db.ts",
 ]);
 
 function sourceFiles(dir: string): string[] {

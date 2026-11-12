@@ -2,9 +2,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import type { DbSnapshot } from "@rubydogjp/openkk-server-ports";
+import type { DbSnapshot } from "@rubydogjp/openkk-engine";
 
-import { createNodeSqliteDbAdapter } from "../../node-sqlite-db-adapter/src/index.js";
+import { createNodeSqliteDbAdapter } from "../../disk-db-adapter/src/index.js";
 import {
   createBooksDbAdapter,
   createMemoryBookStore,

@@ -46,9 +46,9 @@ if (options.includes("--from-arts")) {
 }
 const icons = JSON.parse(await readFile(sourcePath, "utf8"));
 const bundles = {
-  openkk: "openkk",
-  openkk_sim: "openkk",
-  openkk_demo: "openkk-demo",
+  original: "openkk",
+  sim: "openkk",
+  demo: "openkk-demo",
 };
 const stale = [];
 
@@ -125,7 +125,7 @@ for (const [bundle, name] of Object.entries(bundles)) {
   ) {
     throw new Error(`Invalid 8×8 icon: ${name}`);
   }
-  const base = `packages/${bundle}`;
+  const base = `packages/bundle-${bundle}`;
   await output(`${base}/app/icon.svg`, svg(pixels));
   const images = await Promise.all(
     [16, 32, 48].map(async (size) => ({

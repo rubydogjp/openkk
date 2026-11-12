@@ -1,9 +1,9 @@
-import { formatAmount } from "@rubydogjp/openkk-client-domain";
+import { formatAmount } from "@rubydogjp/openkk-driver";
 import type {
   FiscalPeriodApiRecord,
   OpeningBalanceLineApiRecord,
   OpenkkBackendPort,
-} from "@rubydogjp/openkk-client-ports";
+} from "@rubydogjp/openkk-driver";
 
 import { CliUsageError } from "./cli-io.js";
 import {

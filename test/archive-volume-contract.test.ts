@@ -4,9 +4,9 @@ import {
   buildFiscalPeriodArchivePayload,
   createFiscalPeriodArchiveZip,
   readFiscalPeriodArchiveZip,
-} from "../packages/client-domain/src/index.js";
+} from "../packages/driver/src/domain/index.js";
 import { createMemoryDbAdapter } from "../packages/memory-db-adapter/src/index.js";
-import { createOpenkkServer } from "../packages/server/src/index.js";
+import { createOpenkkServer } from "../packages/backend-api/src/index.js";
 
 it("restores an archive containing multiple entry import batches", async () => {
   const source = createOpenkkServer(await createMemoryDbAdapter(null), {

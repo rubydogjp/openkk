@@ -1,0 +1,33 @@
+"use client";
+
+import { createContext, useContext, type ReactNode } from "react";
+import { AppError } from "@rubydogjp/openkk-driver";
+import type { OpenkkBackendPort } from "@rubydogjp/openkk-driver";
+
+const BackendApiContext = createContext<OpenkkBackendPort | null>(null);
+
+export function BackendApiProvider(props: {
+  api: OpenkkBackendPort;
+  children: ReactNode;
+}) {
+  return (
+    <BackendApiContext.Provider value={props.api}>
+      {props.children}
+    </BackendApiContext.Provider>
+  );
+}
+
+export function useBackendApi(): OpenkkBackendPort {
+  const value = useContext(BackendApiContext);
+  if (value == null) {
+    throw new AppError({
+      messageForDeveloper:
+        "useBackendApi must be used within BackendApiProvider",
+      messageForUser: "アプリの初期化に失敗しました",
+      originalMessage: null,
+      statusCode: null,
+      code: null,
+    });
+  }
+  return value;
+}

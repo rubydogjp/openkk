@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { createDocumentDbAdapter } from "@rubydogjp/openkk-document-db-adapter";
+import { createDocumentDbAdapter } from "@rubydogjp/openkk-book-db-adapter";
 import type {
   DbSnapshot,
   FiscalPeriodDbRecord,
-} from "@rubydogjp/openkk-server-ports";
+} from "@rubydogjp/openkk-engine";
 
 import {
   closeTestBooks,

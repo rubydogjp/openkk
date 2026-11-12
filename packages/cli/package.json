@@ -19,11 +19,9 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@rubydogjp/openkk-client-domain": "^26.3.1",
-    "@rubydogjp/openkk-client-ports": "^26.3.1",
-    "@rubydogjp/openkk-embedded-backend": "^26.3.1",
-    "@rubydogjp/openkk-embedded-backend-adapter": "^26.3.1",
-    "@rubydogjp/openkk-node-sqlite-db-adapter": "^26.3.1"
+    "@rubydogjp/openkk-disk-db-adapter": "^26.3.1",
+    "@rubydogjp/openkk-driver": "^26.3.1",
+    "@rubydogjp/openkk-embedded-backend-adapter": "^26.3.1"
   },
   "files": [
     "dist"

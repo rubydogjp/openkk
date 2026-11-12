@@ -25,82 +25,64 @@ const packages = readdirSync(packagesDirectory, { withFileTypes: true })
       throw new Error(`Package name is missing: packages/${entry.name}`);
     }
     const dependencies = Object.keys(packageJson.dependencies ?? {}).filter(
-      (dependency) =>
-        dependency === "@rubydogjp/openkk" ||
-        dependency.startsWith("@rubydogjp/openkk-"),
+      (dependency) => dependency.startsWith("@rubydogjp/openkk-"),
     );
     return { name: packageJson.name, dependencies };
   })
   .sort((left, right) => left.name.localeCompare(right.name));
 
+const SCOPE_PREFIX = "@rubydogjp/openkk-";
+const DRIVER_PORTS = ["backend", "print", "platform", "book-files"];
+
+function boxName(name) {
+  return name.slice(SCOPE_PREFIX.length);
+}
+
+function isAdapterOf(name, ports) {
+  return ports.some((port) => boxName(name).endsWith(`-${port}-adapter`));
+}
+
 const LAYERS = [
   {
-    id: "app",
-    label: "App",
-    note: "リファレンスアプリ (Web 3つと CLI)。consumer が自前アプリに差し替える",
-    match: (name) =>
-      name === "@rubydogjp/openkk" ||
-      name === "@rubydogjp/openkk-sim" ||
-      name === "@rubydogjp/openkk-demo" ||
-      name === "@rubydogjp/openkk-cli",
+    id: "bundle",
+    label: "製品 (bundle-*)",
+    note: "動く形・口の実装・設定を選んで束ねた、利用者から見た 1 つの製品。コマンドの `cli` は、入口・動く形・製品に分ける前の箱",
+    match: (name) => /^bundle-/.test(boxName(name)) || boxName(name) === "cli",
   },
   {
-    id: "app_support",
-    label: "App Support",
-    note: "3アプリで共有する bundle 非依存の runtime composition",
-    match: (name) => name === "@rubydogjp/openkk-frontend",
+    id: "runtime",
+    label: "動く形 (client-*・server-*)",
+    note: "入口を、ある環境で動かすための薄い箱",
+    match: (name) => /^(?:client|server)-/.test(boxName(name)),
   },
   {
-    id: "client_adapters",
-    label: "Client Adapters",
-    note: "`OpenkkBackendPort` / `OpenkkBookFilesPort` / `PrintPort` / `PlatformPort` の実装群。consumer は backend adapter を差し替える",
-    match: (name) =>
-      name === "@rubydogjp/openkk-embedded-backend-adapter" ||
-      name === "@rubydogjp/openkk-book-files-adapter" ||
-      name === "@rubydogjp/openkk-print-adapter" ||
-      name === "@rubydogjp/openkk-platform-browser-adapter",
+    id: "entry",
+    label: "入口 (frontend-*・backend-*)",
+    note: "中身を、画面 (ui)・コマンド (cli)・呼び出し (api) のどれかの形で受けるもの",
+    match: (name) => /^(?:frontend|backend)-/.test(boxName(name)),
   },
   {
-    id: "client",
-    label: "Client",
-    note: "UI アプリが消費する layer 群。consumer がそのまま流用する",
-    match: (name) =>
-      name === "@rubydogjp/openkk-client" ||
-      name.startsWith("@rubydogjp/openkk-client-"),
+    id: "driver_adapter",
+    label: "口の実装 (driver の口)",
+    note: "`driver` が外に求める口 (backend・print・platform・book-files) の実装。利用側は backend の実装を差し替える",
+    match: (name) => isAdapterOf(name, DRIVER_PORTS),
   },
   {
-    id: "embedded_backend",
-    label: "Embedded Backend",
-    note: "in-process バックエンドの composition root。クラウド利用時は不要",
-    match: (name) => name === "@rubydogjp/openkk-embedded-backend",
+    id: "engine_adapter",
+    label: "口の実装 (engine の口)",
+    note: "`engine` が外に求める口 (db) の実装。サーバーを別に持つ製品では使わない",
+    match: (name) => isAdapterOf(name, ["db"]),
   },
   {
-    id: "server_adapters",
-    label: "Server Adapters",
-    note: "`OpenkkDbPort` の実装群。クラウド利用時は不要",
-    match: (name) =>
-      name === "@rubydogjp/openkk-file-db-adapter" ||
-      name === "@rubydogjp/openkk-sqlite-adapter" ||
-      name === "@rubydogjp/openkk-memory-db-adapter" ||
-      name === "@rubydogjp/openkk-node-sqlite-db-adapter" ||
-      name === "@rubydogjp/openkk-document-db-adapter" ||
-      name === "@rubydogjp/openkk-books-db-adapter",
-  },
-  {
-    id: "server",
-    label: "Server",
-    note: "server-side host が消費する layer 群。クラウド利用時は不要",
-    match: (name) =>
-      name === "@rubydogjp/openkk-server" ||
-      name.startsWith("@rubydogjp/openkk-server-"),
+    id: "core",
+    label: "中身 (driver・engine)",
+    note: "決まり・手続き・外に求める口。`driver` が使う側、`engine` が受ける側。入口の形も、動かす場所も知らない",
+    match: (name) => boxName(name) === "driver" || boxName(name) === "engine",
   },
 ];
 
 function shortName(name) {
-  if (name === "@rubydogjp/openkk") return "openkk";
-  if (name === "@rubydogjp/openkk-sim") return "openkk-sim";
-  if (name === "@rubydogjp/openkk-demo") return "openkk-demo";
-  return name.replace(/^@rubydogjp\/openkk-/, "");
+  return boxName(name);
 }
 
 function resolveLayerId(name) {
@@ -216,13 +198,13 @@ const content = await formatGenerated(
   outputPath,
   `# オープン会計 dependency graph
 
-オープン会計 配下の各 npm パッケージが互いをどう依存しているかをまとめた図です。
-パッケージは全て \`@rubydogjp/\` scope。\`@rubydogjp/openkk\` がメイン (= App composition root)、それ以外は \`@rubydogjp/openkk-<short>\` 形式。
+オープン会計 の箱 (パッケージ) が互いをどう使うかをまとめた図です。
+箱の名前は \`@rubydogjp/openkk-<箱の名前>\` です。箱の種類と中の層は [\`architecture.md\`](./architecture.md) にあります。
 
 ## Mermaid graph
 
 GitHub・VSCode の Markdown preview で Mermaid がそのまま render されます。
-LR (left-to-right) 方向: 左ほど上位 (composition root)、右ほど下位 (pure domain)。
+LR (left-to-right) 方向: 左ほど製品に近く、右ほど中身に近い。
 
 ${mermaidBlock}
 
@@ -232,24 +214,24 @@ ${mermaidBlock}
 |---|---|
 ${layerDescriptionLines}
 
-> **Consumer app が差し替える範囲**
-> - **App** グループ → 丸ごと差し替える (自前アプリ)
-> - **App Support** → 共通 runtime composition を流用するか自前の配線へ差し替える
-> - **Client Adapters** の \`embedded-backend-adapter\` → 自社 HTTP adapter に差し替える
-> - **Client** グループ → そのまま流用 (OSS の恩恵)
-> - **Embedded Backend / Server Adapters / Server** → 使わない (バックエンドは Cloud Run 等)
+> **利用側が差し替える範囲**
+> - **製品** → 丸ごと差し替える (自前の製品)
+> - **動く形** → そのまま使うか、自前の配線に差し替える
+> - **口の実装 (driver の口)** の \`embedded-backend-adapter\` → 自前の HTTP の実装に差し替える
+> - **入口 (frontend-*)** と \`driver\` → そのまま使う
+> - **backend-api・engine・口の実装 (engine の口)** → サーバーを別に持つ製品では使わない
 
-## Port interface 命名規則
+## 口と実装
 
-\`*-ports\` パッケージで定義される interface は **Port** サフィックス、実装パッケージは **Adapter** サフィックスで区別する。
+中身の箱が外に求める口は **Port**、実装の箱は \`<相手>-<口>-adapter\` と名付ける。
 
-| Interface (Port) | 定義場所 | 実装パッケージ |
-|---|---|---|
-| \`OpenkkBackendPort\` | \`client-ports\` | \`embedded-backend-adapter\`、consumer 独自 HTTP adapter |
-| \`PrintPort\` | \`client-ports\` | \`print-adapter\` |
-| \`PlatformPort\` | \`client-ports\` | \`platform-browser-adapter\` |
-| \`OpenkkDbPort\` | \`server-ports\` | \`file-db-adapter\`、\`memory-db-adapter\` |
-| \`OpenkkServerPort\` | \`server-ports\` | \`server-api\` (via \`server\` meta) |
+| 口 | Interface | 定める箱 | 実装の箱 |
+|---|---|---|---|
+| backend | \`OpenkkBackendPort\` | \`driver\` | \`embedded-backend-adapter\`、利用側の HTTP の実装 |
+| print | \`PrintPort\` | \`driver\` | \`browser-print-adapter\` |
+| platform | \`PlatformPort\` | \`driver\` | \`browser-platform-adapter\` |
+| book-files | \`OpenkkBookFilesPort\` | \`driver\` | \`local-book-files-adapter\` |
+| db | \`OpenkkDbPort\` | \`engine\` | \`memory-db-adapter\`、\`books-db-adapter\`、\`book-db-adapter\`、\`disk-db-adapter\`、\`legacy-db-adapter\` (共通の実装は \`sqlite-db-adapter\`) |
 
 ## Per-package table
 

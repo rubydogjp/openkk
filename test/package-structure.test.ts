@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
-import { runMigrations } from "@rubydogjp/openkk-sqlite-adapter";
+import { runMigrations } from "@rubydogjp/openkk-sqlite-db-adapter";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
@@ -10,14 +10,15 @@ const rootDir = path.resolve(import.meta.dirname, "..");
 const packagesDir = path.join(rootDir, "packages");
 const rootLicense = fs.readFileSync(path.join(rootDir, "LICENSE"), "utf8");
 
-const APP_DIRS = new Set(["openkk", "openkk_sim", "openkk_demo"]);
-const UNPUBLISHED_BETA_DIRS = new Set([
-  "cli",
-  "node-sqlite-db-adapter",
-  "document-db-adapter",
-  "books-db-adapter",
-  "book-files-adapter",
-]);
+const BOX_KINDS = ["core", "entry", "runtime", "adapter", "bundle"] as const;
+type BoxKind = (typeof BOX_KINDS)[number];
+const CALLING_SIDE = "calling";
+const RECORDING_SIDE = "recording";
+const DRIVER_PORTS = ["backend", "print", "platform", "book-files"];
+const ENGINE_PORTS = ["db"];
+const SAME_PROCESS_BRIDGE_PORTS = ["backend", "book-files"];
+const BOXES_AWAITING_SPLIT = new Set(["cli"]);
+const PACKAGE_DIRS_RELEASED_TO_NPM = new Set<string>();
 const rootPackageJson = readJson(path.join(rootDir, "package.json"));
 const workspaceNames = rootPackageJson.workspaces.map((workspace: string) =>
   workspace.replace(/^packages\//, ""),
@@ -42,7 +43,7 @@ const packageNameToDir = new Map(
 describe("openkk workspace structure", () => {
   it("loads every published JavaScript entry point in Node.js", () => {
     const entries = packageRecords
-      .filter((record) => !APP_DIRS.has(record.packageDir))
+      .filter((record) => !isBundle(record.packageDir))
       .flatMap(({ packageJson }) =>
         Object.entries(packageJson.exports)
           .filter(([, target]) => typeof target === "object")
@@ -71,11 +72,11 @@ describe("openkk workspace structure", () => {
 
   it("keeps library packages on the same public entry shape", () => {
     for (const record of packageRecords.filter(
-      (item) => !APP_DIRS.has(item.packageDir),
+      (item) => !isBundle(item.packageDir),
     )) {
       expect(record.packageJson.name).toBe(packageName(record.packageDir));
       expect(record.packageJson.private).toBe(
-        UNPUBLISHED_BETA_DIRS.has(record.packageDir) ? true : undefined,
+        PACKAGE_DIRS_RELEASED_TO_NPM.has(record.packageDir) ? undefined : true,
       );
       expect(record.packageJson.main).toBe("./dist/index.js");
       expect(record.packageJson.types).toBe("./dist/index.d.ts");
@@ -104,7 +105,7 @@ describe("openkk workspace structure", () => {
     const offenders: string[] = [];
 
     for (const record of packageRecords.filter(
-      (item) => !APP_DIRS.has(item.packageDir),
+      (item) => !isBundle(item.packageDir),
     )) {
       for (const file of sourceFiles(path.join(record.dir, "src"))) {
         const source = fs.readFileSync(file, "utf8");
@@ -123,15 +124,15 @@ describe("openkk workspace structure", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("keeps style subpath exports limited to client packages", () => {
+  it("keeps the style subpath export limited to frontend-ui", () => {
     for (const record of packageRecords) {
       const styleExport = record.packageJson.exports?.["./styles.css"];
-      if (record.packageDir === "client" || record.packageDir === "client-ui") {
+      if (record.packageDir === "frontend-ui") {
         expect(styleExport).toBe("./dist/styles.css");
         expect(fs.existsSync(path.join(record.dir, "src/styles.css"))).toBe(
           true,
         );
-      } else if (!APP_DIRS.has(record.packageDir)) {
+      } else if (!isBundle(record.packageDir)) {
         expect(styleExport).toBeUndefined();
       }
     }
@@ -140,7 +141,7 @@ describe("openkk workspace structure", () => {
   it("keeps tsconfig layout predictable", () => {
     for (const record of packageRecords) {
       expect(record.tsconfig.extends).toBe("../../tsconfig.base.json");
-      if (APP_DIRS.has(record.packageDir)) {
+      if (isBundle(record.packageDir)) {
         expect(record.tsconfig.compilerOptions.jsx).toBe("preserve");
         expect(record.tsconfig.include).toContain("**/*.tsx");
       } else {
@@ -168,80 +169,69 @@ describe("openkk workspace structure", () => {
     }
   });
 
-  it("keeps production imports within declared layer dependencies", () => {
-    const allowedLayers: Record<string, string[]> = {
-      "client-domain": [],
-      "client-ports": ["client-domain"],
-      "client-usecases": ["client-domain", "client-ports"],
-      "client-ui": ["client-domain", "client-usecases"],
-      client: ["client-domain", "client-ports", "client-usecases", "client-ui"],
-      "server-domain": [],
-      "server-ports": ["server-domain"],
-      "server-usecases": ["server-domain", "server-ports"],
-      "server-api": ["server-domain", "server-ports", "server-usecases"],
-      server: [
-        "server-domain",
-        "server-ports",
-        "server-usecases",
-        "server-api",
+  it("names every package after one of the five box kinds", () => {
+    for (const packageDir of packageDirs) {
+      if (BOXES_AWAITING_SPLIT.has(packageDir)) continue;
+      expect(BOX_KINDS, packageDir).toContain(boxKind(packageDir));
+    }
+    for (const packageDir of packageDirs.filter(
+      (item) => boxKind(item) === "adapter",
+    )) {
+      expect(
+        [...DRIVER_PORTS, ...ENGINE_PORTS],
+        packageDir + " must be named <counterpart>-<port>-adapter",
+      ).toContain(adapterPort(packageDir));
+    }
+  });
+
+  it("keeps production imports within the declared box dependencies", () => {
+    const sqliteBackedDb = ["engine", "sqlite-db-adapter"];
+    const browserBundle = [
+      "driver",
+      "frontend-ui",
+      "client-browser",
+      "embedded-backend-adapter",
+    ];
+    const allowedBoxes: Record<string, string[]> = {
+      driver: [],
+      engine: [],
+      "frontend-ui": ["driver"],
+      "backend-api": ["engine"],
+      "client-browser": [
+        "driver",
+        "frontend-ui",
+        "browser-print-adapter",
+        "browser-platform-adapter",
       ],
-      "sqlite-adapter": ["server-domain", "server-ports"],
-      "file-db-adapter": ["server-ports", "sqlite-adapter"],
-      "memory-db-adapter": ["server-ports", "sqlite-adapter"],
-      "node-sqlite-db-adapter": ["server-ports", "sqlite-adapter"],
-      "document-db-adapter": ["server-ports", "sqlite-adapter"],
-      "books-db-adapter": [
-        "server-domain",
-        "server-ports",
-        "sqlite-adapter",
-        "document-db-adapter",
-      ],
-      "book-files-adapter": [
-        "client-ports",
+      "sqlite-db-adapter": ["engine"],
+      "memory-db-adapter": sqliteBackedDb,
+      "disk-db-adapter": sqliteBackedDb,
+      "book-db-adapter": sqliteBackedDb,
+      "legacy-db-adapter": sqliteBackedDb,
+      "books-db-adapter": [...sqliteBackedDb, "book-db-adapter"],
+      "embedded-backend-adapter": ["driver", "backend-api", "engine"],
+      "browser-print-adapter": ["driver"],
+      "browser-platform-adapter": ["driver"],
+      "local-book-files-adapter": [
+        "driver",
         "books-db-adapter",
-        "document-db-adapter",
+        "book-db-adapter",
       ],
-      "embedded-backend": ["server"],
-      "embedded-backend-adapter": ["client-ports", "embedded-backend"],
-      cli: [
-        "client-domain",
-        "client-ports",
-        "embedded-backend",
-        "embedded-backend-adapter",
-        "node-sqlite-db-adapter",
-      ],
-      "print-adapter": ["client-ports"],
-      "platform-browser-adapter": ["client-ports"],
-      frontend: ["client", "print-adapter", "platform-browser-adapter"],
-      openkk: [
-        "client",
-        "frontend",
-        "embedded-backend",
-        "embedded-backend-adapter",
-        "file-db-adapter",
+      cli: ["driver", "embedded-backend-adapter", "disk-db-adapter"],
+      "bundle-original": [
+        ...browserBundle,
         "books-db-adapter",
-        "book-files-adapter",
-        "platform-browser-adapter",
+        "legacy-db-adapter",
+        "local-book-files-adapter",
+        "browser-platform-adapter",
       ],
-      openkk_sim: [
-        "client",
-        "frontend",
-        "embedded-backend",
-        "embedded-backend-adapter",
-        "memory-db-adapter",
-      ],
-      openkk_demo: [
-        "client",
-        "frontend",
-        "embedded-backend",
-        "embedded-backend-adapter",
-        "memory-db-adapter",
-      ],
+      "bundle-sim": [...browserBundle, "memory-db-adapter"],
+      "bundle-demo": [...browserBundle, "memory-db-adapter"],
     };
-    expect(Object.keys(allowedLayers).sort()).toEqual(packageDirs);
+    expect(Object.keys(allowedBoxes).sort()).toEqual(packageDirs);
     for (const record of packageRecords) {
       const allowed = new Set(
-        allowedLayers[record.packageDir]!.map(packageName),
+        allowedBoxes[record.packageDir]!.map(packageName),
       );
       const declared = new Set([
         ...Object.keys(record.packageJson.dependencies ?? {}),
@@ -268,61 +258,75 @@ describe("openkk workspace structure", () => {
     }
   });
 
-  it("apps consume client-* / server-* only via the meta barrels", () => {
-    const CLIENT_SUBPACKAGES = [
-      "@rubydogjp/openkk-client-domain",
-      "@rubydogjp/openkk-client-ports",
-      "@rubydogjp/openkk-client-usecases",
-      "@rubydogjp/openkk-client-ui",
-    ];
-    const SERVER_SUBPACKAGES = [
-      "@rubydogjp/openkk-server-domain",
-      "@rubydogjp/openkk-server-ports",
-      "@rubydogjp/openkk-server-usecases",
-      "@rubydogjp/openkk-server-api",
-    ];
-    const ADAPTER_EXEMPTIONS = new Set([
-      "embedded-backend-adapter",
-      "print-adapter",
-      "platform-browser-adapter",
-      "file-db-adapter",
-      "memory-db-adapter",
-      "node-sqlite-db-adapter",
-      "document-db-adapter",
-      "books-db-adapter",
-      "book-files-adapter",
-      "sqlite-adapter",
-    ]);
-    const REACT_FREE_COMPOSITION_ROOTS = new Set(["cli"]);
+  it("keeps the core boxes free of frameworks and of each other", () => {
+    for (const record of packageRecords.filter(
+      (item) => boxKind(item.packageDir) === "core",
+    )) {
+      expect(record.packageJson.dependencies, record.packageDir).toBe(
+        undefined,
+      );
+      expect(record.packageJson.peerDependencies, record.packageDir).toBe(
+        undefined,
+      );
+    }
+  });
+
+  it("keeps the calling side and the recording side from importing each other", () => {
     for (const record of packageRecords) {
-      if (ADAPTER_EXEMPTIONS.has(record.packageDir)) continue;
-      if (record.packageDir === "client" || record.packageDir === "server") {
-        continue;
-      }
-      const isClientLayer = record.packageDir.startsWith("client-");
-      const isServerLayer = record.packageDir.startsWith("server-");
-      const forbidden = new Set<string>([
-        ...(isClientLayer || REACT_FREE_COMPOSITION_ROOTS.has(record.packageDir)
-          ? []
-          : CLIENT_SUBPACKAGES),
-        ...(isServerLayer ? [] : SERVER_SUBPACKAGES),
-      ]);
-      const internalImports = findInternalImports(record.dir, true);
-      for (const importedPackage of internalImports) {
+      const side = boxSide(record.packageDir);
+      if (side == null) continue;
+      for (const importedPackage of findInternalImports(record.dir, true)) {
+        const importedSide = boxSide(packageNameToDir.get(importedPackage)!);
         expect(
-          forbidden.has(importedPackage),
-          `${record.packageJson.name} must not import ${importedPackage} directly — use the @rubydogjp/openkk-client or @rubydogjp/openkk-server meta barrel instead`,
-        ).toBe(false);
+          importedSide == null || importedSide === side,
+          record.packageDir + " -> " + importedPackage,
+        ).toBe(true);
       }
     }
   });
 
-  it("keeps client/server REST boundary type names in sync", () => {
+  it("keeps the layers inside a box pointing inward", () => {
+    const coreLayers = {
+      domain: ["domain"],
+      ports: ["ports", "domain"],
+      usecases: ["usecases", "ports", "domain"],
+    };
+    const layersByBox: Record<string, Record<string, string[]>> = {
+      driver: coreLayers,
+      engine: coreLayers,
+      "frontend-ui": { bindings: ["bindings"] },
+    };
+    const offenders: string[] = [];
+    for (const [packageDir, layers] of Object.entries(layersByBox)) {
+      const srcDir = path.join(packagesDir, packageDir, "src");
+      for (const layer of Object.keys(layers)) {
+        const layerDir = path.join(srcDir, layer);
+        for (const file of sourceFiles(layerDir)) {
+          if (/\.test\.tsx?$/.test(file)) continue;
+          for (const specifier of relativeSpecifiers(file)) {
+            const target = path.resolve(path.dirname(file), specifier);
+            if (!target.startsWith(srcDir + path.sep)) continue;
+            const targetLayer = path
+              .relative(srcDir, target)
+              .split(path.sep)[0]!;
+            if (!layers[layer]!.includes(targetLayer)) {
+              offenders.push(
+                `${path.relative(rootDir, file)} -> ${targetLayer}`,
+              );
+            }
+          }
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("keeps the driver/engine REST boundary type names in sync", () => {
     const clientTypes = exportedTypeNames(
-      path.join(packagesDir, "client-ports/src/backend-api/types.ts"),
+      path.join(packagesDir, "driver/src/ports/backend/types.ts"),
     );
     const serverTypes = exportedTypeNames(
-      path.join(packagesDir, "server-ports/src/types.ts"),
+      path.join(packagesDir, "engine/src/ports/types.ts"),
     );
     const restBoundaryName =
       /(?:Request|Response|ApiRecord|Input|ApiErrorDto)$/;
@@ -337,12 +341,12 @@ describe("openkk workspace structure", () => {
     expect(clientBoundaryTypes).toEqual(serverBoundaryTypes);
   });
 
-  it("keeps client/server REST boundary type and interface BODIES in sync", () => {
+  it("keeps the driver/engine REST boundary type and interface BODIES in sync", () => {
     const clientBodies = typeBodies(
-      path.join(packagesDir, "client-ports/src/backend-api/types.ts"),
+      path.join(packagesDir, "driver/src/ports/backend/types.ts"),
     );
     const serverBodies = typeBodies(
-      path.join(packagesDir, "server-ports/src/types.ts"),
+      path.join(packagesDir, "engine/src/ports/types.ts"),
     );
     const restBoundaryName =
       /(?:Request|Response|ApiRecord|Input|ApiErrorDto)$/;
@@ -365,17 +369,17 @@ describe("openkk workspace structure", () => {
       if (!serverBodies.has(name)) continue;
       expect(
         serverBodies.get(name),
-        `${name} の本文が client-ports と server-ports で食い違っています`,
+        `${name} の本文が driver と engine で食い違っています`,
       ).toBe(clientBodies.get(name));
     }
   });
 
-  it("keeps client/server HTTP endpoint metadata in sync", () => {
+  it("keeps the driver/engine HTTP endpoint metadata in sync", () => {
     const clientEndpoints = endpointMetadata(
-      path.join(packagesDir, "client-ports/src/backend-api/types.ts"),
+      path.join(packagesDir, "driver/src/ports/backend/types.ts"),
     );
     const serverEndpoints = endpointMetadata(
-      path.join(packagesDir, "server-ports/src/types.ts"),
+      path.join(packagesDir, "engine/src/ports/types.ts"),
     );
 
     expect(clientEndpoints).toEqual(serverEndpoints);
@@ -383,15 +387,15 @@ describe("openkk workspace structure", () => {
 
   it("keeps persistence types independent from REST DTOs", () => {
     const persistenceTypes = fs.readFileSync(
-      path.join(packagesDir, "server-ports/src/persistence-types.ts"),
+      path.join(packagesDir, "engine/src/ports/persistence-types.ts"),
       "utf8",
     );
     const dbPort = fs.readFileSync(
-      path.join(packagesDir, "server-ports/src/db-port.ts"),
+      path.join(packagesDir, "engine/src/ports/db-port.ts"),
       "utf8",
     );
     const sqliteAdapter = fs.readFileSync(
-      path.join(packagesDir, "sqlite-adapter/src/adapter.ts"),
+      path.join(packagesDir, "sqlite-db-adapter/src/adapter.ts"),
       "utf8",
     );
 
@@ -423,9 +427,62 @@ describe("openkk workspace structure", () => {
 });
 
 function packageName(packageDir: string): string {
-  return packageDir === "openkk"
-    ? "@rubydogjp/openkk"
-    : `@rubydogjp/openkk-${packageDir}`;
+  return `@rubydogjp/openkk-${packageDir}`;
+}
+
+function boxKind(packageDir: string): BoxKind | null {
+  if (packageDir === "driver" || packageDir === "engine") return "core";
+  if (/^(?:frontend|backend)-[a-z]+$/.test(packageDir)) return "entry";
+  if (/^(?:client|server)-[a-z]+$/.test(packageDir)) return "runtime";
+  if (/^[a-z]+-[a-z-]+-adapter$/.test(packageDir)) return "adapter";
+  if (/^bundle-[a-z]+$/.test(packageDir)) return "bundle";
+  return null;
+}
+
+function isBundle(packageDir: string): boolean {
+  return boxKind(packageDir) === "bundle";
+}
+
+function adapterPort(packageDir: string): string | null {
+  return (
+    [...DRIVER_PORTS, ...ENGINE_PORTS].find((port) =>
+      packageDir.endsWith(`-${port}-adapter`),
+    ) ?? null
+  );
+}
+
+function boxSide(packageDir: string): string | null {
+  if (packageDir === "driver") return CALLING_SIDE;
+  if (packageDir === "engine") return RECORDING_SIDE;
+  if (/^(?:frontend|client)-/.test(packageDir)) return CALLING_SIDE;
+  if (/^(?:backend|server)-/.test(packageDir)) return RECORDING_SIDE;
+  if (boxKind(packageDir) !== "adapter") return null;
+  const port = adapterPort(packageDir)!;
+  if (SAME_PROCESS_BRIDGE_PORTS.includes(port)) return null;
+  return ENGINE_PORTS.includes(port) ? RECORDING_SIDE : CALLING_SIDE;
+}
+
+function relativeSpecifiers(file: string): string[] {
+  const ast = ts.createSourceFile(
+    file,
+    fs.readFileSync(file, "utf8"),
+    ts.ScriptTarget.Latest,
+    true,
+  );
+  const out: string[] = [];
+  function visit(node: ts.Node): void {
+    if (
+      (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+      node.moduleSpecifier != null &&
+      ts.isStringLiteral(node.moduleSpecifier) &&
+      node.moduleSpecifier.text.startsWith(".")
+    ) {
+      out.push(node.moduleSpecifier.text);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(ast);
+  return out;
 }
 
 function readJson(file: string) {

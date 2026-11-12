@@ -1,0 +1,45 @@
+{
+  "name": "@rubydogjp/openkk-bundle-original",
+  "version": "26.3.1",
+  "private": true,
+  "type": "module",
+  "description": "オープン会計 runnable Next.js app: open-source double-entry bookkeeping for sole proprietors.",
+  "license": "MIT",
+  "author": "rbdog <rbdog@rubydog.jp>",
+  "homepage": "https://github.com/rubydogjp/openkk#readme",
+  "bugs": {
+    "url": "https://github.com/rubydogjp/openkk/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rubydogjp/openkk.git",
+    "directory": "packages/bundle-original"
+  },
+  "scripts": {
+    "prebuild": "node ../../scripts/gen-service-workers.mjs --bundle=original",
+    "dev": "next dev --port 4322",
+    "dev:vscode": "next dev --hostname localhost --port 4322",
+    "build": "next build",
+    "start": "next start",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@rubydogjp/openkk-books-db-adapter": "^26.3.1",
+    "@rubydogjp/openkk-browser-platform-adapter": "^26.3.1",
+    "@rubydogjp/openkk-client-browser": "^26.3.1",
+    "@rubydogjp/openkk-driver": "^26.3.1",
+    "@rubydogjp/openkk-embedded-backend-adapter": "^26.3.1",
+    "@rubydogjp/openkk-frontend-ui": "^26.3.1",
+    "@rubydogjp/openkk-legacy-db-adapter": "^26.3.1",
+    "@rubydogjp/openkk-local-book-files-adapter": "^26.3.1",
+    "next": "^16.4.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "typescript": "^6.0.3"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "name": "@rubydogjp/openkk-legacy-db-adapter",
+  "version": "26.3.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@rubydogjp/openkk-engine": "^26.3.1",
+    "@rubydogjp/openkk-sqlite-db-adapter": "^26.3.1",
+    "@sqlite.org/sqlite-wasm": "^3.50.0-build1"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  },
+  "description": "オープン会計 OpenkkDbPort implementation for the single OPFS database used up to 26.3 (SQLite Wasm + OPFS). Kept to read and move old data",
+  "license": "MIT",
+  "author": "rbdog <rbdog@rubydog.jp>",
+  "homepage": "https://github.com/rubydogjp/openkk#readme",
+  "bugs": {
+    "url": "https://github.com/rubydogjp/openkk/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rubydogjp/openkk.git",
+    "directory": "packages/legacy-db-adapter"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

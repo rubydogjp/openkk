@@ -1,7 +1,9 @@
-import type { OpenkkBackendPort } from "@rubydogjp/openkk-client-ports";
-import { createOpenkkEmbeddedBackend } from "@rubydogjp/openkk-embedded-backend";
-import { createOpenkkEmbeddedBackendAdapter } from "@rubydogjp/openkk-embedded-backend-adapter";
-import { createNodeSqliteDbAdapter } from "@rubydogjp/openkk-node-sqlite-db-adapter";
+import type { OpenkkBackendPort } from "@rubydogjp/openkk-driver";
+import {
+  createOpenkkEmbeddedBackend,
+  createOpenkkEmbeddedBackendAdapter,
+} from "@rubydogjp/openkk-embedded-backend-adapter";
+import { createNodeSqliteDbAdapter } from "@rubydogjp/openkk-disk-db-adapter";
 
 export type CliBackend = {
   api: OpenkkBackendPort;

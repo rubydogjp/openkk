@@ -1,12 +1,12 @@
 import {
   createDocumentDbAdapter,
   type DocumentDbAdapter,
-} from "@rubydogjp/openkk-document-db-adapter";
+} from "@rubydogjp/openkk-book-db-adapter";
 import type {
   EntryDbRecord,
   FiscalPeriodDbRecord,
   FixedAssetDbRecord,
-} from "@rubydogjp/openkk-server-ports";
+} from "@rubydogjp/openkk-engine";
 
 export type BookFilePeriod = {
   fiscalPeriod: FiscalPeriodDbRecord;

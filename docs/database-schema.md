@@ -1,6 +1,6 @@
 # Database Schema
 
-標準実装の SQLite スキーマ。DDL の正本は `packages/sqlite-adapter/src/schema.ts`。
+標準実装の SQLite スキーマ。DDL の正本は `packages/sqlite-db-adapter/src/schema.ts`。
 
 ```mermaid
 erDiagram
@@ -85,7 +85,7 @@ erDiagram
 
 Indexes: `fiscal_periods(user_id, created_at, id)`, 期首データ各行の表示順、`entries(fiscal_period_id, date, created_at, id)`, `fixed_assets(fiscal_period_id, created_at, id)`。`entries.local_id` は `null` 以外なら期間内で一意。
 
-`openkk_meta` は `schema_version` と `last_changed_at` を持つ。`last_changed_at` は帳簿の中身を最後に変えた時刻 (ミリ秒) で、行を変えたトランザクションの中で `sqlite-adapter` の `runInTransaction` が更新する。前の値より必ず大きくするので、時計がずれた端末で変えても順序が戻らない。無印版はこの値で、ファイルに保存したあとに変更があったかと、取り込むファイルがアプリの外で変わったかを見分ける。マイグレーションでは変えない。
+`openkk_meta` は `schema_version` と `last_changed_at` を持つ。`last_changed_at` は帳簿の中身を最後に変えた時刻 (ミリ秒) で、行を変えたトランザクションの中で `sqlite-db-adapter` の `runInTransaction` が更新する。前の値より必ず大きくするので、時計がずれた端末で変えても順序が戻らない。無印版はこの値で、ファイルに保存したあとに変更があったかと、取り込むファイルがアプリの外で変わったかを見分ける。マイグレーションでは変えない。
 
 ## マイグレーション
 

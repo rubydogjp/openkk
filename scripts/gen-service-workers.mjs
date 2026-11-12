@@ -26,9 +26,9 @@ const commonRoutes = [
 ];
 
 const bundleRoutes = {
-  openkk: commonRoutes,
-  openkk_sim: [...commonRoutes, "/debug"],
-  openkk_demo: commonRoutes,
+  original: commonRoutes,
+  sim: [...commonRoutes, "/debug"],
+  demo: commonRoutes,
 };
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -65,7 +65,7 @@ for (const bundle of bundles) {
   const outputPath = path.join(
     rootDirectory,
     "packages",
-    bundle,
+    `bundle-${bundle}`,
     "public",
     "sw.js",
   );

@@ -1,0 +1,135 @@
+"use client";
+
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation.js";
+
+import { AppError } from "@rubydogjp/openkk-driver";
+import { usePlatformAdapter, useOpenkkAppState } from "../../bindings/index.js";
+import { AppErrorText } from "../../shared/app-error-text.js";
+import {
+  startOnceAfterMount,
+  type StartOnceState,
+} from "../../shared/start-once-after-mount.js";
+import {
+  fontSize,
+  fontWeight,
+  palette,
+  shadows,
+} from "../../shared/design-tokens.js";
+
+export function AuthResultPage() {
+  return (
+    <Suspense fallback={<AuthResultView screenError={null} />}>
+      <AuthResultContent />
+    </Suspense>
+  );
+}
+
+function AuthResultContent() {
+  const appState = useOpenkkAppState();
+  const navigation = usePlatformAdapter().navigation;
+  const searchParams = useSearchParams();
+  const [screenError, setScreenError] = useState<unknown>(null);
+  const startRef = useRef<StartOnceState>({ started: false });
+
+  useEffect(
+    () =>
+      startOnceAfterMount(startRef.current, () => {
+        const state = searchParams.get("state");
+        const code = searchParams.get("code");
+        if (
+          state == null ||
+          state.trim() === "" ||
+          code == null ||
+          code.trim() === ""
+        ) {
+          setScreenError(
+            new AppError({
+              messageForUser: "サインイン結果を確認できませんでした",
+              messageForDeveloper: "auth-result: state or code missing",
+              originalMessage: null,
+              statusCode: null,
+              code: null,
+            }),
+          );
+          return;
+        }
+
+        void (async () => {
+          try {
+            await appState.completeSignIn(state, code);
+            navigation.reloadAt(
+              appState.takeSignInReturnPath() ?? "/fiscal-periods",
+            );
+          } catch (error) {
+            setScreenError(
+              AppError.from(error, {
+                fallbackUserMessage: "サインインの完了に失敗しました",
+                fallbackDeveloperMessage: "auth-result: completeSignIn failed",
+                statusCode: null,
+              }),
+            );
+          }
+        })();
+      }),
+    [appState, navigation, searchParams],
+  );
+
+  return <AuthResultView screenError={screenError} />;
+}
+
+function AuthResultView(props: { screenError: unknown }) {
+  return (
+    <main
+      style={{
+        minHeight: "100%",
+        display: "grid",
+        placeItems: "center",
+        padding: 24,
+        background: palette.pageBg,
+      }}
+    >
+      <section
+        style={{
+          width: "min(100%, 440px)",
+          padding: 28,
+          borderRadius: 12,
+          background: palette.surface,
+          border: `1px solid ${palette.borderSubtle}`,
+          boxShadow: shadows.card,
+        }}
+      >
+        <h1
+          style={{
+            margin: 0,
+            color: palette.text,
+            fontSize: fontSize.lg,
+            fontWeight: fontWeight.bold,
+            lineHeight: 1.4,
+          }}
+        >
+          サインインを完了しています
+        </h1>
+        <p
+          style={{
+            margin: "10px 0 0",
+            color: palette.textSoft,
+            fontSize: fontSize.base,
+            lineHeight: 1.7,
+          }}
+        >
+          画面が切り替わるまでお待ちください。
+        </p>
+        {props.screenError != null ? (
+          <div style={{ marginTop: 16 }}>
+            <AppErrorText
+              error={props.screenError}
+              style={null}
+              fallbackUserMessage={null}
+            />
+          </div>
+        ) : null}
+      </section>
+    </main>
+  );
+}

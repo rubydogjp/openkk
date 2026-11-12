@@ -5,7 +5,7 @@ import {
   isOpeningCarryoverCandidate,
   type EntryRecord as ClientEntryRecord,
   type FsBsRow,
-} from "../packages/client-domain/src/index.js";
+} from "../packages/driver/src/domain/index.js";
 import { createOpenkkEmbeddedBackendAdapter } from "../packages/embedded-backend-adapter/src/index.js";
 import { createMemoryDbAdapter } from "../packages/memory-db-adapter/src/index.js";
 import {
@@ -17,17 +17,17 @@ import {
   type EntryLine,
   type EntryRecord,
   type OpeningBalanceLine,
-} from "../packages/server-domain/src/index.js";
+} from "../packages/engine/src/domain/index.js";
 import type {
   OpenkkDbPort,
   FiscalPeriodNextCreateInput,
-} from "../packages/server-ports/src/index.js";
-import { createOpenkkServer } from "../packages/server/src/index.js";
+} from "../packages/engine/src/ports/index.js";
+import { createOpenkkServer } from "../packages/backend-api/src/index.js";
 import {
   createSqliteDbAdapter,
   runMigrations,
   type SqlDb,
-} from "../packages/sqlite-adapter/src/index.js";
+} from "../packages/sqlite-db-adapter/src/index.js";
 
 const longText = "保存済み😀".repeat(100);
 

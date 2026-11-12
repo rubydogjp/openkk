@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { buildClosingVirtualEntries } from "../packages/client-domain/src/index.js";
-import { mapOpeningJournalToRecord } from "../packages/client-domain/src/assist/stored-record-mapping.js";
-import { entryRecordToImportPayload } from "../packages/client-domain/src/entries/entry-input-mapping.js";
+import { buildClosingVirtualEntries } from "../packages/driver/src/domain/index.js";
+import { mapOpeningJournalToRecord } from "../packages/driver/src/domain/assist/stored-record-mapping.js";
+import { entryRecordToImportPayload } from "../packages/driver/src/domain/entries/entry-input-mapping.js";
 import { createMemoryDbAdapter } from "../packages/memory-db-adapter/src/index.js";
-import { createOpenkkServer } from "../packages/server/src/index.js";
-import { createServerUsecases } from "../packages/server-usecases/src/usecases.js";
-import type { OpeningJournalApiRecord } from "../packages/server-ports/src/index.js";
+import { createOpenkkServer } from "../packages/backend-api/src/index.js";
+import { createServerUsecases } from "../packages/engine/src/usecases/usecases.js";
+import type { OpeningJournalApiRecord } from "../packages/engine/src/ports/index.js";
 
 describe("client/server closing contract", () => {
   it("rejects missing generated entries when calling the closing usecase directly", async () => {

@@ -1,7 +1,7 @@
 import type {
   FiscalPeriodApiRecord,
   OpenkkBackendPort,
-} from "@rubydogjp/openkk-client-ports";
+} from "@rubydogjp/openkk-driver";
 
 import type { CliBackend } from "./backend.js";
 import { CliUsageError, type CliOutput } from "./cli-io.js";

@@ -17,8 +17,9 @@ const outputs = [
     path: join(
       rootDirectory,
       "packages",
-      "server-domain",
+      "engine",
       "src",
+      "domain",
       "generated-master-data.ts",
     ),
     source: buildTypescript(catalog, {
@@ -31,8 +32,9 @@ const outputs = [
     path: join(
       rootDirectory,
       "packages",
-      "client-domain",
+      "driver",
       "src",
+      "domain",
       "entries",
       "generated-master-data.ts",
     ),

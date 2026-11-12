@@ -117,15 +117,15 @@
 
 ## 9. ストレージ (Storage)
 
-| アダプタ                 | 用途                                                     | 永続化                                           |
-| ------------------------ | -------------------------------------------------------- | ------------------------------------------------ |
-| `file-db-adapter`        | SQLite OPFS (ブラウザ内ファイルDB)                       | ブラウザを閉じても保持 (PWA)                     |
-| `memory-db-adapter`      | インメモリ (揮発)                                        | ページリロードでリセット                         |
-| `document-db-adapter`    | 帳簿 1 冊 (`.openkk`、SQLite) をブラウザのメモリ上に開く | 開いた側が書き出して保存する                     |
-| `books-db-adapter`       | 会計期間ごとの帳簿に振り分ける (無印版)                  | 変わった帳簿を置き場 (ブラウザの中) へ自動で保存 |
-| `node-sqlite-db-adapter` | `.openkk` ファイル (SQLite) を Node で開く               | ファイルそのもの (openkk-cli)                    |
+| アダプタ            | 用途                                                     | 永続化                                           |
+| ------------------- | -------------------------------------------------------- | ------------------------------------------------ |
+| `legacy-db-adapter` | SQLite OPFS (ブラウザ内ファイルDB)                       | ブラウザを閉じても保持 (PWA)                     |
+| `memory-db-adapter` | インメモリ (揮発)                                        | ページリロードでリセット                         |
+| `book-db-adapter`   | 帳簿 1 冊 (`.openkk`、SQLite) をブラウザのメモリ上に開く | 開いた側が書き出して保存する                     |
+| `books-db-adapter`  | 会計期間ごとの帳簿に振り分ける (無印版)                  | 変わった帳簿を置き場 (ブラウザの中) へ自動で保存 |
+| `disk-db-adapter`   | `.openkk` ファイル (SQLite) を Node で開く               | ファイルそのもの (openkk-cli)                    |
 
-どれも `OpenkkDbPort` を実装しており差し替え可能。`.openkk` は中身が同じ SQLite なので、無印版が「保存」で書き出したファイルを openkk-cli で扱い、また無印版に取り込める。SQL・マイグレーション・最後に変えた時刻の記録は `sqlite-adapter` で共有する。無印版は 26.3 まで `file-db-adapter` の 1 つの DB にすべての期間を置いていた。今は期間ごとの帳簿に分けて置き、`file-db-adapter` は前の版の DB を移すときに読むだけ。
+どれも `OpenkkDbPort` を実装しており差し替え可能。`.openkk` は中身が同じ SQLite なので、無印版が「保存」で書き出したファイルを openkk-cli で扱い、また無印版に取り込める。SQL・マイグレーション・最後に変えた時刻の記録は `sqlite-db-adapter` で共有する。無印版は 26.3 まで `legacy-db-adapter` の 1 つの DB にすべての期間を置いていた。今は期間ごとの帳簿に分けて置き、`legacy-db-adapter` は前の版の DB を移すときに読むだけ。
 
 ---
 
@@ -147,11 +147,11 @@
 
 版は実行時切替ではなく **バンドル（別パッケージのアプリ）** で分ける。`bundle`（版）と `brand`（サイト URL・アカウントアイコン）は独立した概念。
 
-| bundle     | パッケージ                                        | 表示名 (`bundleLabel`) | DB                            | シードデータ               | 認証     |
-| ---------- | ------------------------------------------------- | ---------------------- | ----------------------------- | -------------------------- | -------- |
-| `sim`      | `@rubydogjp/openkk-sim` (`packages/openkk_sim`)   | Sim版                  | memory + 固定時計             | なし (任意に作成)          | embedded |
-| `demo`     | `@rubydogjp/openkk-demo` (`packages/openkk_demo`) | デモ版                 | memory + 固定時計             | あり (buildOpenkkDemoSeed) | embedded |
-| `original` | `@rubydogjp/openkk` (`packages/openkk`)           | 無印版                 | 期間ごとの帳簿 (ブラウザの中) | なし                       | embedded |
+| bundle     | パッケージ                                                       | 表示名 (`bundleLabel`) | DB                            | シードデータ               | 認証     |
+| ---------- | ---------------------------------------------------------------- | ---------------------- | ----------------------------- | -------------------------- | -------- |
+| `sim`      | `@rubydogjp/openkk-bundle-sim` (`packages/bundle-sim`)           | Sim版                  | memory + 固定時計             | なし (任意に作成)          | embedded |
+| `demo`     | `@rubydogjp/openkk-bundle-demo` (`packages/bundle-demo`)         | デモ版                 | memory + 固定時計             | あり (buildOpenkkDemoSeed) | embedded |
+| `original` | `@rubydogjp/openkk-bundle-original` (`packages/bundle-original`) | 無印版                 | 期間ごとの帳簿 (ブラウザの中) | なし                       | embedded |
 
 無印版は、データをブラウザの中に置く。置き方は環境で変えない。ブラウザによっては、しばらく (Safari では 7 日ほど) 開かないとデータを消すことがあるので、初めて開いたときに 1 回説明し、利用者が自分でファイルに保存する。左上 (ほかの版で「オープン会計」と版の名前が出る場所) に「保存」ボタンを置き、今の会計期間の帳簿を `<期間名>.openkk` として書き出す (スマホは共有シート、それ以外はダウンロード)。ボタンの下に「保存していない変更があります」か「前回 11/3」を出し、変更があって 30 日保存していなければ上の帯で知らせる (`OpenkkBookFilesPort`)。
 
@@ -159,7 +159,7 @@
 
 無印版には圧縮保存を出さない。データはいつでも「保存」でファイルにできるので、「次の期間へ」の手順には、同じファイルをそのまま出す「バックアップをダウンロード」だけを置く (期間の状態は変えない)。前の版で作った圧縮済みファイル (zip) は、同じ「ファイルを取り込む」から取り込める (中身が zip なら圧縮済みファイルとして読み、新しい期間として足す。日付の重なる期間があれば断る)。前の版で圧縮保存した期間は、これまでどおり圧縮保存済みの画面で見る。
 
-共通配線は `@rubydogjp/openkk-frontend`（`packages/frontend`）に集約。
+共通配線は `@rubydogjp/openkk-client-browser`（`packages/client-browser`）に集約。
 
 ---
 

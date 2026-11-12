@@ -20,7 +20,7 @@ type CustomUser = {
 };
 ```
 
-ヘルパ: `userCanSignOut` / `userEmail`（`@rubydogjp/openkk-client-domain`）。
+ヘルパ: `userCanSignOut` / `userEmail`（`@rubydogjp/openkk-driver`）。
 
 ## モード選択
 
@@ -46,7 +46,7 @@ type CustomUser = {
    - サインアウト: `auth.signOut()` を呼び、ローカルのユーザーを破棄。
    - 戻り先: `startSignIn(redirectUrl, returnPath)` の `returnPath` に渡したパスへ、`/auth/result` がサインインの完了後に移動する（`null` なら `/fiscal-periods`）。戻り先は同じサイト内のパスだけを受け付け、15分で失効し、一度使うと消える。独自の完了画面では `takeSignInReturnPath()` で受け取る。
 
-所有者検証は `server-usecases` が担当する。`server-api` は期間と子リソースの所属関係・操作可能なフェーズ・入力形式も検証する（[`architecture.md`](./architecture.md) 参照）。
+所有者検証は `engine` が担当する。`backend-api` は期間と子リソースの所属関係・操作可能なフェーズ・入力形式も検証する（[`architecture.md`](./architecture.md) 参照）。
 
 ## マイページ
 

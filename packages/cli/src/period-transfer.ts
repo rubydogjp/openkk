@@ -3,11 +3,11 @@ import {
   buildFiscalPeriodArchivePayload,
   createFiscalPeriodArchiveZip,
   readFiscalPeriodArchiveZip,
-} from "@rubydogjp/openkk-client-domain";
+} from "@rubydogjp/openkk-driver";
 import type {
   FiscalPeriodApiRecord,
   OpenkkBackendPort,
-} from "@rubydogjp/openkk-client-ports";
+} from "@rubydogjp/openkk-driver";
 
 export async function buildFiscalPeriodArchiveZipFromBook(
   api: OpenkkBackendPort,

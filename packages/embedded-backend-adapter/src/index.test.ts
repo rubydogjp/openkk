@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { EntryUpsertInput } from "@rubydogjp/openkk-client-ports";
-import type { OpenkkServerPort } from "@rubydogjp/openkk-embedded-backend";
+import type { EntryUpsertInput } from "@rubydogjp/openkk-driver";
+import type { OpenkkServerPort } from "@rubydogjp/openkk-engine";
 import { createOpenkkEmbeddedBackendAdapter } from "./index.js";
 
 describe("createOpenkkEmbeddedBackendAdapter", () => {

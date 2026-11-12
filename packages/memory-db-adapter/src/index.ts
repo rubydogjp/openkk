@@ -1,12 +1,12 @@
 import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
-import type { DbSnapshot, OpenkkDbPort } from "@rubydogjp/openkk-server-ports";
+import type { DbSnapshot, OpenkkDbPort } from "@rubydogjp/openkk-engine";
 import {
   createSqliteDbAdapter,
   runMigrations,
   type SqlDb,
-} from "@rubydogjp/openkk-sqlite-adapter";
+} from "@rubydogjp/openkk-sqlite-db-adapter";
 
-export { type DbSnapshot } from "@rubydogjp/openkk-server-ports";
+export { type DbSnapshot } from "@rubydogjp/openkk-engine";
 
 let sqliteModulePromise: ReturnType<typeof sqlite3InitModule> | null = null;
 

@@ -5,11 +5,12 @@ export async function archivedPeriodZip(): Promise<Uint8Array> {
     archiveClosingRecords,
     buildFiscalPeriodArchivePayload,
     createFiscalPeriodArchiveZip,
-  } = await import("@rubydogjp/openkk-client-domain");
+  } = await import("@rubydogjp/openkk-driver");
   const { createMemoryDbAdapter } =
     await import("@rubydogjp/openkk-memory-db-adapter");
-  const { buildExpectedClosingEntries, createOpenkkServer } =
-    await import("@rubydogjp/openkk-server");
+  const { buildExpectedClosingEntries } =
+    await import("@rubydogjp/openkk-engine");
+  const { createOpenkkServer } = await import("@rubydogjp/openkk-backend-api");
   const db = await createMemoryDbAdapter(null);
   const server = createOpenkkServer(db, { userId: "source-user" });
   let period = await server.fiscalPeriods.create({

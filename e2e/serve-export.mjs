@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 const EXPORT_ROOT = join(
   dirname(fileURLToPath(import.meta.url)),
   "..",
-  process.env.EXPORT_DIR ?? "packages/openkk/out",
+  process.env.EXPORT_DIR ?? "packages/bundle-original/out",
 );
 const PORT = Number(process.env.PORT ?? 4307);
 const CROSS_ORIGIN_ISOLATED = process.env.CROSS_ORIGIN_ISOLATED === "1";

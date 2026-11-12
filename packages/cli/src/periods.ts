@@ -3,8 +3,8 @@ import {
   buildNextFiscalPeriodSuggestion,
   fiscalPeriodPhaseLabel,
   isReadyForCarryover,
-} from "@rubydogjp/openkk-client-domain";
-import type { FiscalPeriodApiRecord } from "@rubydogjp/openkk-client-ports";
+} from "@rubydogjp/openkk-driver";
+import type { FiscalPeriodApiRecord } from "@rubydogjp/openkk-driver";
 
 import { CliUsageError } from "./cli-io.js";
 import {

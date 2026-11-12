@@ -2,18 +2,18 @@
 
 呼び名: 全体 (形式・契約・アプリ・コマンド) を openkk、コマンドラインの道具を openkk-cli と呼ぶ。パッケージは `@rubydogjp/openkk-cli`、コマンドは `openkk`。openkk-cli は端末の中の道具で、無印版 (ブラウザのアプリ) を起動しない。
 
-状態: ベータ。OSS に入れておくだけで、告知はしない。`cli` と `node-sqlite-db-adapter` は `private: true` で npm には出さない (出すときは外し、`docs/release.md` の初回 publish と Trusted Publishing の設定をする)。下の「進め方」の 1〜6 (`node-sqlite-db-adapter`、`cli` の `init`・`periods`・`opening`・`entries`・`report`・`closing`・`archive`) まで実装済みで、期首のBSから本締め・次の期間まで CLI だけで回せる。再振替の選択と固定資産の操作はまだ Web 版だけ。
+状態: ベータ。OSS に入れておくだけで、告知はしない。`cli` と `disk-db-adapter` は `private: true` で npm には出さない (出すときは外し、`docs/release.md` の初回 publish と Trusted Publishing の設定をする)。下の「進め方」の 1〜6 (`disk-db-adapter`、`cli` の `init`・`periods`・`opening`・`entries`・`report`・`closing`・`archive`) まで実装済みで、期首のBSから本締め・次の期間まで CLI だけで回せる。再振替の選択と固定資産の操作はまだ Web 版だけ。
 
 ## 結論
 
-- 作業用のストアは **SQLite ファイル** (`.openkk`、既定は `book.openkk`)。無印版 (`packages/openkk`) の帳簿と同じ形式で、無印版が「保存」で書き出したファイルをそのまま扱い、変えたファイルを無印版に取り込める。zip は会計期間単位の受け渡し (import / export) に使う
+- 作業用のストアは **SQLite ファイル** (`.openkk`、既定は `book.openkk`)。無印版 (`packages/bundle-original`) の帳簿と同じ形式で、無印版が「保存」で書き出したファイルをそのまま扱い、変えたファイルを無印版に取り込める。zip は会計期間単位の受け渡し (import / export) に使う
 - openkk-cli は UI と同じく **composition root** として足す。層の並びは無印版・クラウドに置く版と同じで、保存先 (`OpenkkDbPort` の実装) が違うだけ ([`architecture.md`](./architecture.md) の「クラウドとローカルで層をそろえる」)。`embedded-backend` → `embedded-backend-adapter` を同じプロセスでつなぎ、`OpenkkBackendPort` 経由で呼ぶ
 
 ## ファイル形式
 
 ### SQLite ファイルを作業用にする理由
 
-- `sqlite-adapter` が DB に求めるのは `SqlDb.exec` (`sqlite-adapter/src/sql-db.ts`) と、マイグレーション用の `selectValue` / `exec` (`migrate.ts`) だけ。Node の `node:sqlite` (`DatabaseSync`) に 40〜60 行のシムを被せれば、SQL・マイグレーション・保存処理をブラウザ版とそのまま共有できる
+- `sqlite-db-adapter` が DB に求めるのは `SqlDb.exec` (`sqlite-db-adapter/src/sql-db.ts`) と、マイグレーション用の `selectValue` / `exec` (`migrate.ts`) だけ。Node の `node:sqlite` (`DatabaseSync`) に 40〜60 行のシムを被せれば、SQL・マイグレーション・保存処理をブラウザ版とそのまま共有できる
   - `rowMode: "array"` は `setReturnArrays(true)` で再現する
   - boolean の bind は 0/1 に変換する
   - 複数文の DDL は `db.exec(sql)` で流す
@@ -21,36 +21,36 @@
 
 ### zip を作業用にしない理由
 
-- zip (`client-domain/src/archive/fiscal-period-archive.ts`) は 1 期間分の JSON。取り込むと完了済みの期間として復元される受け渡し用の形式で、日々書き換える用途に向かない
+- zip (`driver/src/domain/archive/fiscal-period-archive.ts`) は 1 期間分の JSON。取り込むと完了済みの期間として復元される受け渡し用の形式で、日々書き換える用途に向かない
 - ブラウザ版を変えずに CLI との間でデータを移せるのは、今は zip と仕訳の CSV / JSON だけ。ベータの持ち運び手段はこれにする
 
 ### 無印版との行き来
 
 - 無印版は会計期間ごとに 1 冊の帳簿 (`.openkk`) をブラウザの中に置く。左上の「保存」で `<期間名>.openkk` として書き出し、期間の選択の「ファイル」から取り込む。openkk-cli はそのファイルを `--file` で開く
 - 行き来は「無印版で保存 → openkk-cli で変える → 無印版に取り込む」。無印版はファイルを見張らないので、取り込むまで無印版の中は変わらない
-- 帳簿は `openkk_meta` の `last_changed_at` に最後に変えた時刻を持ち、openkk-cli の変更でも更新される (`sqlite-adapter` の共通の層で記録する)。無印版は取り込むときにこの値を見て、「アプリの外で変更がありました」と、無印版の側の保存していない変更が失われることを知らせる
+- 帳簿は `openkk_meta` の `last_changed_at` に最後に変えた時刻を持ち、openkk-cli の変更でも更新される (`sqlite-db-adapter` の共通の層で記録する)。無印版は取り込むときにこの値を見て、「アプリの外で変更がありました」と、無印版の側の保存していない変更が失われることを知らせる
 - 取り込みは期間の ID で同じ期間を見分けて置き換える。`archive import` や `periods export` は期間の ID を付け直すので、無印版から見ると別に作られた期間になる (同じ日付なら、確かめたうえで帳簿ごと置き換える)。無印版に戻すつもりのファイルは、保存したファイルをそのまま変える
 - 複数の期間を入れたファイルも取り込める。無印版が期間ごとの帳簿に分ける
-- 無印版のデータは userId `openkk-original-user` で保存されている (`packages/openkk/app/openkk-config.ts`)。openkk-cli も同じ userId を既定にする。ほかの userId の期間は無印版に取り込まれない
-- 26.3 までの無印版は OPFS SAHPool VFS (`file-db-adapter`) の 1 つの DB に置いていた。プール内のファイルは独自ヘッダ付きなのでそのままは使えず、新しい無印版が起動するときに `exportFileDbBytes` で標準の SQLite として読み、期間ごとの帳簿に分けて移す
+- 無印版のデータは userId `openkk-original-user` で保存されている (`packages/bundle-original/app/openkk-config.ts`)。openkk-cli も同じ userId を既定にする。ほかの userId の期間は無印版に取り込まれない
+- 26.3 までの無印版は OPFS SAHPool VFS (`legacy-db-adapter`) の 1 つの DB に置いていた。プール内のファイルは独自ヘッダ付きなのでそのままは使えず、新しい無印版が起動するときに `exportFileDbBytes` で標準の SQLite として読み、期間ごとの帳簿に分けて移す
 
 ## パッケージ構成
 
-| パッケージ                                 | 位置づけ                                        | 依存                                                                                                      |
-| ------------------------------------------ | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `@rubydogjp/openkk-node-sqlite-db-adapter` | `OpenkkDbPort` 実装 (file/memory と並ぶ)        | `server-ports`, `sqlite-adapter`                                                                          |
-| `@rubydogjp/openkk-cli` (bin: `openkk`)    | openkk-cli の composition root (3 アプリと並ぶ) | `client-domain`, `client-ports`, `embedded-backend`, `embedded-backend-adapter`, `node-sqlite-db-adapter` |
+| パッケージ                              | 位置づけ                                        | 依存                                                                                  |
+| --------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `@rubydogjp/openkk-disk-db-adapter`     | `OpenkkDbPort` 実装 (file/memory と並ぶ)        | `engine`, `sqlite-db-adapter`                                                         |
+| `@rubydogjp/openkk-cli` (bin: `openkk`) | openkk-cli の composition root (3 アプリと並ぶ) | `driver`, `driver`, `embedded-backend`, `embedded-backend-adapter`, `disk-db-adapter` |
 
 - `client` の meta barrel には依存しない (client-ui 経由で React を引き込むため)
 - `OpenkkServerPort` を直接呼ばない。帳票・CSV・zip・締め仕訳は client 側の型で書かれていて、直接呼ぶと client と server の型が混ざる (設計原則 1)。`OpenkkBackendPort` 経由なら、HTTP のバックエンドにも差し替えられる
 
 ### 切り出しが要るもの
 
-帳票 HTML (`client-domain/src/print/*`)・CSV / JSON・zip は client-domain の純粋関数なので、Node でもそのまま使える。React の hook の中にある組み立てだけ、client-domain へ移す。
+帳票 HTML (`driver/src/domain/print/*`)・CSV / JSON・zip は client-domain の純粋関数なので、Node でもそのまま使える。React の hook の中にある組み立てだけ、client-domain へ移す。
 
-- `client-ui/src/steps/use-step-documents.ts` の締め仕訳と帳票 3 点の生成 → `buildFiscalPeriodDocuments()` など
-- `client-ui/src/steps/bodies/closing.tsx` の本締め用の仕訳準備 (`prepareAssistEntriesForFinalClosing`)
-- `client-usecases/src/shared/fiscal-period-archive-export.ts` の payload 組み立て
+- `frontend-ui/src/steps/use-step-documents.ts` の締め仕訳と帳票 3 点の生成 → `buildFiscalPeriodDocuments()` など
+- `frontend-ui/src/steps/bodies/closing.tsx` の本締め用の仕訳準備 (`prepareAssistEntriesForFinalClosing`)
+- `frontend-ui/src/bindings/shared/fiscal-period-archive-export.ts` の payload 組み立て
 
 本締めはクライアントが作った仕訳をサーバーが照合する設計なので、この切り出しが済むまで CLI から本締めはできない。
 
@@ -74,7 +74,7 @@ openkk periods export <期間id> [--out <file.openkk>]   # その期間だけを
 
 ## 進め方
 
-1. `node-sqlite-db-adapter` を作り、`runDbPortConformance` を一時ファイルと `:memory:` の両方で通す。開き直しても残ること、新しすぎるスキーマを拒否することもテストする
+1. `disk-db-adapter` を作り、`runDbPortConformance` を一時ファイルと `:memory:` の両方で通す。開き直しても残ること、新しすぎるスキーマを拒否することもテストする
 2. `cli` の土台 (`node:util` の `parseArgs`、`init`・`periods`)
 3. `entries` (client-domain の CSV / JSON 関数を使い、往復テストを付ける)
 4. 帳票の組み立てを client-domain へ切り出し、client-ui をそれに置き換えて `report` を足す

@@ -1,0 +1,112 @@
+"use client";
+
+import { usePathname } from "next/navigation.js";
+import { useMemo, type ReactNode } from "react";
+
+import {
+  useOpenkkAppState,
+  useOpenkkAssist,
+  useOpenkkEntries,
+  useOpenkkToday,
+} from "../../bindings/index.js";
+import {
+  deriveSteps,
+  buildAnalyticsEntries,
+  buildStepTrendPoints,
+  type FiscalPeriodPhase,
+  type StepItem,
+} from "@rubydogjp/openkk-driver";
+import { palette } from "../../shared/design-tokens.js";
+import { normalizePathname } from "../../shared/pathname.js";
+import { StepsPageScreen } from "../../steps/step-page-screen.js";
+
+const STEPPER_PASSTHROUGH_PATHS = new Set<string>([
+  "/steps/journalizing/analytics",
+]);
+
+export function StepsLayout({ children }: { children: ReactNode }) {
+  const pathname = normalizePathname(usePathname());
+  if (STEPPER_PASSTHROUGH_PATHS.has(pathname)) {
+    return <>{children}</>;
+  }
+
+  return <StepsStepperHost />;
+}
+
+function StepsStepperHost() {
+  const appState = useOpenkkAppState();
+  const currentFiscalPeriod = appState.currentFiscalPeriod;
+
+  if (currentFiscalPeriod == null) {
+    return (
+      <section style={{ padding: 24 }}>
+        <div style={{ color: palette.textLabel }}>期間を選択してください</div>
+      </section>
+    );
+  }
+
+  const steps = deriveSteps({
+    started: currentFiscalPeriod.phase !== "pre_opening",
+    openingBalancesCompleted: currentFiscalPeriod.openingBalancesCompleted,
+    hasAnyClosing:
+      currentFiscalPeriod.phase === "pre_closing" ||
+      currentFiscalPeriod.phase === "post_closing",
+    hasFinalClosing: currentFiscalPeriod.phase === "post_closing",
+    hasReceivedDocuments: currentFiscalPeriod.documentsReceivedCompleted,
+  });
+
+  return (
+    <StepsPageScreenWithChart
+      steps={steps}
+      currentFiscalPeriodId={currentFiscalPeriod.id}
+      currentPhase={currentFiscalPeriod.phase}
+      currentStartDate={currentFiscalPeriod.startDate}
+      currentEndDate={currentFiscalPeriod.endDate}
+    />
+  );
+}
+
+function StepsPageScreenWithChart({
+  steps,
+  currentFiscalPeriodId,
+  currentPhase,
+  currentStartDate,
+  currentEndDate,
+}: {
+  steps: StepItem[];
+  currentFiscalPeriodId: string;
+  currentPhase: FiscalPeriodPhase;
+  currentStartDate: string;
+  currentEndDate: string;
+}) {
+  const entriesState = useOpenkkEntries();
+  const assistState = useOpenkkAssist();
+  const today = useOpenkkToday();
+  const trendPoints = useMemo(
+    () =>
+      buildStepTrendPoints({
+        entries: buildAnalyticsEntries({
+          fiscalPeriodId: currentFiscalPeriodId,
+          phase: currentPhase,
+          periodStartDate: currentStartDate,
+          periodEndDate: currentEndDate,
+          entries: entriesState.listFiscalPeriodEntries(currentFiscalPeriodId),
+          assets: assistState.listFixedAssets(currentFiscalPeriodId),
+          carryovers: assistState.listOpeningCarryovers(currentFiscalPeriodId),
+        }),
+        startDate: currentStartDate,
+        endDate: currentEndDate,
+        today,
+      }),
+    [
+      entriesState,
+      assistState,
+      today,
+      currentFiscalPeriodId,
+      currentPhase,
+      currentStartDate,
+      currentEndDate,
+    ],
+  );
+  return <StepsPageScreen items={steps} trendPoints={trendPoints} />;
+}

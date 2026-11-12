@@ -5,7 +5,7 @@ import {
   SCHEMA_MIGRATIONS,
   SCHEMA_VERSION,
   type SqlDb,
-} from "@rubydogjp/openkk-sqlite-adapter";
+} from "@rubydogjp/openkk-sqlite-db-adapter";
 import { describe, expect, it } from "vitest";
 
 async function createVersion1Db() {

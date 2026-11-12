@@ -6,11 +6,11 @@ import {
   type EntryRecord,
   type FiscalPeriodReportInput,
   type JournalTableMaster,
-} from "@rubydogjp/openkk-client-domain";
+} from "@rubydogjp/openkk-driver";
 import type {
   FiscalPeriodApiRecord,
   OpenkkBackendPort,
-} from "@rubydogjp/openkk-client-ports";
+} from "@rubydogjp/openkk-driver";
 
 import { CliUsageError } from "./cli-io.js";
 

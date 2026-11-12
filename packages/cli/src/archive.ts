@@ -4,7 +4,7 @@ import {
   buildFiscalPeriodArchiveFilename,
   fiscalPeriodPhaseLabel,
   readFiscalPeriodArchiveZip,
-} from "@rubydogjp/openkk-client-domain";
+} from "@rubydogjp/openkk-driver";
 
 import { CliUsageError } from "./cli-io.js";
 import {

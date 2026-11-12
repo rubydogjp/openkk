@@ -11,9 +11,9 @@ type ServiceWorkerFunctions = {
 };
 
 const workerUrls = [
-  new URL("../packages/openkk/public/sw.js", import.meta.url),
-  new URL("../packages/openkk_sim/public/sw.js", import.meta.url),
-  new URL("../packages/openkk_demo/public/sw.js", import.meta.url),
+  new URL("../packages/bundle-original/public/sw.js", import.meta.url),
+  new URL("../packages/bundle-sim/public/sw.js", import.meta.url),
+  new URL("../packages/bundle-demo/public/sw.js", import.meta.url),
 ];
 
 describe("download service worker", () => {

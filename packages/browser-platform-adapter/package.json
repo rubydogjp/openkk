@@ -1,0 +1,42 @@
+{
+  "name": "@rubydogjp/openkk-browser-platform-adapter",
+  "version": "26.3.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@rubydogjp/openkk-driver": "^26.3.1"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  },
+  "description": "オープン会計 PlatformPort implementation for web browsers — PWA install, service worker, localStorage, downloads and navigation",
+  "license": "MIT",
+  "author": "rbdog <rbdog@rubydog.jp>",
+  "homepage": "https://github.com/rubydogjp/openkk#readme",
+  "bugs": {
+    "url": "https://github.com/rubydogjp/openkk/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rubydogjp/openkk.git",
+    "directory": "packages/browser-platform-adapter"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

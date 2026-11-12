@@ -578,7 +578,7 @@ function makeTempDir() {
 
 async function createBookFile(fileName: string, periods: PeriodInput[]) {
   const { createNodeSqliteDbAdapter } =
-    await import("@rubydogjp/openkk-node-sqlite-db-adapter");
+    await import("@rubydogjp/openkk-disk-db-adapter");
   const filePath = path.join(makeTempDir(), fileName);
   const adapter = await createNodeSqliteDbAdapter(filePath, null);
   try {
@@ -593,7 +593,7 @@ async function createBookFile(fileName: string, periods: PeriodInput[]) {
 
 async function createPreviousVersionDatabase(periods: PeriodInput[]) {
   const { createNodeSqliteDbAdapter } =
-    await import("@rubydogjp/openkk-node-sqlite-db-adapter");
+    await import("@rubydogjp/openkk-disk-db-adapter");
   const filePath = path.join(makeTempDir(), "openkk.sqlite3");
   const adapter = await createNodeSqliteDbAdapter(filePath, null);
   try {
@@ -637,7 +637,7 @@ async function createPreviousVersionDatabase(periods: PeriodInput[]) {
 
 async function renamePeriodLikeCli(filePath: string, name: string) {
   const { createNodeSqliteDbAdapter } =
-    await import("@rubydogjp/openkk-node-sqlite-db-adapter");
+    await import("@rubydogjp/openkk-disk-db-adapter");
   const adapter = await createNodeSqliteDbAdapter(filePath, null);
   try {
     const [period] = await adapter.db.fiscalPeriods.getAll(USER_ID);
@@ -652,7 +652,7 @@ async function readBookPeriods(
   filePath: string,
 ): Promise<Array<{ name: string; phase: string }>> {
   const { createNodeSqliteDbAdapter } =
-    await import("@rubydogjp/openkk-node-sqlite-db-adapter");
+    await import("@rubydogjp/openkk-disk-db-adapter");
   const adapter = await createNodeSqliteDbAdapter(filePath, null);
   try {
     return (await adapter.db.fiscalPeriods.getAll(USER_ID)).map(

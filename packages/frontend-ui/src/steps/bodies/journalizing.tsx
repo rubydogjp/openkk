@@ -1,0 +1,267 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation.js";
+
+import {
+  AppError,
+  isCurrentMonthWithinFiscalPeriod,
+  type StepTrendPoint,
+} from "@rubydogjp/openkk-driver";
+import { AppErrorText } from "../../shared/app-error-text.js";
+import {
+  useOpenkkAppState,
+  useOpenkkCallout,
+  useOpenkkClosing,
+  useOpenkkConfig,
+  useOpenkkToday,
+} from "../../bindings/index.js";
+import { fontSize, fontWeight, palette } from "../../shared/design-tokens.js";
+import { useConfirmDialog } from "../../shared/confirm-dialog.js";
+import { LockButton } from "../../shared/locked-action.js";
+import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
+import {
+  JournalizingNotStartedTrendChart,
+  JournalizingCompletedTrendChart,
+  JournalizingCurrentTrendChart,
+} from "../step-trend-charts.js";
+import {
+  StepCallout,
+  StepPrimaryButton,
+  StepSecondaryButton,
+  StepSectionLabel,
+  StepSpacer,
+} from "../step-ui.js";
+
+export function JournalizingBody({
+  onSwitchToStep,
+  onBusyChange,
+  trendPoints,
+}: {
+  onSwitchToStep: (no: number) => void;
+  onBusyChange: (busy: boolean) => void;
+  trendPoints: StepTrendPoint[];
+}) {
+  const router = useRouter();
+  const config = useOpenkkConfig();
+  const today = useOpenkkToday();
+  const appState = useOpenkkAppState();
+  const closingApi = useOpenkkClosing();
+  const preClosingHint = useOpenkkCallout("stepJournalizingPreClosingHint");
+  const currentFiscalPeriod = appState.currentFiscalPeriod;
+
+  const isPreClosed =
+    currentFiscalPeriod?.phase === "pre_closing" ||
+    currentFiscalPeriod?.phase === "post_closing";
+  useEffect(() => {
+    if (isPreClosed) onBusyChange(false);
+  }, [isPreClosed, onBusyChange]);
+  useEffect(() => {
+    return () => onBusyChange(false);
+  }, [onBusyChange]);
+  const { confirm, dialog } = useConfirmDialog();
+  const [screenError, setScreenError] = useState<unknown>(null);
+  const preClosingLock = useRef(new ExclusiveActionLock());
+  const editingLocked = config.editingPolicy.locked;
+
+  if (currentFiscalPeriod == null) {
+    return (
+      <div style={{ color: palette.textLabel }}>期間を選択してください</div>
+    );
+  }
+
+  if (!currentFiscalPeriod.openingBalancesCompleted) {
+    return (
+      <>
+        <StepCallout tone="warning">この手順はまだ進められません。</StepCallout>
+        <StepSpacer height={null} />
+        <section>
+          <StepSectionLabel>記録中</StepSectionLabel>
+          <JournalizingNotStartedTrendChart points={trendPoints} />
+        </section>
+        <div
+          style={{
+            marginTop: 16,
+            display: "flex",
+            justifyContent: "flex-start",
+          }}
+        >
+          <StepSecondaryButton onClick={() => onSwitchToStep(2)}>
+            前の手順へ
+          </StepSecondaryButton>
+        </div>
+      </>
+    );
+  }
+
+  const isMidPeriod = isCurrentMonthWithinFiscalPeriod(
+    currentFiscalPeriod.startDate,
+    currentFiscalPeriod.endDate,
+    today,
+  );
+
+  const handleRunPreClosing = async () => {
+    const release = preClosingLock.current.tryAcquire();
+    if (release == null) return;
+    try {
+      const confirmed = await confirm({
+        tone: "success",
+        title: "仮締め",
+        body: [
+          "今期の取引記録を確定します。",
+          "編集はロックされますが、確認してから解除することができます。",
+        ],
+        confirmLabel: "実行する",
+      });
+      if (!confirmed) return;
+      if (isMidPeriod) {
+        const forceConfirmed = await confirm({
+          tone: "danger",
+          title: "まだ期中です",
+          body: [
+            "現在日付はまだこの期間の途中です。通常は翌2月頃に実行される操作です。",
+            "内容を確認したうえで、そのまま進める場合のみ実行してください。",
+          ],
+          confirmLabel: "実行する",
+        });
+        if (!forceConfirmed) return;
+      }
+      onBusyChange(true);
+      try {
+        await closingApi.runPreClosing(currentFiscalPeriod.id);
+        setScreenError(null);
+      } catch (error) {
+        onBusyChange(false);
+        setScreenError(
+          AppError.from(error, {
+            fallbackUserMessage: "仮締めの更新に失敗しました",
+            fallbackDeveloperMessage: "steps/journalizing: pre-closing failed",
+            statusCode: null,
+          }),
+        );
+      }
+    } finally {
+      release();
+    }
+  };
+
+  return (
+    <>
+      {dialog}
+
+      {isPreClosed ? (
+        <section>
+          <StepSectionLabel>記録終了</StepSectionLabel>
+          {trendPoints.length > 0 ? (
+            <JournalizingCompletedTrendChart points={trendPoints} />
+          ) : null}
+          <div
+            style={{
+              marginTop: 16,
+              display: "flex",
+              justifyContent: "flex-end",
+            }}
+          >
+            <StepPrimaryButton
+              onClick={() => onSwitchToStep(4)}
+              disabled={false}
+              variant={null}
+              icon={null}
+            >
+              次の手順へ
+            </StepPrimaryButton>
+          </div>
+        </section>
+      ) : (
+        <>
+          <StepCallout tone="action">
+            <div style={{ fontWeight: fontWeight.bold, color: palette.text }}>
+              ヒント
+            </div>
+            <div>
+              {editingLocked
+                ? "記録された取引を「仕訳タブ」で確認できます。"
+                : "1月~12月の取引を「仕訳タブ」で入力して下さい"}
+            </div>
+          </StepCallout>
+
+          {trendPoints.length > 0 ? (
+            <>
+              <StepSpacer height={null} />
+              <section>
+                <StepSectionLabel>記録中</StepSectionLabel>
+                <JournalizingCurrentTrendChart points={trendPoints} />
+              </section>
+            </>
+          ) : null}
+
+          <div
+            style={{
+              marginTop: 16,
+              display: "flex",
+              justifyContent: "flex-end",
+            }}
+          >
+            <StepPrimaryButton
+              onClick={() => router.push("/entries")}
+              disabled={false}
+              variant={null}
+              icon={null}
+            >
+              仕訳タブへ移動
+            </StepPrimaryButton>
+          </div>
+
+          <StepSpacer height={null} />
+          <section>
+            <StepSectionLabel>記録を終了</StepSectionLabel>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {!editingLocked ? (
+                <div
+                  style={{
+                    fontSize: fontSize.base,
+                    color: palette.textSoft,
+                    lineHeight: 1.75,
+                  }}
+                >
+                  翌2月ごろに今期の取引が全て確定したら仮締めを実行して下さい。
+                </div>
+              ) : null}
+              {preClosingHint != null ? (
+                <StepCallout tone="info">{preClosingHint}</StepCallout>
+              ) : null}
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                {editingLocked ? (
+                  <LockButton label="仮締めを実行" />
+                ) : isMidPeriod ? (
+                  <StepSecondaryButton onClick={handleRunPreClosing}>
+                    仮締めを実行
+                  </StepSecondaryButton>
+                ) : (
+                  <StepPrimaryButton
+                    onClick={handleRunPreClosing}
+                    disabled={false}
+                    variant="success"
+                    icon={null}
+                  >
+                    仮締めを実行
+                  </StepPrimaryButton>
+                )}
+              </div>
+            </div>
+          </section>
+        </>
+      )}
+
+      {screenError != null ? (
+        <div style={{ marginTop: 16 }}>
+          <AppErrorText
+            error={screenError}
+            style={null}
+            fallbackUserMessage={null}
+          />
+        </div>
+      ) : null}
+    </>
+  );
+}

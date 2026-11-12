@@ -1,23 +1,21 @@
 import {
   createDocumentDbAdapter,
   type DocumentDbAdapter,
-} from "@rubydogjp/openkk-document-db-adapter";
+} from "@rubydogjp/openkk-book-db-adapter";
 import {
   assertFiscalPeriodCanCarryOver,
   assertNoOverlappingActiveFiscalPeriod,
   serverNotFoundError,
-} from "@rubydogjp/openkk-server-domain";
-import {
   type EntryDbRecord,
   type FiscalPeriodArchiveDbImportInput,
   type FiscalPeriodDbRecord,
   type FixedAssetDbRecord,
   type OpenkkDbPort,
-} from "@rubydogjp/openkk-server-ports";
+} from "@rubydogjp/openkk-engine";
 import {
   assertDbCarryoverTargetAllowed,
   createMasterDataDb,
-} from "@rubydogjp/openkk-sqlite-adapter";
+} from "@rubydogjp/openkk-sqlite-db-adapter";
 
 import { splitBookFile, type BookFilePeriod } from "./book-file.js";
 import {

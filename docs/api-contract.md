@@ -2,12 +2,12 @@
 
 ## Packages
 
-| Boundary          | Package                          | Types                                                                                     |
-| ----------------- | -------------------------------- | ----------------------------------------------------------------------------------------- |
-| Client backend    | `@rubydogjp/openkk-client-ports` | `OpenkkBackendPort`, `*Request`, `*Response`, `*ApiRecord`, `*Input`, `OpenkkApiErrorDto` |
-| TypeScript server | `@rubydogjp/openkk-server-ports` | `OpenkkServerPort`, `*Request`, `*Response`, `*ApiRecord`, `*Input`, `OpenkkApiErrorDto`  |
-| Server storage    | `@rubydogjp/openkk-server-ports` | `OpenkkDbPort`, `*DbRecord`, `*Db*Input`                                                  |
-| Errors            | `@rubydogjp/openkk-*-domain`     | `AppError`, `AppErrorLike`                                                                |
+| Boundary          | Package                      | Types                                                                                     |
+| ----------------- | ---------------------------- | ----------------------------------------------------------------------------------------- |
+| Client backend    | `@rubydogjp/openkk-driver`   | `OpenkkBackendPort`, `*Request`, `*Response`, `*ApiRecord`, `*Input`, `OpenkkApiErrorDto` |
+| TypeScript server | `@rubydogjp/openkk-engine`   | `OpenkkServerPort`, `*Request`, `*Response`, `*ApiRecord`, `*Input`, `OpenkkApiErrorDto`  |
+| Server storage    | `@rubydogjp/openkk-engine`   | `OpenkkDbPort`, `*DbRecord`, `*Db*Input`                                                  |
+| Errors            | `@rubydogjp/openkk-*-domain` | `AppError`, `AppErrorLike`                                                                |
 
 `client-*` and `server-*` define the contract independently.
 

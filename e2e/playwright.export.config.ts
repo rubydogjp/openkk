@@ -18,7 +18,7 @@ export default defineConfig({
       use: { baseURL: "http://localhost:4309" },
     },
   ],
-  webServer: ["openkk", "openkk_demo"].map((bundle, index) => ({
+  webServer: ["bundle-original", "bundle-demo"].map((bundle, index) => ({
     command: "node e2e/serve-export.mjs",
     cwd: process.cwd(),
     env: {

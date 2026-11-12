@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import * as clientDomain from "../packages/client-domain/src/index.js";
-import * as serverDomain from "../packages/server-domain/src/index.js";
+import * as clientDomain from "../packages/driver/src/domain/index.js";
+import * as serverDomain from "../packages/engine/src/domain/index.js";
 
 const SHARED_LIMITS = [
   "MAX_ENTRY_LINES",

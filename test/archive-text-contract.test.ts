@@ -3,10 +3,10 @@ import {
   buildFiscalPeriodArchivePayload,
   createFiscalPeriodArchiveZip,
   readFiscalPeriodArchiveZip,
-} from "../packages/client-domain/src/index.js";
+} from "../packages/driver/src/domain/index.js";
 import { createMemoryDbAdapter } from "../packages/memory-db-adapter/src/index.js";
-import { buildExpectedClosingEntries } from "../packages/server-domain/src/index.js";
-import { createOpenkkServer } from "../packages/server/src/index.js";
+import { buildExpectedClosingEntries } from "../packages/engine/src/domain/index.js";
+import { createOpenkkServer } from "../packages/backend-api/src/index.js";
 
 describe("archive text preservation", () => {
   it.each([1, 2] as const)(

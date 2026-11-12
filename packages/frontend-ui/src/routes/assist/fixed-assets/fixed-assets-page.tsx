@@ -1,0 +1,169 @@
+"use client";
+
+import { useRouter, useSearchParams } from "next/navigation.js";
+import { useCallback, useEffect, useState } from "react";
+
+import {
+  useOpenkkAppState,
+  useOpenkkAssist,
+  useOpenkkConfig,
+  useOpenkkToday,
+} from "../../../bindings/index.js";
+import {
+  buildPeriodLockMessage,
+  capFixedAssetPreviewDate,
+  fixedAssetToDraft,
+  type FixedAssetDraft,
+} from "@rubydogjp/openkk-driver";
+import { ClosedPeriodLock } from "../../../shared/closed-period-lock.js";
+import { pathWithSearchParams } from "../../../shared/pathname.js";
+import { LockButton } from "../../../shared/locked-action.js";
+import { FixedAssetEditDrawer } from "../../../assist/fixed-asset-edit-drawer.js";
+import { FixedAssetsScreen } from "../../../assist/fixed-assets-screen.js";
+
+export function FixedAssetsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const assistState = useOpenkkAssist();
+  const appState = useOpenkkAppState();
+  const openkkConfig = useOpenkkConfig();
+  const today = useOpenkkToday();
+  const editingLocked = openkkConfig.editingPolicy.locked;
+  const [newAssetDraft, setNewAssetDraft] = useState<FixedAssetDraft | null>(
+    null,
+  );
+
+  const currentFiscalPeriod = appState.currentFiscalPeriod;
+  const lockMessage = buildPeriodLockMessage(currentFiscalPeriod, null);
+  const isReadOnlyPeriod =
+    currentFiscalPeriod?.phase === "post_closing" ||
+    currentFiscalPeriod?.phase === "pre_closing";
+  const screenLockMessage = isReadOnlyPeriod ? null : lockMessage;
+  const fixedAssetPreviewAsOf = capFixedAssetPreviewDate(
+    today,
+    currentFiscalPeriod?.endDate ?? null,
+  );
+
+  const drawerAssetId = searchParams.get("asset");
+  const candidateDrawerAsset =
+    drawerAssetId == null ? null : assistState.getFixedAsset(drawerAssetId);
+  const drawerAsset =
+    candidateDrawerAsset?.fiscalPeriodId === currentFiscalPeriod?.id
+      ? candidateDrawerAsset
+      : null;
+
+  useEffect(() => {
+    setNewAssetDraft(null);
+  }, [currentFiscalPeriod?.id]);
+
+  const navigateWithAssetParam = useCallback(
+    (assetId: string | null) => {
+      const next = new URLSearchParams(searchParams.toString());
+      if (assetId == null) {
+        next.delete("asset");
+      } else {
+        next.set("asset", assetId);
+      }
+      router.replace(pathWithSearchParams("/assist/fixed-assets", next), {
+        scroll: false,
+      });
+    },
+    [router, searchParams],
+  );
+
+  if (screenLockMessage != null) {
+    return (
+      <ClosedPeriodLock
+        title={screenLockMessage.title}
+        description={screenLockMessage.description}
+      />
+    );
+  }
+  if (currentFiscalPeriod == null) return null;
+
+  return (
+    <>
+      <FixedAssetsScreen
+        items={assistState.listFixedAssets(currentFiscalPeriod.id)}
+        readOnly={isReadOnlyPeriod}
+        onAdd={
+          editingLocked || isReadOnlyPeriod
+            ? null
+            : () => {
+                navigateWithAssetParam(null);
+                setNewAssetDraft(
+                  buildNewFixedAssetDraft(currentFiscalPeriod.startDate),
+                );
+              }
+        }
+        onOpenItem={
+          isReadOnlyPeriod || editingLocked
+            ? null
+            : (itemId) => navigateWithAssetParam(itemId)
+        }
+        addButtonSlot={
+          !isReadOnlyPeriod && editingLocked ? (
+            <LockButton label="追加" />
+          ) : null
+        }
+        contentMaxWidth={null}
+      />
+      {drawerAsset != null && !isReadOnlyPeriod && !editingLocked ? (
+        <FixedAssetEditDrawer
+          key={`edit:${drawerAsset.id}`}
+          mode="edit"
+          initialDraft={fixedAssetToDraft(drawerAsset)}
+          periodStartDate={currentFiscalPeriod.startDate}
+          periodEndDate={currentFiscalPeriod.endDate}
+          previewAsOf={fixedAssetPreviewAsOf}
+          onClose={() => navigateWithAssetParam(null)}
+          onSave={(draft) =>
+            assistState.updateFixedAsset(drawerAsset.id, draft)
+          }
+          onDelete={async () => {
+            const ok = await assistState.deleteFixedAsset(drawerAsset.id);
+            if (ok) {
+              navigateWithAssetParam(null);
+            }
+            return ok;
+          }}
+        />
+      ) : null}
+      {newAssetDraft != null && !isReadOnlyPeriod && !editingLocked ? (
+        <FixedAssetEditDrawer
+          key="create"
+          mode="create"
+          initialDraft={newAssetDraft}
+          periodStartDate={currentFiscalPeriod.startDate}
+          periodEndDate={currentFiscalPeriod.endDate}
+          previewAsOf={fixedAssetPreviewAsOf}
+          onClose={() => setNewAssetDraft(null)}
+          onSave={async (draft) => {
+            const createdId = await assistState.addFixedAsset(draft);
+            if (createdId != null) {
+              setNewAssetDraft(null);
+              return true;
+            }
+            return false;
+          }}
+          onDelete={null}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function buildNewFixedAssetDraft(acquisitionDate: string): FixedAssetDraft {
+  return {
+    name: "",
+    account: "工具器具備品",
+    acquisitionDate,
+    acquisitionCost: "",
+    usefulLife: 3,
+    businessRatePercent: 100,
+    businessRate: 1,
+    status: "active",
+    disposalDate: null,
+    disposalPrice: null,
+  };
+}

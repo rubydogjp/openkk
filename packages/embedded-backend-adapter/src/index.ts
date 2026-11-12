@@ -7,8 +7,8 @@ import {
   type OpenkkHttpEndpointKey,
   type OpenkkHttpEndpointSpecs,
   type OpenkkHttpResponse,
-} from "@rubydogjp/openkk-client-ports";
-import type { OpenkkServerPort } from "@rubydogjp/openkk-embedded-backend";
+} from "@rubydogjp/openkk-driver";
+import type { OpenkkServerPort } from "@rubydogjp/openkk-engine";
 
 type EndpointRequest<Key extends OpenkkHttpEndpointKey> =
   OpenkkHttpEndpointSpecs[Key]["request"];
@@ -429,3 +429,5 @@ function serverErrorToEmbeddedHttpResponse(error: unknown): OpenkkHttpResponse {
 function isHttpErrorStatus(status: number | null): status is number {
   return status != null && status >= 400 && status <= 599;
 }
+
+export * from "./embedded-backend.js";

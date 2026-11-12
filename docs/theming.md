@@ -2,7 +2,7 @@
 
 # テーマの差し替え
 
-`@rubydogjp/openkk-client-ui` のデザイントークンは CSS custom property
+`@rubydogjp/openkk-frontend-ui` のデザイントークンは CSS custom property
 (`--openkk-*`) 経由で解決される。OpenKK のコンポーネントより上の任意の要素で
 `--openkk-*` を定義すれば見た目を差し替えられる。定義しなかったトークンは既定値のまま。
 
@@ -238,7 +238,7 @@
 Rubydog 自体のブランドには Google 基本4色を使い、Fruit と区別する。
 
 この文書の操作・成功・注意・エラーなどの意味付き UI テーマは Fruit とは独立している。
-ライブラリの UI テーマの正本は引き続き `packages/client-ui` 内のテーマ定義で、ホストアプリは
+ライブラリの UI テーマの正本は引き続き `packages/frontend-ui` 内のテーマ定義で、ホストアプリは
 既存の CSS 変数で上書きできる。今回のアイコン配色変更では、その値を変更しない。
 
 同じ親ディレクトリに arts がある場合、`node scripts/gen-icons.mjs --from-arts` でアイコンの
