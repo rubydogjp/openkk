@@ -6,10 +6,10 @@ import {
   readFiscalPeriodArchiveZip,
 } from "../packages/driver/src/domain/index.js";
 import { createMemoryDbAdapter } from "../packages/memory-db-adapter/src/index.js";
-import { createOpenkkServer } from "../packages/backend-api/src/index.js";
+import { createOpenkkBackendApi } from "../packages/backend-api/src/index.js";
 
 it("restores an archive containing multiple entry import batches", async () => {
-  const source = createOpenkkServer(await createMemoryDbAdapter(null), {
+  const source = createOpenkkBackendApi(await createMemoryDbAdapter(null), {
     userId: "user-1",
   });
   const period = await source.fiscalPeriods.create({
@@ -55,7 +55,7 @@ it("restores an archive containing multiple entry import batches", async () => {
       closings: archiveClosingRecords(closed),
     }),
   );
-  const target = createOpenkkServer(await createMemoryDbAdapter(null), {
+  const target = createOpenkkBackendApi(await createMemoryDbAdapter(null), {
     userId: "user-1",
   });
   const restored = await target.fiscalPeriods.importArchived(

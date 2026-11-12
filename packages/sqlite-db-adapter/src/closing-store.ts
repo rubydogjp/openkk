@@ -1,7 +1,7 @@
 import {
   assertEntryMatchesRules,
-  serverConflictError,
-  serverValidationError,
+  engineConflictError,
+  engineValidationError,
   VIRTUAL_ENTRY_LOCAL_ID_PREFIX,
 } from "@rubydogjp/openkk-engine";
 
@@ -82,7 +82,7 @@ async function replaceClosingGeneratedEntries(
       typeof input.localId !== "string" ||
       !input.localId.startsWith(VIRTUAL_ENTRY_LOCAL_ID_PREFIX)
     ) {
-      throw serverValidationError(
+      throw engineValidationError(
         "Closing entry localId must use the reserved generated prefix",
         null,
       );
@@ -105,7 +105,7 @@ async function replaceClosingGeneratedEntries(
   }));
   const insertedIds = await insertImportedEntries(db, candidates, now);
   if (insertedIds.size !== candidates.length) {
-    throw serverConflictError(
+    throw engineConflictError(
       "closing generated entries contain duplicate localIds",
       "本締め用の自動仕訳が重複したため、本締めを中止しました",
     );

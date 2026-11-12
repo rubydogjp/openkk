@@ -10,7 +10,7 @@ export { type DbSnapshot } from "@rubydogjp/openkk-engine";
 
 export const IN_MEMORY_SQLITE_PATH = ":memory:";
 
-export type NodeSqliteDbAdapter = {
+export type DiskDbAdapter = {
   db: OpenkkDbPort;
   close(): void;
 };
@@ -24,10 +24,10 @@ type ExecOptions = {
   rowMode?: string;
 };
 
-export async function createNodeSqliteDbAdapter(
+export async function createDiskDbAdapter(
   path: string,
   seed: DbSnapshot | null,
-): Promise<NodeSqliteDbAdapter> {
+): Promise<DiskDbAdapter> {
   const database = new DatabaseSync(path);
   try {
     const connection = createNodeSqliteConnection(database);

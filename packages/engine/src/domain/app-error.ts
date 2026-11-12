@@ -37,7 +37,7 @@ export class AppError extends Error implements AppErrorLike {
     return new AppError({
       messageForDeveloper:
         options.fallbackDeveloperMessage ??
-        "Server AppError.from: non-AppError was wrapped",
+        "Engine AppError.from: non-AppError was wrapped",
       messageForUser:
         options.fallbackUserMessage ?? "サーバー処理でエラーが発生しました",
       originalMessage: stringifyOriginalMessage(error),
@@ -47,7 +47,7 @@ export class AppError extends Error implements AppErrorLike {
   }
 }
 
-export function serverValidationError(
+export function engineValidationError(
   messageForDeveloper: string,
   messageForUser: string | null,
 ): AppError {
@@ -60,7 +60,7 @@ export function serverValidationError(
   });
 }
 
-export function serverNotFoundError(messageForDeveloper: string): AppError {
+export function engineNotFoundError(messageForDeveloper: string): AppError {
   return new AppError({
     messageForDeveloper,
     messageForUser: "指定されたデータが見つかりませんでした",
@@ -70,7 +70,7 @@ export function serverNotFoundError(messageForDeveloper: string): AppError {
   });
 }
 
-export function serverConflictError(
+export function engineConflictError(
   messageForDeveloper: string,
   messageForUser: string,
 ): AppError {

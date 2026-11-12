@@ -191,6 +191,7 @@ describe("openkk workspace structure", () => {
       "frontend-ui",
       "client-browser",
       "embedded-backend-adapter",
+      "backend-api",
     ];
     const allowedBoxes: Record<string, string[]> = {
       driver: [],
@@ -209,7 +210,7 @@ describe("openkk workspace structure", () => {
       "book-db-adapter": sqliteBackedDb,
       "legacy-db-adapter": sqliteBackedDb,
       "books-db-adapter": [...sqliteBackedDb, "book-db-adapter"],
-      "embedded-backend-adapter": ["driver", "backend-api", "engine"],
+      "embedded-backend-adapter": ["driver", "backend-api"],
       "browser-print-adapter": ["driver"],
       "browser-platform-adapter": ["driver"],
       "local-book-files-adapter": [
@@ -217,7 +218,12 @@ describe("openkk workspace structure", () => {
         "books-db-adapter",
         "book-db-adapter",
       ],
-      cli: ["driver", "embedded-backend-adapter", "disk-db-adapter"],
+      cli: [
+        "driver",
+        "embedded-backend-adapter",
+        "backend-api",
+        "disk-db-adapter",
+      ],
       "bundle-original": [
         ...browserBundle,
         "books-db-adapter",
@@ -321,32 +327,32 @@ describe("openkk workspace structure", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("keeps the driver/engine REST boundary type names in sync", () => {
-    const clientTypes = exportedTypeNames(
+  it("keeps the driver/backend-api REST boundary type names in sync", () => {
+    const driverTypes = exportedTypeNames(
       path.join(packagesDir, "driver/src/ports/backend/types.ts"),
     );
-    const serverTypes = exportedTypeNames(
-      path.join(packagesDir, "engine/src/ports/types.ts"),
+    const backendApiTypes = exportedTypeNames(
+      path.join(packagesDir, "backend-api/src/contract.ts"),
     );
     const restBoundaryName =
       /(?:Request|Response|ApiRecord|Input|ApiErrorDto)$/;
-    const clientBoundaryTypes = [...clientTypes]
+    const driverBoundaryTypes = [...driverTypes]
       .filter((name) => restBoundaryName.test(name))
       .sort();
-    const serverBoundaryTypes = [...serverTypes]
+    const backendApiBoundaryTypes = [...backendApiTypes]
       .filter((name) => restBoundaryName.test(name))
       .filter((name) => !name.includes("Db"))
       .sort();
 
-    expect(clientBoundaryTypes).toEqual(serverBoundaryTypes);
+    expect(driverBoundaryTypes).toEqual(backendApiBoundaryTypes);
   });
 
-  it("keeps the driver/engine REST boundary type and interface BODIES in sync", () => {
-    const clientBodies = typeBodies(
+  it("keeps the driver/backend-api REST boundary type and interface BODIES in sync", () => {
+    const driverBodies = typeBodies(
       path.join(packagesDir, "driver/src/ports/backend/types.ts"),
     );
-    const serverBodies = typeBodies(
-      path.join(packagesDir, "engine/src/ports/types.ts"),
+    const backendApiBodies = typeBodies(
+      path.join(packagesDir, "backend-api/src/contract.ts"),
     );
     const restBoundaryName =
       /(?:Request|Response|ApiRecord|Input|ApiErrorDto)$/;
@@ -359,30 +365,30 @@ describe("openkk workspace structure", () => {
       "FixedAssetsApi",
       "MasterDataApi",
     ];
-    const namesToCompare = [...clientBodies.keys()].filter(
+    const namesToCompare = [...driverBodies.keys()].filter(
       (name) =>
         (restBoundaryName.test(name) && !name.includes("Db")) ||
         sharedApiInterfaces.includes(name),
     );
     expect(namesToCompare.length).toBeGreaterThan(0);
     for (const name of namesToCompare) {
-      if (!serverBodies.has(name)) continue;
+      if (!backendApiBodies.has(name)) continue;
       expect(
-        serverBodies.get(name),
-        `${name} の本文が driver と engine で食い違っています`,
-      ).toBe(clientBodies.get(name));
+        backendApiBodies.get(name),
+        `${name} の本文が driver と backend-api で食い違っています`,
+      ).toBe(driverBodies.get(name));
     }
   });
 
-  it("keeps the driver/engine HTTP endpoint metadata in sync", () => {
-    const clientEndpoints = endpointMetadata(
+  it("keeps the driver/backend-api HTTP endpoint metadata in sync", () => {
+    const driverEndpoints = endpointMetadata(
       path.join(packagesDir, "driver/src/ports/backend/types.ts"),
     );
-    const serverEndpoints = endpointMetadata(
-      path.join(packagesDir, "engine/src/ports/types.ts"),
+    const backendApiEndpoints = endpointMetadata(
+      path.join(packagesDir, "backend-api/src/contract.ts"),
     );
 
-    expect(clientEndpoints).toEqual(serverEndpoints);
+    expect(driverEndpoints).toEqual(backendApiEndpoints);
   });
 
   it("keeps persistence types independent from REST DTOs", () => {

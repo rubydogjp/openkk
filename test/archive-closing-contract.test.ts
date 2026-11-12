@@ -12,7 +12,7 @@ import { entryRecord } from "../packages/driver/test-support/entry-record.js";
 import { mapFixedAsset } from "../packages/driver/src/domain/assist/stored-record-mapping.js";
 import { entryRecordToImportPayload } from "../packages/driver/src/domain/entries/entry-input-mapping.js";
 import { createMemoryDbAdapter } from "../packages/memory-db-adapter/src/index.js";
-import { createOpenkkServer } from "../packages/backend-api/src/index.js";
+import { createOpenkkBackendApi } from "../packages/backend-api/src/index.js";
 
 describe("archived closing reports", () => {
   it.each(
@@ -26,19 +26,22 @@ describe("archived closing reports", () => {
   )(
     "preserves closing amounts after restoring a $status asset with a $nameLength character name",
     async ({ status, name }) => {
-      const server = createOpenkkServer(await createMemoryDbAdapter(null), {
-        userId: "user-1",
-      });
-      const period = await server.fiscalPeriods.create({
+      const backendApi = createOpenkkBackendApi(
+        await createMemoryDbAdapter(null),
+        {
+          userId: "user-1",
+        },
+      );
+      const period = await backendApi.fiscalPeriods.create({
         name: "2026年分",
         startDate: "2026-01-01",
         endDate: "2026-12-31",
       });
-      await server.fiscalPeriods.start(period.id);
-      await server.fiscalPeriods.patch(period.id, {
+      await backendApi.fiscalPeriods.start(period.id);
+      await backendApi.fiscalPeriods.patch(period.id, {
         openingBalancesCompleted: true,
       });
-      let asset = await server.fixedAssets.create(period.id, {
+      let asset = await backendApi.fixedAssets.create(period.id, {
         name,
         acquisitionDate: "2026-01-01",
         acquisitionCost: 120_000,
@@ -48,16 +51,16 @@ describe("archived closing reports", () => {
         bookAccountId: "acct_equipment",
       });
       if (status !== "active") {
-        asset = await server.fixedAssets.patch(period.id, asset.id, {
+        asset = await backendApi.fixedAssets.patch(period.id, asset.id, {
           status,
           disposalDate: "2026-06-30",
           disposalPrice: status === "sold" ? 110_000 : null,
         });
       }
-      const accounts = await server.masterData.getBookAccounts();
-      const taxCategories = await server.masterData.getTaxCategories();
+      const accounts = await backendApi.masterData.getBookAccounts();
+      const taxCategories = await backendApi.masterData.getTaxCategories();
       const businessCategories =
-        await server.masterData.getBusinessCategories();
+        await backendApi.masterData.getBusinessCategories();
       const today = new Date(2026, 11, 31);
       const preview = buildClosingVirtualEntries({
         fiscalPeriodId: period.id,
@@ -76,8 +79,8 @@ describe("archived closing reports", () => {
             !/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(entry.description),
         ),
       ).toBe(true);
-      await server.preClosings.run(period.id);
-      await server.closings.run(
+      await backendApi.preClosings.run(period.id);
+      await backendApi.closings.run(
         period.id,
         preview.map((entry) =>
           entryRecordToImportPayload(entry, {
@@ -87,48 +90,49 @@ describe("archived closing reports", () => {
           }),
         ),
       );
-      const closed = await server.fiscalPeriods.patch(period.id, {
+      const closed = await backendApi.fiscalPeriods.patch(period.id, {
         documentsReceivedCompleted: true,
       });
       const zip = createFiscalPeriodArchiveZip(
         buildFiscalPeriodArchivePayload({
           createdAt: today.toISOString(),
           fiscalPeriod: closed,
-          entries: await server.entries.getAll(period.id),
+          entries: await backendApi.entries.getAll(period.id),
           fixedAssets: [asset],
           closings: archiveClosingRecords(closed),
         }),
       );
-      const restoredServer = createOpenkkServer(
+      const restoredBackendApi = createOpenkkBackendApi(
         await createMemoryDbAdapter(null),
         {
           userId: "user-1",
         },
       );
-      const restored = await restoredServer.fiscalPeriods.importArchived(
+      const restored = await restoredBackendApi.fiscalPeriods.importArchived(
         readFiscalPeriodArchiveZip(zip),
       );
-      const restoredAssets = await restoredServer.fixedAssets.getAll(
+      const restoredAssets = await restoredBackendApi.fixedAssets.getAll(
         restored.id,
       );
       expect(restoredAssets[0]!.id).not.toBe(asset.id);
-      const entries = (await restoredServer.entries.getAll(restored.id)).map(
-        (entry) =>
-          entryRecord({
-            ...entry,
-            lines: entry.lines.map((line) => ({
-              ...line,
-              accountName: accounts.find(
-                (account) => account.id === line.bookAccountId,
-              )!.name,
-              accountType: accounts.find(
-                (account) => account.id === line.bookAccountId,
-              )!.accountType,
-              amount: String(line.amount),
-              taxCategoryName: null,
-              businessCategoryName: null,
-            })),
-          }),
+      const entries = (
+        await restoredBackendApi.entries.getAll(restored.id)
+      ).map((entry) =>
+        entryRecord({
+          ...entry,
+          lines: entry.lines.map((line) => ({
+            ...line,
+            accountName: accounts.find(
+              (account) => account.id === line.bookAccountId,
+            )!.name,
+            accountType: accounts.find(
+              (account) => account.id === line.bookAccountId,
+            )!.accountType,
+            amount: String(line.amount),
+            taxCategoryName: null,
+            businessCategoryName: null,
+          })),
+        }),
       );
       const reportEntries = withClosingVirtualEntries({
         fiscalPeriodId: restored.id,

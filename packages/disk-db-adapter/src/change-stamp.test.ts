@@ -4,12 +4,9 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it } from "vitest";
 
-import {
-  createNodeSqliteDbAdapter,
-  type NodeSqliteDbAdapter,
-} from "./index.js";
+import { createDiskDbAdapter, type DiskDbAdapter } from "./index.js";
 
-const openAdapters: NodeSqliteDbAdapter[] = [];
+const openAdapters: DiskDbAdapter[] = [];
 const tempDirs: string[] = [];
 
 afterEach(() => {
@@ -77,7 +74,7 @@ const assetInput = {
 describe("change stamp", () => {
   it("starts with a stamp and keeps it while the book is only read", async () => {
     const dbPath = tempDbPath();
-    const adapter = await createNodeSqliteDbAdapter(dbPath, null);
+    const adapter = await createDiskDbAdapter(dbPath, null);
     openAdapters.push(adapter);
     const initial = readStamp(dbPath);
 
@@ -91,7 +88,7 @@ describe("change stamp", () => {
 
   it("moves the stamp forward on every operation that changes the book", async () => {
     const dbPath = tempDbPath();
-    const adapter = await createNodeSqliteDbAdapter(dbPath, null);
+    const adapter = await createDiskDbAdapter(dbPath, null);
     openAdapters.push(adapter);
     const { db } = adapter;
     let last = readStamp(dbPath);
@@ -226,7 +223,7 @@ describe("change stamp", () => {
 
   it("keeps the stamp when an operation fails and rolls back", async () => {
     const dbPath = tempDbPath();
-    const adapter = await createNodeSqliteDbAdapter(dbPath, null);
+    const adapter = await createDiskDbAdapter(dbPath, null);
     openAdapters.push(adapter);
     const period = await adapter.db.fiscalPeriods.create("user-1", {
       name: "2026年分",
@@ -248,7 +245,7 @@ describe("change stamp", () => {
 
   it("moves the stamp past a clock that runs behind the book", async () => {
     const dbPath = tempDbPath();
-    const first = await createNodeSqliteDbAdapter(dbPath, null);
+    const first = await createDiskDbAdapter(dbPath, null);
     first.close();
     const future = Date.now() + 60 * 60 * 1000;
     const database = new DatabaseSync(dbPath);
@@ -256,7 +253,7 @@ describe("change stamp", () => {
       .prepare("UPDATE openkk_meta SET value = ? WHERE key = 'last_changed_at'")
       .run(String(future));
     database.close();
-    const adapter = await createNodeSqliteDbAdapter(dbPath, null);
+    const adapter = await createDiskDbAdapter(dbPath, null);
     openAdapters.push(adapter);
 
     await adapter.db.fiscalPeriods.create("user-1", {

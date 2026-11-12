@@ -36,7 +36,7 @@ type CustomUser = {
 外部認証（OAuth、トークン検証、セッション管理）はサードパーティが実装する。openkk は `AuthApi` とユーザー型を提供する。
 
 1. **`authMode: "custom"`** を `OpenkkConfig` に設定する。
-2. **`OpenkkBackendPort.auth` を実装したクライアントアダプタ** を用意し、独自バックエンドへ接続する。TypeScriptサーバーでは `OpenkkServerPort.auth` が同じ契約を持つ。実装するメソッド:
+2. **`OpenkkBackendPort.auth` を実装したクライアントアダプタ** を用意し、独自バックエンドへ接続する。TypeScriptサーバーでは `OpenkkBackendApi.auth` が同じ契約を持つ。実装するメソッド:
    - `startSession(redirectUrl)` → 外部認証 URL を発行（`{ authUrl }`）。
    - `completeSession(state, code)` → 認証完了し `{ completionCode }` を返す。
    - `redeemCompletionCode(completionCode)` → `RedeemCompletionCodeResponse` を返す。未設定の `displayName` / `email` / `iconUrl` / `authProvider` は `null` にする。

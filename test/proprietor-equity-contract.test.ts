@@ -8,7 +8,7 @@ import {
   DEFAULT_TAX_CATEGORIES,
   importEntriesFromLegacyCsv,
   importEntriesFromJson,
-  type EntryRecord as ClientEntryRecord,
+  type EntryRecord as DriverEntryRecord,
 } from "../packages/driver/src/domain/index.js";
 import { entryRecordToImportPayload } from "../packages/driver/src/domain/entries/entry-input-mapping.js";
 import { createMemoryDbAdapter } from "../packages/memory-db-adapter/src/index.js";
@@ -17,7 +17,7 @@ import {
   type Entry,
   type EntryLine,
 } from "../packages/engine/src/domain/index.js";
-import { createOpenkkServer } from "../packages/backend-api/src/index.js";
+import { createOpenkkBackendApi } from "../packages/backend-api/src/index.js";
 
 const OWNER_LOAN = "acct_proprietor_loan";
 const master = {
@@ -51,7 +51,7 @@ function entry(lines: EntryLine[], businessRate = 1): Entry {
   };
 }
 
-function clientEntry(record: Entry, index = 0): ClientEntryRecord {
+function driverEntry(record: Entry, index = 0): DriverEntryRecord {
   return {
     ...record,
     id: `entry-${index}`,
@@ -96,7 +96,7 @@ describe("事業主借 equity contract", () => {
         line(side, OWNER_LOAN, amount),
         line(side === "debit" ? "credit" : "debit", "acct_cash", amount),
       ]);
-      const record = clientEntry(saved);
+      const record = driverEntry(saved);
       const aggregate = computeFsAggregate({
         entries: [record],
         openingBalanceLines,
@@ -123,7 +123,7 @@ describe("事業主借 equity contract", () => {
         liabilityClosing: 100_000 + remaining,
       });
 
-      const recordWithLoanAsLiability: ClientEntryRecord = {
+      const recordWithLoanAsLiability: DriverEntryRecord = {
         ...record,
         lines: record.lines.map((item) =>
           item.bookAccountId === OWNER_LOAN
@@ -186,14 +186,14 @@ describe("事業主借 equity contract", () => {
         line("debit", "acct_cash", 30_000),
         line("credit", OWNER_LOAN, 30_000),
       ]);
-      expect(clientEntry(payload).lines[1]?.accountType).toBe("equity");
+      expect(driverEntry(payload).lines[1]?.accountType).toBe("equity");
     },
   );
 
   it.each([null, OWNER_LOAN] as const)(
     "accepts the old classification with account ID %j",
     (id) => {
-      const record = clientEntry(
+      const record = driverEntry(
         entry([
           line("debit", "acct_cash", 100),
           line("credit", OWNER_LOAN, 100),
@@ -211,7 +211,7 @@ describe("事業主借 equity contract", () => {
   );
 
   it("keeps identity errors and unrelated type mismatches invalid", () => {
-    const record = clientEntry(
+    const record = driverEntry(
       entry([line("debit", "acct_cash", 100), line("credit", OWNER_LOAN, 100)]),
     );
     for (const override of [
@@ -236,8 +236,8 @@ describe("事業主借 equity contract", () => {
 
   it("keeps equity and revenue consistent through automatic allocation, closing, reload and next period", async () => {
     const db = await createMemoryDbAdapter(null);
-    const server = createOpenkkServer(db, { userId: "user-1" });
-    const accounts = await server.masterData.getBookAccounts();
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
+    const accounts = await backendApi.masterData.getBookAccounts();
     for (const catalog of [DEFAULT_BOOK_ACCOUNTS, accounts]) {
       expect(
         catalog.find((account) => account.id === OWNER_LOAN),
@@ -255,28 +255,28 @@ describe("事業主借 equity contract", () => {
         normalBalanceSide: "debit",
       });
     }
-    const period = await server.fiscalPeriods.create({
+    const period = await backendApi.fiscalPeriods.create({
       name: "2026年分",
       startDate: "2026-01-01",
       endDate: "2026-12-31",
     });
-    await server.fiscalPeriods.start(period.id);
+    await backendApi.fiscalPeriods.start(period.id);
     const openingBalanceLines = [
       balance("a:現金", 100_000),
       balance("l:事業主借", 100_000),
     ];
-    await server.fiscalPeriods.patch(period.id, {
+    await backendApi.fiscalPeriods.patch(period.id, {
       openingBalancesCompleted: true,
       opening: { balanceLines: openingBalanceLines, journals: [] },
     });
-    await server.entries.create(
+    await backendApi.entries.create(
       period.id,
       entry([
         line("debit", OWNER_LOAN, 30_000),
         line("credit", "acct_cash", 30_000),
       ]),
     );
-    await server.entries.create(
+    await backendApi.entries.create(
       period.id,
       entry(
         [
@@ -286,7 +286,9 @@ describe("事業主借 equity contract", () => {
         0.5,
       ),
     );
-    const records = (await server.entries.getAll(period.id)).map(clientEntry);
+    const records = (await backendApi.entries.getAll(period.id)).map(
+      driverEntry,
+    );
     const virtual = buildClosingVirtualEntries({
       fiscalPeriodId: period.id,
       periodStartDate: period.startDate,
@@ -320,14 +322,14 @@ describe("事業主借 equity contract", () => {
         ?.liabilityClosing,
     ).toBe(120_000);
 
-    await server.preClosings.run(period.id);
-    await server.closings.run(
+    await backendApi.preClosings.run(period.id);
+    await backendApi.closings.run(
       period.id,
       virtual.map((record) => entryRecordToImportPayload(record, master)),
     );
-    const reloaded = createOpenkkServer(db, { userId: "user-1" });
+    const reloaded = createOpenkkBackendApi(db, { userId: "user-1" });
     const closedEntries = (await reloaded.entries.getAll(period.id)).map(
-      clientEntry,
+      driverEntry,
     );
     expect(
       computeFsAggregate({ entries: closedEntries, openingBalanceLines }),

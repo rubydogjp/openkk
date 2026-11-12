@@ -1,4 +1,4 @@
-import { serverValidationError } from "./app-error.js";
+import { engineValidationError } from "./app-error.js";
 import { getDefaultBookAccount } from "./master-data.js";
 import type { Entry, EntryLine } from "./models.js";
 import {
@@ -16,24 +16,24 @@ export function assertEntryMatchesRules(
 ): asserts entry is Entry {
   const value = requireObject(entry, label);
   if (!isNonBlankString(value.description)) {
-    throw serverValidationError(`${label} description is required`, null);
+    throw engineValidationError(`${label} description is required`, null);
   }
   assertIsoDate(value.date, `${label} date`);
   if (value.date < period.startDate || value.date > period.endDate) {
-    throw serverValidationError(
+    throw engineValidationError(
       `${label} date ${value.date} must be within fiscal period ${period.startDate} to ${period.endDate}`,
       "仕訳日付を会計期間内にしてください",
     );
   }
   if (value.localId !== null && !isNonBlankString(value.localId)) {
-    throw serverValidationError(
+    throw engineValidationError(
       `${label} localId must be a non-blank string or null`,
       null,
     );
   }
   assertUnitRate(value.businessRate, `${label} business rate`);
   if (!Array.isArray(value.lines)) {
-    throw serverValidationError(`${label} lines must be an array`, null);
+    throw engineValidationError(`${label} lines must be an array`, null);
   }
   for (const line of value.lines) {
     assertEntryLineMatchesRules(line, label);
@@ -47,10 +47,10 @@ export function assertEntryLineMatchesRules(
 ): asserts line is EntryLine {
   const value = requireObject(line, `${label} line`);
   if (!isNonBlankString(value.bookAccountId)) {
-    throw serverValidationError(`${label} line book account is required`, null);
+    throw engineValidationError(`${label} line book account is required`, null);
   }
   if (getDefaultBookAccount(value.bookAccountId) == null) {
-    throw serverValidationError(
+    throw engineValidationError(
       `${label} line references unknown book account: ${value.bookAccountId}`,
       "存在しない勘定科目が指定されています",
     );
@@ -62,6 +62,6 @@ export function assertEntryLineMatchesRules(
 
 function assertLineText(value: unknown, label: string): void {
   if (typeof value !== "string") {
-    throw serverValidationError(`${label} must be a string`, null);
+    throw engineValidationError(`${label} must be a string`, null);
   }
 }

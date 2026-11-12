@@ -5,8 +5,8 @@ import {
   assertUniqueStrings,
   MAX_ENTRY_IMPORT_ITEMS,
   requireObject,
-  serverConflictError,
-  serverValidationError,
+  engineConflictError,
+  engineValidationError,
 } from "@rubydogjp/openkk-engine";
 import type {
   EntryApiRecord,
@@ -19,7 +19,7 @@ import type {
   FiscalPeriodOpeningApiRecord,
   FiscalPeriodPatchInput,
   FixedAssetApiRecord,
-} from "@rubydogjp/openkk-engine";
+} from "./contract.js";
 import {
   assertNonBlankTextField,
   assertOptionalBoolean,
@@ -32,7 +32,7 @@ export function assertPeriodDataAvailable(
   operation: string,
 ): void {
   if (period.archiveStatus === "purged") {
-    throw serverConflictError(
+    throw engineConflictError(
       `Fiscal period ${period.id} cannot ${operation} after archived data was purged`,
       "この会計期間の実データは削除済みです",
     );
@@ -65,7 +65,7 @@ export function assertPeriodPhaseOneOf(
 ): void {
   assertMutableFiscalPeriod(period, operation);
   if (!expectedPhases.includes(period.phase)) {
-    throw serverConflictError(
+    throw engineConflictError(
       `Fiscal period ${period.id} cannot ${operation} from phase ${period.phase}`,
       "会計期間の状態が変わったため、この操作を実行できません",
     );
@@ -76,7 +76,7 @@ export function assertFiscalPeriodReadyForPreClosing(
   period: FiscalPeriodApiRecord,
 ): void {
   if (!period.openingBalancesCompleted) {
-    throw serverConflictError(
+    throw engineConflictError(
       `Fiscal period ${period.id} cannot run pre-closing before opening balances are completed`,
       "期首残高を完了してから仮締めしてください",
     );
@@ -87,7 +87,7 @@ export function assertFiscalPeriodReadyForPreClosing(
 }
 
 export function archivedFiscalPeriodError(messageForDeveloper: string) {
-  return serverConflictError(
+  return engineConflictError(
     messageForDeveloper,
     "圧縮保存済みの会計期間は変更できません",
   );
@@ -111,13 +111,13 @@ export function assertFiscalPeriodNextCreateInput(
     typeof value.carryBalances !== "boolean" ||
     typeof value.carryFixedAssets !== "boolean"
   ) {
-    throw serverValidationError("Carryover options must be booleans", null);
+    throw engineValidationError("Carryover options must be booleans", null);
   }
   if (
     !Array.isArray(value.reversalEntryIds) ||
     value.reversalEntryIds.length > MAX_ENTRY_IMPORT_ITEMS
   ) {
-    throw serverValidationError(
+    throw engineValidationError(
       "Reversal entry ids must be a bounded array",
       null,
     );
@@ -138,14 +138,14 @@ export function assertFiscalPeriodCarryoverApplyInput(
     typeof value.carryBalances !== "boolean" ||
     typeof value.carryFixedAssets !== "boolean"
   ) {
-    throw serverValidationError("Carryover options must be booleans", null);
+    throw engineValidationError("Carryover options must be booleans", null);
   }
   if (value.reversalEntryIds !== null) {
     if (
       !Array.isArray(value.reversalEntryIds) ||
       value.reversalEntryIds.length > MAX_ENTRY_IMPORT_ITEMS
     ) {
-      throw serverValidationError(
+      throw engineValidationError(
         "Reversal entry ids must be null or a bounded array",
         null,
       );
@@ -161,7 +161,7 @@ export function assertFiscalPeriodCarryoverApplyInput(
     !value.carryFixedAssets &&
     value.reversalEntryIds === null
   ) {
-    throw serverValidationError(
+    throw engineValidationError(
       "Carryover requires at least one item",
       "引き継ぐ項目を選んでください",
     );
@@ -177,7 +177,7 @@ export function assertFiscalPeriodCarryoverFromArchiveApplyInput(
     typeof value.carryBalances !== "boolean" ||
     typeof value.carryFixedAssets !== "boolean"
   ) {
-    throw serverValidationError("Carryover options must be booleans", null);
+    throw engineValidationError("Carryover options must be booleans", null);
   }
   if (value.reversalEntryIndexes !== null) {
     if (
@@ -187,7 +187,7 @@ export function assertFiscalPeriodCarryoverFromArchiveApplyInput(
         (index) => Number.isSafeInteger(index) && index >= 0,
       )
     ) {
-      throw serverValidationError(
+      throw engineValidationError(
         "Reversal entry indexes must be null or a bounded array of entry positions",
         null,
       );
@@ -196,7 +196,7 @@ export function assertFiscalPeriodCarryoverFromArchiveApplyInput(
       new Set(value.reversalEntryIndexes).size !==
       value.reversalEntryIndexes.length
     ) {
-      throw serverValidationError(
+      throw engineValidationError(
         "Reversal entry indexes must be unique",
         "同じ仕訳が再振替に重複して指定されています",
       );
@@ -207,7 +207,7 @@ export function assertFiscalPeriodCarryoverFromArchiveApplyInput(
     !value.carryFixedAssets &&
     value.reversalEntryIndexes === null
   ) {
-    throw serverValidationError(
+    throw engineValidationError(
       "Carryover requires at least one item",
       "引き継ぐ項目を選んでください",
     );
@@ -228,7 +228,7 @@ export function assertFiscalPeriodContainsExistingData(
     (entry) => entry.date < period.startDate || entry.date > period.endDate,
   );
   if (entryOutsidePeriod != null) {
-    throw serverValidationError(
+    throw engineValidationError(
       `Entry ${entryOutsidePeriod.id} date ${entryOutsidePeriod.date} ` +
         `must be within fiscal period ${period.startDate} to ${period.endDate}`,
       "保存済みの仕訳を含む範囲に会計期間を設定してください",
@@ -239,7 +239,7 @@ export function assertFiscalPeriodContainsExistingData(
     (asset) => asset.acquisitionDate > period.endDate,
   );
   if (acquisitionAfterPeriod != null) {
-    throw serverValidationError(
+    throw engineValidationError(
       `Fixed asset ${acquisitionAfterPeriod.id} acquisition date ` +
         `${acquisitionAfterPeriod.acquisitionDate} must not be after ` +
         `fiscal period end ${period.endDate}`,
@@ -255,7 +255,7 @@ export function assertFiscalPeriodContainsExistingData(
         asset.disposalDate > period.endDate),
   );
   if (disposalOutsidePeriod != null) {
-    throw serverValidationError(
+    throw engineValidationError(
       `Fixed asset ${disposalOutsidePeriod.id} disposal date ` +
         `${disposalOutsidePeriod.disposalDate} must be within fiscal period ` +
         `${period.startDate} to ${period.endDate}`,

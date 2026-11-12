@@ -1,6 +1,6 @@
 import {
   assertNonBlankString,
-  serverValidationError,
+  engineValidationError,
 } from "../domain/index.js";
 
 const LOCAL_AUTH_COMPLETION_PREFIX = "local-auth-completion:";
@@ -26,14 +26,14 @@ export function createLocalAuthUsecase() {
       try {
         target = new URL(redirectUrl);
       } catch {
-        throw serverValidationError("auth redirect URL is invalid", null);
+        throw engineValidationError("auth redirect URL is invalid", null);
       }
       if (
         (target.protocol !== "http:" && target.protocol !== "https:") ||
         target.username !== "" ||
         target.password !== ""
       ) {
-        throw serverValidationError("auth redirect URL is not allowed", null);
+        throw engineValidationError("auth redirect URL is not allowed", null);
       }
       pruneExpired();
       const state = crypto.randomUUID();
@@ -53,7 +53,7 @@ export function createLocalAuthUsecase() {
       pruneExpired();
       const key = authorizationKey(state, code);
       if (!pendingAuthorizations.delete(key)) {
-        throw serverValidationError(
+        throw engineValidationError(
           "auth state or code is invalid or expired",
           null,
         );
@@ -70,7 +70,7 @@ export function createLocalAuthUsecase() {
       assertNonBlankString(completionCode, "auth completion code");
       pruneExpired();
       if (!pendingCompletions.delete(completionCode)) {
-        throw serverValidationError(
+        throw engineValidationError(
           "invalid or expired auth completion code",
           null,
         );

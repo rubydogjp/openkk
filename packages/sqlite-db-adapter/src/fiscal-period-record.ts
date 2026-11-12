@@ -1,4 +1,4 @@
-import { serverNotFoundError } from "@rubydogjp/openkk-engine";
+import { engineNotFoundError } from "@rubydogjp/openkk-engine";
 import type { FiscalPeriodDbRecord } from "@rubydogjp/openkk-engine";
 import { loadOpeningByFiscalPeriod } from "./opening-store.js";
 import { msToIso, parseFiscalPeriodDbData } from "./persistence-codec.js";
@@ -35,6 +35,6 @@ export async function requireFiscalPeriodRecord(
 ): Promise<FiscalPeriodDbRecord> {
   const record = await findFiscalPeriodRecord(db, id);
   if (record == null)
-    throw serverNotFoundError(`fiscal period not found: ${id}`);
+    throw engineNotFoundError(`fiscal period not found: ${id}`);
   return record;
 }

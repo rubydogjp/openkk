@@ -4,8 +4,8 @@ import {
   type BookStore,
 } from "@rubydogjp/openkk-books-db-adapter";
 import {
-  exportFileDbBytes,
-  hasFileDbStorage,
+  exportLegacyDbBytes,
+  hasLegacyDbStorage,
 } from "@rubydogjp/openkk-legacy-db-adapter";
 import { newInAppBookName } from "@rubydogjp/openkk-browser-platform-adapter";
 
@@ -98,8 +98,8 @@ const storageRootMarker: LegacyBookMarker = {
 export const legacyBook = createLegacyBook({
   marker: storageRootMarker,
   async exportLegacyDatabase(onWaitingForAnotherTab) {
-    if (!(await hasFileDbStorage(LEGACY_DATABASE.vfsName))) return null;
-    return exportFileDbBytes({ ...LEGACY_DATABASE, onWaitingForAnotherTab });
+    if (!(await hasLegacyDbStorage(LEGACY_DATABASE.vfsName))) return null;
+    return exportLegacyDbBytes({ ...LEGACY_DATABASE, onWaitingForAnotherTab });
   },
   async splitIntoPeriods(bytes) {
     return (await splitBookFile(bytes)).map((period) => ({

@@ -3,26 +3,33 @@ import {
   assertFiscalPeriodCanCarryOver,
   assertNoOverlappingActiveFiscalPeriod,
   buildExpectedClosingEntries,
-  serverNotFoundError,
+  engineNotFoundError,
 } from "../domain/index.js";
 import type {
-  EntryUpsertInput,
-  FiscalPeriodArchiveImportInput,
-  FiscalPeriodCarryoverApplyInput,
-  FiscalPeriodCarryoverFromArchiveApplyInput,
-  FiscalPeriodCreateInput,
-  FiscalPeriodNextCreateInput,
-  FiscalPeriodPatchInput,
-  FixedAssetCreateInput,
-  FixedAssetPatchInput,
+  EntryDbUpsertInput,
+  FiscalPeriodCarryoverDbApplyInput,
+  FiscalPeriodCarryoverFromArchiveDbApplyInput,
+  FiscalPeriodDbCreateInput,
+  FiscalPeriodNextDbCreateInput,
+  FiscalPeriodDbPatchInput,
+  FixedAssetDbCreateInput,
+  FixedAssetDbPatchInput,
   OpenkkDbPort,
 } from "../ports/index.js";
-import { normalizeArchiveImportInput } from "./archive-import.js";
+import {
+  normalizeArchiveImportInput,
+  type UnvalidatedFiscalPeriodArchive,
+} from "./archive-import.js";
 import { createLocalAuthUsecase } from "./local-auth.js";
 
-export type ServerUsecases = ReturnType<typeof createServerUsecases>;
+export type EngineUsecases = ReturnType<typeof createEngineUsecases>;
 
-export function createServerUsecases(db: OpenkkDbPort) {
+export type CarryoverFromUnvalidatedArchiveInput = Omit<
+  FiscalPeriodCarryoverFromArchiveDbApplyInput,
+  "archive"
+> & { archive: UnvalidatedFiscalPeriodArchive };
+
+export function createEngineUsecases(db: OpenkkDbPort) {
   return {
     auth: createLocalAuthUsecase(),
     preClosings: createPreClosingsUsecase(db),
@@ -39,7 +46,7 @@ function createClosingsUsecase(db: OpenkkDbPort) {
     async run(
       userId: string,
       fiscalPeriodId: string,
-      entries: EntryUpsertInput[],
+      entries: EntryDbUpsertInput[],
     ) {
       const period = await requireOwnedFiscalPeriod(db, userId, fiscalPeriodId);
       const [persistedEntries, fixedAssets, bookAccounts] = await Promise.all([
@@ -87,12 +94,12 @@ function createEntriesUsecase(db: OpenkkDbPort) {
     async create(
       userId: string,
       fiscalPeriodId: string,
-      input: EntryUpsertInput,
+      input: EntryDbUpsertInput,
     ) {
       await requireOwnedFiscalPeriod(db, userId, fiscalPeriodId);
       return db.entries.create(userId, fiscalPeriodId, input);
     },
-    async update(userId: string, id: string, input: EntryUpsertInput) {
+    async update(userId: string, id: string, input: EntryDbUpsertInput) {
       await requireOwnedEntry(db, userId, id);
       return db.entries.update(id, input);
     },
@@ -103,7 +110,7 @@ function createEntriesUsecase(db: OpenkkDbPort) {
     async importMany(
       userId: string,
       fiscalPeriodId: string,
-      entries: EntryUpsertInput[],
+      entries: EntryDbUpsertInput[],
     ) {
       await requireOwnedFiscalPeriod(db, userId, fiscalPeriodId);
       return db.entries.importMany(userId, fiscalPeriodId, entries);
@@ -120,10 +127,10 @@ function createFiscalPeriodsUsecase(db: OpenkkDbPort) {
       const period = await db.fiscalPeriods.getById(id);
       return period?.userId === userId ? period : null;
     },
-    async create(userId: string, input: FiscalPeriodCreateInput) {
+    async create(userId: string, input: FiscalPeriodDbCreateInput) {
       return db.fiscalPeriods.create(userId, input);
     },
-    async createNext(userId: string, input: FiscalPeriodNextCreateInput) {
+    async createNext(userId: string, input: FiscalPeriodNextDbCreateInput) {
       const source = await requireOwnedFiscalPeriod(
         db,
         userId,
@@ -135,7 +142,7 @@ function createFiscalPeriodsUsecase(db: OpenkkDbPort) {
     async applyCarryover(
       userId: string,
       id: string,
-      input: FiscalPeriodCarryoverApplyInput,
+      input: FiscalPeriodCarryoverDbApplyInput,
     ) {
       const target = await requireOwnedFiscalPeriod(db, userId, id);
       const source = await requireOwnedFiscalPeriod(
@@ -149,7 +156,7 @@ function createFiscalPeriodsUsecase(db: OpenkkDbPort) {
     async applyCarryoverFromArchive(
       userId: string,
       id: string,
-      input: FiscalPeriodCarryoverFromArchiveApplyInput,
+      input: CarryoverFromUnvalidatedArchiveInput,
     ) {
       await requireOwnedFiscalPeriod(db, userId, id);
       return db.fiscalPeriods.applyCarryoverFromArchive(id, {
@@ -161,7 +168,7 @@ function createFiscalPeriodsUsecase(db: OpenkkDbPort) {
     },
     async importArchived(
       userId: string,
-      input: FiscalPeriodArchiveImportInput,
+      input: UnvalidatedFiscalPeriodArchive,
     ) {
       const normalized = normalizeArchiveImportInput(input);
       assertNoOverlappingActiveFiscalPeriod(
@@ -170,7 +177,7 @@ function createFiscalPeriodsUsecase(db: OpenkkDbPort) {
       );
       return db.fiscalPeriods.importArchived(userId, normalized);
     },
-    async patch(userId: string, id: string, patch: FiscalPeriodPatchInput) {
+    async patch(userId: string, id: string, patch: FiscalPeriodDbPatchInput) {
       await requireOwnedFiscalPeriod(db, userId, id);
       return db.fiscalPeriods.patch(id, patch);
     },
@@ -206,12 +213,12 @@ function createFixedAssetsUsecase(db: OpenkkDbPort) {
     async create(
       userId: string,
       fiscalPeriodId: string,
-      input: FixedAssetCreateInput,
+      input: FixedAssetDbCreateInput,
     ) {
       await requireOwnedFiscalPeriod(db, userId, fiscalPeriodId);
       return db.fixedAssets.create(userId, fiscalPeriodId, input);
     },
-    async patch(userId: string, id: string, patch: FixedAssetPatchInput) {
+    async patch(userId: string, id: string, patch: FixedAssetDbPatchInput) {
       await requireOwnedFixedAsset(db, userId, id);
       return db.fixedAssets.patch(id, patch);
     },
@@ -243,7 +250,7 @@ async function requireOwnedFiscalPeriod(
 ) {
   const period = await db.fiscalPeriods.getById(fiscalPeriodId);
   if (period == null || period.userId !== userId) {
-    throw serverNotFoundError(`fiscal period not found: ${fiscalPeriodId}`);
+    throw engineNotFoundError(`fiscal period not found: ${fiscalPeriodId}`);
   }
   return period;
 }
@@ -255,7 +262,7 @@ async function requireOwnedEntry(
 ) {
   const entry = await db.entries.getById(entryId);
   if (entry == null || entry.userId !== userId) {
-    throw serverNotFoundError(`entry not found: ${entryId}`);
+    throw engineNotFoundError(`entry not found: ${entryId}`);
   }
   return entry;
 }
@@ -267,7 +274,7 @@ async function requireOwnedFixedAsset(
 ) {
   const asset = await db.fixedAssets.getById(fixedAssetId);
   if (asset == null || asset.userId !== userId) {
-    throw serverNotFoundError(`fixed asset not found: ${fixedAssetId}`);
+    throw engineNotFoundError(`fixed asset not found: ${fixedAssetId}`);
   }
   return asset;
 }

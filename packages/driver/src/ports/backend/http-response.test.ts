@@ -583,7 +583,7 @@ describe("isMaintenanceModeError", () => {
     expect(isMaintenanceModeError(error)).toBe(true);
   });
 
-  it("ignores unrelated server errors", () => {
+  it("ignores unrelated backend errors", () => {
     const error = captureError(() =>
       resolveOpenkkHttpResponse("entriesGetAll", {
         status: 500,

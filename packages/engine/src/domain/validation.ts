@@ -1,4 +1,4 @@
-import { serverValidationError } from "./app-error.js";
+import { engineValidationError } from "./app-error.js";
 import type { EntrySide } from "./models.js";
 
 export const MAX_ENTRY_IMPORT_ITEMS = 10_000;
@@ -22,7 +22,7 @@ export function requireObject(
 ): Record<string, unknown> {
   const record = asRecord(value);
   if (record == null) {
-    throw serverValidationError(`${label} must be an object`, null);
+    throw engineValidationError(`${label} must be an object`, null);
   }
   return record;
 }
@@ -33,7 +33,7 @@ export function assertEntryCollectionItemLimit(
   messageForUser: string | null,
 ): void {
   if (items.length > MAX_ENTRY_IMPORT_ITEMS) {
-    throw serverValidationError(
+    throw engineValidationError(
       `${label} exceed the ${MAX_ENTRY_IMPORT_ITEMS.toLocaleString("en-US")} item limit`,
       messageForUser,
     );
@@ -54,7 +54,7 @@ export function assertEntryCollectionLineLimit(
       !Number.isSafeInteger(totalLineCount) ||
       totalLineCount > MAX_ENTRY_IMPORT_LINES
     ) {
-      throw serverValidationError(
+      throw engineValidationError(
         `${label} exceed the ${MAX_ENTRY_IMPORT_LINES.toLocaleString("en-US")} line limit`,
         messageForUser,
       );
@@ -71,10 +71,10 @@ export function assertUniqueIds(
   for (const item of items) {
     const id = requireObject(item, label).id;
     if (!isNonBlankString(id)) {
-      throw serverValidationError(`${label} id is required`, messageForUser);
+      throw engineValidationError(`${label} id is required`, messageForUser);
     }
     if (ids.has(id)) {
-      throw serverValidationError(
+      throw engineValidationError(
         `${label} has a duplicate id: ${id}`,
         messageForUser,
       );
@@ -92,7 +92,7 @@ export function assertUniqueStrings(
   for (const value of values) {
     assertNonBlankString(value, label);
     if (seen.has(value)) {
-      throw serverValidationError(
+      throw engineValidationError(
         `${label} has a duplicate value: ${value}`,
         messageForUser,
       );
@@ -110,13 +110,13 @@ export function assertNonBlankString(
   label: string,
 ): asserts value is string {
   if (!isNonBlankString(value)) {
-    throw serverValidationError(`${label} is required`, null);
+    throw engineValidationError(`${label} is required`, null);
   }
 }
 
 export function assertTextFieldLength(value: string, label: string): void {
   if (value.length > MAX_TEXT_FIELD_LENGTH) {
-    throw serverValidationError(
+    throw engineValidationError(
       `${label} exceeds the ${MAX_TEXT_FIELD_LENGTH.toLocaleString("en-US")} character limit`,
       `入力できる文字数は${MAX_TEXT_FIELD_LENGTH.toLocaleString("ja-JP")}文字までです`,
     );
@@ -146,7 +146,7 @@ export function assertIsoDate(
   label: string,
 ): asserts value is string {
   if (parseIsoDate(value) == null) {
-    throw serverValidationError(`${label} is invalid`, null);
+    throw engineValidationError(`${label} is invalid`, null);
   }
 }
 
@@ -158,10 +158,10 @@ export function assertDateRange(
   const start = parseIsoDate(startDate);
   const end = parseIsoDate(endDate);
   if (start == null || end == null) {
-    throw serverValidationError(`${label} dates are invalid`, null);
+    throw engineValidationError(`${label} dates are invalid`, null);
   }
   if (start.getTime() > end.getTime()) {
-    throw serverValidationError(
+    throw engineValidationError(
       `${label} start date must be on or before end date`,
       null,
     );
@@ -173,7 +173,7 @@ export function assertNonNegativeSafeInteger(
   label: string,
 ): asserts value is number {
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
-    throw serverValidationError(
+    throw engineValidationError(
       `${label} must be a non-negative safe integer`,
       null,
     );
@@ -185,7 +185,7 @@ export function assertPositiveInteger(
   label: string,
 ): asserts value is number {
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1) {
-    throw serverValidationError(`${label} must be a positive integer`, null);
+    throw engineValidationError(`${label} must be a positive integer`, null);
   }
 }
 
@@ -199,7 +199,7 @@ export function assertUnitRate(
     value < 0 ||
     value > 1
   ) {
-    throw serverValidationError(`${label} must be between 0 and 1`, null);
+    throw engineValidationError(`${label} must be between 0 and 1`, null);
   }
 }
 
@@ -209,10 +209,10 @@ export function assertEntryLinesBalanced(
   options: { allowZero: boolean },
 ): asserts lines is ReadonlyArray<EntryLineBalance> {
   if (!Array.isArray(lines)) {
-    throw serverValidationError(`${label} lines must be an array`, null);
+    throw engineValidationError(`${label} lines must be an array`, null);
   }
   if (lines.length > MAX_ENTRY_LINES) {
-    throw serverValidationError(
+    throw engineValidationError(
       `${label} exceeds the ${MAX_ENTRY_LINES.toLocaleString("en-US")} line limit`,
       `1件の仕訳に登録できる明細は${MAX_ENTRY_LINES.toLocaleString("ja-JP")}件までです`,
     );
@@ -231,13 +231,13 @@ export function assertEntryLinesBalanced(
       hasCredit = true;
       creditTotal += line.amount;
     } else {
-      throw serverValidationError(`${label} line side is invalid`, null);
+      throw engineValidationError(`${label} line side is invalid`, null);
     }
     if (
       !Number.isSafeInteger(debitTotal) ||
       !Number.isSafeInteger(creditTotal)
     ) {
-      throw serverValidationError(
+      throw engineValidationError(
         `${label} totals exceed the safe integer range`,
         "仕訳金額の合計が大きすぎます",
       );
@@ -248,13 +248,13 @@ export function assertEntryLinesBalanced(
     !hasCredit ||
     (!options.allowZero && (debitTotal <= 0 || creditTotal <= 0))
   ) {
-    throw serverValidationError(
+    throw engineValidationError(
       `${label} must have positive debit and credit lines`,
       "借方と貸方に1件以上の正の金額を入力してください",
     );
   }
   if (debitTotal !== creditTotal) {
-    throw serverValidationError(
+    throw engineValidationError(
       `${label} debit total (${debitTotal}) must equal credit total (${creditTotal})`,
       "借方と貸方の合計を一致させてください",
     );

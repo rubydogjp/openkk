@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { createDocumentDbAdapter } from "@rubydogjp/openkk-book-db-adapter";
+import { createBookDbAdapter } from "@rubydogjp/openkk-book-db-adapter";
 import type {
   DbSnapshot,
   FiscalPeriodDbRecord,
@@ -136,7 +136,7 @@ describe("books-db-adapter storage", () => {
     expect(names).toHaveLength(2);
     for (const name of names) {
       const bytes = await first.store.read(name);
-      const book = await createDocumentDbAdapter(bytes);
+      const book = await createBookDbAdapter(bytes);
       expect(book.listFiscalPeriodIds()).toHaveLength(1);
       book.close();
     }
@@ -529,7 +529,7 @@ describe("books-db-adapter book files", () => {
     );
 
     const exported = await books.adapter.exportBook(created.id);
-    const file = await createDocumentDbAdapter(exported?.bytes ?? null);
+    const file = await createBookDbAdapter(exported?.bytes ?? null);
 
     expect(exported?.lastChangedAt).toBe(
       books.adapter.lastChangedAt(created.id),

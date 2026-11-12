@@ -6,7 +6,7 @@ import {
 } from "../packages/driver/src/domain/index.js";
 import { createMemoryDbAdapter } from "../packages/memory-db-adapter/src/index.js";
 import { buildExpectedClosingEntries } from "../packages/engine/src/domain/index.js";
-import { createOpenkkServer } from "../packages/backend-api/src/index.js";
+import { createOpenkkBackendApi } from "../packages/backend-api/src/index.js";
 
 describe("archive text preservation", () => {
   it.each([1, 2] as const)(
@@ -14,7 +14,7 @@ describe("archive text preservation", () => {
     async (version) => {
       const text = "保存済みの文字列".repeat(100);
       const db = await createMemoryDbAdapter(null);
-      const source = createOpenkkServer(db, { userId: "user-1" });
+      const source = createOpenkkBackendApi(db, { userId: "user-1" });
       let period = await db.fiscalPeriods.create("user-1", {
         name: text,
         startDate: "2026-01-01",
@@ -77,7 +77,7 @@ describe("archive text preservation", () => {
           openingJournals: period.opening.journals,
         };
       }
-      const target = createOpenkkServer(await createMemoryDbAdapter(null), {
+      const target = createOpenkkBackendApi(await createMemoryDbAdapter(null), {
         userId: "user-1",
       });
       const restored = await target.fiscalPeriods.importArchived(
@@ -101,18 +101,19 @@ describe("archive text preservation", () => {
         fixedAssets,
         closings: [],
       });
-      const reimportedServer = createOpenkkServer(
+      const reimportedBackendApi = createOpenkkBackendApi(
         await createMemoryDbAdapter(null),
         {
           userId: "user-1",
         },
       );
-      const reimported = await reimportedServer.fiscalPeriods.importArchived(
-        readFiscalPeriodArchiveZip(createFiscalPeriodArchiveZip(reExported)),
-      );
+      const reimported =
+        await reimportedBackendApi.fiscalPeriods.importArchived(
+          readFiscalPeriodArchiveZip(createFiscalPeriodArchiveZip(reExported)),
+        );
       expect(reimported.name).toBe(text);
       expect(
-        await reimportedServer.entries.getAll(reimported.id),
+        await reimportedBackendApi.entries.getAll(reimported.id),
       ).toMatchObject([{ description: text, lines }]);
       await target.preClosings.run(restored.id);
       const closed = await target.closings.run(

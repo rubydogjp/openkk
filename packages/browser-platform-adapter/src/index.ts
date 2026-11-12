@@ -6,7 +6,7 @@ import { browserNavigation } from "./navigation.js";
 import { browserOfflineCache } from "./offline-cache.js";
 import { browserStorage } from "./storage.js";
 
-export const platformBrowserAdapter: PlatformPort = {
+export const browserPlatformAdapter: PlatformPort = {
   appInstall: browserAppInstall,
   offlineCache: browserOfflineCache,
   storage: browserStorage,

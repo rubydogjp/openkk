@@ -786,7 +786,7 @@ export interface MasterDataApi {
   getBusinessCategories(): Promise<MasterBusinessCategoryApiRecord[]>;
 }
 
-export interface OpenkkServerPort {
+export interface OpenkkBackendApi {
   auth: AuthApi;
   preClosings: PreClosingsApi;
   closings: ClosingsApi;

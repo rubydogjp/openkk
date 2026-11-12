@@ -91,7 +91,7 @@ function withDeadline<T>(promise: Promise<T>, label: string): Promise<T> {
   ]);
 }
 
-describe("createFileDbAdapter — behavior parity over the worker proxy", () => {
+describe("createLegacyDbAdapter — behavior parity over the worker proxy", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.resetModules();
@@ -100,8 +100,8 @@ describe("createFileDbAdapter — behavior parity over the worker proxy", () => 
 
   async function makeDb() {
     vi.stubGlobal("Worker", InMemoryDbWorker);
-    const { createFileDbAdapter } = await import("./index.js");
-    return createFileDbAdapter(
+    const { createLegacyDbAdapter } = await import("./index.js");
+    return createLegacyDbAdapter(
       {
         vfsName: "opfs-behavior",
         dbFileName: "test.sqlite3",
@@ -205,7 +205,7 @@ describe("createFileDbAdapter — behavior parity over the worker proxy", () => 
   });
 });
 
-describe("createFileDbAdapter", () => {
+describe("createLegacyDbAdapter", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.resetModules();
@@ -223,10 +223,10 @@ describe("createFileDbAdapter", () => {
     FakeWorker.outcomes = [
       { kind: "response", ok: false, error: "sqlite init failed" },
     ];
-    const { createFileDbAdapter } = await import("./index.js");
+    const { createLegacyDbAdapter } = await import("./index.js");
 
     await expect(
-      createFileDbAdapter(
+      createLegacyDbAdapter(
         {
           vfsName: "opfs-test",
           dbFileName: "test.sqlite3",
@@ -245,10 +245,10 @@ describe("createFileDbAdapter", () => {
       { kind: "response", ok: false, error: "sqlite init failed" },
       { kind: "response", ok: true },
     ];
-    const { createFileDbAdapter } = await import("./index.js");
+    const { createLegacyDbAdapter } = await import("./index.js");
 
     await expect(
-      createFileDbAdapter(
+      createLegacyDbAdapter(
         {
           vfsName: "opfs-test",
           dbFileName: "test.sqlite3",
@@ -258,7 +258,7 @@ describe("createFileDbAdapter", () => {
       ),
     ).rejects.toThrow("sqlite init failed");
 
-    const db = await createFileDbAdapter(
+    const db = await createLegacyDbAdapter(
       {
         vfsName: "opfs-test",
         dbFileName: "test.sqlite3",
@@ -282,10 +282,10 @@ describe("createFileDbAdapter", () => {
       { kind: "waitThenRespond", release: otherTabClosed },
     ];
     const waiting = vi.fn();
-    const { createFileDbAdapter } = await import("./index.js");
+    const { createLegacyDbAdapter } = await import("./index.js");
 
     let opened = false;
-    const pending = createFileDbAdapter(
+    const pending = createLegacyDbAdapter(
       {
         vfsName: "opfs-test",
         dbFileName: "test.sqlite3",
@@ -312,10 +312,10 @@ describe("createFileDbAdapter", () => {
       { kind: "throw", error: new Error("postMessage failed") },
       { kind: "response", ok: true },
     ];
-    const { createFileDbAdapter } = await import("./index.js");
+    const { createLegacyDbAdapter } = await import("./index.js");
 
     await expect(
-      createFileDbAdapter(
+      createLegacyDbAdapter(
         {
           vfsName: "opfs-test",
           dbFileName: "test.sqlite3",
@@ -325,7 +325,7 @@ describe("createFileDbAdapter", () => {
       ),
     ).rejects.toThrow("postMessage failed");
 
-    const db = await createFileDbAdapter(
+    const db = await createLegacyDbAdapter(
       {
         vfsName: "opfs-test",
         dbFileName: "test.sqlite3",
@@ -341,9 +341,9 @@ describe("createFileDbAdapter", () => {
 
   it("reuses the singleton only for matching file DB options", async () => {
     vi.stubGlobal("Worker", FakeWorker);
-    const { createFileDbAdapter } = await import("./index.js");
+    const { createLegacyDbAdapter } = await import("./index.js");
 
-    const first = await createFileDbAdapter(
+    const first = await createLegacyDbAdapter(
       {
         vfsName: "opfs-test",
         dbFileName: "one.sqlite3",
@@ -351,7 +351,7 @@ describe("createFileDbAdapter", () => {
       },
       null,
     );
-    const second = await createFileDbAdapter(
+    const second = await createLegacyDbAdapter(
       {
         vfsName: "opfs-test",
         dbFileName: "one.sqlite3",
@@ -362,7 +362,7 @@ describe("createFileDbAdapter", () => {
 
     expect(second).toBe(first);
     expect(() =>
-      createFileDbAdapter(
+      createLegacyDbAdapter(
         {
           vfsName: "opfs-test",
           dbFileName: "two.sqlite3",
@@ -377,8 +377,8 @@ describe("createFileDbAdapter", () => {
   it("rejects calls after a worker crash and allows recreation", async () => {
     vi.stubGlobal("Worker", FakeWorker);
     FakeWorker.outcomes = [{ kind: "response", ok: true }];
-    const { createFileDbAdapter } = await import("./index.js");
-    const first = await createFileDbAdapter(
+    const { createLegacyDbAdapter } = await import("./index.js");
+    const first = await createLegacyDbAdapter(
       {
         vfsName: "opfs-test",
         dbFileName: "test.sqlite3",
@@ -401,7 +401,7 @@ describe("createFileDbAdapter", () => {
     expect(FakeWorker.instances[0]!.terminated).toBe(true);
 
     const second = await withDeadline(
-      createFileDbAdapter(
+      createLegacyDbAdapter(
         {
           vfsName: "opfs-test",
           dbFileName: "test.sqlite3",
@@ -416,7 +416,7 @@ describe("createFileDbAdapter", () => {
   });
 });
 
-describe("exportFileDbBytes", () => {
+describe("exportLegacyDbBytes", () => {
   const options = {
     vfsName: "opfs-test",
     dbFileName: "test.sqlite3",
@@ -444,9 +444,9 @@ describe("exportFileDbBytes", () => {
 
   it("returns nothing without starting SQLite when the database was never made", async () => {
     const getDirectoryHandle = stubStorageRoot(false);
-    const { exportFileDbBytes } = await import("./index.js");
+    const { exportLegacyDbBytes } = await import("./index.js");
 
-    await expect(exportFileDbBytes(options)).resolves.toBeNull();
+    await expect(exportLegacyDbBytes(options)).resolves.toBeNull();
     expect(getDirectoryHandle).toHaveBeenCalledWith(".opfs-test", {
       create: false,
     });
@@ -456,9 +456,9 @@ describe("exportFileDbBytes", () => {
   it("returns nothing when the browser keeps no files for this site", async () => {
     vi.stubGlobal("navigator", {});
     vi.stubGlobal("Worker", FakeWorker);
-    const { exportFileDbBytes } = await import("./index.js");
+    const { exportLegacyDbBytes } = await import("./index.js");
 
-    await expect(exportFileDbBytes(options)).resolves.toBeNull();
+    await expect(exportLegacyDbBytes(options)).resolves.toBeNull();
     expect(FakeWorker.instances).toHaveLength(0);
   });
 
@@ -467,9 +467,9 @@ describe("exportFileDbBytes", () => {
     FakeWorker.outcomes = [
       { kind: "response", ok: true, result: new Uint8Array([1, 2, 3]) },
     ];
-    const { exportFileDbBytes } = await import("./index.js");
+    const { exportLegacyDbBytes } = await import("./index.js");
 
-    await expect(exportFileDbBytes(options)).resolves.toEqual(
+    await expect(exportLegacyDbBytes(options)).resolves.toEqual(
       new Uint8Array([1, 2, 3]),
     );
     const worker = FakeWorker.instances[0]!;
@@ -495,9 +495,9 @@ describe("exportFileDbBytes", () => {
       },
     ];
     const waiting = vi.fn();
-    const { exportFileDbBytes } = await import("./index.js");
+    const { exportLegacyDbBytes } = await import("./index.js");
 
-    const exported = exportFileDbBytes({
+    const exported = exportLegacyDbBytes({
       ...options,
       onWaitingForAnotherTab: waiting,
     });
@@ -518,9 +518,9 @@ describe("exportFileDbBytes", () => {
         error: "database disk image is malformed",
       },
     ];
-    const { exportFileDbBytes } = await import("./index.js");
+    const { exportLegacyDbBytes } = await import("./index.js");
 
-    await expect(exportFileDbBytes(options)).rejects.toThrow(
+    await expect(exportLegacyDbBytes(options)).rejects.toThrow(
       "database disk image is malformed",
     );
     expect(FakeWorker.instances[0]!.terminated).toBe(true);

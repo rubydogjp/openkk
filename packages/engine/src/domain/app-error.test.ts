@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { AppError } from "./app-error.js";
 
-describe("server AppError", () => {
+describe("engine AppError", () => {
   it("keeps structurally compatible API error DTOs", () => {
     const dto = {
       messageForDeveloper: "remote validation failed",

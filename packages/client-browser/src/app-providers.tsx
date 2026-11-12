@@ -15,8 +15,8 @@ import {
   PrintAdapterProvider,
   WorkInProgressProvider,
 } from "@rubydogjp/openkk-frontend-ui";
-import { platformBrowserAdapter } from "@rubydogjp/openkk-browser-platform-adapter";
-import { printAdapter } from "@rubydogjp/openkk-browser-print-adapter";
+import { browserPlatformAdapter } from "@rubydogjp/openkk-browser-platform-adapter";
+import { browserPrintAdapter } from "@rubydogjp/openkk-browser-print-adapter";
 
 import type {
   OpenkkBundleBackend,
@@ -130,11 +130,11 @@ export function OpenkkAppProviders(props: {
     <OpenkkConfigProvider config={runtime.config}>
       <BrandConfigProvider config={runtime.brandConfig}>
         <OpenkkCalloutsProvider slots={runtime.calloutSlots}>
-          <PlatformAdapterProvider adapter={platformBrowserAdapter}>
+          <PlatformAdapterProvider adapter={browserPlatformAdapter}>
             <OpenkkBookFilesProvider bookFiles={bookFiles}>
               <BackendApiProvider api={backendApi}>
                 <OpenkkMaintenanceProvider>
-                  <PrintAdapterProvider adapter={printAdapter}>
+                  <PrintAdapterProvider adapter={browserPrintAdapter}>
                     <OpenkkAppStateProvider>
                       <OpenkkEntriesProvider>
                         <OpenkkAssistProvider>

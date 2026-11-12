@@ -20,7 +20,7 @@ packages/
 ├── server-domain        サーバー側ドメインロジック・デフォルトマスターデータ
 ├── server-ports         DB port・保存型・wire DTO・ポート呼出しの直列化
 ├── server-usecases      CRUD オーケストレーション
-├── server-api           OpenkkServerPort を組み立てる factory
+├── server-api           OpenkkBackendApi を組み立てる factory
 ├── server               上 4 つの meta barrel
 │
 ├── file-db-adapter      OpenkkDbPort 実装 — SQLite Wasm + OPFS（ブラウザ永続化。無印版は前の版の帳簿を移すときに読む）
@@ -97,7 +97,7 @@ server side:   api → usecases → ports → domain
 ユーザーは `OpenkkUser = EmbeddedUser | CustomUser`（`driver` の `user.ts`）でドメインモデル化する。`config.authMode` で挙動を選ぶ：
 
 - `embedded`（sim/demo/original の既定）: 固定の `EmbeddedUser` 1名で起動時に自動サインイン。サインアウトは非活性（`userCanSignOut` が `false`）。`engine` の auth は embedded 単一ユーザー向け local 実装。
-- `custom`: Google 認証等で実ユーザー（`CustomUser`）を扱う派生プロダクト向け。独自バックエンドは `OpenkkServerPort.auth` を実装し、`RedeemCompletionCodeResponse` の未設定値を `null` で返す。
+- `custom`: Google 認証等で実ユーザー（`CustomUser`）を扱う派生プロダクト向け。独自バックエンドは `OpenkkBackendApi.auth` を実装し、`RedeemCompletionCodeResponse` の未設定値を `null` で返す。
 
 実装手順は [`authentication.md`](./authentication.md) を参照。
 
@@ -118,7 +118,7 @@ server side:   api → usecases → ports → domain
 
 `legacy-db-adapter`・`memory-db-adapter` は `sqlite-db-adapter` を利用し、起動時に `runMigrations()` を呼ぶ。`legacy-db-adapter` の OPFS SAHPool VFS は1ファイルを1接続でしか開けないため、Web Locks で1タブに限定し、同一プロセス内ではアダプタを1つだけ生成する。ロックは時間で打ち切らず、取れなければ `onWaitingForAnotherTab` で画面に知らせたうえで解放を待つ。別のタブを閉じる、または再読み込みで前の文書が片付くと、そのまま起動が続く。DB を開けたら、ストレージが足りないときなどにブラウザがデータを消さないよう `navigator.storage.persist()` で求める（すでに許可されていれば求めない。Firefox では確認が出るため、結果は待たずに起動を続ける）。起動の段階は `<html data-openkk-boot>`（`starting` / `waiting-for-another-tab` / `ready` / `failed`）に出し、無印版は帳簿の保存の状態を `<html data-openkk-storage>` に出す。E2E は待ち時間ではなくこれらの属性の変化を待つ (画面を移るときは、保存が終わってから移る)。DB実装を差し替える場合は `OpenkkDbPort` を実装し、DDLはその実装内で管理する。
 
-SQLite の単一接続では、トランザクションへ別操作が混入しないよう読取を含む公開ポート呼出しを直列化する。直列化は `engine` の `serializePortOperations` が担い、`OpenkkDbPort` と `OpenkkServerPort` の両方で使う。
+SQLite の単一接続では、トランザクションへ別操作が混入しないよう読取を含む公開ポート呼出しを直列化する。直列化は `engine` の `serializePortOperations` が担い、`OpenkkDbPort` と `OpenkkBackendApi` の両方で使う。
 
 エントリの取込み（`importMany`）は `localId` 単位で冪等で、同一 fiscal period に既存の `localId` はスキップされる。バルク挿入はトランザクションで囲まれ、途中失敗時はロールバックされる。
 
@@ -162,7 +162,7 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 
 ### 前の版の帳簿を移す
 
-26.3 までの無印版は、すべての期間を OPFS の SAHPool (`.openkk/` の `/openkk.sqlite3`) の 1 つの DB に置いていた。新しい版は起動するとき、その DB を `exportFileDbBytes` (`legacy-db-adapter`) で書き出し、期間ごとの帳簿に分けて (`splitBookFile`) 置き場に書く (`packages/bundle-original/app/legacy-book.ts`)。期間の ID は変えない。
+26.3 までの無印版は、すべての期間を OPFS の SAHPool (`.openkk/` の `/openkk.sqlite3`) の 1 つの DB に置いていた。新しい版は起動するとき、その DB を `exportLegacyDbBytes` (`legacy-db-adapter`) で書き出し、期間ごとの帳簿に分けて (`splitBookFile`) 置き場に書く (`packages/bundle-original/app/legacy-book.ts`)。期間の ID は変えない。
 
 - 前の DB は消さない。すべての期間を書けたら OPFS の直下に印 (`openkk-legacy-book-moved`) を置き、二度は移さない。
 - 途中で止まったら印を置かず、次の起動で続きから移す。すでに置き場にある期間 (ID で見分ける) は書かない。

@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { OpenkkDbPort } from "../ports/index.js";
-import { createServerUsecases } from "./usecases.js";
+import { createEngineUsecases } from "./usecases.js";
 
-describe("server usecase ownership boundary", () => {
+describe("engine usecase ownership boundary", () => {
   it("hides entries and fixed assets owned by another user", async () => {
     const db = {
       entries: {
@@ -13,7 +13,7 @@ describe("server usecase ownership boundary", () => {
         getById: vi.fn(async () => ({ userId: "user-2" })),
       },
     } as unknown as OpenkkDbPort;
-    const usecases = createServerUsecases(db);
+    const usecases = createEngineUsecases(db);
 
     await expect(
       usecases.entries.getById("user-1", "entry-1"),
@@ -36,7 +36,7 @@ describe("server usecase ownership boundary", () => {
         delete: deleteAsset,
       },
     } as unknown as OpenkkDbPort;
-    const usecases = createServerUsecases(db);
+    const usecases = createEngineUsecases(db);
 
     await expect(
       usecases.entries.update("user-1", "entry-1", {} as never),
@@ -62,7 +62,7 @@ describe("server usecase ownership boundary", () => {
       },
       fixedAssets: { create: createAsset },
     } as unknown as OpenkkDbPort;
-    const usecases = createServerUsecases(db);
+    const usecases = createEngineUsecases(db);
 
     await expect(
       usecases.entries.create("user-1", "fp-1", {} as never),
@@ -89,7 +89,7 @@ describe("server usecase ownership boundary", () => {
       },
       closings: { run: runClosing },
     } as unknown as OpenkkDbPort;
-    const usecases = createServerUsecases(db);
+    const usecases = createEngineUsecases(db);
 
     await expect(
       usecases.fiscalPeriods.archive("user-1", "fp-1"),

@@ -5,7 +5,7 @@
 | Boundary          | Package                      | Types                                                                                     |
 | ----------------- | ---------------------------- | ----------------------------------------------------------------------------------------- |
 | Client backend    | `@rubydogjp/openkk-driver`   | `OpenkkBackendPort`, `*Request`, `*Response`, `*ApiRecord`, `*Input`, `OpenkkApiErrorDto` |
-| TypeScript server | `@rubydogjp/openkk-engine`   | `OpenkkServerPort`, `*Request`, `*Response`, `*ApiRecord`, `*Input`, `OpenkkApiErrorDto`  |
+| TypeScript server | `@rubydogjp/openkk-engine`   | `OpenkkBackendApi`, `*Request`, `*Response`, `*ApiRecord`, `*Input`, `OpenkkApiErrorDto`  |
 | Server storage    | `@rubydogjp/openkk-engine`   | `OpenkkDbPort`, `*DbRecord`, `*Db*Input`                                                  |
 | Errors            | `@rubydogjp/openkk-*-domain` | `AppError`, `AppErrorLike`                                                                |
 
@@ -74,7 +74,7 @@ type OpenkkBackendPort = {
 };
 ```
 
-`OpenkkServerPort` is the same shape without `maintenance`.
+`OpenkkBackendApi` is the same shape without `maintenance`.
 
 Archived fiscal periods are read-only. Mutations other than `purgeArchivedData` must fail with `OpenkkApiErrorDto` and `statusCode: 409`.
 

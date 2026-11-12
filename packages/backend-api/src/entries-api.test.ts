@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { createOpenkkServer } from "./index.js";
+import { createOpenkkBackendApi } from "./index.js";
 import {
   MAX_ENTRY_IMPORT_ITEMS,
   MAX_ENTRY_IMPORT_LINES,
   MAX_ENTRY_LINES,
   MAX_TEXT_FIELD_LENGTH,
+} from "@rubydogjp/openkk-engine";
+import type {
+  MasterBookAccountDbRecord,
+  MasterBusinessCategoryDbRecord,
+  MasterTaxCategoryDbRecord,
+  OpenkkDbPort,
 } from "@rubydogjp/openkk-engine";
 import type {
   EntryApiRecord,
@@ -15,11 +21,7 @@ import type {
   FiscalPeriodPatchInput,
   FixedAssetCreateInput,
   FixedAssetPatchInput,
-  MasterBookAccountDbRecord,
-  MasterBusinessCategoryDbRecord,
-  MasterTaxCategoryDbRecord,
-  OpenkkDbPort,
-} from "@rubydogjp/openkk-engine";
+} from "./contract.js";
 import {
   changedFields,
   entry,
@@ -28,24 +30,29 @@ import {
   fixedAsset,
 } from "../test-support/api-records.js";
 
-describe("openkk server entries API", () => {
+describe("backend-api entries", () => {
   it.each(["create", "update", "importMany"] as const)(
     "rejects an omitted localId before %s persists data",
     async (operation) => {
-      const server = createOpenkkServer(createEntryDb(), { userId: "user-1" });
-      const original = await server.entries.create("fp-1", validEntryInput());
+      const backendApi = createOpenkkBackendApi(createEntryDb(), {
+        userId: "user-1",
+      });
+      const original = await backendApi.entries.create(
+        "fp-1",
+        validEntryInput(),
+      );
       const input = validEntryInput();
       Reflect.deleteProperty(input, "localId");
 
       const result =
         operation === "create"
-          ? server.entries.create("fp-1", input)
+          ? backendApi.entries.create("fp-1", input)
           : operation === "update"
-            ? server.entries.update("fp-1", original.id, input)
-            : server.entries.importMany("fp-1", [input]);
+            ? backendApi.entries.update("fp-1", original.id, input)
+            : backendApi.entries.importMany("fp-1", [input]);
 
       await expect(result).rejects.toMatchObject({ statusCode: 400 });
-      expect(await server.entries.getAll("fp-1")).toEqual([original]);
+      expect(await backendApi.entries.getAll("fp-1")).toEqual([original]);
     },
   );
 
@@ -53,9 +60,9 @@ describe("openkk server entries API", () => {
     const db = createEntryDb({
       archiveStatus: "purged",
     });
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
-    await expect(server.entries.getAll("fp-1")).rejects.toThrow(
+    await expect(backendApi.entries.getAll("fp-1")).rejects.toThrow(
       /after archived data was purged/,
     );
   });
@@ -91,10 +98,10 @@ describe("openkk server entries API", () => {
         documentsReceivedCompleted: true,
       });
     };
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
-    const reading = server.entries.getAll("fp-1");
-    const purging = server.fiscalPeriods.purgeArchivedData("fp-1");
+    const reading = backendApi.entries.getAll("fp-1");
+    const purging = backendApi.fiscalPeriods.purgeArchivedData("fp-1");
     await readStarted;
     expect(trace).toEqual(["read:start"]);
 
@@ -105,10 +112,10 @@ describe("openkk server entries API", () => {
 
   it("rejects invalid entry dates before persisting", async () => {
     const db = createEntryDb();
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.entries.create("fp-1", {
+      backendApi.entries.create("fp-1", {
         date: "2026-02-29",
         description: "不正日付の仕訳",
         localId: "bad-date",
@@ -126,15 +133,15 @@ describe("openkk server entries API", () => {
       }),
     ).rejects.toThrow(/Entry date is invalid/);
 
-    expect(await server.entries.getAll("fp-1")).toEqual([]);
+    expect(await backendApi.entries.getAll("fp-1")).toEqual([]);
   });
 
   it("rejects invalid entry numbers before persisting", async () => {
     const db = createEntryDb();
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.entries.create("fp-1", {
+      backendApi.entries.create("fp-1", {
         date: "2026-04-01",
         description: "不正金額の仕訳",
         localId: "bad-amount",
@@ -153,7 +160,7 @@ describe("openkk server entries API", () => {
     ).rejects.toThrow(/Entry line amount must be a non-negative safe integer/);
 
     await expect(
-      server.entries.create("fp-1", {
+      backendApi.entries.create("fp-1", {
         date: "2026-04-01",
         description: "不正事業割合の仕訳",
         localId: "bad-rate",
@@ -163,7 +170,7 @@ describe("openkk server entries API", () => {
     ).rejects.toThrow(/Entry business rate must be between 0 and 1/);
 
     await expect(
-      server.entries.create("fp-1", {
+      backendApi.entries.create("fp-1", {
         ...validEntryInput({ localId: "fractional-yen" }),
         lines: validEntryInput().lines.map((line) => ({
           ...line,
@@ -177,7 +184,7 @@ describe("openkk server entries API", () => {
       amount: Number.MAX_SAFE_INTEGER,
     };
     await expect(
-      server.entries.create("fp-1", {
+      backendApi.entries.create("fp-1", {
         ...validEntryInput({ localId: "overflow-total" }),
         lines: [
           { ...hugeLine, side: "debit" },
@@ -188,36 +195,36 @@ describe("openkk server entries API", () => {
       }),
     ).rejects.toThrow(/totals exceed the safe integer range/);
 
-    expect(await server.entries.getAll("fp-1")).toEqual([]);
+    expect(await backendApi.entries.getAll("fp-1")).toEqual([]);
   });
 
   it("rejects runtime field types before persisting", async () => {
     const db = createEntryDb();
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
     const invalidPartner = validEntryInput({ localId: "invalid-partner" });
     invalidPartner.lines[0]!.partnerName = 123 as unknown as string;
 
-    await expect(server.entries.create("fp-1", invalidPartner)).rejects.toThrow(
-      /Entry line partner must be a string/,
-    );
     await expect(
-      server.entries.create("fp-1", {
+      backendApi.entries.create("fp-1", invalidPartner),
+    ).rejects.toThrow(/Entry line partner must be a string/);
+    await expect(
+      backendApi.entries.create("fp-1", {
         ...validEntryInput(),
         localId: 123,
       } as unknown as EntryUpsertInput),
     ).rejects.toThrow(/Entry localId must be a non-blank string or null/);
     await expect(
-      server.entries.create("fp-1", validEntryInput({ localId: "" })),
+      backendApi.entries.create("fp-1", validEntryInput({ localId: "" })),
     ).rejects.toThrow(/Entry localId must be a non-blank string or null/);
-    expect(await server.entries.getAll("fp-1")).toEqual([]);
+    expect(await backendApi.entries.getAll("fp-1")).toEqual([]);
   });
 
   it("rejects unbalanced entries before persisting", async () => {
     const db = createEntryDb();
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.entries.create("fp-1", {
+      backendApi.entries.create("fp-1", {
         date: "2026-04-01",
         description: "貸借不一致の仕訳",
         localId: "unbalanced",
@@ -243,67 +250,70 @@ describe("openkk server entries API", () => {
       }),
     ).rejects.toThrow(/debit total \(1000\) must equal credit total \(900\)/);
 
-    expect(await server.entries.getAll("fp-1")).toEqual([]);
+    expect(await backendApi.entries.getAll("fp-1")).toEqual([]);
   });
 
   it("rejects empty and zero-value entries before persisting", async () => {
     const db = createEntryDb();
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.entries.create(
+      backendApi.entries.create(
         "fp-1",
         validEntryInput({ localId: "empty", lines: [] }),
       ),
     ).rejects.toThrow(/must have positive debit and credit lines/);
     await expect(
-      server.entries.create("fp-1", {
+      backendApi.entries.create("fp-1", {
         ...validEntryInput({ localId: "zero" }),
         lines: validEntryInput().lines.map((line) => ({ ...line, amount: 0 })),
       }),
     ).rejects.toThrow(/must have positive debit and credit lines/);
 
-    expect(await server.entries.getAll("fp-1")).toEqual([]);
+    expect(await backendApi.entries.getAll("fp-1")).toEqual([]);
   });
 
   it("rejects oversized compound entries before inspecting every line", async () => {
     const db = createEntryDb();
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
     const line = validEntryInput().lines[0]!;
 
     await expect(
-      server.entries.create("fp-1", {
+      backendApi.entries.create("fp-1", {
         ...validEntryInput({ localId: "too-many-lines" }),
         lines: Array.from({ length: MAX_ENTRY_LINES + 1 }, () => line),
       }),
     ).rejects.toThrow(/1,000 line limit/);
-    expect(await server.entries.getAll("fp-1")).toEqual([]);
+    expect(await backendApi.entries.getAll("fp-1")).toEqual([]);
   });
 
   it("rejects entries dated outside the fiscal period", async () => {
     const db = createEntryDb();
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.entries.create(
+      backendApi.entries.create(
         "fp-1",
         validEntryInput({ date: "2027-01-01", localId: "outside" }),
       ),
     ).rejects.toThrow(/must be within fiscal period 2026-01-01 to 2026-12-31/);
 
-    expect(await server.entries.getAll("fp-1")).toEqual([]);
+    expect(await backendApi.entries.getAll("fp-1")).toEqual([]);
   });
 
   it("rejects text fields beyond the shared character limit", async () => {
     const db = createEntryDb();
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
     const tooLong = "あ".repeat(MAX_TEXT_FIELD_LENGTH + 1);
 
     await expect(
-      server.entries.create("fp-1", validEntryInput({ description: tooLong })),
+      backendApi.entries.create(
+        "fp-1",
+        validEntryInput({ description: tooLong }),
+      ),
     ).rejects.toThrow(/character limit/);
     await expect(
-      server.entries.create(
+      backendApi.entries.create(
         "fp-1",
         validEntryInput({
           lines: validEntryInput().lines.map((line) => ({
@@ -314,7 +324,7 @@ describe("openkk server entries API", () => {
       ),
     ).rejects.toThrow(/character limit/);
     await expect(
-      server.entries.create(
+      backendApi.entries.create(
         "fp-1",
         validEntryInput({
           lines: validEntryInput().lines.map((line) => ({
@@ -327,7 +337,7 @@ describe("openkk server entries API", () => {
 
     expect(
       (
-        await server.entries.create(
+        await backendApi.entries.create(
           "fp-1",
           validEntryInput({
             localId: "at-the-limit",
@@ -340,10 +350,10 @@ describe("openkk server entries API", () => {
 
   it("rejects unknown book accounts and preserves custom categories", async () => {
     const db = createEntryDb();
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.entries.create(
+      backendApi.entries.create(
         "fp-1",
         validEntryInput({
           lines: validEntryInput().lines.map((line) => ({
@@ -353,7 +363,7 @@ describe("openkk server entries API", () => {
         }),
       ),
     ).rejects.toThrow(/Entry line references unknown book account/);
-    const created = await server.entries.create(
+    const created = await backendApi.entries.create(
       "fp-1",
       validEntryInput({
         localId: "custom-categories",
@@ -376,15 +386,15 @@ describe("openkk server entries API", () => {
 
   it("reserves generated localIds for the atomic closing operation", async () => {
     const db = createEntryDb();
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.entries.importMany("fp-1", [
+      backendApi.entries.importMany("fp-1", [
         validEntryInput({ localId: "virtual:not-allowed" }),
       ]),
     ).rejects.toThrow(/localId prefix virtual: is reserved/);
 
-    expect(await server.entries.getAll("fp-1")).toEqual([]);
+    expect(await backendApi.entries.getAll("fp-1")).toEqual([]);
   });
 
   it("rejects every entry mutation after final closing", async () => {
@@ -394,36 +404,36 @@ describe("openkk server entries API", () => {
       "fp-1",
       validEntryInput({ localId: "existing" }),
     );
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.entries.create("fp-1", validEntryInput({ localId: "new" })),
+      backendApi.entries.create("fp-1", validEntryInput({ localId: "new" })),
     ).rejects.toThrow(/cannot create entry from phase post_closing/);
     await expect(
-      server.entries.update(
+      backendApi.entries.update(
         "fp-1",
         existing.id,
         validEntryInput({ localId: "existing" }),
       ),
     ).rejects.toThrow(/cannot update entry from phase post_closing/);
-    await expect(server.entries.remove("fp-1", existing.id)).rejects.toThrow(
-      /cannot delete entry from phase post_closing/,
-    );
     await expect(
-      server.entries.importMany("fp-1", [
+      backendApi.entries.remove("fp-1", existing.id),
+    ).rejects.toThrow(/cannot delete entry from phase post_closing/);
+    await expect(
+      backendApi.entries.importMany("fp-1", [
         validEntryInput({ localId: "import" }),
       ]),
     ).rejects.toThrow(/cannot import entries from phase post_closing/);
 
-    expect(await server.entries.getAll("fp-1")).toHaveLength(1);
+    expect(await backendApi.entries.getAll("fp-1")).toHaveLength(1);
   });
 
   it("rejects invalid dates in bulk import before persisting", async () => {
     const db = createEntryDb();
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.entries.importMany("fp-1", [
+      backendApi.entries.importMany("fp-1", [
         {
           date: "2026-04-01",
           description: "valid",
@@ -441,36 +451,39 @@ describe("openkk server entries API", () => {
       ]),
     ).rejects.toThrow(/Entry date is invalid/);
 
-    expect(await server.entries.getAll("fp-1")).toEqual([]);
+    expect(await backendApi.entries.getAll("fp-1")).toEqual([]);
   });
 
   it("rejects a non-array bulk import payload as a validation error", async () => {
     const db = createEntryDb();
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.entries.importMany("fp-1", null as unknown as EntryUpsertInput[]),
+      backendApi.entries.importMany(
+        "fp-1",
+        null as unknown as EntryUpsertInput[],
+      ),
     ).rejects.toThrow(/Entry import input must be an array/);
-    expect(await server.entries.getAll("fp-1")).toEqual([]);
+    expect(await backendApi.entries.getAll("fp-1")).toEqual([]);
   });
 
   it("rejects oversized import batches before validating every item", async () => {
     const db = createEntryDb();
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
     const oversized = Array.from(
       { length: MAX_ENTRY_IMPORT_ITEMS + 1 },
       () => null,
     ) as unknown as EntryUpsertInput[];
 
-    await expect(server.entries.importMany("fp-1", oversized)).rejects.toThrow(
-      /item limit/,
-    );
-    expect(await server.entries.getAll("fp-1")).toEqual([]);
+    await expect(
+      backendApi.entries.importMany("fp-1", oversized),
+    ).rejects.toThrow(/item limit/);
+    expect(await backendApi.entries.getAll("fp-1")).toEqual([]);
   });
 
   it("rejects oversized import line totals before validating every line", async () => {
     const db = createEntryDb();
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
     const repeatedLines = Array.from(
       { length: MAX_ENTRY_LINES },
       () => validEntryInput().lines[0]!,
@@ -484,18 +497,18 @@ describe("openkk server entries API", () => {
         }),
     );
 
-    await expect(server.entries.importMany("fp-1", oversized)).rejects.toThrow(
-      /100,000 line limit/,
-    );
-    expect(await server.entries.getAll("fp-1")).toEqual([]);
+    await expect(
+      backendApi.entries.importMany("fp-1", oversized),
+    ).rejects.toThrow(/100,000 line limit/);
+    expect(await backendApi.entries.getAll("fp-1")).toEqual([]);
   });
 
   it("rejects entry creation in archived fiscal periods", async () => {
     const db = createEntryDb({ archiveStatus: "archived" });
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.entries.create("fp-1", {
+      backendApi.entries.create("fp-1", {
         date: "2026-04-01",
         description: "archived",
         localId: "archived-entry",
@@ -504,13 +517,13 @@ describe("openkk server entries API", () => {
       }),
     ).rejects.toThrow(/Archived fiscal period fp-1 cannot create entry/);
 
-    expect(await server.entries.getAll("fp-1")).toEqual([]);
+    expect(await backendApi.entries.getAll("fp-1")).toEqual([]);
   });
 
   it("deletes an entry only when it belongs to the requested fiscal period", async () => {
     const db = createEntryDb();
-    const server = createOpenkkServer(db, { userId: "user-1" });
-    const created = await server.entries.create("fp-1", {
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
+    const created = await backendApi.entries.create("fp-1", {
       date: "2026-04-01",
       description: "削除対象の仕訳",
       localId: "delete-target",
@@ -535,13 +548,13 @@ describe("openkk server entries API", () => {
       ],
     });
 
-    await expect(server.entries.remove("fp-other", created.id)).rejects.toThrow(
-      /Fiscal period fp-other not found/,
-    );
-    expect(await server.entries.getAll("fp-1")).toHaveLength(1);
+    await expect(
+      backendApi.entries.remove("fp-other", created.id),
+    ).rejects.toThrow(/Fiscal period fp-other not found/);
+    expect(await backendApi.entries.getAll("fp-1")).toHaveLength(1);
 
-    await server.entries.remove("fp-1", created.id);
-    expect(await server.entries.getAll("fp-1")).toEqual([]);
+    await backendApi.entries.remove("fp-1", created.id);
+    expect(await backendApi.entries.getAll("fp-1")).toEqual([]);
   });
 });
 

@@ -106,7 +106,7 @@ describe("computeStraightLineDepreciation", () => {
     expect(result.accumulated).toBe(0);
   });
 
-  it("uses the same integer-ratio rounding as server-side closing", () => {
+  it("uses the same integer-ratio rounding as the engine's closing", () => {
     const result = computeStraightLineDepreciation({
       acquisitionDate: "2025-12-01",
       acquisitionCost: 217,
@@ -172,7 +172,7 @@ describe("computePeriodDepreciation", () => {
     ).toBe(0);
   });
 
-  it("matches server rounding at a one-yen accumulated boundary", () => {
+  it("matches engine rounding at a one-yen accumulated boundary", () => {
     expect(
       computePeriodDepreciation({
         acquisitionDate: "2025-12-01",

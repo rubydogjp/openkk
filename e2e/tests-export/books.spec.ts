@@ -577,10 +577,10 @@ function makeTempDir() {
 }
 
 async function createBookFile(fileName: string, periods: PeriodInput[]) {
-  const { createNodeSqliteDbAdapter } =
+  const { createDiskDbAdapter } =
     await import("@rubydogjp/openkk-disk-db-adapter");
   const filePath = path.join(makeTempDir(), fileName);
-  const adapter = await createNodeSqliteDbAdapter(filePath, null);
+  const adapter = await createDiskDbAdapter(filePath, null);
   try {
     for (const period of periods) {
       await adapter.db.fiscalPeriods.create(USER_ID, period);
@@ -592,10 +592,10 @@ async function createBookFile(fileName: string, periods: PeriodInput[]) {
 }
 
 async function createPreviousVersionDatabase(periods: PeriodInput[]) {
-  const { createNodeSqliteDbAdapter } =
+  const { createDiskDbAdapter } =
     await import("@rubydogjp/openkk-disk-db-adapter");
   const filePath = path.join(makeTempDir(), "openkk.sqlite3");
-  const adapter = await createNodeSqliteDbAdapter(filePath, null);
+  const adapter = await createDiskDbAdapter(filePath, null);
   try {
     for (const period of periods) {
       const created = await adapter.db.fiscalPeriods.create(USER_ID, period);
@@ -636,9 +636,9 @@ async function createPreviousVersionDatabase(periods: PeriodInput[]) {
 }
 
 async function renamePeriodLikeCli(filePath: string, name: string) {
-  const { createNodeSqliteDbAdapter } =
+  const { createDiskDbAdapter } =
     await import("@rubydogjp/openkk-disk-db-adapter");
-  const adapter = await createNodeSqliteDbAdapter(filePath, null);
+  const adapter = await createDiskDbAdapter(filePath, null);
   try {
     const [period] = await adapter.db.fiscalPeriods.getAll(USER_ID);
     if (period == null) throw new Error("the book holds no fiscal period");
@@ -651,9 +651,9 @@ async function renamePeriodLikeCli(filePath: string, name: string) {
 async function readBookPeriods(
   filePath: string,
 ): Promise<Array<{ name: string; phase: string }>> {
-  const { createNodeSqliteDbAdapter } =
+  const { createDiskDbAdapter } =
     await import("@rubydogjp/openkk-disk-db-adapter");
-  const adapter = await createNodeSqliteDbAdapter(filePath, null);
+  const adapter = await createDiskDbAdapter(filePath, null);
   try {
     return (await adapter.db.fiscalPeriods.getAll(USER_ID)).map(
       ({ name, phase }) => ({ name, phase }),

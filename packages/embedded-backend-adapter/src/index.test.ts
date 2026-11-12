@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import type { EntryUpsertInput } from "@rubydogjp/openkk-driver";
-import type { OpenkkServerPort } from "@rubydogjp/openkk-engine";
+import type { OpenkkBackendApi } from "@rubydogjp/openkk-backend-api";
 import { createOpenkkEmbeddedBackendAdapter } from "./index.js";
 
 describe("createOpenkkEmbeddedBackendAdapter", () => {
   it("passes calls through an in-process HTTP-style request boundary", async () => {
     let capturedInput: EntryUpsertInput | null = null;
-    const server = embeddedServer({
+    const backendApi = embeddedBackendApi({
       entries: {
         async create(_fiscalPeriodId, input) {
           capturedInput = input;
@@ -29,7 +29,7 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
         },
       },
     });
-    const api = createOpenkkEmbeddedBackendAdapter(server);
+    const api = createOpenkkEmbeddedBackendAdapter(backendApi);
 
     const entry = await api.entries.create("fp-1", {
       date: "2026-04-01",
@@ -62,7 +62,7 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
   });
 
   it("unwraps HTTP response bodies for the backend port", async () => {
-    const server = embeddedServer({
+    const backendApi = embeddedBackendApi({
       fiscalPeriods: {
         async getAll() {
           return [
@@ -88,13 +88,13 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
         },
       },
     });
-    const api = createOpenkkEmbeddedBackendAdapter(server);
+    const api = createOpenkkEmbeddedBackendAdapter(backendApi);
 
     await expect(api.fiscalPeriods.getAll()).resolves.toHaveLength(1);
   });
 
-  it("throws API error DTOs instead of server Error instances", async () => {
-    const server = embeddedServer({
+  it("throws API error DTOs instead of backend Error instances", async () => {
+    const backendApi = embeddedBackendApi({
       fiscalPeriods: {
         async patch() {
           throw {
@@ -107,7 +107,7 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
         },
       },
     });
-    const api = createOpenkkEmbeddedBackendAdapter(server);
+    const api = createOpenkkEmbeddedBackendAdapter(backendApi);
 
     await expect(
       api.fiscalPeriods.patch("fp-1", { name: "x" }),
@@ -120,15 +120,15 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
     });
   });
 
-  it("maps unknown server failures to HTTP 500 without exposing details", async () => {
-    const server = embeddedServer({
+  it("maps unknown backend failures to HTTP 500 without exposing details", async () => {
+    const backendApi = embeddedBackendApi({
       fiscalPeriods: {
         async getAll() {
           throw new Error("database password leaked here");
         },
       },
     });
-    const api = createOpenkkEmbeddedBackendAdapter(server);
+    const api = createOpenkkEmbeddedBackendAdapter(backendApi);
 
     await expect(api.fiscalPeriods.getAll()).rejects.toEqual({
       messageForDeveloper:
@@ -141,7 +141,7 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
   });
 
   it("preserves deliberate HTTP 500 AppError responses", async () => {
-    const server = embeddedServer({
+    const backendApi = embeddedBackendApi({
       fiscalPeriods: {
         async getAll() {
           throw {
@@ -154,7 +154,7 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
         },
       },
     });
-    const api = createOpenkkEmbeddedBackendAdapter(server);
+    const api = createOpenkkEmbeddedBackendAdapter(backendApi);
 
     await expect(api.fiscalPeriods.getAll()).rejects.toEqual({
       messageForDeveloper: "storage temporarily unavailable",
@@ -166,17 +166,17 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
   });
 });
 
-function embeddedServer(
+function embeddedBackendApi(
   overrides: Partial<{
-    auth: Partial<OpenkkServerPort["auth"]>;
-    preClosings: Partial<OpenkkServerPort["preClosings"]>;
-    closings: Partial<OpenkkServerPort["closings"]>;
-    entries: Partial<OpenkkServerPort["entries"]>;
-    fiscalPeriods: Partial<OpenkkServerPort["fiscalPeriods"]>;
-    fixedAssets: Partial<OpenkkServerPort["fixedAssets"]>;
-    masterData: Partial<OpenkkServerPort["masterData"]>;
+    auth: Partial<OpenkkBackendApi["auth"]>;
+    preClosings: Partial<OpenkkBackendApi["preClosings"]>;
+    closings: Partial<OpenkkBackendApi["closings"]>;
+    entries: Partial<OpenkkBackendApi["entries"]>;
+    fiscalPeriods: Partial<OpenkkBackendApi["fiscalPeriods"]>;
+    fixedAssets: Partial<OpenkkBackendApi["fixedAssets"]>;
+    masterData: Partial<OpenkkBackendApi["masterData"]>;
   }>,
-): OpenkkServerPort {
+): OpenkkBackendApi {
   return {
     auth: {
       startSession: async () => ({ authUrl: "embedded://auth" }),
@@ -239,5 +239,5 @@ function embeddedServer(
 }
 
 function unused(): never {
-  throw new Error("unexpected embedded server method call");
+  throw new Error("unexpected embedded backend method call");
 }

@@ -16,17 +16,24 @@ import {
   type FiscalPeriodPhase,
   type FixedAssetStatus,
   requireObject,
-  serverValidationError,
+  engineValidationError,
 } from "../domain/index.js";
 import type {
-  EntryUpsertInput,
+  EntryDbUpsertInput,
   FiscalPeriodArchiveDbImportInput,
-  FiscalPeriodArchiveImportInput,
   FixedAssetDbImportInput,
 } from "../ports/index.js";
 import { migrateFiscalPeriodArchiveV1 } from "./archive-import-v1.js";
 
 type FiscalPeriodArchiveVersion = 1 | 2;
+
+export type UnvalidatedFiscalPeriodArchive = {
+  manifest: Record<string, unknown>;
+  fiscalPeriod: Record<string, unknown>;
+  entries: Array<Record<string, unknown>>;
+  fixedAssets: Array<Record<string, unknown>>;
+  closings: Array<Record<string, unknown>>;
+};
 
 export type FiscalPeriodArchiveContent = {
   fiscalPeriod: Record<string, unknown>;
@@ -36,7 +43,7 @@ export type FiscalPeriodArchiveContent = {
 };
 
 export function normalizeArchiveImportInput(
-  input: FiscalPeriodArchiveImportInput,
+  input: UnvalidatedFiscalPeriodArchive,
 ): FiscalPeriodArchiveDbImportInput {
   const archive = requireObject(input, "archive");
   const manifest = requireObject(archive.manifest, "archive manifest");
@@ -61,7 +68,7 @@ export function normalizeArchiveImportInput(
     sourceClosings,
   ]);
   if (sourceClosings.length > 2) {
-    throw serverValidationError(
+    throw engineValidationError(
       "archive closings exceeds the 2 item limit",
       null,
     );
@@ -75,13 +82,13 @@ export function normalizeArchiveImportInput(
     "archive fiscalPeriod.id",
   );
   if (sourceId !== manifestFiscalPeriodId) {
-    throw serverValidationError(
+    throw engineValidationError(
       "archive fiscalPeriod id does not match manifest",
       null,
     );
   }
   if (manifest.format !== "openkk.fiscal-period-archive") {
-    throw serverValidationError("archive manifest.format is invalid", null);
+    throw engineValidationError("archive manifest.format is invalid", null);
   }
   const archiveVersion = requireArchiveVersion(manifest.version);
   const content: FiscalPeriodArchiveContent = {
@@ -110,7 +117,7 @@ export function normalizeArchiveImportInput(
     manifest.startDate !== startDate ||
     manifest.endDate !== endDate
   ) {
-    throw serverValidationError(
+    throw engineValidationError(
       "archive manifest fiscal-period metadata does not match fiscalPeriod",
       null,
     );
@@ -124,7 +131,7 @@ export function normalizeArchiveImportInput(
   const expectedClosingYear = Number(endDate.slice(0, 4));
   for (const closing of normalizedClosings) {
     if (closing.year !== expectedClosingYear) {
-      throw serverValidationError(
+      throw engineValidationError(
         `archive closing.year must match fiscal period end year ${expectedClosingYear}`,
         null,
       );
@@ -212,7 +219,7 @@ function normalizeFiscalPeriodPhase(value: unknown): FiscalPeriodPhase {
   ) {
     return value;
   }
-  throw serverValidationError("archive fiscalPeriod.phase is invalid", null);
+  throw engineValidationError("archive fiscalPeriod.phase is invalid", null);
 }
 
 function normalizeArchivedOpening(
@@ -250,7 +257,7 @@ function normalizeArchivedEntry(
   periodStartDate: string,
   periodEndDate: string,
   sourceFiscalPeriodId: string,
-): EntryUpsertInput {
+): EntryDbUpsertInput {
   assertSourceFiscalPeriodId(
     value.fiscalPeriodId,
     sourceFiscalPeriodId,
@@ -322,7 +329,7 @@ function normalizeArchivedFixedAsset(
     requireString(value.status, "archive fixedAsset.status"),
   );
   if (value.depreciationMethod !== "straight_line") {
-    throw serverValidationError(
+    throw engineValidationError(
       "archive fixedAsset.depreciationMethod is invalid",
       null,
     );
@@ -382,7 +389,7 @@ function normalizeArchivedClosing(
     "archive closing.fiscalPeriodId",
   );
   if (value.kind !== "pre_closing" && value.kind !== "closing") {
-    throw serverValidationError("archive closing.kind is invalid", null);
+    throw engineValidationError("archive closing.kind is invalid", null);
   }
   return {
     year: requirePositiveInteger(value.year, "archive closing.year"),
@@ -397,7 +404,7 @@ function assertSourceFiscalPeriodId(
 ): void {
   const id = requireNonBlankString(value, label);
   if (id !== sourceFiscalPeriodId) {
-    throw serverValidationError(
+    throw engineValidationError(
       `${label} does not match archive fiscalPeriod`,
       null,
     );
@@ -406,7 +413,7 @@ function assertSourceFiscalPeriodId(
 
 function normalizeSide(value: unknown): EntrySide {
   if (value === "debit" || value === "credit") return value;
-  throw serverValidationError("archive line side is invalid", null);
+  throw engineValidationError("archive line side is invalid", null);
 }
 
 function normalizeFixedAssetStatus(value: string): FixedAssetStatus {
@@ -418,22 +425,22 @@ function normalizeFixedAssetStatus(value: string): FixedAssetStatus {
   ) {
     return value;
   }
-  throw serverValidationError("archive fixedAsset.status is invalid", null);
+  throw engineValidationError("archive fixedAsset.status is invalid", null);
 }
 
 function requireArrayValue(value: unknown, label: string): unknown[] {
   if (!Array.isArray(value)) {
-    throw serverValidationError(`${label} must be an array`, null);
+    throw engineValidationError(`${label} must be an array`, null);
   }
   return value;
 }
 
 function requireNonBlankString(value: unknown, label: string): string {
   if (typeof value !== "string") {
-    throw serverValidationError(`${label} must be a string`, null);
+    throw engineValidationError(`${label} must be a string`, null);
   }
   if (value.trim() === "") {
-    throw serverValidationError(`${label} is required`, null);
+    throw engineValidationError(`${label} is required`, null);
   }
   return value;
 }
@@ -441,24 +448,24 @@ function requireNonBlankString(value: unknown, label: string): string {
 function requireNullableString(value: unknown, label: string): string | null {
   if (value === null) return null;
   if (typeof value !== "string") {
-    throw serverValidationError(`${label} must be a string or null`, null);
+    throw engineValidationError(`${label} must be a string or null`, null);
   }
   if (value.trim() === "") {
-    throw serverValidationError(`${label} must not be blank`, null);
+    throw engineValidationError(`${label} must not be blank`, null);
   }
   return value;
 }
 
 function requireString(value: unknown, label: string): string {
   if (typeof value !== "string") {
-    throw serverValidationError(`${label} must be a string`, null);
+    throw engineValidationError(`${label} must be a string`, null);
   }
   return value;
 }
 
 function requireBoolean(value: unknown, label: string): boolean {
   if (typeof value !== "boolean") {
-    throw serverValidationError(`${label} must be a boolean`, null);
+    throw engineValidationError(`${label} must be a boolean`, null);
   }
   return value;
 }
@@ -486,7 +493,7 @@ function requireIsoDate(value: unknown, label: string): string {
 
 function requireArchiveVersion(value: unknown): FiscalPeriodArchiveVersion {
   if (value === 1 || value === 2) return value;
-  throw serverValidationError(
+  throw engineValidationError(
     "archive manifest.version is not supported",
     null,
   );

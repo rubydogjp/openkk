@@ -9,8 +9,8 @@ import {
   assertUniqueIds,
   isNonBlankString,
   requireObject,
-  serverConflictError,
-  serverValidationError,
+  engineConflictError,
+  engineValidationError,
 } from "@rubydogjp/openkk-engine";
 
 import type {
@@ -28,7 +28,7 @@ export function assertDbArchiveImportSizeLimits(
 ): asserts input is FiscalPeriodArchiveDbImportInput {
   const value = requireObject(input, "Archived import");
   if (!Array.isArray(value.entries) || !Array.isArray(value.fixedAssets)) {
-    throw serverValidationError(
+    throw engineValidationError(
       "Archived import collections must be arrays",
       null,
     );
@@ -53,13 +53,13 @@ export function assertDbCarryoverTargetAllowed(
   period: FiscalPeriodDbData,
 ): void {
   if (period.archiveStatus !== "active") {
-    throw serverConflictError(
+    throw engineConflictError(
       `archived fiscal period cannot receive carryover: ${period.id}`,
       "圧縮保存済みの会計期間は変更できません",
     );
   }
   if (period.phase !== "pre_opening" && period.phase !== "journalizing") {
-    throw serverConflictError(
+    throw engineConflictError(
       `fiscal period cannot receive carryover from phase ${period.phase}: ${period.id}`,
       "仮締め以降の会計期間には引き継げません",
     );
@@ -71,7 +71,7 @@ export function assertDbFiscalPeriodPatchAllowed(
   patch: FiscalPeriodDbPatchInput,
 ): void {
   if (period.archiveStatus !== "active") {
-    throw serverConflictError(
+    throw engineConflictError(
       `archived fiscal period cannot be updated: ${period.id}`,
       "圧縮保存済みの会計期間は変更できません",
     );
@@ -90,7 +90,7 @@ export function assertDbStoredEntryRecord(
     !isNonBlankString(value.userId) ||
     value.fiscalPeriodId !== period.id
   ) {
-    throw serverValidationError(
+    throw engineValidationError(
       `Stored entry identity is invalid: ${String(id)}`,
       null,
     );
@@ -109,7 +109,7 @@ export function assertDbStoredFixedAssetRecord(
     !isNonBlankString(value.userId) ||
     value.fiscalPeriodId !== period.id
   ) {
-    throw serverValidationError(
+    throw engineValidationError(
       `Stored fixed asset identity is invalid: ${String(value.id)}`,
       null,
     );
@@ -121,7 +121,7 @@ export function assertDbClosingGeneratedSizeLimits(
   entries: unknown,
 ): asserts entries is EntryDbUpsertInput[] {
   if (!Array.isArray(entries)) {
-    throw serverValidationError("Closing entries must be an array", null);
+    throw engineValidationError("Closing entries must be an array", null);
   }
   assertEntryCollectionItemLimit(entries, "Closing entries", null);
   assertEntryCollectionLineLimit(entries, "Closing entries", null);

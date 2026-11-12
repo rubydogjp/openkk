@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { createOpenkkServer } from "./index.js";
+import { createOpenkkBackendApi } from "./index.js";
 import {
   MAX_ENTRY_IMPORT_ITEMS,
   MAX_ENTRY_IMPORT_LINES,
   MAX_ENTRY_LINES,
+} from "@rubydogjp/openkk-engine";
+import type {
+  MasterBookAccountDbRecord,
+  MasterBusinessCategoryDbRecord,
+  MasterTaxCategoryDbRecord,
+  OpenkkDbPort,
 } from "@rubydogjp/openkk-engine";
 import type {
   EntryApiRecord,
@@ -15,11 +21,7 @@ import type {
   FixedAssetApiRecord,
   FixedAssetCreateInput,
   FixedAssetPatchInput,
-  MasterBookAccountDbRecord,
-  MasterBusinessCategoryDbRecord,
-  MasterTaxCategoryDbRecord,
-  OpenkkDbPort,
-} from "@rubydogjp/openkk-engine";
+} from "./contract.js";
 import {
   changedFields,
   entry,
@@ -28,37 +30,43 @@ import {
   fixedAsset,
 } from "../test-support/api-records.js";
 
-describe("openkk server closing flow", () => {
+describe("backend-api closing flow", () => {
   it("moves through pre-closing to final closing", async () => {
-    const server = createOpenkkServer(createMemoryDb(), { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(createMemoryDb(), {
+      userId: "user-1",
+    });
 
-    const preClosed = await server.preClosings.run("fp-1");
+    const preClosed = await backendApi.preClosings.run("fp-1");
     expect(preClosed.phase).toBe("pre_closing");
 
-    const closed = await server.closings.run("fp-1", []);
+    const closed = await backendApi.closings.run("fp-1", []);
     expect(closed.phase).toBe("post_closing");
   });
 
   it("cancels only pre-closing and returns to journalizing", async () => {
-    const server = createOpenkkServer(createMemoryDb(), { userId: "user-1" });
-    await server.preClosings.run("fp-1");
-    const reopened = await server.preClosings.cancel("fp-1");
+    const backendApi = createOpenkkBackendApi(createMemoryDb(), {
+      userId: "user-1",
+    });
+    await backendApi.preClosings.run("fp-1");
+    const reopened = await backendApi.preClosings.cancel("fp-1");
     expect(reopened.phase).toBe("journalizing");
   });
 
   it("rejects blank fiscal period ids for closing operations", async () => {
-    const server = createOpenkkServer(createMemoryDb(), { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(createMemoryDb(), {
+      userId: "user-1",
+    });
 
-    await expect(server.preClosings.run("")).rejects.toMatchObject({
+    await expect(backendApi.preClosings.run("")).rejects.toMatchObject({
       statusCode: 400,
     });
-    await expect(server.closings.run("", [])).rejects.toMatchObject({
+    await expect(backendApi.closings.run("", [])).rejects.toMatchObject({
       statusCode: 400,
     });
   });
 
   it("requires opening balances before pre-closing", async () => {
-    const openingIncomplete = createOpenkkServer(
+    const openingIncomplete = createOpenkkBackendApi(
       createMemoryDb({ openingBalancesCompleted: false }),
       { userId: "user-1" },
     );
@@ -68,10 +76,12 @@ describe("openkk server closing flow", () => {
   });
 
   it("does not let a concurrent entry creation slip past pre-closing", async () => {
-    const server = createOpenkkServer(createMemoryDb(), { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(createMemoryDb(), {
+      userId: "user-1",
+    });
     const [preClosing, entryCreate] = await Promise.allSettled([
-      server.preClosings.run("fp-1"),
-      server.entries.create("fp-1", {
+      backendApi.preClosings.run("fp-1"),
+      backendApi.entries.create("fp-1", {
         date: "2026-08-31",
         description: "仮締めと競合する仕訳",
         businessRate: 1,
@@ -116,17 +126,17 @@ describe("openkk server closing flow", () => {
       status: "active",
       bookAccountId: "acct_equipment",
     });
-    const server = createOpenkkServer(
+    const backendApi = createOpenkkBackendApi(
       createMemoryDb({}, { fixedAssets: [asset] }),
       { userId: "user-1" },
     );
-    await server.preClosings.run("fp-1");
+    await backendApi.preClosings.run("fp-1");
 
-    await expect(server.closings.run("fp-1", [])).rejects.toThrow(
+    await expect(backendApi.closings.run("fp-1", [])).rejects.toThrow(
       /do not match the current fiscal-period source data/,
     );
 
-    const closed = await server.closings.run("fp-1", [
+    const closed = await backendApi.closings.run("fp-1", [
       {
         date: "2026-12-31",
         description: "assetの減価償却",
@@ -156,40 +166,42 @@ describe("openkk server closing flow", () => {
   });
 
   it("accepts only unique, in-period generated entries for final closing", async () => {
-    const server = createOpenkkServer(createMemoryDb(), { userId: "user-1" });
-    await server.preClosings.run("fp-1");
+    const backendApi = createOpenkkBackendApi(createMemoryDb(), {
+      userId: "user-1",
+    });
+    await backendApi.preClosings.run("fp-1");
     const generated = validClosingEntry("virtual:closing-entry");
 
     await expect(
-      server.closings.run("fp-1", [
+      backendApi.closings.run("fp-1", [
         { ...generated, localId: "ordinary-entry" },
       ]),
     ).rejects.toThrow(/must use a reserved generated localId/);
     await expect(
-      server.closings.run("fp-1", [generated, generated]),
+      backendApi.closings.run("fp-1", [generated, generated]),
     ).rejects.toThrow(/Closing entry localId has a duplicate value/);
     await expect(
-      server.closings.run("fp-1", [{ ...generated, date: "2027-01-01" }]),
+      backendApi.closings.run("fp-1", [{ ...generated, date: "2027-01-01" }]),
     ).rejects.toThrow(/must be within fiscal period/);
   });
 
   it("rejects oversized generated closing input before comparison", async () => {
-    const tooManyServer = createOpenkkServer(createMemoryDb(), {
+    const tooManyBackendApi = createOpenkkBackendApi(createMemoryDb(), {
       userId: "user-1",
     });
-    await tooManyServer.preClosings.run("fp-1");
+    await tooManyBackendApi.preClosings.run("fp-1");
     const generated = validClosingEntry("virtual:closing-entry");
     await expect(
-      tooManyServer.closings.run(
+      tooManyBackendApi.closings.run(
         "fp-1",
         Array(MAX_ENTRY_IMPORT_ITEMS + 1).fill(generated),
       ),
     ).rejects.toThrow(/Closing entries exceed the 10,000 item limit/);
 
-    const tooManyLinesServer = createOpenkkServer(createMemoryDb(), {
+    const tooManyLinesBackendApi = createOpenkkBackendApi(createMemoryDb(), {
       userId: "user-1",
     });
-    await tooManyLinesServer.preClosings.run("fp-1");
+    await tooManyLinesBackendApi.preClosings.run("fp-1");
     const debit = generated.lines[0]!;
     const credit = generated.lines[1]!;
     const lines = [
@@ -205,23 +217,23 @@ describe("openkk server closing flow", () => {
       }),
     );
     await expect(
-      tooManyLinesServer.closings.run("fp-1", entries),
+      tooManyLinesBackendApi.closings.run("fp-1", entries),
     ).rejects.toThrow(/Closing entries exceed the 100,000 line limit/);
   });
 
   it("rejects closing changes in archived fiscal periods", async () => {
-    const server = createOpenkkServer(
+    const backendApi = createOpenkkBackendApi(
       createMemoryDb({ archiveStatus: "archived" }),
       {
         userId: "user-1",
       },
     );
 
-    await expect(server.preClosings.run("fp-1")).rejects.toThrow(
+    await expect(backendApi.preClosings.run("fp-1")).rejects.toThrow(
       /Archived fiscal period fp-1 cannot run pre-closing/,
     );
 
-    await expect(server.preClosings.cancel("fp-1")).rejects.toThrow(
+    await expect(backendApi.preClosings.cancel("fp-1")).rejects.toThrow(
       /Archived fiscal period fp-1 cannot cancel pre-closing/,
     );
   });

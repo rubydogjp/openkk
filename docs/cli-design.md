@@ -32,7 +32,7 @@
 - 取り込みは期間の ID で同じ期間を見分けて置き換える。`archive import` や `periods export` は期間の ID を付け直すので、無印版から見ると別に作られた期間になる (同じ日付なら、確かめたうえで帳簿ごと置き換える)。無印版に戻すつもりのファイルは、保存したファイルをそのまま変える
 - 複数の期間を入れたファイルも取り込める。無印版が期間ごとの帳簿に分ける
 - 無印版のデータは userId `openkk-original-user` で保存されている (`packages/bundle-original/app/openkk-config.ts`)。openkk-cli も同じ userId を既定にする。ほかの userId の期間は無印版に取り込まれない
-- 26.3 までの無印版は OPFS SAHPool VFS (`legacy-db-adapter`) の 1 つの DB に置いていた。プール内のファイルは独自ヘッダ付きなのでそのままは使えず、新しい無印版が起動するときに `exportFileDbBytes` で標準の SQLite として読み、期間ごとの帳簿に分けて移す
+- 26.3 までの無印版は OPFS SAHPool VFS (`legacy-db-adapter`) の 1 つの DB に置いていた。プール内のファイルは独自ヘッダ付きなのでそのままは使えず、新しい無印版が起動するときに `exportLegacyDbBytes` で標準の SQLite として読み、期間ごとの帳簿に分けて移す
 
 ## パッケージ構成
 
@@ -42,7 +42,7 @@
 | `@rubydogjp/openkk-cli` (bin: `openkk`) | openkk-cli の composition root (3 アプリと並ぶ) | `driver`, `driver`, `embedded-backend`, `embedded-backend-adapter`, `disk-db-adapter` |
 
 - `client` の meta barrel には依存しない (client-ui 経由で React を引き込むため)
-- `OpenkkServerPort` を直接呼ばない。帳票・CSV・zip・締め仕訳は client 側の型で書かれていて、直接呼ぶと client と server の型が混ざる (設計原則 1)。`OpenkkBackendPort` 経由なら、HTTP のバックエンドにも差し替えられる
+- `OpenkkBackendApi` を直接呼ばない。帳票・CSV・zip・締め仕訳は client 側の型で書かれていて、直接呼ぶと client と server の型が混ざる (設計原則 1)。`OpenkkBackendPort` 経由なら、HTTP のバックエンドにも差し替えられる
 
 ### 切り出しが要るもの
 

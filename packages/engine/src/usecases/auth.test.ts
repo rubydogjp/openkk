@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import type { OpenkkDbPort } from "../ports/index.js";
 import { LOCAL_AUTH_PENDING_LIMIT } from "./local-auth.js";
-import { createServerUsecases } from "./usecases.js";
+import { createEngineUsecases } from "./usecases.js";
 
 describe("local auth use case", () => {
   it("accepts issued authorization data and consumes each code once", async () => {
-    const auth = createServerUsecases({} as OpenkkDbPort).auth;
+    const auth = createEngineUsecases({} as OpenkkDbPort).auth;
     const started = await auth.startSession("https://example.test/auth/result");
     const target = new URL(started.authUrl);
     const state = target.searchParams.get("state")!;
@@ -25,14 +25,14 @@ describe("local auth use case", () => {
   });
 
   it("rejects authorization data that was never issued", async () => {
-    const auth = createServerUsecases({} as OpenkkDbPort).auth;
+    const auth = createEngineUsecases({} as OpenkkDbPort).auth;
     await expect(auth.completeSession("made-up", "made-up")).rejects.toThrow(
       /invalid or expired/,
     );
   });
 
   it("rejects non-http redirect URLs and credential-bearing URLs", async () => {
-    const auth = createServerUsecases({} as OpenkkDbPort).auth;
+    const auth = createEngineUsecases({} as OpenkkDbPort).auth;
     await expect(auth.startSession("javascript:alert(1)")).rejects.toThrow(
       /not allowed/,
     );
@@ -42,7 +42,7 @@ describe("local auth use case", () => {
   });
 
   it("rejects malformed runtime values with validation errors", async () => {
-    const auth = createServerUsecases({} as OpenkkDbPort).auth;
+    const auth = createEngineUsecases({} as OpenkkDbPort).auth;
 
     await expect(auth.startSession(null)).rejects.toThrow(
       /auth redirect URL is required/,
@@ -56,7 +56,7 @@ describe("local auth use case", () => {
   });
 
   it("bounds pending authorization requests and evicts the oldest", async () => {
-    const auth = createServerUsecases({} as OpenkkDbPort).auth;
+    const auth = createEngineUsecases({} as OpenkkDbPort).auth;
     const issued = [];
     for (let index = 0; index <= LOCAL_AUTH_PENDING_LIMIT; index += 1) {
       const started = await auth.startSession(
@@ -78,7 +78,7 @@ describe("local auth use case", () => {
   });
 
   it("bounds unredeemed completion codes and evicts the oldest", async () => {
-    const auth = createServerUsecases({} as OpenkkDbPort).auth;
+    const auth = createEngineUsecases({} as OpenkkDbPort).auth;
     const completions: string[] = [];
     for (let index = 0; index <= LOCAL_AUTH_PENDING_LIMIT; index += 1) {
       const started = await auth.startSession(

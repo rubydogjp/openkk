@@ -1,4 +1,4 @@
-import { serverConflictError, serverValidationError } from "./app-error.js";
+import { engineConflictError, engineValidationError } from "./app-error.js";
 import { getDefaultBookAccount } from "./master-data.js";
 import type {
   Entry,
@@ -46,19 +46,19 @@ export function assertFiscalPeriodCanCarryOver(
   nextStartDate: string,
 ): void {
   if (source.phase !== "post_closing" || !source.documentsReceivedCompleted) {
-    throw serverConflictError(
+    throw engineConflictError(
       "Carryover requires closing and document receipt completion",
       "本締めと書類の受領を完了してから次の期間を作成してください",
     );
   }
   if (source.archiveStatus === "purged") {
-    throw serverConflictError(
+    throw engineConflictError(
       "Cannot carry over a fiscal period whose data was purged",
       "この会計期間の実データは削除済みです",
     );
   }
   if (nextStartDate <= source.endDate) {
-    throw serverValidationError(
+    throw engineValidationError(
       "Next fiscal period must start after the source period ends",
       "次の期間の開始日は引き継ぎ元の終了日より後にしてください",
     );
@@ -96,7 +96,7 @@ export function buildCarryoverOpeningBalances(input: {
     if (balance === 0n) return [];
     const amount = Number(balance < 0n ? -balance : balance);
     if (!Number.isSafeInteger(amount)) {
-      throw serverValidationError(
+      throw engineValidationError(
         "Carryover balance exceeds the safe integer range",
         null,
       );
@@ -158,7 +158,7 @@ export function buildCarryoverOpeningJournals(input: {
       }
     }
     if (journals.length === 0) {
-      throw serverValidationError(
+      throw engineValidationError(
         `Entry ${entry.id} has no reversible balance`,
         "選択した仕訳に再振替できる明細がありません",
       );
@@ -186,7 +186,7 @@ function reverseLine(
 function requireAccount(id: string) {
   const account = getDefaultBookAccount(id);
   if (account == null) {
-    throw serverValidationError(`Unknown carryover book account: ${id}`, null);
+    throw engineValidationError(`Unknown carryover book account: ${id}`, null);
   }
   return account;
 }

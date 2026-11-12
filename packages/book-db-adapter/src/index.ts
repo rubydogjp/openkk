@@ -9,19 +9,19 @@ import {
   type SqlDb,
 } from "@rubydogjp/openkk-sqlite-db-adapter";
 
-export type DocumentFileProblem = "not_sqlite" | "not_openkk" | "newer_schema";
+export type BookFileProblem = "not_sqlite" | "not_openkk" | "newer_schema";
 
-export class DocumentFileFormatError extends Error {
-  readonly problem: DocumentFileProblem;
+export class BookFileFormatError extends Error {
+  readonly problem: BookFileProblem;
 
-  constructor(problem: DocumentFileProblem, message: string) {
+  constructor(problem: BookFileProblem, message: string) {
     super(message);
-    this.name = "DocumentFileFormatError";
+    this.name = "BookFileFormatError";
     this.problem = problem;
   }
 }
 
-export type DocumentDbAdapter = {
+export type BookDbAdapter = {
   db: OpenkkDbPort;
   changedOnOpen: boolean;
   lastChangedAtOnOpen: number | null;
@@ -60,9 +60,9 @@ function initializeSqliteWasm() {
   return initialization;
 }
 
-export async function createDocumentDbAdapter(
+export async function createBookDbAdapter(
   bytes: Uint8Array | null,
-): Promise<DocumentDbAdapter> {
+): Promise<BookDbAdapter> {
   if (bytes != null) assertSqliteHeader(bytes);
   const sqlite3 = await initializeSqliteWasm();
   const { capi, wasm } = sqlite3;
@@ -80,12 +80,12 @@ export async function createDocumentDbAdapter(
           capi.SQLITE_DESERIALIZE_RESIZEABLE,
       );
       if (resultCode !== capi.SQLITE_OK) {
-        throw new DocumentFileFormatError(
+        throw new BookFileFormatError(
           "not_sqlite",
           `sqlite3_deserialize failed: ${resultCode}`,
         );
       }
-      assertOpenkkDocument(database);
+      assertOpenkkBook(database);
     }
     const changesBefore = capi.sqlite3_total_changes(database.pointer!);
     const lastChangedAtOnOpen =
@@ -149,26 +149,26 @@ function assertSqliteHeader(bytes: Uint8Array): void {
     bytes.subarray(0, SQLITE_HEADER.length),
   );
   if (header !== SQLITE_HEADER) {
-    throw new DocumentFileFormatError(
+    throw new BookFileFormatError(
       "not_sqlite",
       "document is not a SQLite database",
     );
   }
 }
 
-function assertOpenkkDocument(database: {
+function assertOpenkkBook(database: {
   selectValue(sql: string): unknown;
 }): void {
   if (database.selectValue(META_TABLE_QUERY) == null) {
     if (database.selectValue(ANY_TABLE_QUERY) == null) return;
-    throw new DocumentFileFormatError(
+    throw new BookFileFormatError(
       "not_openkk",
       "SQLite database has no openkk_meta table",
     );
   }
   const version = Number(database.selectValue(SCHEMA_VERSION_QUERY));
   if (Number.isSafeInteger(version) && version > SCHEMA_VERSION) {
-    throw new DocumentFileFormatError(
+    throw new BookFileFormatError(
       "newer_schema",
       `document schema ${version} is newer than ${SCHEMA_VERSION}`,
     );

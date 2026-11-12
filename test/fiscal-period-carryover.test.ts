@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   computeFsAggregate,
   isOpeningCarryoverCandidate,
-  type EntryRecord as ClientEntryRecord,
+  type EntryRecord as DriverEntryRecord,
   type FsBsRow,
 } from "../packages/driver/src/domain/index.js";
 import { createOpenkkEmbeddedBackendAdapter } from "../packages/embedded-backend-adapter/src/index.js";
@@ -18,11 +18,9 @@ import {
   type EntryRecord,
   type OpeningBalanceLine,
 } from "../packages/engine/src/domain/index.js";
-import type {
-  OpenkkDbPort,
-  FiscalPeriodNextCreateInput,
-} from "../packages/engine/src/ports/index.js";
-import { createOpenkkServer } from "../packages/backend-api/src/index.js";
+import type { OpenkkDbPort } from "../packages/engine/src/ports/index.js";
+import type { FiscalPeriodNextCreateInput } from "../packages/backend-api/src/contract.js";
+import { createOpenkkBackendApi } from "../packages/backend-api/src/index.js";
 import {
   createSqliteDbAdapter,
   runMigrations,
@@ -57,7 +55,7 @@ function entry(lines: EntryLine[]): EntryRecord {
   };
 }
 
-function clientEntry(record: EntryRecord): ClientEntryRecord {
+function driverEntry(record: EntryRecord): DriverEntryRecord {
   return {
     ...record,
     fiscalPeriodId: "source",
@@ -119,7 +117,7 @@ function assertCarriesClosingBalanceSheet(
   label: string,
 ): void {
   const closing = computeFsAggregate({
-    entries: entries.map(clientEntry),
+    entries: entries.map(driverEntry),
     openingBalanceLines,
   });
   const carried = buildCarryoverOpeningBalances({
@@ -180,7 +178,7 @@ describe("carryover calculations", () => {
           reversible = false;
         }
         expect(
-          isOpeningCarryoverCandidate(clientEntry(record)),
+          isOpeningCarryoverCandidate(driverEntry(record)),
           `${account.id}: ${side}`,
         ).toBe(reversible);
       }
@@ -344,7 +342,7 @@ describe("carryover calculations", () => {
       entries: [record],
       startDate: "2027-01-01",
     });
-    expect(isOpeningCarryoverCandidate(clientEntry(record))).toBe(true);
+    expect(isOpeningCarryoverCandidate(driverEntry(record))).toBe(true);
     expect(journals).toHaveLength(2);
     expect(journals.map((journal) => journal.lines[0]!.amount)).toEqual([
       168_000, 12_000,
@@ -397,7 +395,7 @@ describe("carryover calculations", () => {
       line("debit", debit, 100),
       line("credit", credit, 100),
     ]);
-    expect(isOpeningCarryoverCandidate(clientEntry(record))).toBe(false);
+    expect(isOpeningCarryoverCandidate(driverEntry(record))).toBe(false);
     expect(() =>
       buildCarryoverOpeningJournals({
         entries: [record],
@@ -425,7 +423,7 @@ describe("carryover calculations", () => {
       line("credit", "acct_accrued_expense", 100),
       line("debit", "acct_cash", 0),
     ]);
-    expect(isOpeningCarryoverCandidate(clientEntry(record))).toBe(true);
+    expect(isOpeningCarryoverCandidate(driverEntry(record))).toBe(true);
     expect(
       buildCarryoverOpeningJournals({
         entries: [record],
@@ -437,21 +435,21 @@ describe("carryover calculations", () => {
       line("credit", "acct_cash", 100),
       line("credit", "acct_accrued_expense", 0),
     ]);
-    expect(isOpeningCarryoverCandidate(clientEntry(zeroLineRecord))).toBe(
+    expect(isOpeningCarryoverCandidate(driverEntry(zeroLineRecord))).toBe(
       false,
     );
   });
 });
 
 async function closedSource(db: OpenkkDbPort) {
-  const server = createOpenkkServer(db, { userId: "user-1" });
-  const period = await server.fiscalPeriods.create({
+  const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
+  const period = await backendApi.fiscalPeriods.create({
     name: "2026年",
     startDate: "2026-01-01",
     endDate: "2026-12-31",
   });
-  await server.fiscalPeriods.start(period.id);
-  await server.fiscalPeriods.patch(period.id, {
+  await backendApi.fiscalPeriods.start(period.id);
+  await backendApi.fiscalPeriods.patch(period.id, {
     openingBalancesCompleted: true,
   });
   const accrued = await db.entries.create("user-1", period.id, {
@@ -477,7 +475,7 @@ async function closedSource(db: OpenkkDbPort) {
     businessRate: 1,
     bookAccountId: "acct_equipment",
   });
-  const retired = await server.fixedAssets.create(period.id, {
+  const retired = await backendApi.fixedAssets.create(period.id, {
     name: "償却済み資産",
     acquisitionDate: "2020-01-01",
     acquisitionCost: 1200,
@@ -486,20 +484,22 @@ async function closedSource(db: OpenkkDbPort) {
     businessRate: 1,
     bookAccountId: "acct_equipment",
   });
-  await server.fixedAssets.patch(period.id, retired.id, { status: "retired" });
-  await server.preClosings.run(period.id);
-  await server.closings.run(
+  await backendApi.fixedAssets.patch(period.id, retired.id, {
+    status: "retired",
+  });
+  await backendApi.preClosings.run(period.id);
+  await backendApi.closings.run(
     period.id,
     buildExpectedClosingEntries({
       periodStartDate: period.startDate,
       periodEndDate: period.endDate,
-      entries: await server.entries.getAll(period.id),
-      fixedAssets: await server.fixedAssets.getAll(period.id),
+      entries: await backendApi.entries.getAll(period.id),
+      fixedAssets: await backendApi.fixedAssets.getAll(period.id),
       openingJournals: [],
-      bookAccounts: await server.masterData.getBookAccounts(),
+      bookAccounts: await backendApi.masterData.getBookAccounts(),
     }),
   );
-  await server.fiscalPeriods.patch(period.id, {
+  await backendApi.fiscalPeriods.patch(period.id, {
     documentsReceivedCompleted: true,
   });
   const input: FiscalPeriodNextCreateInput = {
@@ -511,16 +511,16 @@ async function closedSource(db: OpenkkDbPort) {
     reversalEntryIds: [accrued.id],
     carryFixedAssets: true,
   };
-  return { server, period, accrued, input };
+  return { backendApi, period, accrued, input };
 }
 
 describe("atomic fiscal period carryover", () => {
   it("preserves saved text through the backend boundary and source purge", async () => {
-    const { server, period, input } = await closedSource(
+    const { backendApi, period, input } = await closedSource(
       await createMemoryDbAdapter(null),
     );
-    await server.fiscalPeriods.archive(period.id);
-    const backend = createOpenkkEmbeddedBackendAdapter(server);
+    await backendApi.fiscalPeriods.archive(period.id);
+    const backend = createOpenkkEmbeddedBackendAdapter(backendApi);
     const next = await backend.fiscalPeriods.createNext(input);
     expect(next).toMatchObject({
       phase: "pre_opening",
@@ -572,10 +572,10 @@ describe("atomic fiscal period carryover", () => {
   it.each([false, true])(
     "honors independent carryover selections (balances: %s)",
     async (carryBalances) => {
-      const { server, input } = await closedSource(
+      const { backendApi, input } = await closedSource(
         await createMemoryDbAdapter(null),
       );
-      const next = await server.fiscalPeriods.createNext({
+      const next = await backendApi.fiscalPeriods.createNext({
         ...input,
         carryBalances,
         reversalEntryIds: [],
@@ -584,12 +584,12 @@ describe("atomic fiscal period carryover", () => {
       expect(next.openingBalancesCompleted).toBe(carryBalances);
       expect(next.opening.balanceLines.length > 0).toBe(carryBalances);
       expect(next.opening.journals).toEqual([]);
-      expect(await server.fixedAssets.getAll(next.id)).toEqual([]);
+      expect(await backendApi.fixedAssets.getAll(next.id)).toEqual([]);
     },
   );
 
   it("rejects missing and duplicate source entries", async () => {
-    const { server, input } = await closedSource(
+    const { backendApi, input } = await closedSource(
       await createMemoryDbAdapter(null),
     );
     for (const [reversalEntryIds, message] of [
@@ -601,27 +601,27 @@ describe("atomic fiscal period carryover", () => {
       [[""], /Reversal entry id is required/],
     ] as const) {
       await expect(
-        server.fiscalPeriods.createNext({
+        backendApi.fiscalPeriods.createNext({
           ...input,
           reversalEntryIds: [...reversalEntryIds],
         }),
       ).rejects.toThrow(message);
     }
-    expect(await server.fiscalPeriods.getAll()).toHaveLength(1);
+    expect(await backendApi.fiscalPeriods.getAll()).toHaveLength(1);
   });
 
   it("allows other fields to change while keeping stored long text", async () => {
-    const { server, input } = await closedSource(
+    const { backendApi, input } = await closedSource(
       await createMemoryDbAdapter(null),
     );
-    const next = await server.fiscalPeriods.createNext(input);
+    const next = await backendApi.fiscalPeriods.createNext(input);
     const opening = next.opening;
     const journals = opening.journals.map((journal) => ({
       ...journal,
       businessRate: 0.5,
     }));
     await expect(
-      server.fiscalPeriods.patch(next.id, {
+      backendApi.fiscalPeriods.patch(next.id, {
         opening: { ...opening, journals: journals },
       }),
     ).resolves.toMatchObject({
@@ -630,7 +630,7 @@ describe("atomic fiscal period carryover", () => {
       },
     });
     await expect(
-      server.fiscalPeriods.patch(next.id, {
+      backendApi.fiscalPeriods.patch(next.id, {
         opening: {
           ...opening,
           journals: journals.map((journal) => ({
@@ -640,32 +640,34 @@ describe("atomic fiscal period carryover", () => {
         },
       }),
     ).rejects.toThrow(/400 character limit/);
-    await server.fiscalPeriods.start(next.id);
-    const [asset] = await server.fixedAssets.getAll(next.id);
+    await backendApi.fiscalPeriods.start(next.id);
+    const [asset] = await backendApi.fixedAssets.getAll(next.id);
     await expect(
-      server.fixedAssets.patch(next.id, asset!.id, {
+      backendApi.fixedAssets.patch(next.id, asset!.id, {
         name: longText,
         businessRate: 0.5,
       }),
     ).resolves.toMatchObject({ name: longText, businessRate: 0.5 });
     await expect(
-      server.fixedAssets.patch(next.id, asset!.id, { name: longText + "変更" }),
+      backendApi.fixedAssets.patch(next.id, asset!.id, {
+        name: longText + "変更",
+      }),
     ).rejects.toThrow(/400 character limit/);
   });
 
   it("updates an imported entry without rejecting its unchanged long text", async () => {
     const db = await createMemoryDbAdapter(null);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
     const period = await db.fiscalPeriods.create("user-1", {
       name: longText,
       startDate: "2026-01-01",
       endDate: "2026-12-31",
     });
-    await server.fiscalPeriods.patch(period.id, {
+    await backendApi.fiscalPeriods.patch(period.id, {
       name: longText,
       openingBalancesCompleted: true,
     });
-    await server.fiscalPeriods.start(period.id);
+    await backendApi.fiscalPeriods.start(period.id);
     const stored = await db.entries.create("user-1", period.id, {
       date: period.startDate,
       description: longText,
@@ -682,62 +684,67 @@ describe("atomic fiscal period carryover", () => {
       })),
     });
     await expect(
-      server.entries.update(period.id, stored.id, {
+      backendApi.entries.update(period.id, stored.id, {
         ...stored,
         businessRate: 0.5,
       }),
     ).resolves.toMatchObject({ description: longText, businessRate: 0.5 });
     await expect(
-      server.entries.update(period.id, stored.id, {
+      backendApi.entries.update(period.id, stored.id, {
         ...stored,
         description: longText + "変更",
       }),
     ).rejects.toThrow(/400 character limit/);
-    await expect(server.entries.create(period.id, stored)).rejects.toThrow(
+    await expect(backendApi.entries.create(period.id, stored)).rejects.toThrow(
       /400 character limit/,
     );
   });
 
   it("checks ownership, source state, dates, overlap and required options", async () => {
     const db = await createMemoryDbAdapter(null);
-    const { server, input } = await closedSource(db);
+    const { backendApi, input } = await closedSource(db);
     await expect(
-      createOpenkkServer(db, { userId: "other" }).fiscalPeriods.createNext(
+      createOpenkkBackendApi(db, { userId: "other" }).fiscalPeriods.createNext(
         input,
       ),
     ).rejects.toMatchObject({ statusCode: 404 });
     await expect(
-      server.fiscalPeriods.createNext({ ...input, startDate: "2026-01-01" }),
+      backendApi.fiscalPeriods.createNext({
+        ...input,
+        startDate: "2026-01-01",
+      }),
     ).rejects.toThrow();
     await expect(
-      server.fiscalPeriods.createNext({
+      backendApi.fiscalPeriods.createNext({
         ...input,
         carryBalances: null,
       } as never),
     ).rejects.toThrow();
     await expect(
-      server.fiscalPeriods.createNext({
+      backendApi.fiscalPeriods.createNext({
         ...input,
         reversalEntryIds: null,
       } as never),
     ).rejects.toThrow();
-    const next = await server.fiscalPeriods.createNext(input);
-    await expect(server.fiscalPeriods.createNext(input)).rejects.toThrow(
+    const next = await backendApi.fiscalPeriods.createNext(input);
+    await expect(backendApi.fiscalPeriods.createNext(input)).rejects.toThrow(
       /overlaps/,
     );
     await expect(
-      server.fiscalPeriods.createNext({
+      backendApi.fiscalPeriods.createNext({
         ...input,
         sourceFiscalPeriodId: next.id,
         startDate: "2028-01-01",
         endDate: "2028-12-31",
       }),
     ).rejects.toThrow(/closing/);
-    expect(await server.fiscalPeriods.getAll()).toHaveLength(2);
-    await server.fiscalPeriods.archive(input.sourceFiscalPeriodId);
-    await server.fiscalPeriods.purgeArchivedData(input.sourceFiscalPeriodId);
+    expect(await backendApi.fiscalPeriods.getAll()).toHaveLength(2);
+    await backendApi.fiscalPeriods.archive(input.sourceFiscalPeriodId);
+    await backendApi.fiscalPeriods.purgeArchivedData(
+      input.sourceFiscalPeriodId,
+    );
     await expect(
-      server.fiscalPeriods.createNext({
+      backendApi.fiscalPeriods.createNext({
         ...input,
         startDate: "2028-01-01",
         endDate: "2028-12-31",
@@ -746,18 +753,18 @@ describe("atomic fiscal period carryover", () => {
   });
 
   it("serializes concurrent requests so the next period is created once", async () => {
-    const { server, input } = await closedSource(
+    const { backendApi, input } = await closedSource(
       await createMemoryDbAdapter(null),
     );
     const results = await Promise.allSettled([
-      server.fiscalPeriods.createNext(input),
-      server.fiscalPeriods.createNext(input),
+      backendApi.fiscalPeriods.createNext(input),
+      backendApi.fiscalPeriods.createNext(input),
     ]);
     expect(results.map((result) => result.status)).toEqual([
       "fulfilled",
       "rejected",
     ]);
-    expect(await server.fiscalPeriods.getAll()).toHaveLength(2);
+    expect(await backendApi.fiscalPeriods.getAll()).toHaveLength(2);
   });
 
   it.each(["opening_journal_lines", "fixed_assets"])(
@@ -783,24 +790,24 @@ describe("atomic fiscal period carryover", () => {
       };
       try {
         const db = await createSqliteDbAdapter(sql, null);
-        const { server, input } = await closedSource(db);
-        const before = await server.fiscalPeriods.getAll();
-        const sourceEntries = await server.entries.getAll(
+        const { backendApi, input } = await closedSource(db);
+        const before = await backendApi.fiscalPeriods.getAll();
+        const sourceEntries = await backendApi.entries.getAll(
           input.sourceFiscalPeriodId,
         );
         failWrites = true;
-        await expect(server.fiscalPeriods.createNext(input)).rejects.toThrow(
-          "injected write failure",
-        );
-        expect(await server.fiscalPeriods.getAll()).toEqual(before);
-        expect(await server.entries.getAll(input.sourceFiscalPeriodId)).toEqual(
-          sourceEntries,
-        );
+        await expect(
+          backendApi.fiscalPeriods.createNext(input),
+        ).rejects.toThrow("injected write failure");
+        expect(await backendApi.fiscalPeriods.getAll()).toEqual(before);
+        expect(
+          await backendApi.entries.getAll(input.sourceFiscalPeriodId),
+        ).toEqual(sourceEntries);
         failWrites = false;
         await expect(
-          server.fiscalPeriods.createNext(input),
+          backendApi.fiscalPeriods.createNext(input),
         ).resolves.toMatchObject({ name: "2027年" });
-        expect(await server.fiscalPeriods.getAll()).toHaveLength(2);
+        expect(await backendApi.fiscalPeriods.getAll()).toHaveLength(2);
       } finally {
         raw.close();
       }

@@ -1,14 +1,14 @@
 import {
   assertEntryMatchesRules,
   assertTextFieldLength,
-  serverValidationError,
+  engineValidationError,
   VIRTUAL_ENTRY_LOCAL_ID_PREFIX,
 } from "@rubydogjp/openkk-engine";
 import type {
   EntryApiRecord,
   EntryUpsertInput,
   FiscalPeriodApiRecord,
-} from "@rubydogjp/openkk-engine";
+} from "./contract.js";
 
 const LINE_TEXT_FIELDS = [
   ["partnerName", "Entry line partner"],
@@ -23,7 +23,7 @@ export function assertEditableEntryInput(
 ): asserts input is EntryUpsertInput {
   assertEntryMatchesRules(input, period, "Entry");
   if (input.localId?.startsWith(VIRTUAL_ENTRY_LOCAL_ID_PREFIX)) {
-    throw serverValidationError(
+    throw engineValidationError(
       `Entry localId prefix ${VIRTUAL_ENTRY_LOCAL_ID_PREFIX} is reserved`,
       "この仕訳識別子は本締め用に予約されています",
     );

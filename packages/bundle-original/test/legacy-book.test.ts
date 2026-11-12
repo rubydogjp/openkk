@@ -12,7 +12,7 @@ import {
   type BookStore,
 } from "@rubydogjp/openkk-books-db-adapter";
 
-import { createNodeSqliteDbAdapter } from "../../disk-db-adapter/src/index.js";
+import { createDiskDbAdapter } from "../../disk-db-adapter/src/index.js";
 import {
   createLegacyBook,
   type LegacyBookDependencies,
@@ -39,7 +39,7 @@ async function legacyDatabaseBytes(periodCount: number): Promise<Uint8Array> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "openkk-legacy-"));
   tempDirs.push(dir);
   const filePath = path.join(dir, "openkk.sqlite3");
-  const legacy = await createNodeSqliteDbAdapter(filePath, null);
+  const legacy = await createDiskDbAdapter(filePath, null);
   for (let index = 0; index < periodCount; index += 1) {
     const year = 2025 + index;
     const period = await legacy.db.fiscalPeriods.create(USER, {

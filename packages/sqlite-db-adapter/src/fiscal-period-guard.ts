@@ -1,6 +1,6 @@
 import {
-  serverConflictError,
-  serverNotFoundError,
+  engineConflictError,
+  engineNotFoundError,
 } from "@rubydogjp/openkk-engine";
 
 import type { FiscalPeriodDbPhase } from "@rubydogjp/openkk-engine";
@@ -31,7 +31,7 @@ export async function assertDbOwnedFiscalPeriodAllows(
 ): Promise<FiscalPeriodDbData> {
   const [ownerId, data] = await requireFiscalPeriodRow(db, fiscalPeriodId);
   if (ownerId !== userId) {
-    throw serverNotFoundError(`fiscal period not found: ${fiscalPeriodId}`);
+    throw engineNotFoundError(`fiscal period not found: ${fiscalPeriodId}`);
   }
   return assertPhaseAllows(
     parseFiscalPeriodDbData(data),
@@ -52,7 +52,7 @@ async function requireFiscalPeriodRow(
   })) as Array<[string, string]>;
   const row = rows[0];
   if (row == null) {
-    throw serverNotFoundError(`fiscal period not found: ${fiscalPeriodId}`);
+    throw engineNotFoundError(`fiscal period not found: ${fiscalPeriodId}`);
   }
   return row;
 }
@@ -66,7 +66,7 @@ function assertPhaseAllows(
     period.archiveStatus !== "active" ||
     !allowedPhases.includes(period.phase)
   ) {
-    throw serverConflictError(
+    throw engineConflictError(
       `fiscal period cannot ${operation} from phase ${period.phase} (${period.archiveStatus})`,
       "会計期間の状態が変わったため、この操作を実行できません",
     );

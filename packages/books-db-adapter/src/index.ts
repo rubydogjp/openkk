@@ -1,11 +1,11 @@
 import {
-  createDocumentDbAdapter,
-  type DocumentDbAdapter,
+  createBookDbAdapter,
+  type BookDbAdapter,
 } from "@rubydogjp/openkk-book-db-adapter";
 import {
   assertFiscalPeriodCanCarryOver,
   assertNoOverlappingActiveFiscalPeriod,
-  serverNotFoundError,
+  engineNotFoundError,
   type EntryDbRecord,
   type FiscalPeriodArchiveDbImportInput,
   type FiscalPeriodDbRecord,
@@ -108,7 +108,7 @@ export type BooksDbAdapterOptions = {
 
 type Book = {
   name: string;
-  database: DocumentDbAdapter;
+  database: BookDbAdapter;
   saver: BookSaver;
   fiscalPeriodIds: Set<string>;
   lastChangedAt: number;
@@ -180,13 +180,13 @@ export async function createBooksDbAdapter(
   const unreadableBooks: UnreadableBook[] = [];
   const listeners = new Set<() => void>();
   const queue = createOperationQueue();
-  const blank = await createDocumentDbAdapter(null);
+  const blank = await createBookDbAdapter(null);
 
   const notify = () => {
     for (const listener of listeners) listener();
   };
 
-  function register(name: string, database: DocumentDbAdapter): Book {
+  function register(name: string, database: BookDbAdapter): Book {
     let open = true;
     const book: Book = {
       name,
@@ -268,7 +268,7 @@ export async function createBooksDbAdapter(
   async function createBook<Result>(
     build: (db: OpenkkDbPort) => Promise<Result>,
   ): Promise<Result> {
-    const database = await createDocumentDbAdapter(null);
+    const database = await createBookDbAdapter(null);
     try {
       const result = await build(database.db);
       const name = options.newBookName();
@@ -295,7 +295,7 @@ export async function createBooksDbAdapter(
     const sourceDb = dbOfPeriod(sourceFiscalPeriodId);
     const source = await sourceDb.fiscalPeriods.getById(sourceFiscalPeriodId);
     if (source == null || source.userId !== userId) {
-      throw serverNotFoundError(
+      throw engineNotFoundError(
         `fiscal period not found: ${sourceFiscalPeriodId}`,
       );
     }
@@ -304,7 +304,7 @@ export async function createBooksDbAdapter(
     const reversalEntryIndexes = reversalEntryIds.map((id) => {
       const index = entries.findIndex((entry) => entry.id === id);
       if (index < 0) {
-        throw serverNotFoundError(
+        throw engineNotFoundError(
           `Reversal entry ${id} not found in fiscal period ${source.id}`,
         );
       }
@@ -389,7 +389,7 @@ export async function createBooksDbAdapter(
     if (book.fiscalPeriodIds.size !== 1) {
       throw new Error(`the book holds more than one period: ${book.name}`);
     }
-    const database = await createDocumentDbAdapter(incoming.bytes);
+    const database = await createBookDbAdapter(incoming.bytes);
     const name = book.name;
     try {
       await book.saver.stop();
@@ -407,7 +407,7 @@ export async function createBooksDbAdapter(
   }
 
   async function addBook(incoming: BookFilePeriod): Promise<void> {
-    const database = await createDocumentDbAdapter(incoming.bytes);
+    const database = await createBookDbAdapter(incoming.bytes);
     try {
       const name = options.newBookName();
       await store.write(name, database.exportBytes());
@@ -422,7 +422,7 @@ export async function createBooksDbAdapter(
     try {
       const bytes = await store.read(name);
       if (bytes == null) continue;
-      const database = await createDocumentDbAdapter(bytes);
+      const database = await createBookDbAdapter(bytes);
       const duplicated = database
         .listFiscalPeriodIds()
         .find((id) => bookOfPeriod(id) != null);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import * as clientDomain from "../packages/driver/src/domain/index.js";
-import * as serverDomain from "../packages/engine/src/domain/index.js";
+import * as driverDomain from "../packages/driver/src/domain/index.js";
+import * as engineDomain from "../packages/engine/src/domain/index.js";
 
 const SHARED_LIMITS = [
   "MAX_ENTRY_LINES",
@@ -12,11 +12,11 @@ const SHARED_LIMITS = [
   "MAX_FISCAL_PERIOD_ARCHIVE_FILE_BYTES",
 ] as const;
 
-describe("shared client/server limits", () => {
+describe("shared driver/engine limits", () => {
   it.each(SHARED_LIMITS)("keeps %s identical on both sides", (name) => {
-    const client = (clientDomain as Record<string, unknown>)[name];
-    const server = (serverDomain as Record<string, unknown>)[name];
-    expect(typeof client).toBe("number");
-    expect(client).toBe(server);
+    const driverLimit = (driverDomain as Record<string, unknown>)[name];
+    const engineLimit = (engineDomain as Record<string, unknown>)[name];
+    expect(typeof driverLimit).toBe("number");
+    expect(driverLimit).toBe(engineLimit);
   });
 });

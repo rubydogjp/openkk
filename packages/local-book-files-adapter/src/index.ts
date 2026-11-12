@@ -12,7 +12,7 @@ import {
   type OpenkkBookImportItem,
   type PlatformKeyValueStorage,
 } from "@rubydogjp/openkk-driver";
-import { DocumentFileFormatError } from "@rubydogjp/openkk-book-db-adapter";
+import { BookFileFormatError } from "@rubydogjp/openkk-book-db-adapter";
 
 import { bookImportCase } from "./import-case.js";
 import { createBookSaveRecords } from "./save-records.js";
@@ -21,7 +21,7 @@ export { bookImportCase } from "./import-case.js";
 
 export const BOOK_SAVE_REMINDER_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000;
 
-export type BookFilesAdapterOptions = {
+export type LocalBookFilesAdapterOptions = {
   books: Pick<
     BooksDbAdapter,
     | "exportBook"
@@ -43,7 +43,7 @@ export type BookFilesAdapterOptions = {
   ): Promise<OpenkkBookFileSaveResult>;
 };
 
-export type BookFilesAdapter = OpenkkBookFilesPort & {
+export type LocalBookFilesAdapter = OpenkkBookFilesPort & {
   forgetFiscalPeriod(fiscalPeriodId: string): void;
 };
 
@@ -69,7 +69,7 @@ function expectationOf(period: InspectedBookPeriod): BookImportExpectation {
 }
 
 function bookFileError(error: unknown): unknown {
-  if (error instanceof DocumentFileFormatError) {
+  if (error instanceof BookFileFormatError) {
     return new OpenkkBookFileError(
       error.problem === "newer_schema" ? "newer_version" : "not_a_book",
     );
@@ -80,9 +80,9 @@ function bookFileError(error: unknown): unknown {
   return error;
 }
 
-export function createBookFilesAdapter(
-  options: BookFilesAdapterOptions,
-): BookFilesAdapter {
+export function createLocalBookFilesAdapter(
+  options: LocalBookFilesAdapterOptions,
+): LocalBookFilesAdapter {
   const { books } = options;
   const records = createBookSaveRecords(options.storage);
   const listeners = new Set<() => void>();

@@ -1,4 +1,4 @@
-import { serverConflictError, serverValidationError } from "./app-error.js";
+import { engineConflictError, engineValidationError } from "./app-error.js";
 import type { FiscalPeriodArchiveStatus, FiscalPeriodPhase } from "./models.js";
 import { requireObject } from "./validation.js";
 
@@ -33,7 +33,7 @@ export function assertFiscalPeriodPatchMatchesPhase(
 ): void {
   const changes = requireObject(patch, "Fiscal period patch");
   if (fiscalPeriod.phase === "pre_closing") {
-    throw serverConflictError(
+    throw engineConflictError(
       `Fiscal period ${fiscalPeriod.id} cannot be updated from phase pre_closing`,
       "仮締め中の会計期間は変更できません",
     );
@@ -45,7 +45,7 @@ export function assertFiscalPeriodPatchMatchesPhase(
     fiscalPeriod.phase === "post_closing" &&
     (changedKeys.length !== 1 || changes.documentsReceivedCompleted !== true)
   ) {
-    throw serverConflictError(
+    throw engineConflictError(
       `Fiscal period ${fiscalPeriod.id} only allows document receipt completion after closing`,
       "本締め後は書類受領の完了以外を変更できません",
     );
@@ -54,7 +54,7 @@ export function assertFiscalPeriodPatchMatchesPhase(
     (key) => !PATCHABLE_KEYS_BY_PHASE[fiscalPeriod.phase].has(key),
   );
   if (lockedKey != null) {
-    throw serverConflictError(
+    throw engineConflictError(
       `Fiscal period ${fiscalPeriod.id} cannot update ${lockedKey} from phase ${fiscalPeriod.phase}`,
       "開始後は会計期間の設定を変更できません",
     );
@@ -73,13 +73,13 @@ export function assertFiscalPeriodLifecycleFlags(
     (state.phase === "pre_closing" || state.phase === "post_closing") &&
     !state.openingBalancesCompleted
   ) {
-    throw serverValidationError(
+    throw engineValidationError(
       `${label} ${state.phase} phase requires completed opening balances`,
       null,
     );
   }
   if (state.documentsReceivedCompleted && state.phase !== "post_closing") {
-    throw serverValidationError(
+    throw engineValidationError(
       `${label} documentsReceivedCompleted requires post_closing phase`,
       null,
     );
@@ -93,20 +93,20 @@ export function assertFiscalPeriodClosingRecords(
 ): void {
   if (phase === "post_closing") {
     if (records.hasPreClosing && records.hasClosing) return;
-    throw serverValidationError(
+    throw engineValidationError(
       `${label} post_closing phase requires pre-closing and closing records`,
       null,
     );
   }
   if (phase === "pre_closing") {
     if (records.hasPreClosing && !records.hasClosing) return;
-    throw serverValidationError(
+    throw engineValidationError(
       `${label} pre_closing phase requires only a pre-closing record`,
       null,
     );
   }
   if (records.hasPreClosing || records.hasClosing) {
-    throw serverValidationError(
+    throw engineValidationError(
       `${label} ${phase} phase must not contain closing records`,
       null,
     );
@@ -144,7 +144,7 @@ export function assertNoOverlappingActiveFiscalPeriod(
 ): void {
   const overlap = findOverlappingActiveFiscalPeriod(range, periods);
   if (overlap != null) {
-    throw serverConflictError(
+    throw engineConflictError(
       `Fiscal period ${range.startDate} to ${range.endDate} overlaps active fiscal period ${overlap.id}`,
       "既存の会計期間と日付が重複しています",
     );
@@ -159,7 +159,7 @@ export function assertFiscalPeriodArchiveState(
   label: string,
 ): void {
   if (state.archiveStatus === "active" && state.archivedAt !== null) {
-    throw serverValidationError(
+    throw engineValidationError(
       `${label} active fiscal period must not have archivedAt`,
       null,
     );

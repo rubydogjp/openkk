@@ -1,4 +1,4 @@
-import { serverConflictError } from "./app-error.js";
+import { engineConflictError } from "./app-error.js";
 import type {
   BookAccount,
   Entry,
@@ -84,7 +84,7 @@ export function assertClosingEntriesMatch(
     JSON.stringify(canonicalEntries(actual)) !==
     JSON.stringify(canonicalEntries(expected))
   ) {
-    throw serverConflictError(
+    throw engineConflictError(
       "Closing entries do not match the current fiscal-period source data",
       "本締め用の自動仕訳が最新データと一致しません。画面を再読み込みしてから再実行してください",
     );

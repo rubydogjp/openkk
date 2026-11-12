@@ -8,7 +8,7 @@ import {
   type OpenkkHttpEndpointSpecs,
   type OpenkkHttpResponse,
 } from "@rubydogjp/openkk-driver";
-import type { OpenkkServerPort } from "@rubydogjp/openkk-engine";
+import type { OpenkkBackendApi } from "@rubydogjp/openkk-backend-api";
 
 type EndpointRequest<Key extends OpenkkHttpEndpointKey> =
   OpenkkHttpEndpointSpecs[Key]["request"];
@@ -17,14 +17,14 @@ type EndpointResponse<Key extends OpenkkHttpEndpointKey> =
   OpenkkHttpEndpointSpecs[Key]["response"];
 
 export function createOpenkkEmbeddedBackendAdapter(
-  server: OpenkkServerPort,
+  backendApi: OpenkkBackendApi,
 ): OpenkkBackendPort {
   const request = async <Key extends OpenkkHttpEndpointKey>(
     key: Key,
     body: EndpointRequest<Key>,
   ): Promise<EndpointResponse<Key>> => {
     const response = await dispatchEmbeddedHttp(
-      server,
+      backendApi,
       key,
       jsonRoundTrip(body),
     );
@@ -191,57 +191,59 @@ const EMBEDDED_MAINTENANCE_STATUS = {
 } as const;
 
 async function dispatchEmbeddedHttp(
-  server: OpenkkServerPort,
+  backendApi: OpenkkBackendApi,
   key: OpenkkHttpEndpointKey,
   body: unknown,
 ): Promise<OpenkkHttpResponse> {
   try {
     return {
       status: OPENKK_HTTP_ENDPOINTS[key].successStatus,
-      body: await embeddedResponseBody(server, key, body),
+      body: await embeddedResponseBody(backendApi, key, body),
     };
   } catch (error) {
-    return serverErrorToEmbeddedHttpResponse(error);
+    return backendErrorToEmbeddedHttpResponse(error);
   }
 }
 
 async function embeddedResponseBody(
-  server: OpenkkServerPort,
+  backendApi: OpenkkBackendApi,
   key: OpenkkHttpEndpointKey,
   body: unknown,
 ): Promise<unknown> {
   switch (key) {
     case "authStartSession": {
       const request = body as EndpointRequest<"authStartSession">;
-      return await server.auth.startSession(request.redirectUrl);
+      return await backendApi.auth.startSession(request.redirectUrl);
     }
     case "authCompleteSession": {
       const request = body as EndpointRequest<"authCompleteSession">;
-      return await server.auth.completeSession(request.state, request.code);
+      return await backendApi.auth.completeSession(request.state, request.code);
     }
     case "authRedeemCompletionCode": {
       const request = body as EndpointRequest<"authRedeemCompletionCode">;
-      return await server.auth.redeemCompletionCode(request.completionCode);
+      return await backendApi.auth.redeemCompletionCode(request.completionCode);
     }
     case "authSignOut":
-      await server.auth.signOut();
+      await backendApi.auth.signOut();
       return null;
     case "preClosingRun": {
       const request = body as EndpointRequest<"preClosingRun">;
       return {
-        fiscalPeriod: await server.preClosings.run(request.fiscalPeriodId),
+        fiscalPeriod: await backendApi.preClosings.run(request.fiscalPeriodId),
       };
     }
     case "preClosingCancel": {
       const request = body as EndpointRequest<"preClosingCancel">;
       return {
-        fiscalPeriod: await server.preClosings.cancel(request.fiscalPeriodId),
+        fiscalPeriod: await backendApi.preClosings.cancel(
+          request.fiscalPeriodId,
+        ),
       };
     }
     case "closingRun": {
       const request = body as EndpointRequest<"closingRun">;
       return {
-        fiscalPeriod: await server.closings.run(
+        fiscalPeriod: await backendApi.closings.run(
           request.fiscalPeriodId,
           request.entries,
         ),
@@ -250,13 +252,13 @@ async function embeddedResponseBody(
     case "entriesGetAll": {
       const request = body as EndpointRequest<"entriesGetAll">;
       return {
-        entries: await server.entries.getAll(request.fiscalPeriodId),
+        entries: await backendApi.entries.getAll(request.fiscalPeriodId),
       };
     }
     case "entryCreate": {
       const request = body as EndpointRequest<"entryCreate">;
       return {
-        entry: await server.entries.create(
+        entry: await backendApi.entries.create(
           request.fiscalPeriodId,
           request.input,
         ),
@@ -265,7 +267,7 @@ async function embeddedResponseBody(
     case "entryUpdate": {
       const request = body as EndpointRequest<"entryUpdate">;
       return {
-        entry: await server.entries.update(
+        entry: await backendApi.entries.update(
           request.fiscalPeriodId,
           request.id,
           request.input,
@@ -274,34 +276,34 @@ async function embeddedResponseBody(
     }
     case "entryRemove": {
       const request = body as EndpointRequest<"entryRemove">;
-      await server.entries.remove(request.fiscalPeriodId, request.id);
+      await backendApi.entries.remove(request.fiscalPeriodId, request.id);
       return null;
     }
     case "entryImportMany": {
       const request = body as EndpointRequest<"entryImportMany">;
-      return await server.entries.importMany(
+      return await backendApi.entries.importMany(
         request.fiscalPeriodId,
         request.entries,
       );
     }
     case "fiscalPeriodsGetAll":
-      return { fiscalPeriods: await server.fiscalPeriods.getAll() };
+      return { fiscalPeriods: await backendApi.fiscalPeriods.getAll() };
     case "fiscalPeriodCreate": {
       const request = body as EndpointRequest<"fiscalPeriodCreate">;
       return {
-        fiscalPeriod: await server.fiscalPeriods.create(request.input),
+        fiscalPeriod: await backendApi.fiscalPeriods.create(request.input),
       };
     }
     case "fiscalPeriodNextCreate": {
       const request = body as EndpointRequest<"fiscalPeriodNextCreate">;
       return {
-        fiscalPeriod: await server.fiscalPeriods.createNext(request.input),
+        fiscalPeriod: await backendApi.fiscalPeriods.createNext(request.input),
       };
     }
     case "fiscalPeriodCarryoverApply": {
       const request = body as EndpointRequest<"fiscalPeriodCarryoverApply">;
       return {
-        fiscalPeriod: await server.fiscalPeriods.applyCarryover(
+        fiscalPeriod: await backendApi.fiscalPeriods.applyCarryover(
           request.id,
           request.input,
         ),
@@ -311,7 +313,7 @@ async function embeddedResponseBody(
       const request =
         body as EndpointRequest<"fiscalPeriodCarryoverFromArchiveApply">;
       return {
-        fiscalPeriod: await server.fiscalPeriods.applyCarryoverFromArchive(
+        fiscalPeriod: await backendApi.fiscalPeriods.applyCarryoverFromArchive(
           request.id,
           request.input,
         ),
@@ -320,13 +322,15 @@ async function embeddedResponseBody(
     case "fiscalPeriodImportArchived": {
       const request = body as EndpointRequest<"fiscalPeriodImportArchived">;
       return {
-        fiscalPeriod: await server.fiscalPeriods.importArchived(request.input),
+        fiscalPeriod: await backendApi.fiscalPeriods.importArchived(
+          request.input,
+        ),
       };
     }
     case "fiscalPeriodPatch": {
       const request = body as EndpointRequest<"fiscalPeriodPatch">;
       return {
-        fiscalPeriod: await server.fiscalPeriods.patch(
+        fiscalPeriod: await backendApi.fiscalPeriods.patch(
           request.id,
           request.input,
         ),
@@ -334,33 +338,39 @@ async function embeddedResponseBody(
     }
     case "fiscalPeriodStart": {
       const request = body as EndpointRequest<"fiscalPeriodStart">;
-      return { fiscalPeriod: await server.fiscalPeriods.start(request.id) };
+      return { fiscalPeriod: await backendApi.fiscalPeriods.start(request.id) };
     }
     case "fiscalPeriodArchive": {
       const request = body as EndpointRequest<"fiscalPeriodArchive">;
-      return { fiscalPeriod: await server.fiscalPeriods.archive(request.id) };
+      return {
+        fiscalPeriod: await backendApi.fiscalPeriods.archive(request.id),
+      };
     }
     case "fiscalPeriodPurgeArchivedData": {
       const request = body as EndpointRequest<"fiscalPeriodPurgeArchivedData">;
       return {
-        fiscalPeriod: await server.fiscalPeriods.purgeArchivedData(request.id),
+        fiscalPeriod: await backendApi.fiscalPeriods.purgeArchivedData(
+          request.id,
+        ),
       };
     }
     case "fiscalPeriodRemove": {
       const request = body as EndpointRequest<"fiscalPeriodRemove">;
-      await server.fiscalPeriods.remove(request.id);
+      await backendApi.fiscalPeriods.remove(request.id);
       return null;
     }
     case "fixedAssetsGetAll": {
       const request = body as EndpointRequest<"fixedAssetsGetAll">;
       return {
-        fixedAssets: await server.fixedAssets.getAll(request.fiscalPeriodId),
+        fixedAssets: await backendApi.fixedAssets.getAll(
+          request.fiscalPeriodId,
+        ),
       };
     }
     case "fixedAssetCreate": {
       const request = body as EndpointRequest<"fixedAssetCreate">;
       return {
-        fixedAsset: await server.fixedAssets.create(
+        fixedAsset: await backendApi.fixedAssets.create(
           request.fiscalPeriodId,
           request.input,
         ),
@@ -369,7 +379,7 @@ async function embeddedResponseBody(
     case "fixedAssetPatch": {
       const request = body as EndpointRequest<"fixedAssetPatch">;
       return {
-        fixedAsset: await server.fixedAssets.patch(
+        fixedAsset: await backendApi.fixedAssets.patch(
           request.fiscalPeriodId,
           request.id,
           request.input,
@@ -378,20 +388,20 @@ async function embeddedResponseBody(
     }
     case "fixedAssetRemove": {
       const request = body as EndpointRequest<"fixedAssetRemove">;
-      await server.fixedAssets.remove(request.fiscalPeriodId, request.id);
+      await backendApi.fixedAssets.remove(request.fiscalPeriodId, request.id);
       return null;
     }
     case "masterBookAccounts":
       return {
-        bookAccounts: await server.masterData.getBookAccounts(),
+        bookAccounts: await backendApi.masterData.getBookAccounts(),
       };
     case "masterTaxCategories":
       return {
-        taxCategories: await server.masterData.getTaxCategories(),
+        taxCategories: await backendApi.masterData.getTaxCategories(),
       };
     case "masterBusinessCategories":
       return {
-        businessCategories: await server.masterData.getBusinessCategories(),
+        businessCategories: await backendApi.masterData.getBusinessCategories(),
       };
     case "maintenanceGet":
       return EMBEDDED_MAINTENANCE_STATUS;
@@ -406,7 +416,9 @@ function jsonRoundTrip<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-function serverErrorToEmbeddedHttpResponse(error: unknown): OpenkkHttpResponse {
+function backendErrorToEmbeddedHttpResponse(
+  error: unknown,
+): OpenkkHttpResponse {
   if (isOpenkkApiErrorDto(error)) {
     const status = isHttpErrorStatus(error.statusCode) ? error.statusCode : 500;
     return {
@@ -429,5 +441,3 @@ function serverErrorToEmbeddedHttpResponse(error: unknown): OpenkkHttpResponse {
 function isHttpErrorStatus(status: number | null): status is number {
   return status != null && status >= 400 && status <= 599;
 }
-
-export * from "./embedded-backend.js";

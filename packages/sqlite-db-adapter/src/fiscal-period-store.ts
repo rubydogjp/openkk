@@ -7,9 +7,9 @@ import {
   buildCarryoverOpeningBalances,
   buildCarryoverOpeningJournals,
   FISCAL_PERIOD_PATCH_KEYS,
-  serverConflictError,
-  serverNotFoundError,
-  serverValidationError,
+  engineConflictError,
+  engineNotFoundError,
+  engineValidationError,
 } from "@rubydogjp/openkk-engine";
 
 import type {
@@ -57,7 +57,7 @@ async function requireCarryoverSource(
 ): Promise<FiscalPeriodDbRecord> {
   const source = await periods.getById(sourceFiscalPeriodId);
   if (source == null || source.userId !== userId) {
-    throw serverNotFoundError(
+    throw engineNotFoundError(
       `fiscal period not found: ${sourceFiscalPeriodId}`,
     );
   }
@@ -108,7 +108,7 @@ function selectEntriesById(
   return ids.map((id) => {
     const entry = entriesById.get(id);
     if (entry == null) {
-      throw serverNotFoundError(
+      throw engineNotFoundError(
         `Reversal entry ${id} not found in fiscal period ${sourceFiscalPeriodId}`,
       );
     }
@@ -123,7 +123,7 @@ function selectEntriesByIndex(
   return indexes.map((index) => {
     const entry = entries[index];
     if (entry == null) {
-      throw serverValidationError(
+      throw engineValidationError(
         `Reversal entry index ${index} is outside the archive entries`,
         "再振替に選んだ仕訳が引き継ぎ元にありません",
       );
@@ -472,7 +472,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
           current.phase !== "post_closing" ||
           !current.documentsReceivedCompleted
         ) {
-          throw serverConflictError(
+          throw engineConflictError(
             `fiscal period cannot be archived from phase ${current.phase} (${current.archiveStatus})`,
             "本締めと書類受領が完了した会計期間のみ圧縮保存できます",
           );
@@ -495,7 +495,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       return runInTransaction(db, async () => {
         const current = await requireFiscalPeriodRecord(db, id);
         if (current.archiveStatus === "active") {
-          throw serverConflictError(
+          throw engineConflictError(
             `fiscal period must be archived before purge: ${id}`,
             "圧縮保存後の会計期間のみ実データを削除できます",
           );

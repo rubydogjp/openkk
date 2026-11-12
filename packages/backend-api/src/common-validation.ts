@@ -1,7 +1,7 @@
 import {
   assertNonBlankString,
   assertTextFieldLength,
-  serverValidationError,
+  engineValidationError,
 } from "@rubydogjp/openkk-engine";
 
 export function assertString(
@@ -9,7 +9,7 @@ export function assertString(
   label: string,
 ): asserts value is string {
   if (typeof value !== "string") {
-    throw serverValidationError(`${label} must be a string`, null);
+    throw engineValidationError(`${label} must be a string`, null);
   }
 }
 
@@ -32,6 +32,6 @@ export function assertTextFieldChange(
 
 export function assertOptionalBoolean(value: unknown, label: string): void {
   if (value !== undefined && typeof value !== "boolean") {
-    throw serverValidationError(`${label} must be a boolean`, null);
+    throw engineValidationError(`${label} must be a boolean`, null);
   }
 }

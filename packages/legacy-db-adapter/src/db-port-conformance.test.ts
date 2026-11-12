@@ -9,8 +9,8 @@ async function createWorkerTransportAdapter(
 ): Promise<OpenkkDbPort> {
   vi.resetModules();
   vi.stubGlobal("Worker", InMemoryDbWorker);
-  const { createFileDbAdapter } = await import("./index.js");
-  return createFileDbAdapter(
+  const { createLegacyDbAdapter } = await import("./index.js");
+  return createLegacyDbAdapter(
     {
       vfsName: "opfs-conformance",
       dbFileName: "test.sqlite3",

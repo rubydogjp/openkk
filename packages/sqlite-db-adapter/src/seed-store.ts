@@ -2,7 +2,7 @@ import {
   assertUniqueIds,
   findOverlappingActiveFiscalPeriod,
   requireObject,
-  serverValidationError,
+  engineValidationError,
 } from "@rubydogjp/openkk-engine";
 
 import type {
@@ -40,13 +40,13 @@ function prepareAndValidateSeed(seed: unknown): DbSnapshot {
     !Array.isArray(value.entries) ||
     !Array.isArray(value.fixedAssets)
   ) {
-    throw serverValidationError("Seed collections must be arrays", null);
+    throw engineValidationError("Seed collections must be arrays", null);
   }
 
   const fiscalPeriods: FiscalPeriodDbRecord[] = value.fiscalPeriods.map(
     (record) => {
       if (record.opening == null) {
-        throw serverValidationError(
+        throw engineValidationError(
           `Seed fiscal period requires opening data: ${String(record.id)}`,
           null,
         );
@@ -61,7 +61,7 @@ function prepareAndValidateSeed(seed: unknown): DbSnapshot {
   const activePeriodsByUser = new Map<string, FiscalPeriodDbRecord[]>();
   for (const record of fiscalPeriods) {
     if (periodsById.has(record.id)) {
-      throw serverValidationError(
+      throw engineValidationError(
         `Seed contains duplicate fiscal period id: ${record.id}`,
         null,
       );
@@ -71,7 +71,7 @@ function prepareAndValidateSeed(seed: unknown): DbSnapshot {
     const activePeriods = activePeriodsByUser.get(record.userId) ?? [];
     const overlap = findOverlappingActiveFiscalPeriod(record, activePeriods);
     if (overlap != null) {
-      throw serverValidationError(
+      throw engineValidationError(
         `Seed fiscal period ${record.id} overlaps active fiscal period ${overlap.id}`,
         null,
       );
@@ -88,7 +88,7 @@ function prepareAndValidateSeed(seed: unknown): DbSnapshot {
     if (entry.localId == null) continue;
     const scopedLocalId = `${entry.fiscalPeriodId}\u0000${entry.localId}`;
     if (entryLocalIds.has(scopedLocalId)) {
-      throw serverValidationError(
+      throw engineValidationError(
         `Seed contains duplicate entry localId: ${entry.localId}`,
         null,
       );
@@ -113,7 +113,7 @@ function prepareAndValidateSeed(seed: unknown): DbSnapshot {
       period.opening.balanceLines.length > 0 ||
       period.opening.journals.length > 0;
     if (hasArchivedData) {
-      throw serverValidationError(
+      throw engineValidationError(
         `Seed archived fiscal period ${period.id} contains purged data`,
         null,
       );
@@ -133,7 +133,7 @@ function requireSeedFiscalPeriod(
 ): FiscalPeriodDbRecord {
   const period = periodsById.get(fiscalPeriodId);
   if (period == null) {
-    throw serverValidationError(
+    throw engineValidationError(
       `Seed fiscal period not found: ${String(fiscalPeriodId)}`,
       null,
     );
@@ -146,7 +146,7 @@ function assertSeedOwner(
   period: FiscalPeriodDbRecord,
 ): void {
   if (record.userId !== period.userId) {
-    throw serverValidationError(
+    throw engineValidationError(
       `Seed record owner does not match fiscal period ${period.id}: ${record.id}`,
       null,
     );

@@ -2,9 +2,9 @@ import {
   assertEntryCollectionItemLimit,
   assertEntryCollectionLineLimit,
   assertEntryMatchesRules,
-  serverConflictError,
-  serverNotFoundError,
-  serverValidationError,
+  engineConflictError,
+  engineNotFoundError,
+  engineValidationError,
 } from "@rubydogjp/openkk-engine";
 
 import type { EntriesDb, EntryDbRecord } from "@rubydogjp/openkk-engine";
@@ -74,7 +74,7 @@ export function createEntriesDb(db: SqlDb): EntriesDb {
             ])
           )[0] ?? null;
         if (existing == null)
-          throw serverNotFoundError(`entry not found: ${id}`);
+          throw engineNotFoundError(`entry not found: ${id}`);
         const period = await assertDbFiscalPeriodAllows(
           db,
           existing.fiscalPeriodId,
@@ -137,7 +137,7 @@ export function createEntriesDb(db: SqlDb): EntriesDb {
     },
     async importMany(userId, fiscalPeriodId, inputs) {
       if (!Array.isArray(inputs)) {
-        throw serverValidationError(
+        throw engineValidationError(
           "Entry import input must be an array",
           null,
         );
@@ -298,7 +298,7 @@ async function assertLocalIdAvailable(
     rowMode: "array",
   })) as Array<[number]>;
   if (rows[0] != null) {
-    throw serverConflictError(
+    throw engineConflictError(
       `Entry localId ${localId} already exists in fiscal period ${fiscalPeriodId}`,
       "同じ識別子の仕訳がすでに登録されています",
     );

@@ -6,23 +6,25 @@ import {
   MAX_ENTRY_IMPORT_LINES,
   MAX_ENTRY_LINES,
 } from "@rubydogjp/openkk-engine";
-import { createOpenkkServer } from "./index.js";
+import { createOpenkkBackendApi } from "./index.js";
 import type {
-  EntryApiRecord,
-  EntryUpsertInput,
-  FiscalPeriodApiRecord,
-  FiscalPeriodArchiveImportInput,
   FiscalPeriodArchiveDbImportInput,
-  FiscalPeriodCreateInput,
-  FiscalPeriodPatchInput,
-  FixedAssetApiRecord,
-  FixedAssetCreateInput,
-  FixedAssetPatchInput,
   MasterBookAccountDbRecord,
   MasterBusinessCategoryDbRecord,
   MasterTaxCategoryDbRecord,
   OpenkkDbPort,
 } from "@rubydogjp/openkk-engine";
+import type {
+  EntryApiRecord,
+  EntryUpsertInput,
+  FiscalPeriodApiRecord,
+  FiscalPeriodArchiveImportInput,
+  FiscalPeriodCreateInput,
+  FiscalPeriodPatchInput,
+  FixedAssetApiRecord,
+  FixedAssetCreateInput,
+  FixedAssetPatchInput,
+} from "./contract.js";
 import {
   changedFields,
   entry,
@@ -31,13 +33,13 @@ import {
   fixedAsset,
 } from "../test-support/api-records.js";
 
-describe("openkk server fiscal period API", () => {
+describe("backend-api fiscal periods", () => {
   it("rejects invalid fiscal period dates before persisting", async () => {
     const db = createFiscalPeriodDb([]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.fiscalPeriods.create({
+      backendApi.fiscalPeriods.create({
         name: "不正な期間",
         startDate: "2026-12-31",
         endDate: "2026-01-01",
@@ -62,17 +64,19 @@ describe("openkk server fiscal period API", () => {
         phase: "pre_opening",
       }),
     ]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.fiscalPeriods.patch("fp-user-2", { name: "updated by user-1" }),
+      backendApi.fiscalPeriods.patch("fp-user-2", {
+        name: "updated by user-1",
+      }),
     ).rejects.toThrow(/Fiscal period fp-user-2 not found/);
 
     expect((await db.fiscalPeriods.getById("fp-user-2"))?.name).toBe(
       "user-2 period",
     );
 
-    const updated = await server.fiscalPeriods.patch("fp-user-1", {
+    const updated = await backendApi.fiscalPeriods.patch("fp-user-1", {
       name: "updated by owner",
     });
     expect(updated.name).toBe("updated by owner");
@@ -86,10 +90,10 @@ describe("openkk server fiscal period API", () => {
         phase: "pre_opening",
       }),
     ]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.fiscalPeriods.patch("fp-user-1", { startDate: "2027-01-01" }),
+      backendApi.fiscalPeriods.patch("fp-user-1", { startDate: "2027-01-01" }),
     ).rejects.toThrow(/Fiscal period start date must be on or before end date/);
 
     expect((await db.fiscalPeriods.getById("fp-user-1"))?.startDate).toBe(
@@ -118,10 +122,10 @@ describe("openkk server fiscal period API", () => {
         },
       }),
     ]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.fiscalPeriods.patch("fp-user-1", { startDate: "2026-02-01" }),
+      backendApi.fiscalPeriods.patch("fp-user-1", { startDate: "2026-02-01" }),
     ).rejects.toThrow(/Opening journal date .* must be within fiscal period/);
 
     expect((await db.fiscalPeriods.getById("fp-user-1"))?.startDate).toBe(
@@ -144,10 +148,10 @@ describe("openkk server fiscal period API", () => {
         }),
       ],
     });
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.fiscalPeriods.patch(period.id, { startDate: "2026-02-01" }),
+      backendApi.fiscalPeriods.patch(period.id, { startDate: "2026-02-01" }),
     ).rejects.toThrow(
       /Entry entry-imported date .* must be within fiscal period/,
     );
@@ -177,13 +181,13 @@ describe("openkk server fiscal period API", () => {
       }),
     ];
     const db = createFiscalPeriodDb([period], { fixedAssets: assets });
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.fiscalPeriods.patch(period.id, { endDate: "2026-10-31" }),
+      backendApi.fiscalPeriods.patch(period.id, { endDate: "2026-10-31" }),
     ).rejects.toThrow(/asset-acquired acquisition date/);
     await expect(
-      server.fiscalPeriods.patch(period.id, { startDate: "2026-03-01" }),
+      backendApi.fiscalPeriods.patch(period.id, { startDate: "2026-03-01" }),
     ).rejects.toThrow(/asset-sold disposal date/);
   });
 
@@ -202,10 +206,10 @@ describe("openkk server fiscal period API", () => {
         }),
       ],
     });
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.fiscalPeriods.patch(period.id, { startDate: "2026-02-01" }),
+      backendApi.fiscalPeriods.patch(period.id, { startDate: "2026-02-01" }),
     ).resolves.toMatchObject({ startDate: "2026-02-01" });
   });
 
@@ -217,10 +221,10 @@ describe("openkk server fiscal period API", () => {
         phase: "pre_opening",
       }),
     ]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.fiscalPeriods.patch("fp-user-1", {
+      backendApi.fiscalPeriods.patch("fp-user-1", {
         openingBalancesCompleted: null,
       } as unknown as FiscalPeriodPatchInput),
     ).rejects.toThrow(/openingBalancesCompleted must be a boolean/);
@@ -235,9 +239,9 @@ describe("openkk server fiscal period API", () => {
         openingBalancesCompleted: false,
       }),
     ]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
-    const updated = await server.fiscalPeriods.patch("fp-user-1", {
+    const updated = await backendApi.fiscalPeriods.patch("fp-user-1", {
       openingBalancesCompleted: true,
       opening: openingPatch({
         balanceLines: [
@@ -255,12 +259,12 @@ describe("openkk server fiscal period API", () => {
     const db = createFiscalPeriodDb([
       fiscalPeriod({ id: "fp-started", userId: "user-1" }),
     ]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.fiscalPeriods.patch("fp-started", { endDate: "2026-11-30" }),
+      backendApi.fiscalPeriods.patch("fp-started", { endDate: "2026-11-30" }),
     ).rejects.toThrow(/cannot update endDate from phase journalizing/);
-    await expect(server.fiscalPeriods.start("fp-started")).rejects.toThrow(
+    await expect(backendApi.fiscalPeriods.start("fp-started")).rejects.toThrow(
       /cannot start from phase journalizing/,
     );
 
@@ -299,7 +303,7 @@ describe("openkk server fiscal period API", () => {
         endDate: "2025-12-31",
       }),
     ]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
     const input = {
       sourceFiscalPeriodId: "fp-source",
       carryBalances: true,
@@ -308,28 +312,28 @@ describe("openkk server fiscal period API", () => {
     };
 
     await expect(
-      server.fiscalPeriods.applyCarryover("fp-target", {
+      backendApi.fiscalPeriods.applyCarryover("fp-target", {
         ...input,
         carryBalances: false,
       }),
     ).rejects.toThrow(/at least one item/);
     await expect(
-      server.fiscalPeriods.applyCarryover("fp-target", {
+      backendApi.fiscalPeriods.applyCarryover("fp-target", {
         ...input,
         sourceFiscalPeriodId: "fp-target",
       }),
     ).rejects.toThrow(/must differ/);
     await expect(
-      server.fiscalPeriods.applyCarryover("fp-pre-closed", input),
+      backendApi.fiscalPeriods.applyCarryover("fp-pre-closed", input),
     ).rejects.toThrow(/cannot apply carryover from phase pre_closing/);
     await expect(
-      server.fiscalPeriods.applyCarryover("fp-target", {
+      backendApi.fiscalPeriods.applyCarryover("fp-target", {
         ...input,
         sourceFiscalPeriodId: "fp-other-user",
       }),
     ).rejects.toThrow(/not found/);
     await expect(
-      server.fiscalPeriods.applyCarryover("fp-source", {
+      backendApi.fiscalPeriods.applyCarryover("fp-source", {
         ...input,
         sourceFiscalPeriodId: "fp-target",
       }),
@@ -352,7 +356,7 @@ describe("openkk server fiscal period API", () => {
         endDate: "2028-12-31",
       }),
     ]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
     const input = {
       archive: {
         manifest: {},
@@ -367,28 +371,31 @@ describe("openkk server fiscal period API", () => {
     };
 
     await expect(
-      server.fiscalPeriods.applyCarryoverFromArchive("fp-target", {
+      backendApi.fiscalPeriods.applyCarryoverFromArchive("fp-target", {
         ...input,
         carryBalances: false,
       }),
     ).rejects.toThrow(/at least one item/);
     await expect(
-      server.fiscalPeriods.applyCarryoverFromArchive("fp-target", {
+      backendApi.fiscalPeriods.applyCarryoverFromArchive("fp-target", {
         ...input,
         reversalEntryIndexes: [-1],
       }),
     ).rejects.toThrow(/entry positions/);
     await expect(
-      server.fiscalPeriods.applyCarryoverFromArchive("fp-target", {
+      backendApi.fiscalPeriods.applyCarryoverFromArchive("fp-target", {
         ...input,
         reversalEntryIndexes: [0, 0],
       }),
     ).rejects.toThrow(/must be unique/);
     await expect(
-      server.fiscalPeriods.applyCarryoverFromArchive("fp-pre-closed", input),
+      backendApi.fiscalPeriods.applyCarryoverFromArchive(
+        "fp-pre-closed",
+        input,
+      ),
     ).rejects.toThrow(/cannot apply carryover from phase pre_closing/);
     await expect(
-      server.fiscalPeriods.applyCarryoverFromArchive("fp-target", input),
+      backendApi.fiscalPeriods.applyCarryoverFromArchive("fp-target", input),
     ).rejects.toThrow(/archive manifest/);
   });
 
@@ -400,10 +407,10 @@ describe("openkk server fiscal period API", () => {
         archiveStatus: "archived",
       }),
     ]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     const error = await captureAsyncError(() =>
-      server.fiscalPeriods.patch("fp-archived", { name: "updated" }),
+      backendApi.fiscalPeriods.patch("fp-archived", { name: "updated" }),
     );
 
     expect(error).toBeInstanceOf(AppError);
@@ -426,13 +433,15 @@ describe("openkk server fiscal period API", () => {
         phase: "post_closing",
       }),
     ]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.fiscalPeriods.patch("fp-closed", { name: "renamed after close" }),
+      backendApi.fiscalPeriods.patch("fp-closed", {
+        name: "renamed after close",
+      }),
     ).rejects.toThrow(/only allows document receipt completion after closing/);
 
-    const completed = await server.fiscalPeriods.patch("fp-closed", {
+    const completed = await backendApi.fiscalPeriods.patch("fp-closed", {
       documentsReceivedCompleted: true,
     });
     expect(completed.documentsReceivedCompleted).toBe(true);
@@ -454,16 +463,16 @@ describe("openkk server fiscal period API", () => {
         documentsReceivedCompleted: true,
       }),
     ]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
-    await expect(server.fiscalPeriods.archive("fp-open")).rejects.toThrow(
+    await expect(backendApi.fiscalPeriods.archive("fp-open")).rejects.toThrow(
       /cannot archive from phase journalizing/,
     );
     await expect(
-      server.fiscalPeriods.archive("fp-no-documents"),
+      backendApi.fiscalPeriods.archive("fp-no-documents"),
     ).rejects.toThrow(/cannot be archived before documents are received/);
 
-    const archived = await server.fiscalPeriods.archive("fp-complete");
+    const archived = await backendApi.fiscalPeriods.archive("fp-complete");
     expect(archived.archiveStatus).toBe("archived");
   });
 
@@ -482,15 +491,15 @@ describe("openkk server fiscal period API", () => {
         archiveStatus: "archived",
       }),
     ]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
-    await expect(server.fiscalPeriods.remove("fp-started")).rejects.toThrow(
+    await expect(backendApi.fiscalPeriods.remove("fp-started")).rejects.toThrow(
       /cannot discard from phase journalizing/,
     );
-    await expect(server.fiscalPeriods.remove("fp-archived")).rejects.toThrow(
-      /Archived fiscal period fp-archived cannot discard/,
-    );
-    await server.fiscalPeriods.remove("fp-setup");
+    await expect(
+      backendApi.fiscalPeriods.remove("fp-archived"),
+    ).rejects.toThrow(/Archived fiscal period fp-archived cannot discard/);
+    await backendApi.fiscalPeriods.remove("fp-setup");
 
     expect(await db.fiscalPeriods.getById("fp-setup")).toBeNull();
     expect(await db.fiscalPeriods.getById("fp-started")).not.toBeNull();
@@ -501,10 +510,10 @@ describe("openkk server fiscal period API", () => {
     const db = createFiscalPeriodDb([
       fiscalPeriod({ id: "fp-user-1", userId: "user-1" }),
     ]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.fiscalPeriods.patch("fp-user-1", {
+      backendApi.fiscalPeriods.patch("fp-user-1", {
         opening: openingPatch({
           journals: [
             openingJournal({
@@ -528,7 +537,7 @@ describe("openkk server fiscal period API", () => {
         openingBalancesCompleted: false,
       }),
     ]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     const draftOpening = openingPatch({
       journals: [
@@ -562,15 +571,15 @@ describe("openkk server fiscal period API", () => {
     });
 
     await expect(
-      server.fiscalPeriods.patch("fp-user-1", { opening: draftOpening }),
+      backendApi.fiscalPeriods.patch("fp-user-1", { opening: draftOpening }),
     ).resolves.toMatchObject({ opening: draftOpening });
     await expect(
-      server.fiscalPeriods.patch("fp-user-1", {
+      backendApi.fiscalPeriods.patch("fp-user-1", {
         openingBalancesCompleted: true,
       }),
     ).rejects.toThrow(/Opening journal description is required/);
     await expect(
-      server.fiscalPeriods.patch("fp-user-1", {
+      backendApi.fiscalPeriods.patch("fp-user-1", {
         openingBalancesCompleted: true,
         opening: {
           ...draftOpening,
@@ -587,7 +596,7 @@ describe("openkk server fiscal period API", () => {
     const db = createFiscalPeriodDb([
       fiscalPeriod({ id: "fp-user-1", userId: "user-1" }),
     ]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
     const journal = openingJournal({
       lines: [
         openingLine({ id: "d", side: "debit", amount: 1000 }),
@@ -596,7 +605,7 @@ describe("openkk server fiscal period API", () => {
     });
 
     await expect(
-      server.fiscalPeriods.patch("fp-user-1", {
+      backendApi.fiscalPeriods.patch("fp-user-1", {
         opening: openingPatch({ journals: [journal, journal] }),
       }),
     ).rejects.toThrow(/duplicate id/);
@@ -606,10 +615,10 @@ describe("openkk server fiscal period API", () => {
     const db = createFiscalPeriodDb([
       fiscalPeriod({ id: "fp-user-1", userId: "user-1" }),
     ]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
     const balanceLine = { id: "line", accountId: "a:現金", amount: 0 };
     await expect(
-      server.fiscalPeriods.patch("fp-user-1", {
+      backendApi.fiscalPeriods.patch("fp-user-1", {
         opening: openingPatch({
           balanceLines: Array(MAX_ENTRY_IMPORT_ITEMS + 1).fill(balanceLine),
         }),
@@ -618,7 +627,7 @@ describe("openkk server fiscal period API", () => {
 
     const journal = openingJournal({ lines: [] });
     await expect(
-      server.fiscalPeriods.patch("fp-user-1", {
+      backendApi.fiscalPeriods.patch("fp-user-1", {
         opening: openingPatch({
           journals: Array(MAX_ENTRY_IMPORT_ITEMS + 1).fill(journal),
         }),
@@ -630,7 +639,7 @@ describe("openkk server fiscal period API", () => {
     const db = createFiscalPeriodDb([
       fiscalPeriod({ id: "fp-user-1", userId: "user-1" }),
     ]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
     const line = openingLine({ amount: 0 });
     const lines = Array(MAX_ENTRY_LINES).fill(line);
     const openingJournals = Array.from(
@@ -639,7 +648,7 @@ describe("openkk server fiscal period API", () => {
     );
 
     await expect(
-      server.fiscalPeriods.patch("fp-user-1", {
+      backendApi.fiscalPeriods.patch("fp-user-1", {
         opening: openingPatch({ journals: openingJournals }),
       }),
     ).rejects.toThrow(/Opening journal lines exceed the 100,000 line limit/);
@@ -649,10 +658,10 @@ describe("openkk server fiscal period API", () => {
     const db = createFiscalPeriodDb([
       fiscalPeriod({ id: "fp-user-1", userId: "user-1" }),
     ]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.fiscalPeriods.patch("fp-user-1", {
+      backendApi.fiscalPeriods.patch("fp-user-1", {
         opening: openingPatch({
           journals: [null as unknown as OpeningPatch["journals"][number]],
         }),
@@ -664,10 +673,10 @@ describe("openkk server fiscal period API", () => {
     const db = createFiscalPeriodDb([
       fiscalPeriod({ id: "fp-user-1", userId: "user-1" }),
     ]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.fiscalPeriods.patch("fp-user-1", {
+      backendApi.fiscalPeriods.patch("fp-user-1", {
         opening: openingPatch({
           balanceLines: [{ id: "l1", accountId: "a:現金", amount: -100 }],
         }),
@@ -679,10 +688,10 @@ describe("openkk server fiscal period API", () => {
     const db = createFiscalPeriodDb([
       fiscalPeriod({ id: "fp-user-1", userId: "user-1" }),
     ]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.fiscalPeriods.patch("fp-user-1", {
+      backendApi.fiscalPeriods.patch("fp-user-1", {
         opening: openingPatch({
           balanceLines: [
             { id: "l1", accountId: "a:現金", amount: 100 },
@@ -697,11 +706,11 @@ describe("openkk server fiscal period API", () => {
     const db = createFiscalPeriodDb([
       fiscalPeriod({ id: "fp-user-1", userId: "user-1" }),
     ]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     for (const accountId of ["a:", "l: 借入金", "x:現金"]) {
       await expect(
-        server.fiscalPeriods.patch("fp-user-1", {
+        backendApi.fiscalPeriods.patch("fp-user-1", {
           opening: openingPatch({
             balanceLines: [{ id: `line-${accountId}`, accountId, amount: 100 }],
           }),
@@ -718,10 +727,10 @@ describe("openkk server fiscal period API", () => {
         openingBalancesCompleted: false,
       }),
     ]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.fiscalPeriods.patch("fp-user-1", {
+      backendApi.fiscalPeriods.patch("fp-user-1", {
         openingBalancesCompleted: true,
         opening: openingPatch({
           balanceLines: [
@@ -737,10 +746,10 @@ describe("openkk server fiscal period API", () => {
     const db = createFiscalPeriodDb([
       fiscalPeriod({ id: "fp-user-1", userId: "user-1" }),
     ]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.fiscalPeriods.patch("fp-user-1", {
+      backendApi.fiscalPeriods.patch("fp-user-1", {
         opening: openingPatch({
           journals: [openingJournal({ date: "2027-01-01", lines: [] })],
         }),
@@ -757,10 +766,10 @@ describe("openkk server fiscal period API", () => {
         endDate: "2026-12-31",
       }),
     ]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
-      server.fiscalPeriods.create({
+      backendApi.fiscalPeriods.create({
         name: "overlap",
         startDate: "2026-12-01",
         endDate: "2027-11-30",
@@ -772,7 +781,7 @@ describe("openkk server fiscal period API", () => {
 
   it("restores an archive as a new active period in its captured phase", async () => {
     const db = createFiscalPeriodDb([]);
-    const server = createOpenkkServer(db, { userId: "user-1" });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     const archiveInput = {
       manifest: {
@@ -804,7 +813,8 @@ describe("openkk server fiscal period API", () => {
         { fiscalPeriodId: "fp-source", year: 2026, kind: "closing" },
       ],
     };
-    const imported = await server.fiscalPeriods.importArchived(archiveInput);
+    const imported =
+      await backendApi.fiscalPeriods.importArchived(archiveInput);
 
     expect(imported).toMatchObject({
       name: "Archived",
@@ -813,7 +823,7 @@ describe("openkk server fiscal period API", () => {
     });
     expect(await db.fiscalPeriods.getAll("user-1")).toEqual([imported]);
     await expect(
-      server.fiscalPeriods.importArchived(archiveInput),
+      backendApi.fiscalPeriods.importArchived(archiveInput),
     ).rejects.toThrow(/overlaps active fiscal period/);
     expect(await db.fiscalPeriods.getAll("user-1")).toHaveLength(1);
   });
@@ -821,10 +831,10 @@ describe("openkk server fiscal period API", () => {
 
 it("rejects a non-object archive import payload as a validation error", async () => {
   const db = createFiscalPeriodDb([]);
-  const server = createOpenkkServer(db, { userId: "user-1" });
+  const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
   await expect(
-    server.fiscalPeriods.importArchived(
+    backendApi.fiscalPeriods.importArchived(
       null as unknown as FiscalPeriodArchiveImportInput,
     ),
   ).rejects.toThrow(/archive must be an object/);

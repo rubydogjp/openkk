@@ -4,7 +4,7 @@ import path from "node:path";
 
 import type { DbSnapshot } from "@rubydogjp/openkk-engine";
 
-import { createNodeSqliteDbAdapter } from "../../disk-db-adapter/src/index.js";
+import { createDiskDbAdapter } from "../../disk-db-adapter/src/index.js";
 import {
   createBooksDbAdapter,
   createMemoryBookStore,
@@ -39,7 +39,7 @@ export function tempBookPath(): string {
 
 export async function seededBookBytes(seed: DbSnapshot): Promise<Uint8Array> {
   const filePath = tempBookPath();
-  (await createNodeSqliteDbAdapter(filePath, seed)).close();
+  (await createDiskDbAdapter(filePath, seed)).close();
   return new Uint8Array(fs.readFileSync(filePath));
 }
 

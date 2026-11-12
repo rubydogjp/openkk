@@ -10,16 +10,17 @@ export async function archivedPeriodZip(): Promise<Uint8Array> {
     await import("@rubydogjp/openkk-memory-db-adapter");
   const { buildExpectedClosingEntries } =
     await import("@rubydogjp/openkk-engine");
-  const { createOpenkkServer } = await import("@rubydogjp/openkk-backend-api");
+  const { createOpenkkBackendApi } =
+    await import("@rubydogjp/openkk-backend-api");
   const db = await createMemoryDbAdapter(null);
-  const server = createOpenkkServer(db, { userId: "source-user" });
-  let period = await server.fiscalPeriods.create({
+  const backendApi = createOpenkkBackendApi(db, { userId: "source-user" });
+  let period = await backendApi.fiscalPeriods.create({
     name: "2026年",
     startDate: "2026-01-01",
     endDate: "2026-12-31",
   });
-  await server.fiscalPeriods.start(period.id);
-  await server.fiscalPeriods.patch(period.id, {
+  await backendApi.fiscalPeriods.start(period.id);
+  await backendApi.fiscalPeriods.patch(period.id, {
     openingBalancesCompleted: true,
   });
   await db.entries.create(period.userId, period.id, {
@@ -48,27 +49,27 @@ export async function archivedPeriodZip(): Promise<Uint8Array> {
     businessRate: 1,
     bookAccountId: "acct_equipment",
   });
-  const fixedAssets = await server.fixedAssets.getAll(period.id);
-  await server.preClosings.run(period.id);
-  await server.closings.run(
+  const fixedAssets = await backendApi.fixedAssets.getAll(period.id);
+  await backendApi.preClosings.run(period.id);
+  await backendApi.closings.run(
     period.id,
     buildExpectedClosingEntries({
       periodStartDate: period.startDate,
       periodEndDate: period.endDate,
-      entries: await server.entries.getAll(period.id),
+      entries: await backendApi.entries.getAll(period.id),
       fixedAssets,
       openingJournals: [],
-      bookAccounts: await server.masterData.getBookAccounts(),
+      bookAccounts: await backendApi.masterData.getBookAccounts(),
     }),
   );
-  period = await server.fiscalPeriods.patch(period.id, {
+  period = await backendApi.fiscalPeriods.patch(period.id, {
     documentsReceivedCompleted: true,
   });
   return createFiscalPeriodArchiveZip(
     buildFiscalPeriodArchivePayload({
       createdAt: "2027-01-01T00:00:00.000Z",
       fiscalPeriod: period,
-      entries: await server.entries.getAll(period.id),
+      entries: await backendApi.entries.getAll(period.id),
       fixedAssets,
       closings: archiveClosingRecords(period),
     }),

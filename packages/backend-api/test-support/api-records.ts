@@ -4,7 +4,7 @@ import type {
   FiscalPeriodApiRecord,
   FiscalPeriodOpeningApiRecord,
   FixedAssetApiRecord,
-} from "@rubydogjp/openkk-engine";
+} from "../src/contract.js";
 
 const TEST_TIMESTAMP = "1970-01-01T00:00:00.000Z";
 

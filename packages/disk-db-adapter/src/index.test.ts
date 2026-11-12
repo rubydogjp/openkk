@@ -6,13 +6,13 @@ import { afterEach, describe, expect, it } from "vitest";
 import { SCHEMA_VERSION } from "@rubydogjp/openkk-sqlite-db-adapter";
 
 import {
-  createNodeSqliteDbAdapter,
+  createDiskDbAdapter,
   IN_MEMORY_SQLITE_PATH,
-  type NodeSqliteDbAdapter,
+  type DiskDbAdapter,
 } from "./index.js";
 import { runDbPortConformance } from "../../engine/test-support/db-port-conformance.js";
 
-const openAdapters: NodeSqliteDbAdapter[] = [];
+const openAdapters: DiskDbAdapter[] = [];
 const tempDirs: string[] = [];
 
 afterEach(() => {
@@ -30,9 +30,9 @@ function tempDbPath(): string {
 
 async function open(
   dbPath: string,
-  seed: Parameters<typeof createNodeSqliteDbAdapter>[1],
+  seed: Parameters<typeof createDiskDbAdapter>[1],
 ) {
-  const adapter = await createNodeSqliteDbAdapter(dbPath, seed);
+  const adapter = await createDiskDbAdapter(dbPath, seed);
   openAdapters.push(adapter);
   return adapter.db;
 }
@@ -50,7 +50,7 @@ runDbPortConformance("node-sqlite-db-adapter (file)", {
 describe("node-sqlite-db-adapter file persistence", () => {
   it("keeps data after the file is closed and reopened", async () => {
     const dbPath = tempDbPath();
-    const first = await createNodeSqliteDbAdapter(dbPath, null);
+    const first = await createDiskDbAdapter(dbPath, null);
     const created = await first.db.fiscalPeriods.create("user-1", {
       name: "2026年分",
       startDate: "2026-01-01",
@@ -65,14 +65,14 @@ describe("node-sqlite-db-adapter file persistence", () => {
 
   it("refuses a file written by a newer schema", async () => {
     const dbPath = tempDbPath();
-    (await createNodeSqliteDbAdapter(dbPath, null)).close();
+    (await createDiskDbAdapter(dbPath, null)).close();
     const raw = new DatabaseSync(dbPath);
     raw
       .prepare("UPDATE openkk_meta SET value = ? WHERE key = 'schema_version'")
       .run(String(SCHEMA_VERSION + 1));
     raw.close();
 
-    await expect(createNodeSqliteDbAdapter(dbPath, null)).rejects.toThrow(
+    await expect(createDiskDbAdapter(dbPath, null)).rejects.toThrow(
       /newer than app SCHEMA_VERSION/,
     );
   });

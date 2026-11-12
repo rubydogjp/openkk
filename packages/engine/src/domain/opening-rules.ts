@@ -1,4 +1,4 @@
-import { serverValidationError } from "./app-error.js";
+import { engineValidationError } from "./app-error.js";
 import { assertEntryLineMatchesRules } from "./entry-rules.js";
 import type { FiscalPeriodOpening, OpeningBalanceLine } from "./models.js";
 import {
@@ -25,7 +25,7 @@ export function assertOpeningMatchesRules(
   const value = requireObject(opening, label);
   const { balanceLines, journals } = value;
   if (!Array.isArray(balanceLines) || !Array.isArray(journals)) {
-    throw serverValidationError(`${label} must contain line arrays`, null);
+    throw engineValidationError(`${label} must contain line arrays`, null);
   }
   assertEntryCollectionItemLimit(
     balanceLines,
@@ -80,7 +80,7 @@ function assertOpeningBalanceAccountId(accountId: string, label: string): void {
     accountName.trim() === "" ||
     accountName !== accountName.trim()
   ) {
-    throw serverValidationError(
+    throw engineValidationError(
       `${label} must contain an a: or l: prefix and a non-blank account name: ${accountId}`,
       "期首残高の勘定科目が不正です",
     );
@@ -100,23 +100,23 @@ function assertOpeningJournal(
     period != null &&
     (value.date < period.startDate || value.date > period.endDate)
   ) {
-    throw serverValidationError(
+    throw engineValidationError(
       `${label} date ${value.date} must be within fiscal period ${period.startDate} to ${period.endDate}`,
       "期首仕訳の日付を会計期間内にしてください",
     );
   }
   if (typeof value.description !== "string") {
-    throw serverValidationError(`${label} description must be a string`, null);
+    throw engineValidationError(`${label} description must be a string`, null);
   }
   if (options.completed && value.description.trim() === "") {
-    throw serverValidationError(
+    throw engineValidationError(
       `${label} description is required`,
       "期首仕訳の摘要を入力してください",
     );
   }
   assertUnitRate(value.businessRate, `${label} business rate`);
   if (!Array.isArray(value.lines)) {
-    throw serverValidationError(`${label} lines must be an array`, null);
+    throw engineValidationError(`${label} lines must be an array`, null);
   }
   for (const line of value.lines) {
     assertNonBlankString(
@@ -151,14 +151,14 @@ function assertOpeningBalancesBalanced(
       !Number.isSafeInteger(assetTotal) ||
       !Number.isSafeInteger(liabilityAndEquityTotal)
     ) {
-      throw serverValidationError(
+      throw engineValidationError(
         `${label} totals exceed the safe integer range`,
         "期首残高の合計金額が大きすぎます",
       );
     }
   }
   if (assetTotal !== liabilityAndEquityTotal) {
-    throw serverValidationError(
+    throw engineValidationError(
       `${label} must balance: assets ${assetTotal}, liabilities and equity ${liabilityAndEquityTotal}`,
       "期首残高の資産合計と負債・元入金合計を一致させてください",
     );

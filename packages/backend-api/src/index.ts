@@ -4,15 +4,14 @@ import {
   assertFiscalPeriodPatchMatchesPhase,
   assertNoOverlappingActiveFiscalPeriod,
   assertNonBlankString,
-  serverConflictError,
-  serverNotFoundError,
-  serverValidationError,
-  createServerUsecases,
+  engineConflictError,
+  engineNotFoundError,
+  engineValidationError,
+  createEngineUsecases,
   serializePortOperations,
   type OpenkkDbPort,
-  type OpenkkServerPort,
-  type ServerUsecases,
 } from "@rubydogjp/openkk-engine";
+import type { OpenkkBackendApi } from "./contract.js";
 import { assertClosingGeneratedEntries } from "./closing-validation.js";
 import { assertEditableEntryInput } from "./entry-validation.js";
 import {
@@ -34,22 +33,23 @@ import {
   assertPatchedFixedAsset,
 } from "./fixed-asset-validation.js";
 
-export type OpenkkServerConfig = {
+export type OpenkkBackendApiConfig = {
   userId: string;
 };
 
-export type { OpenkkServerPort };
+export * from "./contract.js";
 
-export function createOpenkkServerApi(
-  usecases: ServerUsecases,
-  config: OpenkkServerConfig,
-): OpenkkServerPort {
+export function createOpenkkBackendApi(
+  db: OpenkkDbPort,
+  config: OpenkkBackendApiConfig,
+): OpenkkBackendApi {
+  const usecases = createEngineUsecases(db);
   const userId = config.userId;
   const requireOwnedFiscalPeriod = async (fiscalPeriodId: string) => {
     assertNonBlankString(fiscalPeriodId, "Fiscal period id");
     const period = await usecases.fiscalPeriods.getById(userId, fiscalPeriodId);
     if (period == null) {
-      throw serverNotFoundError(`Fiscal period ${fiscalPeriodId} not found`);
+      throw engineNotFoundError(`Fiscal period ${fiscalPeriodId} not found`);
     }
     return period;
   };
@@ -57,7 +57,7 @@ export function createOpenkkServerApi(
     assertNonBlankString(id, "Entry id");
     const entry = await usecases.entries.getById(userId, id);
     if (entry == null || entry.fiscalPeriodId !== fiscalPeriodId) {
-      throw serverNotFoundError(
+      throw engineNotFoundError(
         `Entry ${id} not found in fiscal period ${fiscalPeriodId}`,
       );
     }
@@ -67,13 +67,13 @@ export function createOpenkkServerApi(
     assertNonBlankString(id, "Fixed asset id");
     const asset = await usecases.fixedAssets.getById(userId, id);
     if (asset == null || asset.fiscalPeriodId !== fiscalPeriodId) {
-      throw serverNotFoundError(
+      throw engineNotFoundError(
         `Fixed asset ${id} not found in fiscal period ${fiscalPeriodId}`,
       );
     }
     return asset;
   };
-  const api: OpenkkServerPort = {
+  const api: OpenkkBackendApi = {
     auth: {
       startSession: (redirectUrl) => {
         assertNonBlankString(redirectUrl, "Auth redirect URL");
@@ -151,7 +151,7 @@ export function createOpenkkServerApi(
           "import entries",
         );
         if (!Array.isArray(inputs)) {
-          throw serverValidationError(
+          throw engineValidationError(
             "Entry import input must be an array",
             null,
           );
@@ -204,7 +204,7 @@ export function createOpenkkServerApi(
         );
         assertFiscalPeriodCarryoverApplyInput(input);
         if (input.sourceFiscalPeriodId === id) {
-          throw serverValidationError(
+          throw engineValidationError(
             "Carryover source must differ from the target",
             "引き継ぎ元に同じ期間は選べません",
           );
@@ -267,7 +267,7 @@ export function createOpenkkServerApi(
         const current = await requireOwnedFiscalPeriod(id);
         assertPeriodPhase(current, "post_closing", "archive");
         if (!current.documentsReceivedCompleted) {
-          throw serverConflictError(
+          throw engineConflictError(
             `Fiscal period ${id} cannot be archived before documents are received`,
             "書類の受領を完了してから圧縮保存してください",
           );
@@ -277,7 +277,7 @@ export function createOpenkkServerApi(
       purgeArchivedData: async (id) => {
         const current = await requireOwnedFiscalPeriod(id);
         if (current.archiveStatus === "active") {
-          throw serverConflictError(
+          throw engineConflictError(
             `Fiscal period ${id} must be archived before purging data`,
             "圧縮保存後の会計期間のみ実データを削除できます",
           );
@@ -337,11 +337,4 @@ export function createOpenkkServerApi(
       fixedAssets: api.fixedAssets,
     }),
   };
-}
-
-export function createOpenkkServer(
-  db: OpenkkDbPort,
-  config: OpenkkServerConfig,
-): OpenkkServerPort {
-  return createOpenkkServerApi(createServerUsecases(db), config);
 }

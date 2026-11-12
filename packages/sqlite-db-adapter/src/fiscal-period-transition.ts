@@ -1,4 +1,4 @@
-import { serverConflictError } from "@rubydogjp/openkk-engine";
+import { engineConflictError } from "@rubydogjp/openkk-engine";
 import type {
   FiscalPeriodDbPhase,
   FiscalPeriodDbRecord,
@@ -19,13 +19,13 @@ export async function transitionFiscalPeriod(
   return runInTransaction(db, async () => {
     const current = await requireFiscalPeriodRecord(db, fiscalPeriodId);
     if (current.archiveStatus !== "active") {
-      throw serverConflictError(
+      throw engineConflictError(
         `archived fiscal period cannot transition: ${fiscalPeriodId}`,
         "圧縮保存済みの会計期間は変更できません",
       );
     }
     if (current.phase !== expectedPhase) {
-      throw serverConflictError(
+      throw engineConflictError(
         `invalid fiscal period transition: ${current.phase} -> ${nextPhase}`,
         "会計期間の状態が変わったため、この操作を実行できません",
       );

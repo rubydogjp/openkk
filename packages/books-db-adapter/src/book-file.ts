@@ -1,6 +1,6 @@
 import {
-  createDocumentDbAdapter,
-  type DocumentDbAdapter,
+  createBookDbAdapter,
+  type BookDbAdapter,
 } from "@rubydogjp/openkk-book-db-adapter";
 import type {
   EntryDbRecord,
@@ -28,7 +28,7 @@ export class BookSplitMismatchError extends Error {
 }
 
 async function readPeriodContent(
-  database: DocumentDbAdapter,
+  database: BookDbAdapter,
   fiscalPeriodId: string,
 ): Promise<PeriodContent | null> {
   const fiscalPeriod = await database.db.fiscalPeriods.getById(fiscalPeriodId);
@@ -51,7 +51,7 @@ async function keepOnlyPeriod(
   expected: PeriodContent,
   lastChangedAt: number | null,
 ): Promise<Uint8Array> {
-  const copy = await createDocumentDbAdapter(bytes);
+  const copy = await createBookDbAdapter(bytes);
   try {
     for (const otherId of otherIds) {
       await copy.db.fiscalPeriods.remove(otherId);
@@ -75,7 +75,7 @@ async function keepOnlyPeriod(
 export async function splitBookFile(
   bytes: Uint8Array,
 ): Promise<BookFilePeriod[]> {
-  const source = await createDocumentDbAdapter(bytes);
+  const source = await createBookDbAdapter(bytes);
   try {
     const ids = source.listFiscalPeriodIds();
     const periods: BookFilePeriod[] = [];
@@ -112,9 +112,9 @@ export async function readStoredFiscalPeriodIds(store: {
   for (const name of await store.list()) {
     const bytes = await store.read(name);
     if (bytes == null) continue;
-    let book: DocumentDbAdapter;
+    let book: BookDbAdapter;
     try {
-      book = await createDocumentDbAdapter(bytes);
+      book = await createBookDbAdapter(bytes);
     } catch {
       continue;
     }

@@ -13,7 +13,7 @@ import {
 
 import {
   BOOK_SAVE_REMINDER_INTERVAL_MS,
-  createBookFilesAdapter,
+  createLocalBookFilesAdapter,
 } from "./index.js";
 
 const openAdapters: BooksDbAdapter[] = [];
@@ -61,7 +61,7 @@ async function openApp() {
     now: Date.parse("2026-11-11T00:00:00.000Z"),
     deliveryResult: "saved" as OpenkkBookFileSaveResult,
   };
-  const files = createBookFilesAdapter({
+  const files = createLocalBookFilesAdapter({
     books: books.adapter,
     userId: USER,
     storage: {
@@ -234,7 +234,7 @@ describe("book files adapter: import", () => {
     const period = await app.db.fiscalPeriods.create(USER, period2026);
     await app.files.save(period.id);
     const outside = await openTestBooks(emptyStore());
-    const outsideFiles = createBookFilesAdapter({
+    const outsideFiles = createLocalBookFilesAdapter({
       books: outside.adapter,
       userId: USER,
       storage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },

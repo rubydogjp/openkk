@@ -3,24 +3,24 @@ import { buildClosingVirtualEntries } from "../packages/driver/src/domain/index.
 import { mapOpeningJournalToRecord } from "../packages/driver/src/domain/assist/stored-record-mapping.js";
 import { entryRecordToImportPayload } from "../packages/driver/src/domain/entries/entry-input-mapping.js";
 import { createMemoryDbAdapter } from "../packages/memory-db-adapter/src/index.js";
-import { createOpenkkServer } from "../packages/backend-api/src/index.js";
-import { createServerUsecases } from "../packages/engine/src/usecases/usecases.js";
-import type { OpeningJournalApiRecord } from "../packages/engine/src/ports/index.js";
+import { createOpenkkBackendApi } from "../packages/backend-api/src/index.js";
+import { createEngineUsecases } from "../packages/engine/src/usecases/usecases.js";
+import type { OpeningJournalApiRecord } from "../packages/backend-api/src/contract.js";
 
-describe("client/server closing contract", () => {
+describe("driver/engine closing contract", () => {
   it("rejects missing generated entries when calling the closing usecase directly", async () => {
     const db = await createMemoryDbAdapter(null);
-    const server = createOpenkkServer(db, { userId: "user-1" });
-    const period = await server.fiscalPeriods.create({
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
+    const period = await backendApi.fiscalPeriods.create({
       name: "2026年分",
       startDate: "2026-01-01",
       endDate: "2026-12-31",
     });
-    await server.fiscalPeriods.start(period.id);
-    await server.fiscalPeriods.patch(period.id, {
+    await backendApi.fiscalPeriods.start(period.id);
+    await backendApi.fiscalPeriods.patch(period.id, {
       openingBalancesCompleted: true,
     });
-    await server.fixedAssets.create(period.id, {
+    await backendApi.fixedAssets.create(period.id, {
       name: "PC",
       acquisitionDate: "2026-01-01",
       acquisitionCost: 120_000,
@@ -29,10 +29,10 @@ describe("client/server closing contract", () => {
       businessRate: 1,
       bookAccountId: "acct_equipment",
     });
-    await server.preClosings.run(period.id);
+    await backendApi.preClosings.run(period.id);
 
     await expect(
-      createServerUsecases(db).closings.run("user-1", period.id, []),
+      createEngineUsecases(db).closings.run("user-1", period.id, []),
     ).rejects.toThrow(/do not match the current fiscal-period source data/);
     expect((await db.fiscalPeriods.getById(period.id))?.phase).toBe(
       "pre_closing",
@@ -43,10 +43,13 @@ describe("client/server closing contract", () => {
   it.each(["", "tax_10", "custom-tax"])(
     "closes a period without changing stored category id %j",
     async (taxCategoryId) => {
-      const server = createOpenkkServer(await createMemoryDbAdapter(null), {
-        userId: "user-1",
-      });
-      const period = await server.fiscalPeriods.create({
+      const backendApi = createOpenkkBackendApi(
+        await createMemoryDbAdapter(null),
+        {
+          userId: "user-1",
+        },
+      );
+      const period = await backendApi.fiscalPeriods.create({
         name: "2026年分",
         startDate: "2026-01-01",
         endDate: "2026-12-31",
@@ -77,18 +80,18 @@ describe("client/server closing contract", () => {
           },
         ],
       };
-      await server.fiscalPeriods.start(period.id);
-      await server.fiscalPeriods.patch(period.id, {
+      await backendApi.fiscalPeriods.start(period.id);
+      await backendApi.fiscalPeriods.patch(period.id, {
         openingBalancesCompleted: true,
         opening: {
           balanceLines: [],
           journals: [journal],
         },
       });
-      const accounts = await server.masterData.getBookAccounts();
-      const taxCategories = await server.masterData.getTaxCategories();
+      const accounts = await backendApi.masterData.getBookAccounts();
+      const taxCategories = await backendApi.masterData.getTaxCategories();
       const businessCategories =
-        await server.masterData.getBusinessCategories();
+        await backendApi.masterData.getBusinessCategories();
       const carryover = mapOpeningJournalToRecord(
         journal,
         period.id,
@@ -120,11 +123,11 @@ describe("client/server closing contract", () => {
         }),
       );
 
-      await server.preClosings.run(period.id);
-      const closed = await server.closings.run(period.id, entries);
+      await backendApi.preClosings.run(period.id);
+      const closed = await backendApi.closings.run(period.id, entries);
 
       expect(closed.phase).toBe("post_closing");
-      const saved = await server.entries.getAll(period.id);
+      const saved = await backendApi.entries.getAll(period.id);
       expect(saved).toHaveLength(1);
       expect(saved[0]!.lines).toMatchObject(
         journal.lines.map(({ id: _id, ...line }) => line),

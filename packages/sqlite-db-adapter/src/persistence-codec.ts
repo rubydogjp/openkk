@@ -5,7 +5,7 @@ import {
   assertOpeningMatchesRules,
   parseIsoDate,
   requireObject,
-  serverValidationError,
+  engineValidationError,
 } from "@rubydogjp/openkk-engine";
 import type { FiscalPeriodOpeningDbRecord } from "@rubydogjp/openkk-engine";
 import type { FiscalPeriodDbData, FixedAssetDbData } from "./table-types.js";
@@ -178,7 +178,7 @@ function serializeRecord<Value>(
 function stringValue(record: Record<string, unknown>, key: string): string {
   const value = record[key];
   if (typeof value !== "string") {
-    throw serverValidationError(`${key} must be a string`, null);
+    throw engineValidationError(`${key} must be a string`, null);
   }
   return value;
 }
@@ -186,7 +186,7 @@ function stringValue(record: Record<string, unknown>, key: string): string {
 function nonBlankString(record: Record<string, unknown>, key: string): string {
   const value = stringValue(record, key);
   if (value.trim() === "") {
-    throw serverValidationError(`${key} must not be blank`, null);
+    throw engineValidationError(`${key} must not be blank`, null);
   }
   return value;
 }
@@ -197,7 +197,7 @@ function nullableValue<Value>(
   read: (record: Record<string, unknown>, key: string) => Value,
 ): Value | null {
   if (!(key in record)) {
-    throw serverValidationError(`${key} is required`, null);
+    throw engineValidationError(`${key} is required`, null);
   }
   return record[key] === null ? null : read(record, key);
 }
@@ -205,7 +205,7 @@ function nullableValue<Value>(
 function booleanValue(record: Record<string, unknown>, key: string): boolean {
   const value = record[key];
   if (typeof value !== "boolean") {
-    throw serverValidationError(`${key} must be a boolean`, null);
+    throw engineValidationError(`${key} must be a boolean`, null);
   }
   return value;
 }
@@ -213,7 +213,7 @@ function booleanValue(record: Record<string, unknown>, key: string): boolean {
 function finiteNumber(record: Record<string, unknown>, key: string): number {
   const value = record[key];
   if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw serverValidationError(`${key} must be a finite number`, null);
+    throw engineValidationError(`${key} must be a finite number`, null);
   }
   return value;
 }
@@ -224,7 +224,7 @@ function nonNegativeInteger(
 ): number {
   const value = finiteNumber(record, key);
   if (!Number.isSafeInteger(value) || value < 0) {
-    throw serverValidationError(
+    throw engineValidationError(
       `${key} must be a non-negative safe integer`,
       null,
     );
@@ -235,7 +235,7 @@ function nonNegativeInteger(
 function positiveInteger(record: Record<string, unknown>, key: string): number {
   const value = finiteNumber(record, key);
   if (!Number.isSafeInteger(value) || value < 1) {
-    throw serverValidationError(`${key} must be a positive safe integer`, null);
+    throw engineValidationError(`${key} must be a positive safe integer`, null);
   }
   return value;
 }
@@ -243,7 +243,7 @@ function positiveInteger(record: Record<string, unknown>, key: string): number {
 function unitRate(record: Record<string, unknown>, key: string): number {
   const rate = finiteNumber(record, key);
   if (rate < 0 || rate > 1) {
-    throw serverValidationError(`${key} must be between 0 and 1`, null);
+    throw engineValidationError(`${key} must be between 0 and 1`, null);
   }
   return rate;
 }
@@ -251,7 +251,7 @@ function unitRate(record: Record<string, unknown>, key: string): number {
 function isoDate(record: Record<string, unknown>, key: string): string {
   const value = stringValue(record, key);
   if (parseIsoDate(value) == null) {
-    throw serverValidationError(`${key} must be an ISO date`, null);
+    throw engineValidationError(`${key} must be an ISO date`, null);
   }
   return value;
 }
@@ -260,7 +260,7 @@ function isoTimestamp(record: Record<string, unknown>, key: string): string {
   const timestamp = stringValue(record, key);
   const parsed = new Date(timestamp);
   if (Number.isNaN(parsed.getTime()) || parsed.toISOString() !== timestamp) {
-    throw serverValidationError(`${key} must be an ISO timestamp`, null);
+    throw engineValidationError(`${key} must be an ISO timestamp`, null);
   }
   return timestamp;
 }
@@ -276,5 +276,5 @@ function enumValue<const Value extends string>(
       if (candidate === value) return candidate;
     }
   }
-  throw serverValidationError(`${key} has an unsupported value`, null);
+  throw engineValidationError(`${key} has an unsupported value`, null);
 }

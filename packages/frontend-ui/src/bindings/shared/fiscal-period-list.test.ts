@@ -22,7 +22,7 @@ describe("applyFiscalPeriodUpdate", () => {
     expect(next[1]).toBe(current[1]);
   });
 
-  it("uses the server phase and archive status without a local overlay", () => {
+  it("uses the backend's phase and archive status without a local overlay", () => {
     const [next] = applyFiscalPeriodUpdate(
       [period({ id: "fp-1" })],
       remotePeriod({
@@ -37,7 +37,7 @@ describe("applyFiscalPeriodUpdate", () => {
   });
 
   it("upserts a missing period and removes stale duplicates", () => {
-    const patched = remotePeriod({ id: "fp-new", name: "server" });
+    const patched = remotePeriod({ id: "fp-new", name: "backend" });
 
     expect(applyFiscalPeriodUpdate([], patched).map((item) => item.id)).toEqual(
       ["fp-new"],
@@ -50,7 +50,7 @@ describe("applyFiscalPeriodUpdate", () => {
         ],
         patched,
       ).map((item) => item.name),
-    ).toEqual(["server"]);
+    ).toEqual(["backend"]);
   });
 });
 

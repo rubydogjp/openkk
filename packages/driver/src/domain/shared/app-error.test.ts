@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { AppError } from "./app-error.js";
 
 describe("AppError", () => {
-  it("keeps existing client AppError instances", () => {
+  it("keeps existing driver AppError instances", () => {
     const original = new AppError({
       messageForDeveloper: "developer",
       messageForUser: "ユーザー向け",
@@ -22,24 +22,24 @@ describe("AppError", () => {
   });
 
   it("preserves structurally compatible AppError-like objects", () => {
-    const serverSideError = {
+    const backendError = {
       name: "AppError",
-      message: "server developer",
-      messageForDeveloper: "server developer",
+      message: "backend developer",
+      messageForDeveloper: "backend developer",
       messageForUser: "サーバー由来の文言",
       originalMessage: "raw",
       statusCode: 409,
       code: "conflict",
     };
 
-    const appError = AppError.from(serverSideError, {
+    const appError = AppError.from(backendError, {
       fallbackUserMessage: "fallback",
       fallbackDeveloperMessage: null,
       statusCode: null,
     });
 
     expect(appError).toBeInstanceOf(AppError);
-    expect(appError.messageForDeveloper).toBe("server developer");
+    expect(appError.messageForDeveloper).toBe("backend developer");
     expect(appError.messageForUser).toBe("サーバー由来の文言");
     expect(appError.originalMessage).toBe("raw");
     expect(appError.statusCode).toBe(409);

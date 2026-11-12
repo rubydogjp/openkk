@@ -2,7 +2,7 @@ import {
   applyPatch,
   assertFixedAssetMatchesRules,
   FIXED_ASSET_PATCH_KEYS,
-  serverNotFoundError,
+  engineNotFoundError,
 } from "@rubydogjp/openkk-engine";
 
 import type {
@@ -74,7 +74,7 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
         const existing =
           (await loadFixedAssets(db, `WHERE fa.id = ?`, [id]))[0] ?? null;
         if (existing == null) {
-          throw serverNotFoundError(`fixed asset not found: ${id}`);
+          throw engineNotFoundError(`fixed asset not found: ${id}`);
         }
         const period = await assertDbFiscalPeriodAllows(
           db,

@@ -9,7 +9,7 @@ import type {
   FixedAssetApiRecord,
   FixedAssetCreateInput,
   FixedAssetPatchInput,
-} from "@rubydogjp/openkk-engine";
+} from "./contract.js";
 import {
   assertNonBlankTextField,
   assertTextFieldChange,

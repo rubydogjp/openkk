@@ -5,8 +5,10 @@ import {
   MAX_ENTRY_IMPORT_ITEMS,
   MAX_FISCAL_PERIOD_ARCHIVE_FILE_BYTES,
 } from "../domain/index.js";
-import type { FiscalPeriodArchiveImportInput } from "../ports/index.js";
-import { normalizeArchiveImportInput } from "./archive-import.js";
+import {
+  normalizeArchiveImportInput,
+  type UnvalidatedFiscalPeriodArchive,
+} from "./archive-import.js";
 
 describe("normalizeArchiveImportInput", () => {
   it("normalizes archived fiscal period payload for db import", () => {
@@ -152,7 +154,7 @@ describe("normalizeArchiveImportInput", () => {
 
     expect(() =>
       normalizeArchiveImportInput(
-        null as unknown as FiscalPeriodArchiveImportInput,
+        null as unknown as UnvalidatedFiscalPeriodArchive,
       ),
     ).toThrow(/archive must be an object/);
   });
@@ -704,7 +706,7 @@ type ArchiveOpeningView = {
 };
 
 function archiveOpening(
-  input: FiscalPeriodArchiveImportInput,
+  input: UnvalidatedFiscalPeriodArchive,
 ): ArchiveOpeningView {
   return input.fiscalPeriod.opening as ArchiveOpeningView;
 }
@@ -718,7 +720,7 @@ function captureError(fn: () => unknown): unknown {
   throw new Error("expected function to throw");
 }
 
-function version1ArchiveInput(): FiscalPeriodArchiveImportInput {
+function version1ArchiveInput(): UnvalidatedFiscalPeriodArchive {
   const input = validArchiveInput();
   const opening = archiveOpening(input);
   input.manifest.version = 1;
@@ -729,7 +731,7 @@ function version1ArchiveInput(): FiscalPeriodArchiveImportInput {
   return input;
 }
 
-function validArchiveInput(): FiscalPeriodArchiveImportInput {
+function validArchiveInput(): UnvalidatedFiscalPeriodArchive {
   return {
     manifest: {
       format: "openkk.fiscal-period-archive",
@@ -842,7 +844,7 @@ function validArchiveInput(): FiscalPeriodArchiveImportInput {
 }
 
 function configureArchivePhase(
-  input: FiscalPeriodArchiveImportInput,
+  input: UnvalidatedFiscalPeriodArchive,
   phase: "pre_opening" | "journalizing" | "pre_closing" | "post_closing",
 ) {
   input.fiscalPeriod.phase = phase;

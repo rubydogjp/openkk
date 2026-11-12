@@ -11,7 +11,7 @@ import {
 
 export { type DbSnapshot } from "@rubydogjp/openkk-engine";
 
-export type FileDbAdapterOptions = {
+export type LegacyDbAdapterOptions = {
   vfsName: string;
   dbFileName: string;
   onWaitingForAnotherTab: (() => void) | null;
@@ -100,14 +100,14 @@ function createSqliteWorker(): Worker {
   });
 }
 
-function dbLocation(options: FileDbAdapterOptions) {
+function dbLocation(options: LegacyDbAdapterOptions) {
   return { vfsName: options.vfsName, dbFileName: options.dbFileName };
 }
 
 async function createWorkerSqlDb(
   worker: Worker,
   onFatal: (error: Error) => void,
-  options: FileDbAdapterOptions,
+  options: LegacyDbAdapterOptions,
 ): Promise<SqlDb> {
   const send = connectSqliteWorker(
     worker,
@@ -121,8 +121,8 @@ async function createWorkerSqlDb(
 let cachedAdapter: Promise<OpenkkDbPort> | null = null;
 let cachedAdapterKey: string | null = null;
 
-export function createFileDbAdapter(
-  options: FileDbAdapterOptions,
+export function createLegacyDbAdapter(
+  options: LegacyDbAdapterOptions,
   seed: DbSnapshot | null,
 ): Promise<OpenkkDbPort> {
   const adapterKey = `${options.vfsName}\n${options.dbFileName}`;
@@ -169,7 +169,7 @@ type PoolDirectoryRoot = {
   ): Promise<unknown>;
 };
 
-export async function hasFileDbStorage(vfsName: string): Promise<boolean> {
+export async function hasLegacyDbStorage(vfsName: string): Promise<boolean> {
   const storage: unknown =
     typeof navigator === "object" ? navigator.storage : null;
   if (
@@ -192,10 +192,10 @@ export async function hasFileDbStorage(vfsName: string): Promise<boolean> {
   }
 }
 
-export async function exportFileDbBytes(
-  options: FileDbAdapterOptions,
+export async function exportLegacyDbBytes(
+  options: LegacyDbAdapterOptions,
 ): Promise<Uint8Array | null> {
-  if (!(await hasFileDbStorage(options.vfsName))) return null;
+  if (!(await hasLegacyDbStorage(options.vfsName))) return null;
   const worker = createSqliteWorker();
   try {
     const send = connectSqliteWorker(

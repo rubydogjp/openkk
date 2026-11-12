@@ -3,13 +3,11 @@
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
-import { createBookFilesAdapter } from "@rubydogjp/openkk-local-book-files-adapter";
+import { createLocalBookFilesAdapter } from "@rubydogjp/openkk-local-book-files-adapter";
 import { createBooksDbAdapter } from "@rubydogjp/openkk-books-db-adapter";
 import type { BrandConfig } from "@rubydogjp/openkk-driver";
-import {
-  createOpenkkEmbeddedBackend,
-  createOpenkkEmbeddedBackendAdapter,
-} from "@rubydogjp/openkk-embedded-backend-adapter";
+import { createOpenkkBackendApi } from "@rubydogjp/openkk-backend-api";
+import { createOpenkkEmbeddedBackendAdapter } from "@rubydogjp/openkk-embedded-backend-adapter";
 import {
   OpenkkAppProviders,
   OpenkkStartProviders,
@@ -23,7 +21,7 @@ import {
   deliverBookFile,
   inAppBookStore,
   newInAppBookName,
-  platformBrowserAdapter,
+  browserPlatformAdapter,
   requestBrowserPersistentStorage,
 } from "@rubydogjp/openkk-browser-platform-adapter";
 
@@ -135,10 +133,10 @@ async function openBooksBackend(
       console.error("[openkk] book could not be stored:", error);
     },
   });
-  const bookFiles = createBookFilesAdapter({
+  const bookFiles = createLocalBookFilesAdapter({
     books,
     userId,
-    storage: platformBrowserAdapter.storage,
+    storage: browserPlatformAdapter.storage,
     now: () => Date.now(),
     fileNameOf: bookFileName,
     deliver: deliverBookFile,
@@ -147,7 +145,7 @@ async function openBooksBackend(
   forgottenFiscalPeriodIds.forEach(forgetFiscalPeriod);
   return {
     api: createOpenkkEmbeddedBackendAdapter(
-      createOpenkkEmbeddedBackend(books.db, { userId }),
+      createOpenkkBackendApi(books.db, { userId }),
     ),
     bookFiles,
   };

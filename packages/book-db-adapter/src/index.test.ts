@@ -6,14 +6,14 @@ import { afterEach, describe, expect, it } from "vitest";
 import { SCHEMA_VERSION } from "@rubydogjp/openkk-sqlite-db-adapter";
 
 import {
-  createDocumentDbAdapter,
-  DocumentFileFormatError,
-  type DocumentDbAdapter,
+  createBookDbAdapter,
+  BookFileFormatError,
+  type BookDbAdapter,
 } from "./index.js";
-import { createNodeSqliteDbAdapter } from "../../disk-db-adapter/src/index.js";
+import { createDiskDbAdapter } from "../../disk-db-adapter/src/index.js";
 import { runDbPortConformance } from "../../engine/test-support/db-port-conformance.js";
 
-const openAdapters: DocumentDbAdapter[] = [];
+const openAdapters: BookDbAdapter[] = [];
 const tempDirs: string[] = [];
 
 afterEach(() => {
@@ -23,19 +23,19 @@ afterEach(() => {
   }
 });
 
-async function open(bytes: Uint8Array | null): Promise<DocumentDbAdapter> {
-  const adapter = await createDocumentDbAdapter(bytes);
+async function open(bytes: Uint8Array | null): Promise<BookDbAdapter> {
+  const adapter = await createBookDbAdapter(bytes);
   openAdapters.push(adapter);
   return adapter;
 }
 
 async function seededBytes(
-  seed: Parameters<typeof createNodeSqliteDbAdapter>[1],
+  seed: Parameters<typeof createDiskDbAdapter>[1],
 ): Promise<Uint8Array> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "openkk-document-"));
   tempDirs.push(dir);
   const filePath = path.join(dir, "seed.openkk");
-  (await createNodeSqliteDbAdapter(filePath, seed)).close();
+  (await createDiskDbAdapter(filePath, seed)).close();
   return new Uint8Array(fs.readFileSync(filePath));
 }
 
@@ -70,7 +70,7 @@ describe("document-db-adapter change stamp", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "openkk-document-"));
     tempDirs.push(dir);
     const filePath = path.join(dir, "old.openkk");
-    (await createNodeSqliteDbAdapter(filePath, null)).close();
+    (await createDiskDbAdapter(filePath, null)).close();
     const database = new DatabaseSync(filePath);
     database.exec(
       "UPDATE openkk_meta SET value = '5' WHERE key = 'schema_version'",
@@ -130,7 +130,7 @@ describe("document-db-adapter", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "openkk-document-"));
     tempDirs.push(dir);
     const filePath = path.join(dir, "book.openkk");
-    const cli = await createNodeSqliteDbAdapter(filePath, null);
+    const cli = await createDiskDbAdapter(filePath, null);
     const fromCli = await cli.db.fiscalPeriods.create("user-1", period);
     cli.close();
 
@@ -142,7 +142,7 @@ describe("document-db-adapter", () => {
       endDate: "2027-12-31",
     });
     fs.writeFileSync(filePath, document.exportBytes());
-    const cliAgain = await createNodeSqliteDbAdapter(filePath, null);
+    const cliAgain = await createDiskDbAdapter(filePath, null);
     const names = (await cliAgain.db.fiscalPeriods.getAll("user-1")).map(
       (record) => record.name,
     );
@@ -181,7 +181,7 @@ describe("document-db-adapter", () => {
 
   it("rejects bytes that are not a SQLite database", async () => {
     await expect(
-      createDocumentDbAdapter(new TextEncoder().encode("hello, world")),
+      createBookDbAdapter(new TextEncoder().encode("hello, world")),
     ).rejects.toMatchObject({ problem: "not_sqlite" });
   });
 
@@ -193,11 +193,11 @@ describe("document-db-adapter", () => {
     other.exec("CREATE TABLE notes (body TEXT)");
     other.close();
 
-    const error = await createDocumentDbAdapter(
+    const error = await createBookDbAdapter(
       new Uint8Array(fs.readFileSync(filePath)),
     ).catch((caught: unknown) => caught);
 
-    expect(error).toBeInstanceOf(DocumentFileFormatError);
+    expect(error).toBeInstanceOf(BookFileFormatError);
     expect(error).toMatchObject({ problem: "not_openkk" });
   });
 
@@ -205,7 +205,7 @@ describe("document-db-adapter", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "openkk-document-"));
     tempDirs.push(dir);
     const filePath = path.join(dir, "newer.openkk");
-    (await createNodeSqliteDbAdapter(filePath, null)).close();
+    (await createDiskDbAdapter(filePath, null)).close();
     const raw = new DatabaseSync(filePath);
     raw
       .prepare("UPDATE openkk_meta SET value = ? WHERE key = 'schema_version'")
@@ -213,7 +213,7 @@ describe("document-db-adapter", () => {
     raw.close();
 
     await expect(
-      createDocumentDbAdapter(new Uint8Array(fs.readFileSync(filePath))),
+      createBookDbAdapter(new Uint8Array(fs.readFileSync(filePath))),
     ).rejects.toMatchObject({ problem: "newer_schema" });
   });
 });
