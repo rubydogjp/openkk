@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation.js";
 
 import { palette } from "../shared/design-tokens.js";
+import { useRouter } from "../routing/routing.js";
 
 export function RootRedirectPage() {
   const router = useRouter();

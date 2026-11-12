@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link.js";
 import { useEffect, useRef, useState } from "react";
 
 import { formatAmount, type StepTrendPoint } from "@rubydogjp/openkk-driver";
 import { fontSize, fontWeight, palette } from "../shared/design-tokens.js";
 import { useReportWorkInProgress } from "../shared/work-in-progress.js";
+import { Link } from "../routing/routing.js";
 
 const chartGeometry = {
   top: 10,
@@ -421,6 +421,7 @@ function TrendDetailsLink() {
     >
       <Link
         href="/steps/journalizing/analytics"
+        className={null}
         style={{
           fontSize: fontSize.sm,
           fontWeight: fontWeight.bold,

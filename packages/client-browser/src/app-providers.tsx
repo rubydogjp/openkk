@@ -6,6 +6,7 @@ import {
   BrandConfigProvider,
   OpenkkCalloutsProvider,
   OpenkkDriverProvider,
+  OpenkkRoutingProvider,
   WorkInProgressProvider,
 } from "@rubydogjp/openkk-frontend-ui";
 import { browserPlatformAdapter } from "@rubydogjp/openkk-browser-platform-adapter";
@@ -15,6 +16,7 @@ import type {
   OpenkkBundlePorts,
   OpenkkBundleRuntime,
 } from "./bundle-runtime.js";
+import { nextRouting } from "./next-routing.js";
 import { useOfflineCache } from "./offline-cache.js";
 
 const BOOT_PHASE_ATTRIBUTE_NAME = "data-openkk-boot";
@@ -131,12 +133,14 @@ export function OpenkkAppProviders(props: {
   }
 
   return (
-    <BrandConfigProvider config={runtime.brandConfig}>
-      <OpenkkCalloutsProvider slots={runtime.calloutSlots}>
-        <OpenkkDriverProvider driver={driver}>
-          <WorkInProgressProvider>{props.children}</WorkInProgressProvider>
-        </OpenkkDriverProvider>
-      </OpenkkCalloutsProvider>
-    </BrandConfigProvider>
+    <OpenkkRoutingProvider routing={nextRouting}>
+      <BrandConfigProvider config={runtime.brandConfig}>
+        <OpenkkCalloutsProvider slots={runtime.calloutSlots}>
+          <OpenkkDriverProvider driver={driver}>
+            <WorkInProgressProvider>{props.children}</WorkInProgressProvider>
+          </OpenkkDriverProvider>
+        </OpenkkCalloutsProvider>
+      </BrandConfigProvider>
+    </OpenkkRoutingProvider>
   );
 }

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link.js";
 import { useMemo, useState } from "react";
 
 import {
@@ -26,6 +25,7 @@ import {
   typography,
 } from "../../../../shared/design-tokens.js";
 import { PlBsDiagramSection } from "../../../../shared/pl-bs-diagram.js";
+import { Link } from "../../../../routing/routing.js";
 
 type MonthTile = {
   month: number;
@@ -95,6 +95,7 @@ export function JournalizingAnalyticsPage() {
       >
         <Link
           href="/steps/journalizing"
+          className={null}
           style={{
             fontSize: fontSize.sm,
             color: palette.textSoft,

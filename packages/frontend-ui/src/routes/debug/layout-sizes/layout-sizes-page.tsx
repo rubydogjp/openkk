@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link.js";
 import type { CSSProperties, ReactNode } from "react";
 
 import {
@@ -14,6 +13,7 @@ import {
   typography,
 } from "../../../shared/design-tokens.js";
 import { Card, Section } from "../debug-ui.js";
+import { Link } from "../../../routing/routing.js";
 
 type SizeGroup = keyof typeof tokenDefaults.sizes;
 
@@ -40,6 +40,7 @@ export function LayoutSizesPage() {
       <div style={{ maxWidth: sizes.content.debugMaxWidth, margin: "0 auto" }}>
         <Link
           href="/debug"
+          className={null}
           style={{ ...typography.control, color: palette.action }}
         >
           ← debug

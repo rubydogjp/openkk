@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { useRouter, useSearchParams } from "next/navigation.js";
-
 import {
   AppError,
   assertEntryImportSize,
@@ -60,6 +58,7 @@ import { EntryEditDrawer } from "../../entries/entry-edit-drawer.js";
 import { entryRecordToDraft } from "../../entries/entry-edit-model.js";
 import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 import { pathWithSearchParams } from "../../shared/pathname.js";
+import { useRouter, useSearchParams } from "../../routing/routing.js";
 
 type JournalTableImport =
   | {
@@ -242,7 +241,7 @@ export function EntriesPage() {
       next.set("month", formatYearMonthKey(nextMonth));
       next.delete("entry");
       next.delete("virtualEntry");
-      router.replace(pathWithSearchParams("/entries", next), { scroll: false });
+      router.replaceKeepingScroll(pathWithSearchParams("/entries", next));
     },
     [
       currentFiscalPeriod?.endDate,
@@ -259,7 +258,7 @@ export function EntriesPage() {
       next.delete("entry");
       next.delete("virtualEntry");
       if (id != null) next.set(key, id);
-      router.replace(pathWithSearchParams("/entries", next), { scroll: false });
+      router.replaceKeepingScroll(pathWithSearchParams("/entries", next));
     },
     [router, searchParams, yearMonth],
   );
@@ -447,7 +446,7 @@ export function EntriesPage() {
     params.delete("virtualEntry");
     setNewEntryDraft(null);
     setTableImport(null);
-    router.replace(pathWithSearchParams("/entries", params), { scroll: false });
+    router.replaceKeepingScroll(pathWithSearchParams("/entries", params));
   };
   const viewSwitch = <EntriesViewSwitch view={view} onChange={switchView} />;
 

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation.js";
 
 import {
   AppError,
@@ -29,6 +28,7 @@ import {
   StepPrimaryButton,
   StepSecondaryButton,
 } from "../step-ui.js";
+import { useRouter } from "../../routing/routing.js";
 
 export function FiscalPeriodSettingsBody({
   onSwitchToStep,

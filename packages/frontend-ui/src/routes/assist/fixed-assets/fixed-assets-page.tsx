@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation.js";
 import { useCallback, useEffect, useState } from "react";
 
 import {
@@ -20,6 +19,7 @@ import { pathWithSearchParams } from "../../../shared/pathname.js";
 import { LockButton } from "../../../shared/locked-action.js";
 import { FixedAssetEditDrawer } from "../../../assist/fixed-asset-edit-drawer.js";
 import { FixedAssetsScreen } from "../../../assist/fixed-assets-screen.js";
+import { useRouter, useSearchParams } from "../../../routing/routing.js";
 
 export function FixedAssetsPage() {
   const router = useRouter();
@@ -64,9 +64,9 @@ export function FixedAssetsPage() {
       } else {
         next.set("asset", assetId);
       }
-      router.replace(pathWithSearchParams("/assist/fixed-assets", next), {
-        scroll: false,
-      });
+      router.replaceKeepingScroll(
+        pathWithSearchParams("/assist/fixed-assets", next),
+      );
     },
     [router, searchParams],
   );

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link.js";
 import type { ReactNode } from "react";
 
 import { fontSize, fontWeight } from "../shared/design-tokens.js";
@@ -11,6 +10,7 @@ import {
   type IconProps,
 } from "../shared/icons.js";
 import { SHELL_PALETTE } from "./shell-palette.js";
+import { Link } from "../routing/routing.js";
 
 type NavEntry = {
   href: string;

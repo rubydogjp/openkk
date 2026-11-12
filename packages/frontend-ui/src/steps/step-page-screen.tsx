@@ -1,6 +1,5 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation.js";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
 import {
@@ -20,6 +19,7 @@ import { NextFiscalPeriodBody } from "./bodies/next-fiscal-period.js";
 import { OpeningBsBody } from "./bodies/opening-bs.js";
 import { type StepItem, type StepTrendPoint } from "@rubydogjp/openkk-driver";
 import { StatusChip } from "./step-ui.js";
+import { usePathname, useRouter } from "../routing/routing.js";
 
 const STEP_PATHS: Record<number, string> = {
   1: "/steps/fiscal-period-settings",
@@ -75,14 +75,14 @@ export function StepsPageScreen({
     if (bodyBusy) return;
     if (urlActiveStep != null && urlActiveStep !== currentStepNumber) {
       const path = STEP_PATHS[currentStepNumber];
-      if (path != null) router.replace(path, { scroll: false });
+      if (path != null) router.replaceKeepingScroll(path);
     }
   }, [currentStepNumber, bodyBusy, urlActiveStep, router]);
 
   useEffect(() => {
     if (urlActiveStep != null) return;
     const path = STEP_PATHS[currentStepNumber];
-    if (path != null) router.replace(path, { scroll: false });
+    if (path != null) router.replaceKeepingScroll(path);
   }, [urlActiveStep, currentStepNumber, router]);
 
   useEffect(() => {
@@ -102,7 +102,7 @@ export function StepsPageScreen({
   function navigateToStep(no: number) {
     const path = STEP_PATHS[no];
     if (path == null) return;
-    router.replace(path, { scroll: false });
+    router.replaceKeepingScroll(path);
   }
 
   if (active == null) return null;

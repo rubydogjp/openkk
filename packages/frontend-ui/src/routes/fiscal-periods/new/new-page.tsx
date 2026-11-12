@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
@@ -34,6 +33,7 @@ import {
   FormTextInput,
 } from "../../../shared/form-fields.js";
 import { StepFormRow, StepMetaCard } from "../../../steps/step-ui.js";
+import { useRouter } from "../../../routing/routing.js";
 
 export function CreateFiscalPeriodPage() {
   const router = useRouter();

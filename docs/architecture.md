@@ -29,7 +29,7 @@ packages/
 ├── frontend-ui               入口 (画面) — React の画面とデザイントークン。bindings/ に、driver の共有する状態を画面に結ぶ Context と hook
 ├── backend-api               入口 (呼び出し) — 契約の型 (contract.ts) と、入力を確かめて engine の usecases を呼ぶ OpenkkBackendApi
 │
-├── client-browser            動く形 — frontend-ui をブラウザ (Next.js・PWA) で動かす配線
+├── client-browser            動く形 — frontend-ui をブラウザ (Next.js・PWA) で動かす配線。共有する状態を作り、画面の移動を Next で実装する
 │
 ├── embedded-backend-adapter  口 backend の実装 — 同じプロセスの backend-api を、HTTP と同じ形の受け渡しで呼ぶ
 ├── browser-print-adapter     口 print の実装 — ブラウザの印刷
@@ -97,6 +97,7 @@ interfaces → usecases → domain
 
 - 中身の箱 (`driver`・`engine`) は、フレームワークも環境の仕組みも持たない (依存するパッケージがない)。
 - 入口の箱には、その形のための技術が入る (`frontend-ui` の React)。動く形と口の実装には、環境の仕組みが入る。
+- `frontend-ui` は Next を読み込まない。画面の移動 (今いる場所・移る・リンク) は `OpenkkRouting` という形で動く形の箱に求め、`OpenkkRoutingProvider` で受け取る。`client-browser` が Next で実装する (`nextRouting`)。
 - 層の向きは、箱の中のフォルダ (`domain`・`ports`・`usecases`、`frontend-ui` の `bindings`) を見て構造のテストが確かめる。
 
 ### 使う側の手続きと、共有する状態

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation.js";
 
 import {
   useBrandConfig,
@@ -30,6 +29,7 @@ import {
   PersonIcon,
 } from "../shared/icons.js";
 import { SHELL_PALETTE } from "./shell-palette.js";
+import { useRouter } from "../routing/routing.js";
 
 export function ShellAccountMenu(props: {
   pathname: string;

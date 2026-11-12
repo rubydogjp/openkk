@@ -1,7 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation.js";
-
 import {
   fontSize,
   fontWeight,
@@ -11,6 +9,7 @@ import {
   spacing,
   typography,
 } from "./design-tokens.js";
+import { useRouter } from "../routing/routing.js";
 
 export type ClosedPeriodLockProps = {
   title: string;

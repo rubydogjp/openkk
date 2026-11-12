@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation.js";
 
 import {
   AppError,
@@ -32,6 +31,7 @@ import {
   StepSectionLabel,
   StepSpacer,
 } from "../step-ui.js";
+import { useRouter } from "../../routing/routing.js";
 
 export function JournalizingBody({
   onSwitchToStep,

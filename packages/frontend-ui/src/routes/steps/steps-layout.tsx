@@ -1,6 +1,5 @@
 "use client";
 
-import { usePathname } from "next/navigation.js";
 import { useMemo, type ReactNode } from "react";
 
 import {
@@ -19,6 +18,7 @@ import {
 import { palette } from "../../shared/design-tokens.js";
 import { normalizePathname } from "../../shared/pathname.js";
 import { StepsPageScreen } from "../../steps/step-page-screen.js";
+import { usePathname } from "../../routing/routing.js";
 
 const STEPPER_PASSTHROUGH_PATHS = new Set<string>([
   "/steps/journalizing/analytics",

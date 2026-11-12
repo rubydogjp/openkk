@@ -19,6 +19,7 @@ const ENGINE_PORTS = ["db"];
 const SAME_PROCESS_BRIDGE_PORTS = ["backend", "book-files"];
 const BOXES_AWAITING_SPLIT = new Set(["cli"]);
 const PACKAGE_DIRS_RELEASED_TO_NPM = new Set<string>();
+const ENVIRONMENT_FRAMEWORKS = ["next"];
 const ASYNCHRONOUS_PROCEDURE = /\basync\b|\bawait\b|\.then\(/;
 const rootPackageJson = readJson(path.join(rootDir, "package.json"));
 const workspaceNames = rootPackageJson.workspaces.map((workspace: string) =>
@@ -326,6 +327,31 @@ describe("openkk workspace structure", () => {
       }
     }
     expect(offenders).toEqual([]);
+  });
+
+  it("keeps environment frameworks out of the core and entry boxes", () => {
+    for (const record of packageRecords.filter((item) =>
+      ["core", "entry"].includes(boxKind(item.packageDir) ?? ""),
+    )) {
+      const declared = [
+        ...Object.keys(record.packageJson.dependencies ?? {}),
+        ...Object.keys(record.packageJson.peerDependencies ?? {}),
+        ...Object.keys(record.packageJson.devDependencies ?? {}),
+      ];
+      for (const framework of ENVIRONMENT_FRAMEWORKS) {
+        expect(declared, record.packageDir).not.toContain(framework);
+        const importing = sourceFiles(path.join(record.dir, "src")).filter(
+          (file) =>
+            new RegExp(`from "${framework}[/"]`).test(
+              fs.readFileSync(file, "utf8"),
+            ),
+        );
+        expect(
+          importing.map((file) => path.relative(rootDir, file)),
+          `${framework} belongs to a client-* or server-* box`,
+        ).toEqual([]);
+      }
+    }
   });
 
   it("keeps asynchronous procedures out of the frontend-ui bindings", () => {

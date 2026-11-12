@@ -1,7 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation.js";
-
 import { StepCallout } from "../../steps/step-ui.js";
 import { AssistIcon } from "../../shared/icons.js";
 import {
@@ -11,6 +9,7 @@ import {
   sizes,
   typography,
 } from "../../shared/design-tokens.js";
+import { useRouter } from "../../routing/routing.js";
 
 const items = [
   {

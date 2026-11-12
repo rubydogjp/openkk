@@ -1,7 +1,6 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useRouter } from "next/navigation.js";
 
 import {
   fontSize,
@@ -10,6 +9,7 @@ import {
   radii,
   sizes,
 } from "../../shared/design-tokens.js";
+import { useRouter } from "../../routing/routing.js";
 
 export type PreviewScaffoldProps = {
   title: string;

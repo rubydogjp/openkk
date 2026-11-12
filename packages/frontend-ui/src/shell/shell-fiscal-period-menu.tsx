@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation.js";
 import { useEffect, useState } from "react";
 
 import { useOpenkkAppState } from "../bindings/index.js";
@@ -14,6 +13,7 @@ import {
 import { usePopoverLifecycle } from "../shared/dismissible-layer.js";
 import { CheckIcon, ChevronDownIcon } from "../shared/icons.js";
 import { SHELL_PALETTE } from "./shell-palette.js";
+import { useRouter } from "../routing/routing.js";
 
 export function ShellFiscalPeriodMenu(props: {
   pathname: string;

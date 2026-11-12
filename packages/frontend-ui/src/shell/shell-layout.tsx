@@ -1,6 +1,5 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation.js";
 import { useEffect, useState, type ReactNode } from "react";
 
 import {
@@ -44,6 +43,7 @@ import { ShellFiscalPeriodMenu } from "./shell-fiscal-period-menu.js";
 import { ShellNav } from "./shell-nav.js";
 import { SHELL_PALETTE } from "./shell-palette.js";
 import { useShellAuthActions } from "./use-shell-auth-actions.js";
+import { usePathname, useRouter } from "../routing/routing.js";
 
 export function OpenkkShellLayout(props: { children: ReactNode }) {
   const pathname = normalizePathname(usePathname());

@@ -1,4 +1,3 @@
-import Link from "next/link.js";
 import type { CSSProperties, ReactNode } from "react";
 
 import {
@@ -10,6 +9,7 @@ import {
   typography,
 } from "../../../shared/design-tokens.js";
 import { MaskIcon } from "../../../shared/icons.js";
+import { Link } from "../../../routing/routing.js";
 
 type PaletteToken = {
   group: string;
@@ -1060,6 +1060,7 @@ function BackLink() {
   return (
     <Link
       href="/debug"
+      className={null}
       style={{
         color: paletteValues.textSoft,
         fontSize: fontSize.base,

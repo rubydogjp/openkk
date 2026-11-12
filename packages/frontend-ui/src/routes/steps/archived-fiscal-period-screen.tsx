@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter } from "next/navigation.js";
 
 import {
   AppError,
@@ -28,6 +27,7 @@ import {
   StepPrimaryButton,
   StepSectionLabel,
 } from "../../steps/step-ui.js";
+import { useRouter } from "../../routing/routing.js";
 
 export function ArchivedFiscalPeriodScreen({
   fiscalPeriod,

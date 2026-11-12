@@ -1,7 +1,6 @@
 "use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation.js";
 
 import { AppError } from "@rubydogjp/openkk-driver";
 import { usePlatformAdapter, useOpenkkAppState } from "../../bindings/index.js";
@@ -16,6 +15,7 @@ import {
   palette,
   shadows,
 } from "../../shared/design-tokens.js";
+import { useSearchParams } from "../../routing/routing.js";
 
 export function AuthResultPage() {
   return (

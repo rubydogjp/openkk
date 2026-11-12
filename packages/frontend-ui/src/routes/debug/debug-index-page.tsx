@@ -1,13 +1,12 @@
 "use client";
 
-import Link from "next/link.js";
-
 import {
   fontSize,
   fontWeight,
   palette,
   typography,
 } from "../../shared/design-tokens.js";
+import { Link } from "../../routing/routing.js";
 
 const debugItems = [
   {
@@ -67,6 +66,7 @@ export function DebugIndexPage() {
             <Link
               key={item.href}
               href={item.href}
+              className={null}
               style={{
                 border: `1px solid ${palette.borderSubtle}`,
                 borderRadius: 12,

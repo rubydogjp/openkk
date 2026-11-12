@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation.js";
 
 import {
   AppError,
@@ -29,6 +28,7 @@ import { ClosedPeriodLock } from "../../../shared/closed-period-lock.js";
 import { pathWithSearchParams } from "../../../shared/pathname.js";
 import { CompactLockButton } from "../../../shared/locked-action.js";
 import { sizes } from "../../../shared/design-tokens.js";
+import { useRouter, useSearchParams } from "../../../routing/routing.js";
 
 export function OpeningCarryoverPage() {
   const router = useRouter();
@@ -80,9 +80,9 @@ export function OpeningCarryoverPage() {
     } else {
       next.set("carryover", carryoverId);
     }
-    router.replace(pathWithSearchParams("/assist/opening-carryover", next), {
-      scroll: false,
-    });
+    router.replaceKeepingScroll(
+      pathWithSearchParams("/assist/opening-carryover", next),
+    );
   };
 
   useEffect(() => {

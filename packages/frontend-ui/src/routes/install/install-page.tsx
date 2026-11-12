@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation.js";
 
 import { usePlatformAdapter, useOpenkkConfig } from "../../bindings/index.js";
 
@@ -12,6 +11,7 @@ import {
   fontFamily,
 } from "../../shared/design-tokens.js";
 import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
+import { useRouter } from "../../routing/routing.js";
 
 const INSTALL_AVAILABILITY_TIMEOUT_MS = 2500;
 

@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link.js";
-
 import { palette, typography } from "../shared/design-tokens.js";
 import type { IconProps } from "../shared/icons.js";
+import { Link } from "../routing/routing.js";
 
 export function AssistBreadcrumb({ current }: { current: string }) {
   return (
@@ -17,6 +16,7 @@ export function AssistBreadcrumb({ current }: { current: string }) {
     >
       <Link
         href="/assist"
+        className={null}
         style={{
           display: "inline-flex",
           alignItems: "center",

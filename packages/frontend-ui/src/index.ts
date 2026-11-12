@@ -1,4 +1,11 @@
 export * from "./bindings/index.js";
+export {
+  OpenkkRoutingProvider,
+  type OpenkkLinkProps,
+  type OpenkkRouter,
+  type OpenkkRouting,
+  type OpenkkSearchParams,
+} from "./routing/routing.js";
 
 export * from "./shared/amount-field.js";
 export * from "./shared/app-error-text.js";

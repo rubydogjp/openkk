@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter } from "next/navigation.js";
 
 import {
   AppError,
@@ -37,6 +36,7 @@ import {
   sizes,
   typography,
 } from "../shared/design-tokens.js";
+import { useRouter } from "../routing/routing.js";
 
 export function FiscalPeriodsContent() {
   const router = useRouter();

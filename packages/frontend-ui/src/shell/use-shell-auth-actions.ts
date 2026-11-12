@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation.js";
 import { useRef, useState } from "react";
 
 import {
@@ -11,6 +10,7 @@ import {
 import { AppError } from "@rubydogjp/openkk-driver";
 
 import { ExclusiveActionLock } from "../shared/exclusive-action-lock.js";
+import { useRouter } from "../routing/routing.js";
 
 export function useShellAuthActions() {
   const appState = useOpenkkAppState();
