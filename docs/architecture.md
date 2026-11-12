@@ -105,6 +105,8 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 
 エントリの取込み（`importMany`）は `localId` 単位で冪等で、同一 fiscal period に既存の `localId` はスキップされる。バルク挿入はトランザクションで囲まれ、途中失敗時はロールバックされる。
 
+仕訳の表 (CSV) の取り込みは置き換えで、仕訳番号で突き合わせた削除・更新・追加を順に呼ぶ (`journalTableOperations`)。全体を 1 つのトランザクションにはしないが、同じ CSV をもう一度取り込めば残りだけが反映される。
+
 ## PWA とオフラインキャッシュ
 
 各アプリのService Workerは静的エクスポートを事前保存する。正本は `scripts/service-worker.template.js` に置き、`gen-service-workers.mjs` が各アプリの `public/sw.js` を生成する。debugルートを事前保存するのはSim版だけ。

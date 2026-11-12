@@ -6,7 +6,7 @@ import {
   DEFAULT_BOOK_ACCOUNTS,
   DEFAULT_BUSINESS_CATEGORIES,
   DEFAULT_TAX_CATEGORIES,
-  importEntriesFromCsv,
+  importEntriesFromLegacyCsv,
   importEntriesFromJson,
   type EntryRecord as ClientEntryRecord,
 } from "../packages/client-domain/src/index.js";
@@ -172,7 +172,7 @@ describe("事業主借 equity contract", () => {
               Object.values(legacy).join(","),
             ].join("\n");
       const [record] = (
-        format === "json" ? importEntriesFromJson : importEntriesFromCsv
+        format === "json" ? importEntriesFromJson : importEntriesFromLegacyCsv
       )({
         text,
         fiscalPeriodId: "fp-2026",

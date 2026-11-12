@@ -66,8 +66,10 @@ const USAGE = `オープン会計 CLI (ベータ)
   entries add <期間id> --date <YYYY-MM-DD> --debit <科目> --credit <科目> --amount <金額>
           --description <摘要> [--business-rate <0〜100>]
                                          借方・貸方 1 組の仕訳を足す
-  entries import <期間id> <file.csv|file.json>
-                                         仕訳を取り込む (同じ localId は飛ばす)
+  entries import <期間id> <file.csv> [--yes]
+                                         CSV で仕訳を置き換える (仕訳番号で突き合わせ、ファイルにない仕訳は消す。
+                                         --yes がなければ違いだけ出す)
+  entries import <期間id> <file.json>    JSON や以前の形式の CSV の仕訳を足す (非推奨。同じ localId は飛ばす)
   entries export <期間id> [--format csv|json] [--out <file>]
                                          仕訳を書き出す (既定は CSV を標準出力へ)
   report <期間id> <journal|ledger|fs> [--out <file.html>]

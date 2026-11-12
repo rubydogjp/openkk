@@ -3,9 +3,9 @@ import {
   mapFixedAsset,
   mapOpeningJournalToRecord,
   storedEntryToRecord,
-  type EntryLineMaster,
   type EntryRecord,
   type FiscalPeriodReportInput,
+  type JournalTableMaster,
 } from "@rubydogjp/openkk-client-domain";
 import type {
   FiscalPeriodApiRecord,
@@ -18,7 +18,7 @@ const COST_OF_SALES_ACCOUNT_TYPE = "cost_of_sales";
 
 export async function loadMaster(
   api: OpenkkBackendPort,
-): Promise<EntryLineMaster> {
+): Promise<JournalTableMaster> {
   const [accounts, taxCategories, businessCategories] = await Promise.all([
     api.masterData.getBookAccounts(),
     api.masterData.getTaxCategories(),

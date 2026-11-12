@@ -86,11 +86,20 @@ export async function addFixedAsset(
   await expect(page.getByText(input.name)).toBeVisible();
 }
 
+export async function openJournalTable(page: Page) {
+  await page
+    .getByRole("group", { name: "仕訳の見かた" })
+    .getByRole("button", { name: "表" })
+    .click();
+  await expect(page.getByRole("table", { name: "仕訳の表" })).toBeVisible();
+}
+
 export async function importEntriesFile(
   page: Page,
   kind: "json" | "csv",
   file: Parameters<Page["setInputFiles"]>[1],
 ) {
+  await openJournalTable(page);
   await page.getByRole("button", { name: "ファイル" }).click();
   await page
     .locator(`input[type="file"][accept*=".${kind}"]`)

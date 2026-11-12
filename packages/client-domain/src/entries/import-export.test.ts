@@ -9,9 +9,9 @@ import {
   assertEntryImportSize,
   decodeJournalImportBytes,
   exportEntriesAsJson,
-  exportEntriesAsCsv,
   importEntriesFromJson,
-  importEntriesFromCsv,
+  importEntriesFromLegacyCsv,
+  isLegacyJournalCsv,
 } from "./import-export.js";
 import {
   assertEntryImportItemCount,
@@ -132,11 +132,6 @@ describe("JSON export/import round-trip", () => {
     expect(parsed.entries[0]?.localId).toBe("entry-blank");
     expect(
       importEntriesFromJson({ text: json, fiscalPeriodId: "fp-2" })[0]?.localId,
-    ).toBe("entry-blank");
-
-    const csv = exportEntriesAsCsv([e]);
-    expect(
-      importEntriesFromCsv({ text: csv, fiscalPeriodId: "fp-2" })[0]?.localId,
     ).toBe("entry-blank");
   });
 
@@ -611,280 +606,110 @@ function captureError(fn: () => unknown): unknown {
   throw new Error("expected function to throw");
 }
 
-describe("CSV export/import round-trip", () => {
-  it("preserves all fields through export then import", () => {
-    const original = [
-      entry({
-        localId: "a1",
-        businessRate: 1 / 3,
-      }),
-      entry({
-        id: "e-2",
-        localId: "a2",
-        debit: "地代家賃",
-        debitType: "expense",
-        debitAmount: "50,000",
-        credit: "普通預金",
-        creditType: "asset",
-        creditAmount: "50,000",
-        description: "家賃",
-      }),
-    ];
-    const csv = exportEntriesAsCsv(original);
-    const imported = importEntriesFromCsv({
-      text: csv,
-      fiscalPeriodId: "fp-2",
-    });
-    expect(imported).toHaveLength(2);
-    expect(imported[0]?.localId).toBe("a1");
-    expect(recordToPreviewRows(imported[0]!)[0]?.debit).toBe("普通預金");
-    expect(imported[0]?.businessRate).toBe(1 / 3);
-    expect(imported[1]?.localId).toBe("a2");
-    expect(recordToPreviewRows(imported[1]!)[0]?.debit).toBe("地代家賃");
-    expect(recordToPreviewRows(imported[0]!)[0]?.debitType).toBe("asset");
+describe("importEntriesFromLegacyCsv", () => {
+  const header = [
+    "localId",
+    "date",
+    "weekday",
+    "debit",
+    "debitType",
+    "debitAmount",
+    "credit",
+    "creditType",
+    "creditAmount",
+    "description",
+    "partner",
+    "businessRate",
+    "businessRateRatio",
+    "taxCategory",
+    "businessCategory",
+    "lines",
+    "openkkSchema",
+    "openkkEscapedFields",
+  ].join(",");
+  const quote = (value: string) => `"${value.replaceAll('"', '""')}"`;
+  const lines = [
+    {
+      side: "debit",
+      accountName: "普通預金",
+      accountType: "asset",
+      amount: "89,790",
+      bookAccountId: "acct_bank",
+    },
+    {
+      side: "credit",
+      accountName: "売上",
+      accountType: "revenue",
+      amount: "100,000",
+      bookAccountId: "acct_sales",
+    },
+    {
+      side: "debit",
+      accountName: "事業主貸",
+      accountType: "equity",
+      amount: "10,210",
+      bookAccountId: "acct_withdrawal",
+    },
+  ];
+  const row = [
+    "reward-1",
+    "2026-04-25",
+    "土",
+    "普通預金",
+    "asset",
+    quote("89,790"),
+    "売上",
+    "revenue",
+    quote("100,000"),
+    "'=報酬の入金",
+    "△△社",
+    "100",
+    "1",
+    "対象外",
+    "対象外",
+    quote(JSON.stringify(lines)),
+    "openkk-journal-csv-v1",
+    quote(JSON.stringify(["description"])),
+  ].join(",");
+
+  it("recognises the previous CSV format by its localId column", () => {
+    expect(isLegacyJournalCsv(`﻿${header}\n${row}`)).toBe(true);
+    expect(
+      isLegacyJournalCsv("仕訳番号,日付,借方科目,借方金額,貸方科目,貸方金額"),
+    ).toBe(false);
   });
 
-  it("preserves compound journal lines through CSV export then import", () => {
-    const original = entry({
-      localId: "compound-csv-1",
-      debit: "仕入",
-      debitType: "cost_of_sales",
-      debitAmount: "168,000",
-      credit: "未払金",
-      creditType: "liability",
-      creditAmount: "210,000",
-      lines: [
-        {
-          side: "debit",
-          accountName: "仕入",
-          accountType: "cost_of_sales",
-          amount: "168,000",
-          bookAccountId: "acct_cost_of_sales_商品仕入高",
-          partnerName: "仕入先A",
-          taxCategoryId: "tax_8",
-          businessCategoryId: "biz_2",
-          id: null,
-          taxCategoryName: null,
-          businessCategoryName: null,
-        },
-        {
-          side: "debit",
-          accountName: "荷造運賃",
-          accountType: "expense",
-          amount: "42,000",
-          bookAccountId: "acct_expense_荷造運賃",
-          id: null,
-          partnerName: null,
-          taxCategoryId: null,
-          taxCategoryName: null,
-          businessCategoryId: null,
-          businessCategoryName: null,
-        },
-        {
-          side: "credit",
-          accountName: "未払金",
-          accountType: "liability",
-          amount: "210,000",
-          bookAccountId: "acct_accrued_expense",
-          id: null,
-          partnerName: null,
-          taxCategoryId: null,
-          taxCategoryName: null,
-          businessCategoryId: null,
-          businessCategoryName: null,
-        },
-      ],
-    });
-
-    const imported = importEntriesFromCsv({
-      text: exportEntriesAsCsv([original]),
+  it("reads every line of a compound entry and undoes the formula protection", () => {
+    const [imported] = importEntriesFromLegacyCsv({
+      text: `﻿${header}\n${row}\n`,
       fiscalPeriodId: "fp-2",
     });
 
-    expect(imported[0]?.lines).toEqual(original.lines);
-  });
-
-  it("handles quoted fields containing commas", () => {
-    const original = [
-      entry({
-        localId: "q1",
-        description: 'A,B "quoted"',
-        partner: "株式会社,テスト",
-      }),
-    ];
-    const csv = exportEntriesAsCsv(original);
-    const imported = importEntriesFromCsv({
-      text: csv,
-      fiscalPeriodId: "fp-1",
-    });
-    expect(imported[0]?.description).toBe('A,B "quoted"');
-    expect(recordToPreviewRows(imported[0]!)[0]?.partner).toBe(
-      "株式会社,テスト",
-    );
-  });
-
-  it("preserves carriage returns inside exported fields", () => {
-    const description = "1行目\r2行目";
-    const imported = importEntriesFromCsv({
-      text: exportEntriesAsCsv([entry({ description })]),
-      fiscalPeriodId: "fp-1",
-    });
-
-    expect(imported[0]?.description).toBe(description);
-  });
-
-  it("handles CRLF line endings", () => {
-    const csv = exportEntriesAsCsv([entry({ localId: "crlf1" })]).replace(
-      /\n/g,
-      "\r\n",
-    );
-    const imported = importEntriesFromCsv({
-      text: csv,
-      fiscalPeriodId: "fp-1",
-    });
-    expect(imported).toHaveLength(1);
-    expect(imported[0]?.localId).toBe("crlf1");
-  });
-
-  it("accepts CSV with a leading UTF-8 BOM", () => {
-    const csv = `\uFEFF${exportEntriesAsCsv([entry({ localId: "bom-csv" })])}`;
-    const imported = importEntriesFromCsv({
-      text: csv,
-      fiscalPeriodId: "fp-1",
-    });
-    expect(imported).toHaveLength(1);
-    expect(imported[0]?.localId).toBe("bom-csv");
-  });
-
-  it("returns empty array for header-only CSV", () => {
-    const csv = exportEntriesAsCsv([]);
-    const imported = importEntriesFromCsv({
-      text: csv,
-      fiscalPeriodId: "fp-1",
-    });
-    expect(imported).toHaveLength(0);
-  });
-
-  it("protects spreadsheet formulas without changing re-imported values", () => {
-    const original = entry({
-      localId: "=local-id",
-      description: "+SUM(1,2)",
-      partner: "@partner",
-      taxCategory: "-1+2",
-    });
-    const csv = exportEntriesAsCsv([original]);
-
-    expect(csv).toContain("'=local-id");
-    expect(csv).toContain("'+SUM(1,2)");
-    expect(csv).toContain("'@partner");
-    expect(csv).toContain("'-1+2");
-    const imported = importEntriesFromCsv({
-      text: csv,
+    expect(imported).toMatchObject({
+      localId: "reward-1",
       fiscalPeriodId: "fp-2",
+      description: "=報酬の入金",
+      businessRate: 1,
     });
-    expect(imported[0]?.localId).toBe(original.localId);
-    expect(imported[0]?.description).toBe(original.description);
-    const importedRow = recordToPreviewRows(imported[0]!)[0];
-    const originalRow = recordToPreviewRows(original)[0];
-    expect(importedRow?.partner).toBe(originalRow?.partner);
-    expect(importedRow?.taxCategory).toBe(originalRow?.taxCategory);
-  });
-
-  it("does not strip a user's literal leading apostrophe", () => {
-    const description = "'=literal text";
-    const imported = importEntriesFromCsv({
-      text: exportEntriesAsCsv([entry({ description })]),
-      fiscalPeriodId: "fp-2",
-    });
-
-    expect(imported[0]?.description).toBe(description);
-  });
-
-  it("recomputes weekday from the imported date", () => {
-    const imported = importEntriesFromCsv({
-      text: exportEntriesAsCsv([entry({ weekday: "誤" })]),
-      fiscalPeriodId: "fp-2",
-    });
-
-    expect(imported[0]?.weekday).toBe("木");
-  });
-});
-
-describe("importEntriesFromCsv — error handling", () => {
-  it("rejects a malformed header even when there are no data rows", () => {
-    expect(() =>
-      importEntriesFromCsv({
-        text: "localId,description",
-        fiscalPeriodId: "fp-1",
-      }),
-    ).toThrow(/CSV header missing/);
-  });
-
-  it("throws when required header columns are missing", () => {
-    const badCsv = "localId,description\ne1,test";
-    expect(() =>
-      importEntriesFromCsv({ text: badCsv, fiscalPeriodId: "fp-1" }),
-    ).toThrow(/CSV header missing/);
-  });
-
-  it("throws on duplicate localId in CSV", () => {
-    const csv = exportEntriesAsCsv([
-      entry({ localId: "dup" }),
-      entry({ id: "e-2", localId: "dup" }),
+    expect(
+      imported!.lines.map((line) => [
+        line.side,
+        line.bookAccountId,
+        line.amount,
+      ]),
+    ).toEqual([
+      ["debit", "acct_bank", "89,790"],
+      ["credit", "acct_sales", "100,000"],
+      ["debit", "acct_withdrawal", "10,210"],
     ]);
-    expect(() =>
-      importEntriesFromCsv({ text: csv, fiscalPeriodId: "fp-1" }),
-    ).toThrow(/duplicate localId/);
   });
 
-  it("throws when localId cell is blank", () => {
-    const headers =
-      "localId,date,weekday,debit,debitType,debitAmount,credit,creditType,creditAmount,description,partner,businessRate,taxCategory,businessCategory";
-    const row = ",2026-01-01,月,現金,asset,1000,売上,revenue,1000,test,,,,";
+  it("asks for the columns it needs", () => {
     expect(() =>
-      importEntriesFromCsv({
-        text: `${headers}\n${row}`,
+      importEntriesFromLegacyCsv({
+        text: "localId,description\ne1,test",
         fiscalPeriodId: "fp-1",
       }),
-    ).toThrow(/row 2: localId is required/);
-  });
-
-  it("throws when a CSV entry date is invalid", () => {
-    const headers =
-      "localId,date,weekday,debit,debitType,debitAmount,credit,creditType,creditAmount,description,partner,businessRate,taxCategory,businessCategory";
-    const row =
-      "bad-date,2026-13-01,月,現金,asset,1000,売上,revenue,1000,test,,,,";
-    expect(() =>
-      importEntriesFromCsv({
-        text: `${headers}\n${row}`,
-        fiscalPeriodId: "fp-1",
-      }),
-    ).toThrow(/row 2: invalid date \(2026-13-01\)/);
-  });
-
-  it("rejects an unterminated quoted CSV field", () => {
-    const csv = `${exportEntriesAsCsv([entry()])}\n"unterminated`;
-    expect(() =>
-      importEntriesFromCsv({ text: csv, fiscalPeriodId: "fp-1" }),
-    ).toThrow(/unterminated quoted field/);
-  });
-
-  it("rejects quotes in the middle of an unquoted field", () => {
-    const csv = exportEntriesAsCsv([entry()]).replace("売上入金", '売"上入金');
-
-    expect(() =>
-      importEntriesFromCsv({ text: csv, fiscalPeriodId: "fp-1" }),
-    ).toThrow(/unexpected quote/);
-  });
-
-  it("rejects characters after a closing quote", () => {
-    const csv = exportEntriesAsCsv([entry()]).replace(
-      "売上入金",
-      '"売上入金"x',
-    );
-
-    expect(() =>
-      importEntriesFromCsv({ text: csv, fiscalPeriodId: "fp-1" }),
-    ).toThrow(/unexpected character after a closing quote/);
+    ).toThrow(/CSV header missing/);
   });
 });

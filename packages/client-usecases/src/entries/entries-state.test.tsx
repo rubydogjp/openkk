@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { entryRecordToImportPayload } from "@rubydogjp/openkk-client-domain";
 import {
-  earliestEntryDate,
   removeEntryRecord,
   replaceFiscalPeriodEntryRecords,
   upsertEntryRecord,
@@ -291,18 +290,6 @@ describe("entryRecordToImportPayload", () => {
         businessCategoryId: "biz_service",
       }),
     ]);
-  });
-});
-
-describe("earliestEntryDate", () => {
-  it("uses only records actually inserted by the backend", () => {
-    const inserted = [
-      entry({ id: "new-december", date: "2026-12-20" }),
-      entry({ id: "new-october", date: "2026-10-05" }),
-    ];
-
-    expect(earliestEntryDate(inserted)).toBe("2026-10-05");
-    expect(earliestEntryDate([])).toBeNull();
   });
 });
 

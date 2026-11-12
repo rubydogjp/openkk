@@ -83,16 +83,7 @@ export function EntryFileActionsButton(props: {
         >
           {props.onImportFile != null ? (
             <>
-              <MenuSectionLabel>読み込む</MenuSectionLabel>
-              <FileMenuItem
-                accept=".json,application/json"
-                onSelect={(file) => {
-                  props.onImportFile?.("json", file);
-                  setOpen(false);
-                }}
-              >
-                JSON ファイルから
-              </FileMenuItem>
+              <MenuSectionLabel>取り込む</MenuSectionLabel>
               <FileMenuItem
                 accept=".csv,text/csv"
                 onSelect={(file) => {
@@ -100,7 +91,16 @@ export function EntryFileActionsButton(props: {
                   setOpen(false);
                 }}
               >
-                CSV ファイルから
+                CSV ファイルから (置き換え)
+              </FileMenuItem>
+              <FileMenuItem
+                accept=".json,application/json"
+                onSelect={(file) => {
+                  props.onImportFile?.("json", file);
+                  setOpen(false);
+                }}
+              >
+                JSON ファイルから (非推奨・追加のみ)
               </FileMenuItem>
             </>
           ) : null}
@@ -112,19 +112,19 @@ export function EntryFileActionsButton(props: {
               <MenuSectionLabel>書き出す</MenuSectionLabel>
               <MenuItem
                 onClick={() => {
-                  props.onExport?.("json");
-                  setOpen(false);
-                }}
-              >
-                JSON でダウンロード
-              </MenuItem>
-              <MenuItem
-                onClick={() => {
                   props.onExport?.("csv");
                   setOpen(false);
                 }}
               >
                 CSV でダウンロード
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  props.onExport?.("json");
+                  setOpen(false);
+                }}
+              >
+                JSON でダウンロード (非推奨)
               </MenuItem>
             </>
           ) : null}
