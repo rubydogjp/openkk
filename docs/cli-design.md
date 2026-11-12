@@ -21,7 +21,7 @@
 
 ### zip を作業用にしない理由
 
-- zip (`driver/src/domain/archive/fiscal-period-archive.ts`) は 1 期間分の JSON。取り込むと完了済みの期間として復元される受け渡し用の形式で、日々書き換える用途に向かない
+- zip (`driver/src/domain/legacy/legacy-archive-zip.ts`) は 1 期間分の JSON。取り込むと完了済みの期間として復元される受け渡し用の形式で、日々書き換える用途に向かない
 - ブラウザ版を変えずに CLI との間でデータを移せるのは、今は zip と仕訳の CSV / JSON だけ。ベータの持ち運び手段はこれにする
 
 ### 無印版との行き来

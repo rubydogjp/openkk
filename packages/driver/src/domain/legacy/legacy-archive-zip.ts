@@ -1,4 +1,13 @@
 import { AppError } from "../shared/app-error.js";
+import {
+  assertFiscalPeriodArchivePayload,
+  type FiscalPeriodArchivePayload,
+} from "../archive/fiscal-period-archive.js";
+import {
+  invalidArchiveContentError,
+  MAX_FISCAL_PERIOD_ARCHIVE_BYTES,
+  MAX_FISCAL_PERIOD_ARCHIVE_FILE_BYTES,
+} from "../archive/fiscal-period-archive-limits.js";
 
 export type ArchiveZipFile = {
   name: string;
@@ -20,8 +29,6 @@ const textDecoder = new TextDecoder("utf-8", { fatal: true });
 const ZIP_STORE_METHOD = 0;
 const ZIP_UTF8_FLAG = 0x0800;
 const ZIP_END_SIZE = 22;
-export const MAX_FISCAL_PERIOD_ARCHIVE_BYTES = 64 * 1024 * 1024;
-export const MAX_FISCAL_PERIOD_ARCHIVE_FILE_BYTES = 32 * 1024 * 1024;
 const MAX_ARCHIVE_FILES = 32;
 
 const ZIP_SIGNATURES = [
@@ -29,7 +36,7 @@ const ZIP_SIGNATURES = [
   [0x50, 0x4b, 0x05, 0x06],
 ];
 
-export function looksLikeZip(head: Uint8Array): boolean {
+export function looksLikeLegacyArchiveZip(head: Uint8Array): boolean {
   return ZIP_SIGNATURES.some((signature) =>
     signature.every((byte, index) => head[index] === byte),
   );
@@ -109,12 +116,12 @@ export function createStoredZip(files: ArchiveZipFile[]): Uint8Array {
   writeUint32(endView, 16, centralDirectoryOffset);
   writeUint16(endView, 20, 0);
   const parts = [...localParts, ...centralParts, end];
-  assertFiscalPeriodArchiveByteLength(totalLength(parts));
+  assertLegacyArchiveZipByteLength(totalLength(parts));
   return concatBytes(parts);
 }
 
 export function readStoredZip(bytes: Uint8Array): Map<string, Uint8Array> {
-  assertFiscalPeriodArchiveByteLength(bytes.length);
+  assertLegacyArchiveZipByteLength(bytes.length);
   if (bytes.length < ZIP_END_SIZE) {
     throw corruptedArchiveFileError("archive zip end record is missing");
   }
@@ -251,7 +258,7 @@ export function readStoredZip(bytes: Uint8Array): Map<string, Uint8Array> {
   return files;
 }
 
-export function assertFiscalPeriodArchiveByteLength(byteLength: number): void {
+export function assertLegacyArchiveZipByteLength(byteLength: number): void {
   if (
     !Number.isSafeInteger(byteLength) ||
     byteLength < 0 ||
@@ -346,19 +353,6 @@ function unsupportedArchiveFileError(messageForDeveloper: string): AppError {
   });
 }
 
-export function invalidArchiveContentError(
-  messageForDeveloper: string,
-): AppError {
-  return new AppError({
-    messageForDeveloper,
-    messageForUser:
-      "圧縮済みファイルの内容を確認できませんでした。作成元の会計期間データからもう一度圧縮保存してください。",
-    originalMessage: null,
-    statusCode: null,
-    code: null,
-  });
-}
-
 function concatBytes(parts: Uint8Array[]): Uint8Array {
   const output = new Uint8Array(totalLength(parts));
   let offset = 0;
@@ -404,4 +398,58 @@ function getCrcTable(): Uint32Array {
   }
   crcTable = table;
   return table;
+}
+
+export function createLegacyArchiveZip(
+  payload: FiscalPeriodArchivePayload,
+): Uint8Array {
+  assertFiscalPeriodArchivePayload(payload);
+  return createStoredZip([
+    jsonFile("manifest.json", payload.manifest),
+    jsonFile("fiscal-period.json", payload.fiscalPeriod),
+    jsonFile("entries.json", payload.entries),
+    jsonFile("fixed-assets.json", payload.fixedAssets),
+    jsonFile("closings.json", payload.closings),
+  ]);
+}
+
+export function readLegacyArchiveZip(
+  bytes: Uint8Array,
+): FiscalPeriodArchivePayload {
+  const files = readStoredZip(bytes);
+  const payload: FiscalPeriodArchivePayload = {
+    manifest: readJsonFile(files, "manifest.json"),
+    fiscalPeriod: readJsonFile(files, "fiscal-period.json"),
+    entries: readJsonFile(files, "entries.json"),
+    fixedAssets: readJsonFile(files, "fixed-assets.json"),
+    closings: readJsonFile(files, "closings.json"),
+  };
+  assertFiscalPeriodArchivePayload(payload);
+  return payload;
+}
+
+function jsonFile(name: string, value: unknown): ArchiveZipFile {
+  return {
+    name,
+    bytes: textEncoder.encode(`${JSON.stringify(value, null, 2)}\n`),
+  };
+}
+
+function readJsonFile<T>(files: Map<string, Uint8Array>, name: string): T {
+  const bytes = files.get(name);
+  if (bytes == null) {
+    throw invalidArchiveContentError(`archive file missing: ${name}`);
+  }
+  try {
+    return JSON.parse(textDecoder.decode(bytes)) as T;
+  } catch (error) {
+    throw new AppError({
+      messageForDeveloper: `archive json parse failed: ${name}`,
+      messageForUser:
+        "圧縮済みファイル内のデータ形式を確認できませんでした。別のファイルを選択してください。",
+      originalMessage: error instanceof Error ? error.message : String(error),
+      statusCode: null,
+      code: null,
+    });
+  }
 }

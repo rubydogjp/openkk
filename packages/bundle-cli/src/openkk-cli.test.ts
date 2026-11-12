@@ -3,7 +3,10 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { buildFiscalPeriodArchiveZip } from "@rubydogjp/openkk-driver";
+import {
+  createLegacyArchiveZip,
+  loadFiscalPeriodArchivePayload,
+} from "@rubydogjp/openkk-driver";
 
 import { openCliBook } from "./book.js";
 import {
@@ -550,11 +553,13 @@ describe("openkk cli", () => {
     const [period] = await book.backend.fiscalPeriods.getAll();
     fs.writeFileSync(
       path.join(cwd, "2026.zip"),
-      await buildFiscalPeriodArchiveZip(
-        book.backend,
-        period!,
-        new Date("2026-12-31T12:00:00"),
-        () => {},
+      createLegacyArchiveZip(
+        await loadFiscalPeriodArchivePayload(
+          book.backend,
+          period!,
+          new Date("2026-12-31T12:00:00"),
+          () => {},
+        ),
       ),
     );
     book.close();

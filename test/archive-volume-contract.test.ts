@@ -2,8 +2,8 @@ import { expect, it } from "vitest";
 import {
   archiveClosingRecords,
   buildFiscalPeriodArchivePayload,
-  createFiscalPeriodArchiveZip,
-  readFiscalPeriodArchiveZip,
+  createLegacyArchiveZip,
+  readLegacyArchiveZip,
 } from "../packages/driver/src/domain/index.js";
 import { createMemoryDbAdapter } from "../packages/memory-db-adapter/src/index.js";
 import { createOpenkkBackendApi } from "../packages/backend-api/src/index.js";
@@ -46,7 +46,7 @@ it("restores an archive containing multiple entry import batches", async () => {
     documentsReceivedCompleted: true,
   });
   const entries = await source.entries.getAll(period.id);
-  const zip = createFiscalPeriodArchiveZip(
+  const zip = createLegacyArchiveZip(
     buildFiscalPeriodArchivePayload({
       createdAt: "2027-01-01T00:00:00Z",
       fiscalPeriod: closed,
@@ -59,7 +59,7 @@ it("restores an archive containing multiple entry import batches", async () => {
     userId: "user-1",
   });
   const restored = await target.fiscalPeriods.importArchived(
-    readFiscalPeriodArchiveZip(zip),
+    readLegacyArchiveZip(zip),
   );
   const restoredEntries = await target.entries.getAll(restored.id);
   const content = (items: typeof entries) =>

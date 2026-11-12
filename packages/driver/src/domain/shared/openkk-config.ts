@@ -3,11 +3,11 @@ import type { EmbeddedUser } from "./user.js";
 export type OpenkkAuthMode = "embedded" | "custom";
 
 export type FiscalPeriodPolicy = {
-  allowArchiveImport: boolean;
+  allowLegacyArchiveImport: boolean;
 };
 
 export const DEFAULT_FISCAL_PERIOD_POLICY: FiscalPeriodPolicy = {
-  allowArchiveImport: true,
+  allowLegacyArchiveImport: true,
 };
 
 export type EditingPolicy = {

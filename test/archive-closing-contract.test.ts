@@ -4,8 +4,8 @@ import {
   buildClosingVirtualEntries,
   buildFiscalPeriodArchivePayload,
   computeFsAggregate,
-  createFiscalPeriodArchiveZip,
-  readFiscalPeriodArchiveZip,
+  createLegacyArchiveZip,
+  readLegacyArchiveZip,
   withClosingVirtualEntries,
 } from "../packages/driver/src/domain/index.js";
 import { entryRecord } from "../packages/driver/test-support/entry-record.js";
@@ -93,7 +93,7 @@ describe("archived closing reports", () => {
       const closed = await backendApi.fiscalPeriods.patch(period.id, {
         documentsReceivedCompleted: true,
       });
-      const zip = createFiscalPeriodArchiveZip(
+      const zip = createLegacyArchiveZip(
         buildFiscalPeriodArchivePayload({
           createdAt: today.toISOString(),
           fiscalPeriod: closed,
@@ -109,7 +109,7 @@ describe("archived closing reports", () => {
         },
       );
       const restored = await restoredBackendApi.fiscalPeriods.importArchived(
-        readFiscalPeriodArchiveZip(zip),
+        readLegacyArchiveZip(zip),
       );
       const restoredAssets = await restoredBackendApi.fixedAssets.getAll(
         restored.id,

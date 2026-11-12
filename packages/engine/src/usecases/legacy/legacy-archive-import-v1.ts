@@ -1,5 +1,5 @@
-import { requireObject } from "../domain/index.js";
-import type { FiscalPeriodArchiveContent } from "./archive-import.js";
+import { requireObject } from "../../domain/index.js";
+import type { FiscalPeriodArchiveContent } from "../archive-import.js";
 
 const TAX_CATEGORY_IDS: Readonly<Record<string, string>> = {
   "課税 10%": "tax_10",
@@ -19,7 +19,7 @@ const BUSINESS_CATEGORY_IDS: Readonly<Record<string, string>> = {
   対象外: "biz_none",
 };
 
-export function migrateFiscalPeriodArchiveV1(
+export function migrateLegacyArchiveV1(
   content: FiscalPeriodArchiveContent,
 ): FiscalPeriodArchiveContent {
   return {

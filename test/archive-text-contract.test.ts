@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   buildFiscalPeriodArchivePayload,
-  createFiscalPeriodArchiveZip,
-  readFiscalPeriodArchiveZip,
+  createLegacyArchiveZip,
+  readLegacyArchiveZip,
 } from "../packages/driver/src/domain/index.js";
 import { createMemoryDbAdapter } from "../packages/memory-db-adapter/src/index.js";
 import { buildExpectedClosingEntries } from "../packages/engine/src/domain/index.js";
@@ -81,7 +81,7 @@ describe("archive text preservation", () => {
         userId: "user-1",
       });
       const restored = await target.fiscalPeriods.importArchived(
-        readFiscalPeriodArchiveZip(createFiscalPeriodArchiveZip(payload)),
+        readLegacyArchiveZip(createLegacyArchiveZip(payload)),
       );
       const entries = await target.entries.getAll(restored.id);
       const fixedAssets = await target.fixedAssets.getAll(restored.id);
@@ -109,7 +109,7 @@ describe("archive text preservation", () => {
       );
       const reimported =
         await reimportedBackendApi.fiscalPeriods.importArchived(
-          readFiscalPeriodArchiveZip(createFiscalPeriodArchiveZip(reExported)),
+          readLegacyArchiveZip(createLegacyArchiveZip(reExported)),
         );
       expect(reimported.name).toBe(text);
       expect(

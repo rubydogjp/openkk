@@ -4,7 +4,7 @@ export async function archivedPeriodZip(): Promise<Uint8Array> {
   const {
     archiveClosingRecords,
     buildFiscalPeriodArchivePayload,
-    createFiscalPeriodArchiveZip,
+    createLegacyArchiveZip,
   } = await import("@rubydogjp/openkk-driver");
   const { createMemoryDbAdapter } =
     await import("@rubydogjp/openkk-memory-db-adapter");
@@ -65,7 +65,7 @@ export async function archivedPeriodZip(): Promise<Uint8Array> {
   period = await backendApi.fiscalPeriods.patch(period.id, {
     documentsReceivedCompleted: true,
   });
-  return createFiscalPeriodArchiveZip(
+  return createLegacyArchiveZip(
     buildFiscalPeriodArchivePayload({
       createdAt: "2027-01-01T00:00:00.000Z",
       fiscalPeriod: period,

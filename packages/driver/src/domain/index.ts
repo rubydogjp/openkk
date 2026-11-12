@@ -10,7 +10,8 @@ export * from "./shared/parse-utils.js";
 export { MAX_TEXT_FIELD_LENGTH } from "./shared/text-limits.js";
 
 export * from "./entries/entries-types.js";
-export * from "./entries/import-export.js";
+export * from "./entries/journal-import-bytes.js";
+export * from "./legacy/legacy-journal-files.js";
 export * from "./entries/journal-table.js";
 export * from "./entries/entry-record.js";
 export * from "./entries/generated-master-data.js";
@@ -28,11 +29,15 @@ export * from "./assist/stored-record-mapping.js";
 
 export * from "./archive/fiscal-period-archive.js";
 export {
-  assertFiscalPeriodArchiveByteLength,
-  looksLikeZip,
   MAX_FISCAL_PERIOD_ARCHIVE_BYTES,
   MAX_FISCAL_PERIOD_ARCHIVE_FILE_BYTES,
-} from "./archive/fiscal-period-archive-zip.js";
+} from "./archive/fiscal-period-archive-limits.js";
+export {
+  assertLegacyArchiveZipByteLength,
+  createLegacyArchiveZip,
+  looksLikeLegacyArchiveZip,
+  readLegacyArchiveZip,
+} from "./legacy/legacy-archive-zip.js";
 
 export * from "./steps/period-check.js";
 export * from "./steps/step-derivation.js";

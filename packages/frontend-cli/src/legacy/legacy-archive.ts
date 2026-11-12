@@ -1,13 +1,13 @@
 import {
-  assertFiscalPeriodArchiveByteLength,
+  assertLegacyArchiveZipByteLength,
   fiscalPeriodPhaseLabel,
-  readFiscalPeriodArchiveZip,
+  readLegacyArchiveZip,
 } from "@rubydogjp/openkk-driver";
 
 import { CliUsageError } from "../cli-output.js";
 import type { CliCommandContext } from "../command-context.js";
 
-export async function runArchiveCommand(
+export async function runLegacyArchiveCommand(
   context: CliCommandContext,
 ): Promise<void> {
   const [subcommand, target] = context.args;
@@ -18,9 +18,9 @@ export async function runArchiveCommand(
         throw new CliUsageError("取り込む zip ファイルを指定してください");
       }
       const bytes = context.files.readBytes(context.files.resolve(target));
-      assertFiscalPeriodArchiveByteLength(bytes.byteLength);
+      assertLegacyArchiveZipByteLength(bytes.byteLength);
       const imported = await backend.fiscalPeriods.importArchived(
-        readFiscalPeriodArchiveZip(bytes),
+        readLegacyArchiveZip(bytes),
       );
       if (options.json) {
         output.json(imported);

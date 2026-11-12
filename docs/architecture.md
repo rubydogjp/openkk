@@ -3,6 +3,7 @@
 オープン会計 の箱 (パッケージ) の種類、箱の中の層、依存の向きの解説。
 依存グラフ: [`dependency-graph.md`](./dependency-graph.md)
 API 契約: [`api-contract.md`](./api-contract.md)
+レガシーなコードの一覧: [`legacy.md`](./legacy.md)
 SQLite スキーマ: [`database-schema.md`](./database-schema.md)
 
 ## 箱の種類
@@ -198,7 +199,7 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
   - 確かめのダイアログから「先に今のデータを保存」できる。確かめている間に帳簿が変わっていたら取り込まず、やり直しを求める。
 - 複数の期間が入ったファイル (openkk-cli で作ったもの) は、期間ごとの帳簿に分けて取り込む (`splitBookFile`)。分けたあと、期間・仕訳・固定資産が元と同じかを確かめ、違えば取り込まない。
 - 取り込んだあとはページを読み込み直し、取り込んだ期間を選んだ状態で始める。
-- 無印版は取り込みの入口を 1 つにしている。選んだファイルの先頭が zip なら、前の版の圧縮済みファイルとして `fiscalPeriods.importArchived` に渡す (`looksLikeZip`)。それ以外は帳簿のファイルとして扱う。
+- 無印版は取り込みの入口を 1 つにしている。選んだファイルの先頭が zip なら、前の版の圧縮済みファイルとして `fiscalPeriods.importArchived` に渡す (`looksLikeLegacyArchiveZip`)。それ以外は帳簿のファイルとして扱う。
 - どの製品にも圧縮保存の操作を出さない。「次の期間へ」の手順には、「保存」と同じファイルを出す「バックアップをダウンロード」を置く。圧縮保存の契約 (`archive` / `purgeArchivedData`) と状態 (`archiveStatus`) は、前の版のデータのために残している (レガシー)。
 - 無印版はファイルを見張らない。ファイルを読むのは取り込むときだけ。
 
@@ -214,7 +215,7 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 
 ### 前の版の帳簿を移す
 
-26.3 までの無印版は、すべての期間を OPFS の SAHPool (`.openkk/` の `/openkk.sqlite3`) の 1 つの DB に置いていた。新しい版は起動するとき、その DB を `exportLegacyDbBytes` (`legacy-db-adapter`) で書き出し、期間ごとの帳簿に分けて (`splitBookFile`) 置き場に書く (`packages/bundle-original/app/legacy-book.ts`)。期間の ID は変えない。
+26.3 までの無印版は、すべての期間を OPFS の SAHPool (`.openkk/` の `/openkk.sqlite3`) の 1 つの DB に置いていた。新しい版は起動するとき、その DB を `exportLegacyDbBytes` (`legacy-db-adapter`) で書き出し、期間ごとの帳簿に分けて (`splitBookFile`) 置き場に書く (`packages/bundle-original/app/legacy/legacy-book.ts`)。期間の ID は変えない。
 
 - 前の DB は消さない。すべての期間を書けたら OPFS の直下に印 (`openkk-legacy-book-moved`) を置き、二度は移さない。
 - 途中で止まったら印を置かず、次の起動で続きから移す。すでに置き場にある期間 (ID で見分ける) は書かない。

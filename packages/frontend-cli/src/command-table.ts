@@ -5,7 +5,7 @@ import type {
   CliFiles,
   CliOptions,
 } from "./command-context.js";
-import { runArchiveCommand } from "./commands/archive.js";
+import { runLegacyArchiveCommand } from "./legacy/legacy-archive.js";
 import { runClosingCommand } from "./commands/closing.js";
 import { runEntriesCommand } from "./commands/entries.js";
 import { runOpeningCommand } from "./commands/opening.js";
@@ -22,7 +22,7 @@ const COMMANDS = new Map<string, (context: CliCommandContext) => Promise<void>>(
     ["entries", runEntriesCommand],
     ["closing", runClosingCommand],
     ["report", runReportCommand],
-    ["archive", runArchiveCommand],
+    ["archive", runLegacyArchiveCommand],
   ],
 );
 

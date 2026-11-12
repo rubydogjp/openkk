@@ -12,11 +12,11 @@ import {
   type BookStore,
 } from "@rubydogjp/openkk-books-db-adapter";
 
-import { createDiskDbAdapter } from "../../disk-db-adapter/src/index.js";
+import { createDiskDbAdapter } from "../../../disk-db-adapter/src/index.js";
 import {
   createLegacyBook,
   type LegacyBookDependencies,
-} from "../app/legacy-book";
+} from "../../app/legacy/legacy-book";
 
 const USER = "openkk-original-user";
 const tempDirs: string[] = [];

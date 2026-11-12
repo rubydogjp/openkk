@@ -3,8 +3,8 @@ import {
   resolveEntryPairMetadata,
   type EntryLine,
   type EntryRecord,
-} from "./entry-record.js";
-import type { BookAccountType } from "./book-account.js";
+} from "../entries/entry-record.js";
+import type { BookAccountType } from "../entries/book-account.js";
 import { AppError } from "../shared/app-error.js";
 import { isBlankCsvRow, parseCsv, stripByteOrderMark } from "../shared/csv.js";
 import {
@@ -20,19 +20,11 @@ import {
   assertEntryImportItemCount,
   assertEntryImportLineCount,
   assertEntryImportSize,
-} from "./entry-limits.js";
-
-export {
-  assertEntryImportSize,
-  MAX_ENTRY_LINES,
-  MAX_ENTRY_IMPORT_ITEMS,
-  MAX_ENTRY_IMPORT_LINES,
-  MAX_ENTRY_IMPORT_SIZE,
-} from "./entry-limits.js";
+} from "../entries/entry-limits.js";
 
 export const OPENKK_JOURNAL_SCHEMA = "openkk-journal-v1";
 
-export function exportEntriesAsJson(entries: EntryRecord[]) {
+export function exportEntriesAsLegacyJson(entries: EntryRecord[]) {
   return JSON.stringify(
     {
       schema: OPENKK_JOURNAL_SCHEMA,
@@ -55,7 +47,7 @@ export function exportEntriesAsJson(entries: EntryRecord[]) {
   );
 }
 
-export function importEntriesFromJson(input: {
+export function importEntriesFromLegacyJson(input: {
   text: string;
   fiscalPeriodId: string;
 }): EntryRecord[] {
@@ -221,22 +213,6 @@ function journalFields(entry: EntryRecord) {
     creditAmount: pair.credit?.amount ?? "",
     ...resolveEntryPairMetadata(pair),
   };
-}
-
-export function decodeJournalImportBytes(bytes: Uint8Array): string {
-  assertEntryImportSize(bytes.byteLength);
-  try {
-    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-  } catch (error) {
-    throw new AppError({
-      messageForDeveloper: "entries import is not valid UTF-8",
-      messageForUser:
-        "取込ファイルの文字コードを確認できませんでした。UTF-8形式で保存してからもう一度取り込んでください。",
-      originalMessage: error instanceof Error ? error.message : String(error),
-      statusCode: null,
-      code: null,
-    });
-  }
 }
 
 function parseCsvLinesCell(raw: string, rowNumber: number): unknown[] {

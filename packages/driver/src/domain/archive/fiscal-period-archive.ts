@@ -1,11 +1,5 @@
-import { AppError } from "../shared/app-error.js";
 import type { FiscalPeriodPhase } from "../shared/models.js";
-import {
-  createStoredZip,
-  invalidArchiveContentError,
-  readStoredZip,
-  type ArchiveZipFile,
-} from "./fiscal-period-archive-zip.js";
+import { invalidArchiveContentError } from "./fiscal-period-archive-limits.js";
 
 export const FISCAL_PERIOD_ARCHIVE_FORMAT = "openkk.fiscal-period-archive";
 export const FISCAL_PERIOD_ARCHIVE_VERSION = 2;
@@ -29,9 +23,6 @@ export type FiscalPeriodArchivePayload = {
   fixedAssets: Array<Record<string, unknown>>;
   closings: Array<Record<string, unknown>>;
 };
-
-const textEncoder = new TextEncoder();
-const textDecoder = new TextDecoder("utf-8", { fatal: true });
 
 export function buildFiscalPeriodArchivePayload(input: {
   createdAt: string;
@@ -78,34 +69,6 @@ export function archiveClosingRecords(fiscalPeriod: {
   return fiscalPeriod.phase === "pre_closing" ? [record("pre_closing")] : [];
 }
 
-export function createFiscalPeriodArchiveZip(
-  payload: FiscalPeriodArchivePayload,
-): Uint8Array {
-  assertFiscalPeriodArchivePayload(payload);
-  return createStoredZip([
-    jsonFile("manifest.json", payload.manifest),
-    jsonFile("fiscal-period.json", payload.fiscalPeriod),
-    jsonFile("entries.json", payload.entries),
-    jsonFile("fixed-assets.json", payload.fixedAssets),
-    jsonFile("closings.json", payload.closings),
-  ]);
-}
-
-export function readFiscalPeriodArchiveZip(
-  bytes: Uint8Array,
-): FiscalPeriodArchivePayload {
-  const files = readStoredZip(bytes);
-  const payload: FiscalPeriodArchivePayload = {
-    manifest: readJsonFile(files, "manifest.json"),
-    fiscalPeriod: readJsonFile(files, "fiscal-period.json"),
-    entries: readJsonFile(files, "entries.json"),
-    fixedAssets: readJsonFile(files, "fixed-assets.json"),
-    closings: readJsonFile(files, "closings.json"),
-  };
-  assertFiscalPeriodArchivePayload(payload);
-  return payload;
-}
-
 export const OPENKK_BOOK_FILE_EXTENSION = ".openkk";
 
 function fiscalPeriodFileBase(name: string): string {
@@ -115,14 +78,6 @@ function fiscalPeriodFileBase(name: string): string {
     .replace(/\s+/g, "_")
     .slice(0, 80);
   return safeName.length > 0 ? safeName : "fiscal-period";
-}
-
-export function buildFiscalPeriodArchiveFilename(input: {
-  name: string;
-  startDate: string;
-  endDate: string;
-}): string {
-  return `${fiscalPeriodFileBase(input.name)}_${input.startDate}_${input.endDate}.zip`;
 }
 
 export function buildFiscalPeriodJournalFilename(
@@ -136,33 +91,7 @@ export function buildFiscalPeriodBookFilename(input: { name: string }): string {
   return `${fiscalPeriodFileBase(input.name)}${OPENKK_BOOK_FILE_EXTENSION}`;
 }
 
-function jsonFile(name: string, value: unknown): ArchiveZipFile {
-  return {
-    name,
-    bytes: textEncoder.encode(`${JSON.stringify(value, null, 2)}\n`),
-  };
-}
-
-function readJsonFile<T>(files: Map<string, Uint8Array>, name: string): T {
-  const bytes = files.get(name);
-  if (bytes == null) {
-    throw invalidArchiveContentError(`archive file missing: ${name}`);
-  }
-  try {
-    return JSON.parse(textDecoder.decode(bytes)) as T;
-  } catch (error) {
-    throw new AppError({
-      messageForDeveloper: `archive json parse failed: ${name}`,
-      messageForUser:
-        "圧縮済みファイル内のデータ形式を確認できませんでした。別のファイルを選択してください。",
-      originalMessage: error instanceof Error ? error.message : String(error),
-      statusCode: null,
-      code: null,
-    });
-  }
-}
-
-function assertFiscalPeriodArchivePayload(
+export function assertFiscalPeriodArchivePayload(
   payload: FiscalPeriodArchivePayload,
 ): void {
   if (payload.manifest?.format !== FISCAL_PERIOD_ARCHIVE_FORMAT) {

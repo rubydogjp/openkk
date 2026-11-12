@@ -4,10 +4,7 @@ import { useRef, useState } from "react";
 
 import {
   AppError,
-  assertFiscalPeriodArchiveByteLength,
   fiscalPeriodPhaseLabel,
-  looksLikeZip,
-  readFiscalPeriodArchiveZip,
   type FiscalPeriod,
 } from "@rubydogjp/openkk-driver";
 import {
@@ -36,6 +33,10 @@ import {
   sizes,
   typography,
 } from "../shared/design-tokens.js";
+import {
+  importLegacyArchiveZipFile,
+  isLegacyArchiveZipFile,
+} from "../legacy/legacy-archive-import.js";
 import { LEGACY_PURGED_PERIOD_LABEL } from "../legacy/legacy-purged-fiscal-period-screen.js";
 import { useRouter } from "../routing/routing.js";
 
@@ -44,7 +45,8 @@ export function FiscalPeriodsContent() {
   const appState = useOpenkkAppState();
   const openkkConfig = useOpenkkConfig();
   const editingLocked = openkkConfig.editingPolicy.locked;
-  const allowArchiveImport = openkkConfig.fiscalPeriodPolicy.allowArchiveImport;
+  const allowLegacyArchiveImport =
+    openkkConfig.fiscalPeriodPolicy.allowLegacyArchiveImport;
   const bookFiles = useOpenkkBookFiles();
   const platform = usePlatformAdapter();
   const { confirmWithExtraAction, dialog: bookImportDialog } =
@@ -61,17 +63,14 @@ export function FiscalPeriodsContent() {
       onDismiss: () => setFileMenuOpen(false),
     });
 
-  const handleArchiveFile = async (file: File) => {
+  const handleLegacyArchiveFile = async (file: File) => {
     const release = archiveImportLock.current.tryAcquire();
     if (release == null) return;
     setIsImportingArchive(true);
     try {
       setScreenError(null);
       setBookImportNotice(null);
-      assertFiscalPeriodArchiveByteLength(file.size);
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      const payload = readFiscalPeriodArchiveZip(bytes);
-      const createdId = await appState.importArchivedFiscalPeriod(payload);
+      const createdId = await importLegacyArchiveZipFile(appState, file);
       appState.selectFiscalPeriod(createdId);
       router.push("/steps");
     } catch (error) {
@@ -158,9 +157,8 @@ export function FiscalPeriodsContent() {
   };
 
   const handleFileToImport = async (file: File) => {
-    const head = new Uint8Array(await file.slice(0, 4).arrayBuffer());
-    if (allowArchiveImport && looksLikeZip(head)) {
-      await handleArchiveFile(file);
+    if (allowLegacyArchiveImport && (await isLegacyArchiveZipFile(file))) {
+      await handleLegacyArchiveFile(file);
       return;
     }
     if (bookFiles == null) {
@@ -170,7 +168,7 @@ export function FiscalPeriodsContent() {
     await handleBookFile(file);
   };
 
-  const showFileMenu = allowArchiveImport || bookFiles != null;
+  const showFileMenu = allowLegacyArchiveImport || bookFiles != null;
 
   return (
     <section
@@ -265,7 +263,7 @@ export function FiscalPeriodsContent() {
                     detail={
                       bookFiles == null
                         ? "以前の圧縮済みファイル (.zip)"
-                        : allowArchiveImport
+                        : allowLegacyArchiveImport
                           ? "保存したファイル (.openkk)。以前の圧縮済みファイル (.zip) も取り込めます"
                           : "保存したファイル (.openkk)"
                     }

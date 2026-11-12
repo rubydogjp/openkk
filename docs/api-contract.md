@@ -98,9 +98,9 @@ type OpenkkBackendPort = {
 
 `OpenkkConfig.fiscalPeriodPolicy` holds one switch.
 
-| Field                | Default | Meaning                                                                    |
-| -------------------- | ------- | -------------------------------------------------------------------------- |
-| `allowArchiveImport` | `true`  | Allow importing an archive zip made by an earlier version (legacy import). |
+| Field                      | Default | Meaning                                                                    |
+| -------------------------- | ------- | -------------------------------------------------------------------------- |
+| `allowLegacyArchiveImport` | `true`  | Allow importing an archive zip made by an earlier version (legacy import). |
 
 `opening` is always present: a period without opening balances carries an empty one.
 
@@ -121,7 +121,7 @@ The archive operations stay in the contract for data made by earlier versions an
 The `openkk.fiscal-period-archive` zip (current `version: 2`) is a versioned public contract:
 archives exported by any backend re-import into OpenKK. A zip contains `manifest.json`, `fiscal-period.json`,
 `entries.json`, `fixed-assets.json`, `closings.json` (stored, UTF-8, CRC32-checked).
-Build/read it via `createFiscalPeriodArchiveZip` / `readFiscalPeriodArchiveZip`.
+Build/read it via `createLegacyArchiveZip` / `readLegacyArchiveZip`.
 Version 2 represents nullable fields as JSON `null`; imports also accept version 1.
 `closings.json` lists the closing steps that `phase` has passed, each with the fiscal period end year.
 Imports reject records that disagree with `phase`.

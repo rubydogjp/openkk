@@ -2,9 +2,9 @@ import {
   buildJournalTableRows,
   decodeJournalImportBytes,
   diffJournalTableEntries,
-  exportEntriesAsJson,
+  exportEntriesAsLegacyJson,
   formatJournalTableCsv,
-  importEntriesFromJson,
+  importEntriesFromLegacyJson,
   importEntriesFromLegacyCsv,
   isLegacyJournalCsv,
   isMaterializedVirtualEntry,
@@ -39,7 +39,10 @@ export function planJournalImport(input: {
       kind: "append",
       entries: fromLegacyCsv
         ? importEntriesFromLegacyCsv({ text, fiscalPeriodId: fiscalPeriod.id })
-        : importEntriesFromJson({ text, fiscalPeriodId: fiscalPeriod.id }),
+        : importEntriesFromLegacyJson({
+            text,
+            fiscalPeriodId: fiscalPeriod.id,
+          }),
       fromLegacyCsv,
     };
   }
@@ -73,7 +76,7 @@ export function formatJournalExport(
   master: JournalTableMaster,
 ): string {
   return fileKind === "json"
-    ? exportEntriesAsJson(
+    ? exportEntriesAsLegacyJson(
         entries.filter((entry) => !isMaterializedVirtualEntry(entry)),
       )
     : formatJournalTableCsv(buildJournalTableRows(entries, master));

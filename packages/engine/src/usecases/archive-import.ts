@@ -23,7 +23,7 @@ import type {
   FiscalPeriodArchiveDbImportInput,
   FixedAssetDbImportInput,
 } from "../ports/index.js";
-import { migrateFiscalPeriodArchiveV1 } from "./archive-import-v1.js";
+import { migrateLegacyArchiveV1 } from "./legacy/legacy-archive-import-v1.js";
 
 type FiscalPeriodArchiveVersion = 1 | 2;
 
@@ -98,7 +98,7 @@ export function normalizeArchiveImportInput(
     closings: sourceClosings,
   };
   const { fiscalPeriod, entries, fixedAssets, closings } =
-    archiveVersion === 1 ? migrateFiscalPeriodArchiveV1(content) : content;
+    archiveVersion === 1 ? migrateLegacyArchiveV1(content) : content;
   const startDate = requireIsoDate(
     fiscalPeriod.startDate,
     "archive fiscalPeriod.startDate",

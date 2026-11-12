@@ -2,28 +2,27 @@ import { describe, expect, it } from "vitest";
 
 import { AppError } from "../shared/app-error.js";
 import {
-  assertFiscalPeriodArchiveByteLength,
-  MAX_FISCAL_PERIOD_ARCHIVE_BYTES,
-} from "./fiscal-period-archive-zip.js";
+  assertLegacyArchiveZipByteLength,
+  createLegacyArchiveZip,
+  readLegacyArchiveZip,
+} from "../legacy/legacy-archive-zip.js";
+import { MAX_FISCAL_PERIOD_ARCHIVE_BYTES } from "./fiscal-period-archive-limits.js";
 import {
   FISCAL_PERIOD_ARCHIVE_FORMAT,
   FISCAL_PERIOD_ARCHIVE_VERSION,
-  buildFiscalPeriodArchiveFilename,
   buildFiscalPeriodArchivePayload,
   buildFiscalPeriodBookFilename,
-  createFiscalPeriodArchiveZip,
-  readFiscalPeriodArchiveZip,
 } from "./fiscal-period-archive.js";
 
 describe("fiscal period archive", () => {
   it("rejects oversized input before a browser needs to allocate its bytes", () => {
     expect(() =>
-      assertFiscalPeriodArchiveByteLength(MAX_FISCAL_PERIOD_ARCHIVE_BYTES),
+      assertLegacyArchiveZipByteLength(MAX_FISCAL_PERIOD_ARCHIVE_BYTES),
     ).not.toThrow();
     expect(() =>
-      assertFiscalPeriodArchiveByteLength(MAX_FISCAL_PERIOD_ARCHIVE_BYTES + 1),
+      assertLegacyArchiveZipByteLength(MAX_FISCAL_PERIOD_ARCHIVE_BYTES + 1),
     ).toThrow(/size limit/);
-    expect(() => assertFiscalPeriodArchiveByteLength(Number.NaN)).toThrow(
+    expect(() => assertLegacyArchiveZipByteLength(Number.NaN)).toThrow(
       /size limit/,
     );
   });
@@ -32,7 +31,7 @@ describe("fiscal period archive", () => {
     expect(FISCAL_PERIOD_ARCHIVE_FORMAT).toBe("openkk.fiscal-period-archive");
     expect(FISCAL_PERIOD_ARCHIVE_VERSION).toBe(2);
 
-    const zip = createFiscalPeriodArchiveZip(
+    const zip = createLegacyArchiveZip(
       buildFiscalPeriodArchivePayload({
         createdAt: "2026-06-05T00:00:00.000Z",
         fiscalPeriod: {
@@ -55,7 +54,7 @@ describe("fiscal period archive", () => {
       "manifest.json",
     ]);
 
-    const payload = readFiscalPeriodArchiveZip(zip);
+    const payload = readLegacyArchiveZip(zip);
     expect(payload.manifest.format).toBe("openkk.fiscal-period-archive");
     expect(payload.manifest.version).toBe(2);
   });
@@ -75,9 +74,9 @@ describe("fiscal period archive", () => {
       closings: [{ fiscalPeriodId: "fp-1", year: 2026, kind: "closing" }],
     });
 
-    const zip = createFiscalPeriodArchiveZip(payload);
+    const zip = createLegacyArchiveZip(payload);
 
-    expect(readFiscalPeriodArchiveZip(zip)).toEqual(payload);
+    expect(readLegacyArchiveZip(zip)).toEqual(payload);
   });
 
   it("preserves null fixed-asset disposal fields", () => {
@@ -135,9 +134,9 @@ describe("fiscal period archive", () => {
       manifest: { ...current.manifest, version: 1 as const },
     };
 
-    expect(
-      readFiscalPeriodArchiveZip(createFiscalPeriodArchiveZip(version1)),
-    ).toEqual(version1);
+    expect(readLegacyArchiveZip(createLegacyArchiveZip(version1))).toEqual(
+      version1,
+    );
   });
 
   it("rejects payloads with an unsupported manifest format", () => {
@@ -154,7 +153,7 @@ describe("fiscal period archive", () => {
       closings: [],
     });
     expect(() =>
-      createFiscalPeriodArchiveZip({
+      createLegacyArchiveZip({
         ...payload,
         manifest: { ...payload.manifest, format: "wrong" as never },
       }),
@@ -176,7 +175,7 @@ describe("fiscal period archive", () => {
     });
 
     expect(() =>
-      createFiscalPeriodArchiveZip({
+      createLegacyArchiveZip({
         ...payload,
         fiscalPeriod: { ...payload.fiscalPeriod, id: "fp-other" },
       }),
@@ -196,7 +195,7 @@ describe("fiscal period archive", () => {
       fixedAssets: [],
       closings: [],
     });
-    const zip = createFiscalPeriodArchiveZip(payload);
+    const zip = createLegacyArchiveZip(payload);
     const corrupted = new Uint8Array(zip);
     const index = findBytePattern(
       corrupted,
@@ -205,14 +204,14 @@ describe("fiscal period archive", () => {
     expect(index).toBeGreaterThanOrEqual(0);
     corrupted[index]! ^= 0xff;
 
-    const error = captureError(() => readFiscalPeriodArchiveZip(corrupted));
+    const error = captureError(() => readLegacyArchiveZip(corrupted));
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).messageForDeveloper).toContain("checksum");
     expect((error as AppError).messageForUser).toContain("破損");
   });
 
   it("rejects invalid UTF-8 in JSON even when its checksum is valid", () => {
-    const zip = createFiscalPeriodArchiveZip(
+    const zip = createLegacyArchiveZip(
       buildFiscalPeriodArchivePayload({
         createdAt: "2026-06-05T00:00:00.000Z",
         fiscalPeriod: {
@@ -232,7 +231,7 @@ describe("fiscal period archive", () => {
       bytes[index] = 0xff;
     });
 
-    const error = captureError(() => readFiscalPeriodArchiveZip(invalidUtf8));
+    const error = captureError(() => readLegacyArchiveZip(invalidUtf8));
 
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).messageForDeveloper).toContain("json parse");
@@ -240,7 +239,7 @@ describe("fiscal period archive", () => {
   });
 
   it("rejects invalid UTF-8 in zip filenames", () => {
-    const zip = createFiscalPeriodArchiveZip(
+    const zip = createLegacyArchiveZip(
       buildFiscalPeriodArchivePayload({
         createdAt: "2026-06-05T00:00:00.000Z",
         fiscalPeriod: {
@@ -262,7 +261,7 @@ describe("fiscal period archive", () => {
     expect(localName).toBeGreaterThanOrEqual(0);
     invalidUtf8[localName] = 0xff;
 
-    const error = captureError(() => readFiscalPeriodArchiveZip(invalidUtf8));
+    const error = captureError(() => readLegacyArchiveZip(invalidUtf8));
 
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).messageForDeveloper).toContain("UTF-8");
@@ -270,7 +269,7 @@ describe("fiscal period archive", () => {
   });
 
   it("rejects an archive truncated before its central directory", () => {
-    const zip = createFiscalPeriodArchiveZip(
+    const zip = createLegacyArchiveZip(
       buildFiscalPeriodArchivePayload({
         createdAt: "2026-06-05T00:00:00.000Z",
         fiscalPeriod: {
@@ -290,14 +289,14 @@ describe("fiscal period archive", () => {
     );
     const truncated = zip.slice(0, centralDirectoryOffset);
 
-    const error = captureError(() => readFiscalPeriodArchiveZip(truncated));
+    const error = captureError(() => readLegacyArchiveZip(truncated));
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).messageForDeveloper).toContain("end record");
     expect((error as AppError).messageForUser).toContain("破損");
   });
 
   it("rejects central-directory metadata that disagrees with local headers", () => {
-    const zip = createFiscalPeriodArchiveZip(
+    const zip = createLegacyArchiveZip(
       buildFiscalPeriodArchivePayload({
         createdAt: "2026-06-05T00:00:00.000Z",
         fiscalPeriod: {
@@ -323,7 +322,7 @@ describe("fiscal period archive", () => {
     );
     centralView.setUint32(16, centralView.getUint32(16, true) ^ 1, true);
 
-    const error = captureError(() => readFiscalPeriodArchiveZip(corrupted));
+    const error = captureError(() => readLegacyArchiveZip(corrupted));
 
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).messageForDeveloper).toContain(
@@ -345,24 +344,14 @@ describe("fiscal period archive", () => {
       fixedAssets: [],
       closings: [],
     });
-    const zip = createFiscalPeriodArchiveZip(payload);
+    const zip = createLegacyArchiveZip(payload);
     const duplicated = duplicateFirstLocalZipEntry(zip);
 
-    const error = captureError(() => readFiscalPeriodArchiveZip(duplicated));
+    const error = captureError(() => readLegacyArchiveZip(duplicated));
 
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).messageForDeveloper).toContain("duplicate");
     expect((error as AppError).messageForUser).toContain("内容を確認");
-  });
-
-  it("builds a safe zip filename", () => {
-    expect(
-      buildFiscalPeriodArchiveFilename({
-        name: '2026 年分 / "main"',
-        startDate: "2026-01-01",
-        endDate: "2026-12-31",
-      }),
-    ).toBe("2026_年分____main__2026-01-01_2026-12-31.zip");
   });
 
   it("names a single-period book file after the period", () => {
@@ -389,7 +378,7 @@ describe("fiscal period archive", () => {
     });
 
     const error = captureError(() =>
-      createFiscalPeriodArchiveZip({
+      createLegacyArchiveZip({
         ...payload,
         manifest: { ...payload.manifest, version: 999 as never },
       }),

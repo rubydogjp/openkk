@@ -21,6 +21,9 @@ const NEXT_APP_CONFIG_FILE = "next.config.ts";
 const PACKAGE_DIRS_RELEASED_TO_NPM = new Set<string>();
 const RESERVED_BOX_PREFIX = /^(?:frontend|backend|client|server|bundle)-/;
 const ENVIRONMENT_FRAMEWORKS = ["next"];
+const LEGACY_BOX_PREFIX = "legacy-";
+const LEGACY_FILE_PREFIX = "legacy-";
+const LEGACY_FOLDER = "legacy";
 const ASYNCHRONOUS_PROCEDURE = /\basync\b|\bawait\b|\.then\(/;
 const rootPackageJson = readJson(path.join(rootDir, "package.json"));
 const workspaceNames = rootPackageJson.workspaces.map((workspace: string) =>
@@ -369,6 +372,18 @@ describe("openkk workspace structure", () => {
         ).toEqual([]);
       }
     }
+  });
+
+  it("keeps legacy code in legacy boxes or legacy folders", () => {
+    const offenders = packageRecords
+      .filter((record) => !record.packageDir.startsWith(LEGACY_BOX_PREFIX))
+      .flatMap((record) => listFiles(record.dir))
+      .filter(
+        (file) =>
+          path.basename(file).startsWith(LEGACY_FILE_PREFIX) &&
+          !file.split(path.sep).includes(LEGACY_FOLDER),
+      );
+    expect(offenders.map((file) => path.relative(rootDir, file))).toEqual([]);
   });
 
   it("keeps asynchronous procedures out of the frontend-ui bindings", () => {

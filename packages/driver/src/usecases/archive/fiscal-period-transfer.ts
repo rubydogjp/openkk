@@ -1,8 +1,7 @@
 import {
   archiveClosingRecords,
   buildFiscalPeriodArchivePayload,
-  createFiscalPeriodArchiveZip,
-  readFiscalPeriodArchiveZip,
+  type FiscalPeriodArchivePayload,
   type FiscalPeriodPhase,
 } from "../../domain/index.js";
 import type {
@@ -18,27 +17,27 @@ export type FiscalPeriodArchiveSubject = {
   phase: FiscalPeriodPhase;
 } & Record<string, unknown>;
 
-export async function buildFiscalPeriodArchiveZip(
+export async function loadFiscalPeriodArchivePayload(
   backend: OpenkkBackendPort,
   fiscalPeriod: FiscalPeriodArchiveSubject,
   createdAt: Date,
   afterBackendCall: () => void,
-): Promise<Uint8Array> {
+): Promise<FiscalPeriodArchivePayload> {
   const [entries, fixedAssets] = await Promise.all([
     backend.entries.getAll(fiscalPeriod.id),
     backend.fixedAssets.getAll(fiscalPeriod.id),
   ]);
   afterBackendCall();
-  return createFiscalPeriodArchiveZip(
-    buildFiscalPeriodArchivePayload({
-      createdAt: createdAt.toISOString(),
-      fiscalPeriod: { ...fiscalPeriod, archiveStatus: "archived" },
-      entries: entries.map((entry) => ({ ...entry })),
-      fixedAssets: fixedAssets.map((asset) => ({ ...asset })),
-      closings: archiveClosingRecords(fiscalPeriod),
-    }),
-  );
+  return buildFiscalPeriodArchivePayload({
+    createdAt: createdAt.toISOString(),
+    fiscalPeriod: { ...fiscalPeriod, archiveStatus: "archived" },
+    entries: entries.map((entry) => ({ ...entry })),
+    fixedAssets: fixedAssets.map((asset) => ({ ...asset })),
+    closings: archiveClosingRecords(fiscalPeriod),
+  });
 }
+
+const NO_AUTH_CHECK = () => {};
 
 export async function carryOverFromBackend(
   source: OpenkkBackendPort,
@@ -47,14 +46,13 @@ export async function carryOverFromBackend(
   targetPeriodId: string,
   createdAt: Date,
 ): Promise<FiscalPeriodApiRecord> {
-  const zip = await buildFiscalPeriodArchiveZip(
-    source,
-    sourcePeriod,
-    createdAt,
-    () => {},
-  );
   return target.fiscalPeriods.applyCarryoverFromArchive(targetPeriodId, {
-    archive: readFiscalPeriodArchiveZip(zip),
+    archive: await loadFiscalPeriodArchivePayload(
+      source,
+      sourcePeriod,
+      createdAt,
+      NO_AUTH_CHECK,
+    ),
     carryBalances: true,
     reversalEntryIndexes: null,
     carryFixedAssets: true,
@@ -67,11 +65,12 @@ export async function copyFiscalPeriodToBackend(
   target: OpenkkBackendPort,
   createdAt: Date,
 ): Promise<FiscalPeriodApiRecord> {
-  const zip = await buildFiscalPeriodArchiveZip(
-    source,
-    period,
-    createdAt,
-    () => {},
+  return target.fiscalPeriods.importArchived(
+    await loadFiscalPeriodArchivePayload(
+      source,
+      period,
+      createdAt,
+      NO_AUTH_CHECK,
+    ),
   );
-  return target.fiscalPeriods.importArchived(readFiscalPeriodArchiveZip(zip));
 }

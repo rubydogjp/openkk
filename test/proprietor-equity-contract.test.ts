@@ -7,7 +7,7 @@ import {
   DEFAULT_BUSINESS_CATEGORIES,
   DEFAULT_TAX_CATEGORIES,
   importEntriesFromLegacyCsv,
-  importEntriesFromJson,
+  importEntriesFromLegacyJson,
   type EntryRecord as DriverEntryRecord,
 } from "../packages/driver/src/domain/index.js";
 import { entryRecordToImportPayload } from "../packages/driver/src/domain/entries/entry-input-mapping.js";
@@ -172,7 +172,9 @@ describe("事業主借 equity contract", () => {
               Object.values(legacy).join(","),
             ].join("\n");
       const [record] = (
-        format === "json" ? importEntriesFromJson : importEntriesFromLegacyCsv
+        format === "json"
+          ? importEntriesFromLegacyJson
+          : importEntriesFromLegacyCsv
       )({
         text,
         fiscalPeriodId: "fp-2026",

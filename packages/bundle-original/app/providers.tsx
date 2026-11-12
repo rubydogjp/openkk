@@ -25,7 +25,7 @@ import {
   requestBrowserPersistentStorage,
 } from "@rubydogjp/openkk-browser-platform-adapter";
 
-import { legacyBook } from "./legacy-book";
+import { legacyBook } from "./legacy/legacy-book";
 import { openkkConfig } from "./openkk-config";
 
 const brandConfig: BrandConfig = {

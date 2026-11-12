@@ -8,11 +8,13 @@ import { AppError } from "../shared/app-error.js";
 import {
   assertEntryImportSize,
   decodeJournalImportBytes,
-  exportEntriesAsJson,
-  importEntriesFromJson,
+} from "../entries/journal-import-bytes.js";
+import {
+  exportEntriesAsLegacyJson,
+  importEntriesFromLegacyJson,
   importEntriesFromLegacyCsv,
   isLegacyJournalCsv,
-} from "./import-export.js";
+} from "./legacy-journal-files.js";
 import {
   assertEntryImportItemCount,
   assertEntryImportLineCount,
@@ -21,8 +23,11 @@ import {
   MAX_ENTRY_IMPORT_LINES,
   MAX_ENTRY_LINES,
   MAX_ENTRY_IMPORT_SIZE,
-} from "./entry-limits.js";
-import { recordToPreviewRows, type EntryRecord } from "./entry-record.js";
+} from "../entries/entry-limits.js";
+import {
+  recordToPreviewRows,
+  type EntryRecord,
+} from "../entries/entry-record.js";
 
 function entry(overrides: EntryRecordOverrides = {}): EntryRecord {
   return entryRecord(overrides, {
@@ -100,12 +105,12 @@ describe("JSON export/import round-trip", () => {
         description: "家賃",
       }),
     ];
-    const json = exportEntriesAsJson(original);
+    const json = exportEntriesAsLegacyJson(original);
     const parsed = JSON.parse(json) as { schema: string; entries: unknown[] };
     expect(parsed.schema).toBe("openkk-journal-v1");
     expect(parsed.entries).toHaveLength(2);
 
-    const imported = importEntriesFromJson({
+    const imported = importEntriesFromLegacyJson({
       text: json,
       fiscalPeriodId: "fp-2",
     });
@@ -120,24 +125,25 @@ describe("JSON export/import round-trip", () => {
 
   it("falls back to id when localId is null on export", () => {
     const e = entry({ id: "entry-xyz", localId: null });
-    const json = exportEntriesAsJson([e]);
+    const json = exportEntriesAsLegacyJson([e]);
     const parsed = JSON.parse(json) as { entries: Array<{ localId: string }> };
     expect(parsed.entries[0]?.localId).toBe("entry-xyz");
   });
 
   it("falls back to id when an entry has no localId", () => {
     const e = entry({ id: "entry-blank", localId: null });
-    const json = exportEntriesAsJson([e]);
+    const json = exportEntriesAsLegacyJson([e]);
     const parsed = JSON.parse(json) as { entries: Array<{ localId: string }> };
     expect(parsed.entries[0]?.localId).toBe("entry-blank");
     expect(
-      importEntriesFromJson({ text: json, fiscalPeriodId: "fp-2" })[0]?.localId,
+      importEntriesFromLegacyJson({ text: json, fiscalPeriodId: "fp-2" })[0]
+        ?.localId,
     ).toBe("entry-blank");
   });
 
   it("accepts JSON with a leading UTF-8 BOM", () => {
-    const imported = importEntriesFromJson({
-      text: `\uFEFF${exportEntriesAsJson([entry({ localId: "bom-json" })])}`,
+    const imported = importEntriesFromLegacyJson({
+      text: `\uFEFF${exportEntriesAsLegacyJson([entry({ localId: "bom-json" })])}`,
       fiscalPeriodId: "fp-2",
     });
 
@@ -196,8 +202,8 @@ describe("JSON export/import round-trip", () => {
       ],
     });
 
-    const imported = importEntriesFromJson({
-      text: exportEntriesAsJson([original]),
+    const imported = importEntriesFromLegacyJson({
+      text: exportEntriesAsLegacyJson([original]),
       fiscalPeriodId: "fp-2",
     });
 
@@ -214,8 +220,8 @@ describe("JSON export/import round-trip", () => {
       creditBusinessCategoryId: "biz_credit_custom",
     });
 
-    const imported = importEntriesFromJson({
-      text: exportEntriesAsJson([original]),
+    const imported = importEntriesFromLegacyJson({
+      text: exportEntriesAsLegacyJson([original]),
       fiscalPeriodId: "fp-2",
     });
 
@@ -236,10 +242,10 @@ describe("JSON export/import round-trip", () => {
   });
 });
 
-describe("importEntriesFromJson — error handling", () => {
+describe("importEntriesFromLegacyJson — error handling", () => {
   it("throws AppError when JSON cannot be parsed", () => {
     const error = captureError(() =>
-      importEntriesFromJson({ text: "{", fiscalPeriodId: "fp-1" }),
+      importEntriesFromLegacyJson({ text: "{", fiscalPeriodId: "fp-1" }),
     );
 
     expect(error).toBeInstanceOf(AppError);
@@ -249,7 +255,7 @@ describe("importEntriesFromJson — error handling", () => {
 
   it("throws when entries array is missing", () => {
     const error = captureError(() =>
-      importEntriesFromJson({
+      importEntriesFromLegacyJson({
         text: JSON.stringify({ schema: "openkk-journal-v1" }),
         fiscalPeriodId: "fp-1",
       }),
@@ -265,7 +271,7 @@ describe("importEntriesFromJson — error handling", () => {
   it("reports a format error when the JSON root is not an object", () => {
     for (const text of ["null", "[]", '"journal"']) {
       const error = captureError(() =>
-        importEntriesFromJson({ text, fiscalPeriodId: "fp-1" }),
+        importEntriesFromLegacyJson({ text, fiscalPeriodId: "fp-1" }),
       );
 
       expect(error).toBeInstanceOf(AppError);
@@ -276,7 +282,7 @@ describe("importEntriesFromJson — error handling", () => {
 
   it("throws when entries is not an array", () => {
     expect(() =>
-      importEntriesFromJson({
+      importEntriesFromLegacyJson({
         text: JSON.stringify({ entries: "bad" }),
         fiscalPeriodId: "fp-1",
       }),
@@ -305,7 +311,7 @@ describe("importEntriesFromJson — error handling", () => {
       ],
     });
     expect(() =>
-      importEntriesFromJson({ text: json, fiscalPeriodId: "fp-1" }),
+      importEntriesFromLegacyJson({ text: json, fiscalPeriodId: "fp-1" }),
     ).toThrow(/unsupported journal schema/);
   });
 
@@ -330,17 +336,17 @@ describe("importEntriesFromJson — error handling", () => {
       ],
     });
     expect(
-      importEntriesFromJson({ text: json, fiscalPeriodId: "fp-1" }),
+      importEntriesFromLegacyJson({ text: json, fiscalPeriodId: "fp-1" }),
     ).toHaveLength(1);
   });
 
   it("throws on duplicate localId", () => {
-    const json = exportEntriesAsJson([
+    const json = exportEntriesAsLegacyJson([
       entry({ localId: "dup" }),
       entry({ id: "e-2", localId: "dup" }),
     ]);
     expect(() =>
-      importEntriesFromJson({ text: json, fiscalPeriodId: "fp-1" }),
+      importEntriesFromLegacyJson({ text: json, fiscalPeriodId: "fp-1" }),
     ).toThrow(/duplicate localId/);
   });
 
@@ -365,7 +371,7 @@ describe("importEntriesFromJson — error handling", () => {
       ],
     });
     expect(() =>
-      importEntriesFromJson({ text: json, fiscalPeriodId: "fp-1" }),
+      importEntriesFromLegacyJson({ text: json, fiscalPeriodId: "fp-1" }),
     ).toThrow(/row 1: localId is required/);
   });
 
@@ -390,7 +396,7 @@ describe("importEntriesFromJson — error handling", () => {
       ],
     });
     expect(() =>
-      importEntriesFromJson({ text: json, fiscalPeriodId: "fp-1" }),
+      importEntriesFromLegacyJson({ text: json, fiscalPeriodId: "fp-1" }),
     ).toThrow(/row 1: invalid date \(2026-02-29\)/);
   });
 
@@ -414,7 +420,10 @@ describe("importEntriesFromJson — error handling", () => {
         },
       ],
     });
-    const [e] = importEntriesFromJson({ text: json, fiscalPeriodId: "fp-1" });
+    const [e] = importEntriesFromLegacyJson({
+      text: json,
+      fiscalPeriodId: "fp-1",
+    });
     expect(recordToPreviewRows(e!)[0]?.taxCategory).toBe("対象外");
     expect(recordToPreviewRows(e!)[0]?.businessCategory).toBe("対象外");
     expect(e?.weekday).toBeTruthy();
@@ -442,18 +451,18 @@ describe("importEntriesFromJson — error handling", () => {
     });
 
     expect(() =>
-      importEntriesFromJson({ text: json, fiscalPeriodId: "fp-1" }),
+      importEntriesFromLegacyJson({ text: json, fiscalPeriodId: "fp-1" }),
     ).toThrow(/row 1: invalid debit amount/);
   });
 
   it("clamps a percent-only business rate to 0-100", () => {
-    const payload = JSON.parse(exportEntriesAsJson([entry()])) as {
+    const payload = JSON.parse(exportEntriesAsLegacyJson([entry()])) as {
       entries: Array<Record<string, unknown>>;
     };
     payload.entries[0]!.businessRate = "150";
     delete payload.entries[0]!.businessRateRatio;
 
-    const imported = importEntriesFromJson({
+    const imported = importEntriesFromLegacyJson({
       text: JSON.stringify(payload),
       fiscalPeriodId: "fp-1",
     });
@@ -462,13 +471,13 @@ describe("importEntriesFromJson — error handling", () => {
   });
 
   it("rejects an invalid businessRateRatio", () => {
-    const payload = JSON.parse(exportEntriesAsJson([entry()])) as {
+    const payload = JSON.parse(exportEntriesAsLegacyJson([entry()])) as {
       entries: Array<{ businessRateRatio: unknown }>;
     };
     payload.entries[0]!.businessRateRatio = 1.01;
 
     expect(() =>
-      importEntriesFromJson({
+      importEntriesFromLegacyJson({
         text: JSON.stringify(payload),
         fiscalPeriodId: "fp-1",
       }),
@@ -477,7 +486,7 @@ describe("importEntriesFromJson — error handling", () => {
 
   it("rejects compound totals outside the safe integer range", () => {
     const amount = String(Number.MAX_SAFE_INTEGER);
-    const json = exportEntriesAsJson([
+    const json = exportEntriesAsLegacyJson([
       entry({
         lines: [
           {
@@ -537,24 +546,24 @@ describe("importEntriesFromJson — error handling", () => {
     ]);
 
     expect(() =>
-      importEntriesFromJson({ text: json, fiscalPeriodId: "fp-1" }),
+      importEntriesFromLegacyJson({ text: json, fiscalPeriodId: "fp-1" }),
     ).toThrow(/row 1: entry totals exceed the safe integer range/);
   });
 
   it("rejects non-object entries and malformed compound lines with row context", () => {
     expect(() =>
-      importEntriesFromJson({
+      importEntriesFromLegacyJson({
         text: JSON.stringify({ entries: [null] }),
         fiscalPeriodId: "fp-1",
       }),
     ).toThrow(/row 1: entry must be an object/);
 
-    const malformed = JSON.parse(exportEntriesAsJson([entry()])) as {
+    const malformed = JSON.parse(exportEntriesAsLegacyJson([entry()])) as {
       entries: Array<Record<string, unknown>>;
     };
     malformed.entries[0]!.lines = [null];
     expect(() =>
-      importEntriesFromJson({
+      importEntriesFromLegacyJson({
         text: JSON.stringify(malformed),
         fiscalPeriodId: "fp-1",
       }),
@@ -589,7 +598,7 @@ describe("importEntriesFromJson — error handling", () => {
       },
     ];
     expect(() =>
-      importEntriesFromJson({
+      importEntriesFromLegacyJson({
         text: JSON.stringify(malformed),
         fiscalPeriodId: "fp-1",
       }),
