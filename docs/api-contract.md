@@ -2,14 +2,14 @@
 
 ## Packages
 
-| Boundary          | Package                      | Types                                                                                     |
-| ----------------- | ---------------------------- | ----------------------------------------------------------------------------------------- |
-| Client backend    | `@rubydogjp/openkk-driver`   | `OpenkkBackendPort`, `*Request`, `*Response`, `*ApiRecord`, `*Input`, `OpenkkApiErrorDto` |
-| TypeScript server | `@rubydogjp/openkk-engine`   | `OpenkkBackendApi`, `*Request`, `*Response`, `*ApiRecord`, `*Input`, `OpenkkApiErrorDto`  |
-| Server storage    | `@rubydogjp/openkk-engine`   | `OpenkkDbPort`, `*DbRecord`, `*Db*Input`                                                  |
-| Errors            | `@rubydogjp/openkk-*-domain` | `AppError`, `AppErrorLike`                                                                |
+| Boundary         | Package                         | Types                                                                                     |
+| ---------------- | ------------------------------- | ----------------------------------------------------------------------------------------- |
+| 使う側の口       | `@rubydogjp/openkk-driver`      | `OpenkkBackendPort`, `*Request`, `*Response`, `*ApiRecord`, `*Input`, `OpenkkApiErrorDto` |
+| 受ける側の入口   | `@rubydogjp/openkk-backend-api` | `OpenkkBackendApi`, `*Request`, `*Response`, `*ApiRecord`, `*Input`, `OpenkkApiErrorDto`  |
+| 受ける側の保存先 | `@rubydogjp/openkk-engine`      | `OpenkkDbPort`, `*DbRecord`, `*Db*Input`                                                  |
+| Errors           | `driver`・`engine` の domain    | `AppError`, `AppErrorLike`                                                                |
 
-`client-*` and `server-*` define the contract independently.
+使う側 (`driver`) と受ける側 (`backend-api`) は、契約を独立に定義する。食い違いは `test/package-structure.test.ts` が見つける。
 
 ## テキスト項目の上限
 

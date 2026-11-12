@@ -2,12 +2,12 @@
 
 呼び名: 全体 (形式・契約・アプリ・コマンド) を openkk、コマンドラインの道具を openkk-cli と呼ぶ。パッケージは `@rubydogjp/openkk-cli`、コマンドは `openkk`。openkk-cli は端末の中の道具で、無印版 (ブラウザのアプリ) を起動しない。
 
-状態: ベータ。OSS に入れておくだけで、告知はしない。`cli` と `disk-db-adapter` は `private: true` で npm には出さない (出すときは外し、`docs/release.md` の初回 publish と Trusted Publishing の設定をする)。下の「進め方」の 1〜6 (`disk-db-adapter`、`cli` の `init`・`periods`・`opening`・`entries`・`report`・`closing`・`archive`) まで実装済みで、期首のBSから本締め・次の期間まで CLI だけで回せる。再振替の選択と固定資産の操作はまだ Web 版だけ。
+状態: ベータ。OSS に入れておくだけで、告知はしない。`cli` と `disk-db-adapter` は npm には出さない ([`release.md`](./release.md))。下の「進め方」の 1〜6 (`disk-db-adapter`、`cli` の `init`・`periods`・`opening`・`entries`・`report`・`closing`・`archive`) まで実装済みで、期首のBSから本締め・次の期間まで CLI だけで回せる。再振替の選択と固定資産の操作はまだ Web 版だけ。
 
 ## 結論
 
 - 作業用のストアは **SQLite ファイル** (`.openkk`、既定は `book.openkk`)。無印版 (`packages/bundle-original`) の帳簿と同じ形式で、無印版が「保存」で書き出したファイルをそのまま扱い、変えたファイルを無印版に取り込める。zip は会計期間単位の受け渡し (import / export) に使う
-- openkk-cli は UI と同じく **composition root** として足す。層の並びは無印版・クラウドに置く版と同じで、保存先 (`OpenkkDbPort` の実装) が違うだけ ([`architecture.md`](./architecture.md) の「クラウドとローカルで層をそろえる」)。`embedded-backend` → `embedded-backend-adapter` を同じプロセスでつなぎ、`OpenkkBackendPort` 経由で呼ぶ
+- openkk-cli は画面の製品と同じ並びで作る。違うのは保存先 (口 db の実装) だけ ([`architecture.md`](./architecture.md) の「どの製品も同じ並びで作る」)。`backend-api` と `embedded-backend-adapter` を同じプロセスでつなぎ、`OpenkkBackendPort` 経由で呼ぶ
 
 ## ファイル形式
 
@@ -36,23 +36,23 @@
 
 ## パッケージ構成
 
-| パッケージ                              | 位置づけ                                        | 依存                                                                                  |
-| --------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `@rubydogjp/openkk-disk-db-adapter`     | `OpenkkDbPort` 実装 (file/memory と並ぶ)        | `engine`, `sqlite-db-adapter`                                                         |
-| `@rubydogjp/openkk-cli` (bin: `openkk`) | openkk-cli の composition root (3 アプリと並ぶ) | `driver`, `driver`, `embedded-backend`, `embedded-backend-adapter`, `disk-db-adapter` |
+| パッケージ                              | 位置づけ                                      | 依存                                                                   |
+| --------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------- |
+| `@rubydogjp/openkk-disk-db-adapter`     | 口 db の実装 (memory・books と並ぶ)           | `engine`, `sqlite-db-adapter`                                          |
+| `@rubydogjp/openkk-cli` (bin: `openkk`) | openkk-cli (入口・動く形・製品に分ける前の箱) | `driver`, `backend-api`, `embedded-backend-adapter`, `disk-db-adapter` |
 
-- `client` の meta barrel には依存しない (client-ui 経由で React を引き込むため)
-- `OpenkkBackendApi` を直接呼ばない。帳票・CSV・zip・締め仕訳は client 側の型で書かれていて、直接呼ぶと client と server の型が混ざる (設計原則 1)。`OpenkkBackendPort` 経由なら、HTTP のバックエンドにも差し替えられる
+- `frontend-ui` には依存しない (React を引き込むため)
+- `OpenkkBackendApi` を直接呼ばない。帳票・CSV・zip・締め仕訳は使う側 (`driver`) の型で書かれていて、直接呼ぶと使う側と受ける側の型が混ざる (設計原則 1)。`OpenkkBackendPort` 経由なら、HTTP のバックエンドにも差し替えられる
 
 ### 切り出しが要るもの
 
-帳票 HTML (`driver/src/domain/print/*`)・CSV / JSON・zip は client-domain の純粋関数なので、Node でもそのまま使える。React の hook の中にある組み立てだけ、client-domain へ移す。
+帳票 HTML (`driver/src/domain/print/*`)・CSV / JSON・zip は `driver` の domain の純粋関数なので、Node でもそのまま使える。React の hook の中にある組み立てだけ、`driver` へ移す。
 
 - `frontend-ui/src/steps/use-step-documents.ts` の締め仕訳と帳票 3 点の生成 → `buildFiscalPeriodDocuments()` など
 - `frontend-ui/src/steps/bodies/closing.tsx` の本締め用の仕訳準備 (`prepareAssistEntriesForFinalClosing`)
 - `frontend-ui/src/bindings/shared/fiscal-period-archive-export.ts` の payload 組み立て
 
-本締めはクライアントが作った仕訳をサーバーが照合する設計なので、この切り出しが済むまで CLI から本締めはできない。
+本締めは使う側が作った仕訳を受ける側が照合する設計なので、この切り出しが済むまで CLI から本締めはできない。
 
 ## ベータのコマンド
 
@@ -76,10 +76,10 @@ openkk periods export <期間id> [--out <file.openkk>]   # その期間だけを
 
 1. `disk-db-adapter` を作り、`runDbPortConformance` を一時ファイルと `:memory:` の両方で通す。開き直しても残ること、新しすぎるスキーマを拒否することもテストする
 2. `cli` の土台 (`node:util` の `parseArgs`、`init`・`periods`)
-3. `entries` (client-domain の CSV / JSON 関数を使い、往復テストを付ける)
-4. 帳票の組み立てを client-domain へ切り出し、client-ui をそれに置き換えて `report` を足す
+3. `entries` (`driver` の CSV / JSON 関数を使い、往復テストを付ける)
+4. 帳票の組み立てを `driver` へ切り出し、`frontend-ui` をそれに置き換えて `report` を足す
 5. `archive export / import` (ブラウザで作った zip を取り込めることをテストする)
 6. `opening`・`closing`・`periods receive` / `next`
 7. 無印版に帳簿ファイルの保存・取り込みを付ける (済み。上の「無印版との行き来」)
 
-パッケージを足すときは、ルートの workspaces、`test/package-structure.test.ts` の `allowedLayers`、`npm run gen-deps` (`docs/dependency-graph.md`)、`docs/architecture.md` の port 表も更新する。
+箱を足すときは、ルートの workspaces、`test/package-structure.test.ts` の `allowedBoxes`、`npm run gen-deps` (`docs/dependency-graph.md`)、`docs/architecture.md` の箱の一覧と口の表も更新する。

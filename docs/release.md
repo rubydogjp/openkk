@@ -1,8 +1,9 @@
 # リリース手順
 
 `packages/` 配下のライブラリを npm に publish する。
-`@rubydogjp/openkk` / `openkk-sim` / `openkk-demo` はアプリなので `private: true` で、publish されない。
-ベータの `openkk-cli` / `openkk-node-sqlite-db-adapter` / `openkk-document-db-adapter` / `openkk-books-db-adapter` / `openkk-book-files-adapter` も、まだ出さないので `private: true` にしている (出すときは外し、下の「新しいパッケージは初回だけ手元から publish」をする)。
+
+今は、どの箱も `private: true` にしてあり、publish されない。26.3.1 まで出していたパッケージ (`openkk-client-*`・`openkk-server-*` など) は、箱の種類 ([`architecture.md`](./architecture.md)) に合わせて名前と分け方を変えた。npm での名前と束ね方が決まるまでは出さない。出すときは、出す箱の `private` を外し、`test/package-structure.test.ts` の `PACKAGE_DIRS_RELEASED_TO_NPM` に足し、下の「新しいパッケージは初回だけ手元から publish」をする。前の名前のパッケージには、非推奨の知らせを付ける。
+製品 (`bundle-*`) はアプリなので、出さない。
 
 publish の認証は Trusted Publishing (OIDC) で行い、npm のトークンは使わない。
 
