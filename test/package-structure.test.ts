@@ -11,6 +11,7 @@ const packagesDir = path.join(rootDir, "packages");
 const rootLicense = fs.readFileSync(path.join(rootDir, "LICENSE"), "utf8");
 
 const APP_DIRS = new Set(["openkk", "openkk_sim", "openkk_demo"]);
+const UNPUBLISHED_BETA_DIRS = new Set(["cli", "node-sqlite-db-adapter"]);
 const rootPackageJson = readJson(path.join(rootDir, "package.json"));
 const workspaceNames = rootPackageJson.workspaces.map((workspace: string) =>
   workspace.replace(/^packages\//, ""),
@@ -67,7 +68,9 @@ describe("openkk workspace structure", () => {
       (item) => !APP_DIRS.has(item.packageDir),
     )) {
       expect(record.packageJson.name).toBe(packageName(record.packageDir));
-      expect(record.packageJson.private).toBeUndefined();
+      expect(record.packageJson.private).toBe(
+        UNPUBLISHED_BETA_DIRS.has(record.packageDir) ? true : undefined,
+      );
       expect(record.packageJson.main).toBe("./dist/index.js");
       expect(record.packageJson.types).toBe("./dist/index.d.ts");
       expect(record.packageJson.exports["."]).toEqual({
@@ -179,8 +182,16 @@ describe("openkk workspace structure", () => {
       "sqlite-adapter": ["server-domain", "server-ports"],
       "file-db-adapter": ["server-ports", "sqlite-adapter"],
       "memory-db-adapter": ["server-ports", "sqlite-adapter"],
+      "node-sqlite-db-adapter": ["server-ports", "sqlite-adapter"],
       "embedded-backend": ["server"],
       "embedded-backend-adapter": ["client-ports", "embedded-backend"],
+      cli: [
+        "client-domain",
+        "client-ports",
+        "embedded-backend",
+        "embedded-backend-adapter",
+        "node-sqlite-db-adapter",
+      ],
       "print-adapter": ["client-ports"],
       "platform-browser-adapter": ["client-ports"],
       frontend: ["client", "print-adapter", "platform-browser-adapter"],
@@ -255,8 +266,10 @@ describe("openkk workspace structure", () => {
       "platform-browser-adapter",
       "file-db-adapter",
       "memory-db-adapter",
+      "node-sqlite-db-adapter",
       "sqlite-adapter",
     ]);
+    const REACT_FREE_COMPOSITION_ROOTS = new Set(["cli"]);
     for (const record of packageRecords) {
       if (ADAPTER_EXEMPTIONS.has(record.packageDir)) continue;
       if (record.packageDir === "client" || record.packageDir === "server") {
@@ -265,7 +278,9 @@ describe("openkk workspace structure", () => {
       const isClientLayer = record.packageDir.startsWith("client-");
       const isServerLayer = record.packageDir.startsWith("server-");
       const forbidden = new Set<string>([
-        ...(isClientLayer ? [] : CLIENT_SUBPACKAGES),
+        ...(isClientLayer || REACT_FREE_COMPOSITION_ROOTS.has(record.packageDir)
+          ? []
+          : CLIENT_SUBPACKAGES),
         ...(isServerLayer ? [] : SERVER_SUBPACKAGES),
       ]);
       const internalImports = findInternalImports(record.dir, true);

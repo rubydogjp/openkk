@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { entryRecordToImportPayload } from "./import-mapping.js";
+import { entryRecordToImportPayload } from "@rubydogjp/openkk-client-domain";
 import {
   earliestEntryDate,
   removeEntryRecord,

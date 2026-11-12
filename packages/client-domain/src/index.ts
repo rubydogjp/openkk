@@ -15,6 +15,7 @@ export * from "./entries/entry-record.js";
 export * from "./entries/generated-master-data.js";
 export * from "./entries/category-resolution.js";
 export * from "./entries/book-account.js";
+export * from "./entries/entry-input-mapping.js";
 export * from "./entries/quick-guide-data.js";
 export * from "./entries/virtual-entries.js";
 
@@ -22,6 +23,7 @@ export * from "./assist/fixed-asset-data.js";
 export * from "./assist/fixed-asset-draft.js";
 export * from "./assist/fixed-asset-depreciation.js";
 export * from "./assist/opening-carryover.js";
+export * from "./assist/stored-record-mapping.js";
 
 export * from "./archive/fiscal-period-archive.js";
 export {
@@ -40,6 +42,7 @@ export * from "./steps/next-fiscal-period.js";
 export * from "./print/financial-statements-print.js";
 export * from "./print/entry-metadata.js";
 export * from "./print/fs-data.js";
+export * from "./print/fiscal-period-reports.js";
 export * from "./print/general-ledger-print.js";
 export * from "./print/journal-print.js";
 export * from "./print/print-shell.js";

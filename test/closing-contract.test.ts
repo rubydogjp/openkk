@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildClosingVirtualEntries } from "../packages/client-domain/src/index.js";
-import { mapOpeningJournalToRecord } from "../packages/client-usecases/src/assist/assist-state-helpers.js";
-import { entryRecordToImportPayload } from "../packages/client-usecases/src/entries/import-mapping.js";
+import { mapOpeningJournalToRecord } from "../packages/client-domain/src/assist/stored-record-mapping.js";
+import { entryRecordToImportPayload } from "../packages/client-domain/src/entries/entry-input-mapping.js";
 import { createMemoryDbAdapter } from "../packages/memory-db-adapter/src/index.js";
 import { createOpenkkServer } from "../packages/server/src/index.js";
 import { createServerUsecases } from "../packages/server-usecases/src/usecases.js";

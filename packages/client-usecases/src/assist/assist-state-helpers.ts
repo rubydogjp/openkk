@@ -1,29 +1,22 @@
 import {
-  computeStraightLineDepreciation,
   fixedAssetStatusRequiresDisposal,
-  formatAmount,
   parseAmount,
-  parseIsoLocalDate,
   resolveBookAccountId,
   type BookAccount,
-  type BookAccountType,
   type FixedAssetDraft,
   type FixedAsset,
   type OpeningCarryoverDraft,
-  type OpeningCarryoverRecord,
 } from "@rubydogjp/openkk-client-domain";
 import type {
   EntryLineApiRecord,
-  FixedAssetApiRecord,
   FixedAssetPatchInput,
-  OpeningJournalApiRecord,
 } from "@rubydogjp/openkk-client-ports";
 
 import {
   entryLinesToInputs,
   type EntryLineMaster,
   type UnresolvedAccountMessages,
-} from "../entries/import-mapping.js";
+} from "@rubydogjp/openkk-client-domain";
 
 export function upsertFixedAsset(
   current: FixedAsset[],
@@ -58,40 +51,6 @@ export function nextOpeningCarryoverId(
   let availableSuffix = 1;
   while (usedSuffixes.has(availableSuffix)) availableSuffix += 1;
   return `${prefix}${availableSuffix}`;
-}
-
-export function mapOpeningJournalToRecord(
-  journal: OpeningJournalApiRecord,
-  fiscalPeriodId: string,
-  accountNameById: Record<string, string>,
-  accountTypeById: Record<string, BookAccountType>,
-  taxCategoryNameById: Record<string, string>,
-  businessCategoryNameById: Record<string, string>,
-): OpeningCarryoverRecord {
-  const lines = journal.lines.map((line) => ({
-    id: line.id,
-    side: line.side,
-    accountName: accountNameById[line.bookAccountId] ?? line.bookAccountId,
-    accountType: accountTypeById[line.bookAccountId] ?? "asset",
-    amount: formatAmount(Math.abs(line.amount)),
-    bookAccountId: line.bookAccountId,
-    partnerName: line.partnerName,
-    taxCategoryId: line.taxCategoryId,
-    taxCategoryName:
-      taxCategoryNameById[line.taxCategoryId] ?? line.taxCategoryId,
-    businessCategoryId: line.businessCategoryId,
-    businessCategoryName:
-      businessCategoryNameById[line.businessCategoryId] ??
-      line.businessCategoryId,
-  }));
-  return {
-    id: journal.id,
-    fiscalPeriodId,
-    date: journal.date,
-    description: journal.description,
-    businessRate: journal.businessRate,
-    lines,
-  };
 }
 
 export function buildOpeningJournalLines(
@@ -144,45 +103,6 @@ export function resolveFixedAssetAccountId(
   return accounts.find((account) => account.id === id)?.accountType === "asset"
     ? id
     : null;
-}
-
-export function mapFixedAsset(
-  asset: FixedAssetApiRecord,
-  accountName: string | null,
-  previewAsOf: Date,
-  fiscalPeriodEndDate: string | null,
-): FixedAsset {
-  const isClosed = asset.status !== "active";
-  const asOf =
-    asset.status === "retired" && fiscalPeriodEndDate != null
-      ? (parseIsoLocalDate(fiscalPeriodEndDate) ?? previewAsOf)
-      : isClosed && asset.disposalDate != null
-        ? (parseIsoLocalDate(asset.disposalDate) ?? previewAsOf)
-        : previewAsOf;
-  const depreciation = computeStraightLineDepreciation({
-    acquisitionDate: asset.acquisitionDate,
-    acquisitionCost: asset.acquisitionCost,
-    usefulLife: asset.usefulLife,
-    asOf,
-  });
-  return {
-    id: asset.id,
-    fiscalPeriodId: asset.fiscalPeriodId,
-    name: asset.name,
-    accountName: accountName ?? asset.bookAccountId,
-    bookAccountId: asset.bookAccountId,
-    status: asset.status,
-    acquisitionDate: asset.acquisitionDate,
-    acquisitionCost: asset.acquisitionCost,
-    usefulLife: asset.usefulLife,
-    businessRate: asset.businessRate,
-    disposalDate: asset.disposalDate,
-    disposalPrice: asset.disposalPrice,
-    depreciationStartLabel: depreciation.periodLabel,
-    remainingDepreciationLabel: depreciation.remainingLabel,
-    depreciationProgress: depreciation.progress,
-    currentBookValue: depreciation.currentBookValue,
-  };
 }
 
 export function fixedAssetDraftToPatch(
