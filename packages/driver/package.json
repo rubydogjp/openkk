@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./backend-contract": {
+      "types": "./dist/contract/index.d.ts",
+      "import": "./dist/contract/index.js"
     }
   },
   "scripts": {

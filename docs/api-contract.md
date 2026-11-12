@@ -11,6 +11,8 @@
 
 使う側 (`driver`) と受ける側 (`backend-api`) は、契約を独立に定義する。食い違いは `test/package-structure.test.ts` が見つける。
 
+振る舞いの契約は `@rubydogjp/openkk-driver/backend-contract` の `BACKEND_CONTRACT_CASES` にある。口 backend (`OpenkkBackendPort`) の実装は、これに通す。
+
 ## テキスト項目の上限
 
 名称、摘要、取引先、独自カテゴリなどの自由入力は400文字まで。ID、日付、認証値は対象外。

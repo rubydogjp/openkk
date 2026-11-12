@@ -302,7 +302,10 @@ describe("openkk workspace structure", () => {
       usecases: ["usecases", "ports", "domain"],
     };
     const layersByBox: Record<string, Record<string, string[]>> = {
-      driver: coreLayers,
+      driver: {
+        ...coreLayers,
+        contract: ["contract", "usecases", "ports", "domain"],
+      },
       engine: coreLayers,
       "frontend-ui": { bindings: ["bindings"] },
     };

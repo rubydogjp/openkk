@@ -63,6 +63,8 @@ packages/
 
 両側を知ってよいのは、同じプロセスでつなぐ口の実装 (`embedded-backend-adapter`・`local-book-files-adapter`) と、製品だけ。
 
+口 backend の実装が守ることは、`driver` の契約テスト (`@rubydogjp/openkk-driver/backend-contract` の `BACKEND_CONTRACT_CASES`) に書いてある。マスターデータ・会計期間・仕訳・固定資産・仮締めと本締め・次期の作成について、口 backend だけを通して確かめる。本締めでは、使う側が作った締めの仕訳 (`buildFinalClosingPayload`) を受ける側が受け入れることまで見る。テストの枠組みに頼らない関数の並びなので、どの実装でも「空の利用者で開く」関数を渡せば通せる。このリポジトリでは、埋め込み (`embedded-backend-adapter` + `memory-db-adapter`) と、ディスクの上の帳簿 (`bundle-cli`) に通している。HTTP 越しの実装も同じものに通す。
+
 ### 2. 口と実装
 
 中身の箱が外に求めるものは、すべて口 (port) として interface で定める。実装の箱は `<相手>-<口>-adapter` と名付ける。
@@ -234,6 +236,7 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 | DB ポート契約適合 | vitest     | `OpenkkDbPort` 共有 conformance（`engine/test-support/db-port-conformance.ts`）を memory / file-db / node-sqlite / document / books の各アダプタ＋遅延非同期コアに通し、保存先が違っても挙動が一致することを保証 |
 | E2E               | Playwright | Sim版の操作フローと、無印版・デモ版の静的export・帳簿の置き場。締めフローでは仮帳票＝確定帳票＝概要図を実画面で検証                                                                                              |
 | パッケージ構造    | vitest     | workspace 整合性チェック                                                                                                                                                                                         |
+| 口 backend の契約 | vitest     | `BACKEND_CONTRACT_CASES` を、埋め込みの実装とディスクの上の帳簿に通す                                                                                                                                            |
 
 `npm run test:e2e` は Sim版を専用 port 4306 で起動し、既存プロセスを再利用せず実行する。`npm run test:e2e:export` は無印版を静的exportして検査する。無印版のテスト (`tests-export`) は、初回の説明を見たことにしてから始める (`startApp`)。保存・取り込み・前の版からの移行は `books.spec.ts` にあり、保存したファイルや取り込むファイルは `disk-db-adapter` (openkk-cli と同じ道) で読み書きして確かめる。前の版の帳簿は、前の版と同じスキーマ (5) の DB を作り、テストの中で SQLite Wasm を読み込んで、前の版と同じ開き方で OPFS に置いて試す。静的exportを配るテスト用のサーバー (`e2e/serve-export.mjs`) は、本番 (Firebase Hosting) と同じく末尾の `/` がないフォルダの URL を `/` 付きへ移す。生成物・全workspace・全アプリ・E2Eをまとめた検査は `npm run check:full` で実行できる。
 このリポジトリに `OpenkkDbPort` 実装を追加したら `runDbPortConformance` に通すこと。conformance は `engine/test-support/` にあり npm には公開しないので、外部の実装はこのリポジトリを参照する。
