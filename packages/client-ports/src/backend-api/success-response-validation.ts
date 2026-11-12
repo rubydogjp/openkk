@@ -35,6 +35,7 @@ export function isValidSuccessBody(
     case "fiscalPeriodCreate":
     case "fiscalPeriodNextCreate":
     case "fiscalPeriodCarryoverApply":
+    case "fiscalPeriodCarryoverFromArchiveApply":
     case "fiscalPeriodImportArchived":
     case "fiscalPeriodPatch":
     case "fiscalPeriodStart":

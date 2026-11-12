@@ -1,10 +1,7 @@
 import fs from "node:fs";
 import {
-  archiveClosingRecords,
   assertFiscalPeriodArchiveByteLength,
   buildFiscalPeriodArchiveFilename,
-  buildFiscalPeriodArchivePayload,
-  createFiscalPeriodArchiveZip,
   fiscalPeriodPhaseLabel,
   readFiscalPeriodArchiveZip,
 } from "@rubydogjp/openkk-client-domain";
@@ -14,6 +11,7 @@ import {
   requireFiscalPeriod,
   type CliCommandContext,
 } from "./command-context.js";
+import { buildFiscalPeriodArchiveZipFromBook } from "./period-transfer.js";
 
 export async function runArchiveCommand(
   context: CliCommandContext,
@@ -23,18 +21,10 @@ export async function runArchiveCommand(
   switch (subcommand) {
     case "export": {
       const period = await requireFiscalPeriod(api, target ?? null);
-      const [entries, fixedAssets] = await Promise.all([
-        api.entries.getAll(period.id),
-        api.fixedAssets.getAll(period.id),
-      ]);
-      const zip = createFiscalPeriodArchiveZip(
-        buildFiscalPeriodArchivePayload({
-          createdAt: context.today().toISOString(),
-          fiscalPeriod: { ...period, archiveStatus: "archived" },
-          entries: entries.map((entry) => ({ ...entry })),
-          fixedAssets: fixedAssets.map((asset) => ({ ...asset })),
-          closings: archiveClosingRecords(period),
-        }),
+      const zip = await buildFiscalPeriodArchiveZipFromBook(
+        api,
+        period,
+        context.today(),
       );
       const outPath = context.resolvePath(
         options.out ?? buildFiscalPeriodArchiveFilename(period),

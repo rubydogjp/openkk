@@ -4,6 +4,7 @@ import { entryRecord } from "../../test-support/entry-record.js";
 import {
   buildNextFiscalPeriodSuggestion,
   isOpeningCarryoverCandidate,
+  isReadyForCarryover,
 } from "./next-fiscal-period.js";
 
 describe("buildNextFiscalPeriodSuggestion", () => {
@@ -62,6 +63,29 @@ describe("isOpeningCarryoverCandidate", () => {
           base,
         ),
       ),
+    ).toBe(false);
+  });
+});
+
+describe("isReadyForCarryover", () => {
+  it("accepts only a closed period whose documents were received", () => {
+    expect(
+      isReadyForCarryover({
+        phase: "post_closing",
+        documentsReceivedCompleted: true,
+      }),
+    ).toBe(true);
+    expect(
+      isReadyForCarryover({
+        phase: "post_closing",
+        documentsReceivedCompleted: false,
+      }),
+    ).toBe(false);
+    expect(
+      isReadyForCarryover({
+        phase: "journalizing",
+        documentsReceivedCompleted: true,
+      }),
     ).toBe(false);
   });
 });

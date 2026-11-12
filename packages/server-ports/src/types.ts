@@ -136,6 +136,13 @@ export type FiscalPeriodCarryoverApplyInput = {
   carryFixedAssets: boolean;
 };
 
+export type FiscalPeriodCarryoverFromArchiveApplyInput = {
+  archive: FiscalPeriodArchiveImportInput;
+  carryBalances: boolean;
+  reversalEntryIndexes: number[] | null;
+  carryFixedAssets: boolean;
+};
+
 export type FiscalPeriodPatchInput = {
   name?: string;
   startDate?: string;
@@ -299,6 +306,13 @@ export type FiscalPeriodCarryoverApplyRequest = {
 export type FiscalPeriodCarryoverApplyResponse = {
   fiscalPeriod: FiscalPeriodApiRecord;
 };
+export type FiscalPeriodCarryoverFromArchiveApplyRequest = {
+  id: string;
+  input: FiscalPeriodCarryoverFromArchiveApplyInput;
+};
+export type FiscalPeriodCarryoverFromArchiveApplyResponse = {
+  fiscalPeriod: FiscalPeriodApiRecord;
+};
 export type FiscalPeriodImportArchivedRequest = {
   input: FiscalPeriodArchiveImportInput;
 };
@@ -443,6 +457,11 @@ export type OpenkkHttpEndpointSpecs = {
   fiscalPeriodCarryoverApply: OpenkkHttpEndpointSpec<
     FiscalPeriodCarryoverApplyRequest,
     FiscalPeriodCarryoverApplyResponse,
+    200
+  >;
+  fiscalPeriodCarryoverFromArchiveApply: OpenkkHttpEndpointSpec<
+    FiscalPeriodCarryoverFromArchiveApplyRequest,
+    FiscalPeriodCarryoverFromArchiveApplyResponse,
     200
   >;
   fiscalPeriodImportArchived: OpenkkHttpEndpointSpec<
@@ -596,6 +615,11 @@ export const OPENKK_HTTP_ENDPOINTS = {
     path: "/fiscal-periods/{id}/apply-carryover",
     successStatus: 200,
   },
+  fiscalPeriodCarryoverFromArchiveApply: {
+    method: "POST",
+    path: "/fiscal-periods/{id}/apply-carryover-from-archive",
+    successStatus: 200,
+  },
   fiscalPeriodImportArchived: {
     method: "POST",
     path: "/fiscal-periods/import-archived",
@@ -724,6 +748,10 @@ export interface FiscalPeriodsApi {
   applyCarryover(
     id: string,
     input: FiscalPeriodCarryoverApplyInput,
+  ): Promise<FiscalPeriodApiRecord>;
+  applyCarryoverFromArchive(
+    id: string,
+    input: FiscalPeriodCarryoverFromArchiveApplyInput,
   ): Promise<FiscalPeriodApiRecord>;
   importArchived(
     input: FiscalPeriodArchiveImportInput,

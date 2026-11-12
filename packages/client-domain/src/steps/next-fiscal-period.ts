@@ -24,6 +24,8 @@ const REVERSIBLE_BALANCE_ACCOUNTS = new Set([
 
 const PROFIT_LOSS_TYPES = new Set(["revenue", "expense", "cost_of_sales"]);
 
+const CARRYOVER_SOURCE_PHASE = "post_closing";
+
 export type NextFiscalPeriodSuggestion = {
   name: string;
   startDate: string;
@@ -52,6 +54,15 @@ function addDaysToIsoDate(value: string, days: number): string | null {
   if (date == null) return null;
   date.setDate(date.getDate() + days);
   return formatIsoLocalDate(date);
+}
+
+export function isReadyForCarryover(period: {
+  phase: string;
+  documentsReceivedCompleted: boolean;
+}): boolean {
+  return (
+    period.phase === CARRYOVER_SOURCE_PHASE && period.documentsReceivedCompleted
+  );
 }
 
 export function isOpeningCarryoverCandidate(entry: EntryRecord): boolean {

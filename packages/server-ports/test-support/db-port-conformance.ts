@@ -607,6 +607,152 @@ export function runDbPortConformance(
       ).rejects.toThrow();
     });
 
+    function sourceArchive(seed: DbSnapshot): FiscalPeriodArchiveDbImportInput {
+      const source = seed.fiscalPeriods.find(
+        (period) => period.id === "fp-source",
+      )!;
+      return {
+        fiscalPeriod: {
+          name: source.name,
+          startDate: source.startDate,
+          endDate: source.endDate,
+          phase: source.phase,
+          openingBalancesCompleted: source.openingBalancesCompleted,
+          documentsReceivedCompleted: source.documentsReceivedCompleted,
+          opening: source.opening,
+        },
+        entries: seed.entries
+          .filter((entry) => entry.fiscalPeriodId === "fp-source")
+          .map((entry) => ({
+            date: entry.date,
+            description: entry.description,
+            localId: entry.localId,
+            businessRate: entry.businessRate,
+            lines: entry.lines.map(({ id: _id, ...line }) => line),
+          })),
+        fixedAssets: seed.fixedAssets
+          .filter((asset) => asset.fiscalPeriodId === "fp-source")
+          .map((asset) => ({
+            name: asset.name,
+            acquisitionDate: asset.acquisitionDate,
+            acquisitionCost: asset.acquisitionCost,
+            usefulLife: asset.usefulLife,
+            depreciationMethod: asset.depreciationMethod,
+            businessRate: asset.businessRate,
+            status: asset.status,
+            disposalDate: asset.disposalDate,
+            disposalPrice: asset.disposalPrice,
+            bookAccountId: asset.bookAccountId,
+          })),
+      };
+    }
+
+    function targetOnlyBook(seed: DbSnapshot): DbSnapshot {
+      return {
+        fiscalPeriods: seed.fiscalPeriods.filter(
+          (period) => period.id !== "fp-source",
+        ),
+        entries: seed.entries.filter(
+          (entry) => entry.fiscalPeriodId !== "fp-source",
+        ),
+        fixedAssets: seed.fixedAssets.filter(
+          (asset) => asset.fiscalPeriodId !== "fp-source",
+        ),
+      };
+    }
+
+    it("applyCarryoverFromArchive carries a period kept in another book", async () => {
+      const seed = carryoverSeed("journalizing");
+      const db = await ctx.makeSeededAdapter(targetOnlyBook(seed));
+
+      const updated = await db.fiscalPeriods.applyCarryoverFromArchive(
+        "fp-target",
+        {
+          archive: sourceArchive(seed),
+          carryBalances: true,
+          reversalEntryIndexes: [1],
+          carryFixedAssets: true,
+        },
+      );
+
+      expect(updated.openingBalancesCompleted).toBe(true);
+      expect(updated.opening.balanceLines).toEqual(
+        expect.arrayContaining([
+          { id: "a:現金", accountId: "a:現金", amount: 6000 },
+          { id: "l:元入金", accountId: "l:元入金", amount: 5700 },
+        ]),
+      );
+      expect(updated.opening.journals).toHaveLength(1);
+      expect(updated.opening.journals[0]!.date).toBe("2027-01-01");
+      expect(await db.fiscalPeriods.getById("fp-target")).toEqual(updated);
+      const assets = await db.fixedAssets.getAll("fp-target");
+      expect(assets.map((asset) => asset.name)).toEqual(["Camera"]);
+      expect(await db.fiscalPeriods.getAll("user-1")).toHaveLength(1);
+    });
+
+    it("applyCarryoverFromArchive leaves unselected items untouched", async () => {
+      const seed = carryoverSeed("journalizing");
+      const db = await ctx.makeSeededAdapter(targetOnlyBook(seed));
+      const before = await db.fiscalPeriods.getById("fp-target");
+
+      const updated = await db.fiscalPeriods.applyCarryoverFromArchive(
+        "fp-target",
+        {
+          archive: sourceArchive(seed),
+          carryBalances: false,
+          reversalEntryIndexes: null,
+          carryFixedAssets: true,
+        },
+      );
+
+      expect(updated.opening).toEqual(before!.opening);
+      const assets = await db.fixedAssets.getAll("fp-target");
+      expect(assets.map((asset) => asset.name)).toEqual(["Camera"]);
+    });
+
+    it("applyCarryoverFromArchive rejects an archive that is not fully closed", async () => {
+      const seed = carryoverSeed("journalizing");
+      const db = await ctx.makeSeededAdapter(targetOnlyBook(seed));
+      const before = await db.fiscalPeriods.getById("fp-target");
+      const archive = sourceArchive(seed);
+
+      await expect(
+        db.fiscalPeriods.applyCarryoverFromArchive("fp-target", {
+          archive: {
+            ...archive,
+            fiscalPeriod: {
+              ...archive.fiscalPeriod,
+              documentsReceivedCompleted: false,
+            },
+          },
+          carryBalances: true,
+          reversalEntryIndexes: null,
+          carryFixedAssets: true,
+        }),
+      ).rejects.toThrow();
+
+      expect(await db.fiscalPeriods.getById("fp-target")).toEqual(before);
+      expect(await db.fixedAssets.getAll("fp-target")).toHaveLength(1);
+    });
+
+    it("applyCarryoverFromArchive rejects a reversal entry outside the archive", async () => {
+      const seed = carryoverSeed("journalizing");
+      const db = await ctx.makeSeededAdapter(targetOnlyBook(seed));
+      const before = await db.fiscalPeriods.getById("fp-target");
+
+      await expect(
+        db.fiscalPeriods.applyCarryoverFromArchive("fp-target", {
+          archive: sourceArchive(seed),
+          carryBalances: true,
+          reversalEntryIndexes: [5],
+          carryFixedAssets: true,
+        }),
+      ).rejects.toThrow();
+
+      expect(await db.fiscalPeriods.getById("fp-target")).toEqual(before);
+      expect(await db.fixedAssets.getAll("fp-target")).toHaveLength(1);
+    });
+
     it("deletes child entries and fixed assets with the fiscal period", async () => {
       const db = await makeDb();
       const period = await db.fiscalPeriods.create("user-1", {

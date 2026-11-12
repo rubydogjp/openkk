@@ -20,6 +20,7 @@ import {
   assertFiscalPeriodCreateInput,
   assertFiscalPeriodNextCreateInput,
   assertFiscalPeriodCarryoverApplyInput,
+  assertFiscalPeriodCarryoverFromArchiveApplyInput,
   assertFiscalPeriodContainsExistingData,
   assertFiscalPeriodPatchInput,
   assertFiscalPeriodReadyForPreClosing,
@@ -209,6 +210,20 @@ export function createOpenkkServerApi(
           );
         }
         return usecases.fiscalPeriods.applyCarryover(userId, id, input);
+      },
+      applyCarryoverFromArchive: async (id, input) => {
+        const current = await requireOwnedFiscalPeriod(id);
+        assertPeriodPhaseOneOf(
+          current,
+          ["pre_opening", "journalizing"],
+          "apply carryover",
+        );
+        assertFiscalPeriodCarryoverFromArchiveApplyInput(input);
+        return usecases.fiscalPeriods.applyCarryoverFromArchive(
+          userId,
+          id,
+          input,
+        );
       },
       importArchived: (input) =>
         usecases.fiscalPeriods.importArchived(userId, input),

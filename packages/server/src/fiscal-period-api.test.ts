@@ -336,6 +336,62 @@ describe("openkk server fiscal period API", () => {
     ).rejects.toThrow(/cannot apply carryover from phase post_closing/);
   });
 
+  it("validates carryover from another book before touching storage", async () => {
+    const db = createFiscalPeriodDb([
+      fiscalPeriod({
+        id: "fp-target",
+        userId: "user-1",
+        startDate: "2027-01-01",
+        endDate: "2027-12-31",
+      }),
+      fiscalPeriod({
+        id: "fp-pre-closed",
+        userId: "user-1",
+        phase: "pre_closing",
+        startDate: "2028-01-01",
+        endDate: "2028-12-31",
+      }),
+    ]);
+    const server = createOpenkkServer(db, { userId: "user-1" });
+    const input = {
+      archive: {
+        manifest: {},
+        fiscalPeriod: {},
+        entries: [],
+        fixedAssets: [],
+        closings: [],
+      },
+      carryBalances: true,
+      reversalEntryIndexes: null,
+      carryFixedAssets: false,
+    };
+
+    await expect(
+      server.fiscalPeriods.applyCarryoverFromArchive("fp-target", {
+        ...input,
+        carryBalances: false,
+      }),
+    ).rejects.toThrow(/at least one item/);
+    await expect(
+      server.fiscalPeriods.applyCarryoverFromArchive("fp-target", {
+        ...input,
+        reversalEntryIndexes: [-1],
+      }),
+    ).rejects.toThrow(/entry positions/);
+    await expect(
+      server.fiscalPeriods.applyCarryoverFromArchive("fp-target", {
+        ...input,
+        reversalEntryIndexes: [0, 0],
+      }),
+    ).rejects.toThrow(/must be unique/);
+    await expect(
+      server.fiscalPeriods.applyCarryoverFromArchive("fp-pre-closed", input),
+    ).rejects.toThrow(/cannot apply carryover from phase pre_closing/);
+    await expect(
+      server.fiscalPeriods.applyCarryoverFromArchive("fp-target", input),
+    ).rejects.toThrow(/archive manifest/);
+  });
+
   it("rejects patches to archived fiscal periods", async () => {
     const db = createFiscalPeriodDb([
       fiscalPeriod({
@@ -818,6 +874,9 @@ function createFiscalPeriodDb(
       },
       async applyCarryover() {
         throw new Error("unexpected applyCarryover call");
+      },
+      async applyCarryoverFromArchive() {
+        throw new Error("unexpected applyCarryoverFromArchive call");
       },
       async importArchived(
         userId: string,

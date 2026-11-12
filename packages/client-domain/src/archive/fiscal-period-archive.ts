@@ -106,18 +106,27 @@ export function readFiscalPeriodArchiveZip(
   return payload;
 }
 
+export const OPENKK_BOOK_FILE_EXTENSION = ".openkk";
+
+function fiscalPeriodFileBase(name: string): string {
+  const safeName = name
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, "_")
+    .replace(/\s+/g, "_")
+    .slice(0, 80);
+  return safeName.length > 0 ? safeName : "fiscal-period";
+}
+
 export function buildFiscalPeriodArchiveFilename(input: {
   name: string;
   startDate: string;
   endDate: string;
 }): string {
-  const safeName = input.name
-    .trim()
-    .replace(/[\\/:*?"<>|]+/g, "_")
-    .replace(/\s+/g, "_")
-    .slice(0, 80);
-  const base = safeName.length > 0 ? safeName : "fiscal-period";
-  return `${base}_${input.startDate}_${input.endDate}.zip`;
+  return `${fiscalPeriodFileBase(input.name)}_${input.startDate}_${input.endDate}.zip`;
+}
+
+export function buildFiscalPeriodBookFilename(input: { name: string }): string {
+  return `${fiscalPeriodFileBase(input.name)}${OPENKK_BOOK_FILE_EXTENSION}`;
 }
 
 function jsonFile(name: string, value: unknown): ArchiveZipFile {

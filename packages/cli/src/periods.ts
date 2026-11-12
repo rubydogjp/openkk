@@ -1,6 +1,8 @@
 import {
+  buildFiscalPeriodBookFilename,
   buildNextFiscalPeriodSuggestion,
   fiscalPeriodPhaseLabel,
+  isReadyForCarryover,
 } from "@rubydogjp/openkk-client-domain";
 import type { FiscalPeriodApiRecord } from "@rubydogjp/openkk-client-ports";
 
@@ -9,6 +11,10 @@ import {
   requireFiscalPeriod,
   type CliCommandContext,
 } from "./command-context.js";
+import {
+  carryOverFromBook,
+  copyFiscalPeriodToBook,
+} from "./period-transfer.js";
 
 export async function runPeriodsCommand(
   input: CliCommandContext,
@@ -85,6 +91,42 @@ export async function runPeriodsCommand(
     case "next": {
       const source = await requireFiscalPeriod(api, rest[0] ?? null);
       const suggestion = buildNextFiscalPeriodSuggestion(source.endDate);
+      if (options.out != null) {
+        const bookPath = input.resolvePath(options.out);
+        const book = await input.createBook(bookPath);
+        try {
+          const created = await book.api.fiscalPeriods.create({
+            name: options.name ?? suggestion.name,
+            startDate: options.start ?? suggestion.startDate,
+            endDate: options.end ?? suggestion.endDate,
+          });
+          const carriedOver = isReadyForCarryover(source);
+          const period = carriedOver
+            ? await carryOverFromBook(
+                api,
+                source,
+                book.api,
+                created.id,
+                input.today(),
+              )
+            : created;
+          if (options.json) {
+            output.json({ file: bookPath, fiscalPeriod: period, carriedOver });
+            return;
+          }
+          output.line(
+            `次の期間のファイルを作りました: ${bookPath}  ${formatPeriodRow(period)}`,
+          );
+          output.line(
+            carriedOver
+              ? "期首のBSと固定資産を引き継ぎました"
+              : `${source.name} はまだ本締めと書類の受け取りを終えていないので、引き継いでいません。終えたら openkk --file ${bookPath} opening carry ${period.id} --from ${input.bookPath} で引き継げます`,
+          );
+        } finally {
+          book.close();
+        }
+        return;
+      }
       const created = await api.fiscalPeriods.createNext({
         sourceFiscalPeriodId: source.id,
         name: options.name ?? suggestion.name,
@@ -101,10 +143,33 @@ export async function runPeriodsCommand(
       output.line(`次の期間を作成しました: ${formatPeriodRow(created)}`);
       return;
     }
+    case "export": {
+      const period = await requireFiscalPeriod(api, rest[0] ?? null);
+      const bookPath = input.resolvePath(
+        options.out ?? buildFiscalPeriodBookFilename(period),
+      );
+      const book = await input.createBook(bookPath);
+      try {
+        const copied = await copyFiscalPeriodToBook(
+          api,
+          period,
+          book.api,
+          input.today(),
+        );
+        if (options.json) {
+          output.json({ file: bookPath, fiscalPeriod: copied });
+          return;
+        }
+        output.line(`書き出しました: ${bookPath}  ${formatPeriodRow(copied)}`);
+      } finally {
+        book.close();
+      }
+      return;
+    }
     default:
       throw new CliUsageError(
         subcommand == null
-          ? "periods のあとに list / show / create / start / receive / next を指定してください"
+          ? "periods のあとに list / show / create / start / receive / next / export を指定してください"
           : `periods ${subcommand} というコマンドはありません`,
       );
   }

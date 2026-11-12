@@ -10,6 +10,7 @@ import {
   FISCAL_PERIOD_ARCHIVE_VERSION,
   buildFiscalPeriodArchiveFilename,
   buildFiscalPeriodArchivePayload,
+  buildFiscalPeriodBookFilename,
   createFiscalPeriodArchiveZip,
   readFiscalPeriodArchiveZip,
 } from "./fiscal-period-archive.js";
@@ -362,6 +363,15 @@ describe("fiscal period archive", () => {
         endDate: "2026-12-31",
       }),
     ).toBe("2026_年分____main__2026-01-01_2026-12-31.zip");
+  });
+
+  it("names a single-period book file after the period", () => {
+    expect(buildFiscalPeriodBookFilename({ name: '2026 年分 / "main"' })).toBe(
+      "2026_年分____main_.openkk",
+    );
+    expect(buildFiscalPeriodBookFilename({ name: "  " })).toBe(
+      "fiscal-period.openkk",
+    );
   });
 
   it("throws AppError when archive content is invalid", () => {

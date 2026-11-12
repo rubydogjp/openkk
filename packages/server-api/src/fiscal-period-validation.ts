@@ -15,6 +15,7 @@ import type {
   FiscalPeriodCreateInput,
   FiscalPeriodNextCreateInput,
   FiscalPeriodCarryoverApplyInput,
+  FiscalPeriodCarryoverFromArchiveApplyInput,
   FiscalPeriodOpeningApiRecord,
   FiscalPeriodPatchInput,
   FixedAssetApiRecord,
@@ -159,6 +160,52 @@ export function assertFiscalPeriodCarryoverApplyInput(
     !value.carryBalances &&
     !value.carryFixedAssets &&
     value.reversalEntryIds === null
+  ) {
+    throw serverValidationError(
+      "Carryover requires at least one item",
+      "引き継ぐ項目を選んでください",
+    );
+  }
+}
+
+export function assertFiscalPeriodCarryoverFromArchiveApplyInput(
+  input: unknown,
+): asserts input is FiscalPeriodCarryoverFromArchiveApplyInput {
+  const value = requireObject(input, "Carryover input");
+  requireObject(value.archive, "Carryover archive");
+  if (
+    typeof value.carryBalances !== "boolean" ||
+    typeof value.carryFixedAssets !== "boolean"
+  ) {
+    throw serverValidationError("Carryover options must be booleans", null);
+  }
+  if (value.reversalEntryIndexes !== null) {
+    if (
+      !Array.isArray(value.reversalEntryIndexes) ||
+      value.reversalEntryIndexes.length > MAX_ENTRY_IMPORT_ITEMS ||
+      !value.reversalEntryIndexes.every(
+        (index) => Number.isSafeInteger(index) && index >= 0,
+      )
+    ) {
+      throw serverValidationError(
+        "Reversal entry indexes must be null or a bounded array of entry positions",
+        null,
+      );
+    }
+    if (
+      new Set(value.reversalEntryIndexes).size !==
+      value.reversalEntryIndexes.length
+    ) {
+      throw serverValidationError(
+        "Reversal entry indexes must be unique",
+        "同じ仕訳が再振替に重複して指定されています",
+      );
+    }
+  }
+  if (
+    !value.carryBalances &&
+    !value.carryFixedAssets &&
+    value.reversalEntryIndexes === null
   ) {
     throw serverValidationError(
       "Carryover requires at least one item",
