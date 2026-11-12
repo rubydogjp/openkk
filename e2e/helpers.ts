@@ -1,7 +1,44 @@
 import { expect, type Page } from "@playwright/test";
 
+const STORAGE_NOTICE_SEEN_KEY = "openkk.book-storage-notice.seen";
+
+export async function skipStorageNotice(page: Page) {
+  await page.addInitScript((key) => {
+    window.localStorage.setItem(key, "1");
+  }, STORAGE_NOTICE_SEEN_KEY);
+}
+
+export async function startApp(page: Page) {
+  await skipStorageNotice(page);
+  await page.goto("/");
+  await waitUntilBootPhase(page, "ready");
+}
+
+export async function waitUntilBooksStored(page: Page) {
+  await page.waitForFunction(
+    () => {
+      const status = document.documentElement.getAttribute(
+        "data-openkk-storage",
+      );
+      return status == null || status === "saved";
+    },
+    null,
+    { timeout: 15_000 },
+  );
+}
+
+export async function gotoInApp(page: Page, url: string) {
+  await waitUntilBooksStored(page);
+  await page.goto(url);
+}
+
+export async function reloadInApp(page: Page) {
+  await waitUntilBooksStored(page);
+  await page.reload();
+}
+
 export async function createFiscalPeriod(page: Page, name: string) {
-  await page.goto("/fiscal-periods");
+  await gotoInApp(page, "/fiscal-periods");
   await page.getByRole("button", { name: "追加" }).click();
   await expect(page.getByRole("heading", { name: "新しい期間" })).toBeVisible();
   await page.getByPlaceholder("例: 2026年分").fill(name);

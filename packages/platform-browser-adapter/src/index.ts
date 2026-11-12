@@ -13,3 +13,33 @@ export const platformBrowserAdapter: PlatformPort = {
   files: browserFiles,
   navigation: browserNavigation,
 };
+
+export {
+  AppLockUnavailableError,
+  browserAppLock,
+  createAppLock,
+  type AppLock,
+  type AppLockManager,
+} from "./app-lock.js";
+export {
+  deliverBookFile,
+  type BookFileDeliveryResult,
+} from "./book-file-delivery.js";
+export {
+  bookFileName,
+  isBookFileName,
+  OPENKK_BOOK_EXTENSION,
+  OPENKK_BOOK_MIME_TYPE,
+} from "./book-file-format.js";
+export {
+  canUseInAppBooks,
+  createInAppBookStore,
+  createWorkerBookWriter,
+  inAppBookStore,
+  newInAppBookName,
+  requestBrowserPersistentStorage,
+  type InAppBookDirectory,
+  type InAppBookStore,
+  type InAppBookStoreDependencies,
+  type InAppBookWriter,
+} from "./in-app-book-store.js";

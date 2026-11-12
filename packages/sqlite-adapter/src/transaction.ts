@@ -1,3 +1,5 @@
+import { stampChange, totalChanges } from "./change-stamp.js";
+import { nowMs } from "./runtime.js";
 import type { SqlDb } from "./sql-db.js";
 
 export async function runInTransaction<Result>(
@@ -6,7 +8,11 @@ export async function runInTransaction<Result>(
 ): Promise<Result> {
   await db.exec("BEGIN");
   try {
+    const changesBefore = await totalChanges(db);
     const result = await operation();
+    if ((await totalChanges(db)) !== changesBefore) {
+      await stampChange(db, nowMs());
+    }
     await db.exec("COMMIT");
     return result;
   } catch (operationError) {

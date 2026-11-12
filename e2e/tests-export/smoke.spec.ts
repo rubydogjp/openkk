@@ -18,9 +18,9 @@ const ROUTES = [
   "/assist/opening-carryover",
   "/fiscal-periods",
   "/fiscal-periods/new",
-  "/install",
   "/debug",
 ];
+const INSTALL_ROUTE = "/install";
 
 test("export smoke (prod): 全ルートにアセット欠落・JS エラーが無い", async ({
   page,
@@ -40,6 +40,10 @@ test("export smoke (prod): 全ルートにアセット欠落・JS エラーが�
     await waitUntilSettled(page);
     await expect(page.locator("body")).not.toContainText("初期化に失敗");
   }
+  await page.goto(INSTALL_ROUTE, { waitUntil: "networkidle" });
+  await expect(
+    page.getByRole("heading", { name: "オープン会計をインストール" }),
+  ).toBeVisible();
 
   expect(failed, `failed requests:\n${failed.join("\n")}`).toEqual([]);
   expect(pageErrors, `page errors:\n${pageErrors.join("\n")}`).toEqual([]);

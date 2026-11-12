@@ -23,12 +23,14 @@ class FakeWorker {
   onerror: ((event: ErrorEvent) => void) | null = null;
   terminated = false;
   hangNext = false;
+  posted: WorkerMessage[] = [];
 
   constructor() {
     FakeWorker.instances.push(this);
   }
 
   postMessage(message: WorkerMessage): void {
+    this.posted.push(message);
     if (this.hangNext) {
       this.hangNext = false;
       return;
@@ -411,5 +413,116 @@ describe("createFileDbAdapter", () => {
     );
     expect(second).not.toBe(first);
     expect(FakeWorker.instances).toHaveLength(2);
+  });
+});
+
+describe("exportFileDbBytes", () => {
+  const options = {
+    vfsName: "opfs-test",
+    dbFileName: "test.sqlite3",
+    onWaitingForAnotherTab: null,
+  };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.resetModules();
+    FakeWorker.outcomes = [];
+    FakeWorker.instances = [];
+  });
+
+  function stubStorageRoot(poolExists: boolean) {
+    const getDirectoryHandle = vi.fn(async () => {
+      if (!poolExists) throw new DOMException("missing", "NotFoundError");
+      return {};
+    });
+    vi.stubGlobal("navigator", {
+      storage: { getDirectory: async () => ({ getDirectoryHandle }) },
+    });
+    vi.stubGlobal("Worker", FakeWorker);
+    return getDirectoryHandle;
+  }
+
+  it("returns nothing without starting SQLite when the database was never made", async () => {
+    const getDirectoryHandle = stubStorageRoot(false);
+    const { exportFileDbBytes } = await import("./index.js");
+
+    await expect(exportFileDbBytes(options)).resolves.toBeNull();
+    expect(getDirectoryHandle).toHaveBeenCalledWith(".opfs-test", {
+      create: false,
+    });
+    expect(FakeWorker.instances).toHaveLength(0);
+  });
+
+  it("returns nothing when the browser keeps no files for this site", async () => {
+    vi.stubGlobal("navigator", {});
+    vi.stubGlobal("Worker", FakeWorker);
+    const { exportFileDbBytes } = await import("./index.js");
+
+    await expect(exportFileDbBytes(options)).resolves.toBeNull();
+    expect(FakeWorker.instances).toHaveLength(0);
+  });
+
+  it("exports the database through the worker and then lets the worker go", async () => {
+    stubStorageRoot(true);
+    FakeWorker.outcomes = [
+      { kind: "response", ok: true, result: new Uint8Array([1, 2, 3]) },
+    ];
+    const { exportFileDbBytes } = await import("./index.js");
+
+    await expect(exportFileDbBytes(options)).resolves.toEqual(
+      new Uint8Array([1, 2, 3]),
+    );
+    const worker = FakeWorker.instances[0]!;
+    expect(worker.posted).toEqual([
+      {
+        id: 1,
+        type: "export",
+        payload: { vfsName: "opfs-test", dbFileName: "test.sqlite3" },
+      },
+    ]);
+    expect(worker.terminated).toBe(true);
+  });
+
+  it("reports another tab and exports once that tab lets go", async () => {
+    stubStorageRoot(true);
+    let releaseOtherTab: () => void = () => {};
+    FakeWorker.outcomes = [
+      {
+        kind: "waitThenRespond",
+        release: new Promise<void>((resolve) => {
+          releaseOtherTab = resolve;
+        }),
+      },
+    ];
+    const waiting = vi.fn();
+    const { exportFileDbBytes } = await import("./index.js");
+
+    const exported = exportFileDbBytes({
+      ...options,
+      onWaitingForAnotherTab: waiting,
+    });
+    await vi.waitFor(() => expect(waiting).toHaveBeenCalledOnce());
+    expect(FakeWorker.instances[0]!.terminated).toBe(false);
+
+    releaseOtherTab();
+    await expect(exported).resolves.toBeNull();
+    expect(FakeWorker.instances[0]!.terminated).toBe(true);
+  });
+
+  it("lets the worker go when the export fails", async () => {
+    stubStorageRoot(true);
+    FakeWorker.outcomes = [
+      {
+        kind: "response",
+        ok: false,
+        error: "database disk image is malformed",
+      },
+    ];
+    const { exportFileDbBytes } = await import("./index.js");
+
+    await expect(exportFileDbBytes(options)).rejects.toThrow(
+      "database disk image is malformed",
+    );
+    expect(FakeWorker.instances[0]!.terminated).toBe(true);
   });
 });

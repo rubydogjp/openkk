@@ -29,6 +29,7 @@ export * from "./assist/stored-record-mapping.js";
 export * from "./archive/fiscal-period-archive.js";
 export {
   assertFiscalPeriodArchiveByteLength,
+  looksLikeZip,
   MAX_FISCAL_PERIOD_ARCHIVE_BYTES,
   MAX_FISCAL_PERIOD_ARCHIVE_FILE_BYTES,
 } from "./archive/fiscal-period-archive-zip.js";

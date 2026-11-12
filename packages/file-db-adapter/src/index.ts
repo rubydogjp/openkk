@@ -32,12 +32,13 @@ function isWorkerEvent(data: unknown): data is WorkerEvent {
   );
 }
 
-async function createWorkerSqlDb(
+type SendToWorker = (type: string, payload: unknown) => Promise<unknown>;
+
+function connectSqliteWorker(
   worker: Worker,
   onFatal: (error: Error) => void,
   onWaitingForAnotherTab: (() => void) | null,
-  initPayload: { vfsName: string; dbFileName: string },
-): Promise<SqlDb> {
+): SendToWorker {
   let nextId = 1;
   const pending = new Map<
     number,
@@ -90,7 +91,30 @@ async function createWorkerSqlDb(
     });
   }
 
-  await send("init", initPayload);
+  return send;
+}
+
+function createSqliteWorker(): Worker {
+  return new Worker(new URL("./sqlite.worker.js", import.meta.url), {
+    type: "module",
+  });
+}
+
+function dbLocation(options: FileDbAdapterOptions) {
+  return { vfsName: options.vfsName, dbFileName: options.dbFileName };
+}
+
+async function createWorkerSqlDb(
+  worker: Worker,
+  onFatal: (error: Error) => void,
+  options: FileDbAdapterOptions,
+): Promise<SqlDb> {
+  const send = connectSqliteWorker(
+    worker,
+    onFatal,
+    options.onWaitingForAnotherTab,
+  );
+  await send("init", dbLocation(options));
   return { exec: (arg) => send("exec", arg) };
 }
 
@@ -109,9 +133,7 @@ export function createFileDbAdapter(
   }
   if (cachedAdapter == null) {
     cachedAdapterKey = adapterKey;
-    const worker = new Worker(new URL("./sqlite.worker.js", import.meta.url), {
-      type: "module",
-    });
+    const worker = createSqliteWorker();
     const initialization = (async () => {
       try {
         const db = await createWorkerSqlDb(
@@ -123,8 +145,7 @@ export function createFileDbAdapter(
               cachedAdapterKey = null;
             }
           },
-          options.onWaitingForAnotherTab,
-          { vfsName: options.vfsName, dbFileName: options.dbFileName },
+          options,
         );
         const adapter = await createSqliteDbAdapter(db, seed);
         void requestPersistentStorage(browserPersistentStorage());
@@ -139,4 +160,52 @@ export function createFileDbAdapter(
     cachedAdapter = initialization;
   }
   return cachedAdapter;
+}
+
+type PoolDirectoryRoot = {
+  getDirectoryHandle(
+    name: string,
+    options: { create: false },
+  ): Promise<unknown>;
+};
+
+export async function hasFileDbStorage(vfsName: string): Promise<boolean> {
+  const storage: unknown =
+    typeof navigator === "object" ? navigator.storage : null;
+  if (
+    typeof storage !== "object" ||
+    storage == null ||
+    !("getDirectory" in storage) ||
+    typeof storage.getDirectory !== "function"
+  ) {
+    return false;
+  }
+  const root = (await storage.getDirectory()) as PoolDirectoryRoot;
+  try {
+    await root.getDirectoryHandle(`.${vfsName}`, { create: false });
+    return true;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "NotFoundError") {
+      return false;
+    }
+    throw error;
+  }
+}
+
+export async function exportFileDbBytes(
+  options: FileDbAdapterOptions,
+): Promise<Uint8Array | null> {
+  if (!(await hasFileDbStorage(options.vfsName))) return null;
+  const worker = createSqliteWorker();
+  try {
+    const send = connectSqliteWorker(
+      worker,
+      () => {},
+      options.onWaitingForAnotherTab,
+    );
+    const bytes = await send("export", dbLocation(options));
+    return bytes instanceof Uint8Array ? bytes : null;
+  } finally {
+    worker.terminate();
+  }
 }

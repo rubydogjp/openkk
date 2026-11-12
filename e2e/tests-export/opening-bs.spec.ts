@@ -1,10 +1,17 @@
 import { test, expect } from "@playwright/test";
-import { clickButton, createFiscalPeriod, expectStep } from "../helpers";
+import {
+  clickButton,
+  createFiscalPeriod,
+  expectStep,
+  gotoInApp,
+  startApp,
+} from "../helpers";
 
 test("期首BSを狭い画面で入力し、幅を変えても値を失わず保存できる", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 800, height: 900 });
+  await startApp(page);
   await createFiscalPeriod(page, "期首BSの表示確認");
   await clickButton(page, "開始する");
   await clickButton(page, "開始する");
@@ -44,7 +51,7 @@ test("期首BSを狭い画面で入力し、幅を変えても値を失わず保
   await page.setViewportSize({ width: 800, height: 900 });
   await clickButton(page, "保存して次へ");
   await expectStep(page, "日々の仕訳");
-  await page.goto("/steps/opening-bs");
+  await gotoInApp(page, "/steps/opening-bs");
   await expect(
     page.getByRole("region", { name: "資産の部", exact: true }),
   ).toContainText("2,602,000");

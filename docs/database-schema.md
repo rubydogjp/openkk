@@ -85,9 +85,11 @@ erDiagram
 
 Indexes: `fiscal_periods(user_id, created_at, id)`, 期首データ各行の表示順、`entries(fiscal_period_id, date, created_at, id)`, `fixed_assets(fiscal_period_id, created_at, id)`。`entries.local_id` は `null` 以外なら期間内で一意。
 
+`openkk_meta` は `schema_version` と `last_changed_at` を持つ。`last_changed_at` は帳簿の中身を最後に変えた時刻 (ミリ秒) で、行を変えたトランザクションの中で `sqlite-adapter` の `runInTransaction` が更新する。前の値より必ず大きくするので、時計がずれた端末で変えても順序が戻らない。無印版はこの値で、ファイルに保存したあとに変更があったかと、取り込むファイルがアプリの外で変わったかを見分ける。マイグレーションでは変えない。
+
 ## マイグレーション
 
-`SCHEMA_VERSION` は 5。起動時に不足分を順に適用する。
+`SCHEMA_VERSION` は 6。起動時に不足分を順に適用する。
 
 公開済みのマイグレーションは書き換えず、修正は新しいバージョンに分離する。
 未公開のバージョンは追加せず、次に公開するバージョンへまとめる。
@@ -99,3 +101,4 @@ Indexes: `fiscal_periods(user_id, created_at, id)`, 期首データ各行の表�
 | 3       | `entry_lines` に明細IDを追加                                                                                                                                   |
 | 4       | 税区分・事業区分をID化し未設定値を `null` に統一。期首データを会計期間へ直結し、`archiveDataAvailable`・`settingsCompleted` を `archiveStatus`・`phase` へ統合 |
 | 5       | 仮締め・本締めのテーブルを廃止し `phase` に統合                                                                                                                |
+| 6       | `openkk_meta` に `last_changed_at` (最後に中身を変えた時刻、ミリ秒) を足す                                                                                     |

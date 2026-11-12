@@ -1,5 +1,7 @@
 import { defineConfig } from "@playwright/test";
 
+const ORIGINAL_URL = "http://localhost:4308";
+
 export default defineConfig({
   timeout: 60_000,
   reporter: [["list"]],
@@ -8,7 +10,7 @@ export default defineConfig({
     {
       name: "original",
       testDir: "./tests-export",
-      use: { baseURL: "http://localhost:4308" },
+      use: { baseURL: ORIGINAL_URL },
     },
     {
       name: "demo",

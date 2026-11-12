@@ -53,9 +53,10 @@ const LAYERS = [
   {
     id: "client_adapters",
     label: "Client Adapters",
-    note: "`OpenkkBackendPort` / `PrintPort` / `PlatformPort` の実装群。consumer は backend adapter を差し替える",
+    note: "`OpenkkBackendPort` / `OpenkkBookFilesPort` / `PrintPort` / `PlatformPort` の実装群。consumer は backend adapter を差し替える",
     match: (name) =>
       name === "@rubydogjp/openkk-embedded-backend-adapter" ||
+      name === "@rubydogjp/openkk-book-files-adapter" ||
       name === "@rubydogjp/openkk-print-adapter" ||
       name === "@rubydogjp/openkk-platform-browser-adapter",
   },
@@ -82,7 +83,8 @@ const LAYERS = [
       name === "@rubydogjp/openkk-sqlite-adapter" ||
       name === "@rubydogjp/openkk-memory-db-adapter" ||
       name === "@rubydogjp/openkk-node-sqlite-db-adapter" ||
-      name === "@rubydogjp/openkk-document-db-adapter",
+      name === "@rubydogjp/openkk-document-db-adapter" ||
+      name === "@rubydogjp/openkk-books-db-adapter",
   },
   {
     id: "server",

@@ -695,12 +695,21 @@ DROP TABLE closings;
 `.trim(),
 };
 
+const MIGRATION_V6: SchemaMigration = {
+  version: 6,
+  sql: `
+INSERT OR IGNORE INTO openkk_meta(key, value)
+VALUES('last_changed_at', CAST(CAST(strftime('%s', 'now') AS INTEGER) * 1000 AS TEXT));
+`.trim(),
+};
+
 export const SCHEMA_MIGRATIONS: SchemaMigration[] = [
   MIGRATION_V1,
   MIGRATION_V2,
   MIGRATION_V3,
   MIGRATION_V4,
   MIGRATION_V5,
+  MIGRATION_V6,
 ];
 
 export const SCHEMA_VERSION =

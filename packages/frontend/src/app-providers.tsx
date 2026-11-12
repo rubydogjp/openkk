@@ -7,22 +7,25 @@ import {
   PlatformAdapterProvider,
   OpenkkAppStateProvider,
   OpenkkAssistProvider,
+  OpenkkBookFilesProvider,
   OpenkkCalloutsProvider,
   OpenkkConfigProvider,
   OpenkkEntriesProvider,
   OpenkkMaintenanceProvider,
   PrintAdapterProvider,
   WorkInProgressProvider,
-  type OpenkkBackendPort,
 } from "@rubydogjp/openkk-client";
 import { platformBrowserAdapter } from "@rubydogjp/openkk-platform-browser-adapter";
 import { printAdapter } from "@rubydogjp/openkk-print-adapter";
 
-import type { OpenkkBundleRuntime } from "./bundle-runtime.js";
+import type {
+  OpenkkBundleBackend,
+  OpenkkBundleRuntime,
+} from "./bundle-runtime.js";
+import { useOfflineCache } from "./offline-cache.js";
 
-const SERVICE_WORKER_URL = "/sw.js";
-const SERVICE_WORKER_BUILD_ID = process.env.NEXT_PUBLIC_BUILD_ID ?? "default";
 const BOOT_PHASE_ATTRIBUTE_NAME = "data-openkk-boot";
+const BOOK_STORAGE_ATTRIBUTE_NAME = "data-openkk-storage";
 
 type OpenkkBootPhase =
   "starting" | "waiting-for-another-tab" | "ready" | "failed";
@@ -32,7 +35,9 @@ export function OpenkkAppProviders(props: {
   children: ReactNode;
 }) {
   const { runtime } = props;
-  const [backendApi, setBackendApi] = useState<OpenkkBackendPort | null>(null);
+  const [backend, setBackend] = useState<OpenkkBundleBackend | null>(null);
+  const backendApi = backend?.api ?? null;
+  const bookFiles = backend?.bookFiles ?? null;
   const [bootError, setBootError] = useState<unknown>(null);
   const [waitingForAnotherTab, setWaitingForAnotherTab] = useState(false);
   const bootPhase: OpenkkBootPhase =
@@ -54,14 +59,14 @@ export function OpenkkAppProviders(props: {
     let cancelled = false;
     void (async () => {
       try {
-        const api = await runtime.createBackendApi({
+        const created = await runtime.createBackend({
           onWaitingForAnotherTab: () => {
             if (!cancelled) setWaitingForAnotherTab(true);
           },
         });
         if (cancelled) return;
         setWaitingForAnotherTab(false);
-        setBackendApi(api);
+        setBackend(created);
       } catch (error) {
         if (cancelled) return;
         console.error("[openkk] backend init failed:", error);
@@ -73,13 +78,28 @@ export function OpenkkAppProviders(props: {
     };
   }, [backendApi, runtime]);
 
+  useOfflineCache(runtime.registerServiceWorker);
+
   useEffect(() => {
-    if (!runtime.registerServiceWorker) return;
-    platformBrowserAdapter.offlineCache.register(
-      SERVICE_WORKER_URL,
-      SERVICE_WORKER_BUILD_ID,
-    );
-  }, [runtime.registerServiceWorker]);
+    if (bookFiles == null) return;
+    const root = document.documentElement;
+    const showStatus = () =>
+      root.setAttribute(
+        BOOK_STORAGE_ATTRIBUTE_NAME,
+        bookFiles.getStorageStatus(),
+      );
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      if (bookFiles.getStorageStatus() !== "saved") event.preventDefault();
+    };
+    showStatus();
+    const unsubscribe = bookFiles.subscribe(showStatus);
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+    return () => {
+      unsubscribe();
+      window.removeEventListener("beforeunload", warnBeforeLeaving);
+      root.removeAttribute(BOOK_STORAGE_ATTRIBUTE_NAME);
+    };
+  }, [bookFiles]);
 
   if (bootError != null) {
     return (
@@ -111,21 +131,23 @@ export function OpenkkAppProviders(props: {
       <BrandConfigProvider config={runtime.brandConfig}>
         <OpenkkCalloutsProvider slots={runtime.calloutSlots}>
           <PlatformAdapterProvider adapter={platformBrowserAdapter}>
-            <BackendApiProvider api={backendApi}>
-              <OpenkkMaintenanceProvider>
-                <PrintAdapterProvider adapter={printAdapter}>
-                  <OpenkkAppStateProvider>
-                    <OpenkkEntriesProvider>
-                      <OpenkkAssistProvider>
-                        <WorkInProgressProvider>
-                          {props.children}
-                        </WorkInProgressProvider>
-                      </OpenkkAssistProvider>
-                    </OpenkkEntriesProvider>
-                  </OpenkkAppStateProvider>
-                </PrintAdapterProvider>
-              </OpenkkMaintenanceProvider>
-            </BackendApiProvider>
+            <OpenkkBookFilesProvider bookFiles={bookFiles}>
+              <BackendApiProvider api={backendApi}>
+                <OpenkkMaintenanceProvider>
+                  <PrintAdapterProvider adapter={printAdapter}>
+                    <OpenkkAppStateProvider>
+                      <OpenkkEntriesProvider>
+                        <OpenkkAssistProvider>
+                          <WorkInProgressProvider>
+                            {props.children}
+                          </WorkInProgressProvider>
+                        </OpenkkAssistProvider>
+                      </OpenkkEntriesProvider>
+                    </OpenkkAppStateProvider>
+                  </PrintAdapterProvider>
+                </OpenkkMaintenanceProvider>
+              </BackendApiProvider>
+            </OpenkkBookFilesProvider>
           </PlatformAdapterProvider>
         </OpenkkCalloutsProvider>
       </BrandConfigProvider>

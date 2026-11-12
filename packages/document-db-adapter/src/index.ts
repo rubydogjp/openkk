@@ -2,12 +2,12 @@ import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
 import type { OpenkkDbPort } from "@rubydogjp/openkk-server-ports";
 import {
   createSqliteDbAdapter,
+  LAST_CHANGED_AT_QUERY,
+  parseLastChangedAt,
   runMigrations,
   SCHEMA_VERSION,
   type SqlDb,
 } from "@rubydogjp/openkk-sqlite-adapter";
-
-export const OPENKK_DOCUMENT_EXTENSION = ".openkk";
 
 export type DocumentFileProblem = "not_sqlite" | "not_openkk" | "newer_schema";
 
@@ -24,6 +24,11 @@ export class DocumentFileFormatError extends Error {
 export type DocumentDbAdapter = {
   db: OpenkkDbPort;
   changedOnOpen: boolean;
+  lastChangedAtOnOpen: number | null;
+  lastChangedAt(): number;
+  restoreLastChangedAt(stamp: number): void;
+  listFiscalPeriodIds(): string[];
+  compact(): void;
   exportBytes(): Uint8Array;
   onChange(listener: () => void): () => void;
   close(): void;
@@ -35,6 +40,10 @@ const SCHEMA_VERSION_QUERY =
 const META_TABLE_QUERY =
   "SELECT 1 FROM sqlite_master WHERE type='table' AND name='openkk_meta'";
 const ANY_TABLE_QUERY = "SELECT 1 FROM sqlite_master WHERE type='table'";
+const RESTORE_LAST_CHANGED_AT_SQL =
+  "INSERT OR REPLACE INTO openkk_meta(key, value) VALUES('last_changed_at', ?)";
+const FISCAL_PERIOD_IDS_QUERY =
+  "SELECT id FROM fiscal_periods ORDER BY created_at ASC, id ASC";
 
 let sqliteModulePromise: ReturnType<typeof sqlite3InitModule> | null = null;
 
@@ -79,6 +88,10 @@ export async function createDocumentDbAdapter(
       assertOpenkkDocument(database);
     }
     const changesBefore = capi.sqlite3_total_changes(database.pointer!);
+    const lastChangedAtOnOpen =
+      bytes != null && database.selectValue(META_TABLE_QUERY) != null
+        ? parseLastChangedAt(database.selectValue(LAST_CHANGED_AT_QUERY))
+        : null;
     runMigrations(database);
     const changedOnOpen =
       bytes == null ||
@@ -88,16 +101,36 @@ export async function createDocumentDbAdapter(
     const sqlDb: SqlDb = { exec: async (arg) => sync.exec(arg) };
     const listeners = new Set<() => void>();
     const port = await createSqliteDbAdapter(sqlDb, null);
-    const db = notifyAfterChanges(
-      port,
-      () => capi.sqlite3_total_changes(database.pointer!),
-      () => {
-        for (const listener of listeners) listener();
-      },
+    const lastSeenChanges = createChangeCounter(() =>
+      capi.sqlite3_total_changes(database.pointer!),
     );
+    const db = notifyAfterChanges(port, lastSeenChanges, () => {
+      for (const listener of listeners) listener();
+    });
     return {
       db,
       changedOnOpen,
+      lastChangedAtOnOpen,
+      lastChangedAt() {
+        const stamp = parseLastChangedAt(
+          database.selectValue(LAST_CHANGED_AT_QUERY),
+        );
+        if (stamp == null) throw new Error("the book has no change stamp");
+        return stamp;
+      },
+      restoreLastChangedAt(stamp) {
+        database.exec({
+          sql: RESTORE_LAST_CHANGED_AT_SQL,
+          bind: [String(stamp)],
+        });
+        lastSeenChanges.reset();
+      },
+      listFiscalPeriodIds: () =>
+        database.selectValues(FISCAL_PERIOD_IDS_QUERY).map(String),
+      compact() {
+        database.exec("VACUUM");
+        lastSeenChanges.reset();
+      },
       exportBytes: () => capi.sqlite3_js_db_export(database.pointer!),
       onChange(listener) {
         listeners.add(listener);
@@ -142,17 +175,33 @@ function assertOpenkkDocument(database: {
   }
 }
 
+type ChangeCounter = {
+  hasNewChanges(): boolean;
+  reset(): void;
+};
+
+function createChangeCounter(totalChanges: () => number): ChangeCounter {
+  let lastSeen = totalChanges();
+  return {
+    hasNewChanges() {
+      const current = totalChanges();
+      if (current === lastSeen) return false;
+      lastSeen = current;
+      return true;
+    },
+    reset() {
+      lastSeen = totalChanges();
+    },
+  };
+}
+
 function notifyAfterChanges(
   port: OpenkkDbPort,
-  totalChanges: () => number,
+  changes: ChangeCounter,
   notify: () => void,
 ): OpenkkDbPort {
-  let lastSeen = totalChanges();
   const settle = () => {
-    const current = totalChanges();
-    if (current === lastSeen) return;
-    lastSeen = current;
-    notify();
+    if (changes.hasNewChanges()) notify();
   };
   const wrapNamespace = <T extends object>(namespace: T): T =>
     Object.fromEntries(

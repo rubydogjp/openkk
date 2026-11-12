@@ -1,11 +1,13 @@
-# CLI 版 (ベータ) の設計
+# openkk-cli (ベータ) の設計
+
+呼び名: 全体 (形式・契約・アプリ・コマンド) を openkk、コマンドラインの道具を openkk-cli と呼ぶ。パッケージは `@rubydogjp/openkk-cli`、コマンドは `openkk`。openkk-cli は端末の中の道具で、無印版 (ブラウザのアプリ) を起動しない。
 
 状態: ベータ。OSS に入れておくだけで、告知はしない。`cli` と `node-sqlite-db-adapter` は `private: true` で npm には出さない (出すときは外し、`docs/release.md` の初回 publish と Trusted Publishing の設定をする)。下の「進め方」の 1〜6 (`node-sqlite-db-adapter`、`cli` の `init`・`periods`・`opening`・`entries`・`report`・`closing`・`archive`) まで実装済みで、期首のBSから本締め・次の期間まで CLI だけで回せる。再振替の選択と固定資産の操作はまだ Web 版だけ。
 
 ## 結論
 
-- 作業用のストアは **SQLite ファイル** (`openkk.sqlite3`)。zip は会計期間単位の受け渡し (import / export) に使う
-- CLI は UI と同じく **composition root** として足す。`embedded-backend` → `embedded-backend-adapter` を同じプロセスでつなぎ、`OpenkkBackendPort` 経由で呼ぶ
+- 作業用のストアは **SQLite ファイル** (`.openkk`、既定は `book.openkk`)。無印版 (`packages/openkk`) の帳簿と同じ形式で、無印版が「保存」で書き出したファイルをそのまま扱い、変えたファイルを無印版に取り込める。zip は会計期間単位の受け渡し (import / export) に使う
+- openkk-cli は UI と同じく **composition root** として足す。層の並びは無印版・クラウドに置く版と同じで、保存先 (`OpenkkDbPort` の実装) が違うだけ ([`architecture.md`](./architecture.md) の「クラウドとローカルで層をそろえる」)。`embedded-backend` → `embedded-backend-adapter` を同じプロセスでつなぎ、`OpenkkBackendPort` 経由で呼ぶ
 
 ## ファイル形式
 
@@ -22,17 +24,22 @@
 - zip (`client-domain/src/archive/fiscal-period-archive.ts`) は 1 期間分の JSON。取り込むと完了済みの期間として復元される受け渡し用の形式で、日々書き換える用途に向かない
 - ブラウザ版を変えずに CLI との間でデータを移せるのは、今は zip と仕訳の CSV / JSON だけ。ベータの持ち運び手段はこれにする
 
-### ブラウザの DB ファイルとの関係
+### 無印版との行き来
 
-- ブラウザ版は OPFS SAHPool VFS (`file-db-adapter/src/sqlite.worker.ts`) に保存していて、プール内のファイルは独自ヘッダ付きなので、そのままコピーしては使えない。スキーマ (`SCHEMA_MIGRATIONS`) は同一なので、worker に `exportFile` / `importDb` を足せば標準の SQLite ファイルとして出し入れできる (ベータの後)
-- 無印版のデータは userId `openkk-original-user` で保存されている (`packages/openkk/app/openkk-config.ts`)。CLI も同じ userId を既定にする
+- 無印版は会計期間ごとに 1 冊の帳簿 (`.openkk`) をブラウザの中に置く。左上の「保存」で `<期間名>.openkk` として書き出し、期間の選択の「ファイル」から取り込む。openkk-cli はそのファイルを `--file` で開く
+- 行き来は「無印版で保存 → openkk-cli で変える → 無印版に取り込む」。無印版はファイルを見張らないので、取り込むまで無印版の中は変わらない
+- 帳簿は `openkk_meta` の `last_changed_at` に最後に変えた時刻を持ち、openkk-cli の変更でも更新される (`sqlite-adapter` の共通の層で記録する)。無印版は取り込むときにこの値を見て、「アプリの外で変更がありました」と、無印版の側の保存していない変更が失われることを知らせる
+- 取り込みは期間の ID で同じ期間を見分けて置き換える。`archive import` や `periods export` は期間の ID を付け直すので、無印版から見ると別に作られた期間になる (同じ日付なら、確かめたうえで帳簿ごと置き換える)。無印版に戻すつもりのファイルは、保存したファイルをそのまま変える
+- 複数の期間を入れたファイルも取り込める。無印版が期間ごとの帳簿に分ける
+- 無印版のデータは userId `openkk-original-user` で保存されている (`packages/openkk/app/openkk-config.ts`)。openkk-cli も同じ userId を既定にする。ほかの userId の期間は無印版に取り込まれない
+- 26.3 までの無印版は OPFS SAHPool VFS (`file-db-adapter`) の 1 つの DB に置いていた。プール内のファイルは独自ヘッダ付きなのでそのままは使えず、新しい無印版が起動するときに `exportFileDbBytes` で標準の SQLite として読み、期間ごとの帳簿に分けて移す
 
 ## パッケージ構成
 
-| パッケージ                                 | 位置づけ                                 | 依存                                                                                                      |
-| ------------------------------------------ | ---------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `@rubydogjp/openkk-node-sqlite-db-adapter` | `OpenkkDbPort` 実装 (file/memory と並ぶ) | `server-ports`, `sqlite-adapter`                                                                          |
-| `@rubydogjp/openkk-cli` (bin: `openkk`)    | composition root (3 アプリと並ぶ)        | `client-domain`, `client-ports`, `embedded-backend`, `embedded-backend-adapter`, `node-sqlite-db-adapter` |
+| パッケージ                                 | 位置づけ                                        | 依存                                                                                                      |
+| ------------------------------------------ | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `@rubydogjp/openkk-node-sqlite-db-adapter` | `OpenkkDbPort` 実装 (file/memory と並ぶ)        | `server-ports`, `sqlite-adapter`                                                                          |
+| `@rubydogjp/openkk-cli` (bin: `openkk`)    | openkk-cli の composition root (3 アプリと並ぶ) | `client-domain`, `client-ports`, `embedded-backend`, `embedded-backend-adapter`, `node-sqlite-db-adapter` |
 
 - `client` の meta barrel には依存しない (client-ui 経由で React を引き込むため)
 - `OpenkkServerPort` を直接呼ばない。帳票・CSV・zip・締め仕訳は client 側の型で書かれていて、直接呼ぶと client と server の型が混ざる (設計原則 1)。`OpenkkBackendPort` 経由なら、HTTP のバックエンドにも差し替えられる
@@ -73,6 +80,6 @@ openkk periods export <期間id> [--out <file.openkk>]   # その期間だけを
 4. 帳票の組み立てを client-domain へ切り出し、client-ui をそれに置き換えて `report` を足す
 5. `archive export / import` (ブラウザで作った zip を取り込めることをテストする)
 6. `opening`・`closing`・`periods receive` / `next`
-7. (後) ブラウザ版に DB ファイルの書き出し・読み込みを付ける
+7. 無印版に帳簿ファイルの保存・取り込みを付ける (済み。上の「無印版との行き来」)
 
 パッケージを足すときは、ルートの workspaces、`test/package-structure.test.ts` の `allowedLayers`、`npm run gen-deps` (`docs/dependency-graph.md`)、`docs/architecture.md` の port 表も更新する。

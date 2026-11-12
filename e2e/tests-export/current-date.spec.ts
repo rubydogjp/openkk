@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { gotoInApp, startApp } from "../helpers";
 
 test.use({ timezoneId: "Asia/Tokyo" });
 
@@ -6,7 +7,8 @@ test("updates the current date across midnight without reloading", async ({
   page,
 }) => {
   await page.clock.install({ time: new Date("2026-12-31T23:59:50+09:00") });
-  await page.goto("/fiscal-periods");
+  await startApp(page);
+  await gotoInApp(page, "/fiscal-periods");
   await page.getByRole("button", { name: "追加" }).click();
   await expect(page.getByPlaceholder("例: 2026年分")).toHaveValue("2026年分");
   await page.getByRole("button", { name: "キャンセル" }).click();
