@@ -31,7 +31,7 @@ export function OpenkkAppProviders(props: {
 }) {
   const { runtime } = props;
   const [ports, setPorts] = useState<OpenkkBundlePorts | null>(null);
-  const bookFiles = ports?.bookFiles ?? null;
+  const saveTracking = ports?.bookFiles?.saveTracking ?? null;
   const driver = useMemo(
     () =>
       ports == null
@@ -87,25 +87,25 @@ export function OpenkkAppProviders(props: {
   useOfflineCache(runtime.registerServiceWorker);
 
   useEffect(() => {
-    if (bookFiles == null) return;
+    if (saveTracking == null) return;
     const root = document.documentElement;
     const showStatus = () =>
       root.setAttribute(
         BOOK_STORAGE_ATTRIBUTE_NAME,
-        bookFiles.getStorageStatus(),
+        saveTracking.getStorageStatus(),
       );
     const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
-      if (bookFiles.getStorageStatus() !== "saved") event.preventDefault();
+      if (saveTracking.getStorageStatus() !== "saved") event.preventDefault();
     };
     showStatus();
-    const unsubscribe = bookFiles.subscribe(showStatus);
+    const unsubscribe = saveTracking.subscribe(showStatus);
     window.addEventListener("beforeunload", warnBeforeLeaving);
     return () => {
       unsubscribe();
       window.removeEventListener("beforeunload", warnBeforeLeaving);
       root.removeAttribute(BOOK_STORAGE_ATTRIBUTE_NAME);
     };
-  }, [bookFiles]);
+  }, [saveTracking]);
 
   if (bootError != null) {
     return (

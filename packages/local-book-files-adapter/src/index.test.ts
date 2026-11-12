@@ -92,14 +92,18 @@ describe("book files adapter: save", () => {
     const app = await openApp();
     const period = await app.db.fiscalPeriods.create(USER, period2026);
 
-    expect(app.files.getState(period)).toEqual({
+    expect(app.files.saveTracking.getState(period)).toEqual({
       fileName: "2026年分.openkk",
       hasUnsavedChanges: true,
       lastSavedAt: null,
       reminderDue: false,
     });
     expect(
-      app.files.getState({ id: "missing", name: "", createdAt: "" }),
+      app.files.saveTracking.getState({
+        id: "missing",
+        name: "",
+        createdAt: "",
+      }),
     ).toBeNull();
   });
 
@@ -107,7 +111,7 @@ describe("book files adapter: save", () => {
     const app = await openApp();
     const period = await app.db.fiscalPeriods.create(USER, period2026);
     const notified: number[] = [];
-    app.files.subscribe(() => notified.push(1));
+    app.files.saveTracking.subscribe(() => notified.push(1));
 
     const result = await app.files.save(period.id);
 
@@ -115,7 +119,7 @@ describe("book files adapter: save", () => {
     expect(app.delivered.map(({ fileName }) => fileName)).toEqual([
       "2026年分.openkk",
     ]);
-    expect(app.files.getState(period)).toEqual({
+    expect(app.files.saveTracking.getState(period)).toEqual({
       fileName: "2026年分.openkk",
       hasUnsavedChanges: false,
       lastSavedAt: app.state.now,
@@ -130,8 +134,10 @@ describe("book files adapter: save", () => {
     app.state.deliveryResult = "cancelled";
 
     expect(await app.files.save(period.id)).toBe("cancelled");
-    expect(app.files.getState(period)?.hasUnsavedChanges).toBe(true);
-    expect(app.files.getState(period)?.lastSavedAt).toBeNull();
+    expect(app.files.saveTracking.getState(period)?.hasUnsavedChanges).toBe(
+      true,
+    );
+    expect(app.files.saveTracking.getState(period)?.lastSavedAt).toBeNull();
   });
 
   it("shows unsaved changes again after the book changes", async () => {
@@ -144,7 +150,7 @@ describe("book files adapter: save", () => {
       name: "2026年",
     });
 
-    expect(app.files.getState(renamed)).toEqual({
+    expect(app.files.saveTracking.getState(renamed)).toEqual({
       fileName: "2026年.openkk",
       hasUnsavedChanges: true,
       lastSavedAt: savedAt,
@@ -156,12 +162,12 @@ describe("book files adapter: save", () => {
     const app = await openApp();
     const period = await app.db.fiscalPeriods.create(USER, period2026);
 
-    const first = app.files.getState(period);
-    const second = app.files.getState(period);
+    const first = app.files.saveTracking.getState(period);
+    const second = app.files.saveTracking.getState(period);
     await app.files.save(period.id);
 
     expect(second).toBe(first);
-    expect(app.files.getState(period)).not.toBe(first);
+    expect(app.files.saveTracking.getState(period)).not.toBe(first);
   });
 
   it("reminds after 30 days only while there are unsaved changes", async () => {
@@ -173,17 +179,20 @@ describe("book files adapter: save", () => {
     };
 
     app.state.now += BOOK_SAVE_REMINDER_INTERVAL_MS - 1;
-    const beforeDue = app.files.getState(period)?.reminderDue;
+    const beforeDue = app.files.saveTracking.getState(period)?.reminderDue;
     app.state.now += 1;
-    const neverSavedDue = app.files.getState(period)?.reminderDue;
+    const neverSavedDue = app.files.saveTracking.getState(period)?.reminderDue;
     await app.files.save(period.id);
     app.state.now += 40 * DAY;
-    const savedAndUnchanged = app.files.getState(period)?.reminderDue;
+    const savedAndUnchanged =
+      app.files.saveTracking.getState(period)?.reminderDue;
     await app.db.fiscalPeriods.patch(period.id, { name: "2026年" });
-    const changedLongAfterSave = app.files.getState(period)?.reminderDue;
+    const changedLongAfterSave =
+      app.files.saveTracking.getState(period)?.reminderDue;
     await app.files.save(period.id);
     await app.db.fiscalPeriods.patch(period.id, { name: "2026年分" });
-    const changedRightAfterSave = app.files.getState(period)?.reminderDue;
+    const changedRightAfterSave =
+      app.files.saveTracking.getState(period)?.reminderDue;
 
     expect(beforeDue).toBe(false);
     expect(neverSavedDue).toBe(true);
@@ -223,7 +232,9 @@ describe("book files adapter: import", () => {
     });
     expect(imported).toEqual([period.id]);
     expect(restored?.name).toBe("2026年分");
-    expect(app.files.getState(restored!)?.hasUnsavedChanges).toBe(false);
+    expect(app.files.saveTracking.getState(restored!)?.hasUnsavedChanges).toBe(
+      false,
+    );
     expect(cases(await app.files.inspect(app.delivered[0]!.bytes))).toEqual([
       "same",
     ]);
@@ -276,7 +287,9 @@ describe("book files adapter: import", () => {
     expect(
       (await app.db.fiscalPeriods.getAll(USER)).map(({ id }) => id).sort(),
     ).toEqual([mine.id, other.id].sort());
-    expect(app.files.getState(other)?.hasUnsavedChanges).toBe(false);
+    expect(app.files.saveTracking.getState(other)?.hasUnsavedChanges).toBe(
+      false,
+    );
   });
 
   it("replaces a separately made book of the same dates and forgets nothing it should keep", async () => {

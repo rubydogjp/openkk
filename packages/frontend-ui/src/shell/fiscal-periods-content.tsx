@@ -36,6 +36,7 @@ import {
   sizes,
   typography,
 } from "../shared/design-tokens.js";
+import { LEGACY_PURGED_PERIOD_LABEL } from "../legacy/legacy-purged-fiscal-period-screen.js";
 import { useRouter } from "../routing/routing.js";
 
 export function FiscalPeriodsContent() {
@@ -130,6 +131,12 @@ export function FiscalPeriodsContent() {
       }
       const importedIds = await plan.apply();
       const selectedId = importedIds[0] ?? null;
+      if (!bookFiles.reloadsAppAfterImport) {
+        appState.reloadFiscalPeriods();
+        if (selectedId != null) appState.selectFiscalPeriod(selectedId);
+        router.push("/steps");
+        return;
+      }
       if (selectedId != null) {
         platform.storage.setItem(
           openkkConfig.fiscalPeriodStorageKey,
@@ -154,6 +161,10 @@ export function FiscalPeriodsContent() {
     const head = new Uint8Array(await file.slice(0, 4).arrayBuffer());
     if (allowArchiveImport && looksLikeZip(head)) {
       await handleArchiveFile(file);
+      return;
+    }
+    if (bookFiles == null) {
+      setScreenError(bookImportError("このファイルは取り込めません"));
       return;
     }
     await handleBookFile(file);
@@ -249,57 +260,33 @@ export function FiscalPeriodsContent() {
                     boxShadow: shadows.popup,
                   }}
                 >
-                  {bookFiles != null ? (
-                    <FileMenuItem
-                      label="ファイルを取り込む"
-                      detail={
-                        allowArchiveImport
+                  <FileMenuItem
+                    label="ファイルを取り込む"
+                    detail={
+                      bookFiles == null
+                        ? "以前の圧縮済みファイル (.zip)"
+                        : allowArchiveImport
                           ? "保存したファイル (.openkk)。以前の圧縮済みファイル (.zip) も取り込めます"
                           : "保存したファイル (.openkk)"
-                      }
-                      onClick={() => {
-                        setFileMenuOpen(false);
-                        fileInputRef.current?.click();
-                      }}
-                    />
-                  ) : (
-                    <FileMenuItem
-                      label="圧縮済みのファイルを選択"
-                      detail={null}
-                      onClick={() => {
-                        setFileMenuOpen(false);
-                        fileInputRef.current?.click();
-                      }}
-                    />
-                  )}
+                    }
+                    onClick={() => {
+                      setFileMenuOpen(false);
+                      fileInputRef.current?.click();
+                    }}
+                  />
                 </div>
               ) : null}
-              {bookFiles != null ? (
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  aria-label="取り込むファイル"
-                  hidden
-                  onChange={(event) => {
-                    const file = event.currentTarget.files?.[0] ?? null;
-                    event.currentTarget.value = "";
-                    if (file != null) void handleFileToImport(file);
-                  }}
-                />
-              ) : (
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".zip,application/zip"
-                  aria-label="圧縮済みのファイル"
-                  hidden
-                  onChange={(event) => {
-                    const file = event.currentTarget.files?.[0] ?? null;
-                    event.currentTarget.value = "";
-                    if (file != null) void handleArchiveFile(file);
-                  }}
-                />
-              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                aria-label="取り込むファイル"
+                hidden
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0] ?? null;
+                  event.currentTarget.value = "";
+                  if (file != null) void handleFileToImport(file);
+                }}
+              />
             </div>
           ) : null}
           {editingLocked ? (
@@ -486,7 +473,7 @@ function FiscalPeriodRow({
 }) {
   const purged = period.archiveStatus === "purged";
   const showOpeningBsChip =
-    period.archiveStatus === "active" &&
+    !purged &&
     !period.openingBalancesCompleted &&
     period.phase !== "pre_opening";
 
@@ -520,7 +507,7 @@ function FiscalPeriodRow({
               color: palette.textSoft,
             }}
           >
-            圧縮保存日時: {formatCalendarDate(period.archivedAt, null)}
+            圧縮保存した日: {formatCalendarDate(period.archivedAt, null)}
           </div>
         ) : null}
         {showOpeningBsChip ? (
@@ -724,16 +711,9 @@ function periodStatusChip(period: FiscalPeriod): {
 } {
   if (period.archiveStatus === "purged") {
     return {
-      label: "圧縮保存済み（削除）",
+      label: LEGACY_PURGED_PERIOD_LABEL,
       background: palette.formGroupBg,
       foreground: palette.textSoft,
-    };
-  }
-  if (period.archiveStatus === "archived") {
-    return {
-      label: "圧縮保存済み",
-      background: "#DCFCE7",
-      foreground: palette.success,
     };
   }
   return period.phase === "journalizing"

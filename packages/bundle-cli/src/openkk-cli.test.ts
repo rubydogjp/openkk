@@ -3,6 +3,8 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { buildFiscalPeriodArchiveZip } from "@rubydogjp/openkk-driver";
+
 import { openCliBook } from "./book.js";
 import {
   CLI_FILE_ENV,
@@ -522,7 +524,7 @@ describe("openkk cli", () => {
     expect(sourcePeriods).toHaveLength(2);
   });
 
-  it("moves a fiscal period between book files through an archive zip", async () => {
+  it("imports an archive zip from an earlier version as a new fiscal period", async () => {
     const { cwd, run } = workspace();
     const id = await startedPeriod(run);
     await run(
@@ -541,7 +543,22 @@ describe("openkk cli", () => {
       "電車代",
     );
 
-    const exported = await run("archive", "export", id, "--out", "2026.zip");
+    const book = await openCliBook(
+      path.join(cwd, DEFAULT_CLI_FILE),
+      DEFAULT_CLI_USER_ID,
+    );
+    const [period] = await book.backend.fiscalPeriods.getAll();
+    fs.writeFileSync(
+      path.join(cwd, "2026.zip"),
+      await buildFiscalPeriodArchiveZip(
+        book.backend,
+        period!,
+        new Date("2026-12-31T12:00:00"),
+        () => {},
+      ),
+    );
+    book.close();
+    const removedExport = await run("archive", "export", id);
     const missingBook = await run(
       "--file",
       "missing.sqlite3",
@@ -567,7 +584,7 @@ describe("openkk cli", () => {
       restoredId,
     );
 
-    expect(exported.stdout).toContain(path.join(cwd, "2026.zip"));
+    expect(removedExport.code).toBe(2);
     expect(missingBook.code).toBe(2);
     expect(JSON.parse(restored.stdout)).toMatchObject({
       name: "2026年分",

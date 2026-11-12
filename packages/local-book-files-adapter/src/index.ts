@@ -7,6 +7,7 @@ import {
 import {
   OpenkkBookFileError,
   type OpenkkBookFilesPort,
+  OpenkkBookSaveTracking,
   type OpenkkBookFileSaveResult,
   type OpenkkBookFileState,
   type OpenkkBookImportItem,
@@ -44,6 +45,7 @@ export type LocalBookFilesAdapterOptions = {
 };
 
 export type LocalBookFilesAdapter = OpenkkBookFilesPort & {
+  readonly saveTracking: OpenkkBookSaveTracking;
   forgetFiscalPeriod(fiscalPeriodId: string): void;
 };
 
@@ -116,7 +118,7 @@ export function createLocalBookFilesAdapter(
     };
   }
 
-  return {
+  const saveTracking: OpenkkBookSaveTracking = {
     unreadableBookCount: books.unreadableBooks.length,
     getStorageStatus: () => books.storageStatus(),
     getState(fiscalPeriod) {
@@ -148,6 +150,12 @@ export function createLocalBookFilesAdapter(
     async retryStorage() {
       await books.flush();
     },
+  };
+
+  return {
+    saveTracking,
+    reloadsAppAfterImport: true,
+    fileNameOf: options.fileNameOf,
     async save(fiscalPeriodId) {
       const exported = await books.exportBook(fiscalPeriodId);
       if (exported == null) {

@@ -50,12 +50,18 @@ export class OpenkkBookFileError extends Error {
   }
 }
 
-export interface OpenkkBookFilesPort {
+export interface OpenkkBookSaveTracking {
   readonly unreadableBookCount: number;
   getStorageStatus(): OpenkkBookStorageStatus;
   getState(fiscalPeriod: OpenkkBookFileSubject): OpenkkBookFileState | null;
   subscribe(listener: () => void): () => void;
   retryStorage(): Promise<void>;
+}
+
+export interface OpenkkBookFilesPort {
+  readonly saveTracking: OpenkkBookSaveTracking | null;
+  readonly reloadsAppAfterImport: boolean;
+  fileNameOf(fiscalPeriodName: string): string;
   save(fiscalPeriodId: string): Promise<OpenkkBookFileSaveResult>;
   inspect(bytes: Uint8Array): Promise<OpenkkBookImportPlan>;
 }

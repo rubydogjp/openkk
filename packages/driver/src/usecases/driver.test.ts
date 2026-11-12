@@ -76,25 +76,4 @@ describe("createOpenkkDriver", () => {
       "journalizing",
     );
   });
-
-  it("exports a fiscal period as an archive", async () => {
-    const fake = fakeBackend();
-    fake.fiscalPeriods.push(
-      fakeFiscalPeriod({ id: "fp-1", phase: "post_closing" }),
-    );
-    const driver = createOpenkkDriver(fakeConfig({}), {
-      backend: fake.backend,
-      platform: fakePlatform({ "test.fiscal_period_id": "fp-1" }),
-      print: NO_PRINT,
-      bookFiles: null,
-    });
-    driver.start();
-    await settle();
-
-    const zip = await driver.exportFiscalPeriodArchive(
-      driver.app.getState().currentFiscalPeriod!,
-    );
-
-    expect(zip.byteLength).toBeGreaterThan(0);
-  });
 });

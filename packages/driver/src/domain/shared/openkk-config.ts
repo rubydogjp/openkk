@@ -2,28 +2,11 @@ import type { EmbeddedUser } from "./user.js";
 
 export type OpenkkAuthMode = "embedded" | "custom";
 
-export type FiscalPeriodArchiveRetention = "persistent" | "ephemeral";
 export type FiscalPeriodPolicy = {
-  maxActivePeriods: number | null;
-  archiveRetention: FiscalPeriodArchiveRetention;
-  ephemeralArchiveWarning: EphemeralArchiveWarning;
   allowArchiveImport: boolean;
 };
 
-export type EphemeralArchiveWarning = {
-  title: string;
-  body: string;
-  confirmLabel: string;
-};
-
 export const DEFAULT_FISCAL_PERIOD_POLICY: FiscalPeriodPolicy = {
-  maxActivePeriods: null,
-  archiveRetention: "persistent",
-  ephemeralArchiveWarning: {
-    title: "この先は元に戻せません",
-    body: "次へ進むと、この会計期間の圧縮済みデータはサーバから削除され、二度とダウンロードできません。必要な場合は先にダウンロードしてください。",
-    confirmLabel: "理解して次期を作成",
-  },
   allowArchiveImport: true,
 };
 

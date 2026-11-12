@@ -1,11 +1,10 @@
-import type { FiscalPeriod, OpenkkConfig } from "../domain/index.js";
+import type { OpenkkConfig } from "../domain/index.js";
 import type {
   OpenkkBackendPort,
   OpenkkBookFilesPort,
   PlatformPort,
   PrintPort,
 } from "../ports/index.js";
-import { buildFiscalPeriodArchiveZip } from "./archive/fiscal-period-transfer.js";
 import {
   createOpenkkAssistStore,
   type AssistState,
@@ -45,9 +44,6 @@ export type OpenkkDriver = {
   entries: ReadableState<EntriesState>;
   assist: ReadableState<AssistState>;
   closing: OpenkkClosing;
-  exportFiscalPeriodArchive: (
-    fiscalPeriod: FiscalPeriod,
-  ) => Promise<Uint8Array>;
   start(): () => void;
 };
 
@@ -77,15 +73,6 @@ export function createOpenkkDriver(
     entries,
     assist,
     closing: createOpenkkClosing({ config, app }),
-    exportFiscalPeriodArchive(fiscalPeriod) {
-      const authOperationVersion = app.getState().captureAuthOperationVersion();
-      return buildFiscalPeriodArchiveZip(
-        app.backend,
-        fiscalPeriod,
-        new Date(),
-        () => app.getState().assertAuthOperationCurrent(authOperationVersion),
-      );
-    },
     start() {
       const stops = startInOrder.map((state) => state.start());
       return () => {

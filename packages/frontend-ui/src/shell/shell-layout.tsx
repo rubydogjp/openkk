@@ -27,14 +27,14 @@ import { BookStorageNotice } from "./book-storage-notice.js";
 import { AppErrorText } from "../shared/app-error-text.js";
 import { useDismissibleLayer } from "../shared/dismissible-layer.js";
 import { MaintenanceScreen } from "./maintenance-content.js";
-import { ArchivedFiscalPeriodScreen } from "../routes/steps/archived-fiscal-period-screen.js";
+import { LegacyPurgedFiscalPeriodScreen } from "../legacy/legacy-purged-fiscal-period-screen.js";
 import { FiscalPeriodsContent } from "./fiscal-periods-content.js";
 import { SignInContent } from "./sign-in-content.js";
 import {
-  ARCHIVED_FISCAL_PERIOD_PATH,
+  LEGACY_PURGED_FISCAL_PERIOD_PATH,
   FISCAL_PERIOD_PICKER_PATH,
   resolveShellContentMode,
-  shouldRedirectArchivedFiscalPeriod,
+  shouldRedirectLegacyPurgedFiscalPeriod,
   shouldRedirectMissingFiscalPeriod,
   type ShellContentMode,
 } from "./shell-content-mode.js";
@@ -81,14 +81,14 @@ export function OpenkkShellLayout(props: { children: ReactNode }) {
 
   useEffect(() => {
     if (
-      shouldRedirectArchivedFiscalPeriod({
+      shouldRedirectLegacyPurgedFiscalPeriod({
         isReady: appState.isReady,
         hasSession: session != null,
         pathname,
         currentFiscalPeriod,
       })
     ) {
-      router.replace(ARCHIVED_FISCAL_PERIOD_PATH);
+      router.replace(LEGACY_PURGED_FISCAL_PERIOD_PATH);
     }
   }, [appState.isReady, currentFiscalPeriod, pathname, router, session]);
 
@@ -122,8 +122,8 @@ export function OpenkkShellLayout(props: { children: ReactNode }) {
         <SignInContent />
       ) : contentMode === "fiscal-periods" ? (
         <FiscalPeriodsContent />
-      ) : contentMode === "archived" && currentFiscalPeriod != null ? (
-        <ArchivedFiscalPeriodScreen fiscalPeriod={currentFiscalPeriod} />
+      ) : contentMode === "legacy-purged" && currentFiscalPeriod != null ? (
+        <LegacyPurgedFiscalPeriodScreen fiscalPeriod={currentFiscalPeriod} />
       ) : (
         props.children
       )}

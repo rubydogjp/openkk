@@ -69,16 +69,10 @@ export function CreateFiscalPeriodPage() {
       appState.fiscalPeriods,
       null,
     );
-  const maxActivePeriods = openkkConfig.fiscalPeriodPolicy.maxActivePeriods;
-  const atPeriodLimit =
-    maxActivePeriods != null &&
-    appState.fiscalPeriods.filter((period) => period.archiveStatus === "active")
-      .length >= maxActivePeriods;
   const canSubmit =
     hasRequiredFields &&
     dateValidation.ok &&
     !hasOverlap &&
-    !atPeriodLimit &&
     !editingLocked &&
     !isCreating;
 
@@ -140,7 +134,7 @@ export function CreateFiscalPeriodPage() {
             control={
               <FormTextInput
                 value={name}
-                readOnly={atPeriodLimit || editingLocked}
+                readOnly={editingLocked}
                 onChange={(value) => {
                   setNameEdited(true);
                   setName(value);
@@ -162,11 +156,11 @@ export function CreateFiscalPeriodPage() {
                   end={endDate}
                   onChangeStart={setStartDate}
                   onChangeEnd={setEndDate}
-                  readOnly={atPeriodLimit || editingLocked}
+                  readOnly={editingLocked}
                 />
-                {!dateValidation.ok && !atPeriodLimit && !editingLocked ? (
+                {!dateValidation.ok && !editingLocked ? (
                   <FormErrorText>{dateValidation.message}</FormErrorText>
-                ) : hasOverlap && !atPeriodLimit && !editingLocked ? (
+                ) : hasOverlap && !editingLocked ? (
                   <FormErrorText>
                     既存の有効な会計期間と日付が重複しています。
                   </FormErrorText>
@@ -174,11 +168,7 @@ export function CreateFiscalPeriodPage() {
               </>
             }
             hint={
-              atPeriodLimit
-                ? "有効な会計期間の上限に達しているため、新しい期間は作成できません。"
-                : editingLocked
-                  ? openkkConfig.editingPolicy.lockedNotice
-                  : null
+              editingLocked ? openkkConfig.editingPolicy.lockedNotice : null
             }
           />
         </StepMetaCard>
@@ -199,7 +189,7 @@ export function CreateFiscalPeriodPage() {
           >
             キャンセル
           </FormSecondaryButton>
-          {atPeriodLimit || editingLocked ? (
+          {editingLocked ? (
             <LockButton label="作成する" />
           ) : (
             <FormPrimaryButton onClick={handleCreate} disabled={!canSubmit}>

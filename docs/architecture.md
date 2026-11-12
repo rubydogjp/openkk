@@ -36,7 +36,8 @@ packages/
 ├── embedded-backend-adapter  口 backend の実装 — 同じプロセスの backend-api を、HTTP と同じ形の受け渡しで呼ぶ
 ├── browser-print-adapter     口 print の実装 — ブラウザの印刷
 ├── browser-platform-adapter  口 platform の実装 — PWA・localStorage・ダウンロードなどブラウザの機能と、帳簿の置き場 (OPFS)
-├── local-book-files-adapter  口 book-files の実装 — 帳簿をファイルへ保存する・ファイルから取り込む（無印版）
+├── local-book-files-adapter  口 book-files の実装 — ブラウザの中の帳簿をファイルへ保存する・ファイルから取り込む（無印版）
+├── records-book-files-adapter 口 book-files の実装 — バックエンドから読んだ記録で帳簿のファイルを組み立てる・ファイルを新しい期間として取り込む（Sim版・デモ版）
 │
 ├── sqlite-db-adapter         口 db の共通の実装 — SQL・保存処理・マイグレーション・最後に変えた時刻の記録
 ├── memory-db-adapter         口 db の実装 — メモリの上の SQLite Wasm（Sim版・デモ版）
@@ -61,7 +62,7 @@ packages/
 
 契約の型は、使う側が `driver/src/ports/backend/types.ts`、受ける側が `backend-api/src/contract.ts` に持つ。構造のテストが、名前・本文・エンドポイントの食い違いを見つける。
 
-両側を知ってよいのは、同じプロセスでつなぐ口の実装 (`embedded-backend-adapter`・`local-book-files-adapter`) と、製品だけ。
+両側を知ってよいのは、同じプロセスでつなぐ口の実装 (`embedded-backend-adapter`・`local-book-files-adapter`・`records-book-files-adapter`) と、製品だけ。
 
 口 backend の実装が守ることは、`driver` の契約テスト (`@rubydogjp/openkk-driver/backend-contract` の `BACKEND_CONTRACT_CASES`) に書いてある。マスターデータ・会計期間・仕訳・固定資産・仮締めと本締め・次期の作成について、口 backend だけを通して確かめる。本締めでは、使う側が作った締めの仕訳 (`buildFinalClosingPayload`) を受ける側が受け入れることまで見る。テストの枠組みに頼らない関数の並びなので、どの実装でも「空の利用者で開く」関数を渡せば通せる。このリポジトリでは、埋め込み (`embedded-backend-adapter` + `memory-db-adapter`) と、ディスクの上の帳簿 (`bundle-cli`) に通している。HTTP 越しの実装も同じものに通す。
 
@@ -74,14 +75,14 @@ packages/
 | backend    | `OpenkkBackendPort`   | `driver` | `embedded-backend-adapter`                                                                                                                |
 | print      | `PrintPort`           | `driver` | `browser-print-adapter`                                                                                                                   |
 | platform   | `PlatformPort`        | `driver` | `browser-platform-adapter`                                                                                                                |
-| book-files | `OpenkkBookFilesPort` | `driver` | `local-book-files-adapter`                                                                                                                |
+| book-files | `OpenkkBookFilesPort` | `driver` | `local-book-files-adapter` / `records-book-files-adapter`                                                                                 |
 | db         | `OpenkkDbPort`        | `engine` | `memory-db-adapter` / `books-db-adapter` / `book-db-adapter` / `disk-db-adapter` / `legacy-db-adapter` (共通の実装は `sqlite-db-adapter`) |
 
 HTTP 越しのバックエンドは、`embedded-backend-adapter` と同じ位置で口 backend を実装して差し替える。
 
 実行環境に依存する機能は口 platform に集める。対象はアプリのインストール、オフラインキャッシュの登録、key-value 保存、ファイル保存、外部URL・認証リダイレクトの遷移。画面は `usePlatformAdapter` 経由で、手続きは渡された口を通して呼び、`window` や `navigator` を直接触らない。ネイティブアプリなど別の環境で動かす場合は `browser-platform-adapter` と同じ位置に実装を足し、`createOpenkkDriver` に渡す。ポップオーバーの外側クリック検知など、Web ビューである限り共通の DOM 操作は画面に残す。
 
-製品ごとに足す機能は口として足し、ない製品では `null` を渡す。帳簿をファイルに保存する・取り込む (`OpenkkBookFilesPort`) は無印版だけが持つ。
+製品ごとに足す機能は口として足し、ない製品では `null` を渡す。帳簿をファイルに保存する・取り込む (`OpenkkBookFilesPort`) は、データの持ち方で実装が変わる。ブラウザの中に帳簿を置く無印版は `local-book-files-adapter`、バックエンドの向こうにデータがある製品は `records-book-files-adapter` を使う。保存の状態を覚えておく部分 (`saveTracking`: 左上の「保存」・30 日の知らせ・保存の失敗) は、帳簿を手元に置く製品だけが持つ。
 
 ### 3. 箱の中は 4 層
 
@@ -185,7 +186,7 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 
 ### ファイルに保存する・取り込む
 
-`local-book-files-adapter` が `OpenkkBookFilesPort` を実装し、画面は `useOpenkkBookFile` / `useOpenkkBookFiles` で使う。ほかの版は `bookFiles: null`。
+`local-book-files-adapter` が `OpenkkBookFilesPort` を実装し、画面は `useOpenkkBookFile` / `useOpenkkBookFiles` で使う。Sim版・デモ版は `records-book-files-adapter` を使う (下の「帳簿でない製品のバックアップ」)。
 
 - 保存: 今の期間の帳簿を `<期間名>.openkk` として渡す (スマホは共有シート、それ以外はダウンロード)。保存したときの `last_changed_at` と日時を localStorage (`openkk.book-save:<期間ID>`) に覚える。
 - 左上の表示: 帳簿の `last_changed_at` が覚えた値と違えば「保存していない変更があります」、同じなら「前回 11/3」。変更があって、前の保存 (まだなら期間を作った日) から 30 日たっていれば、上の帯で知らせる。
@@ -198,10 +199,18 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 - 複数の期間が入ったファイル (openkk-cli で作ったもの) は、期間ごとの帳簿に分けて取り込む (`splitBookFile`)。分けたあと、期間・仕訳・固定資産が元と同じかを確かめ、違えば取り込まない。
 - 取り込んだあとはページを読み込み直し、取り込んだ期間を選んだ状態で始める。
 - 無印版は取り込みの入口を 1 つにしている。選んだファイルの先頭が zip なら、前の版の圧縮済みファイルとして `fiscalPeriods.importArchived` に渡す (`looksLikeZip`)。それ以外は帳簿のファイルとして扱う。
-- 無印版には圧縮保存の操作を出さない。「次の期間へ」の手順には、「保存」と同じファイルを出す「バックアップをダウンロード」を置く。圧縮保存の契約 (`archive` / `purgeArchivedData`) と状態 (`archiveStatus`) は、クラウドに置く版と前の版のデータのために残している。
+- どの製品にも圧縮保存の操作を出さない。「次の期間へ」の手順には、「保存」と同じファイルを出す「バックアップをダウンロード」を置く。圧縮保存の契約 (`archive` / `purgeArchivedData`) と状態 (`archiveStatus`) は、前の版のデータのために残している (レガシー)。
 - 無印版はファイルを見張らない。ファイルを読むのは取り込むときだけ。
 
 初めて開いたときに 1 回、データをブラウザの中に置くこと・しばらく開かないと消えることがあること・「保存」でファイルに書き出せることを説明する (`BookStorageNotice`、localStorage の `openkk.book-storage-notice.seen`)。
+
+### 帳簿でない製品のバックアップ
+
+データを帳簿のファイルとして持たない製品 (Sim版・デモ版。クラウドに置く版も同じ形) は、`records-book-files-adapter` が口 book-files を実装する。
+
+- 保存: 口 backend から会計期間・仕訳・固定資産を読み、`book-db-adapter` の `createBookFileBytes` で帳簿のファイルを組み立てる。期間・仕訳・固定資産の ID はそのまま保つ。ファイルの中の持ち主は、無印版と openkk-cli が使う ID (`PORTABLE_BOOK_OWNER_USER_ID`) にそろえるので、無印版にも取り込める。
+- 取り込み: ファイルの中の期間を読み、今ある有効な期間と日付が重ならなければ、新しい期間として足す (`fiscalPeriods.importArchived`。ID は付け直される)。重なれば取り込まない。置き換えはしない。
+- 保存の状態は覚えない (`saveTracking: null`)。左上の「保存」と 30 日の知らせは出ない。取り込んだあとはページを読み込み直さず、期間の一覧を読み直す (`reloadsAppAfterImport: false`)。
 
 ### 前の版の帳簿を移す
 

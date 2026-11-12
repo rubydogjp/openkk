@@ -2,17 +2,20 @@ import { describe, expect, it } from "vitest";
 
 import type { FiscalPeriod } from "@rubydogjp/openkk-driver";
 import {
-  ARCHIVED_FISCAL_PERIOD_PATH,
   FISCAL_PERIOD_CREATE_PATH,
   FISCAL_PERIOD_PICKER_PATH,
-  NEXT_FISCAL_PERIOD_STEP_PATH,
+  LEGACY_PURGED_FISCAL_PERIOD_PATH,
   resolveShellContentMode,
-  shouldRedirectArchivedFiscalPeriod,
+  shouldRedirectLegacyPurgedFiscalPeriod,
   shouldRedirectMissingFiscalPeriod,
 } from "./shell-content-mode.js";
 
 const archivedPeriod = period({
   archiveStatus: "archived",
+  archivedAt: "2027-03-01T00:00:00.000Z",
+});
+const purgedPeriod = period({
+  archiveStatus: "purged",
   archivedAt: "2027-03-01T00:00:00.000Z",
 });
 
@@ -62,7 +65,7 @@ describe("resolveShellContentMode", () => {
     ).toBe("normal");
   });
 
-  it("routes archived fiscal periods to the archived screen", () => {
+  it("shows a period that was archived with its data like any other period", () => {
     expect(
       resolveShellContentMode({
         isReady: true,
@@ -71,43 +74,19 @@ describe("resolveShellContentMode", () => {
         currentFiscalPeriodId: "fp-1",
         currentFiscalPeriod: archivedPeriod,
       }),
-    ).toBe("archived");
-  });
-});
-
-describe("next fiscal period step of an archived period", () => {
-  it("stays open until the archived data is purged", () => {
-    const purgedPeriod = period({
-      archiveStatus: "purged",
-      archivedAt: "2027-03-01T00:00:00.000Z",
-    });
-
-    expect(
-      resolveShellContentMode({
-        isReady: true,
-        hasSession: true,
-        pathname: NEXT_FISCAL_PERIOD_STEP_PATH,
-        currentFiscalPeriodId: "fp-1",
-        currentFiscalPeriod: archivedPeriod,
-      }),
     ).toBe("normal");
-    expect(
-      shouldRedirectArchivedFiscalPeriod({
-        isReady: true,
-        hasSession: true,
-        pathname: NEXT_FISCAL_PERIOD_STEP_PATH,
-        currentFiscalPeriod: archivedPeriod,
-      }),
-    ).toBe(false);
+  });
+
+  it("routes a period whose data was purged to the notice screen", () => {
     expect(
       resolveShellContentMode({
         isReady: true,
         hasSession: true,
-        pathname: NEXT_FISCAL_PERIOD_STEP_PATH,
+        pathname: "/entries",
         currentFiscalPeriodId: "fp-1",
         currentFiscalPeriod: purgedPeriod,
       }),
-    ).toBe("archived");
+    ).toBe("legacy-purged");
   });
 });
 
@@ -131,20 +110,28 @@ describe("shell redirects", () => {
     ).toBe(false);
   });
 
-  it("redirects archived fiscal period routes to the archived fiscal period path", () => {
+  it("redirects the routes of a purged period to the notice screen", () => {
     expect(
-      shouldRedirectArchivedFiscalPeriod({
+      shouldRedirectLegacyPurgedFiscalPeriod({
         isReady: true,
         hasSession: true,
         pathname: "/assist/fixed-assets",
-        currentFiscalPeriod: archivedPeriod,
+        currentFiscalPeriod: purgedPeriod,
       }),
     ).toBe(true);
     expect(
-      shouldRedirectArchivedFiscalPeriod({
+      shouldRedirectLegacyPurgedFiscalPeriod({
         isReady: true,
         hasSession: true,
-        pathname: ARCHIVED_FISCAL_PERIOD_PATH,
+        pathname: LEGACY_PURGED_FISCAL_PERIOD_PATH,
+        currentFiscalPeriod: purgedPeriod,
+      }),
+    ).toBe(false);
+    expect(
+      shouldRedirectLegacyPurgedFiscalPeriod({
+        isReady: true,
+        hasSession: true,
+        pathname: "/assist/fixed-assets",
         currentFiscalPeriod: archivedPeriod,
       }),
     ).toBe(false);

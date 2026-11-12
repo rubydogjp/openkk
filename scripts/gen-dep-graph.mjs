@@ -230,7 +230,7 @@ ${layerDescriptionLines}
 | backend | \`OpenkkBackendPort\` | \`driver\` | \`embedded-backend-adapter\`、利用側の HTTP の実装 |
 | print | \`PrintPort\` | \`driver\` | \`browser-print-adapter\` |
 | platform | \`PlatformPort\` | \`driver\` | \`browser-platform-adapter\` |
-| book-files | \`OpenkkBookFilesPort\` | \`driver\` | \`local-book-files-adapter\` |
+| book-files | \`OpenkkBookFilesPort\` | \`driver\` | \`local-book-files-adapter\`、\`records-book-files-adapter\` |
 | db | \`OpenkkDbPort\` | \`engine\` | \`memory-db-adapter\`、\`books-db-adapter\`、\`book-db-adapter\`、\`disk-db-adapter\`、\`legacy-db-adapter\` (共通の実装は \`sqlite-db-adapter\`) |
 
 ## Per-package table

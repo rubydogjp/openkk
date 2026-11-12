@@ -19,6 +19,7 @@ const ENGINE_PORTS = ["db"];
 const SAME_PROCESS_BRIDGE_PORTS = ["backend", "book-files"];
 const NEXT_APP_CONFIG_FILE = "next.config.ts";
 const PACKAGE_DIRS_RELEASED_TO_NPM = new Set<string>();
+const RESERVED_BOX_PREFIX = /^(?:frontend|backend|client|server|bundle)-/;
 const ENVIRONMENT_FRAMEWORKS = ["next"];
 const ASYNCHRONOUS_PROCEDURE = /\basync\b|\bawait\b|\.then\(/;
 const rootPackageJson = readJson(path.join(rootDir, "package.json"));
@@ -182,6 +183,10 @@ describe("openkk workspace structure", () => {
         [...DRIVER_PORTS, ...ENGINE_PORTS],
         packageDir + " must be named <counterpart>-<port>-adapter",
       ).toContain(adapterPort(packageDir));
+      expect(
+        RESERVED_BOX_PREFIX.test(packageDir),
+        packageDir + " must not start with the name of another box kind",
+      ).toBe(false);
     }
   });
 
@@ -193,6 +198,12 @@ describe("openkk workspace structure", () => {
       "client-browser",
       "embedded-backend-adapter",
       "backend-api",
+    ];
+    const memoryBundle = [
+      ...browserBundle,
+      "memory-db-adapter",
+      "records-book-files-adapter",
+      "browser-platform-adapter",
     ];
     const allowedBoxes: Record<string, string[]> = {
       driver: [],
@@ -219,6 +230,7 @@ describe("openkk workspace structure", () => {
         "books-db-adapter",
         "book-db-adapter",
       ],
+      "records-book-files-adapter": ["driver", "book-db-adapter"],
       "frontend-cli": ["driver"],
       "client-terminal": ["driver", "frontend-cli"],
       "bundle-cli": [
@@ -235,8 +247,8 @@ describe("openkk workspace structure", () => {
         "local-book-files-adapter",
         "browser-platform-adapter",
       ],
-      "bundle-sim": [...browserBundle, "memory-db-adapter"],
-      "bundle-demo": [...browserBundle, "memory-db-adapter"],
+      "bundle-sim": memoryBundle,
+      "bundle-demo": memoryBundle,
     };
     expect(Object.keys(allowedBoxes).sort()).toEqual(packageDirs);
     for (const record of packageRecords) {
@@ -503,14 +515,18 @@ function adapterPort(packageDir: string): string | null {
 }
 
 function boxSide(packageDir: string): string | null {
+  const kind = boxKind(packageDir);
+  if (kind === "adapter") {
+    const port = adapterPort(packageDir)!;
+    if (SAME_PROCESS_BRIDGE_PORTS.includes(port)) return null;
+    return ENGINE_PORTS.includes(port) ? RECORDING_SIDE : CALLING_SIDE;
+  }
+  if (kind === "bundle") return null;
   if (packageDir === "driver") return CALLING_SIDE;
   if (packageDir === "engine") return RECORDING_SIDE;
-  if (/^(?:frontend|client)-/.test(packageDir)) return CALLING_SIDE;
-  if (/^(?:backend|server)-/.test(packageDir)) return RECORDING_SIDE;
-  if (boxKind(packageDir) !== "adapter") return null;
-  const port = adapterPort(packageDir)!;
-  if (SAME_PROCESS_BRIDGE_PORTS.includes(port)) return null;
-  return ENGINE_PORTS.includes(port) ? RECORDING_SIDE : CALLING_SIDE;
+  return /^(?:frontend|client)-/.test(packageDir)
+    ? CALLING_SIDE
+    : RECORDING_SIDE;
 }
 
 function relativeSpecifiers(file: string): string[] {

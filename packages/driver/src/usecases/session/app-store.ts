@@ -68,8 +68,6 @@ export type OpenkkAppState = {
     input: FiscalPeriodPatchInput | FiscalPeriodPatchResolver,
   ) => Promise<boolean>;
   startFiscalPeriod: (fiscalPeriodId: string) => Promise<void>;
-  archiveFiscalPeriod: (fiscalPeriodId: string) => Promise<void>;
-  purgeArchivedFiscalPeriod: (fiscalPeriodId: string) => Promise<void>;
   discardFiscalPeriod: (fiscalPeriodId: string) => Promise<void>;
   syncFiscalPeriod: (period: FiscalPeriodApiRecord) => void;
   signInAsEmbeddedUser: () => void;
@@ -317,14 +315,6 @@ export function createOpenkkAppStore(dependencies: {
     startFiscalPeriod: (fiscalPeriodId: string) =>
       runFiscalPeriodCommand("appState.startFiscalPeriod", () =>
         backend.fiscalPeriods.start(fiscalPeriodId),
-      ),
-    archiveFiscalPeriod: (fiscalPeriodId: string) =>
-      runFiscalPeriodCommand("appState.archiveFiscalPeriod", () =>
-        backend.fiscalPeriods.archive(fiscalPeriodId),
-      ),
-    purgeArchivedFiscalPeriod: (fiscalPeriodId: string) =>
-      runFiscalPeriodCommand("appState.purgeArchivedFiscalPeriod", () =>
-        backend.fiscalPeriods.purgeArchivedData(fiscalPeriodId),
       ),
     discardFiscalPeriod: (fiscalPeriodId: string) =>
       runFiscalPeriodMutation(

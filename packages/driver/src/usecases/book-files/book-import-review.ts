@@ -64,7 +64,7 @@ export function reviewBookImport(
   if (overlapping != null) {
     return {
       kind: "blocked",
-      message: `期間が重なる帳簿 (${overlapping.existingFiscalPeriodName ?? ""}) があるため、「${overlapping.fiscalPeriodName}」を取り込めません。`,
+      message: `期間が重なる会計期間 (${overlapping.existingFiscalPeriodName ?? ""}) があるため、「${overlapping.fiscalPeriodName}」を取り込めません。`,
     };
   }
   if (items.every((item) => item.case === "same")) {

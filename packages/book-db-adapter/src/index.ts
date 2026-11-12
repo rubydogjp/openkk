@@ -1,5 +1,5 @@
 import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
-import type { OpenkkDbPort } from "@rubydogjp/openkk-engine";
+import type { DbSnapshot, OpenkkDbPort } from "@rubydogjp/openkk-engine";
 import {
   createSqliteDbAdapter,
   LAST_CHANGED_AT_QUERY,
@@ -8,6 +8,8 @@ import {
   SCHEMA_VERSION,
   type SqlDb,
 } from "@rubydogjp/openkk-sqlite-db-adapter";
+
+export type { DbSnapshot } from "@rubydogjp/openkk-engine";
 
 export type BookFileProblem = "not_sqlite" | "not_openkk" | "newer_schema";
 
@@ -141,6 +143,24 @@ export async function createBookDbAdapter(
   } catch (error) {
     database.close();
     throw error;
+  }
+}
+
+export async function createBookFileBytes(
+  snapshot: DbSnapshot,
+): Promise<Uint8Array> {
+  const sqlite3 = await initializeSqliteWasm();
+  const database = new sqlite3.oo1.DB(":memory:");
+  try {
+    runMigrations(database);
+    const sync = database as unknown as { exec(arg: unknown): unknown };
+    await createSqliteDbAdapter(
+      { exec: async (arg) => sync.exec(arg) },
+      snapshot,
+    );
+    return sqlite3.capi.sqlite3_js_db_export(database.pointer!);
+  } finally {
+    database.close();
   }
 }
 

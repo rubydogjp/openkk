@@ -56,7 +56,6 @@
 
 - `frontend-ui/src/steps/use-step-documents.ts` の締め仕訳と帳票 3 点の生成 → `buildFiscalPeriodDocuments()` など
 - `frontend-ui/src/steps/bodies/closing.tsx` の本締め用の仕訳準備 (`prepareAssistEntriesForFinalClosing`)
-- `frontend-ui/src/bindings/shared/fiscal-period-archive-export.ts` の payload 組み立て
 
 本締めは使う側が作った仕訳を受ける側が照合する設計なので、この切り出しが済むまで CLI から本締めはできない。
 
@@ -69,7 +68,7 @@ openkk init
 openkk periods list | show | create --name --start --end
 openkk entries list [--json] | add | import <file.csv> [--yes] | export   # CSV は表の形。import は置き換えで、--yes がなければ違いだけ出す (JSON は非推奨)
 openkk report journal|ledger|fs --out <file.html>
-openkk archive export <period> <out.zip> | import <zip>
+openkk archive import <zip>                          # 以前の圧縮済みファイルを取り込む (レガシー。書き出しは periods export で .openkk に)
 openkk opening show | set <期間id> <科目>=<金額> ...
 openkk closing pre | cancel | final <期間id> [--yes]
 openkk periods receive | next <期間id>

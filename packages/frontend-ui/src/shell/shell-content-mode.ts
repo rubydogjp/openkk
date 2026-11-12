@@ -2,11 +2,10 @@ import type { FiscalPeriod } from "@rubydogjp/openkk-driver";
 
 export const FISCAL_PERIOD_PICKER_PATH = "/fiscal-periods";
 export const FISCAL_PERIOD_CREATE_PATH = "/fiscal-periods/new";
-export const ARCHIVED_FISCAL_PERIOD_PATH = "/steps";
-export const NEXT_FISCAL_PERIOD_STEP_PATH = "/steps/next-fiscal-period";
+export const LEGACY_PURGED_FISCAL_PERIOD_PATH = "/steps";
 
 export type ShellContentMode =
-  "loading" | "sign-in" | "fiscal-periods" | "archived" | "normal";
+  "loading" | "sign-in" | "fiscal-periods" | "legacy-purged" | "normal";
 
 export function resolveShellContentMode(input: {
   isReady: boolean;
@@ -24,8 +23,10 @@ export function resolveShellContentMode(input: {
   ) {
     return "fiscal-periods";
   }
-  if (showsArchivedFiscalPeriod(input.pathname, input.currentFiscalPeriod)) {
-    return "archived";
+  if (
+    showsLegacyPurgedFiscalPeriod(input.pathname, input.currentFiscalPeriod)
+  ) {
+    return "legacy-purged";
   }
   return "normal";
 }
@@ -45,7 +46,7 @@ export function shouldRedirectMissingFiscalPeriod(input: {
   );
 }
 
-export function shouldRedirectArchivedFiscalPeriod(input: {
+export function shouldRedirectLegacyPurgedFiscalPeriod(input: {
   isReady: boolean;
   hasSession: boolean;
   pathname: string;
@@ -53,25 +54,21 @@ export function shouldRedirectArchivedFiscalPeriod(input: {
 }): boolean {
   if (!input.isReady) return false;
   if (!input.hasSession) return false;
-  if (!showsArchivedFiscalPeriod(input.pathname, input.currentFiscalPeriod)) {
-    return false;
-  }
-  return input.pathname !== ARCHIVED_FISCAL_PERIOD_PATH;
-}
-
-function showsArchivedFiscalPeriod(
-  pathname: string,
-  period: FiscalPeriod | null,
-): boolean {
-  if (period == null || period.archiveStatus === "active") return false;
   if (
-    pathname === FISCAL_PERIOD_PICKER_PATH ||
-    pathname === FISCAL_PERIOD_CREATE_PATH
+    !showsLegacyPurgedFiscalPeriod(input.pathname, input.currentFiscalPeriod)
   ) {
     return false;
   }
-  return !(
-    period.archiveStatus === "archived" &&
-    pathname === NEXT_FISCAL_PERIOD_STEP_PATH
+  return input.pathname !== LEGACY_PURGED_FISCAL_PERIOD_PATH;
+}
+
+function showsLegacyPurgedFiscalPeriod(
+  pathname: string,
+  period: FiscalPeriod | null,
+): boolean {
+  if (period == null || period.archiveStatus !== "purged") return false;
+  return (
+    pathname !== FISCAL_PERIOD_PICKER_PATH &&
+    pathname !== FISCAL_PERIOD_CREATE_PATH
   );
 }

@@ -49,19 +49,25 @@ export function useOpenkkBookFile(
   fiscalPeriod: OpenkkBookFileSubject | null,
 ): OpenkkBookFile | null {
   const bookFiles = useContext(BookFilesContext);
+  const saveTracking = bookFiles?.saveTracking ?? null;
   const id = fiscalPeriod?.id ?? null;
   const name = fiscalPeriod?.name ?? null;
   const createdAt = fiscalPeriod?.createdAt ?? null;
   const store = useMemo(() => {
-    if (bookFiles == null || id == null || name == null || createdAt == null) {
+    if (
+      saveTracking == null ||
+      id == null ||
+      name == null ||
+      createdAt == null
+    ) {
       return { subscribe: subscribeNothing, getSnapshot: noState };
     }
     const subject = { id, name, createdAt };
     return {
-      subscribe: (listener: () => void) => bookFiles.subscribe(listener),
-      getSnapshot: () => bookFiles.getState(subject),
+      subscribe: (listener: () => void) => saveTracking.subscribe(listener),
+      getSnapshot: () => saveTracking.getState(subject),
     };
-  }, [bookFiles, createdAt, id, name]);
+  }, [saveTracking, createdAt, id, name]);
   const state = useSyncExternalStore(
     store.subscribe,
     store.getSnapshot,
@@ -77,16 +83,17 @@ export function useOpenkkBookFile(
 }
 
 export function useOpenkkBookStorage(): OpenkkBookStorage | null {
-  const bookFiles = useContext(BookFilesContext);
+  const saveTracking = useContext(BookFilesContext)?.saveTracking ?? null;
   const store = useMemo(
     () =>
-      bookFiles == null
+      saveTracking == null
         ? { subscribe: subscribeNothing, getSnapshot: noState }
         : {
-            subscribe: (listener: () => void) => bookFiles.subscribe(listener),
-            getSnapshot: () => bookFiles.getStorageStatus(),
+            subscribe: (listener: () => void) =>
+              saveTracking.subscribe(listener),
+            getSnapshot: () => saveTracking.getStorageStatus(),
           },
-    [bookFiles],
+    [saveTracking],
   );
   const status = useSyncExternalStore(
     store.subscribe,
@@ -95,13 +102,13 @@ export function useOpenkkBookStorage(): OpenkkBookStorage | null {
   );
   return useMemo(
     () =>
-      bookFiles == null || status == null
+      saveTracking == null || status == null
         ? null
         : {
             status,
-            unreadableBookCount: bookFiles.unreadableBookCount,
-            retry: () => bookFiles.retryStorage(),
+            unreadableBookCount: saveTracking.unreadableBookCount,
+            retry: () => saveTracking.retryStorage(),
           },
-    [bookFiles, status],
+    [saveTracking, status],
   );
 }

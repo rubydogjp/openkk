@@ -307,7 +307,7 @@ test("refuses a book whose dates overlap another period, and a file that is not 
   await importBook(page, overlappingPath);
   await expect(
     page.getByText(
-      "期間が重なる帳簿 (2026年分) があるため、「2026年度」を取り込めません。",
+      "期間が重なる会計期間 (2026年分) があるため、「2026年度」を取り込めません。",
     ),
   ).toBeVisible();
   await importBook(page, textPath);

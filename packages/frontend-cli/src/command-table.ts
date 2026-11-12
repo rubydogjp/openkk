@@ -61,9 +61,7 @@ export const CLI_COMMAND_USAGE = `コマンド:
   closing pre <期間id> [--yes]           仮締め (期中は --yes が要る)
   closing cancel <期間id>                仮締めを取り消す
   closing final <期間id> --yes           本締め (取り消せない)
-  archive export <期間id> [--out <file.zip>]
-                                         会計期間を zip に書き出す (Web 版の圧縮保存と同じ形式)
-  archive import <file.zip>              zip を新しい会計期間として取り込む`;
+  archive import <file.zip>              以前の圧縮済みファイル (zip) を新しい会計期間として取り込む`;
 
 export const CLI_COMMAND_OPTION_USAGE = `  --json          結果を JSON で出す
   --yes           確認が要る操作をそのまま実行する`;

@@ -1,4 +1,8 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
+import { archivedPeriodZip } from "../archived-period";
 import {
   addFixedAsset,
   clickButton,
@@ -10,6 +14,19 @@ import {
 } from "../helpers";
 
 const YEAR_ENTRIES_FIXTURE = "e2e/fixtures/dev-closing-entries.json";
+const BOOK_OWNER_USER_ID = "openkk-original-user";
+const BOOK_2024 = {
+  name: "2024年分",
+  startDate: "2024-01-01",
+  endDate: "2024-12-31",
+};
+const tempDirs: string[] = [];
+
+test.afterEach(() => {
+  for (const dir of tempDirs.splice(0)) {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 test.describe("openkk closing flow", () => {
   test("creates a period, imports entries, and completes closing", async ({
@@ -124,54 +141,57 @@ test.describe("openkk closing flow", () => {
       .click();
     await expectStep(page, "次の期間へ");
     const downloadPromise = page.waitForEvent("download");
-    await clickButton(page, "圧縮保存");
+    await clickButton(page, "バックアップをダウンロード");
     const download = await downloadPromise;
-    const archivePath = await download.path();
-    expect(archivePath).not.toBeNull();
+    const backupPath = await download.path();
+    expect(backupPath).not.toBeNull();
+    expect(download.suggestedFilename()).toMatch(/\.openkk$/);
     await expectStep(page, "次の期間へ");
-    await expect(page.getByText("圧縮保存しました")).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "圧縮保存済み" }),
-    ).toBeDisabled();
+    await expect(page.getByText("ファイルに保存しました")).toBeVisible();
+    await expect(page.getByRole("button", { name: /圧縮保存/ })).toHaveCount(0);
+    const [backup] = await readBookPeriods(backupPath!);
+    expect(backup?.name).toContain("検証用 2026年分");
+    expect(backup?.phase).toBe("post_closing");
+    expect(backup?.entryCount).toBeGreaterThan(0);
 
     await openFiscalPeriodList(page);
-    await expect(
-      page
-        .getByRole("button", {
-          name: /検証用 2026年分 長い名称 ABCDEFGHIJKLMNOPQRSTUVWXYZ/,
-        })
-        .filter({ hasText: "圧縮保存済み" }),
-    ).toBeVisible();
+    await expect(page.getByText("圧縮保存済み")).toHaveCount(0);
     await page.getByRole("button", { name: "ファイル" }).click();
-    await page
-      .getByRole("menuitem", { name: "圧縮済みのファイルを選択" })
-      .click();
-    await page
-      .locator('input[type="file"][accept*=".zip"]')
-      .setInputFiles(archivePath!);
+    await page.getByRole("menuitem", { name: /ファイルを取り込む/ }).click();
+    await page.getByLabel("取り込むファイル").setInputFiles(backupPath!);
+    await expect(page.getByText(/期間が重なる会計期間/)).toBeVisible();
+  });
 
-    await expectStep(page, "次の期間へ");
-    await expect(page.getByRole("button", { name: "圧縮保存" })).toBeVisible();
+  test("imports a saved book and an archive zip from an earlier version as new periods", async ({
+    page,
+  }) => {
+    await page.goto("/fiscal-periods");
+    await expect(page.getByText("期間がありません")).toBeVisible();
+
+    await page.getByRole("button", { name: "ファイル" }).click();
+    await page.getByRole("menuitem", { name: /ファイルを取り込む/ }).click();
+    await page
+      .getByLabel("取り込むファイル")
+      .setInputFiles(await createBookFile("2024年分.openkk", BOOK_2024));
+    await expectStep(page, "期間を開始");
+    await openFiscalPeriodList(page);
     await expect(
-      page.getByRole("button", { name: "圧縮済みファイルをダウンロード" }),
-    ).not.toBeVisible();
+      page.getByRole("button", { name: /2024-01-01/ }),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "ファイル" }).click();
+    await page.getByRole("menuitem", { name: /ファイルを取り込む/ }).click();
+    await page.getByLabel("取り込むファイル").setInputFiles({
+      name: "2026.zip",
+      mimeType: "application/zip",
+      buffer: Buffer.from(await archivedPeriodZip()),
+    });
     await page.getByRole("link", { name: "仕訳" }).click();
     await expect(page).toHaveURL(/\/entries\/?/);
-    await expect(page.getByText("2026年9月")).toBeVisible();
-    await expect(page.getByText("秋商材の仕入と配送費").first()).toBeVisible();
-    await openFiscalPeriodList(page);
-    await page
-      .getByRole("button", {
-        name: /検証用 2026年分 長い名称 ABCDEFGHIJKLMNOPQRSTUVWXYZ/,
-      })
-      .filter({ hasText: "圧縮保存済み" })
-      .click();
-    await expect(page).toHaveURL(/\/steps\/?$/);
-    await expectArchivedScreen(page);
-
-    await page.getByRole("link", { name: "仕訳" }).click();
-    await expect(page).toHaveURL(/\/steps\/?$/);
-    await expectArchivedScreen(page);
+    await expect(
+      page.getByRole("button", { name: "2026年", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByText("圧縮保存済み")).toHaveCount(0);
   });
 });
 
@@ -260,12 +280,44 @@ async function expectAccountingScenarioRows(page: Page) {
   ).toBeVisible();
 }
 
-async function expectArchivedScreen(page: Page) {
-  await expect(page.getByText("圧縮保存済み").first()).toBeVisible();
-  await expect(
-    page.getByRole("button", {
-      name: "圧縮済みファイルをダウンロード",
-    }),
-  ).toBeVisible();
-  await expect(page.getByRole("heading", { name: "仕訳" })).not.toBeVisible();
+function makeTempDir() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "openkk-sim-e2e-"));
+  tempDirs.push(dir);
+  return dir;
+}
+
+async function createBookFile(
+  fileName: string,
+  period: { name: string; startDate: string; endDate: string },
+) {
+  const { createDiskDbAdapter } =
+    await import("@rubydogjp/openkk-disk-db-adapter");
+  const filePath = path.join(makeTempDir(), fileName);
+  const adapter = await createDiskDbAdapter(filePath, null);
+  try {
+    await adapter.db.fiscalPeriods.create(BOOK_OWNER_USER_ID, period);
+  } finally {
+    adapter.close();
+  }
+  return filePath;
+}
+
+async function readBookPeriods(
+  filePath: string,
+): Promise<Array<{ name: string; phase: string; entryCount: number }>> {
+  const { createDiskDbAdapter } =
+    await import("@rubydogjp/openkk-disk-db-adapter");
+  const adapter = await createDiskDbAdapter(filePath, null);
+  try {
+    const periods = await adapter.db.fiscalPeriods.getAll(BOOK_OWNER_USER_ID);
+    return await Promise.all(
+      periods.map(async ({ id, name, phase }) => ({
+        name,
+        phase,
+        entryCount: (await adapter.db.entries.getAll(id)).length,
+      })),
+    );
+  } finally {
+    adapter.close();
+  }
 }

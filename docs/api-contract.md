@@ -78,8 +78,6 @@ type OpenkkBackendPort = {
 
 `OpenkkBackendApi` is the same shape without `maintenance`.
 
-Archived fiscal periods are read-only. Mutations other than `purgeArchivedData` must fail with `OpenkkApiErrorDto` and `statusCode: 409`.
-
 ## Value Rules
 
 | Value                       | Rule                                                   |
@@ -92,32 +90,31 @@ Archived fiscal periods are read-only. Mutations other than `purgeArchivedData` 
 
 `fiscalPeriods.start` moves a `pre_opening` period to `journalizing`.
 
-`fiscalPeriods.archive` preserves `phase`, sets `archiveStatus` to `archived`, and stamps `archivedAt`.
-
 `FiscalPeriodArchiveImportInput` creates a new active period in the archived `phase`.
 
 `fiscalPeriods.createNext` creates the next period atomically from a closed period with completed document receipt. It carries balances, selected reversals and active fixed assets from stored data. The source may already be archived but not purged, and the next start date must follow the source end date.
 
-## Fiscal Period Lifecycle Policy
+## Fiscal Period Policy
 
-Third-party backends declare a lifecycle policy via `OpenkkConfig.fiscalPeriodPolicy`.
-`DEFAULT_FISCAL_PERIOD_POLICY` preserves plain-OpenKK behaviour.
+`OpenkkConfig.fiscalPeriodPolicy` holds one switch.
 
-| Field                     | Default        | Meaning                                                                                                            |
-| ------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `maxActivePeriods`        | `null`         | Max non-archived periods. `null` = unlimited. `1` blocks creating a next period until the current one is archived. |
-| `archiveRetention`        | `"persistent"` | `"persistent"` keeps archived data forever. `"ephemeral"` purges archived data when advancing to the next period.  |
-| `ephemeralArchiveWarning` | default text   | Warning shown before purging archived data.                                                                        |
-| `allowArchiveImport`      | `true`         | Allow importing archived periods.                                                                                  |
-
-`archiveStatus` is `active`, `archived`, or `purged`. `archivedAt` is `null` while `active`.
+| Field                | Default | Meaning                                                                    |
+| -------------------- | ------- | -------------------------------------------------------------------------- |
+| `allowArchiveImport` | `true`  | Allow importing an archive zip made by an earlier version (legacy import). |
 
 `opening` is always present: a period without opening balances carries an empty one.
 
-`fiscalPeriods.purgeArchivedData(id)` deletes an archived period's entries, fixed assets
-and opening, and returns it as `purged`. An `active` period fails with `409`.
-`persistent` backends may return the archived record unchanged. Carryover into the next period
-must be committed **before** purge so the new period never depends on purged data.
+## Archived periods (legacy)
+
+The screens no longer archive a period. A period is backed up as a `.openkk` book file instead, and a period stays readable after closing.
+The archive operations stay in the contract for data made by earlier versions and for backends that still hold it.
+
+- `archiveStatus` is `active`, `archived`, or `purged`. `archivedAt` is `null` while `active`.
+- An `archived` period keeps its data. The screens show it like any other closed period.
+- A `purged` period has no entries, fixed assets or opening. The screens show a notice, and its data comes back only by importing the file that was saved before the purge (as a new period).
+- `fiscalPeriods.archive` preserves `phase`, sets `archiveStatus` to `archived`, and stamps `archivedAt`.
+- `fiscalPeriods.purgeArchivedData(id)` deletes an archived period's entries, fixed assets and opening, and returns it as `purged`. An `active` period fails with `409`.
+- Archived fiscal periods are read-only. Mutations other than `purgeArchivedData` must fail with `OpenkkApiErrorDto` and `statusCode: 409`.
 
 ## Archive Zip Format
 

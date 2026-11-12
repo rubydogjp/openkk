@@ -31,7 +31,7 @@ export function BookStorageNotice() {
   const [seen, setSeen] = useState(
     () => storage.getItem(BOOK_STORAGE_NOTICE_SEEN_KEY) === SEEN_VALUE,
   );
-  if (bookFiles == null || seen) return null;
+  if (bookFiles?.saveTracking == null || seen) return null;
   return (
     <BookStorageNoticeDialog
       onClose={() => {

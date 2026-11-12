@@ -1,18 +1,11 @@
 import {
   assertFiscalPeriodArchiveByteLength,
-  buildFiscalPeriodArchiveFilename,
-  buildFiscalPeriodArchiveZip,
   fiscalPeriodPhaseLabel,
   readFiscalPeriodArchiveZip,
 } from "@rubydogjp/openkk-driver";
 
 import { CliUsageError } from "../cli-output.js";
-import {
-  requireFiscalPeriod,
-  type CliCommandContext,
-} from "../command-context.js";
-
-const NO_AUTH_CHECK = () => {};
+import type { CliCommandContext } from "../command-context.js";
 
 export async function runArchiveCommand(
   context: CliCommandContext,
@@ -20,21 +13,6 @@ export async function runArchiveCommand(
   const [subcommand, target] = context.args;
   const { backend, output, options } = context;
   switch (subcommand) {
-    case "export": {
-      const period = await requireFiscalPeriod(backend, target ?? null);
-      const zip = await buildFiscalPeriodArchiveZip(
-        backend,
-        period,
-        context.today(),
-        NO_AUTH_CHECK,
-      );
-      const outPath = context.files.resolve(
-        options.out ?? buildFiscalPeriodArchiveFilename(period),
-      );
-      context.files.writeBytes(outPath, zip);
-      output.line(`書き出しました: ${outPath}`);
-      return;
-    }
     case "import": {
       if (target == null) {
         throw new CliUsageError("取り込む zip ファイルを指定してください");
@@ -56,7 +34,7 @@ export async function runArchiveCommand(
     default:
       throw new CliUsageError(
         subcommand == null
-          ? "archive のあとに export / import を指定してください"
+          ? "archive のあとに import を指定してください"
           : `archive ${subcommand} というコマンドはありません`,
       );
   }

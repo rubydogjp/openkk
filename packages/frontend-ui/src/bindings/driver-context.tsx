@@ -6,7 +6,6 @@ import {
   NO_MAINTENANCE,
   type AssistState,
   type EntriesState,
-  type FiscalPeriod,
   type MaintenanceState,
   type OpenkkAppState,
   type OpenkkClosing,
@@ -86,10 +85,4 @@ export function useMaintenance(): MaintenanceState {
 
 export function useOpenkkClosing(): OpenkkClosing {
   return useOpenkkDriver().closing;
-}
-
-export function useFiscalPeriodArchiveExport(): (
-  fiscalPeriod: FiscalPeriod,
-) => Promise<Uint8Array> {
-  return useOpenkkDriver().exportFiscalPeriodArchive;
 }
