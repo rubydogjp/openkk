@@ -10,7 +10,7 @@ import type { FiscalPeriodApiRecord } from "@rubydogjp/openkk-driver";
 
 import { CliUsageError } from "../cli-output.js";
 import {
-  createNewBook,
+  writeNewBook,
   requireFiscalPeriod,
   type CliCommandContext,
 } from "../command-context.js";
@@ -92,8 +92,7 @@ export async function runPeriodsCommand(
       const suggestion = buildNextFiscalPeriodSuggestion(source.endDate);
       if (options.out != null) {
         const bookPath = input.files.resolve(options.out);
-        const book = await createNewBook(input, bookPath);
-        try {
+        await writeNewBook(input, bookPath, async (book) => {
           const created = await book.backend.fiscalPeriods.create({
             name: options.name ?? suggestion.name,
             startDate: options.start ?? suggestion.startDate,
@@ -121,9 +120,7 @@ export async function runPeriodsCommand(
               ? "期首のBSと固定資産を引き継ぎました"
               : `${source.name} はまだ本締めと書類の受け取りを終えていないので、引き継いでいません。終えたら openkk --file ${bookPath} opening carry ${period.id} --from ${input.bookPath} で引き継げます`,
           );
-        } finally {
-          book.close();
-        }
+        });
         return;
       }
       const created = await backend.fiscalPeriods.createNext({
@@ -147,8 +144,7 @@ export async function runPeriodsCommand(
       const bookPath = input.files.resolve(
         options.out ?? buildFiscalPeriodBookFilename(period),
       );
-      const book = await createNewBook(input, bookPath);
-      try {
+      await writeNewBook(input, bookPath, async (book) => {
         const copied = await copyFiscalPeriodToBackend(
           backend,
           period,
@@ -160,9 +156,7 @@ export async function runPeriodsCommand(
           return;
         }
         output.line(`書き出しました: ${bookPath}  ${formatPeriodRow(copied)}`);
-      } finally {
-        book.close();
-      }
+      });
       return;
     }
     default:

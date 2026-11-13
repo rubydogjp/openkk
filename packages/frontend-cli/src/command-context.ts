@@ -73,6 +73,7 @@ export type CliFiles = {
   readBytes(filePath: string): Uint8Array;
   writeText(filePath: string, text: string): void;
   writeBytes(filePath: string, bytes: Uint8Array): void;
+  remove(filePath: string): void;
 };
 
 export type CliBook = {
@@ -111,14 +112,37 @@ export async function requireFiscalPeriod(
   return period;
 }
 
-export async function createNewBook(
-  context: CliCommandContext,
-  filePath: string,
-): Promise<CliBook> {
+function assertNoFileAt(context: CliCommandContext, filePath: string): void {
   if (context.files.exists(filePath)) {
     throw new CliUsageError(`すでにファイルがあります: ${filePath}`);
   }
-  return context.books.open(filePath);
+}
+
+export async function writeNewBook<Written>(
+  context: CliCommandContext,
+  filePath: string,
+  write: (book: CliBook) => Promise<Written>,
+): Promise<Written> {
+  assertNoFileAt(context, filePath);
+  const book = await context.books.open(filePath);
+  let finished = false;
+  try {
+    const written = await write(book);
+    finished = true;
+    return written;
+  } finally {
+    book.close();
+    if (!finished) context.files.remove(filePath);
+  }
+}
+
+export function writeNewTextFile(
+  context: CliCommandContext,
+  filePath: string,
+  text: string,
+): void {
+  assertNoFileAt(context, filePath);
+  context.files.writeText(filePath, text);
 }
 
 export async function openExistingBook(

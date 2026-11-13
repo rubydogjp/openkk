@@ -8,6 +8,7 @@ import {
 import { CliUsageError } from "../cli-output.js";
 import {
   requireFiscalPeriod,
+  writeNewTextFile,
   type CliCommandContext,
 } from "../command-context.js";
 
@@ -37,7 +38,7 @@ export async function runReportCommand(
     return;
   }
   const outPath = context.files.resolve(context.options.out);
-  context.files.writeText(outPath, html);
+  writeNewTextFile(context, outPath, html);
   context.output.line(
     `${FISCAL_PERIOD_REPORT_LABELS[kind].name}を書き出しました: ${outPath}`,
   );

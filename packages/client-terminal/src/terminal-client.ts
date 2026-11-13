@@ -105,6 +105,7 @@ async function dispatch(
     readBytes: (filePath) => new Uint8Array(fs.readFileSync(filePath)),
     writeText: (filePath, text) => fs.writeFileSync(filePath, text),
     writeBytes: (filePath, bytes) => fs.writeFileSync(filePath, bytes),
+    remove: (filePath) => fs.rmSync(filePath, { force: true }),
   };
   await runCliCommand(
     {

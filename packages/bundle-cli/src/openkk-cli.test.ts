@@ -527,6 +527,53 @@ describe("openkk cli", () => {
     expect(sourcePeriods).toHaveLength(2);
   });
 
+  it("does not write an export over a file that is already there", async () => {
+    const { cwd, run } = workspace();
+    const id = await startedPeriod(run);
+    const bookBytes = fs.readFileSync(path.join(cwd, DEFAULT_CLI_FILE));
+
+    const journal = await run(
+      "entries",
+      "export",
+      id,
+      "--out",
+      DEFAULT_CLI_FILE,
+    );
+    const report = await run(
+      "report",
+      id,
+      "journal",
+      "--out",
+      DEFAULT_CLI_FILE,
+    );
+
+    expect([journal.code, report.code]).toEqual([2, 2]);
+    expect(journal.stderr).toContain("すでにファイルがあります");
+    expect(
+      fs.readFileSync(path.join(cwd, DEFAULT_CLI_FILE)).equals(bookBytes),
+    ).toBe(true);
+  });
+
+  it("leaves no book file behind when the next period cannot be made", async () => {
+    const { cwd, run } = workspace();
+    const id = await startedPeriod(run);
+
+    const failed = await run(
+      "periods",
+      "next",
+      id,
+      "--out",
+      "next.openkk",
+      "--start",
+      "2027-06-01",
+      "--end",
+      "2027-05-01",
+    );
+
+    expect(failed.code).not.toBe(0);
+    expect(fs.existsSync(path.join(cwd, "next.openkk"))).toBe(false);
+  });
+
   it("imports an archive zip from an earlier version as a new fiscal period", async () => {
     const { cwd, run } = workspace();
     const id = await startedPeriod(run);

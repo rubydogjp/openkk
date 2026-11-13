@@ -50,14 +50,9 @@
 - `OpenkkBackendApi` を直接呼ばない。帳票・CSV・zip・締め仕訳は使う側 (`driver`) の型で書かれていて、直接呼ぶと使う側と受ける側の型が混ざる (設計原則 1)。`OpenkkBackendPort` 経由なら、HTTP のバックエンドにも差し替えられる
 - 手続きは `driver` の usecases にある関数を呼ぶ (`loadJournalMaster`・`loadEntryRecords`・`loadFiscalPeriodReportInput`・`planJournalImport`・`applyJournalTableChanges`・`buildFinalClosingPayload`・`carryOverFromBackend` など)。画面と同じ関数なので、取り込みの決まりや本締めの仕訳が食い違わない
 
-### 切り出しが要るもの
+### 画面と共有しているもの
 
-帳票 HTML (`driver/src/domain/print/*`)・CSV / JSON・zip は `driver` の domain の純粋関数なので、Node でもそのまま使える。React の hook の中にある組み立てだけ、`driver` へ移す。
-
-- `frontend-ui/src/steps/use-step-documents.ts` の締め仕訳と帳票 3 点の生成 → `buildFiscalPeriodDocuments()` など
-- `frontend-ui/src/steps/bodies/closing.tsx` の本締め用の仕訳準備 (`prepareAssistEntriesForFinalClosing`)
-
-本締めは使う側が作った仕訳を受ける側が照合する設計なので、この切り出しが済むまで CLI から本締めはできない。
+帳票 HTML (`driver/src/domain/print/*`)・CSV / JSON・zip は `driver` の domain の純粋関数なので、Node でもそのまま使える。締めの仕訳と帳票の組み立ても `driver` の usecases にあり (`buildFinalClosingPayload`・`loadFiscalPeriodReportInput`・`buildFiscalPeriodReport`)、画面と同じ関数を呼ぶ。本締めは使う側が作った仕訳を受ける側が照合する設計なので、コマンドからの本締めも同じ照合を通る。
 
 ## ベータのコマンド
 
@@ -65,9 +60,9 @@
 
 ```
 openkk init
-openkk periods list | show | create --name --start --end
-openkk entries list [--json] | add | import <file.csv> [--yes] | export   # CSV は表の形。import は置き換えで、--yes がなければ違いだけ出す (JSON は非推奨)
-openkk report journal|ledger|fs --out <file.html>
+openkk periods list | show | create --name --start --end | start <期間id>
+openkk entries list [--json] | add | import <file.csv> [--yes] | export   # CSV は表の形。import は置き換えで、--yes がなければ違いを出して止まる (JSON は非推奨)
+openkk report <期間id> journal|ledger|fs [--out <file.html>]
 openkk archive import <zip>                          # 以前の圧縮済みファイルを取り込む (レガシー。書き出しは periods export で .openkk に)
 openkk opening show | set <期間id> <科目>=<金額> ...
 openkk closing pre | cancel | final <期間id> [--yes]
@@ -77,13 +72,15 @@ openkk opening carry <期間id> --from <file.openkk> [--from-period <id>]   # �
 openkk periods export <期間id> [--out <file.openkk>]   # その期間だけを入れた帳簿ファイルを作る (1 期間 = 1 ファイル)
 ```
 
+`--out` で書き出すコマンド (`entries export`・`report`・`periods export`・`periods next`) は、すでにあるファイルを上書きしない。帳簿ファイルを作るコマンドは、途中で失敗したら作りかけのファイルを残さない。
+
 ## 進め方
 
 1. `disk-db-adapter` を作り、`runDbPortConformance` を一時ファイルと `:memory:` の両方で通す。開き直しても残ること、新しすぎるスキーマを拒否することもテストする
 2. コマンドの土台 (`node:util` の `parseArgs`、`init`・`periods`)
 3. `entries` (`driver` の CSV / JSON 関数を使い、往復テストを付ける)
 4. 帳票の組み立てを `driver` へ切り出し、`frontend-ui` をそれに置き換えて `report` を足す
-5. `archive export / import` (ブラウザで作った zip を取り込めることをテストする)
+5. `archive import` (ブラウザで作った zip を取り込めることをテストする。書き出しは `periods export` で `.openkk` に)
 6. `opening`・`closing`・`periods receive` / `next`
 7. 無印版に帳簿ファイルの保存・取り込みを付ける (済み。上の「無印版との行き来」)
 

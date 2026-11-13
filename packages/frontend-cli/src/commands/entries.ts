@@ -21,6 +21,7 @@ import {
 import { CliUsageError, type CliOutput } from "../cli-output.js";
 import {
   requireFiscalPeriod,
+  writeNewTextFile,
   type CliCommandContext,
   type CliOptions,
 } from "../command-context.js";
@@ -120,7 +121,7 @@ export async function runEntriesCommand(
         return;
       }
       const outPath = context.files.resolve(options.out);
-      context.files.writeText(outPath, data);
+      writeNewTextFile(context, outPath, data);
       const exportedCount = entries.filter(
         (entry) => !isMaterializedVirtualEntry(entry),
       ).length;
