@@ -4,6 +4,7 @@ import type {
   OpenkkBackendPort,
 } from "../ports/index.js";
 import { isOpenkkApiErrorDto } from "../ports/index.js";
+import { copyFiscalPeriodToBackend } from "../usecases/archive/fiscal-period-transfer.js";
 import { buildFinalClosingPayload } from "../usecases/closing/final-closing.js";
 import {
   loadFiscalPeriodReportInput,
@@ -131,6 +132,86 @@ async function journalizingPeriod(
   });
 }
 
+const OPENING_CASH = 100_000;
+const SALES_IN_CASH = 50_000;
+const CASH_BALANCE_LINE_ID = `a:${CASH}`;
+
+async function closedPeriodWithFixedAsset(
+  backend: OpenkkBackendPort,
+): Promise<FiscalPeriodApiRecord> {
+  const created = await backend.fiscalPeriods.create(PERIOD_2026);
+  await backend.fiscalPeriods.start(created.id);
+  const period = await backend.fiscalPeriods.patch(created.id, {
+    openingBalancesCompleted: true,
+    opening: {
+      balanceLines: [
+        {
+          id: CASH_BALANCE_LINE_ID,
+          accountId: CASH_BALANCE_LINE_ID,
+          amount: OPENING_CASH,
+        },
+        {
+          id: `l:${OWNER_EQUITY}`,
+          accountId: `l:${OWNER_EQUITY}`,
+          amount: OPENING_CASH,
+        },
+      ],
+      journals: [],
+    },
+  });
+  const master = await loadJournalMaster(backend);
+  await backend.entries.create(
+    period.id,
+    pairEntry(master, {
+      date: "2026-03-01",
+      description: "売上",
+      debit: CASH,
+      credit: SALES,
+      amount: SALES_IN_CASH,
+      localId: null,
+    }),
+  );
+  await backend.fixedAssets.create(period.id, {
+    name: "ノートパソコン",
+    acquisitionDate: "2026-01-10",
+    acquisitionCost: 240_000,
+    usefulLife: 4,
+    depreciationMethod: "straight_line",
+    businessRate: 1,
+    bookAccountId: accountId(master, EQUIPMENT),
+  });
+  const preClosed = await backend.preClosings.run(period.id);
+  await backend.closings.run(
+    period.id,
+    buildFinalClosingPayload(
+      await loadFiscalPeriodReportInput(backend, preClosed, CLOSING_DAY),
+      master,
+    ),
+  );
+  return backend.fiscalPeriods.patch(period.id, {
+    documentsReceivedCompleted: true,
+  });
+}
+
+function openingCashOf(period: FiscalPeriodApiRecord): number | null {
+  return (
+    period.opening.balanceLines.find(
+      (line) => line.accountId === CASH_BALANCE_LINE_ID,
+    )?.amount ?? null
+  );
+}
+
+async function storedPeriod(
+  backend: OpenkkBackendPort,
+  id: string,
+): Promise<FiscalPeriodApiRecord> {
+  const period = (await backend.fiscalPeriods.getAll()).find(
+    (candidate) => candidate.id === id,
+  );
+  check(period != null, `the fiscal period ${id} is listed`);
+  return period;
+}
+
 async function withSubject(
   open: OpenBackendContractSubject,
   run: (backend: OpenkkBackendPort) => Promise<void>,
@@ -241,6 +322,12 @@ export const BACKEND_CONTRACT_CASES: BackendContractCase[] = [
         JSON.stringify(balanceLines),
       "opening balance lines come back unchanged",
     );
+    check(
+      JSON.stringify(
+        (await storedPeriod(backend, created.id)).opening.balanceLines,
+      ) === JSON.stringify(balanceLines),
+      "opening balance lines are stored",
+    );
   }),
 
   contractCase("stores, changes and removes an entry", async (backend) => {
@@ -272,7 +359,13 @@ export const BACKEND_CONTRACT_CASES: BackendContractCase[] = [
       description: "売上 (直し)",
     });
     check(updated.id === created.id, "an update keeps the entry id");
-    check(updated.description === "売上 (直し)", "an update is stored");
+    const [stored, ...others] = await backend.entries.getAll(period.id);
+    check(
+      others.length === 0 &&
+        stored?.id === created.id &&
+        stored.description === "売上 (直し)",
+      "an update is stored in place",
+    );
 
     await backend.entries.remove(period.id, created.id);
     check(
@@ -372,6 +465,12 @@ export const BACKEND_CONTRACT_CASES: BackendContractCase[] = [
       bookAccountId: accountId(master, EQUIPMENT),
     });
     check(created.status === "active", "a new fixed asset is active");
+    const otherPeriod = await backend.fiscalPeriods.create(PERIOD_2027);
+    check(
+      (await backend.fixedAssets.getAll(period.id)).length === 1 &&
+        (await backend.fixedAssets.getAll(otherPeriod.id)).length === 0,
+      "a fixed asset belongs to its fiscal period only",
+    );
 
     const patched = await backend.fixedAssets.patch(period.id, created.id, {
       name: "パソコン",
@@ -468,43 +567,7 @@ export const BACKEND_CONTRACT_CASES: BackendContractCase[] = [
   ),
 
   contractCase("creates the next period from a closed one", async (backend) => {
-    const created = await backend.fiscalPeriods.create(PERIOD_2026);
-    await backend.fiscalPeriods.start(created.id);
-    const period = await backend.fiscalPeriods.patch(created.id, {
-      openingBalancesCompleted: true,
-      opening: {
-        balanceLines: [
-          { id: `a:${CASH}`, accountId: `a:${CASH}`, amount: 100_000 },
-          {
-            id: `l:${OWNER_EQUITY}`,
-            accountId: `l:${OWNER_EQUITY}`,
-            amount: 100_000,
-          },
-        ],
-        journals: [],
-      },
-    });
-    const master = await loadJournalMaster(backend);
-    await backend.fixedAssets.create(period.id, {
-      name: "ノートパソコン",
-      acquisitionDate: "2026-01-10",
-      acquisitionCost: 240_000,
-      usefulLife: 4,
-      depreciationMethod: "straight_line",
-      businessRate: 1,
-      bookAccountId: accountId(master, EQUIPMENT),
-    });
-    const preClosed = await backend.preClosings.run(period.id);
-    await backend.closings.run(
-      period.id,
-      buildFinalClosingPayload(
-        await loadFiscalPeriodReportInput(backend, preClosed, CLOSING_DAY),
-        master,
-      ),
-    );
-    await backend.fiscalPeriods.patch(period.id, {
-      documentsReceivedCompleted: true,
-    });
+    const period = await closedPeriodWithFixedAsset(backend);
 
     const next = await backend.fiscalPeriods.createNext({
       sourceFiscalPeriodId: period.id,
@@ -518,15 +581,125 @@ export const BACKEND_CONTRACT_CASES: BackendContractCase[] = [
       next.startDate === PERIOD_2027.startDate,
       "the next period starts where asked",
     );
+    check(next.phase === "pre_opening", "the next period is not opened yet");
     check(
-      next.opening.balanceLines.length > 0,
-      "the next period carries the closing balances",
+      openingCashOf(next) === OPENING_CASH + SALES_IN_CASH,
+      "the next period opens with the closing balance, not the previous opening",
     );
     check(
       (await backend.fixedAssets.getAll(next.id)).length === 1,
       "the next period carries the fixed assets",
     );
   }),
+
+  contractCase(
+    "carries over into an opened period by replacing what it had",
+    async (backend) => {
+      const source = await closedPeriodWithFixedAsset(backend);
+      const master = await loadJournalMaster(backend);
+      const created = await backend.fiscalPeriods.create(PERIOD_2027);
+      await backend.fiscalPeriods.start(created.id);
+      await backend.fixedAssets.create(created.id, {
+        name: "引き継ぐ前の資産",
+        acquisitionDate: "2027-01-10",
+        acquisitionCost: 120_000,
+        usefulLife: 4,
+        depreciationMethod: "straight_line",
+        businessRate: 1,
+        bookAccountId: accountId(master, EQUIPMENT),
+      });
+      const carryover = {
+        sourceFiscalPeriodId: source.id,
+        carryBalances: true,
+        reversalEntryIds: null,
+        carryFixedAssets: true,
+      };
+
+      await backend.fiscalPeriods.applyCarryover(created.id, carryover);
+      const carried = await backend.fiscalPeriods.applyCarryover(
+        created.id,
+        carryover,
+      );
+
+      check(
+        openingCashOf(carried) === OPENING_CASH + SALES_IN_CASH &&
+          openingCashOf(await storedPeriod(backend, created.id)) ===
+            OPENING_CASH + SALES_IN_CASH,
+        "the opened period takes the source's closing balance",
+      );
+      const fixedAssets = await backend.fixedAssets.getAll(created.id);
+      check(
+        fixedAssets.length === 1 && fixedAssets[0]?.name === "ノートパソコン",
+        "the carried fixed assets replace the ones the period had, without duplicates",
+      );
+      await checkRejectedWith(
+        HTTP_CONFLICT,
+        backend.fiscalPeriods.applyCarryover(source.id, {
+          ...carryover,
+          sourceFiscalPeriodId: created.id,
+        }),
+        "a closed period refuses a carryover",
+      );
+    },
+  ),
+
+  contractCase(
+    "removes a fiscal period only before it is opened",
+    async (backend) => {
+      const unopened = await backend.fiscalPeriods.create(PERIOD_2027);
+      await backend.fiscalPeriods.remove(unopened.id);
+      check(
+        (await backend.fiscalPeriods.getAll()).length === 0,
+        "a removed period is gone",
+      );
+
+      const opened = await journalizingPeriod(backend);
+      await checkRejectedWith(
+        HTTP_CONFLICT,
+        backend.fiscalPeriods.remove(opened.id),
+        "an opened period refuses removal",
+      );
+      check(
+        (await backend.fiscalPeriods.getAll()).length === 1,
+        "the opened period is still there",
+      );
+    },
+  ),
+
+  {
+    name: "takes in a fiscal period copied from another backend",
+    async run(open) {
+      await withSubject(open, async (source) => {
+        const period = await closedPeriodWithFixedAsset(source);
+        await withSubject(open, async (target) => {
+          const copied = await copyFiscalPeriodToBackend(
+            source,
+            period,
+            target,
+            CLOSING_DAY,
+          );
+          check(
+            copied.name === period.name && copied.phase === "post_closing",
+            "the copied period keeps its name and phase",
+          );
+          check(
+            (await target.entries.getAll(copied.id)).length ===
+              (await source.entries.getAll(period.id)).length,
+            "the copied period keeps its entries",
+          );
+          check(
+            (await target.fixedAssets.getAll(copied.id)).length === 1,
+            "the copied period keeps its fixed assets",
+          );
+          await checkRejectedWith(
+            HTTP_CONFLICT,
+            copyFiscalPeriodToBackend(source, period, target, CLOSING_DAY),
+            "a copy that overlaps a stored period is refused",
+          );
+        });
+      });
+    },
+  },
 
   contractCase("reports its maintenance status", async (backend) => {
     const status = await backend.maintenance.get();
