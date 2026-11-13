@@ -352,6 +352,16 @@ export function createOpenkkEntriesStore(dependencies: {
       const assertAuthStillCurrent = () =>
         appState().assertAuthOperationCurrent(authOperationVersion);
       const master = data.getState().master;
+      const reloadFiscalPeriodRecords = async () => {
+        const remoteEntries = await backend.entries.getAll(fiscalPeriodId);
+        assertAuthStillCurrent();
+        const loaded = remoteEntries.map((entry) =>
+          storedEntryToRecord(entry, fiscalPeriodId, master),
+        );
+        updateRecords((current) =>
+          replaceFiscalPeriodEntryRecords(current, fiscalPeriodId, loaded),
+        );
+      };
       periodVersions.invalidate(fiscalPeriodId);
       try {
         await applyJournalTableChanges(
@@ -361,14 +371,10 @@ export function createOpenkkEntriesStore(dependencies: {
           master,
           assertAuthStillCurrent,
         );
-        const remoteEntries = await backend.entries.getAll(fiscalPeriodId);
-        assertAuthStillCurrent();
-        const loaded = remoteEntries.map((entry) =>
-          storedEntryToRecord(entry, fiscalPeriodId, master),
-        );
-        updateRecords((current) =>
-          replaceFiscalPeriodEntryRecords(current, fiscalPeriodId, loaded),
-        );
+        await reloadFiscalPeriodRecords();
+      } catch (error) {
+        await reloadFiscalPeriodRecords().catch(() => {});
+        throw error;
       } finally {
         periodVersions.invalidate(fiscalPeriodId);
       }

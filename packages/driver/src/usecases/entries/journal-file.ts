@@ -51,6 +51,14 @@ export function planJournalImport(input: {
     startDate: fiscalPeriod.startDate,
     endDate: fiscalPeriod.endDate,
     master,
+    storedTexts: new Set(
+      input.currentEntries.flatMap((entry) => [
+        entry.description,
+        ...entry.lines.flatMap((line) =>
+          line.partnerName == null ? [] : [line.partnerName],
+        ),
+      ]),
+    ),
   });
   if (!read.ok) return { kind: "problems", problems: read.problems };
   return {

@@ -14,6 +14,7 @@ import {
   parseIsoLocalDate,
   weekdayJa,
 } from "../shared/parse-utils.js";
+import { MAX_TEXT_FIELD_LENGTH } from "../shared/text-limits.js";
 import {
   buildBookAccountLabels,
   type SectionedBookAccount,
@@ -238,6 +239,7 @@ export function readJournalTableEntries(
     startDate: string;
     endDate: string;
     master: JournalTableMaster;
+    storedTexts: ReadonlySet<string>;
   },
 ): JournalTableReadResult {
   const problems: JournalTableProblem[] = [];
@@ -246,6 +248,8 @@ export function readJournalTableEntries(
       problems.push({ rowNumber, message });
     }
   };
+  const exceedsTextLimit = (text: string) =>
+    text.length > MAX_TEXT_FIELD_LENGTH && !input.storedTexts.has(text);
   const resolveAccount = createAccountResolver(input.master.accounts);
   const resolveTaxCategory = createCategoryResolver(
     input.master.taxCategories,
@@ -323,6 +327,11 @@ export function readJournalTableEntries(
     let valid = true;
     for (const row of group) {
       const partner = row.partner.trim();
+      if (exceedsTextLimit(partner)) {
+        report(row.rowNumber, `取引先は ${MAX_TEXT_FIELD_LENGTH} 文字までです`);
+        valid = false;
+        continue;
+      }
       const taxCategory = resolveTaxCategory(row.taxCategory);
       const businessCategory = resolveBusinessCategory(row.businessCategory);
       if (
@@ -405,6 +414,14 @@ export function readJournalTableEntries(
         first.rowNumber,
         `借方の合計 ${formatAmount(debitTotal)} と貸方の合計 ${formatAmount(creditTotal)} が合いません`,
       );
+      continue;
+    }
+    if (first.description.trim() === "") {
+      report(first.rowNumber, "摘要を入れてください");
+      continue;
+    }
+    if (exceedsTextLimit(first.description)) {
+      report(first.rowNumber, `摘要は ${MAX_TEXT_FIELD_LENGTH} 文字までです`);
       continue;
     }
     entries.push({

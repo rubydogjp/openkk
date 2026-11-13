@@ -73,6 +73,7 @@ const period = {
   startDate: "2026-01-01",
   endDate: "2026-12-31",
   master,
+  storedTexts: new Set<string>(),
 };
 
 function line(
@@ -357,6 +358,39 @@ describe("readJournalTableEntries problems", () => {
         message: "事業割合「120」は 0 から 100 の数で入れてください",
       },
     ]);
+  });
+
+  it("asks for a description and keeps texts within the length the records take", () => {
+    const tooLong = "あ".repeat(401);
+    expect(
+      problemsOf(
+        [
+          HEADER,
+          "a,2026-06-01,消耗品費,1000,普通預金,1000,,,,,",
+          `b,2026-06-01,消耗品費,1000,普通預金,1000,${tooLong},,,,`,
+          `c,2026-06-01,消耗品費,1000,普通預金,1000,文具,${tooLong},,,`,
+        ].join("\n"),
+      ),
+    ).toEqual([
+      { rowNumber: 2, message: "摘要を入れてください" },
+      { rowNumber: 3, message: "摘要は 400 文字までです" },
+      { rowNumber: 4, message: "取引先は 400 文字までです" },
+    ]);
+  });
+
+  it("takes a longer text that the period already holds", () => {
+    const stored = "あ".repeat(401);
+    const result = readJournalTableEntries(
+      parseJournalTableCsv(
+        [
+          HEADER,
+          `a,2026-06-01,消耗品費,1000,普通預金,1000,${stored},${stored},,,`,
+        ].join("\n"),
+      ),
+      { ...period, storedTexts: new Set([stored]) },
+    );
+
+    expect(result.ok).toBe(true);
   });
 
   it("does not take entry numbers reserved for generated entries", () => {

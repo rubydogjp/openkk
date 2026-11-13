@@ -260,6 +260,97 @@ describe("createOpenkkEntriesStore", () => {
     expect(entries.getState().listFiscalPeriodEntries("fp-1")).toHaveLength(2);
   });
 
+  it("replaces the period's entries by adding first and removing last", async () => {
+    const fake = fakeBackend();
+    fake.fiscalPeriods.push(fakeFiscalPeriod({ id: "fp-1" }));
+    storedEntry(fake, "fp-1", "2026-01-05");
+    storedEntry(fake, "fp-1", "2026-02-10");
+    const { entries } = await startedStores(fake, "fp-1");
+    const [removed, changed] = entries
+      .getState()
+      .listFiscalPeriodEntries("fp-1");
+    fake.calls.length = 0;
+
+    await entries.getState().applyJournalTableChanges("fp-1", {
+      added: [{ ...removed!, id: "journal-table:new", description: "足す" }],
+      changed: [
+        { current: changed!, next: { ...changed!, description: "直す" } },
+      ],
+      removed: [removed!],
+      unchangedCount: 0,
+    });
+
+    expect(fake.calls).toEqual([
+      "entries.getAll",
+      "entries.importMany",
+      "entries.update",
+      "entries.remove",
+      "entries.getAll",
+    ]);
+    expect(
+      entries
+        .getState()
+        .listFiscalPeriodEntries("fp-1")
+        .map((record) => record.description)
+        .sort(),
+    ).toEqual(["直す", "足す"]);
+  });
+
+  it("loses no entry and shows what is stored when a replacement fails halfway", async () => {
+    const fake = fakeBackend();
+    fake.fiscalPeriods.push(fakeFiscalPeriod({ id: "fp-1" }));
+    storedEntry(fake, "fp-1", "2026-01-05");
+    storedEntry(fake, "fp-1", "2026-02-10");
+    const { entries } = await startedStores(fake, "fp-1");
+    const [removed, changed] = entries
+      .getState()
+      .listFiscalPeriodEntries("fp-1");
+    fake.rejectNext("entries.update", new Error("offline"));
+
+    await expect(
+      entries.getState().applyJournalTableChanges("fp-1", {
+        added: [{ ...removed!, id: "journal-table:new", description: "足す" }],
+        changed: [
+          { current: changed!, next: { ...changed!, description: "直す" } },
+        ],
+        removed: [removed!],
+        unchangedCount: 0,
+      }),
+    ).rejects.toThrow("offline");
+
+    expect(fake.calls).not.toContain("entries.remove");
+    expect(
+      entries
+        .getState()
+        .listFiscalPeriodEntries("fp-1")
+        .map((record) => record.description)
+        .sort(),
+    ).toEqual(["保存済み", "保存済み", "足す"]);
+  });
+
+  it("changes nothing when the stored entries are not the ones the replacement was compared with", async () => {
+    const fake = fakeBackend();
+    fake.fiscalPeriods.push(fakeFiscalPeriod({ id: "fp-1" }));
+    storedEntry(fake, "fp-1", "2026-01-05");
+    const { entries } = await startedStores(fake, "fp-1");
+    const [known] = entries.getState().listFiscalPeriodEntries("fp-1");
+    storedEntry(fake, "fp-1", "2026-02-10");
+    fake.calls.length = 0;
+
+    await expect(
+      entries.getState().applyJournalTableChanges("fp-1", {
+        added: [],
+        changed: [],
+        removed: [known!],
+        unchangedCount: 0,
+      }),
+    ).rejects.toThrow(/stored entries differ/);
+
+    expect(fake.calls).toEqual(["entries.getAll", "entries.getAll"]);
+    expect(fake.entries).toHaveLength(2);
+    expect(entries.getState().listFiscalPeriodEntries("fp-1")).toHaveLength(2);
+  });
+
   it("stops following the app after stop", async () => {
     const fake = fakeBackend();
     fake.fiscalPeriods.push(fakeFiscalPeriod({ id: "fp-1" }));
