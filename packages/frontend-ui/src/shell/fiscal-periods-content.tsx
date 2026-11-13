@@ -294,19 +294,11 @@ export function FiscalPeriodsContent() {
           )}
         </div>
 
-        <FiscalPeriodsTable
-          items={appState.fiscalPeriods}
-          onSelect={(periodId) => {
-            appState.selectFiscalPeriod(periodId);
-            router.push("/steps");
-          }}
-        />
-        {bookImportDialog}
         {bookImportNotice != null ? (
           <div
             role="status"
             style={{
-              marginTop: 12,
+              marginBottom: 12,
               fontSize: fontSize.base,
               color: palette.textSoft,
             }}
@@ -315,7 +307,7 @@ export function FiscalPeriodsContent() {
           </div>
         ) : null}
         {screenError != null ? (
-          <div style={{ marginTop: 12 }}>
+          <div style={{ marginBottom: 12 }}>
             <AppErrorText
               error={screenError}
               style={null}
@@ -323,6 +315,14 @@ export function FiscalPeriodsContent() {
             />
           </div>
         ) : null}
+        <FiscalPeriodsTable
+          items={appState.fiscalPeriods}
+          onSelect={(periodId) => {
+            appState.selectFiscalPeriod(periodId);
+            router.push("/steps");
+          }}
+        />
+        {bookImportDialog}
       </div>
     </section>
   );

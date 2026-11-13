@@ -70,7 +70,7 @@ export function EntryFileActionsButton(props: {
             top: 42,
             right: 0,
             zIndex: 60,
-            minWidth: 240,
+            minWidth: 288,
             background: palette.surface,
             border: `1px solid ${palette.borderSubtle}`,
             borderRadius: radii.md,

@@ -85,6 +85,7 @@ export function OpeningBsCarryover({
   const applyLock = useRef(new ExclusiveActionLock());
   const source = sources.find((period) => period.id === sourceId) ?? null;
   const loadFiscalPeriodEntries = entriesState.loadFiscalPeriodEntries;
+  const journalMaster = entriesState.journalTableMaster;
   const latestSourceId = sources[0]?.id ?? "";
 
   useEffect(() => {
@@ -110,7 +111,13 @@ export function OpeningBsCarryover({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, items.transfer, sourceId, loadFiscalPeriodEntries]);
+  }, [
+    isOpen,
+    items.transfer,
+    sourceId,
+    loadFiscalPeriodEntries,
+    journalMaster,
+  ]);
 
   const reversalCandidates = useMemo(
     () => sourceEntries.filter(isOpeningCarryoverCandidate),
