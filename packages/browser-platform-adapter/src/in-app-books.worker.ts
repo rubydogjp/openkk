@@ -64,7 +64,12 @@ async function openBooksDirectory(): Promise<BookDirectory> {
       const access = await handle.createSyncAccessHandle();
       try {
         access.truncate(0);
-        access.write(bytes, { at: 0 });
+        const writtenLength = access.write(bytes, { at: 0 });
+        if (writtenLength !== bytes.byteLength) {
+          throw new Error(
+            `in-app books: wrote ${writtenLength} of ${bytes.byteLength} bytes to ${name}`,
+          );
+        }
         access.flush();
       } finally {
         access.close();

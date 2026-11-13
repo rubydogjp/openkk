@@ -70,6 +70,28 @@ describe("in-app book saving", () => {
     expect(files.get(BOOK)).toEqual(NEW_BYTES);
   });
 
+  it("finishes a save that stopped while writing the book before it starts the next one", async () => {
+    const { files, directory } = memoryDirectory(BOOK);
+    files.set(BOOK, OLD_BYTES);
+    await expect(writeBook(directory, BOOK, NEW_BYTES)).rejects.toThrow();
+    const newerBytes = new Uint8Array([3, 3, 3]);
+    const stoppedCopy = `${BOOK}${PENDING_COPY_SUFFIX}`;
+    const write = directory.write;
+    directory.write = async (name, bytes) => {
+      if (name === stoppedCopy) {
+        files.set(name, bytes.slice(0, 1));
+        throw new Error(`stopped while writing ${name}`);
+      }
+      await write(name, bytes);
+    };
+
+    await expect(writeBook(directory, BOOK, newerBytes)).rejects.toThrow();
+    await recoverBook(directory, BOOK);
+
+    expect([...files.keys()]).toEqual([BOOK]);
+    expect(files.get(BOOK)).toEqual(NEW_BYTES);
+  });
+
   it("leaves a cleanly saved book as it is", async () => {
     const { files, directory } = memoryDirectory(null);
     files.set(BOOK, OLD_BYTES);

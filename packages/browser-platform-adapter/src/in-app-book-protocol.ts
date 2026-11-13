@@ -20,6 +20,7 @@ export async function writeBook(
   name: string,
   bytes: Uint8Array,
 ): Promise<void> {
+  await recoverBook(directory, name);
   await directory.write(`${name}${PENDING_COPY_SUFFIX}`, bytes);
   await directory.write(`${name}${READY_MARK_SUFFIX}`, READY_MARK);
   await directory.write(name, bytes);
