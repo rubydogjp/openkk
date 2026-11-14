@@ -221,20 +221,20 @@ describe("backend-api closing flow", () => {
     ).rejects.toThrow(/Closing entries exceed the 100,000 line limit/);
   });
 
-  it("rejects closing changes in archived fiscal periods", async () => {
+  it("rejects closing changes in a fiscal period whose data was purged", async () => {
     const backendApi = createOpenkkBackendApi(
-      createMemoryDb({ archiveStatus: "archived" }),
+      createMemoryDb({ archiveStatus: "purged" }),
       {
         userId: "user-1",
       },
     );
 
     await expect(backendApi.preClosings.run("fp-1")).rejects.toThrow(
-      /Archived fiscal period fp-1 cannot run pre-closing/,
+      /Fiscal period fp-1 cannot run pre-closing after its data was purged/,
     );
 
     await expect(backendApi.preClosings.cancel("fp-1")).rejects.toThrow(
-      /Archived fiscal period fp-1 cannot cancel pre-closing/,
+      /Fiscal period fp-1 cannot cancel pre-closing after its data was purged/,
     );
   });
 });
@@ -268,7 +268,7 @@ function createMemoryDb(
         throw new Error("unexpected applyCarryoverFromArchive call");
       },
       async importArchived() {
-        return fiscalPeriod({ id: "fp-archive", archiveStatus: "archived" });
+        return fiscalPeriod({ id: "fp-archive" });
       },
       async patch(id: string, patch: FiscalPeriodPatchInput) {
         const { opening, ...rest } = patch;
@@ -289,17 +289,6 @@ function createMemoryDb(
       },
       async start() {
         current = { ...current, phase: "journalizing" };
-        return current;
-      },
-      async archive() {
-        current = { ...current, archiveStatus: "archived" };
-        return current;
-      },
-      async purgeArchivedData() {
-        current = {
-          ...current,
-          archiveStatus: "purged",
-        };
         return current;
       },
       async remove() {},

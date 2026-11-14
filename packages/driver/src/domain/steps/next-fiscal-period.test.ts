@@ -72,14 +72,6 @@ describe("findCreatedNextFiscalPeriod", () => {
     );
   });
 
-  it("finds a next period that was archived in an earlier version", () => {
-    const archived = { ...year2027, archiveStatus: "archived" as const };
-
-    expect(findCreatedNextFiscalPeriod(year2026, [year2026, archived])).toBe(
-      archived,
-    );
-  });
-
   it("finds nothing when no later period exists or the earliest one leaves the next dates free", () => {
     const earlier = {
       ...year2027,

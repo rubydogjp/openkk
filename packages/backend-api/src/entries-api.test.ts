@@ -56,58 +56,15 @@ describe("backend-api entries", () => {
     },
   );
 
-  it("rejects child-data reads after archived data was purged", async () => {
+  it("rejects child-data reads after the data was purged", async () => {
     const db = createEntryDb({
       archiveStatus: "purged",
     });
     const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(backendApi.entries.getAll("fp-1")).rejects.toThrow(
-      /after archived data was purged/,
+      /after its data was purged/,
     );
-  });
-
-  it("finishes a queued data read before purging archived data", async () => {
-    const db = createEntryDb({
-      phase: "post_closing",
-      archiveStatus: "archived",
-      documentsReceivedCompleted: true,
-    });
-    const trace: string[] = [];
-    let releaseRead!: () => void;
-    let markReadStarted!: () => void;
-    const readGate = new Promise<void>((resolve) => {
-      releaseRead = resolve;
-    });
-    const readStarted = new Promise<void>((resolve) => {
-      markReadStarted = resolve;
-    });
-    db.entries.getAll = async () => {
-      trace.push("read:start");
-      markReadStarted();
-      await readGate;
-      trace.push("read:end");
-      return [];
-    };
-    db.fiscalPeriods.purgeArchivedData = async (id) => {
-      trace.push("purge");
-      return fiscalPeriod({
-        id,
-        phase: "post_closing",
-        archiveStatus: "purged",
-        documentsReceivedCompleted: true,
-      });
-    };
-    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
-
-    const reading = backendApi.entries.getAll("fp-1");
-    const purging = backendApi.fiscalPeriods.purgeArchivedData("fp-1");
-    await readStarted;
-    expect(trace).toEqual(["read:start"]);
-
-    releaseRead();
-    await Promise.all([reading, purging]);
-    expect(trace).toEqual(["read:start", "read:end", "purge"]);
   });
 
   it("rejects invalid entry dates before persisting", async () => {
@@ -503,21 +460,23 @@ describe("backend-api entries", () => {
     expect(await backendApi.entries.getAll("fp-1")).toEqual([]);
   });
 
-  it("rejects entry creation in archived fiscal periods", async () => {
-    const db = createEntryDb({ archiveStatus: "archived" });
+  it("rejects entry creation in a fiscal period whose data was purged", async () => {
+    const db = createEntryDb({ archiveStatus: "purged" });
     const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
       backendApi.entries.create("fp-1", {
         date: "2026-04-01",
-        description: "archived",
-        localId: "archived-entry",
+        description: "purged",
+        localId: "purged-entry",
         businessRate: 1,
         lines: [],
       }),
-    ).rejects.toThrow(/Archived fiscal period fp-1 cannot create entry/);
+    ).rejects.toThrow(
+      /Fiscal period fp-1 cannot create entry after its data was purged/,
+    );
 
-    expect(await backendApi.entries.getAll("fp-1")).toEqual([]);
+    expect(await db.entries.getAll("fp-1")).toEqual([]);
   });
 
   it("deletes an entry only when it belongs to the requested fiscal period", async () => {
@@ -585,7 +544,7 @@ function createEntryDb(
         throw new Error("unexpected applyCarryoverFromArchive call");
       },
       async importArchived() {
-        return fiscalPeriod({ id: "fp-archive", archiveStatus: "archived" });
+        return fiscalPeriod({ id: "fp-archive" });
       },
       async patch(id: string, patch: FiscalPeriodPatchInput) {
         const { opening, ...rest } = patch;
@@ -599,15 +558,6 @@ function createEntryDb(
       },
       async start(id: string) {
         return fiscalPeriod({ id, phase: "journalizing" });
-      },
-      async archive(id: string) {
-        return fiscalPeriod({ id, archiveStatus: "archived" });
-      },
-      async purgeArchivedData(id: string) {
-        return fiscalPeriod({
-          id,
-          archiveStatus: "purged",
-        });
       },
       async remove() {},
     },

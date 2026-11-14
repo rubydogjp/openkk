@@ -501,6 +501,33 @@ test("moves the periods the previous version kept in this browser into one book 
   expect(await countStoredBooks(page)).toBe(2);
 });
 
+test("shows a period the previous version archived as an ordinary closed period that counts when dates overlap", async ({
+  page,
+}) => {
+  const thisYear = new Date().getFullYear();
+  const legacyPath = await createPreviousVersionDatabase([
+    {
+      name: "圧縮保存した期間",
+      startDate: `${thisYear}-01-01`,
+      endDate: `${thisYear}-12-31`,
+    },
+  ]);
+  markArchivedByPreviousVersion(legacyPath);
+  await seedLegacyDatabase(page, fs.readFileSync(legacyPath));
+
+  await startApp(page);
+
+  await expect(
+    page.getByRole("button", { name: /^圧縮保存した期間 / }),
+  ).toContainText("決算後");
+  await expect(page.getByText("圧縮保存済み")).toHaveCount(0);
+  await page.getByRole("button", { name: "追加" }).click();
+  await expect(
+    page.getByText("既存の有効な会計期間と日付が重複しています。"),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "作成する" })).toBeDisabled();
+});
+
 function saveButton(page: Page) {
   return page
     .getByRole("complementary")
@@ -705,6 +732,23 @@ async function createPreviousVersionDatabase(periods: PeriodInput[]) {
     database.close();
   }
   return filePath;
+}
+
+function markArchivedByPreviousVersion(filePath: string) {
+  const database = new DatabaseSync(filePath);
+  try {
+    database.exec(
+      `UPDATE fiscal_periods SET data = json_set(
+        data,
+        '$.phase', 'post_closing',
+        '$.documentsReceivedCompleted', json('true'),
+        '$.archiveStatus', 'archived',
+        '$.archivedAt', '2027-03-01T00:00:00.000Z'
+      )`,
+    );
+  } finally {
+    database.close();
+  }
 }
 
 async function renamePeriodLikeCli(filePath: string, name: string) {

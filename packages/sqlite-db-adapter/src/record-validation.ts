@@ -8,6 +8,7 @@ import {
   assertOpeningMatchesRules,
   assertUniqueIds,
   isNonBlankString,
+  PURGED_FISCAL_PERIOD_MESSAGE,
   requireObject,
   engineConflictError,
   engineValidationError,
@@ -54,8 +55,8 @@ export function assertDbCarryoverTargetAllowed(
 ): void {
   if (period.archiveStatus !== "active") {
     throw engineConflictError(
-      `archived fiscal period cannot receive carryover: ${period.id}`,
-      "圧縮保存済みの会計期間は変更できません",
+      `purged fiscal period cannot receive carryover: ${period.id}`,
+      PURGED_FISCAL_PERIOD_MESSAGE,
     );
   }
   if (period.phase !== "pre_opening" && period.phase !== "journalizing") {
@@ -72,8 +73,8 @@ export function assertDbFiscalPeriodPatchAllowed(
 ): void {
   if (period.archiveStatus !== "active") {
     throw engineConflictError(
-      `archived fiscal period cannot be updated: ${period.id}`,
-      "圧縮保存済みの会計期間は変更できません",
+      `purged fiscal period cannot be updated: ${period.id}`,
+      PURGED_FISCAL_PERIOD_MESSAGE,
     );
   }
   assertFiscalPeriodPatchMatchesPhase(period, patch);

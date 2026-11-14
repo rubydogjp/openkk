@@ -193,12 +193,6 @@ describe("change stamp", () => {
         carryFixedAssets: false,
       }),
     );
-    await changed("fiscalPeriods.archive", () =>
-      db.fiscalPeriods.archive(period.id),
-    );
-    await changed("fiscalPeriods.purgeArchivedData", () =>
-      db.fiscalPeriods.purgeArchivedData(period.id),
-    );
     await changed("fiscalPeriods.importArchived", () =>
       db.fiscalPeriods.importArchived("user-1", {
         fiscalPeriod: {

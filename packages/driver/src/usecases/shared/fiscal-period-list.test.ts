@@ -20,18 +20,35 @@ describe("applyFiscalPeriodUpdate", () => {
     expect(next[1]).toBe(current[1]);
   });
 
-  it("uses the backend's phase and archive status without a local overlay", () => {
+  it("uses the backend's phase without a local overlay", () => {
     const [next] = applyFiscalPeriodUpdate(
       [period({ id: "fp-1" })],
-      remotePeriod({
-        id: "fp-1",
-        phase: "pre_closing",
-        archiveStatus: "archived",
-      }),
+      remotePeriod({ id: "fp-1", phase: "pre_closing" }),
     );
 
     expect(next?.phase).toBe("pre_closing");
-    expect(next?.archiveStatus).toBe("archived");
+  });
+
+  it("reads a period archived by an earlier version as an ordinary period and keeps a purged one apart", () => {
+    const [archived] = applyFiscalPeriodUpdate(
+      [],
+      remotePeriod({
+        id: "fp-1",
+        archiveStatus: "archived",
+        archivedAt: "2027-03-01T00:00:00.000Z",
+      }),
+    );
+    const [purged] = applyFiscalPeriodUpdate(
+      [],
+      remotePeriod({
+        id: "fp-2",
+        archiveStatus: "purged",
+        archivedAt: "2027-03-01T00:00:00.000Z",
+      }),
+    );
+
+    expect(archived?.archiveStatus).toBe("active");
+    expect(purged?.archiveStatus).toBe("purged");
   });
 
   it("upserts a missing period and removes stale duplicates", () => {
@@ -65,7 +82,6 @@ function period(overrides: Partial<FiscalPeriod> = {}): FiscalPeriod {
     documentsReceivedCompleted: false,
     createdAt: "1970-01-01T00:00:00.000Z",
     updatedAt: "1970-01-01T00:00:00.000Z",
-    archivedAt: null,
     opening: {
       balanceLines: [],
       journals: [],

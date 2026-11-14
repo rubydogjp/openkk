@@ -114,7 +114,7 @@ export function createRecordsBookFilesAdapter(
         throw new OpenkkBookFileError("no_fiscal_period");
       }
       const existing = (await backend.fiscalPeriods.getAll()).filter(
-        (period) => period.archiveStatus === "active",
+        (period) => period.archiveStatus !== "purged",
       );
       const items = periods.map(({ fiscalPeriod }): OpenkkBookImportItem => {
         const overlapping =

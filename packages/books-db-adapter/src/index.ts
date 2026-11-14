@@ -528,9 +528,6 @@ export async function createBooksDbAdapter(
         return dbOfPeriod(id).fiscalPeriods.patch(id, patch);
       },
       start: (id) => dbOfPeriod(id).fiscalPeriods.start(id),
-      archive: (id) => dbOfPeriod(id).fiscalPeriods.archive(id),
-      purgeArchivedData: (id) =>
-        dbOfPeriod(id).fiscalPeriods.purgeArchivedData(id),
       async remove(id) {
         const book = bookOfPeriod(id);
         if (book == null) return;

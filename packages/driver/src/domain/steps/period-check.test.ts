@@ -115,10 +115,10 @@ describe("hasActiveFiscalPeriodOverlap", () => {
       archiveStatus: "active" as const,
     },
     {
-      id: "fp-archived",
+      id: "fp-purged",
       startDate: "2025-01-01",
       endDate: "2025-12-31",
-      archiveStatus: "archived" as const,
+      archiveStatus: "purged" as const,
     },
   ];
 
@@ -132,7 +132,7 @@ describe("hasActiveFiscalPeriodOverlap", () => {
     ).toBe(true);
   });
 
-  it("ignores archived and explicitly excluded periods", () => {
+  it("ignores purged and explicitly excluded periods", () => {
     expect(
       hasActiveFiscalPeriodOverlap(
         { startDate: "2025-01-01", endDate: "2025-12-31" },

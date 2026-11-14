@@ -405,24 +405,6 @@ export function runDbPortConformance(
       ).rejects.toThrow(/fiscal period not found/);
     });
 
-    it("archives only a completed post-closing fiscal period", async () => {
-      const closedPeriod = {
-        ...seedWithPeriods("fp-archive").fiscalPeriods[0]!,
-        phase: "post_closing" as const,
-        documentsReceivedCompleted: true,
-      };
-      const phaseDb = await ctx.makeSeededAdapter({
-        fiscalPeriods: [closedPeriod],
-        entries: [],
-        fixedAssets: [],
-      });
-
-      const archived = await phaseDb.fiscalPeriods.archive("fp-archive");
-
-      expect(archived.phase).toBe("post_closing");
-      expect(archived.archiveStatus).toBe("archived");
-    });
-
     function carryoverSeed(targetPhase: "journalizing" | "pre_closing") {
       const timestamp = "1970-01-01T00:00:00.000Z";
       const line = (
@@ -789,70 +771,33 @@ export function runDbPortConformance(
       expect(await db.fixedAssets.getAll(period.id)).toEqual([]);
     });
 
-    it("purgeArchivedData strips child data and marks the period purged", async () => {
-      const db = await makeDb();
-      const period = await db.fiscalPeriods.create("user-1", {
-        name: "FY2026",
-        startDate: "2026-01-01",
-        endDate: "2026-12-31",
-      });
-      await db.fiscalPeriods.start(period.id);
-      await db.fiscalPeriods.patch(period.id, {
-        openingBalancesCompleted: true,
-        opening: {
-          ...period.opening,
-          balanceLines: [
-            { id: "balance-1", accountId: "a:現金", amount: 1000 },
-            { id: "balance-2", accountId: "l:元入金", amount: 1000 },
-          ],
-          journals: [],
-        },
-      });
-      await db.entries.create("user-1", period.id, {
-        date: "2026-04-01",
-        description: "entry",
-        businessRate: 1,
-        lines: [testEntryLine, testCreditEntryLine],
-        localId: null,
-      });
-      await db.fixedAssets.create("user-1", period.id, {
-        name: "Camera",
-        acquisitionDate: "2026-04-01",
-        acquisitionCost: 100000,
-        usefulLife: 3,
-        depreciationMethod: "straight_line",
-        businessRate: 1,
-        bookAccountId: "acct_equipment",
-      });
-      await db.preClosings.run(period.id);
-      await db.closings.run(period.id, []);
-      await db.fiscalPeriods.patch(period.id, {
+    it("keeps a fiscal period whose data was purged as it is and refuses to change it", async () => {
+      const purgedPeriod = {
+        ...seedWithPeriods("fp-purged").fiscalPeriods[0]!,
+        phase: "post_closing" as const,
         documentsReceivedCompleted: true,
+        archiveStatus: "purged" as const,
+        archivedAt: "2027-03-01T00:00:00.000Z",
+      };
+      const db = await ctx.makeSeededAdapter({
+        fiscalPeriods: [purgedPeriod],
+        entries: [],
+        fixedAssets: [],
       });
-      await db.fiscalPeriods.archive(period.id);
 
-      const purged = await db.fiscalPeriods.purgeArchivedData(period.id);
+      const stored = await db.fiscalPeriods.getById("fp-purged");
 
-      expect(purged.archiveStatus).toBe("purged");
-      expect(purged.archivedAt).toEqual(expect.any(String));
-      expect(await db.entries.getAll(period.id)).toEqual([]);
-      expect(await db.fixedAssets.getAll(period.id)).toEqual([]);
-      const reloaded = await db.fiscalPeriods.getById(period.id);
-      expect(reloaded).not.toBeNull();
-      expect(reloaded?.archiveStatus).toBe("purged");
-      expect(reloaded?.opening.balanceLines).toEqual([]);
-    });
-
-    it("purgeArchivedData rejects a period that is not archived", async () => {
-      const db = await makeDb();
-      const period = await db.fiscalPeriods.create("user-1", {
-        name: "active",
-        startDate: "2026-01-01",
-        endDate: "2026-12-31",
-      });
+      expect(stored?.archiveStatus).toBe("purged");
       await expect(
-        db.fiscalPeriods.purgeArchivedData(period.id),
-      ).rejects.toThrow(/must be archived/);
+        db.fiscalPeriods.patch("fp-purged", { name: "renamed" }),
+      ).rejects.toThrow(/purged fiscal period cannot be updated/);
+      await expect(
+        db.fiscalPeriods.create("user-1", {
+          name: "same dates",
+          startDate: purgedPeriod.startDate,
+          endDate: purgedPeriod.endDate,
+        }),
+      ).resolves.toMatchObject({ archiveStatus: "active" });
     });
 
     it("imports archived fiscal periods with child records in one operation", async () => {

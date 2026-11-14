@@ -4,7 +4,6 @@ import {
   assertFiscalPeriodPatchMatchesPhase,
   assertNoOverlappingActiveFiscalPeriod,
   assertNonBlankString,
-  engineConflictError,
   engineNotFoundError,
   engineValidationError,
   createEngineUsecases,
@@ -15,7 +14,6 @@ import type { OpenkkBackendApi } from "./contract.js";
 import { assertClosingGeneratedEntries } from "./closing-validation.js";
 import { assertEditableEntryInput } from "./entry-validation.js";
 import {
-  archivedFiscalPeriodError,
   assertFiscalPeriodCreateInput,
   assertFiscalPeriodNextCreateInput,
   assertFiscalPeriodCarryoverApplyInput,
@@ -229,11 +227,7 @@ export function createOpenkkBackendApi(
         usecases.fiscalPeriods.importArchived(userId, input),
       patch: async (id, patch) => {
         const current = await requireOwnedFiscalPeriod(id);
-        if (current.archiveStatus !== "active") {
-          throw archivedFiscalPeriodError(
-            `Archived fiscal period ${id} cannot be updated`,
-          );
-        }
+        assertPeriodDataAvailable(current, "be updated");
         assertFiscalPeriodPatchMatchesPhase(current, patch);
         assertFiscalPeriodPatchInput(current, patch);
         if (patch.startDate !== undefined || patch.endDate !== undefined) {
@@ -262,27 +256,6 @@ export function createOpenkkBackendApi(
         const current = await requireOwnedFiscalPeriod(id);
         assertPeriodPhase(current, "pre_opening", "start");
         return usecases.fiscalPeriods.start(userId, id);
-      },
-      archive: async (id) => {
-        const current = await requireOwnedFiscalPeriod(id);
-        assertPeriodPhase(current, "post_closing", "archive");
-        if (!current.documentsReceivedCompleted) {
-          throw engineConflictError(
-            `Fiscal period ${id} cannot be archived before documents are received`,
-            "書類の受領を完了してから圧縮保存してください",
-          );
-        }
-        return usecases.fiscalPeriods.archive(userId, id);
-      },
-      purgeArchivedData: async (id) => {
-        const current = await requireOwnedFiscalPeriod(id);
-        if (current.archiveStatus === "active") {
-          throw engineConflictError(
-            `Fiscal period ${id} must be archived before purging data`,
-            "圧縮保存後の会計期間のみ実データを削除できます",
-          );
-        }
-        return usecases.fiscalPeriods.purgeArchivedData(userId, id);
       },
       remove: async (id) => {
         const current = await requireOwnedFiscalPeriod(id);

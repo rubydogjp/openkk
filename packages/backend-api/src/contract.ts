@@ -31,7 +31,7 @@ export type EntryApiSide = "debit" | "credit";
 export type FiscalPeriodApiPhase =
   "pre_opening" | "journalizing" | "pre_closing" | "post_closing";
 
-export type FiscalPeriodApiArchiveStatus = "active" | "archived" | "purged";
+export type FiscalPeriodApiArchiveStatus = "active" | "purged";
 
 export type FixedAssetApiStatus = "active" | "sold" | "disposed" | "retired";
 
@@ -326,14 +326,6 @@ export type FiscalPeriodPatchRequest = {
 export type FiscalPeriodPatchResponse = { fiscalPeriod: FiscalPeriodApiRecord };
 export type FiscalPeriodStartRequest = { id: string };
 export type FiscalPeriodStartResponse = { fiscalPeriod: FiscalPeriodApiRecord };
-export type FiscalPeriodArchiveRequest = { id: string };
-export type FiscalPeriodArchiveResponse = {
-  fiscalPeriod: FiscalPeriodApiRecord;
-};
-export type FiscalPeriodPurgeArchivedDataRequest = { id: string };
-export type FiscalPeriodPurgeArchivedDataResponse = {
-  fiscalPeriod: FiscalPeriodApiRecord;
-};
 export type FiscalPeriodRemoveRequest = { id: string };
 export type FiscalPeriodRemoveResponse = OpenkkNoContentResponse;
 
@@ -477,16 +469,6 @@ export type OpenkkHttpEndpointSpecs = {
   fiscalPeriodStart: OpenkkHttpEndpointSpec<
     FiscalPeriodStartRequest,
     FiscalPeriodStartResponse,
-    200
-  >;
-  fiscalPeriodArchive: OpenkkHttpEndpointSpec<
-    FiscalPeriodArchiveRequest,
-    FiscalPeriodArchiveResponse,
-    200
-  >;
-  fiscalPeriodPurgeArchivedData: OpenkkHttpEndpointSpec<
-    FiscalPeriodPurgeArchivedDataRequest,
-    FiscalPeriodPurgeArchivedDataResponse,
     200
   >;
   fiscalPeriodRemove: OpenkkHttpEndpointSpec<
@@ -635,16 +617,6 @@ export const OPENKK_HTTP_ENDPOINTS = {
     path: "/fiscal-periods/{id}/start",
     successStatus: 200,
   },
-  fiscalPeriodArchive: {
-    method: "POST",
-    path: "/fiscal-periods/{id}/archive",
-    successStatus: 200,
-  },
-  fiscalPeriodPurgeArchivedData: {
-    method: "POST",
-    path: "/fiscal-periods/{id}/purge-archived-data",
-    successStatus: 200,
-  },
   fiscalPeriodRemove: {
     method: "DELETE",
     path: "/fiscal-periods/{id}",
@@ -757,8 +729,6 @@ export interface FiscalPeriodsApi {
     input: FiscalPeriodArchiveImportInput,
   ): Promise<FiscalPeriodApiRecord>;
   start(id: string): Promise<FiscalPeriodApiRecord>;
-  archive(id: string): Promise<FiscalPeriodApiRecord>;
-  purgeArchivedData(id: string): Promise<FiscalPeriodApiRecord>;
   patch(
     id: string,
     input: FiscalPeriodPatchInput,

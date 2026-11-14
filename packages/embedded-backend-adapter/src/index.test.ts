@@ -217,8 +217,6 @@ function embeddedBackendApi(
       importArchived: async () => unused(),
       patch: async () => unused(),
       start: async () => unused(),
-      archive: async () => unused(),
-      purgeArchivedData: async () => unused(),
       remove: async () => undefined,
       ...overrides.fiscalPeriods,
     },

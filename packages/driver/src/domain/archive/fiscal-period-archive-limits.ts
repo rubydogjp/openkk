@@ -8,8 +8,7 @@ export function invalidArchiveContentError(
 ): AppError {
   return new AppError({
     messageForDeveloper,
-    messageForUser:
-      "圧縮済みファイルの内容を確認できませんでした。作成元の会計期間データからもう一度圧縮保存してください。",
+    messageForUser: "圧縮済みファイルの内容を確認できませんでした。",
     originalMessage: null,
     statusCode: null,
     code: null,

@@ -24,7 +24,6 @@ import { LockButton } from "../shared/locked-action.js";
 import { useOpenkkNotices } from "../shared/notices/notices.js";
 import { ExclusiveActionLock } from "../shared/exclusive-action-lock.js";
 import { usePopoverLifecycle } from "../shared/dismissible-layer.js";
-import { formatCalendarDate } from "../shared/calendar-date.js";
 import {
   fontSize,
   fontWeight,
@@ -464,17 +463,6 @@ function FiscalPeriodRow({
         >
           {period.startDate} 〜 {period.endDate}
         </div>
-        {purged && period.archivedAt != null ? (
-          <div
-            style={{
-              marginTop: 4,
-              fontSize: fontSize.xs,
-              color: palette.textSoft,
-            }}
-          >
-            圧縮保存した日: {formatCalendarDate(period.archivedAt, null)}
-          </div>
-        ) : null}
         {showOpeningBsChip ? (
           <div style={{ marginTop: 6 }}>
             <InlineChip

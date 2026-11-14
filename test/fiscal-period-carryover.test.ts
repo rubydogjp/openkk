@@ -515,11 +515,10 @@ async function closedSource(db: OpenkkDbPort) {
 }
 
 describe("atomic fiscal period carryover", () => {
-  it("preserves saved text through the backend boundary and source purge", async () => {
-    const { backendApi, period, input } = await closedSource(
+  it("preserves saved text through the backend boundary", async () => {
+    const { backendApi, input } = await closedSource(
       await createMemoryDbAdapter(null),
     );
-    await backendApi.fiscalPeriods.archive(period.id);
     const backend = createOpenkkEmbeddedBackendAdapter(backendApi);
     const next = await backend.fiscalPeriods.createNext(input);
     expect(next).toMatchObject({
@@ -542,7 +541,6 @@ describe("atomic fiscal period carryover", () => {
     expect(await backend.fixedAssets.getAll(next.id)).toMatchObject([
       { name: longText, status: "active" },
     ]);
-    await backend.fiscalPeriods.purgeArchivedData(period.id);
     expect(
       (await backend.fiscalPeriods.getAll()).find(
         (item) => item.id === next.id,
@@ -739,15 +737,42 @@ describe("atomic fiscal period carryover", () => {
       }),
     ).rejects.toThrow(/closing/);
     expect(await backendApi.fiscalPeriods.getAll()).toHaveLength(2);
-    await backendApi.fiscalPeriods.archive(input.sourceFiscalPeriodId);
-    await backendApi.fiscalPeriods.purgeArchivedData(
-      input.sourceFiscalPeriodId,
-    );
+  });
+
+  it("refuses to carry over from a period whose data was purged", async () => {
+    const timestamp = "2027-03-01T00:00:00.000Z";
+    const db = await createMemoryDbAdapter({
+      fiscalPeriods: [
+        {
+          id: "fp-purged",
+          userId: "user-1",
+          name: "2026年",
+          startDate: "2026-01-01",
+          endDate: "2026-12-31",
+          phase: "post_closing",
+          archiveStatus: "purged",
+          archivedAt: timestamp,
+          openingBalancesCompleted: true,
+          documentsReceivedCompleted: true,
+          opening: { balanceLines: [], journals: [] },
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        },
+      ],
+      entries: [],
+      fixedAssets: [],
+    });
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
+
     await expect(
       backendApi.fiscalPeriods.createNext({
-        ...input,
-        startDate: "2028-01-01",
-        endDate: "2028-12-31",
+        sourceFiscalPeriodId: "fp-purged",
+        name: "2027年",
+        startDate: "2027-01-01",
+        endDate: "2027-12-31",
+        carryBalances: true,
+        reversalEntryIds: [],
+        carryFixedAssets: true,
       }),
     ).rejects.toThrow(/purged/);
   });

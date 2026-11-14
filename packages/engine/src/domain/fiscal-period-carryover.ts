@@ -10,6 +10,7 @@ import type {
   OpeningBalanceLine,
   OpeningJournal,
 } from "./models.js";
+import { PURGED_FISCAL_PERIOD_MESSAGE } from "./fiscal-period-rules.js";
 import { assertEntryLinesBalanced } from "./validation.js";
 
 const CAPITAL_ACCOUNTS = new Set([
@@ -54,7 +55,7 @@ export function assertFiscalPeriodCanCarryOver(
   if (source.archiveStatus === "purged") {
     throw engineConflictError(
       "Cannot carry over a fiscal period whose data was purged",
-      "この会計期間の実データは削除済みです",
+      PURGED_FISCAL_PERIOD_MESSAGE,
     );
   }
   if (nextStartDate <= source.endDate) {

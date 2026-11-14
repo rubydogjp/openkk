@@ -107,14 +107,14 @@ function prepareAndValidateSeed(seed: unknown): DbSnapshot {
 
   for (const period of periodsById.values()) {
     if (period.archiveStatus !== "purged") continue;
-    const hasArchivedData =
+    const holdsData =
       value.entries.some((entry) => entry.fiscalPeriodId === period.id) ||
       value.fixedAssets.some((asset) => asset.fiscalPeriodId === period.id) ||
       period.opening.balanceLines.length > 0 ||
       period.opening.journals.length > 0;
-    if (hasArchivedData) {
+    if (holdsData) {
       throw engineValidationError(
-        `Seed archived fiscal period ${period.id} contains purged data`,
+        `Seed purged fiscal period ${period.id} still holds data`,
         null,
       );
     }

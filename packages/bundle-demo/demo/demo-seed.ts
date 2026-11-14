@@ -8,7 +8,6 @@ import {
   type EntryApiRecord,
   type EntryLineApiRecord,
   type EntryRecord,
-  type FiscalPeriodApiRecord,
   type FixedAssetApiRecord,
   type OpenkkConfig,
 } from "@rubydogjp/openkk-driver";
@@ -38,7 +37,7 @@ export function buildOpenkkDemoSeed(config: OpenkkConfig): DbSnapshot {
 
 function buildDemoSeedFiscalPeriod(
   config: OpenkkConfig,
-): FiscalPeriodApiRecord {
+): DbSnapshot["fiscalPeriods"][number] {
   return {
     id: "fp-2026",
     userId: config.embeddedUser.id,

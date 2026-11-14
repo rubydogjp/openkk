@@ -185,14 +185,6 @@ function createFiscalPeriodsUsecase(db: OpenkkDbPort) {
       await requireOwnedFiscalPeriod(db, userId, id);
       return db.fiscalPeriods.start(id);
     },
-    async archive(userId: string, id: string) {
-      await requireOwnedFiscalPeriod(db, userId, id);
-      return db.fiscalPeriods.archive(id);
-    },
-    async purgeArchivedData(userId: string, id: string) {
-      await requireOwnedFiscalPeriod(db, userId, id);
-      return db.fiscalPeriods.purgeArchivedData(id);
-    },
     async remove(userId: string, id: string) {
       await requireOwnedFiscalPeriod(db, userId, id);
       await db.fiscalPeriods.remove(id);

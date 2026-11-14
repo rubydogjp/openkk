@@ -10,14 +10,8 @@ import {
   shouldRedirectMissingFiscalPeriod,
 } from "./shell-content-mode.js";
 
-const archivedPeriod = period({
-  archiveStatus: "archived",
-  archivedAt: "2027-03-01T00:00:00.000Z",
-});
-const purgedPeriod = period({
-  archiveStatus: "purged",
-  archivedAt: "2027-03-01T00:00:00.000Z",
-});
+const closedPeriod = period({ phase: "post_closing" });
+const purgedPeriod = period({ archiveStatus: "purged" });
 
 describe("resolveShellContentMode", () => {
   it("shows loading until app state is ready", () => {
@@ -51,7 +45,7 @@ describe("resolveShellContentMode", () => {
         hasSession: true,
         pathname: FISCAL_PERIOD_PICKER_PATH,
         currentFiscalPeriodId: "fp-1",
-        currentFiscalPeriod: archivedPeriod,
+        currentFiscalPeriod: closedPeriod,
       }),
     ).toBe("fiscal-periods");
     expect(
@@ -65,14 +59,14 @@ describe("resolveShellContentMode", () => {
     ).toBe("normal");
   });
 
-  it("shows a period that was archived with its data like any other period", () => {
+  it("shows a closed period that holds its data", () => {
     expect(
       resolveShellContentMode({
         isReady: true,
         hasSession: true,
         pathname: "/entries",
         currentFiscalPeriodId: "fp-1",
-        currentFiscalPeriod: archivedPeriod,
+        currentFiscalPeriod: closedPeriod,
       }),
     ).toBe("normal");
   });
@@ -132,7 +126,7 @@ describe("shell redirects", () => {
         isReady: true,
         hasSession: true,
         pathname: "/assist/fixed-assets",
-        currentFiscalPeriod: archivedPeriod,
+        currentFiscalPeriod: closedPeriod,
       }),
     ).toBe(false);
   });
@@ -151,7 +145,6 @@ function period(overrides: Partial<FiscalPeriod>): FiscalPeriod {
     documentsReceivedCompleted: false,
     createdAt: "1970-01-01T00:00:00.000Z",
     updatedAt: "1970-01-01T00:00:00.000Z",
-    archivedAt: null,
     opening: {
       balanceLines: [],
       journals: [],

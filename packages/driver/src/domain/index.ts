@@ -11,6 +11,7 @@ export { MAX_TEXT_FIELD_LENGTH } from "./shared/text-limits.js";
 
 export * from "./entries/entries-types.js";
 export * from "./entries/journal-import-bytes.js";
+export * from "./legacy/legacy-archive-status.js";
 export * from "./legacy/legacy-journal-files.js";
 export * from "./entries/journal-table.js";
 export * from "./entries/entry-record.js";

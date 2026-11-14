@@ -8,6 +8,10 @@ import {
   engineValidationError,
 } from "@rubydogjp/openkk-engine";
 import type { FiscalPeriodOpeningDbRecord } from "@rubydogjp/openkk-engine";
+import {
+  LEGACY_STORED_ARCHIVE_STATUSES,
+  readLegacyStoredArchiveState,
+} from "./legacy/legacy-archived-fiscal-period.js";
 import type { FiscalPeriodDbData, FixedAssetDbData } from "./table-types.js";
 
 export function msToIso(ms: number): string {
@@ -26,11 +30,6 @@ export function parseFiscalPeriodDbData(json: string): FiscalPeriodDbData {
       "pre_closing",
       "post_closing",
     ]);
-    const archiveStatus = enumValue(value, "archiveStatus", [
-      "active",
-      "archived",
-      "purged",
-    ]);
     const openingBalancesCompleted = booleanValue(
       value,
       "openingBalancesCompleted",
@@ -39,7 +38,14 @@ export function parseFiscalPeriodDbData(json: string): FiscalPeriodDbData {
       value,
       "documentsReceivedCompleted",
     );
-    const archivedAt = nullableValue(value, "archivedAt", isoTimestamp);
+    const { archiveStatus, archivedAt } = readLegacyStoredArchiveState({
+      archiveStatus: enumValue(
+        value,
+        "archiveStatus",
+        LEGACY_STORED_ARCHIVE_STATUSES,
+      ),
+      archivedAt: nullableValue(value, "archivedAt", isoTimestamp),
+    });
     assertDateRange(startDate, endDate, "fiscal period");
     assertFiscalPeriodLifecycleFlags(
       {

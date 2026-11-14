@@ -1,4 +1,7 @@
-import type { FiscalPeriod } from "../../domain/index.js";
+import {
+  readLegacyFiscalPeriodArchiveStatus,
+  type FiscalPeriod,
+} from "../../domain/index.js";
 import type { FiscalPeriodApiRecord } from "../../ports/index.js";
 
 export function mapRemoteFiscalPeriod(
@@ -11,8 +14,7 @@ export function mapRemoteFiscalPeriod(
     startDate: period.startDate,
     endDate: period.endDate,
     phase: period.phase,
-    archiveStatus: period.archiveStatus,
-    archivedAt: period.archivedAt,
+    archiveStatus: readLegacyFiscalPeriodArchiveStatus(period.archiveStatus),
     openingBalancesCompleted: period.openingBalancesCompleted,
     documentsReceivedCompleted: period.documentsReceivedCompleted,
     createdAt: period.createdAt,

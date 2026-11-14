@@ -79,25 +79,25 @@ describe("engine usecase ownership boundary", () => {
   });
 
   it("rejects cross-user fiscal-period and closing operations before mutation", async () => {
-    const archive = vi.fn();
+    const startPeriod = vi.fn();
     const runClosing = vi.fn();
     const db = {
       fiscalPeriods: {
         getById: vi.fn(async () => ({ id: "fp-1", userId: "user-2" })),
         getAll: vi.fn(async () => []),
-        archive,
+        start: startPeriod,
       },
       closings: { run: runClosing },
     } as unknown as OpenkkDbPort;
     const usecases = createEngineUsecases(db);
 
     await expect(
-      usecases.fiscalPeriods.archive("user-1", "fp-1"),
+      usecases.fiscalPeriods.start("user-1", "fp-1"),
     ).rejects.toThrow(/fiscal period not found/);
     await expect(usecases.closings.run("user-1", "fp-1", [])).rejects.toThrow(
       /fiscal period not found/,
     );
-    expect(archive).not.toHaveBeenCalled();
+    expect(startPeriod).not.toHaveBeenCalled();
     expect(runClosing).not.toHaveBeenCalled();
   });
 });

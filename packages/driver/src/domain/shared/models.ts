@@ -7,7 +7,7 @@ export type Session = {
 export type FiscalPeriodPhase =
   "pre_opening" | "journalizing" | "pre_closing" | "post_closing";
 
-export type FiscalPeriodArchiveStatus = "active" | "archived" | "purged";
+export type FiscalPeriodArchiveStatus = "active" | "purged";
 
 export type FiscalPeriod = {
   id: string;
@@ -17,7 +17,6 @@ export type FiscalPeriod = {
   endDate: string;
   phase: FiscalPeriodPhase;
   archiveStatus: FiscalPeriodArchiveStatus;
-  archivedAt: string | null;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
   createdAt: string;

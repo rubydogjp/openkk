@@ -16,7 +16,6 @@ function period(overrides: Partial<FiscalPeriod> = {}): FiscalPeriod {
     documentsReceivedCompleted: false,
     createdAt: "1970-01-01T00:00:00.000Z",
     updatedAt: "1970-01-01T00:00:00.000Z",
-    archivedAt: null,
     opening: {
       balanceLines: [],
       journals: [],
@@ -56,12 +55,12 @@ describe("buildPeriodLockMessage", () => {
     expect(message).not.toBeNull();
   });
 
-  it("returns locked message when archived", () => {
+  it("returns locked message when the data was purged", () => {
     const message = buildPeriodLockMessage(
-      period({ archiveStatus: "archived" }),
+      period({ archiveStatus: "purged" }),
       null,
     );
-    expect(message?.description).toContain("圧縮保存済み");
+    expect(message?.description).toContain("データを削除済み");
   });
 
   it("returns null (unlocked) when journalizing and not closed", () => {

@@ -39,8 +39,6 @@ export function isValidSuccessBody(
     case "fiscalPeriodImportArchived":
     case "fiscalPeriodPatch":
     case "fiscalPeriodStart":
-    case "fiscalPeriodArchive":
-    case "fiscalPeriodPurgeArchivedData":
       return isObject(body) && isFiscalPeriod(body.fiscalPeriod);
     case "entriesGetAll":
       return isObject(body) && isEntryRecordArray(body.entries);

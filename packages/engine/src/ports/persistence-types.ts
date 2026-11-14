@@ -1,7 +1,7 @@
 export type FiscalPeriodDbPhase =
   "pre_opening" | "journalizing" | "pre_closing" | "post_closing";
 
-export type FiscalPeriodDbArchiveStatus = "active" | "archived" | "purged";
+export type FiscalPeriodDbArchiveStatus = "active" | "purged";
 
 export type EntryDbSide = "debit" | "credit";
 

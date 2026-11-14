@@ -17,22 +17,29 @@ import {
 } from "./persistence-codec.js";
 
 describe("SQLite persistence codecs", () => {
-  it("parses phase and archive status independently", () => {
-    const record = parseFiscalPeriodDbData(
+  it("reads a period archived by an earlier version as an ordinary period and keeps a purged one apart", () => {
+    const stored = (archiveStatus: string) =>
       JSON.stringify({
         id: "fp-1",
         name: "FY2026",
         startDate: "2026-01-01",
         endDate: "2026-12-31",
-        phase: "pre_opening",
-        archiveStatus: "archived",
+        phase: "post_closing",
+        archiveStatus,
         archivedAt: "2026-12-31T00:00:00.000Z",
-        openingBalancesCompleted: false,
-        documentsReceivedCompleted: false,
-      }),
-    );
-    expect(record.phase).toBe("pre_opening");
-    expect(record.archiveStatus).toBe("archived");
+        openingBalancesCompleted: true,
+        documentsReceivedCompleted: true,
+      });
+
+    expect(parseFiscalPeriodDbData(stored("archived"))).toMatchObject({
+      phase: "post_closing",
+      archiveStatus: "active",
+      archivedAt: null,
+    });
+    expect(parseFiscalPeriodDbData(stored("purged"))).toMatchObject({
+      archiveStatus: "purged",
+      archivedAt: "2026-12-31T00:00:00.000Z",
+    });
   });
 
   it.each([

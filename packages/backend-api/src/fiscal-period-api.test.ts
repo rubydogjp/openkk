@@ -399,28 +399,28 @@ describe("backend-api fiscal periods", () => {
     ).rejects.toThrow(/archive manifest/);
   });
 
-  it("rejects patches to archived fiscal periods", async () => {
+  it("rejects patches to a fiscal period whose data was purged", async () => {
     const db = createFiscalPeriodDb([
       fiscalPeriod({
-        id: "fp-archived",
+        id: "fp-purged",
         userId: "user-1",
-        archiveStatus: "archived",
+        archiveStatus: "purged",
       }),
     ]);
     const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     const error = await captureAsyncError(() =>
-      backendApi.fiscalPeriods.patch("fp-archived", { name: "updated" }),
+      backendApi.fiscalPeriods.patch("fp-purged", { name: "updated" }),
     );
 
     expect(error).toBeInstanceOf(AppError);
     expect((error as AppError).messageForDeveloper).toContain(
-      "Archived fiscal period fp-archived cannot be updated",
+      "Fiscal period fp-purged cannot be updated after its data was purged",
     );
-    expect((error as AppError).messageForUser).toContain("圧縮保存済み");
+    expect((error as AppError).messageForUser).toContain("削除済み");
     expect((error as AppError).statusCode).toBe(409);
 
-    expect((await db.fiscalPeriods.getById("fp-archived"))?.name).toBe(
+    expect((await db.fiscalPeriods.getById("fp-purged"))?.name).toBe(
       "2026年分",
     );
   });
@@ -448,34 +448,6 @@ describe("backend-api fiscal periods", () => {
     expect(completed.name).toBe("2026年分");
   });
 
-  it("archives only fully completed post-closing periods", async () => {
-    const db = createFiscalPeriodDb([
-      fiscalPeriod({ id: "fp-open", userId: "user-1" }),
-      fiscalPeriod({
-        id: "fp-no-documents",
-        userId: "user-1",
-        phase: "post_closing",
-      }),
-      fiscalPeriod({
-        id: "fp-complete",
-        userId: "user-1",
-        phase: "post_closing",
-        documentsReceivedCompleted: true,
-      }),
-    ]);
-    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
-
-    await expect(backendApi.fiscalPeriods.archive("fp-open")).rejects.toThrow(
-      /cannot archive from phase journalizing/,
-    );
-    await expect(
-      backendApi.fiscalPeriods.archive("fp-no-documents"),
-    ).rejects.toThrow(/cannot be archived before documents are received/);
-
-    const archived = await backendApi.fiscalPeriods.archive("fp-complete");
-    expect(archived.archiveStatus).toBe("archived");
-  });
-
   it("discards only pre-opening fiscal periods", async () => {
     const db = createFiscalPeriodDb([
       fiscalPeriod({
@@ -485,10 +457,10 @@ describe("backend-api fiscal periods", () => {
       }),
       fiscalPeriod({ id: "fp-started", userId: "user-1" }),
       fiscalPeriod({
-        id: "fp-archived",
+        id: "fp-purged",
         userId: "user-1",
         phase: "post_closing",
-        archiveStatus: "archived",
+        archiveStatus: "purged",
       }),
     ]);
     const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
@@ -496,14 +468,14 @@ describe("backend-api fiscal periods", () => {
     await expect(backendApi.fiscalPeriods.remove("fp-started")).rejects.toThrow(
       /cannot discard from phase journalizing/,
     );
-    await expect(
-      backendApi.fiscalPeriods.remove("fp-archived"),
-    ).rejects.toThrow(/Archived fiscal period fp-archived cannot discard/);
+    await expect(backendApi.fiscalPeriods.remove("fp-purged")).rejects.toThrow(
+      /Fiscal period fp-purged cannot discard after its data was purged/,
+    );
     await backendApi.fiscalPeriods.remove("fp-setup");
 
     expect(await db.fiscalPeriods.getById("fp-setup")).toBeNull();
     expect(await db.fiscalPeriods.getById("fp-started")).not.toBeNull();
-    expect(await db.fiscalPeriods.getById("fp-archived")).not.toBeNull();
+    expect(await db.fiscalPeriods.getById("fp-purged")).not.toBeNull();
   });
 
   it("rejects an opening patch whose opening journal is unbalanced", async () => {
@@ -929,23 +901,6 @@ function createFiscalPeriodDb(
         const current = fiscalPeriods.get(id);
         if (current == null) throw new Error(`fiscal period not found: ${id}`);
         const updated = fiscalPeriod({ ...current, phase: "journalizing" });
-        fiscalPeriods.set(id, updated);
-        return updated;
-      },
-      async archive(id: string) {
-        const current = fiscalPeriods.get(id);
-        if (current == null) throw new Error(`fiscal period not found: ${id}`);
-        const updated = fiscalPeriod({ ...current, archiveStatus: "archived" });
-        fiscalPeriods.set(id, updated);
-        return updated;
-      },
-      async purgeArchivedData(id: string) {
-        const current = fiscalPeriods.get(id);
-        if (current == null) throw new Error(`fiscal period not found: ${id}`);
-        const updated = fiscalPeriod({
-          ...current,
-          archiveStatus: "purged",
-        });
         fiscalPeriods.set(id, updated);
         return updated;
       },

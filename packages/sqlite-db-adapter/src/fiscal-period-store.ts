@@ -7,7 +7,6 @@ import {
   buildCarryoverOpeningBalances,
   buildCarryoverOpeningJournals,
   FISCAL_PERIOD_PATCH_KEYS,
-  engineConflictError,
   engineNotFoundError,
   engineValidationError,
 } from "@rubydogjp/openkk-engine";
@@ -463,65 +462,6 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         "journalizing",
         null,
       );
-    },
-    async archive(id) {
-      return runInTransaction(db, async () => {
-        const current = await requireFiscalPeriodRecord(db, id);
-        if (
-          current.archiveStatus !== "active" ||
-          current.phase !== "post_closing" ||
-          !current.documentsReceivedCompleted
-        ) {
-          throw engineConflictError(
-            `fiscal period cannot be archived from phase ${current.phase} (${current.archiveStatus})`,
-            "本締めと書類受領が完了した会計期間のみ圧縮保存できます",
-          );
-        }
-        const now = nowMs();
-        const updated: FiscalPeriodDbRecord = {
-          ...current,
-          updatedAt: msToIso(now),
-          archiveStatus: "archived",
-          archivedAt: msToIso(now),
-        };
-        await db.exec({
-          sql: `UPDATE fiscal_periods SET data = ?, updated_at = ? WHERE id = ?`,
-          bind: [serializeFiscalPeriodDbData(updated), now, id],
-        });
-        return updated;
-      });
-    },
-    async purgeArchivedData(id) {
-      return runInTransaction(db, async () => {
-        const current = await requireFiscalPeriodRecord(db, id);
-        if (current.archiveStatus === "active") {
-          throw engineConflictError(
-            `fiscal period must be archived before purge: ${id}`,
-            "圧縮保存後の会計期間のみ実データを削除できます",
-          );
-        }
-        const now = nowMs();
-        const updated: FiscalPeriodDbRecord = {
-          ...current,
-          updatedAt: msToIso(now),
-          archiveStatus: "purged",
-          opening: emptyOpening(),
-        };
-        await db.exec({
-          sql: `DELETE FROM entries WHERE fiscal_period_id = ?`,
-          bind: [id],
-        });
-        await db.exec({
-          sql: `DELETE FROM fixed_assets WHERE fiscal_period_id = ?`,
-          bind: [id],
-        });
-        await replaceOpening(db, id, updated.opening);
-        await db.exec({
-          sql: `UPDATE fiscal_periods SET data = ?, updated_at = ? WHERE id = ?`,
-          bind: [serializeFiscalPeriodDbData(updated), now, id],
-        });
-        return updated;
-      });
     },
     async remove(id) {
       await runInTransaction(db, async () => {

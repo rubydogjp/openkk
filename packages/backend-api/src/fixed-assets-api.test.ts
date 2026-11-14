@@ -395,13 +395,13 @@ describe("backend-api fixed assets", () => {
     ).rejects.toThrow(/must reference a fixed-asset account/);
   });
 
-  it("rejects fixed asset changes in archived fiscal periods", async () => {
-    const db = createFixedAssetDb({ archiveStatus: "archived" });
+  it("rejects fixed asset changes in a fiscal period whose data was purged", async () => {
+    const db = createFixedAssetDb({ archiveStatus: "purged" });
     const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
 
     await expect(
       backendApi.fixedAssets.create("fp-1", {
-        name: "archived asset",
+        name: "purged asset",
         acquisitionDate: "2026-04-01",
         acquisitionCost: 180000,
         usefulLife: 4,
@@ -409,9 +409,11 @@ describe("backend-api fixed assets", () => {
         businessRate: 1,
         bookAccountId: "acct_equipment",
       }),
-    ).rejects.toThrow(/Archived fiscal period fp-1 cannot create fixed asset/);
+    ).rejects.toThrow(
+      /Fiscal period fp-1 cannot create fixed asset after its data was purged/,
+    );
 
-    expect(await backendApi.fixedAssets.getAll("fp-1")).toEqual([]);
+    expect(await db.fixedAssets.getAll("fp-1")).toEqual([]);
   });
 
   it("rejects fixed asset mutations after final closing", async () => {
@@ -483,7 +485,7 @@ function createFixedAssetDb(
         throw new Error("unexpected applyCarryoverFromArchive call");
       },
       async importArchived() {
-        return fiscalPeriod({ id: "fp-archive", archiveStatus: "archived" });
+        return fiscalPeriod({ id: "fp-archive" });
       },
       async patch(id: string, patch: FiscalPeriodPatchInput) {
         const { opening, ...rest } = patch;
@@ -497,15 +499,6 @@ function createFixedAssetDb(
       },
       async start(id: string) {
         return fiscalPeriod({ id, phase: "journalizing" });
-      },
-      async archive(id: string) {
-        return fiscalPeriod({ id, archiveStatus: "archived" });
-      },
-      async purgeArchivedData(id: string) {
-        return fiscalPeriod({
-          id,
-          archiveStatus: "purged",
-        });
       },
       async remove() {},
     },

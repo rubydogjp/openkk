@@ -281,14 +281,6 @@ export function fakeBackend(): FakeBackend {
         respond("fiscalPeriods.start", () =>
           replacePeriod(id, { phase: "journalizing" }),
         ),
-      archive: (id) =>
-        respond("fiscalPeriods.archive", () =>
-          replacePeriod(id, { archiveStatus: "archived" }),
-        ),
-      purgeArchivedData: (id) =>
-        respond("fiscalPeriods.purgeArchivedData", () =>
-          replacePeriod(id, { archiveStatus: "purged" }),
-        ),
       patch: (id, patch) =>
         respond("fiscalPeriods.patch", () => replacePeriod(id, patch)),
       remove: (id) =>

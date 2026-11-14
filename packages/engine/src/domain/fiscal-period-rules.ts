@@ -113,6 +113,9 @@ export function assertFiscalPeriodClosingRecords(
   }
 }
 
+export const PURGED_FISCAL_PERIOD_MESSAGE =
+  "この会計期間の実データは削除済みです";
+
 export function findOverlappingActiveFiscalPeriod<
   Period extends {
     archiveStatus: FiscalPeriodArchiveStatus;

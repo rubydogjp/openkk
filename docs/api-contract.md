@@ -106,15 +106,12 @@ type OpenkkBackendPort = {
 
 ## Archived periods (legacy)
 
-The screens no longer archive a period. A period is backed up as a `.openkk` book file instead, and a period stays readable after closing.
-The archive operations stay in the contract for data made by earlier versions and for backends that still hold it.
+OpenKK no longer archives a period. A period is backed up as a `.openkk` book file instead, and a period stays readable after closing.
+The contract has no archive or purge operation. Only the states that earlier versions wrote are still read.
 
-- `archiveStatus` is `active`, `archived`, or `purged`. `archivedAt` is `null` while `active`.
-- An `archived` period keeps its data. The screens show it like any other closed period.
-- A `purged` period has no entries, fixed assets or opening. The screens show a notice, and its data comes back only by importing the file that was saved before the purge (as a new period).
-- `fiscalPeriods.archive` preserves `phase`, sets `archiveStatus` to `archived`, and stamps `archivedAt`.
-- `fiscalPeriods.purgeArchivedData(id)` deletes an archived period's entries, fixed assets and opening, and returns it as `purged`. An `active` period fails with `409`.
-- Archived fiscal periods are read-only. Mutations other than `purgeArchivedData` must fail with `OpenkkApiErrorDto` and `statusCode: 409`.
+- `archiveStatus` in a response is `active`, `archived`, or `purged`. `archivedAt` is `null` while `active`.
+- An `archived` period keeps its data. OpenKK reads it as an ordinary (`active`) period: the embedded backend never returns `archived`, and the driver reads `archived` from an HTTP backend as `active`. A backend that still stores `archived` should apply the same rules as for `active` (date overlap, patches, carryover source).
+- A `purged` period has no entries, fixed assets or opening. The screens show a notice, and its data comes back only by importing the file that was saved before the purge (as a new period). Mutations and child-data reads must fail with `OpenkkApiErrorDto` and `statusCode: 409`. A purged period does not count for date overlap and cannot be a carryover source.
 
 ## Archive Zip Format
 

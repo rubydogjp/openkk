@@ -9,10 +9,10 @@ export function buildPeriodLockMessage(
   if (period == null) {
     return { title: "ロックされています", description: "期間が未選択です" };
   }
-  if (period.archiveStatus !== "active") {
+  if (period.archiveStatus === "purged") {
     return {
-      title: "圧縮保存済みです",
-      description: "圧縮保存済みの会計期間は編集できません",
+      title: "ロックされています",
+      description: "データを削除済みの会計期間は編集できません",
     };
   }
   if (period.phase === "pre_opening") {

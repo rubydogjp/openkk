@@ -4,6 +4,7 @@ import {
   assertOpeningMatchesRules,
   assertUniqueStrings,
   MAX_ENTRY_IMPORT_ITEMS,
+  PURGED_FISCAL_PERIOD_MESSAGE,
   requireObject,
   engineConflictError,
   engineValidationError,
@@ -33,19 +34,8 @@ export function assertPeriodDataAvailable(
 ): void {
   if (period.archiveStatus === "purged") {
     throw engineConflictError(
-      `Fiscal period ${period.id} cannot ${operation} after archived data was purged`,
-      "この会計期間の実データは削除済みです",
-    );
-  }
-}
-
-function assertMutableFiscalPeriod(
-  period: FiscalPeriodApiRecord,
-  operation: string,
-): void {
-  if (period.archiveStatus !== "active") {
-    throw archivedFiscalPeriodError(
-      `Archived fiscal period ${period.id} cannot ${operation}`,
+      `Fiscal period ${period.id} cannot ${operation} after its data was purged`,
+      PURGED_FISCAL_PERIOD_MESSAGE,
     );
   }
 }
@@ -63,7 +53,7 @@ export function assertPeriodPhaseOneOf(
   expectedPhases: FiscalPeriodApiPhase[],
   operation: string,
 ): void {
-  assertMutableFiscalPeriod(period, operation);
+  assertPeriodDataAvailable(period, operation);
   if (!expectedPhases.includes(period.phase)) {
     throw engineConflictError(
       `Fiscal period ${period.id} cannot ${operation} from phase ${period.phase}`,
@@ -84,13 +74,6 @@ export function assertFiscalPeriodReadyForPreClosing(
   assertOpeningMatchesRules(period.opening, period, "Opening", {
     completed: true,
   });
-}
-
-export function archivedFiscalPeriodError(messageForDeveloper: string) {
-  return engineConflictError(
-    messageForDeveloper,
-    "圧縮保存済みの会計期間は変更できません",
-  );
 }
 
 export function assertFiscalPeriodCreateInput(
