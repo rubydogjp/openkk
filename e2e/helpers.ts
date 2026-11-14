@@ -123,12 +123,19 @@ export async function addFixedAsset(
   await expect(page.getByText(input.name)).toBeVisible();
 }
 
-export async function openJournalTable(page: Page) {
-  await page
-    .getByRole("group", { name: "仕訳の見かた" })
-    .getByRole("button", { name: "表" })
-    .click();
-  await expect(page.getByRole("table", { name: "仕訳の表" })).toBeVisible();
+export async function openJournalSheet(page: Page) {
+  const sheetButton = page.getByRole("button", { name: "シート", exact: true });
+  const sheet = page.getByRole("region", { name: "シート", exact: true });
+  await expect(sheetButton.or(sheet)).toBeVisible();
+  if (await sheetButton.isVisible()) await sheetButton.click();
+  await expect(page.getByRole("table", { name: "仕訳のシート" })).toBeVisible();
+}
+
+export async function closeJournalSheet(page: Page) {
+  await page.getByRole("button", { name: "月ごと", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "シート", exact: true }),
+  ).toBeVisible();
 }
 
 export async function importEntriesFile(
@@ -136,8 +143,8 @@ export async function importEntriesFile(
   kind: "json" | "csv",
   file: Parameters<Page["setInputFiles"]>[1],
 ) {
-  await openJournalTable(page);
-  await page.getByRole("button", { name: "ファイル" }).click();
+  await openJournalSheet(page);
+  await page.getByRole("button", { name: "ファイル", exact: true }).click();
   await page
     .locator(`input[type="file"][accept*=".${kind}"]`)
     .setInputFiles(file);

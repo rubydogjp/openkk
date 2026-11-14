@@ -24,14 +24,14 @@ import {
   type EntryFileKind,
 } from "./entry-file-actions.js";
 
-export type JournalTableRowStatus = "added" | "changed" | "removed";
+export type JournalSheetRowStatus = "added" | "changed" | "removed";
 
-export type JournalTableScreenRow = JournalTableRow & {
+export type JournalSheetRow = JournalTableRow & {
   entryKey: string;
-  status: JournalTableRowStatus | null;
+  status: JournalSheetRowStatus | null;
 };
 
-export type JournalTableReview =
+export type JournalSheetReview =
   | {
       kind: "changes";
       added: number;
@@ -42,14 +42,14 @@ export type JournalTableReview =
     }
   | { kind: "problems"; problems: JournalTableProblem[] };
 
-const STATUS_LABELS: Record<JournalTableRowStatus, string> = {
+const STATUS_LABELS: Record<JournalSheetRowStatus, string> = {
   added: "追加",
   changed: "変更",
   removed: "削除",
 };
 
 const STATUS_COLORS: Record<
-  JournalTableRowStatus,
+  JournalSheetRowStatus,
   { background: string; text: string }
 > = {
   added: { background: palette.successBg, text: palette.success },
@@ -57,109 +57,195 @@ const STATUS_COLORS: Record<
   removed: { background: palette.dangerBg, text: palette.danger },
 };
 
-const NUMERIC_FIELDS = new Set<keyof JournalTableRow>([
+const AMOUNT_FIELDS = new Set<keyof JournalTableRow>([
   "debitAmount",
   "creditAmount",
+]);
+
+const NUMERIC_FIELDS = new Set<keyof JournalTableRow>([
+  ...AMOUNT_FIELDS,
   "businessRate",
 ]);
 
 const COLUMN_WIDTHS: Record<keyof JournalTableRow, number> = {
-  entryNumber: 120,
+  entryNumber: 132,
   date: 104,
   debitAccount: 150,
   debitAmount: 104,
   creditAccount: 150,
   creditAmount: 104,
-  description: 220,
+  description: 240,
   partner: 150,
   taxCategory: 130,
   businessCategory: 130,
   businessRate: 84,
 };
 
-export function JournalTableScreen(props: {
-  viewSwitch: ReactNode;
-  rows: JournalTableScreenRow[];
-  review: JournalTableReview | null;
+const SHEET_HEADING_COLOR = palette.success;
+const SHEET_HEADING_TEXT_COLOR = palette.surface;
+const SHEET_GRID_COLOR = palette.borderStrong;
+const SHEET_BAR_HEIGHT = 52;
+const SHEET_ROW_HEIGHT = 32;
+const COLUMN_LETTER_ROW_HEIGHT = 24;
+const ROW_NUMBER_COLUMN_WIDTH = 44;
+const STATUS_COLUMN_WIDTH = 64;
+const FIELD_NAME_ROW_NUMBER = 1;
+const FIRST_ENTRY_ROW_NUMBER = 2;
+const WHOLE_AMOUNT_PATTERN = /^\d+$/;
+const FIRST_COLUMN_LETTER_CODE = "A".charCodeAt(0);
+
+function columnLetter(index: number): string {
+  return String.fromCharCode(FIRST_COLUMN_LETTER_CODE + index);
+}
+
+function shownCellText(field: keyof JournalTableRow, text: string): string {
+  return AMOUNT_FIELDS.has(field) && WHOLE_AMOUNT_PATTERN.test(text)
+    ? Number(text).toLocaleString("ja-JP")
+    : text;
+}
+
+export function JournalSheetScreen(props: {
+  fiscalPeriodName: string;
+  saveControl: ReactNode;
+  rows: JournalSheetRow[];
+  review: JournalSheetReview | null;
   lockedMessage: PeriodLockMessage | null;
+  onBack: () => void;
   onImportFile: ((kind: EntryFileKind, file: File) => void) | null;
   onExport: ((kind: EntryFileKind) => void) | null;
-  onOpenRow: ((row: JournalTableScreenRow) => void) | null;
+  onOpenRow: ((row: JournalSheetRow) => void) | null;
   onApplyReview: () => void;
   onDismissReview: () => void;
 }) {
   const reviewing = props.review != null;
   return (
     <section
+      aria-label="シート"
       style={{
-        padding: spacing.s24,
         height: "100%",
         display: "flex",
         flexDirection: "column",
         boxSizing: "border-box",
+        background: palette.surface,
       }}
     >
       <div
         style={{
-          maxWidth: sizes.content.dataMaxWidth,
-          width: "100%",
-          margin: "0 auto",
-          flex: 1,
-          minHeight: 0,
+          flexShrink: 0,
+          height: SHEET_BAR_HEIGHT,
+          padding: "0 12px 0 4px",
           display: "flex",
-          flexDirection: "column",
+          alignItems: "center",
+          gap: 10,
+          borderBottom: `1px solid ${SHEET_GRID_COLOR}`,
         }}
       >
-        <div
+        <button
+          type="button"
+          className="bk-sheet-back"
+          onClick={props.onBack}
           style={{
-            display: "flex",
+            flexShrink: 0,
+            height: sizes.button.compactHeight,
+            padding: "0 10px 0 4px",
+            display: "inline-flex",
             alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            marginBottom: 14,
+            gap: 2,
+            border: "none",
+            borderRadius: radii.sm,
+            color: palette.textSoft,
+            fontSize: fontSize.base,
+            fontWeight: fontWeight.bold,
+            cursor: "pointer",
+            whiteSpace: "nowrap",
           }}
         >
-          {props.viewSwitch}
-          {props.lockedMessage == null &&
-          !reviewing &&
-          (props.onImportFile != null || props.onExport != null) ? (
-            <EntryFileActionsButton
-              onImportFile={props.onImportFile}
-              onExport={props.onExport}
-            />
-          ) : null}
-        </div>
+          <BackChevron />
+          月ごと
+        </button>
+        <h1
+          style={{
+            flexShrink: 0,
+            margin: 0,
+            fontSize: fontSize.lg,
+            fontWeight: fontWeight.bold,
+            color: palette.text,
+            whiteSpace: "nowrap",
+          }}
+        >
+          シート
+        </h1>
+        <span
+          style={{
+            flex: 1,
+            minWidth: 0,
+            fontSize: fontSize.base,
+            color: palette.textSoft,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {props.fiscalPeriodName}
+        </span>
+        {props.saveControl}
+        {props.lockedMessage == null &&
+        !reviewing &&
+        (props.onImportFile != null || props.onExport != null) ? (
+          <EntryFileActionsButton
+            onImportFile={props.onImportFile}
+            onExport={props.onExport}
+          />
+        ) : null}
+      </div>
 
-        {props.lockedMessage != null ? (
+      {props.lockedMessage != null ? (
+        <div style={{ padding: spacing.s24 }}>
           <ClosedPeriodLock
             title={props.lockedMessage.title}
             description={props.lockedMessage.description}
           />
-        ) : (
-          <>
-            {props.review != null ? (
+        </div>
+      ) : (
+        <>
+          {props.review != null ? (
+            <div style={{ flexShrink: 0, padding: "12px 12px 0" }}>
               <ReviewBar
                 review={props.review}
                 onApply={props.onApplyReview}
                 onDismiss={props.onDismissReview}
               />
-            ) : null}
-            {props.review?.kind === "problems" ? null : (
-              <JournalTable
-                rows={props.rows}
-                showStatus={reviewing}
-                onOpenRow={reviewing ? null : props.onOpenRow}
-              />
-            )}
-          </>
-        )}
-      </div>
+            </div>
+          ) : null}
+          {props.review?.kind === "problems" ? null : (
+            <JournalSheet
+              rows={props.rows}
+              showStatus={reviewing}
+              onOpenRow={reviewing ? null : props.onOpenRow}
+            />
+          )}
+        </>
+      )}
     </section>
   );
 }
 
+function BackChevron() {
+  return (
+    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <polyline
+        points="14 6 8 12 14 18"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function ReviewBar(props: {
-  review: JournalTableReview;
+  review: JournalSheetReview;
   onApply: () => void;
   onDismiss: () => void;
 }) {
@@ -256,69 +342,87 @@ function ReviewBar(props: {
   );
 }
 
-function JournalTable(props: {
-  rows: JournalTableScreenRow[];
+function JournalSheet(props: {
+  rows: JournalSheetRow[];
   showStatus: boolean;
-  onOpenRow: ((row: JournalTableScreenRow) => void) | null;
+  onOpenRow: ((row: JournalSheetRow) => void) | null;
 }) {
   const fields = JOURNAL_TABLE_FIELDS;
   const minWidth =
+    ROW_NUMBER_COLUMN_WIDTH +
     fields.reduce((sum, field) => sum + COLUMN_WIDTHS[field], 0) +
-    (props.showStatus ? 64 : 0);
+    (props.showStatus ? STATUS_COLUMN_WIDTH : 0);
   return (
     <div
       style={{
         flex: 1,
-        minHeight: 320,
+        minHeight: 0,
         overflow: "auto",
         background: palette.surface,
-        border: `1px solid ${palette.borderEmphasis}`,
-        borderRadius: 12,
       }}
     >
-      <style>{`
-        .bk-journal-table-row.is-clickable { cursor: pointer; }
-        .bk-journal-table-row.is-clickable:hover td { background: ${palette.hoverStrong}; }
-      `}</style>
       <table
-        aria-label="仕訳の表"
+        aria-label="仕訳のシート"
         style={{
           borderCollapse: "separate",
           borderSpacing: 0,
           minWidth,
           width: "100%",
           tableLayout: "fixed",
-          fontSize: fontSize.sm,
+          fontSize: fontSize.base,
           color: palette.text,
         }}
       >
         <colgroup>
-          {props.showStatus ? <col style={{ width: 64 }} /> : null}
+          <col style={{ width: ROW_NUMBER_COLUMN_WIDTH }} />
+          {props.showStatus ? (
+            <col style={{ width: STATUS_COLUMN_WIDTH }} />
+          ) : null}
           {fields.map((field) => (
             <col key={field} style={{ width: COLUMN_WIDTHS[field] }} />
           ))}
         </colgroup>
         <thead>
-          <tr>
+          <tr aria-hidden="true">
+            <SheetHeadingCell corner top={0}>
+              {null}
+            </SheetHeadingCell>
             {props.showStatus ? (
-              <HeaderCell numeric={false}>状態</HeaderCell>
+              <SheetHeadingCell corner={false} top={0}>
+                {null}
+              </SheetHeadingCell>
+            ) : null}
+            {fields.map((field, index) => (
+              <SheetHeadingCell key={field} corner={false} top={0}>
+                {columnLetter(index)}
+              </SheetHeadingCell>
+            ))}
+          </tr>
+          <tr>
+            <RowNumberCell top={COLUMN_LETTER_ROW_HEIGHT}>
+              {FIELD_NAME_ROW_NUMBER}
+            </RowNumberCell>
+            {props.showStatus ? (
+              <FieldNameCell numeric={false}>状態</FieldNameCell>
             ) : null}
             {fields.map((field) => (
-              <HeaderCell key={field} numeric={NUMERIC_FIELDS.has(field)}>
+              <FieldNameCell key={field} numeric={NUMERIC_FIELDS.has(field)}>
                 {JOURNAL_TABLE_HEADERS[field]}
-              </HeaderCell>
+              </FieldNameCell>
             ))}
           </tr>
         </thead>
         <tbody>
           {props.rows.length === 0 ? (
             <tr>
+              <RowNumberCell top={null}>{FIRST_ENTRY_ROW_NUMBER}</RowNumberCell>
               <td
                 colSpan={fields.length + (props.showStatus ? 1 : 0)}
                 style={{
-                  padding: "32px 12px",
-                  textAlign: "center",
+                  height: SHEET_ROW_HEIGHT,
+                  padding: "0 8px",
                   color: palette.textLabel,
+                  borderBottom: `1px solid ${SHEET_GRID_COLOR}`,
                 }}
               >
                 この期間の仕訳はまだありません
@@ -330,10 +434,12 @@ function JournalTable(props: {
                 index === 0 || props.rows[index - 1]?.entryKey !== row.entryKey;
               const clickable = props.onOpenRow != null;
               const status = row.status;
+              const background =
+                status == null ? null : STATUS_COLORS[status].background;
               return (
                 <tr
                   key={`${row.entryKey}:${index}`}
-                  className={`bk-journal-table-row${clickable ? " is-clickable" : ""}`}
+                  className={`bk-sheet-row${clickable ? " is-clickable" : ""}`}
                   onClick={() => props.onOpenRow?.(row)}
                   style={{
                     textDecoration:
@@ -342,13 +448,13 @@ function JournalTable(props: {
                       status === "removed" ? palette.textLabel : palette.text,
                   }}
                 >
+                  <RowNumberCell top={null}>
+                    {index + FIRST_ENTRY_ROW_NUMBER}
+                  </RowNumberCell>
                   {props.showStatus ? (
-                    <BodyCell
+                    <SheetCell
                       numeric={false}
-                      firstOfEntry={firstOfEntry}
-                      background={
-                        status == null ? null : STATUS_COLORS[status].background
-                      }
+                      background={background}
                       title={null}
                     >
                       {status != null && firstOfEntry ? (
@@ -361,21 +467,21 @@ function JournalTable(props: {
                           {STATUS_LABELS[status]}
                         </span>
                       ) : null}
-                    </BodyCell>
+                    </SheetCell>
                   ) : null}
-                  {fields.map((field) => (
-                    <BodyCell
-                      key={field}
-                      numeric={NUMERIC_FIELDS.has(field)}
-                      firstOfEntry={firstOfEntry}
-                      background={
-                        status == null ? null : STATUS_COLORS[status].background
-                      }
-                      title={row[field]}
-                    >
-                      {row[field]}
-                    </BodyCell>
-                  ))}
+                  {fields.map((field) => {
+                    const text = shownCellText(field, row[field]);
+                    return (
+                      <SheetCell
+                        key={field}
+                        numeric={NUMERIC_FIELDS.has(field)}
+                        background={background}
+                        title={text}
+                      >
+                        {text}
+                      </SheetCell>
+                    );
+                  })}
                 </tr>
               );
             })
@@ -386,22 +492,27 @@ function JournalTable(props: {
   );
 }
 
-function HeaderCell(props: { numeric: boolean; children: ReactNode }) {
+function SheetHeadingCell(props: {
+  corner: boolean;
+  top: number;
+  children: ReactNode;
+}) {
   return (
     <th
-      scope="col"
       style={{
         position: "sticky",
-        top: 0,
-        zIndex: 1,
-        height: sizes.field.height,
-        padding: "0 10px",
-        background: palette.formGroupBg,
-        borderBottom: `1px solid ${palette.borderStrong}`,
+        top: props.top,
+        left: props.corner ? 0 : "auto",
+        zIndex: props.corner ? 3 : 2,
+        height: COLUMN_LETTER_ROW_HEIGHT,
+        padding: 0,
+        background: SHEET_HEADING_COLOR,
+        color: SHEET_HEADING_TEXT_COLOR,
+        borderRight: `1px solid ${SHEET_HEADING_TEXT_COLOR}`,
+        borderBottom: `1px solid ${SHEET_HEADING_TEXT_COLOR}`,
         fontSize: fontSize.xs,
         fontWeight: fontWeight.bold,
-        textAlign: props.numeric ? "right" : "left",
-        whiteSpace: "nowrap",
+        textAlign: "center",
       }}
     >
       {props.children}
@@ -409,9 +520,59 @@ function HeaderCell(props: { numeric: boolean; children: ReactNode }) {
   );
 }
 
-function BodyCell(props: {
+function RowNumberCell(props: { top: number | null; children: number }) {
+  return (
+    <th
+      scope="row"
+      style={{
+        position: "sticky",
+        left: 0,
+        top: props.top ?? "auto",
+        zIndex: props.top == null ? 1 : 3,
+        height: SHEET_ROW_HEIGHT,
+        padding: 0,
+        background: SHEET_HEADING_COLOR,
+        color: SHEET_HEADING_TEXT_COLOR,
+        borderRight: `1px solid ${SHEET_HEADING_TEXT_COLOR}`,
+        borderBottom: `1px solid ${SHEET_HEADING_TEXT_COLOR}`,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+        fontVariantNumeric: "tabular-nums",
+        textAlign: "center",
+      }}
+    >
+      {props.children}
+    </th>
+  );
+}
+
+function FieldNameCell(props: { numeric: boolean; children: ReactNode }) {
+  return (
+    <th
+      scope="col"
+      style={{
+        position: "sticky",
+        top: COLUMN_LETTER_ROW_HEIGHT,
+        zIndex: 2,
+        height: SHEET_ROW_HEIGHT,
+        padding: "0 8px",
+        background: palette.surface,
+        borderRight: `1px solid ${SHEET_GRID_COLOR}`,
+        borderBottom: `1px solid ${SHEET_GRID_COLOR}`,
+        fontWeight: fontWeight.bold,
+        textAlign: props.numeric ? "right" : "left",
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+      }}
+    >
+      {props.children}
+    </th>
+  );
+}
+
+function SheetCell(props: {
   numeric: boolean;
-  firstOfEntry: boolean;
   background: string | null;
   title: string | null;
   children: ReactNode;
@@ -420,11 +581,10 @@ function BodyCell(props: {
     <td
       title={props.title ?? ""}
       style={{
-        height: 40,
-        padding: "0 10px",
-        borderTop: props.firstOfEntry
-          ? `1px solid ${palette.borderSubtle}`
-          : "none",
+        height: SHEET_ROW_HEIGHT,
+        padding: "0 8px",
+        borderRight: `1px solid ${SHEET_GRID_COLOR}`,
+        borderBottom: `1px solid ${SHEET_GRID_COLOR}`,
         background: props.background ?? palette.surface,
         textAlign: props.numeric ? "right" : "left",
         fontVariantNumeric: props.numeric ? "tabular-nums" : "normal",

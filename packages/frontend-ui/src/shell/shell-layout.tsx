@@ -41,7 +41,8 @@ import { ShellNav } from "./shell-nav.js";
 import { ShellNotices } from "./shell-notices.js";
 import { SHELL_PALETTE } from "./shell-palette.js";
 import { useShellAuthActions } from "./use-shell-auth-actions.js";
-import { usePathname, useRouter } from "../routing/routing.js";
+import { showsEntriesSheet } from "../entries/entries-view.js";
+import { usePathname, useRouter, useSearchParams } from "../routing/routing.js";
 
 export function OpenkkShellLayout(props: { children: ReactNode }) {
   return (
@@ -53,6 +54,7 @@ export function OpenkkShellLayout(props: { children: ReactNode }) {
 
 function ShellScreen(props: { children: ReactNode }) {
   const pathname = normalizePathname(usePathname());
+  const searchParams = useSearchParams();
   const router = useRouter();
   const appState = useOpenkkAppState();
   const maintenance = useMaintenance();
@@ -123,7 +125,13 @@ function ShellScreen(props: { children: ReactNode }) {
   }
 
   return (
-    <ShellChrome pathname={pathname} contentMode={contentMode}>
+    <ShellChrome
+      pathname={pathname}
+      contentMode={contentMode}
+      fillsScreen={
+        contentMode === "normal" && showsEntriesSheet(pathname, searchParams)
+      }
+    >
       {contentMode === "sign-in" ? (
         <SignInContent />
       ) : contentMode === "fiscal-periods" ? (
@@ -140,10 +148,12 @@ function ShellScreen(props: { children: ReactNode }) {
 function ShellChrome({
   pathname,
   contentMode,
+  fillsScreen,
   children,
 }: {
   pathname: string;
   contentMode: Exclude<ShellContentMode, "loading">;
+  fillsScreen: boolean;
   children: ReactNode;
 }) {
   const appState = useOpenkkAppState();
@@ -168,7 +178,35 @@ function ShellChrome({
 
   useEffect(() => {
     setDrawerOpen(false);
-  }, [pathname]);
+  }, [pathname, fillsScreen]);
+
+  if (fillsScreen) {
+    return (
+      <main
+        className="bk-shell-main bk-shell-main--fills-screen"
+        style={{ height: "100vh", overflow: "hidden" }}
+      >
+        <div
+          className="bk-shell-content"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            height: "100vh",
+            overflow: "auto",
+            minWidth: 0,
+            background: palette.surface,
+          }}
+        >
+          <ShellNotices
+            hasSession={hasSession}
+            bookFile={bookSave?.bookFile ?? null}
+            onSave={bookSave?.save ?? null}
+          />
+          {children}
+        </div>
+      </main>
+    );
+  }
 
   return (
     <>

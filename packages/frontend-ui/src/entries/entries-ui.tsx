@@ -4,7 +4,7 @@ import { AddButton } from "../shared/add-button.js";
 import { ClosedPeriodLock } from "../shared/closed-period-lock.js";
 import { useDismissibleLayer } from "../shared/dismissible-layer.js";
 import { DrawerFrame } from "../shared/drawer-frame.js";
-import { AssistIcon } from "../shared/icons.js";
+import { AssistIcon, BorderAllIcon } from "../shared/icons.js";
 import { CompactLockButton } from "../shared/locked-action.js";
 import { EntriesTable } from "./entries-table.js";
 import {
@@ -15,7 +15,6 @@ import {
   sizes,
   spacing,
 } from "../shared/design-tokens.js";
-import type { ReactNode } from "react";
 import type {
   EntryPreviewRow,
   PeriodLockMessage,
@@ -56,6 +55,7 @@ function EntriesMonthSwitcher(props: {
         onClick={props.onPrevious}
       />
       <div
+        className="bk-month-label"
         style={{
           minWidth: 140,
           padding: "0 16px",
@@ -129,59 +129,38 @@ function ChevronSmall({ direction }: { direction: "previous" | "next" }) {
   );
 }
 
-export type EntriesView = "month" | "table";
-
-export function EntriesViewSwitch(props: {
-  view: EntriesView;
-  onChange: (view: EntriesView) => void;
-}) {
-  const options: Array<{ view: EntriesView; label: string }> = [
-    { view: "month", label: "月ごと" },
-    { view: "table", label: "表" },
-  ];
+function SheetButton(props: { onClick: () => void }) {
   return (
-    <div
-      role="group"
-      aria-label="仕訳の見かた"
+    <button
+      type="button"
+      className="bk-entries-sheet-button"
+      onClick={props.onClick}
+      aria-label="シート"
       style={{
-        display: "inline-flex",
-        padding: 2,
+        flexShrink: 0,
+        height: sizes.button.compactHeight,
+        padding: "0 14px",
         borderRadius: radii.sm,
-        border: `1px solid ${palette.borderSubtle}`,
-        background: palette.formGroupBg,
+        border: `1px solid ${palette.borderStrong}`,
+        color: palette.text,
+        fontSize: fontSize.base,
+        fontWeight: fontWeight.semibold,
+        cursor: "pointer",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.s6,
+        whiteSpace: "nowrap",
       }}
     >
-      {options.map((option) => {
-        const selected = option.view === props.view;
-        return (
-          <button
-            key={option.view}
-            type="button"
-            aria-pressed={selected}
-            onClick={() => props.onChange(option.view)}
-            style={{
-              height: `calc(${sizes.button.compactHeight} - 6px)`,
-              padding: "0 14px",
-              borderRadius: radii.sm,
-              border: "none",
-              background: selected ? palette.surface : "transparent",
-              boxShadow: selected ? "0 1px 2px rgba(15, 23, 42, 0.08)" : "none",
-              color: selected ? palette.text : palette.textSoft,
-              fontSize: fontSize.base,
-              fontWeight: fontWeight.semibold,
-              cursor: "pointer",
-            }}
-          >
-            {option.label}
-          </button>
-        );
-      })}
-    </div>
+      <BorderAllIcon size={18} color="currentColor" />
+      <span className="bk-entries-sheet-button-label">シート</span>
+    </button>
   );
 }
 
 export function EntriesScreen(props: {
-  viewSwitch: ReactNode;
+  onOpenSheet: () => void;
   monthLabel: string;
   rows: EntryPreviewRow[];
   canGoPrevious: boolean;
@@ -239,17 +218,22 @@ export function EntriesScreen(props: {
             marginBottom: 14,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            {props.viewSwitch}
-            <EntriesMonthSwitcher
-              label={props.monthLabel}
-              canGoPrevious={props.canGoPrevious}
-              canGoNext={props.canGoNext}
-              onPrevious={props.onPrevious}
-              onNext={props.onNext}
-            />
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <EntriesMonthSwitcher
+            label={props.monthLabel}
+            canGoPrevious={props.canGoPrevious}
+            canGoNext={props.canGoNext}
+            onPrevious={props.onPrevious}
+            onNext={props.onNext}
+          />
+          <div
+            style={{
+              flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <SheetButton onClick={props.onOpenSheet} />
             {isReadOnly ? (
               <CompactLockButton label="記録終了" />
             ) : props.onAddEntry != null ? (

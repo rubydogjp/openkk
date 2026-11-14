@@ -29,7 +29,7 @@ export function EntryFileActionsButton(props: {
   });
 
   return (
-    <div ref={containerRef} style={{ position: "relative" }}>
+    <div ref={containerRef} style={{ position: "relative", flexShrink: 0 }}>
       <style>{`
         .bk-file-menu-item { transition: background 80ms ease; }
         .bk-file-menu-item:hover { background: #F1F5F9; }
@@ -53,6 +53,7 @@ export function EntryFileActionsButton(props: {
           display: "inline-flex",
           alignItems: "center",
           gap: spacing.s8,
+          whiteSpace: "nowrap",
           transition: "background 80ms ease",
         }}
       >

@@ -8,6 +8,7 @@ import {
   clickButton,
   expectStep,
   goToMonth,
+  closeJournalSheet,
   importEntriesFile,
   openFixedAssets,
   waitUntilSettled,
@@ -232,6 +233,7 @@ async function importYearEntries(page: Page) {
   await page.getByRole("link", { name: "仕訳" }).click();
   await importEntriesFile(page, "json", YEAR_ENTRIES_FIXTURE);
   await expect(page.getByText(/取り込みました\(取込 15 件/)).toBeVisible();
+  await closeJournalSheet(page);
 }
 
 async function fillOpeningAmount(

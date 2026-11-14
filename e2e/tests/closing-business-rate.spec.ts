@@ -8,6 +8,7 @@ import {
   expectStep,
   extractReportAmounts,
   goToMonth,
+  closeJournalSheet,
   importEntriesFile,
   readPrintedReport,
   saveScreenshot,
@@ -93,4 +94,5 @@ async function importEntries(page: Page) {
   await page.getByRole("link", { name: "仕訳" }).click();
   await importEntriesFile(page, "json", FIXTURE);
   await expect(page.getByText(/取り込みました\(取込 2 件/)).toBeVisible();
+  await closeJournalSheet(page);
 }

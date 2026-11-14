@@ -35,21 +35,29 @@ import {
 } from "@rubydogjp/openkk-driver";
 import {
   EntriesScreen,
-  EntriesViewSwitch,
   VirtualEntryDrawer,
-  type EntriesView,
   type EntryFileKind,
 } from "../../entries/entries-ui.js";
 import {
-  JournalTableScreen,
-  type JournalTableReview,
-  type JournalTableScreenRow,
-} from "../../entries/journal-table-screen.js";
+  ENTRIES_PATH,
+  ENTRIES_SHEET_VIEW,
+  ENTRIES_VIEW_PARAM,
+  showsEntriesSheet,
+} from "../../entries/entries-view.js";
+import {
+  JournalSheetScreen,
+  type JournalSheetReview,
+  type JournalSheetRow,
+} from "../../entries/journal-sheet-screen.js";
 import { EntryEditDrawer } from "../../entries/entry-edit-drawer.js";
 import { entryRecordToDraft } from "../../entries/entry-edit-model.js";
 import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 import { useOpenkkNotices } from "../../shared/notices/notices.js";
 import { pathWithSearchParams } from "../../shared/pathname.js";
+import {
+  ShellBookSaveCompact,
+  useShellBookSave,
+} from "../../shell/book-save-button.js";
 import { useRouter, useSearchParams } from "../../routing/routing.js";
 
 type JournalTableImport =
@@ -65,9 +73,6 @@ type JournalTableImport =
       fiscalPeriodId: string;
       problems: JournalTableProblem[];
     };
-
-const TABLE_VIEW_PARAM = "view";
-const TABLE_VIEW_VALUE = "table";
 
 export function EntriesPage() {
   const router = useRouter();
@@ -97,8 +102,8 @@ export function EntriesPage() {
   const [tableImport, setTableImport] = useState<JournalTableImport | null>(
     null,
   );
-  const view: EntriesView =
-    searchParams.get(TABLE_VIEW_PARAM) === TABLE_VIEW_VALUE ? "table" : "month";
+  const showsSheet = showsEntriesSheet(ENTRIES_PATH, searchParams);
+  const bookSave = useShellBookSave(showsSheet ? currentFiscalPeriod : null);
   const importLock = useRef(new ExclusiveActionLock());
   const selectedFiscalPeriodId = useRef(fiscalPeriodId);
   selectedFiscalPeriodId.current = fiscalPeriodId;
@@ -225,7 +230,7 @@ export function EntriesPage() {
       next.set("month", formatYearMonthKey(nextMonth));
       next.delete("entry");
       next.delete("virtualEntry");
-      router.replaceKeepingScroll(pathWithSearchParams("/entries", next));
+      router.replaceKeepingScroll(pathWithSearchParams(ENTRIES_PATH, next));
     },
     [
       currentFiscalPeriod?.endDate,
@@ -242,7 +247,7 @@ export function EntriesPage() {
       next.delete("entry");
       next.delete("virtualEntry");
       if (id != null) next.set(key, id);
-      router.replaceKeepingScroll(pathWithSearchParams("/entries", next));
+      router.replaceKeepingScroll(pathWithSearchParams(ENTRIES_PATH, next));
     },
     [router, searchParams, yearMonth],
   );
@@ -414,31 +419,29 @@ export function EntriesPage() {
     notices.show({ tone: "success", message: `${filename} を出力しました` });
   };
 
-  const switchView = (next: EntriesView) => {
+  const switchView = (sheet: boolean) => {
     const params = new URLSearchParams(searchParams.toString());
-    if (next === "table") params.set(TABLE_VIEW_PARAM, TABLE_VIEW_VALUE);
-    else params.delete(TABLE_VIEW_PARAM);
+    if (sheet) params.set(ENTRIES_VIEW_PARAM, ENTRIES_SHEET_VIEW);
+    else params.delete(ENTRIES_VIEW_PARAM);
     params.delete("entry");
     params.delete("virtualEntry");
     setNewEntryDraft(null);
     setTableImport(null);
-    router.replaceKeepingScroll(pathWithSearchParams("/entries", params));
+    router.replaceKeepingScroll(pathWithSearchParams(ENTRIES_PATH, params));
   };
-  const viewSwitch = <EntriesViewSwitch view={view} onChange={switchView} />;
 
   const entriesByNumber = new Map(
     fullPeriodEntries.map((entry) => [journalEntryNumber(entry), entry]),
   );
-  const journalTableRows: JournalTableScreenRow[] =
-    view !== "table"
-      ? []
-      : tableImport?.kind === "changes"
-        ? buildReviewRows(tableImport, entriesState.journalTableMaster)
-        : buildJournalTableRows(
-            fullPeriodEntries,
-            entriesState.journalTableMaster,
-          ).map((row) => ({ ...row, entryKey: row.entryNumber, status: null }));
-  const tableReview: JournalTableReview | null =
+  const journalSheetRows: JournalSheetRow[] = !showsSheet
+    ? []
+    : tableImport?.kind === "changes"
+      ? buildReviewRows(tableImport, entriesState.journalTableMaster)
+      : buildJournalTableRows(
+          fullPeriodEntries,
+          entriesState.journalTableMaster,
+        ).map((row) => ({ ...row, entryKey: row.entryNumber, status: null }));
+  const sheetReview: JournalSheetReview | null =
     tableImport == null
       ? null
       : tableImport.kind === "problems"
@@ -454,11 +457,17 @@ export function EntriesPage() {
 
   return (
     <>
-      {view === "table" ? (
-        <JournalTableScreen
-          viewSwitch={viewSwitch}
-          rows={journalTableRows}
-          review={tableReview}
+      {showsSheet ? (
+        <JournalSheetScreen
+          fiscalPeriodName={currentFiscalPeriod?.name ?? ""}
+          saveControl={
+            bookSave == null ? null : (
+              <ShellBookSaveCompact bookSave={bookSave} />
+            )
+          }
+          rows={journalSheetRows}
+          review={sheetReview}
+          onBack={() => switchView(false)}
           lockedMessage={screenLockedMessage}
           onImportFile={canImport && !isImporting ? handleImportFile : null}
           onExport={fiscalPeriodId != null ? handleExport : null}
@@ -475,7 +484,7 @@ export function EntriesPage() {
         />
       ) : (
         <EntriesScreen
-          viewSwitch={viewSwitch}
+          onOpenSheet={() => switchView(true)}
           monthLabel={`${displayedMonth.year}年${displayedMonth.month}月`}
           rows={tableRows}
           canGoPrevious={canGoPrevious}
@@ -733,9 +742,9 @@ function parseMonthParam(value: string | null): YearMonth | null {
 function buildReviewRows(
   review: { incoming: EntryRecord[]; changes: JournalTableChanges },
   master: Parameters<typeof buildJournalTableRows>[1],
-): JournalTableScreenRow[] {
+): JournalSheetRow[] {
   const { changes } = review;
-  const statuses = new Map<string, JournalTableScreenRow["status"]>([
+  const statuses = new Map<string, JournalSheetRow["status"]>([
     ...changes.added.map(
       (entry) => [journalEntryNumber(entry), "added"] as const,
     ),

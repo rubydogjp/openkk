@@ -5,7 +5,7 @@ import {
   advanceToJournalizing,
   createFiscalPeriod,
   importEntriesFile,
-  openJournalTable,
+  openJournalSheet,
 } from "../helpers";
 
 const CSV_FIXTURE = path.resolve("e2e/fixtures/csv-import-test.csv");
@@ -27,7 +27,7 @@ test.describe("journal table import and export", () => {
     );
     await page.getByRole("button", { name: "反映する" }).click();
     await expect(page.getByText(/反映しました\(追加 3 件/)).toBeVisible();
-    const table = page.getByRole("table", { name: "仕訳の表" });
+    const table = page.getByRole("table", { name: "仕訳のシート" });
     await expect(table.getByRole("row")).toHaveCount(4);
     await expect(table).toContainText("CSVテスト売上");
     await expect(table).toContainText("CSVテスト家賃");
@@ -48,7 +48,7 @@ test.describe("journal table import and export", () => {
     );
     await expect(
       table.getByRole("row").filter({ hasText: "変更" }),
-    ).toContainText("9000");
+    ).toContainText("9,000");
     await expect(
       table.getByRole("row").filter({ hasText: "削除" }),
     ).toContainText("CSVテスト家賃");
@@ -132,8 +132,11 @@ test.describe("journal table import and export", () => {
   test("imports entries from a deprecated JSON file with the keyboard", async ({
     page,
   }) => {
-    await openJournalTable(page);
-    const fileButton = page.getByRole("button", { name: "ファイル" });
+    await openJournalSheet(page);
+    const fileButton = page.getByRole("button", {
+      name: "ファイル",
+      exact: true,
+    });
     await fileButton.focus();
     await page.keyboard.press("Enter");
     await expect(
