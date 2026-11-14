@@ -79,7 +79,6 @@ export type JournalTableOperations = {
 };
 
 export const JOURNAL_TABLE_FIELDS = [
-  "entryNumber",
   "date",
   "debitAccount",
   "debitAmount",
@@ -90,6 +89,7 @@ export const JOURNAL_TABLE_FIELDS = [
   "taxCategory",
   "businessCategory",
   "businessRate",
+  "entryNumber",
 ] as const satisfies ReadonlyArray<keyof JournalTableRow>;
 
 export const JOURNAL_TABLE_HEADERS: Record<keyof JournalTableRow, string> = {

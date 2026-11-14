@@ -55,7 +55,6 @@ describe("JournalSheetScreen", () => {
       "",
       ..."ABCDEFGHIJK",
       "1",
-      "仕訳番号",
       "日付",
       "借方科目",
       "借方金額",
@@ -66,6 +65,7 @@ describe("JournalSheetScreen", () => {
       "税区分",
       "事業区分",
       "事業割合",
+      "仕訳番号",
       "2",
       "3",
     ]);
@@ -75,7 +75,6 @@ describe("JournalSheetScreen", () => {
     const cells = textsOf(render([row("2026", "980000")]), "td");
 
     expect(cells).toEqual([
-      "2026",
       "2026-05-10",
       "普通預金",
       "980,000",
@@ -86,6 +85,7 @@ describe("JournalSheetScreen", () => {
       "課税 10%",
       "対象外",
       "100",
+      "2026",
     ]);
   });
 

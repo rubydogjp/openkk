@@ -196,7 +196,7 @@ describe("openkk cli", () => {
       fs
         .readFileSync(csvPath, "utf8")
         .replaceAll(",12000,", ",15000,")
-        .concat(",2026-04-02,消耗品費,500,現金,500,切手,,,,\n"),
+        .concat("2026-04-02,消耗品費,500,現金,500,切手,,,,,\n"),
     );
     const unconfirmed = await run("entries", "import", id, "journal.csv");
     const replaced = await run("entries", "import", id, "journal.csv", "--yes");

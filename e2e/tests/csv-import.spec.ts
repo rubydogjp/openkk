@@ -42,7 +42,7 @@ test.describe("journal table import and export", () => {
 
     const exported = await downloadCsv(page);
     expect(exported.split("\n")[0]).toBe(
-      "\uFEFF仕訳番号,日付,借方科目,借方金額,貸方科目,貸方金額,摘要,取引先,税区分,事業区分,事業割合",
+      "\uFEFF日付,借方科目,借方金額,貸方科目,貸方金額,摘要,取引先,税区分,事業区分,事業割合,仕訳番号",
     );
     const edited = exported
       .replace(",8000,普通預金,8000,", ",9000,普通預金,9000,")

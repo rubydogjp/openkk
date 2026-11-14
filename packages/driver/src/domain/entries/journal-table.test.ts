@@ -159,6 +159,8 @@ function problemsOf(text: string) {
 
 const HEADER =
   "仕訳番号,日付,借方科目,借方金額,貸方科目,貸方金額,摘要,取引先,税区分,事業区分,事業割合";
+const WRITTEN_HEADER =
+  "日付,借方科目,借方金額,貸方科目,貸方金額,摘要,取引先,税区分,事業区分,事業割合,仕訳番号";
 
 describe("buildJournalTableRows", () => {
   it("writes one row per debit and credit pair with plain values", () => {
@@ -235,7 +237,7 @@ describe("journal table CSV", () => {
       buildJournalTableRows([reward, supplies], master),
     );
 
-    expect(csv.startsWith(`﻿${HEADER}\n`)).toBe(true);
+    expect(csv.startsWith(`﻿${WRITTEN_HEADER}\n`)).toBe(true);
     expect(csv).toContain("'=プリンタのインク");
     const entries = readEntries(csv);
     expect(entries.map((entry) => entry.localId)).toEqual(["e-reward", "s-1"]);
