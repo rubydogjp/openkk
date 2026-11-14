@@ -159,6 +159,21 @@ function ReadOnlyDate({ value }: { value: string }) {
   );
 }
 
+export function FormNoteText({ children }: { children: ReactNode }) {
+  return (
+    <p
+      style={{
+        margin: `${spacing.s12} 0 0`,
+        color: palette.textSoft,
+        ...typography.helper,
+        fontWeight: fontWeight.semibold,
+      }}
+    >
+      {children}
+    </p>
+  );
+}
+
 export function FormErrorText({ children }: { children: ReactNode }) {
   return (
     <p

@@ -10,7 +10,7 @@ export function bookSaveStatusLabel(
   state: { hasUnsavedChanges: boolean; lastSavedAt: number | null },
   now: number,
 ): string {
-  if (state.hasUnsavedChanges) return "保存していない変更があります";
+  if (state.hasUnsavedChanges) return "バックアップしていない変更があります";
   return state.lastSavedAt == null
     ? ""
     : `前回 ${formatBookSaveDate(state.lastSavedAt, now)}`;

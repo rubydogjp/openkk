@@ -89,6 +89,19 @@ test("サンプルで締め処理と次期への引継ぎを試せる", async ({
   await clickButton(page, "次期を作成");
   await expectStep(page, "期間を開始");
   await expect(page.getByRole("textbox").first()).toHaveValue("2027年分");
+
+  await page
+    .getByRole("complementary")
+    .getByRole("button", { name: /2027年分/ })
+    .click();
+  await page.getByRole("menuitem", { name: /デモ期間2026年分/ }).click();
+  await expectStep(page, "次の期間へ");
+  await expect(page.getByText("作成済みです")).toBeVisible();
+  await expect(page.getByText(/日付が重複しています/)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "次期を作成" })).toHaveCount(0);
+  await clickButton(page, "次の期間を開く");
+  await expectStep(page, "期間を開始");
+  await expect(page.getByRole("textbox").first()).toHaveValue("2027年分");
   await page.reload();
   await page.getByRole("link", { name: "手順", exact: true }).click();
   await expectStep(page, "日々の仕訳");

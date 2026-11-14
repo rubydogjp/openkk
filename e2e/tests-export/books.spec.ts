@@ -18,14 +18,14 @@ import {
 
 const USER_ID = "openkk-original-user";
 const DAY_MS = 24 * 60 * 60 * 1000;
-const UNSAVED_STATUS = "保存していない変更があります";
+const UNSAVED_STATUS = "バックアップしていない変更があります";
 const SAME_MESSAGE = "今のデータと同じです。";
 const OVERWRITE_TITLE = "ファイルで上書きしますか？";
 const KEPT_IN_BROWSER_MESSAGE = "データはこのブラウザの中だけにあります";
 const CHANGED_OUTSIDE_MESSAGE =
   "ファイルを優先して、アプリの中の「2026年分」を上書きします。";
 const UNSAVED_CHANGES_MESSAGE =
-  "アプリの中の「2026年分」に、保存していない変更があります。ファイルを優先して上書きすると失われます。";
+  "アプリの中の「2026年分」に、バックアップしていない変更があります。ファイルを優先して上書きすると失われます。";
 const LEGACY_SEED_PATH = "/__legacy-seed/";
 const SQLITE_WASM_DIR = path.resolve("node_modules/@sqlite.org/sqlite-wasm");
 const LEGACY_SEED_WORKER = `
@@ -46,6 +46,23 @@ self.onmessage = async (event) => {
 `;
 
 type PeriodInput = { name: string; startDate: string; endDate: string };
+
+type FakeSavePicker = {
+  opened: number;
+  closesUnpicked: boolean;
+  written: number[][];
+};
+
+type FakeSavePickerHost = {
+  fakeSavePicker: FakeSavePicker;
+  showSaveFilePicker: () => Promise<{
+    createWritable(): Promise<{
+      write(bytes: Uint8Array): Promise<void>;
+      close(): Promise<void>;
+      abort(): Promise<void>;
+    }>;
+  }>;
+};
 
 const tempDirs: string[] = [];
 
@@ -88,7 +105,8 @@ test("saves the current period to a file named after it and shows the save state
   page,
 }) => {
   await startApp(page);
-  await expect(saveButton(page)).toHaveCount(0);
+  await expect(saveButton(page)).toBeDisabled();
+  await expect(saveStatus(page)).toHaveText("");
   await createFiscalPeriod(page, "2026年分");
   await expect(saveStatus(page)).toHaveText(UNSAVED_STATUS);
 
@@ -104,6 +122,58 @@ test("saves the current period to a file named after it and shows the save state
   await startOpenedPeriod(page);
   await expect(saveStatus(page)).toHaveText(UNSAVED_STATUS);
   expect(await countStoredBooks(page)).toBe(1);
+});
+
+test("leaves the period unsaved when the save picker is closed and marks it saved once the file is written", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const picker: FakeSavePicker = {
+      opened: 0,
+      closesUnpicked: true,
+      written: [],
+    };
+    const host = window as unknown as FakeSavePickerHost;
+    host.fakeSavePicker = picker;
+    host.showSaveFilePicker = async () => {
+      picker.opened += 1;
+      if (picker.closesUnpicked) throw new DOMException("closed", "AbortError");
+      return {
+        createWritable: async () => ({
+          write: async (bytes) => {
+            picker.written.push(Array.from(bytes));
+          },
+          close: async () => {},
+          abort: async () => {},
+        }),
+      };
+    };
+  });
+  await startApp(page);
+  await createFiscalPeriod(page, "2026年分");
+  await waitUntilBooksStored(page);
+
+  await saveButton(page).click();
+  await page.waitForFunction(
+    () => (window as unknown as FakeSavePickerHost).fakeSavePicker.opened === 1,
+  );
+  await expect(saveButton(page)).toBeEnabled();
+  await expect(saveStatus(page)).toHaveText(UNSAVED_STATUS);
+
+  await page.evaluate(() => {
+    (window as unknown as FakeSavePickerHost).fakeSavePicker.closesUnpicked =
+      false;
+  });
+  await saveButton(page).click();
+
+  await expect(saveStatus(page)).toHaveText(/^前回 \d{1,2}\/\d{1,2}$/);
+  const written = await page.evaluate(
+    () => (window as unknown as FakeSavePickerHost).fakeSavePicker.written,
+  );
+  expect(written).toHaveLength(1);
+  expect(Buffer.from(written[0]!.slice(0, 15)).toString("utf8")).toBe(
+    "SQLite format 3",
+  );
 });
 
 test("keeps each period in its own book and removes the book with its period", async ({
@@ -342,7 +412,7 @@ test("takes in a compressed file of the previous version and downloads a backup 
   );
 
   await expect(
-    page.getByRole("status").filter({ hasText: "ファイルに保存しました" }),
+    page.getByRole("status").filter({ hasText: "バックアップしました" }),
   ).toBeVisible();
   await expect(saveStatus(page)).toHaveText(/^前回 /);
   expect(await readBookPeriods(backupPath)).toEqual([
@@ -364,27 +434,27 @@ test("reminds to save a period that was changed and not saved for 30 days", asyn
   await createFiscalPeriod(page, "2026年分");
   const reminder = page
     .getByRole("status")
-    .filter({ hasText: "まだファイルに保存していません" });
+    .filter({ hasText: "まだバックアップしていません" });
   await expect(reminder).toHaveCount(0);
 
   await page.clock.setFixedTime(start + 31 * DAY_MS);
   await reloadInApp(page);
   await expect(reminder).toBeVisible();
   await downloadFrom(page, "2026年分.openkk", () =>
-    reminder.getByRole("button", { name: "保存" }).click(),
+    reminder.getByRole("button", { name: "バックアップ" }).click(),
   );
   await expect(reminder).toHaveCount(0);
 
   await page.clock.setFixedTime(start + 80 * DAY_MS);
   await reloadInApp(page);
-  await expect(page.getByText("30 日、ファイルに保存していません")).toHaveCount(
+  await expect(page.getByText("30 日、バックアップしていません")).toHaveCount(
     0,
   );
   await startOpenedPeriod(page);
   await expect(
     page
       .getByRole("status")
-      .filter({ hasText: "30 日、ファイルに保存していません" }),
+      .filter({ hasText: "30 日、バックアップしていません" }),
   ).toBeVisible();
 });
 
@@ -434,7 +504,7 @@ test("moves the periods the previous version kept in this browser into one book 
 function saveButton(page: Page) {
   return page
     .getByRole("complementary")
-    .getByRole("button", { name: "ファイルに保存" });
+    .getByRole("button", { name: "バックアップ", exact: true });
 }
 
 function saveStatus(page: Page) {

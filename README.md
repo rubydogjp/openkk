@@ -19,7 +19,7 @@ npm run check:full # 生成物検査 + 上記 + 3アプリbuild + Playwright
 用途別のリファレンスアプリを起動:
 
 ```bash
-npm run dev:vscode:original# 無印版（データはブラウザの中。「保存」で .openkk に書き出す）— port 4322
+npm run dev:vscode:original# 無印版（データはブラウザの中。「バックアップ」で .openkk に書き出す）— port 4322
 npm run dev:vscode:sim    # Sim版（memory DB）— port 4303
 npm run dev:vscode:demo   # デモ版（サンプルデータ・再読み込みで初期化）— port 4304
 ```

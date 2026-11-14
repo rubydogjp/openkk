@@ -48,8 +48,8 @@ describe("NoticeStack", () => {
     });
     board.pin("reminder", {
       tone: "warning",
-      message: "30 日、ファイルに保存していません",
-      action: { label: "保存", run: () => {} },
+      message: "30 日、バックアップしていません",
+      action: { label: "バックアップ", run: () => {} },
       closable: true,
       onClose: null,
     });
@@ -58,7 +58,7 @@ describe("NoticeStack", () => {
 
     expect(storage).toContain(">もう一度</button>");
     expect(storage).not.toContain('aria-label="閉じる"');
-    expect(reminder).toContain(">保存</button>");
+    expect(reminder).toContain(">バックアップ</button>");
     expect(reminder).toContain('aria-label="閉じる"');
   });
 });

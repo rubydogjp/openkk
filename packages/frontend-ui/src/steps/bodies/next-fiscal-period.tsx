@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AppError,
   buildNextFiscalPeriodSuggestion,
+  findCreatedNextFiscalPeriod,
   fiscalPeriodNameForEndDate,
   hasActiveFiscalPeriodOverlap,
   isOpeningCarryoverCandidate,
@@ -24,6 +25,7 @@ import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 import {
   FormDatePair,
   FormErrorText,
+  FormNoteText,
   FormStyles,
   FormTextInput,
 } from "../../shared/form-fields.js";
@@ -119,6 +121,11 @@ export function NextFiscalPeriodBody({
   const editingLocked = config.editingPolicy.locked;
 
   const canEnterPage = currentFiscalPeriod.phase === "post_closing";
+  const createdNext = findCreatedNextFiscalPeriod(
+    currentFiscalPeriod,
+    appState.fiscalPeriods,
+  );
+  const canEditNext = canEnterPage && createdNext == null;
   const reversalCandidates = entriesState
     .listFiscalPeriodEntries(currentFiscalPeriod.id)
     .filter(isOpeningCarryoverCandidate);
@@ -194,7 +201,7 @@ export function NextFiscalPeriodBody({
     setIsSavingBackup(true);
     try {
       const result = await bookFiles.save(currentFiscalPeriod.id);
-      setBackupMessage(result === "saved" ? "ファイルに保存しました" : null);
+      setBackupMessage(result === "saved" ? "バックアップしました" : null);
       setScreenError(null);
     } catch (error) {
       setScreenError(
@@ -227,13 +234,13 @@ export function NextFiscalPeriodBody({
             label="名称"
             control={
               <FormTextInput
-                value={name}
+                value={createdNext?.name ?? name}
                 onChange={(value) => {
-                  if (!canEnterPage) return;
+                  if (!canEditNext) return;
                   setNameEdited(true);
                   setName(value);
                 }}
-                readOnly={!canEnterPage}
+                readOnly={!canEditNext}
                 width={280}
                 placeholder="例: 2027年分"
               />
@@ -247,17 +254,19 @@ export function NextFiscalPeriodBody({
             control={
               <>
                 <FormDatePair
-                  start={startDate}
-                  end={endDate}
+                  start={createdNext?.startDate ?? startDate}
+                  end={createdNext?.endDate ?? endDate}
                   onChangeStart={(value) => {
-                    if (canEnterPage) setStartDate(value);
+                    if (canEditNext) setStartDate(value);
                   }}
                   onChangeEnd={(value) => {
-                    if (canEnterPage) setEndDate(value);
+                    if (canEditNext) setEndDate(value);
                   }}
-                  readOnly={!canEnterPage}
+                  readOnly={!canEditNext}
                 />
-                {canEnterPage && !dateValidation.ok ? (
+                {canEnterPage && createdNext != null ? (
+                  <FormNoteText>作成済みです</FormNoteText>
+                ) : canEnterPage && !dateValidation.ok ? (
                   <FormErrorText>{dateValidation.message}</FormErrorText>
                 ) : canEnterPage && hasOverlap ? (
                   <FormErrorText>
@@ -298,10 +307,10 @@ export function NextFiscalPeriodBody({
                     inputId={`carry-${item.id}`}
                     checked={carries[item.id]}
                     onChange={() => {
-                      if (canEnterPage) toggleCarry(item.id);
+                      if (canEditNext) toggleCarry(item.id);
                     }}
                     label={item.label}
-                    disabled={!canEnterPage}
+                    disabled={!canEditNext}
                   />
                 ))}
               </div>
@@ -334,7 +343,12 @@ export function NextFiscalPeriodBody({
                             `${line.side === "debit" ? "借" : "貸"}: ${line.accountName} ${line.amount}円`,
                         )
                         .join(" / ")}）`}
-                      disabled={editingLocked || isCreating || isSavingBackup}
+                      disabled={
+                        !canEditNext ||
+                        editingLocked ||
+                        isCreating ||
+                        isSavingBackup
+                      }
                     />
                   ))}
                   {reversalCandidates.length === 0
@@ -355,7 +369,16 @@ export function NextFiscalPeriodBody({
                 justifyContent: "flex-end",
               }}
             >
-              {editingLocked ? (
+              {createdNext != null ? (
+                <StepPrimaryButton
+                  onClick={() => appState.selectFiscalPeriod(createdNext.id)}
+                  disabled={false}
+                  variant="success"
+                  icon={null}
+                >
+                  次の期間を開く
+                </StepPrimaryButton>
+              ) : editingLocked ? (
                 <LockButton label="次期を作成" />
               ) : (
                 <StepPrimaryButton
@@ -401,7 +424,7 @@ export function NextFiscalPeriodBody({
           <StepMetaCard>
             <StepMetaRow
               label="ファイル"
-              value={`この会計期間のデータを、そのままファイル (${bookFiles.fileNameOf(currentFiscalPeriod.name)}) としてダウンロードします。${bookFiles.saveTracking != null ? "左上の「保存」と同じファイルで、" : ""}期間の選択の「ファイル」から取り込めます。`}
+              value={`この会計期間のデータを、そのままファイル (${bookFiles.fileNameOf(currentFiscalPeriod.name)}) としてダウンロードします。${bookFiles.saveTracking != null ? "左上の「バックアップ」と同じファイルで、" : ""}期間の選択の「ファイル」から取り込めます。`}
               divider={false}
             />
           </StepMetaCard>

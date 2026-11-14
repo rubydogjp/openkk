@@ -252,8 +252,8 @@ export function FiscalPeriodsContent() {
                       bookFiles == null
                         ? "以前の圧縮済みファイル (.zip)"
                         : allowLegacyArchiveImport
-                          ? "保存したファイル (.openkk)。以前の圧縮済みファイル (.zip) も取り込めます"
-                          : "保存したファイル (.openkk)"
+                          ? "バックアップのファイル (.openkk)。以前の圧縮済みファイル (.zip) も取り込めます"
+                          : "バックアップのファイル (.openkk)"
                     }
                     onClick={() => {
                       setFileMenuOpen(false);

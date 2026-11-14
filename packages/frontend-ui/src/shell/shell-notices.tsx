@@ -21,8 +21,8 @@ const BOOK_STORAGE_NOTICE_SEEN_KEY = "openkk.book-storage-notice.seen";
 const SEEN_VALUE = "1";
 const KEPT_IN_BROWSER_MESSAGE = "データはこのブラウザの中だけにあります";
 const STORAGE_FAILED_MESSAGE = "ブラウザに保存できませんでした";
-const NEVER_SAVED_MESSAGE = "まだファイルに保存していません";
-const SAVE_OVERDUE_MESSAGE = "30 日、ファイルに保存していません";
+const NEVER_SAVED_MESSAGE = "まだバックアップしていません";
+const SAVE_OVERDUE_MESSAGE = "30 日、バックアップしていません";
 const LOAD_FAILED_MESSAGE = "データを読み込めませんでした";
 
 function unreadableBooksMessage(count: number): string {
@@ -98,7 +98,7 @@ function useBookSaveReminder(
             bookFile.lastSavedAt == null
               ? NEVER_SAVED_MESSAGE
               : SAVE_OVERDUE_MESSAGE,
-          action: { label: "保存", run: onSave },
+          action: { label: "バックアップ", run: onSave },
           closable: true,
           onClose: null,
         }

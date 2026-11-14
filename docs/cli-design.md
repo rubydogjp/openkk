@@ -6,7 +6,7 @@
 
 ## 結論
 
-- 作業用のストアは **SQLite ファイル** (`.openkk`、既定は `book.openkk`)。無印版 (`packages/bundle-original`) の帳簿と同じ形式で、無印版が「保存」で書き出したファイルをそのまま扱い、変えたファイルを無印版に取り込める。zip は会計期間単位の受け渡し (import / export) に使う
+- 作業用のストアは **SQLite ファイル** (`.openkk`、既定は `book.openkk`)。無印版 (`packages/bundle-original`) の帳簿と同じ形式で、無印版が「バックアップ」で書き出したファイルをそのまま扱い、変えたファイルを無印版に取り込める。zip は会計期間単位の受け渡し (import / export) に使う
 - openkk-cli は画面の製品と同じ並びで作る。違うのは保存先 (口 db の実装) だけ ([`architecture.md`](./architecture.md) の「どの製品も同じ並びで作る」)。`backend-api` と `embedded-backend-adapter` を同じプロセスでつなぎ、`OpenkkBackendPort` 経由で呼ぶ
 
 ## ファイル形式
@@ -26,10 +26,10 @@
 
 ### 無印版との行き来
 
-- 無印版は会計期間ごとに 1 冊の帳簿 (`.openkk`) をブラウザの中に置く。左上の「保存」で `<期間名>.openkk` として書き出し、期間の選択の「ファイル」から取り込む。openkk-cli はそのファイルを `--file` で開く
+- 無印版は会計期間ごとに 1 冊の帳簿 (`.openkk`) をブラウザの中に置く。左上の「バックアップ」で `<期間名>.openkk` として書き出し、期間の選択の「ファイル」から取り込む。openkk-cli はそのファイルを `--file` で開く
 - 行き来は「無印版で保存 → openkk-cli で変える → 無印版に取り込む」。無印版はファイルを見張らないので、取り込むまで無印版の中は変わらない
-- 帳簿は `openkk_meta` の `last_changed_at` に最後に変えた時刻を持ち、openkk-cli の変更でも更新される (`sqlite-db-adapter` の共通の層で記録する)。無印版は取り込むときにこの値を見て、「アプリの外で変更がありました」と、無印版の側の保存していない変更が失われることを知らせる
-- 取り込みは期間の ID で同じ期間を見分けて上書きする。`archive import` や `periods export` は期間の ID を付け直すので、無印版から見ると別に作られた期間になる (同じ日付なら、確かめたうえで帳簿ごと上書きする)。無印版に戻すつもりのファイルは、保存したファイルをそのまま変える
+- 帳簿は `openkk_meta` の `last_changed_at` に最後に変えた時刻を持ち、openkk-cli の変更でも更新される (`sqlite-db-adapter` の共通の層で記録する)。無印版は取り込むときにこの値を見て、「ファイルで上書きしますか？」と確かめ、無印版の側にバックアップしていない変更があれば、それが失われることを知らせる
+- 取り込みは期間の ID で同じ期間を見分けて上書きする。`archive import` や `periods export` は期間の ID を付け直すので、無印版から見ると別に作られた期間になる (同じ日付なら、確かめたうえで帳簿ごと上書きする)。無印版に戻すつもりのファイルは、バックアップしたファイルをそのまま変える
 - 複数の期間を入れたファイルも取り込める。無印版が期間ごとの帳簿に分ける
 - 無印版のデータは userId `openkk-original-user` で保存されている (`packages/bundle-original/app/openkk-config.ts`)。openkk-cli も同じ userId を既定にする。ほかの userId の期間は無印版に取り込まれない
 - 26.3 までの無印版は OPFS SAHPool VFS (`legacy-db-adapter`) の 1 つの DB に置いていた。プール内のファイルは独自ヘッダ付きなのでそのままは使えず、新しい無印版が起動するときに `exportLegacyDbBytes` で標準の SQLite として読み、期間ごとの帳簿に分けて移す
@@ -82,6 +82,6 @@ openkk periods export <期間id> [--out <file.openkk>]   # その期間だけを
 4. 帳票の組み立てを `driver` へ切り出し、`frontend-ui` をそれに置き換えて `report` を足す
 5. `archive import` (ブラウザで作った zip を取り込めることをテストする。書き出しは `periods export` で `.openkk` に)
 6. `opening`・`closing`・`periods receive` / `next`
-7. 無印版に帳簿ファイルの保存・取り込みを付ける (済み。上の「無印版との行き来」)
+7. 無印版に帳簿ファイルのバックアップ・取り込みを付ける (済み。上の「無印版との行き来」)
 
 箱を足すときは、ルートの workspaces、`test/package-structure.test.ts` の `allowedBoxes`、`npm run gen-deps` (`docs/dependency-graph.md`)、`docs/architecture.md` の箱の一覧と口の表も更新する。

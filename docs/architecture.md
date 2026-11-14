@@ -37,7 +37,7 @@ packages/
 ├── embedded-backend-adapter  口 backend の実装 — 同じプロセスの backend-api を、HTTP と同じ形の受け渡しで呼ぶ
 ├── browser-print-adapter     口 print の実装 — ブラウザの印刷
 ├── browser-platform-adapter  口 platform の実装 — PWA・localStorage・ダウンロードなどブラウザの機能と、帳簿の置き場 (OPFS)
-├── local-book-files-adapter  口 book-files の実装 — ブラウザの中の帳簿をファイルへ保存する・ファイルから取り込む（無印版）
+├── local-book-files-adapter  口 book-files の実装 — ブラウザの中の帳簿をファイルへバックアップする・ファイルから取り込む（無印版）
 ├── records-book-files-adapter 口 book-files の実装 — バックエンドから読んだ記録で帳簿のファイルを組み立てる・ファイルを新しい期間として取り込む（Sim版・デモ版）
 │
 ├── sqlite-db-adapter         口 db の共通の実装 — SQL・保存処理・マイグレーション・最後に変えた時刻の記録
@@ -47,7 +47,7 @@ packages/
 ├── disk-db-adapter           口 db の実装 — ディスクの上の .openkk を node:sqlite で開く（openkk-cli 用・ベータ）
 ├── legacy-db-adapter         口 db の実装 — 26.3 までの OPFS の DB (SQLite Wasm + SAHPool)。無印版が前の版の帳簿を移すときに読む
 │
-├── bundle-original           製品 — 無印版（会計期間ごとの帳簿をブラウザの中に置き、「保存」でファイルに書き出す）
+├── bundle-original           製品 — 無印版（会計期間ごとの帳簿をブラウザの中に置き、「バックアップ」でファイルに書き出す）
 ├── bundle-sim                製品 — Sim版（memory DB・固定時計・debug）
 ├── bundle-demo               製品 — デモ版（seed 済み memory DB・再読み込みで初期化）
 └── bundle-cli                製品 — openkk-cli（ベータ。コマンドは openkk。ディスクの上の .openkk を操作する）
@@ -83,7 +83,7 @@ HTTP 越しのバックエンドは、`embedded-backend-adapter` と同じ位置
 
 実行環境に依存する機能は口 platform に集める。対象はアプリのインストール、オフラインキャッシュの登録、key-value 保存、ファイル保存、外部URL・認証リダイレクトの遷移。画面は `usePlatformAdapter` 経由で、手続きは渡された口を通して呼び、`window` や `navigator` を直接触らない。ネイティブアプリなど別の環境で動かす場合は `browser-platform-adapter` と同じ位置に実装を足し、`createOpenkkDriver` に渡す。ポップオーバーの外側クリック検知など、Web ビューである限り共通の DOM 操作は画面に残す。
 
-製品ごとに足す機能は口として足し、ない製品では `null` を渡す。帳簿をファイルに保存する・取り込む (`OpenkkBookFilesPort`) は、データの持ち方で実装が変わる。ブラウザの中に帳簿を置く無印版は `local-book-files-adapter`、バックエンドの向こうにデータがある製品は `records-book-files-adapter` を使う。保存の状態を覚えておく部分 (`saveTracking`: 左上の「保存」・30 日の知らせ・保存の失敗) は、帳簿を手元に置く製品だけが持つ。
+製品ごとに足す機能は口として足し、ない製品では `null` を渡す。帳簿をファイルにバックアップする・取り込む (`OpenkkBookFilesPort`) は、データの持ち方で実装が変わる。ブラウザの中に帳簿を置く無印版は `local-book-files-adapter`、バックエンドの向こうにデータがある製品は `records-book-files-adapter` を使う。バックアップの状態を覚えておく部分 (`saveTracking`: 左上の「バックアップ」・30 日の知らせ・ブラウザの中に保存できなかったときの知らせ) は、帳簿を手元に置く製品だけが持つ。
 
 ### 3. 箱の中は 4 層
 
@@ -171,7 +171,7 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 
 ## 帳簿のファイル（無印版）
 
-無印版は、データをブラウザの中 (OPFS の `openkk-books/`) に置く。置き方は環境で変えない。1 つの会計期間を 1 冊の帳簿 (`.openkk`、中身は SQLite) にし、利用者は左上の「保存」でその期間の帳簿をファイルに書き出す。同じファイルを openkk-cli でも扱える。部品は次の順につながる。
+無印版は、データをブラウザの中 (OPFS の `openkk-books/`) に置く。置き方は環境で変えない。1 つの会計期間を 1 冊の帳簿 (`.openkk`、中身は SQLite) にし、利用者は左上の「バックアップ」でその期間の帳簿をファイルに書き出す。同じファイルを openkk-cli でも扱える。部品は次の順につながる。
 
 - `book-db-adapter`: 帳簿 1 冊のバイト列を SQLite Wasm のメモリ上に開き (`sqlite3_deserialize`)、`OpenkkDbPort` を返す。書き込みのあった操作のあとに `onChange` で知らせ、`exportBytes()` で全体をバイト列に戻す。オープン会計の帳簿でない SQLite と、新しすぎるスキーマは開かない。
 - `books-db-adapter`: 置き場 (`BookStore`: `list` / `read` / `write` / `remove`) にある帳簿をすべて開き、1 つの `OpenkkDbPort` にまとめる。期間の ID で帳簿に振り分け、期間の作成・圧縮済みファイルの取り込みは新しい帳簿を作り、期間の削除は帳簿を消す。日付の重なりは帳簿をまたいで確かめる。次期の作成 (`createNext`) と引き継ぎの上書き (`applyCarryover`) は、引き継ぎ元の帳簿を読んで圧縮保存と同じ形にし、引き継ぎ先の帳簿の `applyCarryoverFromArchive` に渡す。`runDbPortConformance` に通してあり、1 つの DB に全期間を置く実装と同じ振る舞いになる。
@@ -185,22 +185,22 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 
 帳簿は `openkk_meta` の `last_changed_at` (ミリ秒) に、最後に中身を変えた時刻を持つ。`sqlite-db-adapter` の `runInTransaction` が、行を変えたトランザクションの中で更新する (前の値より必ず大きくする)。同じ層を通る openkk-cli の変更でも更新される。読むだけの操作と、失敗して巻き戻った操作では変わらない。
 
-### ファイルに保存する・取り込む
+### ファイルにバックアップする・取り込む
 
 `local-book-files-adapter` が `OpenkkBookFilesPort` を実装し、画面は `useOpenkkBookFile` / `useOpenkkBookFiles` で使う。Sim版・デモ版は `records-book-files-adapter` を使う (下の「帳簿でない製品のバックアップ」)。
 
-- 保存: 今の期間の帳簿を `<期間名>.openkk` として渡す (スマホは共有シート、それ以外はダウンロード)。保存したときの `last_changed_at` と日時を localStorage (`openkk.book-save:<期間ID>`) に覚える。
-- 左上の表示: 帳簿の `last_changed_at` が覚えた値と違えば「保存していない変更があります」、同じなら「前回 11/3」。変更があって、前の保存 (まだなら期間を作った日) から 30 日たっていれば、重ねて出す知らせで伝える (閉じられる。次に開いたときにまた出す)。
+- バックアップ: 今の期間の帳簿を `<期間名>.openkk` として渡す (`deliverBookFile`)。`showSaveFilePicker` があればその窓で選んだファイルに書き、書けたら `saved`、窓を閉じたら `cancelled` を返す。なければ、スマホは共有シート、それ以外はダウンロード (こちらは渡した時点で `saved`)。`saved` のときだけ、バックアップしたときの `last_changed_at` と日時を localStorage (`openkk.book-save:<期間ID>`) に覚える。
+- 左上の表示: 帳簿の `last_changed_at` が覚えた値と違えば「バックアップしていない変更があります」、同じなら「前回 11/3」。変更があって、前のバックアップ (まだなら期間を作った日) から 30 日たっていれば、重ねて出す知らせで伝える (閉じられる。次に開いたときにまた出す)。
 - 取り込みは復元で、混ぜない。ファイルの中の期間ごとに、今ある期間との関係を見る (`books-db-adapter` の `inspectBookFile`)。
   - 同じ ID の期間がない・日付の重なる期間もない: 新しい期間として足す (確かめない)。
-  - 同じ ID の期間がある: ファイルの `last_changed_at`・今の帳簿の値・保存したときに覚えた値を比べる (`bookImportCase`)。同じなら何もしない。違えば「ファイルで上書きしますか？」と確かめ、ファイルを優先して帳簿を上書きする。アプリの側に保存していない変更があれば、それが失われることを知らせる。
+  - 同じ ID の期間がある: ファイルの `last_changed_at`・今の帳簿の値・バックアップしたときに覚えた値を比べる (`bookImportCase`)。同じなら何もしない。違えば「ファイルで上書きしますか？」と確かめ、ファイルを優先して帳簿を上書きする。アプリの側にバックアップしていない変更があれば、それが失われることを知らせる。
   - ID は違うが開始日・終了日が同じ期間がある: 別に作られた帳簿として、確かめてから上書きする。
   - それ以外の重なり: 取り込まない。
   - 確かめのダイアログで選べるのは「キャンセル」と「上書きする」だけ。確かめている間に帳簿が変わっていたら取り込まず、やり直しを求める。
 - 複数の期間が入ったファイル (openkk-cli で作ったもの) は、期間ごとの帳簿に分けて取り込む (`splitBookFile`)。分けたあと、期間・仕訳・固定資産が元と同じかを確かめ、違えば取り込まない。
 - 取り込んだあとはページを読み込み直し、取り込んだ期間を選んだ状態で始める。
 - 無印版は取り込みの入口を 1 つにしている。選んだファイルの先頭が zip なら、前の版の圧縮済みファイルとして `fiscalPeriods.importArchived` に渡す (`looksLikeLegacyArchiveZip`)。それ以外は帳簿のファイルとして扱う。
-- どの製品にも圧縮保存の操作を出さない。「次の期間へ」の手順には、「保存」と同じファイルを出す「バックアップをダウンロード」を置く。圧縮保存の契約 (`archive` / `purgeArchivedData`) と状態 (`archiveStatus`) は、前の版のデータのために残している (レガシー)。
+- どの製品にも圧縮保存の操作を出さない。「次の期間へ」の手順には、左上の「バックアップ」と同じファイルを出す「バックアップをダウンロード」を置く。圧縮保存の契約 (`archive` / `purgeArchivedData`) と状態 (`archiveStatus`) は、前の版のデータのために残している (レガシー)。
 - 無印版はファイルを見張らない。ファイルを読むのは取り込むときだけ。
 
 データがブラウザの中だけにあることは、重ねて出す知らせで伝える。利用者が閉じるまで、開くたびに出す (`ShellNotices`、閉じた印は localStorage の `openkk.book-storage-notice.seen`)。
@@ -211,7 +211,7 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 
 - 保存: 口 backend から会計期間・仕訳・固定資産を読み、`book-db-adapter` の `createBookFileBytes` で帳簿のファイルを組み立てる。期間・仕訳・固定資産の ID はそのまま保つ。ファイルの中の持ち主は、無印版と openkk-cli が使う ID (`PORTABLE_BOOK_OWNER_USER_ID`) にそろえるので、無印版にも取り込める。
 - 取り込み: ファイルの中の期間を読み、今ある有効な期間と日付が重ならなければ、新しい期間として足す (`fiscalPeriods.importArchived`。ID は付け直される)。重なれば取り込まない。上書きはしない。
-- 保存の状態は覚えない (`saveTracking: null`)。左上の「保存」と 30 日の知らせは出ない。取り込んだあとはページを読み込み直さず、期間の一覧を読み直す (`reloadsAppAfterImport: false`)。
+- バックアップの状態は覚えない (`saveTracking: null`)。左上の「バックアップ」と 30 日の知らせは出ない。取り込んだあとはページを読み込み直さず、期間の一覧を読み直す (`reloadsAppAfterImport: false`)。
 
 ### 前の版の帳簿を移す
 
@@ -248,5 +248,5 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 | パッケージ構造    | vitest     | workspace 整合性チェック                                                                                                                                                                                         |
 | 口 backend の契約 | vitest     | `BACKEND_CONTRACT_CASES` を、埋め込みの実装とディスクの上の帳簿に通す                                                                                                                                            |
 
-`npm run test:e2e` は Sim版を専用 port 4306 で起動し、既存プロセスを再利用せず実行する。`npm run test:e2e:export` は無印版を静的exportして検査する。無印版のテスト (`tests-export`) は、初回の説明を見たことにしてから始める (`startApp`)。保存・取り込み・前の版からの移行は `books.spec.ts` にあり、保存したファイルや取り込むファイルは `disk-db-adapter` (openkk-cli と同じ道) で読み書きして確かめる。前の版の帳簿は、前の版と同じスキーマ (5) の DB を作り、テストの中で SQLite Wasm を読み込んで、前の版と同じ開き方で OPFS に置いて試す。静的exportを配るテスト用のサーバー (`e2e/serve-export.mjs`) は、本番 (Firebase Hosting) と同じく末尾の `/` がないフォルダの URL を `/` 付きへ移す。生成物・全workspace・全アプリ・E2Eをまとめた検査は `npm run check:full` で実行できる。
+`npm run test:e2e` は Sim版を専用 port 4306 で起動し、既存プロセスを再利用せず実行する。`npm run test:e2e:export` は無印版を静的exportして検査する。無印版のテスト (`tests-export`) は、初回の説明を見たことにしてから始める (`startApp`)。バックアップ・取り込み・前の版からの移行は `books.spec.ts` にあり、バックアップしたファイルや取り込むファイルは `disk-db-adapter` (openkk-cli と同じ道) で読み書きして確かめる。前の版の帳簿は、前の版と同じスキーマ (5) の DB を作り、テストの中で SQLite Wasm を読み込んで、前の版と同じ開き方で OPFS に置いて試す。静的exportを配るテスト用のサーバー (`e2e/serve-export.mjs`) は、本番 (Firebase Hosting) と同じく末尾の `/` がないフォルダの URL を `/` 付きへ移す。生成物・全workspace・全アプリ・E2Eをまとめた検査は `npm run check:full` で実行できる。
 このリポジトリに `OpenkkDbPort` 実装を追加したら `runDbPortConformance` に通すこと。conformance は `engine/test-support/` にあり npm には公開しないので、外部の実装はこのリポジトリを参照する。

@@ -36,7 +36,7 @@ const STORAGE_FAILED: PinnedNotice = {
 
 const SAVE_REMINDER: PinnedNotice = {
   tone: "warning",
-  message: "30 日、ファイルに保存していません",
+  message: "30 日、バックアップしていません",
   action: null,
   closable: true,
   onClose: null,
@@ -109,7 +109,7 @@ describe("createNoticeBoard", () => {
     expect(board.getState()).toEqual([]);
     const reopened = createNoticeBoard(manualTimers().timers);
     reopened.pin("reminder", SAVE_REMINDER);
-    expect(messages(reopened)).toEqual(["30 日、ファイルに保存していません"]);
+    expect(messages(reopened)).toEqual(["30 日、バックアップしていません"]);
   });
 
   it("tells the owner of a pinned notice when the reader closes it, not when it is unpinned", () => {
@@ -140,11 +140,11 @@ describe("createNoticeBoard", () => {
 
     board.pin("reminder", {
       ...SAVE_REMINDER,
-      message: "まだファイルに保存していません",
+      message: "まだバックアップしていません",
     });
 
     expect(messages(board)).toEqual([
-      "まだファイルに保存していません",
+      "まだバックアップしていません",
       "取り込めませんでした",
     ]);
   });

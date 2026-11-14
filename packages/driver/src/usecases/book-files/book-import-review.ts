@@ -37,7 +37,7 @@ function replacingMessage(
       return `ファイルを優先して、${kept}を上書きします。`;
     case "replaces_app_changes":
     case "changed_both":
-      return `${kept}に、保存していない変更があります。ファイルを優先して上書きすると失われます。`;
+      return `${kept}に、バックアップしていない変更があります。ファイルを優先して上書きすると失われます。`;
     case "same_dates":
       return `${kept}とは別に作られた帳簿です。ファイルを優先して上書きすると、今の帳簿は失われます。`;
   }

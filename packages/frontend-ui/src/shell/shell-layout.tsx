@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import {
   useOpenkkAppState,
+  useOpenkkBookFiles,
   useMaintenance,
   useOpenkkConfig,
 } from "../bindings/index.js";
@@ -165,6 +166,7 @@ function ShellChrome({
   const bookSave = useShellBookSave(
     hasSession ? appState.currentFiscalPeriod : null,
   );
+  const tracksBookSave = useOpenkkBookFiles()?.saveTracking != null;
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const sidebarRef = useDismissibleLayer<HTMLElement>({
@@ -317,39 +319,37 @@ function ShellChrome({
               height={28}
               style={{ display: "block", flexShrink: 0 }}
             />
-            {bookSave != null ? (
-              <ShellBookSave bookSave={bookSave} />
-            ) : (
-              <div style={{ minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: fontSize.md,
-                    fontWeight: fontWeight.bold,
-                    color: SHELL_PALETTE.titleColor,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  オープン会計
-                </div>
-                <div
-                  style={{
-                    marginTop: 1,
-                    fontSize: fontSize.xs,
-                    fontWeight: fontWeight.semibold,
-                    color: SHELL_PALETTE.subtitleColor,
-                    lineHeight: 1.2,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {openkkConfig.bundleLabel}
-                </div>
+            <div style={{ minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: fontSize.md,
+                  fontWeight: fontWeight.bold,
+                  color: SHELL_PALETTE.titleColor,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                オープン会計
               </div>
-            )}
+              <div
+                style={{
+                  marginTop: 1,
+                  fontSize: fontSize.xs,
+                  fontWeight: fontWeight.semibold,
+                  color: SHELL_PALETTE.subtitleColor,
+                  lineHeight: 1.2,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {openkkConfig.bundleLabel}
+              </div>
+            </div>
           </div>
+
+          {tracksBookSave ? <ShellBookSave bookSave={bookSave} /> : null}
 
           <ShellFiscalPeriodMenu pathname={pathname} enabled={navEnabled} />
           <ShellNav pathname={pathname} enabled={navEnabled} />

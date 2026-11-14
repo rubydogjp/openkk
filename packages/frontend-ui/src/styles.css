@@ -300,3 +300,8 @@ body:has(.bk-shell-main--fills-screen) .bk-notice-layer {
     left: max(0px, calc(100vw - var(--openkk-size-drawer-width, 560px)));
   }
 }
+
+.bk-backup-status-compact {
+  text-wrap: balance;
+  word-break: auto-phrase;
+}

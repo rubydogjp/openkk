@@ -148,7 +148,7 @@ test.describe("openkk closing flow", () => {
     expect(backupPath).not.toBeNull();
     expect(download.suggestedFilename()).toMatch(/\.openkk$/);
     await expectStep(page, "次の期間へ");
-    await expect(page.getByText("ファイルに保存しました")).toBeVisible();
+    await expect(page.getByText("バックアップしました")).toBeVisible();
     await expect(page.getByRole("button", { name: /圧縮保存/ })).toHaveCount(0);
     const [backup] = await readBookPeriods(backupPath!);
     expect(backup?.name).toContain("検証用 2026年分");

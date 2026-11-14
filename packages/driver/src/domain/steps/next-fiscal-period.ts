@@ -1,4 +1,5 @@
 import type { EntryLine, EntryRecord } from "../entries/entry-record.js";
+import type { FiscalPeriodArchiveStatus } from "../shared/models.js";
 import {
   formatIsoLocalDate,
   parseAmount,
@@ -47,6 +48,33 @@ export function buildNextFiscalPeriodSuggestion(
     startDate,
     endDate,
   };
+}
+
+export function findCreatedNextFiscalPeriod<
+  Period extends {
+    id: string;
+    startDate: string;
+    endDate: string;
+    archiveStatus: FiscalPeriodArchiveStatus;
+  },
+>(
+  current: { id: string; endDate: string },
+  periods: ReadonlyArray<Period>,
+): Period | null {
+  const suggestion = buildNextFiscalPeriodSuggestion(current.endDate);
+  const [earliestLater] = periods
+    .filter(
+      (period) =>
+        period.id !== current.id &&
+        period.archiveStatus !== "purged" &&
+        period.startDate > current.endDate,
+    )
+    .sort((left, right) => left.startDate.localeCompare(right.startDate));
+  if (earliestLater == null) return null;
+  return earliestLater.startDate <= suggestion.endDate &&
+    earliestLater.endDate >= suggestion.startDate
+    ? earliestLater
+    : null;
 }
 
 function addDaysToIsoDate(value: string, days: number): string | null {

@@ -22,7 +22,7 @@ describe("book save date", () => {
         { hasUnsavedChanges: true, lastSavedAt: at(2026, 11, 3) },
         at(2026, 11, 11),
       ),
-    ).toBe("保存していない変更があります");
+    ).toBe("バックアップしていない変更があります");
     expect(
       bookSaveStatusLabel(
         { hasUnsavedChanges: false, lastSavedAt: at(2026, 11, 3) },
