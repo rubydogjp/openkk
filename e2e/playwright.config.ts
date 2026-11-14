@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+import { SAVE_PICKER_DISABLED_LAUNCH_OPTIONS } from "./browser-launch";
+
 const OPENKK_DEV_PORT = 4306;
 
 export default defineConfig({
@@ -15,6 +17,7 @@ export default defineConfig({
     baseURL: `http://localhost:${OPENKK_DEV_PORT}`,
     screenshot: "on",
     trace: "on-first-retry",
+    launchOptions: SAVE_PICKER_DISABLED_LAUNCH_OPTIONS,
   },
   webServer: {
     command: "npm --workspace @rubydogjp/openkk-bundle-sim run dev:e2e",

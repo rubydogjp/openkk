@@ -1,11 +1,16 @@
 import { defineConfig } from "@playwright/test";
 
+import { SAVE_PICKER_DISABLED_LAUNCH_OPTIONS } from "./browser-launch";
+
 const ORIGINAL_URL = "http://localhost:4308";
 
 export default defineConfig({
   timeout: 60_000,
   reporter: [["list"]],
-  use: { screenshot: "only-on-failure" },
+  use: {
+    screenshot: "only-on-failure",
+    launchOptions: SAVE_PICKER_DISABLED_LAUNCH_OPTIONS,
+  },
   projects: [
     {
       name: "original",
