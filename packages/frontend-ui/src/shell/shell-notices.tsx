@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import {
   useOpenkkAppState,
   useOpenkkAssist,
+  useOpenkkBookFiles,
   useOpenkkBookStorage,
   useOpenkkEntries,
+  usePlatformAdapter,
   type OpenkkBookFile,
 } from "../bindings/index.js";
 
@@ -14,6 +16,10 @@ import { debugAppError } from "../shared/app-error-text.js";
 import { useOpenkkStandingNotice } from "../shared/notices/notices.js";
 import { safeUserErrorMessage } from "../shared/safe-error-message.js";
 
+const BOOK_STORAGE_NOTICE_SEEN_KEY = "openkk.book-storage-notice.seen";
+
+const SEEN_VALUE = "1";
+const KEPT_IN_BROWSER_MESSAGE = "データはこのブラウザの中だけにあります";
 const STORAGE_FAILED_MESSAGE = "ブラウザに保存できませんでした";
 const NEVER_SAVED_MESSAGE = "まだファイルに保存していません";
 const SAVE_OVERDUE_MESSAGE = "30 日、ファイルに保存していません";
@@ -36,6 +42,7 @@ function useBookStorageNotices(): void {
             run: () => void storage.retry().catch(() => {}),
           },
           closable: false,
+          onClose: null,
         }
       : null,
   );
@@ -48,6 +55,30 @@ function useBookStorageNotices(): void {
           message: unreadableBooksMessage(unreadableBookCount),
           action: null,
           closable: false,
+          onClose: null,
+        }
+      : null,
+  );
+}
+
+function useKeptInBrowserNotice(hasSession: boolean): void {
+  const bookFiles = useOpenkkBookFiles();
+  const { storage } = usePlatformAdapter();
+  const [seen, setSeen] = useState(
+    () => storage.getItem(BOOK_STORAGE_NOTICE_SEEN_KEY) === SEEN_VALUE,
+  );
+  useOpenkkStandingNotice(
+    "book-kept-in-browser",
+    hasSession && bookFiles?.saveTracking != null && !seen
+      ? {
+          tone: "warning",
+          message: KEPT_IN_BROWSER_MESSAGE,
+          action: null,
+          closable: true,
+          onClose: () => {
+            storage.setItem(BOOK_STORAGE_NOTICE_SEEN_KEY, SEEN_VALUE);
+            setSeen(true);
+          },
         }
       : null,
   );
@@ -69,6 +100,7 @@ function useBookSaveReminder(
               : SAVE_OVERDUE_MESSAGE,
           action: { label: "保存", run: onSave },
           closable: true,
+          onClose: null,
         }
       : null,
   );
@@ -106,14 +138,17 @@ function useDataLoadNotice(): void {
             },
           },
           closable: false,
+          onClose: null,
         },
   );
 }
 
 export function ShellNotices(props: {
+  hasSession: boolean;
   bookFile: OpenkkBookFile | null;
   onSave: (() => void) | null;
 }) {
+  useKeptInBrowserNotice(props.hasSession);
   useBookStorageNotices();
   useBookSaveReminder(props.bookFile, props.onSave);
   useDataLoadNotice();

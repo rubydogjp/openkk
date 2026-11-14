@@ -149,10 +149,7 @@ export function FiscalPeriodSettingsBody({
       const confirmed = await confirm({
         tone: "danger",
         title: "この期間を削除",
-        body: [
-          `「${currentFiscalPeriod.name}」を削除します。`,
-          "開始前の期間なので、仕訳などのデータはまだありません。この操作は取り消せません。",
-        ],
+        body: [`「${currentFiscalPeriod.name}」を削除します。取り消せません。`],
         confirmLabel: "削除する",
       });
       if (!confirmed) return;

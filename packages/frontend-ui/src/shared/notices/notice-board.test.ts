@@ -31,6 +31,7 @@ const STORAGE_FAILED: PinnedNotice = {
   message: "ブラウザに保存できませんでした",
   action: null,
   closable: false,
+  onClose: null,
 };
 
 const SAVE_REMINDER: PinnedNotice = {
@@ -38,6 +39,7 @@ const SAVE_REMINDER: PinnedNotice = {
   message: "30 日、ファイルに保存していません",
   action: null,
   closable: true,
+  onClose: null,
 };
 
 function messages(board: ReturnType<typeof createNoticeBoard>) {
@@ -108,6 +110,27 @@ describe("createNoticeBoard", () => {
     const reopened = createNoticeBoard(manualTimers().timers);
     reopened.pin("reminder", SAVE_REMINDER);
     expect(messages(reopened)).toEqual(["30 日、ファイルに保存していません"]);
+  });
+
+  it("tells the owner of a pinned notice when the reader closes it, not when it is unpinned", () => {
+    const board = createNoticeBoard(manualTimers().timers);
+    const closed: string[] = [];
+    const introduction: PinnedNotice = {
+      tone: "warning",
+      message: "データはこのブラウザの中だけにあります",
+      action: null,
+      closable: true,
+      onClose: () => closed.push("introduction"),
+    };
+
+    board.pin("introduction", introduction);
+    board.unpin("introduction");
+    expect(closed).toEqual([]);
+
+    board.pin("introduction", introduction);
+    board.dismiss("introduction");
+    expect(closed).toEqual(["introduction"]);
+    expect(board.getState()).toEqual([]);
   });
 
   it("updates a pinned notice in place", () => {

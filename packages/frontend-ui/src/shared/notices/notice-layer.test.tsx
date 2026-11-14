@@ -44,12 +44,14 @@ describe("NoticeStack", () => {
       message: "ブラウザに保存できませんでした",
       action: { label: "もう一度", run: () => {} },
       closable: false,
+      onClose: null,
     });
     board.pin("reminder", {
       tone: "warning",
       message: "30 日、ファイルに保存していません",
       action: { label: "保存", run: () => {} },
       closable: true,
+      onClose: null,
     });
 
     const [storage, reminder] = cardsOf(board);

@@ -20,12 +20,12 @@ const USER_ID = "openkk-original-user";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const UNSAVED_STATUS = "保存していない変更があります";
 const SAME_MESSAGE = "今のデータと同じです。";
+const OVERWRITE_TITLE = "ファイルで上書きしますか？";
+const KEPT_IN_BROWSER_MESSAGE = "データはこのブラウザの中だけにあります";
 const CHANGED_OUTSIDE_MESSAGE =
-  "アプリの外で変更がありました。取り込むと、アプリの中の帳簿をこのファイルの内容に置き換えます。";
-const REPLACES_APP_CHANGES_MESSAGE =
-  "保存したあとにアプリで変えた内容は失われます。";
-const CHANGED_BOTH_MESSAGE =
-  "アプリの外で変更がありました。アプリの中にも保存していない変更があります。取り込むと、アプリの中の変更は失われます。";
+  "ファイルを優先して、アプリの中の「2026年分」を上書きします。";
+const UNSAVED_CHANGES_MESSAGE =
+  "アプリの中の「2026年分」に、保存していない変更があります。ファイルを優先して上書きすると失われます。";
 const LEGACY_SEED_PATH = "/__legacy-seed/";
 const SQLITE_WASM_DIR = path.resolve("node_modules/@sqlite.org/sqlite-wasm");
 const LEGACY_SEED_WORKER = `
@@ -61,16 +61,22 @@ const year2026: PeriodInput = {
   endDate: "2026-12-31",
 };
 
-test("explains once, on the first launch, how the data is kept", async ({
+test("tells where the data is kept until the notice is closed", async ({
   page,
 }) => {
   await page.goto("/");
   await waitUntilBootPhase(page, "ready");
-  const notice = page.getByRole("dialog", { name: "データの保存について" });
-  await expect(notice).toContainText("7 日ほど開かないとデータが消える");
-  await expect(notice).toContainText("左上の「保存」");
+  const notice = page
+    .getByRole("status")
+    .filter({ hasText: KEPT_IN_BROWSER_MESSAGE });
+  await expect(notice).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 
-  await notice.getByRole("button", { name: "わかりました" }).click();
+  await page.reload();
+  await waitUntilBootPhase(page, "ready");
+  await expect(notice).toBeVisible();
+
+  await notice.getByRole("button", { name: "閉じる" }).click();
   await expect(notice).toHaveCount(0);
   await page.reload();
   await waitUntilBootPhase(page, "ready");
@@ -140,26 +146,25 @@ test("does nothing when the saved file is taken in again unchanged", async ({
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
 });
 
-test("restores a saved file after asking, and can save the current data first", async ({
+test("restores a saved file after asking, with only cancel and overwrite to choose", async ({
   page,
 }) => {
   await startApp(page);
   await createFiscalPeriod(page, "2026年分");
   const beforeStart = await saveBook(page, "2026年分.openkk");
   await startOpenedPeriod(page);
+  const afterStart = await saveBook(page, "2026年分.openkk");
+  await clickButton(page, "保存して次へ");
+  await expectStep(page, "日々の仕訳");
 
   await importBook(page, beforeStart);
-  const dialog = page.getByRole("alertdialog", {
-    name: "帳簿を置き換えますか？",
-  });
-  await expect(dialog).toContainText(REPLACES_APP_CHANGES_MESSAGE);
-  const afterStart = await downloadFrom(page, "2026年分.openkk", () =>
-    dialog.getByRole("button", { name: "先に今のデータを保存" }).click(),
-  );
-  await expect(
-    dialog.getByRole("button", { name: "保存しました" }),
-  ).toBeVisible();
-  await dialog.getByRole("button", { name: "取り込む" }).click();
+  const dialog = page.getByRole("alertdialog", { name: OVERWRITE_TITLE });
+  await expect(dialog).toContainText(UNSAVED_CHANGES_MESSAGE);
+  await expect(dialog.getByRole("button")).toHaveText([
+    "キャンセル",
+    "上書きする",
+  ]);
+  await dialog.getByRole("button", { name: "上書きする" }).click();
 
   await expectImported(page);
   await expectStep(page, "期間を開始");
@@ -170,7 +175,7 @@ test("restores a saved file after asking, and can save the current data first", 
 
   await importBook(page, afterStart);
   await expect(dialog).toContainText(CHANGED_OUTSIDE_MESSAGE);
-  await dialog.getByRole("button", { name: "取り込む" }).click();
+  await dialog.getByRole("button", { name: "上書きする" }).click();
   await expectImported(page);
   await expectStep(page, "期首のBSを入力");
   await expect(saveStatus(page)).toHaveText(/^前回 /);
@@ -185,9 +190,7 @@ test("keeps the current data when the confirmation is cancelled", async ({
   await startOpenedPeriod(page);
 
   await importBook(page, beforeStart);
-  const dialog = page.getByRole("alertdialog", {
-    name: "帳簿を置き換えますか？",
-  });
+  const dialog = page.getByRole("alertdialog", { name: OVERWRITE_TITLE });
   await dialog.getByRole("button", { name: "キャンセル" }).click();
   await expect(dialog).toHaveCount(0);
 
@@ -205,17 +208,15 @@ test("takes in a book the CLI changed and tells where the changes were made", as
   await renamePeriodLikeCli(savedPath, "CLIで直した2026年分");
 
   await importBook(page, savedPath);
-  const dialog = page.getByRole("alertdialog", {
-    name: "帳簿を置き換えますか？",
-  });
+  const dialog = page.getByRole("alertdialog", { name: OVERWRITE_TITLE });
   await expect(dialog).toContainText(CHANGED_OUTSIDE_MESSAGE);
   await dialog.getByRole("button", { name: "キャンセル" }).click();
 
   await page.getByRole("button", { name: /^2026年分 / }).click();
   await startOpenedPeriod(page);
   await importBook(page, savedPath);
-  await expect(dialog).toContainText(CHANGED_BOTH_MESSAGE);
-  await dialog.getByRole("button", { name: "取り込む" }).click();
+  await expect(dialog).toContainText(UNSAVED_CHANGES_MESSAGE);
+  await dialog.getByRole("button", { name: "上書きする" }).click();
 
   await expectImported(page);
   await expectStep(page, "期間を開始");
@@ -276,13 +277,11 @@ test("replaces a separately made book of the same dates after asking", async ({
   ]);
 
   await importBook(page, otherPath);
-  const dialog = page.getByRole("alertdialog", {
-    name: "帳簿を置き換えますか？",
-  });
+  const dialog = page.getByRole("alertdialog", { name: OVERWRITE_TITLE });
   await expect(dialog).toContainText(
-    "別に作られた同じ期間 (2026年分) の帳簿です。取り込むと、今の帳簿はすべて置き換わります。",
+    "アプリの中の「2026年分」とは別に作られた帳簿です。ファイルを優先して上書きすると、今の帳簿は失われます。",
   );
-  await dialog.getByRole("button", { name: "取り込む" }).click();
+  await dialog.getByRole("button", { name: "上書きする" }).click();
 
   await expectImported(page);
   await gotoInApp(page, "/fiscal-periods");
@@ -407,10 +406,9 @@ test("moves the periods the previous version kept in this browser into one book 
   await oldVersionTab.close();
   await waitUntilBootPhase(page, "ready");
 
-  await page
-    .getByRole("dialog", { name: "データの保存について" })
-    .getByRole("button", { name: "わかりました" })
-    .click();
+  await expect(
+    page.getByRole("status").filter({ hasText: KEPT_IN_BROWSER_MESSAGE }),
+  ).toBeVisible();
   await expect(page.getByRole("button", { name: /^2025年分 / })).toBeVisible();
   await expect(page.getByRole("button", { name: /^2026年分 / })).toBeVisible();
   await waitUntilBooksStored(page);

@@ -24,14 +24,6 @@ export type ConfirmDialogOptions = {
   confirmLabel: string;
 };
 
-export type ConfirmDialogExtraAction = {
-  label: string;
-  doneLabel: string;
-  run: () => Promise<void>;
-};
-
-type ExtraActionState = "idle" | "running" | "done";
-
 const toneMap = {
   success: {
     iconBg: palette.successBg,
@@ -49,26 +41,11 @@ const toneMap = {
 
 function ConfirmDialogView(
   props: ConfirmDialogOptions & {
-    extraAction: ConfirmDialogExtraAction | null;
     onConfirm: () => void;
     onCancel: () => void;
   },
 ) {
-  const { tone, title, body, confirmLabel, extraAction, onConfirm, onCancel } =
-    props;
-  const [extraActionState, setExtraActionState] =
-    useState<ExtraActionState>("idle");
-  const runExtraAction = async () => {
-    if (extraAction == null || extraActionState === "running") return;
-    setExtraActionState("running");
-    try {
-      await extraAction.run();
-      setExtraActionState("done");
-    } catch (error) {
-      console.error("[openkk] dialog action failed:", error);
-      setExtraActionState("idle");
-    }
-  };
+  const { tone, title, body, confirmLabel, onConfirm, onCancel } = props;
   const toneStyle = toneMap[tone];
   const ToneIcon = toneStyle.Icon;
   const titleId = useId();
@@ -185,18 +162,6 @@ function ConfirmDialogView(
             >
               キャンセル
             </button>
-            {extraAction != null ? (
-              <button
-                type="button"
-                onClick={() => void runExtraAction()}
-                disabled={extraActionState === "running"}
-                style={cancelStyle}
-              >
-                {extraActionState === "done"
-                  ? extraAction.doneLabel
-                  : extraAction.label}
-              </button>
-            ) : null}
             <button
               type="button"
               onClick={onConfirm}
@@ -211,13 +176,8 @@ function ConfirmDialogView(
   );
 }
 
-type ConfirmDialogRequest = {
-  options: ConfirmDialogOptions;
-  extraAction: ConfirmDialogExtraAction | null;
-};
-
 export function useConfirmDialog() {
-  const [request, setRequest] = useState<ConfirmDialogRequest | null>(null);
+  const [request, setRequest] = useState<ConfirmDialogOptions | null>(null);
   const resolverRef = useRef(new ConfirmDialogResolver());
 
   useEffect(
@@ -227,17 +187,11 @@ export function useConfirmDialog() {
     [],
   );
 
-  const confirmWithExtraAction = (
-    dialogOptions: ConfirmDialogOptions,
-    extraAction: ConfirmDialogExtraAction | null,
-  ): Promise<boolean> =>
+  const confirm = (dialogOptions: ConfirmDialogOptions): Promise<boolean> =>
     new Promise((resolve) => {
       resolverRef.current.start(resolve);
-      setRequest({ options: dialogOptions, extraAction });
+      setRequest(dialogOptions);
     });
-
-  const confirm = (dialogOptions: ConfirmDialogOptions): Promise<boolean> =>
-    confirmWithExtraAction(dialogOptions, null);
 
   const dismiss = (result: boolean) => {
     resolverRef.current.settle(result);
@@ -246,14 +200,13 @@ export function useConfirmDialog() {
 
   const dialog = request ? (
     <ConfirmDialogView
-      {...request.options}
-      extraAction={request.extraAction}
+      {...request}
       onConfirm={() => dismiss(true)}
       onCancel={() => dismiss(false)}
     />
   ) : null;
 
-  return { confirm, confirmWithExtraAction, dialog };
+  return { confirm, dialog };
 }
 
 const cancelStyle = {

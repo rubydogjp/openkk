@@ -21,7 +21,6 @@ import {
   ShellBookSaveCompact,
   useShellBookSave,
 } from "./book-save-button.js";
-import { BookStorageNotice } from "./book-storage-notice.js";
 import { OpenkkNoticesProvider } from "../shared/notices/notices.js";
 import { useDismissibleLayer } from "../shared/dismissible-layer.js";
 import { MaintenanceScreen } from "./maintenance-content.js";
@@ -340,13 +339,13 @@ function ShellChrome({
           }}
         >
           <ShellNotices
+            hasSession={hasSession}
             bookFile={bookSave?.bookFile ?? null}
             onSave={bookSave?.save ?? null}
           />
           {children}
         </div>
       </main>
-      {hasSession ? <BookStorageNotice /> : null}
     </>
   );
 }

@@ -44,38 +44,43 @@ describe("reviewBookImport", () => {
   it.each([
     [
       "changed_outside",
-      "アプリの外で変更がありました。取り込むと、アプリの中の帳簿をこのファイルの内容に置き換えます。",
+      "ファイルを優先して、アプリの中の「2026年分」を上書きします。",
     ],
-    ["replaces_app_changes", "保存したあとにアプリで変えた内容は失われます。"],
+    [
+      "replaces_app_changes",
+      "アプリの中の「2026年分」に、保存していない変更があります。ファイルを優先して上書きすると失われます。",
+    ],
     [
       "changed_both",
-      "アプリの外で変更がありました。アプリの中にも保存していない変更があります。取り込むと、アプリの中の変更は失われます。",
+      "アプリの中の「2026年分」に、保存していない変更があります。ファイルを優先して上書きすると失われます。",
     ],
     [
       "same_dates",
-      "別に作られた同じ期間 (2026年分) の帳簿です。取り込むと、今の帳簿はすべて置き換わります。",
+      "アプリの中の「2026年分」とは別に作られた帳簿です。ファイルを優先して上書きすると、今の帳簿は失われます。",
     ],
-  ] as const)("asks before replacing: %s", (importCase, message) => {
+  ] as const)("asks before overwriting: %s", (importCase, message) => {
     expect(
       reviewBookImport([item(importCase, "2026年", existing2026)]),
-    ).toEqual({
-      kind: "confirm",
-      messages: [message],
-      replacedFiscalPeriodIds: ["fp-2026"],
-    });
+    ).toEqual({ kind: "confirm", messages: [message] });
   });
 
-  it("names each period when the file holds several", () => {
+  it("asks once for each period the file would overwrite", () => {
     expect(
       reviewBookImport([
         item("new", "2027年分", null),
         item("same", "2025年分", { id: "fp-2025", name: "2025年分" }),
         item("replaces_app_changes", "2026年分", existing2026),
+        item("changed_outside", "2024年分", {
+          id: "fp-2024",
+          name: "2024年分",
+        }),
       ]),
     ).toEqual({
       kind: "confirm",
-      messages: ["2026年分: 保存したあとにアプリで変えた内容は失われます。"],
-      replacedFiscalPeriodIds: ["fp-2026"],
+      messages: [
+        "アプリの中の「2026年分」に、保存していない変更があります。ファイルを優先して上書きすると失われます。",
+        "ファイルを優先して、アプリの中の「2024年分」を上書きします。",
+      ],
     });
   });
 

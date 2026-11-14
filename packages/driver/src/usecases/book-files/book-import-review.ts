@@ -9,11 +9,7 @@ export type BookImportReview =
   | { kind: "nothing_to_do"; message: string }
   | { kind: "blocked"; message: string }
   | { kind: "add" }
-  | {
-      kind: "confirm";
-      messages: string[];
-      replacedFiscalPeriodIds: string[];
-    };
+  | { kind: "confirm"; messages: string[] };
 
 type ReplacingCase = Exclude<
   OpenkkBookImportCase,
@@ -35,15 +31,15 @@ function replacingMessage(
   replacingCase: ReplacingCase,
   item: OpenkkBookImportItem,
 ): string {
+  const kept = `アプリの中の「${item.existingFiscalPeriodName ?? item.fiscalPeriodName}」`;
   switch (replacingCase) {
     case "changed_outside":
-      return "アプリの外で変更がありました。取り込むと、アプリの中の帳簿をこのファイルの内容に置き換えます。";
+      return `ファイルを優先して、${kept}を上書きします。`;
     case "replaces_app_changes":
-      return "保存したあとにアプリで変えた内容は失われます。";
     case "changed_both":
-      return "アプリの外で変更がありました。アプリの中にも保存していない変更があります。取り込むと、アプリの中の変更は失われます。";
+      return `${kept}に、保存していない変更があります。ファイルを優先して上書きすると失われます。`;
     case "same_dates":
-      return `別に作られた同じ期間 (${item.existingFiscalPeriodName ?? item.fiscalPeriodName}) の帳簿です。取り込むと、今の帳簿はすべて置き換わります。`;
+      return `${kept}とは別に作られた帳簿です。ファイルを優先して上書きすると、今の帳簿は失われます。`;
   }
 }
 
@@ -72,16 +68,9 @@ export function reviewBookImport(
   }
   const replacing = items.filter(isReplacing);
   if (replacing.length === 0) return { kind: "add" };
-  const named = items.length > 1;
   return {
     kind: "confirm",
-    messages: replacing.map((item) => {
-      const message = replacingMessage(item.case, item);
-      return named ? `${item.fiscalPeriodName}: ${message}` : message;
-    }),
-    replacedFiscalPeriodIds: replacing.flatMap((item) =>
-      item.existingFiscalPeriodId == null ? [] : [item.existingFiscalPeriodId],
-    ),
+    messages: replacing.map((item) => replacingMessage(item.case, item)),
   };
 }
 

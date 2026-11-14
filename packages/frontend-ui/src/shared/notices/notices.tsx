@@ -60,6 +60,7 @@ export type OpenkkStandingNotice = {
   message: string;
   action: { label: string; run: () => void } | null;
   closable: boolean;
+  onClose: (() => void) | null;
 };
 
 export function useOpenkkStandingNotice(
@@ -69,6 +70,8 @@ export function useOpenkkStandingNotice(
   const board = useNoticeBoard();
   const runAction = useRef<(() => void) | null>(null);
   runAction.current = notice?.action?.run ?? null;
+  const runOnClose = useRef<(() => void) | null>(null);
+  runOnClose.current = notice?.onClose ?? null;
   const tone = notice?.tone ?? null;
   const message = notice?.message ?? null;
   const actionLabel = notice?.action?.label ?? null;
@@ -80,6 +83,7 @@ export function useOpenkkStandingNotice(
       tone,
       message,
       closable,
+      onClose: () => runOnClose.current?.(),
       action:
         actionLabel == null
           ? null

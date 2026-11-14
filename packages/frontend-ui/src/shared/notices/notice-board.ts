@@ -17,6 +17,7 @@ export type PinnedNotice = {
   message: string;
   action: NoticeAction | null;
   closable: boolean;
+  onClose: (() => void) | null;
 };
 
 export type NoticeTimers = {
@@ -41,7 +42,18 @@ type BoardEntry = {
   postedOrder: number;
   pinned: boolean;
   cancelExpiry: (() => void) | null;
+  onClose: (() => void) | null;
 };
+
+function shownNotice(key: string, pinned: PinnedNotice): Notice {
+  return {
+    key,
+    tone: pinned.tone,
+    message: pinned.message,
+    action: pinned.action,
+    closable: pinned.closable,
+  };
+}
 
 function staysUntilResolved(entry: BoardEntry): boolean {
   return entry.pinned && !entry.notice.closable;
@@ -114,6 +126,7 @@ export function createNoticeBoard(timers: NoticeTimers): NoticeBoard {
             result.tone === "success"
               ? timers.start(() => remove(key), SUCCESS_NOTICE_LIFETIME_MS)
               : null,
+          onClose: null,
         },
       ]);
     },
@@ -124,7 +137,11 @@ export function createNoticeBoard(timers: NoticeTimers): NoticeBoard {
         publish(
           entries.map((entry) =>
             entry === current
-              ? { ...entry, notice: { ...notice, key } }
+              ? {
+                  ...entry,
+                  notice: shownNotice(key, notice),
+                  onClose: notice.onClose,
+                }
               : entry,
           ),
         );
@@ -134,10 +151,11 @@ export function createNoticeBoard(timers: NoticeTimers): NoticeBoard {
       publish([
         ...entries,
         {
-          notice: { ...notice, key },
+          notice: shownNotice(key, notice),
           postedOrder: sequence,
           pinned: true,
           cancelExpiry: null,
+          onClose: notice.onClose,
         },
       ]);
     },
@@ -147,6 +165,7 @@ export function createNoticeBoard(timers: NoticeTimers): NoticeBoard {
       if (target == null || !target.notice.closable) return;
       if (target.pinned) dismissedPinKeys.add(key);
       remove(key);
+      target.onClose?.();
     },
     dispose() {
       for (const entry of entries) entry.cancelExpiry?.();

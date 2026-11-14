@@ -50,8 +50,7 @@ export function FiscalPeriodsContent() {
     openkkConfig.fiscalPeriodPolicy.allowLegacyArchiveImport;
   const bookFiles = useOpenkkBookFiles();
   const platform = usePlatformAdapter();
-  const { confirmWithExtraAction, dialog: bookImportDialog } =
-    useConfirmDialog();
+  const { confirm, dialog: bookImportDialog } = useConfirmDialog();
   const notices = useOpenkkNotices();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const archiveImportLock = useRef(new ExclusiveActionLock());
@@ -109,23 +108,12 @@ export function FiscalPeriodsContent() {
         return;
       }
       if (review.kind === "confirm") {
-        const confirmed = await confirmWithExtraAction(
-          {
-            tone: "danger",
-            title: "帳簿を置き換えますか？",
-            body: review.messages,
-            confirmLabel: "取り込む",
-          },
-          {
-            label: "先に今のデータを保存",
-            doneLabel: "保存しました",
-            run: async () => {
-              for (const fiscalPeriodId of review.replacedFiscalPeriodIds) {
-                await bookFiles.save(fiscalPeriodId);
-              }
-            },
-          },
-        );
+        const confirmed = await confirm({
+          tone: "danger",
+          title: "ファイルで上書きしますか？",
+          body: review.messages,
+          confirmLabel: "上書きする",
+        });
         if (!confirmed) return;
       }
       const importedIds = await plan.apply();
