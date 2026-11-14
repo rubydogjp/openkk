@@ -2,7 +2,6 @@
 
 import { useOpenkkConfig } from "../bindings/index.js";
 
-import { AppErrorText } from "../shared/app-error-text.js";
 import {
   fontSize,
   fontWeight,
@@ -98,15 +97,6 @@ export function SignInContent() {
         >
           {submitting ? "処理中…" : "サインイン"}
         </button>
-        {auth.authActionError != null ? (
-          <div style={{ marginTop: 12 }}>
-            <AppErrorText
-              error={auth.authActionError}
-              style={null}
-              fallbackUserMessage={null}
-            />
-          </div>
-        ) : null}
       </section>
     </div>
   );

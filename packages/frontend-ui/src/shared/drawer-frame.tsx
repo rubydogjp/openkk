@@ -37,6 +37,7 @@ export function DrawerFrame(props: {
         aria-modal="true"
         aria-label={props.label}
         tabIndex={-1}
+        className="bk-drawer"
         style={{
           position: "fixed",
           top: 0,

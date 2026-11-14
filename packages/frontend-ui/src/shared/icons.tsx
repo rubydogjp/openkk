@@ -349,3 +349,90 @@ export function CloseIcon({ size, color }: IconProps) {
     </svg>
   );
 }
+
+export type FilledMarkIconProps = {
+  size: number;
+  color: string;
+  markColor: string;
+};
+
+export function CheckCircleFilledIcon({
+  size,
+  color,
+  markColor,
+}: FilledMarkIconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="10.5" fill={color} />
+      <path
+        d="M7.4 12.3l3.1 3.1 6.1-6.6"
+        stroke={markColor}
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function WarningTriangleFilledIcon({
+  size,
+  color,
+  edgeColor,
+  markColor,
+}: FilledMarkIconProps & { edgeColor: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M10.4 3.4L1.7 18.4A1.85 1.85 0 0 0 3.3 21.2h17.4a1.85 1.85 0 0 0 1.6-2.8L13.6 3.4a1.85 1.85 0 0 0-3.2 0z"
+        fill={color}
+        stroke={edgeColor}
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 9v5"
+        stroke={markColor}
+        strokeWidth="2.2"
+        strokeLinecap="round"
+      />
+      <circle cx="12" cy="17.3" r="1.2" fill={markColor} />
+    </svg>
+  );
+}
+
+export function CrossCircleFilledIcon({
+  size,
+  color,
+  markColor,
+}: FilledMarkIconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="10.5" fill={color} />
+      <path
+        d="M8.3 8.3l7.4 7.4M15.7 8.3l-7.4 7.4"
+        stroke={markColor}
+        strokeWidth="2.2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}

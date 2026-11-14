@@ -387,7 +387,7 @@ export function EntryEditDrawer(props: {
         aria-modal="true"
         aria-label={props.mode === "create" ? "仕訳の新規作成" : "仕訳の編集"}
         tabIndex={-1}
-        className="bk-entry-drawer"
+        className="bk-entry-drawer bk-drawer"
         style={{
           position: "fixed",
           top: 0,

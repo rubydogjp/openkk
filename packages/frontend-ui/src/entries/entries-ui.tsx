@@ -129,11 +129,6 @@ function ChevronSmall({ direction }: { direction: "previous" | "next" }) {
   );
 }
 
-export type EntryStatusMessage = {
-  kind: "info" | "success" | "error";
-  text: string;
-};
-
 export type EntriesView = "month" | "table";
 
 export function EntriesViewSwitch(props: {
@@ -197,7 +192,6 @@ export function EntriesScreen(props: {
   onAddEntry: (() => void) | null;
   onOpenEntry: ((row: EntryPreviewRow, index: number) => void) | null;
   activeRecordId: string | null;
-  statusMessage: EntryStatusMessage | null;
   lockedMessage: PeriodLockMessage | null;
 }) {
   if (props.lockedMessage != null) {
@@ -263,10 +257,6 @@ export function EntriesScreen(props: {
             ) : null}
           </div>
         </div>
-
-        {props.statusMessage != null ? (
-          <StatusBanner message={props.statusMessage} />
-        ) : null}
 
         <div style={{ flex: 1, minHeight: 320 }}>
           <EntriesTable
@@ -479,38 +469,6 @@ function VirtualEntrySummaryRow(props: {
       >
         {props.value}
       </div>
-    </div>
-  );
-}
-
-export function StatusBanner({ message }: { message: EntryStatusMessage }) {
-  const colors = (() => {
-    switch (message.kind) {
-      case "success":
-        return { bg: "#ECFDF5", border: "#A7F3D0", fg: "#065F46" };
-      case "error":
-        return { bg: "#FEF2F2", border: "#FCA5A5", fg: "#991B1B" };
-      default:
-        return { bg: "#EFF6FF", border: "#BFDBFE", fg: "#1E40AF" };
-    }
-  })();
-  return (
-    <div
-      style={{
-        marginBottom: 12,
-        borderRadius: 10,
-        border: `1px solid ${colors.border}`,
-        background: colors.bg,
-        color: colors.fg,
-        padding: "10px 14px",
-        fontSize: fontSize.base,
-        fontWeight: fontWeight.semibold,
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-      }}
-    >
-      {message.text}
     </div>
   );
 }

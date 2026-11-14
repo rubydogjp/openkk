@@ -9,7 +9,9 @@ import {
 } from "../bindings/index.js";
 import { AppError } from "@rubydogjp/openkk-driver";
 
+import { debugAppError } from "../shared/app-error-text.js";
 import { ExclusiveActionLock } from "../shared/exclusive-action-lock.js";
+import { useOpenkkNotices } from "../shared/notices/notices.js";
 import { useRouter } from "../routing/routing.js";
 
 export function useShellAuthActions() {
@@ -17,14 +19,18 @@ export function useShellAuthActions() {
   const openkkConfig = useOpenkkConfig();
   const navigation = usePlatformAdapter().navigation;
   const router = useRouter();
-  const [authActionError, setAuthActionError] = useState<unknown>(null);
+  const notices = useOpenkkNotices();
   const [authActionPending, setAuthActionPending] = useState(false);
   const authActionLock = useRef(new ExclusiveActionLock());
+
+  function showAuthActionFailure(error: AppError) {
+    debugAppError(error);
+    notices.show({ tone: "danger", message: error.messageForUser });
+  }
 
   async function handleSignIn() {
     const release = authActionLock.current.tryAcquire();
     if (release == null) return;
-    setAuthActionError(null);
     if (openkkConfig.authMode === "embedded") {
       appState.signInAsEmbeddedUser();
       release();
@@ -40,7 +46,7 @@ export function useShellAuthActions() {
       navigation.leaveTo(result.authUrl);
       navigationStarted = true;
     } catch (error) {
-      setAuthActionError(
+      showAuthActionFailure(
         AppError.from(error, {
           fallbackUserMessage: "サインインを開始できませんでした",
           fallbackDeveloperMessage: "shell: startSignIn failed",
@@ -58,12 +64,11 @@ export function useShellAuthActions() {
   async function handleSignOut() {
     const release = authActionLock.current.tryAcquire();
     if (release == null) return;
-    setAuthActionError(null);
     setAuthActionPending(true);
     try {
       await appState.signOut();
     } catch (error) {
-      setAuthActionError(
+      showAuthActionFailure(
         AppError.from(error, {
           fallbackUserMessage:
             "この端末ではサインアウトしましたが、サーバーへの通知に失敗しました",
@@ -80,7 +85,6 @@ export function useShellAuthActions() {
   }
 
   return {
-    authActionError,
     authActionPending,
     signIn: () => void handleSignIn(),
     signOut: () => void handleSignOut(),

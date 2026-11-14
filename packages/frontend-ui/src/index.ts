@@ -17,6 +17,17 @@ export * from "./shared/document-file-tile.js";
 export * from "./shared/form-fields.js";
 export * from "./shared/icons.js";
 export * from "./shared/locked-action.js";
+export {
+  OpenkkNoticesProvider,
+  useOpenkkNotices,
+  useOpenkkStandingNotice,
+  type OpenkkNotices,
+  type OpenkkStandingNotice,
+} from "./shared/notices/notices.js";
+export type {
+  NoticeResult,
+  NoticeTone,
+} from "./shared/notices/notice-board.js";
 export * from "./shared/pl-bs-diagram.js";
 export * from "./shared/work-in-progress.js";
 

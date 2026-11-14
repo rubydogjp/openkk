@@ -19,7 +19,6 @@ import {
   sizes,
   spacing,
 } from "../shared/design-tokens.js";
-import { StatusBanner, type EntryStatusMessage } from "./entries-ui.js";
 import {
   EntryFileActionsButton,
   type EntryFileKind,
@@ -82,7 +81,6 @@ export function JournalTableScreen(props: {
   viewSwitch: ReactNode;
   rows: JournalTableScreenRow[];
   review: JournalTableReview | null;
-  statusMessage: EntryStatusMessage | null;
   lockedMessage: PeriodLockMessage | null;
   onImportFile: ((kind: EntryFileKind, file: File) => void) | null;
   onExport: ((kind: EntryFileKind) => void) | null;
@@ -139,9 +137,6 @@ export function JournalTableScreen(props: {
           />
         ) : (
           <>
-            {props.statusMessage != null ? (
-              <StatusBanner message={props.statusMessage} />
-            ) : null}
             {props.review != null ? (
               <ReviewBar
                 review={props.review}

@@ -16,15 +16,13 @@ import {
   sizes,
 } from "../shared/design-tokens.js";
 import { normalizePathname } from "../shared/pathname.js";
-import { DataLoadErrorBanner } from "./data-load-error-banner.js";
 import {
   ShellBookSave,
   ShellBookSaveCompact,
   useShellBookSave,
 } from "./book-save-button.js";
-import { BookStatusBanner } from "./book-status-banner.js";
 import { BookStorageNotice } from "./book-storage-notice.js";
-import { AppErrorText } from "../shared/app-error-text.js";
+import { OpenkkNoticesProvider } from "../shared/notices/notices.js";
 import { useDismissibleLayer } from "../shared/dismissible-layer.js";
 import { MaintenanceScreen } from "./maintenance-content.js";
 import { LegacyPurgedFiscalPeriodScreen } from "../legacy/legacy-purged-fiscal-period-screen.js";
@@ -41,11 +39,20 @@ import {
 import { ShellAccountMenu } from "./shell-account-menu.js";
 import { ShellFiscalPeriodMenu } from "./shell-fiscal-period-menu.js";
 import { ShellNav } from "./shell-nav.js";
+import { ShellNotices } from "./shell-notices.js";
 import { SHELL_PALETTE } from "./shell-palette.js";
 import { useShellAuthActions } from "./use-shell-auth-actions.js";
 import { usePathname, useRouter } from "../routing/routing.js";
 
 export function OpenkkShellLayout(props: { children: ReactNode }) {
+  return (
+    <OpenkkNoticesProvider>
+      <ShellScreen>{props.children}</ShellScreen>
+    </OpenkkNoticesProvider>
+  );
+}
+
+function ShellScreen(props: { children: ReactNode }) {
   const pathname = normalizePathname(usePathname());
   const router = useRouter();
   const appState = useOpenkkAppState();
@@ -332,27 +339,10 @@ function ShellChrome({
             background: palette.surface,
           }}
         >
-          {auth.authActionError != null ? (
-            <div
-              role="alert"
-              style={{
-                padding: "10px 16px",
-                background: palette.dangerBg,
-                borderBottom: `1px solid ${palette.dangerBorder}`,
-              }}
-            >
-              <AppErrorText
-                error={auth.authActionError}
-                style={null}
-                fallbackUserMessage={null}
-              />
-            </div>
-          ) : null}
-          <BookStatusBanner
+          <ShellNotices
             bookFile={bookSave?.bookFile ?? null}
             onSave={bookSave?.save ?? null}
           />
-          <DataLoadErrorBanner />
           {children}
         </div>
       </main>

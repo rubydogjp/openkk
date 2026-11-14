@@ -18,9 +18,10 @@ import {
   reviewBookImport,
 } from "@rubydogjp/openkk-driver";
 import { AddButton } from "../shared/add-button.js";
-import { AppErrorText } from "../shared/app-error-text.js";
+import { debugAppError } from "../shared/app-error-text.js";
 import { useConfirmDialog } from "../shared/confirm-dialog.js";
 import { LockButton } from "../shared/locked-action.js";
+import { useOpenkkNotices } from "../shared/notices/notices.js";
 import { ExclusiveActionLock } from "../shared/exclusive-action-lock.js";
 import { usePopoverLifecycle } from "../shared/dismissible-layer.js";
 import { formatCalendarDate } from "../shared/calendar-date.js";
@@ -51,12 +52,15 @@ export function FiscalPeriodsContent() {
   const platform = usePlatformAdapter();
   const { confirmWithExtraAction, dialog: bookImportDialog } =
     useConfirmDialog();
-  const [bookImportNotice, setBookImportNotice] = useState<string | null>(null);
+  const notices = useOpenkkNotices();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const archiveImportLock = useRef(new ExclusiveActionLock());
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const [isImportingArchive, setIsImportingArchive] = useState(false);
-  const [screenError, setScreenError] = useState<unknown>(null);
+  const showImportFailure = (error: AppError) => {
+    debugAppError(error);
+    notices.show({ tone: "danger", message: error.messageForUser });
+  };
   const { containerRef: fileMenuContainerRef, popupRef: fileMenuRef } =
     usePopoverLifecycle<HTMLDivElement, HTMLDivElement>({
       open: fileMenuOpen,
@@ -68,13 +72,11 @@ export function FiscalPeriodsContent() {
     if (release == null) return;
     setIsImportingArchive(true);
     try {
-      setScreenError(null);
-      setBookImportNotice(null);
       const createdId = await importLegacyArchiveZipFile(appState, file);
       appState.selectFiscalPeriod(createdId);
       router.push("/steps");
     } catch (error) {
-      setScreenError(
+      showImportFailure(
         AppError.from(error, {
           fallbackUserMessage: "圧縮済みファイルの展開に失敗しました",
           fallbackDeveloperMessage:
@@ -93,19 +95,17 @@ export function FiscalPeriodsContent() {
     const release = archiveImportLock.current.tryAcquire();
     if (release == null) return;
     setIsImportingArchive(true);
-    setScreenError(null);
-    setBookImportNotice(null);
     try {
       const plan = await bookFiles.inspect(
         new Uint8Array(await file.arrayBuffer()),
       );
       const review = reviewBookImport(plan.items);
       if (review.kind === "nothing_to_do") {
-        setBookImportNotice(review.message);
+        notices.show({ tone: "success", message: review.message });
         return;
       }
       if (review.kind === "blocked") {
-        setScreenError(bookImportError(review.message));
+        showImportFailure(bookImportError(review.message));
         return;
       }
       if (review.kind === "confirm") {
@@ -144,7 +144,7 @@ export function FiscalPeriodsContent() {
       }
       platform.navigation.reloadAt("/steps");
     } catch (error) {
-      setScreenError(
+      showImportFailure(
         bookImportError(
           bookFileProblemMessage(error) ??
             "帳簿のファイルを取り込めませんでした",
@@ -162,7 +162,7 @@ export function FiscalPeriodsContent() {
       return;
     }
     if (bookFiles == null) {
-      setScreenError(bookImportError("このファイルは取り込めません"));
+      showImportFailure(bookImportError("このファイルは取り込めません"));
       return;
     }
     await handleBookFile(file);
@@ -294,27 +294,6 @@ export function FiscalPeriodsContent() {
           )}
         </div>
 
-        {bookImportNotice != null ? (
-          <div
-            role="status"
-            style={{
-              marginBottom: 12,
-              fontSize: fontSize.base,
-              color: palette.textSoft,
-            }}
-          >
-            {bookImportNotice}
-          </div>
-        ) : null}
-        {screenError != null ? (
-          <div style={{ marginBottom: 12 }}>
-            <AppErrorText
-              error={screenError}
-              style={null}
-              fallbackUserMessage={null}
-            />
-          </div>
-        ) : null}
         <FiscalPeriodsTable
           items={appState.fiscalPeriods}
           onSelect={(periodId) => {

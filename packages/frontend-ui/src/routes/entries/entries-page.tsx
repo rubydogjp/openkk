@@ -39,7 +39,6 @@ import {
   VirtualEntryDrawer,
   type EntriesView,
   type EntryFileKind,
-  type EntryStatusMessage,
 } from "../../entries/entries-ui.js";
 import {
   JournalTableScreen,
@@ -49,6 +48,7 @@ import {
 import { EntryEditDrawer } from "../../entries/entry-edit-drawer.js";
 import { entryRecordToDraft } from "../../entries/entry-edit-model.js";
 import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
+import { useOpenkkNotices } from "../../shared/notices/notices.js";
 import { pathWithSearchParams } from "../../shared/pathname.js";
 import { useRouter, useSearchParams } from "../../routing/routing.js";
 
@@ -91,9 +91,7 @@ export function EntriesPage() {
       currentFiscalPeriod?.endDate ?? null,
     ),
   );
-  const [statusMessage, setStatusMessage] = useState<EntryStatusMessage | null>(
-    null,
-  );
+  const notices = useOpenkkNotices();
   const [newEntryDraft, setNewEntryDraft] = useState<EntryDraft | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [tableImport, setTableImport] = useState<JournalTableImport | null>(
@@ -131,12 +129,6 @@ export function EntriesPage() {
     setNewEntryDraft(null);
     setTableImport(null);
   }, [fiscalPeriodId]);
-
-  useEffect(() => {
-    if (statusMessage == null) return;
-    const timer = setTimeout(() => setStatusMessage(null), 4500);
-    return () => clearTimeout(timer);
-  }, [statusMessage]);
 
   const periodStartMonth = currentFiscalPeriod
     ? parseYearMonth(currentFiscalPeriod.startDate)
@@ -287,13 +279,13 @@ export function EntriesPage() {
 
   const handleImportFile = async (kind: EntryFileKind, file: File) => {
     if (fiscalPeriodId == null || currentFiscalPeriod == null) {
-      setStatusMessage({ kind: "error", text: "期間が未選択です" });
+      notices.show({ tone: "danger", message: "期間が未選択です" });
       return;
     }
     if (!canImport) {
-      setStatusMessage({
-        kind: "error",
-        text: "この期間はロックされており取り込めません",
+      notices.show({
+        tone: "danger",
+        message: "この期間はロックされており取り込めません",
       });
       return;
     }
@@ -348,14 +340,14 @@ export function EntriesPage() {
         importedEntries,
       );
       if (selectedFiscalPeriodId.current !== fiscalPeriodId) return;
-      setStatusMessage({
-        kind: "success",
-        text: `${legacyCsv ? "以前の形式の CSV なので、足すだけで" : ""}取り込みました(取込 ${result.imported} 件 / 重複スキップ ${result.skipped} 件)`,
+      notices.show({
+        tone: "success",
+        message: `${legacyCsv ? "以前の形式の CSV なので、足すだけで" : ""}取り込みました(取込 ${result.imported} 件 / 重複スキップ ${result.skipped} 件)`,
       });
     } catch (error) {
-      setStatusMessage({
-        kind: "error",
-        text: AppError.from(error, {
+      notices.show({
+        tone: "danger",
+        message: AppError.from(error, {
           fallbackUserMessage: "取り込みに失敗しました",
           fallbackDeveloperMessage: "entries: import file failed",
           statusCode: null,
@@ -378,14 +370,14 @@ export function EntriesPage() {
         tableImport.fiscalPeriodId,
         changes,
       );
-      setStatusMessage({
-        kind: "success",
-        text: `反映しました(追加 ${changes.added.length} 件 / 変更 ${changes.changed.length} 件 / 削除 ${changes.removed.length} 件)`,
+      notices.show({
+        tone: "success",
+        message: `反映しました(追加 ${changes.added.length} 件 / 変更 ${changes.changed.length} 件 / 削除 ${changes.removed.length} 件)`,
       });
     } catch (error) {
-      setStatusMessage({
-        kind: "error",
-        text: AppError.from(error, {
+      notices.show({
+        tone: "danger",
+        message: AppError.from(error, {
           fallbackUserMessage:
             "反映の途中で失敗しました。同じ CSV をもう一度取り込むと、残りを反映できます",
           fallbackDeveloperMessage: "entries: apply journal table failed",
@@ -400,7 +392,7 @@ export function EntriesPage() {
 
   const handleExport = (kind: EntryFileKind) => {
     if (currentFiscalPeriod == null) {
-      setStatusMessage({ kind: "error", text: "期間が未選択です" });
+      notices.show({ tone: "danger", message: "期間が未選択です" });
       return;
     }
     const data = formatJournalExport(
@@ -419,7 +411,7 @@ export function EntriesPage() {
         ? "application/json;charset=utf-8"
         : "text/csv;charset=utf-8",
     );
-    setStatusMessage({ kind: "success", text: `${filename} を出力しました` });
+    notices.show({ tone: "success", message: `${filename} を出力しました` });
   };
 
   const switchView = (next: EntriesView) => {
@@ -467,7 +459,6 @@ export function EntriesPage() {
           viewSwitch={viewSwitch}
           rows={journalTableRows}
           review={tableReview}
-          statusMessage={statusMessage}
           lockedMessage={screenLockedMessage}
           onImportFile={canImport && !isImporting ? handleImportFile : null}
           onExport={fiscalPeriodId != null ? handleExport : null}
@@ -493,7 +484,6 @@ export function EntriesPage() {
           onNext={() => navigateWithMonth(shiftMonth(displayedMonth, 1))}
           lockedMessage={screenLockedMessage}
           readOnly={isReadOnlyPeriod || editingLocked}
-          statusMessage={statusMessage}
           activeRecordId={
             !isReadOnlyPeriod && !editingLocked && drawerEntry != null
               ? drawerEntry.id

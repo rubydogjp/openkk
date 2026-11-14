@@ -378,10 +378,14 @@ test("reminds to save a period that was changed and not saved for 30 days", asyn
 
   await page.clock.setFixedTime(start + 80 * DAY_MS);
   await reloadInApp(page);
-  await expect(page.getByText("30 日以上たちました")).toHaveCount(0);
+  await expect(page.getByText("30 日、ファイルに保存していません")).toHaveCount(
+    0,
+  );
   await startOpenedPeriod(page);
   await expect(
-    page.getByRole("status").filter({ hasText: "30 日以上たちました" }),
+    page
+      .getByRole("status")
+      .filter({ hasText: "30 日、ファイルに保存していません" }),
   ).toBeVisible();
 });
 
