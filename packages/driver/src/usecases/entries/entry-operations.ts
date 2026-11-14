@@ -62,7 +62,7 @@ function assertChangesMatchStoredEntries(
     messageForDeveloper:
       "entries: stored entries differ from the ones the journal table changes were compared with",
     messageForUser:
-      "確かめたあとに仕訳が変わったため、何も反映しませんでした。もう一度ファイルを取り込んでください",
+      "確かめたあとに仕訳が変わったため、何も変えていません。もう一度ファイルを取り込んでください",
     originalMessage: null,
     statusCode: null,
     code: null,

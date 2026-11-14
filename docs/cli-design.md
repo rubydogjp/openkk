@@ -61,7 +61,7 @@
 ```
 openkk init
 openkk periods list | show | create --name --start --end | start <期間id>
-openkk entries list [--json] | add | import <file.csv> [--yes] | export   # CSV は表の形。import は置き換えで、--yes がなければ違いを出して止まる (JSON は非推奨)
+openkk entries list [--json] | add | import <file.csv> [--yes] | export   # CSV は表の形。import は上書きで、--yes がなければ違いを出して止まる (JSON は非推奨)
 openkk report <期間id> journal|ledger|fs [--out <file.html>]
 openkk archive import <zip>                          # 以前の圧縮済みファイルを取り込む (レガシー。書き出しは periods export で .openkk に)
 openkk opening show | set <期間id> <科目>=<金額> ...

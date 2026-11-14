@@ -133,7 +133,7 @@ function SheetButton(props: { onClick: () => void }) {
   return (
     <button
       type="button"
-      className="bk-entries-sheet-button"
+      className="bk-entries-sheet-button bk-narrow-icon-only"
       onClick={props.onClick}
       aria-label="シート"
       style={{
@@ -154,7 +154,7 @@ function SheetButton(props: { onClick: () => void }) {
       }}
     >
       <BorderAllIcon size={18} color="currentColor" />
-      <span className="bk-entries-sheet-button-label">シート</span>
+      <span className="bk-button-label">シート</span>
     </button>
   );
 }

@@ -8,6 +8,7 @@ import {
   buildFiscalPeriodJournalFilename,
   buildJournalTableRows,
   formatJournalExport,
+  hasJournalTableChanges,
   planJournalImport,
   buildVirtualEntryRows,
   journalEntryNumber,
@@ -16,7 +17,6 @@ import {
   formatIsoLocalDate,
   formatYearMonthKey,
   parseYearMonth,
-  type EntryRecord,
   type JournalTableChanges,
   type JournalTableProblem,
   type YearMonth,
@@ -46,11 +46,12 @@ import {
 } from "../../entries/entries-view.js";
 import {
   JournalSheetScreen,
-  type JournalSheetReview,
   type JournalSheetRow,
 } from "../../entries/journal-sheet-screen.js";
 import { EntryEditDrawer } from "../../entries/entry-edit-drawer.js";
+import { ImportProblemsDialog } from "../../entries/import-problems-dialog.js";
 import { entryRecordToDraft } from "../../entries/entry-edit-model.js";
+import { useConfirmDialog } from "../../shared/confirm-dialog.js";
 import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 import { useOpenkkNotices } from "../../shared/notices/notices.js";
 import { pathWithSearchParams } from "../../shared/pathname.js";
@@ -60,19 +61,16 @@ import {
 } from "../../shell/book-save-button.js";
 import { useRouter, useSearchParams } from "../../routing/routing.js";
 
-type JournalTableImport =
-  | {
-      kind: "changes";
-      fiscalPeriodId: string;
-      incoming: EntryRecord[];
-      changes: JournalTableChanges;
-      applying: boolean;
-    }
-  | {
-      kind: "problems";
-      fiscalPeriodId: string;
-      problems: JournalTableProblem[];
-    };
+const SAME_AS_STORED_MESSAGE = "今の仕訳と同じです";
+const REMOVES_ENTRIES_NOT_IN_FILE_MESSAGE = "ファイルにない仕訳は消えます。";
+
+function changeCountsMessage(changes: JournalTableChanges): string {
+  return `追加 ${changes.added.length} 件・変更 ${changes.changed.length} 件・削除 ${changes.removed.length} 件 (そのまま ${changes.unchangedCount} 件)`;
+}
+
+function overwrittenMessage(changes: JournalTableChanges): string {
+  return `上書きしました (追加 ${changes.added.length}・変更 ${changes.changed.length}・削除 ${changes.removed.length})`;
+}
 
 export function EntriesPage() {
   const router = useRouter();
@@ -99,9 +97,11 @@ export function EntriesPage() {
   const notices = useOpenkkNotices();
   const [newEntryDraft, setNewEntryDraft] = useState<EntryDraft | null>(null);
   const [isImporting, setIsImporting] = useState(false);
-  const [tableImport, setTableImport] = useState<JournalTableImport | null>(
-    null,
-  );
+  const [importProblems, setImportProblems] = useState<
+    JournalTableProblem[] | null
+  >(null);
+  const { confirm: confirmOverwrite, dialog: overwriteDialog } =
+    useConfirmDialog();
   const showsSheet = showsEntriesSheet(ENTRIES_PATH, searchParams);
   const bookSave = useShellBookSave(showsSheet ? currentFiscalPeriod : null);
   const importLock = useRef(new ExclusiveActionLock());
@@ -132,7 +132,7 @@ export function EntriesPage() {
 
   useEffect(() => {
     setNewEntryDraft(null);
-    setTableImport(null);
+    setImportProblems(null);
   }, [fiscalPeriodId]);
 
   const periodStartMonth = currentFiscalPeriod
@@ -311,21 +311,30 @@ export function EntriesPage() {
         master: entriesState.journalTableMaster,
       });
       if (plan.kind === "problems") {
-        setTableImport({
-          kind: "problems",
-          fiscalPeriodId,
-          problems: plan.problems,
-        });
+        setImportProblems(plan.problems);
         return;
       }
       if (plan.kind === "replace") {
-        setTableImport({
-          kind: "changes",
-          fiscalPeriodId,
-          incoming: plan.incoming,
-          changes: plan.changes,
-          applying: false,
+        const { changes } = plan;
+        if (!hasJournalTableChanges(changes)) {
+          notices.show({ tone: "success", message: SAME_AS_STORED_MESSAGE });
+          return;
+        }
+        const confirmed = await confirmOverwrite({
+          tone: "danger",
+          title: "CSV で上書きしますか？",
+          body: [
+            changeCountsMessage(changes),
+            ...(changes.removed.length > 0
+              ? [REMOVES_ENTRIES_NOT_IN_FILE_MESSAGE]
+              : []),
+          ],
+          confirmLabel: "上書きする",
         });
+        if (!confirmed || selectedFiscalPeriodId.current !== fiscalPeriodId) {
+          return;
+        }
+        await overwriteWithCsv(fiscalPeriodId, changes);
         return;
       }
       const importedEntries = plan.entries;
@@ -364,34 +373,26 @@ export function EntriesPage() {
     }
   };
 
-  const handleApplyTableImport = async () => {
-    if (tableImport?.kind !== "changes") return;
-    const release = importLock.current.tryAcquire();
-    if (release == null) return;
-    const { changes } = tableImport;
-    setTableImport({ ...tableImport, applying: true });
+  const overwriteWithCsv = async (
+    targetFiscalPeriodId: string,
+    changes: JournalTableChanges,
+  ) => {
     try {
       await entriesState.applyJournalTableChanges(
-        tableImport.fiscalPeriodId,
+        targetFiscalPeriodId,
         changes,
       );
-      notices.show({
-        tone: "success",
-        message: `反映しました(追加 ${changes.added.length} 件 / 変更 ${changes.changed.length} 件 / 削除 ${changes.removed.length} 件)`,
-      });
+      notices.show({ tone: "success", message: overwrittenMessage(changes) });
     } catch (error) {
       notices.show({
         tone: "danger",
         message: AppError.from(error, {
           fallbackUserMessage:
-            "反映の途中で失敗しました。同じ CSV をもう一度取り込むと、残りを反映できます",
+            "上書きの途中で失敗しました。同じ CSV をもう一度取り込むと、残りを上書きできます",
           fallbackDeveloperMessage: "entries: apply journal table failed",
           statusCode: null,
         }).messageForUser,
       });
-    } finally {
-      setTableImport(null);
-      release();
     }
   };
 
@@ -426,7 +427,7 @@ export function EntriesPage() {
     params.delete("entry");
     params.delete("virtualEntry");
     setNewEntryDraft(null);
-    setTableImport(null);
+    setImportProblems(null);
     router.replaceKeepingScroll(pathWithSearchParams(ENTRIES_PATH, params));
   };
 
@@ -435,25 +436,10 @@ export function EntriesPage() {
   );
   const journalSheetRows: JournalSheetRow[] = !showsSheet
     ? []
-    : tableImport?.kind === "changes"
-      ? buildReviewRows(tableImport, entriesState.journalTableMaster)
-      : buildJournalTableRows(
-          fullPeriodEntries,
-          entriesState.journalTableMaster,
-        ).map((row) => ({ ...row, entryKey: row.entryNumber, status: null }));
-  const sheetReview: JournalSheetReview | null =
-    tableImport == null
-      ? null
-      : tableImport.kind === "problems"
-        ? { kind: "problems", problems: tableImport.problems }
-        : {
-            kind: "changes",
-            added: tableImport.changes.added.length,
-            changed: tableImport.changes.changed.length,
-            removed: tableImport.changes.removed.length,
-            unchanged: tableImport.changes.unchangedCount,
-            applying: tableImport.applying,
-          };
+    : buildJournalTableRows(
+        fullPeriodEntries,
+        entriesState.journalTableMaster,
+      ).map((row) => ({ ...row, entryKey: row.entryNumber }));
 
   return (
     <>
@@ -466,7 +452,6 @@ export function EntriesPage() {
             )
           }
           rows={journalSheetRows}
-          review={sheetReview}
           onBack={() => switchView(false)}
           lockedMessage={screenLockedMessage}
           onImportFile={canImport && !isImporting ? handleImportFile : null}
@@ -479,8 +464,6 @@ export function EntriesPage() {
                 }
               : null
           }
-          onApplyReview={() => void handleApplyTableImport()}
-          onDismissReview={() => setTableImport(null)}
         />
       ) : (
         <EntriesScreen
@@ -614,6 +597,13 @@ export function EntriesPage() {
           onOpenAssist={(href) => router.push(href)}
         />
       ) : null}
+      {overwriteDialog}
+      {importProblems != null ? (
+        <ImportProblemsDialog
+          problems={importProblems}
+          onClose={() => setImportProblems(null)}
+        />
+      ) : null}
     </>
   );
 }
@@ -737,35 +727,4 @@ function parseMonthParam(value: string | null): YearMonth | null {
   const month = Number(matched[2]);
   if (month < 1 || month > 12) return null;
   return { year: Number(matched[1]), month };
-}
-
-function buildReviewRows(
-  review: { incoming: EntryRecord[]; changes: JournalTableChanges },
-  master: Parameters<typeof buildJournalTableRows>[1],
-): JournalSheetRow[] {
-  const { changes } = review;
-  const statuses = new Map<string, JournalSheetRow["status"]>([
-    ...changes.added.map(
-      (entry) => [journalEntryNumber(entry), "added"] as const,
-    ),
-    ...changes.changed.map(
-      ({ next }) => [journalEntryNumber(next), "changed"] as const,
-    ),
-    ...changes.removed.map(
-      (entry) => [journalEntryNumber(entry), "removed"] as const,
-    ),
-  ]);
-  const unnumbered = new Set(
-    changes.added
-      .filter((entry) => entry.localId == null)
-      .map((entry) => entry.id),
-  );
-  return buildJournalTableRows([...review.incoming, ...changes.removed], master)
-    .map((row) => ({
-      ...row,
-      entryNumber: unnumbered.has(row.entryNumber) ? "" : row.entryNumber,
-      entryKey: row.entryNumber,
-      status: statuses.get(row.entryNumber) ?? null,
-    }))
-    .sort((left, right) => left.date.localeCompare(right.date));
 }

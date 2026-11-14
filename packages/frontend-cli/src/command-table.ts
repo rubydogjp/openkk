@@ -50,7 +50,7 @@ export const CLI_COMMAND_USAGE = `コマンド:
           --description <摘要> [--business-rate <0〜100>]
                                          借方・貸方 1 組の仕訳を足す
   entries import <期間id> <file.csv> [--yes]
-                                         CSV で仕訳を置き換える (仕訳番号で突き合わせ、ファイルにない仕訳は消す。
+                                         CSV で仕訳を上書きする (仕訳番号で突き合わせ、ファイルにない仕訳は消す。
                                          --yes がなければ違いだけ出す)
   entries import <期間id> <file.json>    JSON や以前の形式の CSV の仕訳を足す (非推奨。同じ localId は飛ばす)
   entries export <期間id> [--format csv|json] [--out <file>]

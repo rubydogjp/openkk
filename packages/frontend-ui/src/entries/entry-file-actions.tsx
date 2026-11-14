@@ -36,7 +36,9 @@ export function EntryFileActionsButton(props: {
       `}</style>
       <button
         type="button"
+        className="bk-narrow-icon-only"
         onClick={() => setOpen((current) => !current)}
+        aria-label="ファイル"
         aria-expanded={open}
         aria-haspopup="menu"
         style={{
@@ -52,14 +54,24 @@ export function EntryFileActionsButton(props: {
           cursor: "pointer",
           display: "inline-flex",
           alignItems: "center",
+          justifyContent: "center",
           gap: spacing.s8,
           whiteSpace: "nowrap",
           transition: "background 80ms ease",
         }}
       >
         <MaskIcon src="/icons/file-open.svg" size={16} color="currentColor" />
-        ファイル
-        <ChevronDown />
+        <span
+          className="bk-button-label"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: spacing.s8,
+          }}
+        >
+          ファイル
+          <ChevronDown />
+        </span>
       </button>
       {open ? (
         <div
@@ -92,7 +104,7 @@ export function EntryFileActionsButton(props: {
                   setOpen(false);
                 }}
               >
-                CSV ファイルから (置き換え)
+                CSV ファイルから (上書き)
               </FileMenuItem>
               <FileMenuItem
                 accept=".json,application/json"

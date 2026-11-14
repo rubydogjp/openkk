@@ -235,7 +235,7 @@ async function replaceEntries(
   const hasChanges = hasJournalTableChanges(changes);
   if (hasChanges && !options.yes) {
     throw new CliUsageError(
-      `CSV で仕訳を置き換えます (${describeChanges(changes)})。ファイルにない仕訳は消えます。反映するときは --yes を付けてください`,
+      `CSV で仕訳を上書きします (${describeChanges(changes)})。ファイルにない仕訳は消えます。上書きするときは --yes を付けてください`,
     );
   }
   if (hasChanges) {
@@ -266,7 +266,7 @@ function reportChanges(
 ): void {
   output.line(
     hasChanges
-      ? `置き換えました (${describeChanges(changes)})`
+      ? `上書きしました (${describeChanges(changes)})`
       : "CSV は今の仕訳と同じです",
   );
 }

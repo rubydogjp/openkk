@@ -207,17 +207,28 @@ body:has(.bk-shell-main--fills-screen) .bk-entry-drawer {
   background: var(--openkk-color-hover-strong, #e2e8f0);
 }
 @media (max-width: 640px) {
-  .bk-entries-sheet-button {
+  .bk-narrow-icon-only {
     width: var(--openkk-size-button-icon-only, 36px);
+    min-width: 0 !important;
     padding: 0 !important;
+    gap: 0 !important;
   }
-  .bk-entries-sheet-button-label {
-    display: none;
+  .bk-narrow-icon-only .bk-button-label {
+    display: none !important;
+  }
+  .bk-sheet-period-name {
+    visibility: hidden;
   }
   .bk-month-label {
     min-width: 0 !important;
     padding: 0 10px !important;
     white-space: nowrap;
+  }
+}
+@media (max-width: 640px) and (pointer: coarse) {
+  .bk-narrow-icon-only {
+    width: 44px;
+    height: 44px !important;
   }
 }
 

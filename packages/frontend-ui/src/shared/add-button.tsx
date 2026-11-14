@@ -16,8 +16,10 @@ export function AddButton({ onClick }: { onClick: (() => void) | null }) {
   return (
     <button
       type="button"
+      className="bk-narrow-icon-only"
       onClick={onClick ?? undefined}
       disabled={disabled}
+      aria-label="追加"
       style={{
         height: sizes.button.compactHeight,
         minWidth: sizes.button.compactIconTextMinWidth,
@@ -32,12 +34,13 @@ export function AddButton({ onClick }: { onClick: (() => void) | null }) {
         opacity: disabled ? 0.5 : 1,
         display: "inline-flex",
         alignItems: "center",
+        justifyContent: "center",
         gap: spacing.s6,
         boxShadow: shadows.primaryButton,
       }}
     >
       <PlusIcon size={12} color="currentColor" />
-      追加
+      <span className="bk-button-label">追加</span>
     </button>
   );
 }

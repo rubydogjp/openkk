@@ -14,7 +14,10 @@ import {
   fontWeight,
   palette,
   radii,
+  sizes,
+  spacing,
 } from "../shared/design-tokens.js";
+import { SaveIcon } from "../shared/icons.js";
 import { bookSaveStatusLabel } from "./book-save-date.js";
 import { SHELL_PALETTE } from "./shell-palette.js";
 
@@ -53,18 +56,28 @@ export function useShellBookSave(
   };
 }
 
-function SaveButton(props: { bookSave: BookSave }) {
-  const { bookSave } = props;
+const SIDEBAR_SAVE_BUTTON_HEIGHT = 30;
+const SAVE_ICON_SIZE = 16;
+
+function SaveButton(props: { bookSave: BookSave; compact: boolean }) {
+  const { bookSave, compact } = props;
   return (
     <button
       type="button"
+      className={compact ? "bk-narrow-icon-only" : ""}
       onClick={bookSave.save}
       disabled={bookSave.saving}
       aria-label="ファイルに保存"
       title={`${bookSave.bookFile.fileName} として保存`}
       style={{
-        height: 30,
-        padding: "0 16px",
+        height: compact
+          ? sizes.button.compactHeight
+          : SIDEBAR_SAVE_BUTTON_HEIGHT,
+        padding: compact ? "0 14px" : "0 14px 0 12px",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.s6,
         borderRadius: radii.sm,
         border: "none",
         background: palette.action,
@@ -77,7 +90,8 @@ function SaveButton(props: { bookSave: BookSave }) {
         flexShrink: 0,
       }}
     >
-      保存
+      <SaveIcon size={SAVE_ICON_SIZE} color="currentColor" />
+      <span className="bk-button-label">保存</span>
     </button>
   );
 }
@@ -94,7 +108,7 @@ export function ShellBookSave(props: { bookSave: BookSave }) {
   const label = useSaveStatusLabel(bookSave);
   return (
     <>
-      <SaveButton bookSave={bookSave} />
+      <SaveButton bookSave={bookSave} compact={false} />
       <div
         role="status"
         style={{
@@ -138,7 +152,7 @@ export function ShellBookSaveCompact(props: { bookSave: BookSave }) {
       >
         {label}
       </span>
-      <SaveButton bookSave={bookSave} />
+      <SaveButton bookSave={bookSave} compact />
     </div>
   );
 }

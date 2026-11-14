@@ -18,15 +18,23 @@ test.describe("journal table import and export", () => {
     await page.getByRole("link", { name: "仕訳" }).click();
   });
 
-  test("shows the whole period in one table and replaces it from an edited CSV", async ({
+  test("shows the whole period in one sheet and overwrites it from an edited CSV after confirming the counts", async ({
     page,
   }) => {
     await importEntriesFile(page, "csv", CSV_FIXTURE);
-    await expect(reviewBar(page)).toContainText(
-      "追加 3 件・変更 0 件・削除 0 件",
+    const confirmation = overwriteConfirmation(page);
+    await expect(confirmation).toContainText(
+      "追加 3 件・変更 0 件・削除 0 件 (そのまま 0 件)",
     );
-    await page.getByRole("button", { name: "反映する" }).click();
-    await expect(page.getByText(/反映しました\(追加 3 件/)).toBeVisible();
+    await expect(confirmation).not.toContainText("ファイルにない仕訳");
+    await expect(confirmation.getByRole("button")).toHaveText([
+      "キャンセル",
+      "上書きする",
+    ]);
+    await confirmation.getByRole("button", { name: "上書きする" }).click();
+    await expect(
+      page.getByText("上書きしました (追加 3・変更 0・削除 0)"),
+    ).toBeVisible();
     const table = page.getByRole("table", { name: "仕訳のシート" });
     await expect(table.getByRole("row")).toHaveCount(4);
     await expect(table).toContainText("CSVテスト売上");
@@ -34,7 +42,7 @@ test.describe("journal table import and export", () => {
 
     const exported = await downloadCsv(page);
     expect(exported.split("\n")[0]).toBe(
-      "﻿仕訳番号,日付,借方科目,借方金額,貸方科目,貸方金額,摘要,取引先,税区分,事業区分,事業割合",
+      "\uFEFF仕訳番号,日付,借方科目,借方金額,貸方科目,貸方金額,摘要,取引先,税区分,事業区分,事業割合",
     );
     const edited = exported
       .replace(",8000,普通預金,8000,", ",9000,普通預金,9000,")
@@ -43,27 +51,29 @@ test.describe("journal table import and export", () => {
       .join("\n");
 
     await importEntriesFile(page, "csv", csvFile(edited));
-    await expect(reviewBar(page)).toContainText(
+    await expect(confirmation).toContainText(
       "追加 0 件・変更 1 件・削除 1 件 (そのまま 1 件)",
     );
+    await expect(confirmation).toContainText("ファイルにない仕訳は消えます。");
+    await confirmation.getByRole("button", { name: "キャンセル" }).click();
+    await expect(table.getByRole("row")).toHaveCount(4);
+    await expect(table).toContainText("8,000");
+
+    await importEntriesFile(page, "csv", csvFile(edited));
+    await confirmation.getByRole("button", { name: "上書きする" }).click();
     await expect(
-      table.getByRole("row").filter({ hasText: "変更" }),
-    ).toContainText("9,000");
-    await expect(
-      table.getByRole("row").filter({ hasText: "削除" }),
-    ).toContainText("CSVテスト家賃");
-    await page.getByRole("button", { name: "反映する" }).click();
-    await expect(
-      page.getByText(/反映しました\(追加 0 件 \/ 変更 1 件 \/ 削除 1 件\)/),
+      page.getByText("上書きしました (追加 0・変更 1・削除 1)"),
     ).toBeVisible();
     await expect(table.getByRole("row")).toHaveCount(3);
+    await expect(table).toContainText("9,000");
     await expect(table).not.toContainText("CSVテスト家賃");
 
     await importEntriesFile(page, "csv", csvFile(await downloadCsv(page)));
-    await expect(reviewBar(page)).toContainText("今の仕訳と同じです");
+    await expect(page.getByText("今の仕訳と同じです")).toBeVisible();
+    await expect(confirmation).toHaveCount(0);
   });
 
-  test("lists the rows it cannot read without changing anything", async ({
+  test("lists the rows it cannot read in a dialog without changing anything", async ({
     page,
   }) => {
     await importEntriesFile(
@@ -78,16 +88,21 @@ test.describe("journal table import and export", () => {
       ),
     );
 
-    const alert = page
-      .getByRole("alert")
-      .filter({ hasText: "取り込めない行があります" });
-    await expect(alert).toContainText(
-      "2 行目: 借方: 勘定科目「消耗品」が見つかりません",
+    const problems = page.getByRole("alertdialog", {
+      name: "CSV を取り込めません",
+    });
+    await expect(problems).toContainText(
+      "読めない行があります。何も変えていません。",
     );
-    await expect(alert).toContainText(
-      "3 行目: 借方の合計 1,000 と貸方の合計 900 が合いません",
-    );
-    await alert.getByRole("button", { name: "閉じる" }).click();
+    await expect(problems.getByRole("listitem")).toHaveText([
+      "2 行目借方: 勘定科目「消耗品」が見つかりません",
+      "3 行目借方の合計 1,000 と貸方の合計 900 が合いません",
+    ]);
+    await expect(
+      page.getByRole("table", { name: "仕訳のシート" }),
+    ).toBeVisible();
+    await problems.getByRole("button", { name: "閉じる" }).click();
+    await expect(problems).toHaveCount(0);
     await expect(
       page.getByText("この期間の仕訳はまだありません"),
     ).toBeVisible();
@@ -140,7 +155,7 @@ test.describe("journal table import and export", () => {
     await fileButton.focus();
     await page.keyboard.press("Enter");
     await expect(
-      page.getByRole("menuitem", { name: "CSV ファイルから (置き換え)" }),
+      page.getByRole("menuitem", { name: "CSV ファイルから (上書き)" }),
     ).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(fileButton).toBeFocused();
@@ -160,8 +175,8 @@ test.describe("journal table import and export", () => {
   });
 });
 
-function reviewBar(page: Page) {
-  return page.getByRole("status").filter({ hasText: "取り込んだ CSV" });
+function overwriteConfirmation(page: Page) {
+  return page.getByRole("alertdialog", { name: "CSV で上書きしますか？" });
 }
 
 function csvFile(text: string) {

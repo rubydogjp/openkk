@@ -3,15 +3,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   JournalSheetScreen,
-  type JournalSheetReview,
   type JournalSheetRow,
 } from "./journal-sheet-screen.js";
 
-function row(
-  entryNumber: string,
-  amount: string,
-  status: JournalSheetRow["status"],
-): JournalSheetRow {
+function row(entryNumber: string, amount: string): JournalSheetRow {
   return {
     entryNumber,
     date: "2026-05-10",
@@ -25,27 +20,20 @@ function row(
     businessCategory: "対象外",
     businessRate: "100",
     entryKey: entryNumber,
-    status,
   };
 }
 
-function render(
-  rows: JournalSheetRow[],
-  review: JournalSheetReview | null,
-): string {
+function render(rows: JournalSheetRow[]): string {
   return renderToStaticMarkup(
     <JournalSheetScreen
       fiscalPeriodName="2026年分"
       saveControl={null}
       rows={rows}
-      review={review}
       lockedMessage={null}
       onBack={() => {}}
       onImportFile={null}
       onExport={() => {}}
       onOpenRow={null}
-      onApplyReview={() => {}}
-      onDismissReview={() => {}}
     />,
   );
 }
@@ -59,7 +47,7 @@ function textsOf(html: string, tag: "th" | "td"): string[] {
 describe("JournalSheetScreen", () => {
   it("letters the columns and numbers the rows like a spreadsheet that opened the CSV", () => {
     const headings = textsOf(
-      render([row("a", "1200", null), row("b", "980000", null)], null),
+      render([row("a", "1200"), row("b", "980000")]),
       "th",
     );
 
@@ -84,7 +72,7 @@ describe("JournalSheetScreen", () => {
   });
 
   it("groups the digits of amounts on screen and leaves other cells as they are", () => {
-    const cells = textsOf(render([row("2026", "980000", null)], null), "td");
+    const cells = textsOf(render([row("2026", "980000")]), "td");
 
     expect(cells).toEqual([
       "2026",
@@ -102,24 +90,16 @@ describe("JournalSheetScreen", () => {
   });
 
   it("says so on row 2 when the period has no entries", () => {
-    const html = render([], null);
+    const html = render([]);
 
     expect(textsOf(html, "th").slice(-1)).toEqual(["2"]);
     expect(textsOf(html, "td")).toEqual(["この期間の仕訳はまだありません"]);
   });
 
-  it("adds an unlettered status column while a CSV is being reviewed", () => {
-    const html = render([row("a", "1200", "changed")], {
-      kind: "changes",
-      added: 0,
-      changed: 1,
-      removed: 0,
-      unchanged: 0,
-      applying: false,
-    });
+  it("keeps every column at its own width so the sheet scrolls sideways instead of squeezing", () => {
+    const html = render([row("a", "1200")]);
 
-    expect(textsOf(html, "th").slice(0, 3)).toEqual(["", "", "A"]);
-    expect(textsOf(html, "td")[0]).toBe("変更");
-    expect(html).toContain("反映する");
+    expect(html).toContain("width:1522px");
+    expect(html).not.toContain("width:100%");
   });
 });
