@@ -221,7 +221,7 @@ export function OpeningBsCarryover({
               )}
             </div>
           }
-          hint="選んだ項目は、今の内容を置き換えます。選ばなかった項目はそのまま残ります。"
+          hint="選んだ項目は、今の内容を上書きします。選ばなかった項目はそのまま残ります。"
         />
         {items.transfer ? (
           <StepFormRow
