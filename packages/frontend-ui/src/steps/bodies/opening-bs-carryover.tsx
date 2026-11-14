@@ -140,17 +140,10 @@ export function OpeningBsCarryover({
     const release = applyLock.current.tryAcquire();
     if (release == null) return;
     try {
-      const replaced = (Object.keys(items) as Array<keyof CarryItems>)
-        .filter((key) => items[key])
-        .map((key) => CARRY_ITEM_LABELS[key]);
       const confirmed = await confirm({
         tone: "danger",
         title: "前の期間から引き継ぐ",
-        body: [
-          `「${source.name}」から次の項目を引き継ぎ、今の内容を上書きします。`,
-          ...replaced.map((label) => `・${label}`),
-          "引き継いだ後も、仮締めまでは編集できます。",
-        ],
+        body: [`選んだ項目を、「${source.name}」の内容で上書きします。`],
         confirmLabel: "上書きする",
       });
       if (!confirmed) return;
