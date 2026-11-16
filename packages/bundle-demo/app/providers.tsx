@@ -10,6 +10,7 @@ import {
 import { createOpenkkBackendApi } from "@rubydogjp/openkk-backend-api";
 import {
   createRecordsBookFilesAdapter,
+  newFiscalPeriodIdInBook,
   PORTABLE_BOOK_OWNER_USER_ID,
 } from "@rubydogjp/openkk-records-book-files-adapter";
 import {
@@ -48,6 +49,7 @@ async function createDemoPorts(): Promise<OpenkkBundlePorts> {
     bookFiles: createRecordsBookFilesAdapter({
       backend,
       bookOwnerUserId: PORTABLE_BOOK_OWNER_USER_ID,
+      fiscalPeriodIdInBook: newFiscalPeriodIdInBook,
       now: () => new Date(),
       fileNameOf: bookFileName,
       deliver: deliverBookFile,

@@ -9,7 +9,11 @@ import {
 import { createOpenkkEmbeddedBackendAdapter } from "@rubydogjp/openkk-embedded-backend-adapter";
 import { createMemoryDbAdapter } from "@rubydogjp/openkk-memory-db-adapter";
 
-import { createRecordsBookFilesAdapter } from "./index.js";
+import {
+  createRecordsBookFilesAdapter,
+  keepFiscalPeriodIdInBook,
+  newFiscalPeriodIdInBook,
+} from "./index.js";
 
 const BOOK_OWNER = "openkk-original-user";
 
@@ -66,11 +70,15 @@ async function backendWithPeriod(userId: string) {
   return { backend, fiscalPeriodId: created.id };
 }
 
-function adapterFor(backend: OpenkkBackendPort) {
+function adapterFor(
+  backend: OpenkkBackendPort,
+  fiscalPeriodIdInBook: (fiscalPeriodId: string) => string,
+) {
   const delivered: Array<{ bytes: Uint8Array; fileName: string }> = [];
   const bookFiles = createRecordsBookFilesAdapter({
     backend,
     bookOwnerUserId: BOOK_OWNER,
+    fiscalPeriodIdInBook,
     now: () => new Date("2026-12-31T12:00:00.000Z"),
     fileNameOf: (name) => `${name}.openkk`,
     deliver: async (bytes, fileName) => {
@@ -83,7 +91,10 @@ function adapterFor(backend: OpenkkBackendPort) {
 
 describe("createRecordsBookFilesAdapter", () => {
   it("does not track saves", async () => {
-    const { bookFiles } = adapterFor(await emptyBackend("cloud-user"));
+    const { bookFiles } = adapterFor(
+      await emptyBackend("cloud-user"),
+      keepFiscalPeriodIdInBook,
+    );
 
     expect(bookFiles.saveTracking).toBeNull();
     expect(bookFiles.fileNameOf("2026年分")).toBe("2026年分.openkk");
@@ -91,7 +102,10 @@ describe("createRecordsBookFilesAdapter", () => {
 
   it("saves a period as a book that keeps its id and belongs to the book owner", async () => {
     const { backend, fiscalPeriodId } = await backendWithPeriod("cloud-user");
-    const { bookFiles, delivered } = adapterFor(backend);
+    const { bookFiles, delivered } = adapterFor(
+      backend,
+      keepFiscalPeriodIdInBook,
+    );
 
     expect(await bookFiles.save(fiscalPeriodId)).toBe("saved");
 
@@ -115,12 +129,41 @@ describe("createRecordsBookFilesAdapter", () => {
     }
   });
 
+  it("gives the period a new id in each book when asked, so unrelated books are not taken for the same period", async () => {
+    const { backend, fiscalPeriodId } = await backendWithPeriod("demo-user");
+    const { bookFiles, delivered } = adapterFor(
+      backend,
+      newFiscalPeriodIdInBook,
+    );
+
+    await bookFiles.save(fiscalPeriodId);
+    await bookFiles.save(fiscalPeriodId);
+
+    const idsInBooks: string[] = [];
+    for (const file of delivered) {
+      const book = await createBookDbAdapter(file.bytes);
+      try {
+        const [idInBook] = book.listFiscalPeriodIds();
+        idsInBooks.push(idInBook!);
+        expect(
+          (await book.db.entries.getAll(idInBook!)).map(
+            (entry) => entry.description,
+          ),
+        ).toEqual(["売上"]);
+        expect(await book.db.fixedAssets.getAll(idInBook!)).toHaveLength(1);
+      } finally {
+        book.close();
+      }
+    }
+    expect(new Set([fiscalPeriodId, ...idsInBooks]).size).toBe(3);
+  });
+
   it("imports a saved book into another backend as a new period", async () => {
     const source = await backendWithPeriod("cloud-user");
-    const saved = adapterFor(source.backend);
+    const saved = adapterFor(source.backend, keepFiscalPeriodIdInBook);
     await saved.bookFiles.save(source.fiscalPeriodId);
     const target = await emptyBackend("another-user");
-    const { bookFiles } = adapterFor(target);
+    const { bookFiles } = adapterFor(target, keepFiscalPeriodIdInBook);
 
     const plan = await bookFiles.inspect(saved.delivered[0]!.bytes);
     expect(plan.items.map((item) => item.case)).toEqual(["new"]);
@@ -136,7 +179,10 @@ describe("createRecordsBookFilesAdapter", () => {
 
   it("refuses a book whose dates overlap an existing period", async () => {
     const source = await backendWithPeriod("cloud-user");
-    const { bookFiles, delivered } = adapterFor(source.backend);
+    const { bookFiles, delivered } = adapterFor(
+      source.backend,
+      keepFiscalPeriodIdInBook,
+    );
     await bookFiles.save(source.fiscalPeriodId);
 
     const plan = await bookFiles.inspect(delivered[0]!.bytes);
@@ -155,7 +201,10 @@ describe("createRecordsBookFilesAdapter", () => {
   });
 
   it("reports a file that is not a book", async () => {
-    const { bookFiles } = adapterFor(await emptyBackend("cloud-user"));
+    const { bookFiles } = adapterFor(
+      await emptyBackend("cloud-user"),
+      keepFiscalPeriodIdInBook,
+    );
 
     await expect(
       bookFiles.inspect(new TextEncoder().encode("not a book")),

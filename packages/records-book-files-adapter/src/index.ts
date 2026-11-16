@@ -16,9 +16,18 @@ import {
 
 export const PORTABLE_BOOK_OWNER_USER_ID = "openkk-original-user";
 
+export function keepFiscalPeriodIdInBook(fiscalPeriodId: string): string {
+  return fiscalPeriodId;
+}
+
+export function newFiscalPeriodIdInBook(): string {
+  return `fp_${crypto.randomUUID()}`;
+}
+
 export type RecordsBookFilesAdapterOptions = {
   backend: OpenkkBackendPort;
   bookOwnerUserId: string;
+  fiscalPeriodIdInBook(fiscalPeriodId: string): string;
   now(): Date;
   fileNameOf(fiscalPeriodName: string): string;
   deliver(
@@ -88,10 +97,12 @@ export function createRecordsBookFilesAdapter(
         backend.entries.getAll(fiscalPeriodId),
         backend.fixedAssets.getAll(fiscalPeriodId),
       ]);
+      const idInBook = options.fiscalPeriodIdInBook(fiscalPeriodId);
       const bytes = await createBookFileBytes({
         fiscalPeriods: [
           {
             ...fiscalPeriod,
+            id: idInBook,
             userId: bookOwnerUserId,
             archiveStatus: "active",
             archivedAt: null,
@@ -99,10 +110,12 @@ export function createRecordsBookFilesAdapter(
         ],
         entries: entries.map((entry) => ({
           ...entry,
+          fiscalPeriodId: idInBook,
           userId: bookOwnerUserId,
         })),
         fixedAssets: fixedAssets.map((asset) => ({
           ...asset,
+          fiscalPeriodId: idInBook,
           userId: bookOwnerUserId,
         })),
       });

@@ -11,6 +11,7 @@ import {
 import { createOpenkkBackendApi } from "@rubydogjp/openkk-backend-api";
 import {
   createRecordsBookFilesAdapter,
+  keepFiscalPeriodIdInBook,
   PORTABLE_BOOK_OWNER_USER_ID,
 } from "@rubydogjp/openkk-records-book-files-adapter";
 import {
@@ -56,6 +57,7 @@ async function createMemoryPorts(): Promise<OpenkkBundlePorts> {
     bookFiles: createRecordsBookFilesAdapter({
       backend,
       bookOwnerUserId: PORTABLE_BOOK_OWNER_USER_ID,
+      fiscalPeriodIdInBook: keepFiscalPeriodIdInBook,
       now: () => new Date(),
       fileNameOf: bookFileName,
       deliver: deliverBookFile,
