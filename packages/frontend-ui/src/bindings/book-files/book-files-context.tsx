@@ -13,6 +13,7 @@ import type {
   OpenkkBookFileState,
   OpenkkBookFileSubject,
   OpenkkBookStorageStatus,
+  OpenkkFiscalPeriodLabel,
 } from "@rubydogjp/openkk-driver";
 
 export type OpenkkBookFile = OpenkkBookFileState & {
@@ -21,7 +22,8 @@ export type OpenkkBookFile = OpenkkBookFileState & {
 
 export type OpenkkBookStorage = {
   status: OpenkkBookStorageStatus;
-  unreadableBookCount: number;
+  unreadableFiscalPeriods: readonly OpenkkFiscalPeriodLabel[];
+  legacyUnmovedFiscalPeriods: readonly OpenkkFiscalPeriodLabel[];
   retry: () => Promise<void>;
 };
 
@@ -106,7 +108,8 @@ export function useOpenkkBookStorage(): OpenkkBookStorage | null {
         ? null
         : {
             status,
-            unreadableBookCount: saveTracking.unreadableBookCount,
+            unreadableFiscalPeriods: saveTracking.unreadableFiscalPeriods,
+            legacyUnmovedFiscalPeriods: saveTracking.legacyUnmovedFiscalPeriods,
             retry: () => saveTracking.retryStorage(),
           },
     [saveTracking, status],

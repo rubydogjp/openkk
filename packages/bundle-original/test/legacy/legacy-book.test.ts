@@ -1,20 +1,23 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   createBooksDbAdapter,
   createMemoryBookStore,
   readStoredFiscalPeriodIds,
-  splitBookFile,
   type BooksDbAdapter,
   type BookStore,
 } from "@rubydogjp/openkk-books-db-adapter";
+import type { OpenkkFiscalPeriodLabel } from "@rubydogjp/openkk-driver";
 
 import { createDiskDbAdapter } from "../../../disk-db-adapter/src/index.js";
 import {
   createLegacyBook,
+  createLegacyUnmovedFiscalPeriodsRecord,
+  splitLegacyDatabaseIntoPeriods,
   type LegacyBookDependencies,
 } from "../../app/legacy/legacy-book";
 
@@ -35,7 +38,7 @@ const line = {
   businessCategoryId: "",
 };
 
-async function legacyDatabaseBytes(periodCount: number): Promise<Uint8Array> {
+async function legacyDatabaseFile(periodCount: number): Promise<string> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "openkk-legacy-"));
   tempDirs.push(dir);
   const filePath = path.join(dir, "openkk.sqlite3");
@@ -60,7 +63,44 @@ async function legacyDatabaseBytes(periodCount: number): Promise<Uint8Array> {
     });
   }
   legacy.close();
+  return filePath;
+}
+
+async function legacyDatabaseBytes(periodCount: number): Promise<Uint8Array> {
+  return new Uint8Array(fs.readFileSync(await legacyDatabaseFile(periodCount)));
+}
+
+const UNREADABLE_PHASE_SQL =
+  "UPDATE fiscal_periods SET data = json_set(data, '$.phase', 'unknown_phase') WHERE json_extract(data, '$.name') = ?";
+const UNREADABLE_ROW_SQL =
+  "UPDATE fiscal_periods SET data = 'not a record' WHERE json_extract(data, '$.name') = ?";
+
+async function legacyDatabaseBytesWithUnreadable(
+  periodCount: number,
+  unreadable: ReadonlyArray<{ name: string; sql: string }>,
+): Promise<Uint8Array> {
+  const filePath = await legacyDatabaseFile(periodCount);
+  const database = new DatabaseSync(filePath);
+  try {
+    database.exec("PRAGMA ignore_check_constraints = ON");
+    for (const { name, sql } of unreadable) database.prepare(sql).run(name);
+  } finally {
+    database.close();
+  }
   return new Uint8Array(fs.readFileSync(filePath));
+}
+
+function memoryStorage() {
+  const items = new Map<string, string>();
+  return {
+    getItem: (key: string) => items.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      items.set(key, value);
+    },
+    removeItem: (key: string) => {
+      items.delete(key);
+    },
+  };
 }
 
 function setup(
@@ -75,12 +115,10 @@ function setup(
         state.moved = true;
       },
     },
+    unmovedFiscalPeriodsRecord:
+      createLegacyUnmovedFiscalPeriodsRecord(memoryStorage()),
     exportLegacyDatabase: vi.fn(async () => legacyBytes),
-    splitIntoPeriods: async (bytes) =>
-      (await splitBookFile(bytes)).map((period) => ({
-        fiscalPeriodId: period.fiscalPeriod.id,
-        bytes: period.bytes,
-      })),
+    splitIntoPeriods: splitLegacyDatabaseIntoPeriods,
     storedFiscalPeriodIds: readStoredFiscalPeriodIds,
     newBookName: () => `moved-${state.nextBook++}.openkk`,
     ...overrides,
@@ -108,11 +146,13 @@ describe("legacy book", () => {
     const store = emptyStore();
     const { legacyBook, state } = setup(await legacyDatabaseBytes(2), {});
 
-    const moved = await legacyBook.moveInto(store, () => {});
+    const { movedFiscalPeriodIds: moved, unmovedFiscalPeriods } =
+      await legacyBook.moveInto(store, () => {});
     const books = await openBooks(store);
     const periods = await books.db.fiscalPeriods.getAll(USER);
 
     expect(moved).toHaveLength(2);
+    expect(unmovedFiscalPeriods).toEqual([]);
     expect(state.moved).toBe(true);
     expect(await store.list()).toHaveLength(2);
     expect(periods.map(({ name, phase }) => [name, phase])).toEqual([
@@ -139,7 +179,10 @@ describe("legacy book", () => {
     await legacyBook.moveInto(store, () => {});
     const again = await legacyBook.moveInto(store, () => {});
 
-    expect(again).toEqual([]);
+    expect(again).toEqual({
+      movedFiscalPeriodIds: [],
+      unmovedFiscalPeriods: [],
+    });
     expect(dependencies.exportLegacyDatabase).toHaveBeenCalledTimes(1);
     expect(await store.list()).toHaveLength(1);
   });
@@ -148,7 +191,10 @@ describe("legacy book", () => {
     const store = emptyStore();
     const { legacyBook, state } = setup(null, {});
 
-    expect(await legacyBook.moveInto(store, () => {})).toEqual([]);
+    expect(await legacyBook.moveInto(store, () => {})).toEqual({
+      movedFiscalPeriodIds: [],
+      unmovedFiscalPeriods: [],
+    });
     expect(state.moved).toBe(true);
     expect(await store.list()).toEqual([]);
   });
@@ -157,7 +203,10 @@ describe("legacy book", () => {
     const store = emptyStore();
     const { legacyBook, state } = setup(await legacyDatabaseBytes(0), {});
 
-    expect(await legacyBook.moveInto(store, () => {})).toEqual([]);
+    expect(await legacyBook.moveInto(store, () => {})).toEqual({
+      movedFiscalPeriodIds: [],
+      unmovedFiscalPeriods: [],
+    });
     expect(state.moved).toBe(true);
     expect(await store.list()).toEqual([]);
   });
@@ -187,11 +236,124 @@ describe("legacy book", () => {
 
     expect(movedAfterFailure).toBe(false);
     expect(storedAfterFailure).toBe(1);
-    expect(resumed).toHaveLength(2);
+    expect(resumed.movedFiscalPeriodIds).toHaveLength(2);
     expect(state.moved).toBe(true);
     expect(await inner.list()).toHaveLength(3);
     expect(await books.db.fiscalPeriods.getAll(USER)).toHaveLength(3);
     expect(books.unreadableBooks).toEqual([]);
+  });
+
+  it("moves the periods it can read and remembers the one it cannot", async () => {
+    const store = emptyStore();
+    const { legacyBook, state, dependencies } = setup(
+      await legacyDatabaseBytesWithUnreadable(3, [
+        { name: "2026年分", sql: UNREADABLE_PHASE_SQL },
+      ]),
+      {},
+    );
+    const unmoved: OpenkkFiscalPeriodLabel[] = [
+      { name: "2026年分", startDate: "2026-01-01", endDate: "2026-12-31" },
+    ];
+
+    const first = await legacyBook.moveInto(store, () => {});
+    const again = await legacyBook.moveInto(store, () => {});
+    const books = await openBooks(store);
+    const periods = await books.db.fiscalPeriods.getAll(USER);
+
+    expect(first.movedFiscalPeriodIds).toHaveLength(2);
+    expect(first.unmovedFiscalPeriods).toEqual(unmoved);
+    expect(state.moved).toBe(true);
+    expect(again).toEqual({
+      movedFiscalPeriodIds: [],
+      unmovedFiscalPeriods: unmoved,
+    });
+    expect(dependencies.exportLegacyDatabase).toHaveBeenCalledTimes(1);
+    expect(periods.map(({ name }) => name)).toEqual(["2025年分", "2027年分"]);
+    for (const period of periods) {
+      expect(await books.db.entries.getAll(period.id)).toHaveLength(1);
+    }
+    expect(books.unreadableBooks).toEqual([]);
+  });
+
+  it("starts with no book when it can read none of the periods", async () => {
+    const store = emptyStore();
+    const { legacyBook, state } = setup(
+      await legacyDatabaseBytesWithUnreadable(2, [
+        { name: "2025年分", sql: UNREADABLE_PHASE_SQL },
+        { name: "2026年分", sql: UNREADABLE_ROW_SQL },
+      ]),
+      {},
+    );
+
+    const move = await legacyBook.moveInto(store, () => {});
+
+    expect(move).toEqual({
+      movedFiscalPeriodIds: [],
+      unmovedFiscalPeriods: [
+        { name: "2025年分", startDate: "2025-01-01", endDate: "2025-12-31" },
+        { name: null, startDate: null, endDate: null },
+      ],
+    });
+    expect(state.moved).toBe(true);
+    expect(await store.list()).toEqual([]);
+  });
+
+  it("remembers one nameless period when the previous version is not a book at all", async () => {
+    const store = emptyStore();
+    const { legacyBook, state } = setup(
+      new TextEncoder().encode("this is not a database"),
+      {},
+    );
+
+    const move = await legacyBook.moveInto(store, () => {});
+
+    expect(move).toEqual({
+      movedFiscalPeriodIds: [],
+      unmovedFiscalPeriods: [{ name: null, startDate: null, endDate: null }],
+    });
+    expect(state.moved).toBe(true);
+  });
+
+  it("finds the same unreadable period again after a stopped move", async () => {
+    const inner = emptyStore();
+    let writes = 0;
+    const failingOnSecondWrite: BookStore = {
+      list: () => inner.list(),
+      read: (name) => inner.read(name),
+      remove: (name) => inner.remove(name),
+      async write(name, bytes) {
+        writes += 1;
+        if (writes === 2) throw new Error("no space left");
+        await inner.write(name, bytes);
+      },
+    };
+    const { legacyBook, state } = setup(
+      await legacyDatabaseBytesWithUnreadable(3, [
+        { name: "2025年分", sql: UNREADABLE_PHASE_SQL },
+      ]),
+      {},
+    );
+
+    await expect(
+      legacyBook.moveInto(failingOnSecondWrite, () => {}),
+    ).rejects.toThrow("no space left");
+    const movedAfterFailure = state.moved;
+    const resumed = await legacyBook.moveInto(failingOnSecondWrite, () => {});
+
+    expect(movedAfterFailure).toBe(false);
+    expect(resumed.movedFiscalPeriodIds).toHaveLength(1);
+    expect(resumed.unmovedFiscalPeriods).toEqual([
+      { name: "2025年分", startDate: "2025-01-01", endDate: "2025-12-31" },
+    ]);
+    expect(await inner.list()).toHaveLength(2);
+  });
+
+  it("ignores a remembered list it cannot read", () => {
+    const storage = memoryStorage();
+    const record = createLegacyUnmovedFiscalPeriodsRecord(storage);
+    storage.setItem("openkk.legacy-book.unmoved-fiscal-periods", "{broken");
+
+    expect(record.read()).toEqual([]);
   });
 
   it("stores nothing and does not mark the move when the previous version cannot be split", async () => {

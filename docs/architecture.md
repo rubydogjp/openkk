@@ -177,7 +177,7 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 - `books-db-adapter`: 置き場 (`BookStore`: `list` / `read` / `write` / `remove`) にある帳簿をすべて開き、1 つの `OpenkkDbPort` にまとめる。期間の ID で帳簿に振り分け、期間の作成・圧縮済みファイルの取り込みは新しい帳簿を作り、期間の削除は帳簿を消す。日付の重なりは帳簿をまたいで確かめる。次期の作成 (`createNext`) と引き継ぎの上書き (`applyCarryover`) は、引き継ぎ元の帳簿を読んで圧縮保存と同じ形にし、引き継ぎ先の帳簿の `applyCarryoverFromArchive` に渡す。`runDbPortConformance` に通してあり、1 つの DB に全期間を置く実装と同じ振る舞いになる。
 - 変わった帳簿は、操作のあとに置き場へ丸ごと保存する (書き出しを重ねず、最新だけ)。新しい帳簿の作成・削除・上書きは、置き場に書けてから操作を終える。保存の状態 (`saved` / `saving` / `failed`) は `<html data-openkk-storage>` に出し、保存できなかったときは、重ねて出す知らせで伝える (直るまで出す)。保存が済む前にページを離れようとすると、ブラウザの確かめを出す。
 - 帳簿を読むのも書くのも 1 つの順番待ち (`operation-queue.ts`) を通す。書き出し (`exportBytes`) を別の操作のトランザクションの途中に挟まないため。
-- 読めない帳簿 (壊れている・新しい版で作られた) は飛ばして起動し、ファイルは消さずに残す。件数を、重ねて出す知らせで伝える。
+- 読めない帳簿 (壊れている・新しい版で作られた・同じ期間が 2 冊ある) は飛ばして起動し、ファイルは消さずに残す。期間の選択の一覧の下に、押せない行 (「読み込めませんでした」) として出し、分かる範囲で名前と日付を添える (`readStoredFiscalPeriodLabels`。読めなければ「名前の分からない期間」)。重ねて出す知らせ「読み込めない会計期間が N 件あります」は × で閉じられ、次に開いたときにまだ読めなければまた出す (`OpenkkBookSaveTracking.unreadableFiscalPeriods`)。前の版から移せなかった期間の行と同じ部品 (`frontend-ui/src/shell/unavailable-fiscal-period-row.tsx`) を使う。
 - `browser-platform-adapter` の `inAppBookStore`: OPFS に `BookStore` を実装する。書き込みは worker の sync access handle で行う (Safari でも書けるように)。手順は `in-app-book-protocol.ts` にあり、控え (`.next`) を書き切ってから「準備済み」の印 (`.ready`) を置き、本体を書いてから両方を消す。一覧を読むときに印や控えが残っていれば、印があれば本体を控えで戻し、控えだけなら控えを消す (初めての保存の途中で止まった帳簿も、ここで仕上げるか捨てる)。帳簿のファイル名は中身と関係のない一意な名前で、どの期間の帳簿かは中身から読む。
 - 同じブラウザでは 1 つのタブでだけ動かす。起動するときに Web Lock (`openkk-books`) を取り、取れなければ別のタブが閉じるのを待つ (`waiting-for-another-tab`)。Web Locks のないブラウザでは起動しない。起動したら `navigator.storage.persist()` を求める。
 
@@ -215,11 +215,13 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 
 ### 前の版の帳簿を移す
 
-26.3 までの無印版は、すべての期間を OPFS の SAHPool (`.openkk/` の `/openkk.sqlite3`) の 1 つの DB に置いていた。新しい版は起動するとき、その DB を `exportLegacyDbBytes` (`legacy-db-adapter`) で書き出し、期間ごとの帳簿に分けて (`splitBookFile`) 置き場に書く (`packages/bundle-original/app/legacy/legacy-book.ts`)。期間の ID は変えない。
+26.3 までの無印版は、すべての期間を OPFS の SAHPool (`.openkk/` の `/openkk.sqlite3`) の 1 つの DB に置いていた。新しい版は起動するとき、その DB を `exportLegacyDbBytes` (`legacy-db-adapter`) で書き出し、期間ごとの帳簿に分けて (`splitReadableBookFilePeriods`) 置き場に書く (`packages/bundle-original/app/legacy/legacy-book.ts`)。期間の ID は変えない。
 
-- 前の DB は消さない。すべての期間を書けたら OPFS の直下に印 (`openkk-legacy-book-moved`) を置き、二度は移さない。
+- 前の DB は消さない。読めた期間をすべて書けたら OPFS の直下に印 (`openkk-legacy-book-moved`) を置き、二度は移さない。
 - 途中で止まったら印を置かず、次の起動で続きから移す。すでに置き場にある期間 (ID で見分ける) は書かない。
-- 分けたあとに元と中身が合わなければ、何も書かずに起動を止める (前の DB はそのまま残る)。
+- 読めない期間 (保存してある中身が今の決まりに合わない・分けたあとに元と中身が合わない) は、その期間だけ飛ばして、ほかの期間を移し、起動を続ける。全部の期間が読めなくても起動する。前の DB がそもそも帳簿として開けないときは、名前の分からない期間 1 つとして扱う。
+- 移せなかった期間は、分かる範囲の名前と日付を localStorage (`openkk.legacy-book.unmoved-fiscal-periods`) に残し、印を置く前に書く。次の起動からはこれを読むだけで、前の DB は読まない。画面には、期間の選択の一覧の下に押せない行 (「移せませんでした」) として出し、下の知らせ「前の版から移せなかった会計期間が N 件あります」を閉じるまで出す (`frontend-ui/src/legacy/legacy-unmoved-fiscal-periods.tsx`。`OpenkkBookSaveTracking.legacyUnmovedFiscalPeriods` で渡す)。
+- 前の DB を読み出せない (書き出しそのものが失敗する) ときと、置き場に書けないときは、印を置かずに起動を止める (次の起動でやり直す)。
 - 前の版のタブが開いていると DB のロック (`openkk-db:openkk.sqlite3`) が取れないので、そのタブを閉じるまで待つ。
 - 書き出しは DB を開いてから `sqlite3_js_db_export` で行う (途中で止まった書き込みの journal があっても、開いたときに戻してから書き出す)。OPFS に `.openkk/` がなければ SQLite を読み込まない。SAHPool は開いた名前に `/` を付けて覚えるので、両方の名前で探す。
 

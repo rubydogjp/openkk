@@ -53,6 +53,10 @@ const period2027 = {
   endDate: "2027-12-31",
 };
 
+const UNMOVED_FROM_PREVIOUS_VERSION = [
+  { name: "2024年分", startDate: "2024-01-01", endDate: "2024-12-31" },
+];
+
 async function openApp() {
   const books = await openTestBooks(emptyStore());
   const values = new Map<string, string>();
@@ -63,6 +67,7 @@ async function openApp() {
   };
   const files = createLocalBookFilesAdapter({
     books: books.adapter,
+    legacyUnmovedFiscalPeriods: UNMOVED_FROM_PREVIOUS_VERSION,
     userId: USER,
     storage: {
       getItem: (key) => values.get(key) ?? null,
@@ -88,6 +93,83 @@ function cases(plan: { items: ReadonlyArray<{ case: string }> }): string[] {
 }
 
 describe("book files adapter: save", () => {
+  it("passes on the periods that could not be moved from the previous version", async () => {
+    const app = await openApp();
+
+    expect(app.files.saveTracking.legacyUnmovedFiscalPeriods).toEqual(
+      UNMOVED_FROM_PREVIOUS_VERSION,
+    );
+  });
+
+  it("names the periods of the books it could not read", async () => {
+    const readable = await openApp();
+    const period = await readable.books.adapter.db.fiscalPeriods.create(
+      USER,
+      period2026,
+    );
+    const bookBytes = (await readable.books.adapter.exportBook(period.id))!
+      .bytes;
+    const books = await openTestBooks(
+      createMemoryBookStore(
+        new Map([
+          ["a.openkk", bookBytes],
+          ["b.openkk", bookBytes],
+          ["c.openkk", new TextEncoder().encode("not a database at all")],
+        ]),
+      ),
+    );
+
+    const files = createLocalBookFilesAdapter({
+      books: books.adapter,
+      legacyUnmovedFiscalPeriods: [],
+      userId: USER,
+      storage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
+      now: () => 0,
+      fileNameOf: (name) => name,
+      deliver: async () => "saved",
+    });
+
+    expect(files.saveTracking.unreadableFiscalPeriods).toEqual([
+      period2026,
+      { name: null, startDate: null, endDate: null },
+    ]);
+  });
+
+  it("counts an import as done even when another book could not be stored afterwards", async () => {
+    const app = await openApp();
+    const period = await app.books.adapter.db.fiscalPeriods.create(
+      USER,
+      period2026,
+    );
+    await app.files.save(period.id);
+    await app.books.adapter.db.fiscalPeriods.patch(period.id, {
+      name: "保存のあとに変えた",
+    });
+    const files = createLocalBookFilesAdapter({
+      books: {
+        ...app.books.adapter,
+        flush: async () => {
+          throw new Error("no space left");
+        },
+      },
+      legacyUnmovedFiscalPeriods: [],
+      userId: USER,
+      storage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
+      now: () => app.state.now,
+      fileNameOf: (name) => name,
+      deliver: async () => "saved",
+    });
+
+    const imported = await (
+      await files.inspect(app.delivered[0]!.bytes)
+    ).apply();
+
+    expect(imported).toEqual([period.id]);
+    expect(
+      (await app.books.adapter.db.fiscalPeriods.getById(period.id))?.name,
+    ).toBe("2026年分");
+  });
+
   it("shows a period that was never saved as having unsaved changes", async () => {
     const app = await openApp();
     const period = await app.db.fiscalPeriods.create(USER, period2026);
@@ -247,6 +329,7 @@ describe("book files adapter: import", () => {
     const outside = await openTestBooks(emptyStore());
     const outsideFiles = createLocalBookFilesAdapter({
       books: outside.adapter,
+      legacyUnmovedFiscalPeriods: [],
       userId: USER,
       storage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
       now: () => app.state.now,

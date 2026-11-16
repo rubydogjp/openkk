@@ -26,6 +26,8 @@ const CHANGED_OUTSIDE_MESSAGE =
   "ファイルを優先して、アプリの中の「2026年分」を上書きします。";
 const UNSAVED_CHANGES_MESSAGE =
   "アプリの中の「2026年分」に、バックアップしていない変更があります。ファイルを優先して上書きすると失われます。";
+const UNMOVED_NOTICE = "前の版から移せなかった会計期間が 1 件あります";
+const UNREADABLE_NOTICE = "読み込めない会計期間が 1 件あります";
 const LEGACY_SEED_PATH = "/__legacy-seed/";
 const SQLITE_WASM_DIR = path.resolve("node_modules/@sqlite.org/sqlite-wasm");
 const LEGACY_SEED_WORKER = `
@@ -528,6 +530,86 @@ test("shows a period the previous version archived as an ordinary closed period 
   await expect(page.getByRole("button", { name: "作成する" })).toBeDisabled();
 });
 
+test("moves the periods it can read and shows the one it could not move", async ({
+  page,
+}) => {
+  const legacyPath = await createPreviousVersionDatabase([
+    { name: "2025年分", startDate: "2025-01-01", endDate: "2025-12-31" },
+    year2026,
+  ]);
+  makeUnreadableForThisVersion(legacyPath, "2025年分");
+  await seedLegacyDatabase(page, fs.readFileSync(legacyPath));
+
+  await startApp(page);
+
+  const unmovedNotice = page
+    .getByRole("status")
+    .filter({ hasText: UNMOVED_NOTICE });
+  const unmovedRow = page
+    .locator('.bk-fiscal-period-row[aria-disabled="true"]')
+    .filter({ hasText: "2025年分" });
+  await expect(page.getByRole("button", { name: /^2026年分 / })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^2025年分 / })).toHaveCount(0);
+  await expect(unmovedRow).toContainText("2025-01-01 〜 2025-12-31");
+  await expect(unmovedRow).toContainText("移せませんでした");
+  await expect(unmovedNotice).toBeVisible();
+  await waitUntilBooksStored(page);
+  expect(await countStoredBooks(page)).toBe(1);
+  expect(await hasPreviousVersionStorage(page)).toBe(true);
+
+  await unmovedNotice.getByRole("button", { name: "閉じる" }).click();
+  await expect(unmovedNotice).toHaveCount(0);
+  await reloadInApp(page);
+  await waitUntilBootPhase(page, "ready");
+  await expect(page.getByRole("button", { name: /^2026年分 / })).toBeVisible();
+  await expect(unmovedRow).toBeVisible();
+  await expect(unmovedNotice).toHaveCount(0);
+  expect(await countStoredBooks(page)).toBe(1);
+});
+
+test("shows a book it cannot read as a row and tells so until the notice is closed", async ({
+  page,
+}) => {
+  await startApp(page);
+  await createFiscalPeriod(page, "2026年分");
+  await waitUntilBooksStored(page);
+  const newerPath = await createBookFile("newer.openkk", [
+    { name: "2030年分", startDate: "2030-01-01", endDate: "2030-12-31" },
+  ]);
+  markMadeByNewerVersion(newerPath);
+  await putBookIntoBrowser(
+    page,
+    "from-newer-version.openkk",
+    fs.readFileSync(newerPath),
+  );
+
+  await gotoInApp(page, "/fiscal-periods");
+  await waitUntilBootPhase(page, "ready");
+
+  const unreadableNotice = page
+    .getByRole("status")
+    .filter({ hasText: UNREADABLE_NOTICE });
+  const unreadableRow = page
+    .locator('.bk-fiscal-period-row[aria-disabled="true"]')
+    .filter({ hasText: "2030年分" });
+  await expect(page.getByRole("button", { name: /^2026年分 / })).toBeVisible();
+  await expect(unreadableRow).toContainText("2030-01-01 〜 2030-12-31");
+  await expect(unreadableRow).toContainText("読み込めませんでした");
+  await expect(unreadableNotice).toBeVisible();
+  expect(await countStoredBooks(page)).toBe(2);
+
+  await unreadableNotice.getByRole("button", { name: "閉じる" }).click();
+  await expect(unreadableNotice).toHaveCount(0);
+  await page.getByRole("button", { name: /^2026年分 / }).click();
+  await expectStep(page, "期間を開始");
+  await expect(unreadableNotice).toHaveCount(0);
+
+  await gotoInApp(page, "/fiscal-periods");
+  await waitUntilBootPhase(page, "ready");
+  await expect(unreadableRow).toBeVisible();
+  await expect(unreadableNotice).toBeVisible();
+});
+
 function saveButton(page: Page) {
   return page
     .getByRole("complementary")
@@ -732,6 +814,54 @@ async function createPreviousVersionDatabase(periods: PeriodInput[]) {
     database.close();
   }
   return filePath;
+}
+
+function markMadeByNewerVersion(filePath: string) {
+  const database = new DatabaseSync(filePath);
+  try {
+    database.exec(
+      "UPDATE openkk_meta SET value = '999' WHERE key = 'schema_version'",
+    );
+  } finally {
+    database.close();
+  }
+}
+
+async function putBookIntoBrowser(page: Page, name: string, bytes: Buffer) {
+  await page.evaluate(
+    async ({ bookName, data }) => {
+      const root = await navigator.storage.getDirectory();
+      const books = await root.getDirectoryHandle("openkk-books", {
+        create: true,
+      });
+      const file = await books.getFileHandle(bookName, { create: true });
+      const writable = await (
+        file as unknown as {
+          createWritable(): Promise<{
+            write(content: Uint8Array): Promise<void>;
+            close(): Promise<void>;
+          }>;
+        }
+      ).createWritable();
+      await writable.write(new Uint8Array(data));
+      await writable.close();
+    },
+    { bookName: name, data: [...bytes] },
+  );
+}
+
+function makeUnreadableForThisVersion(filePath: string, periodName: string) {
+  const database = new DatabaseSync(filePath);
+  try {
+    database.exec("PRAGMA ignore_check_constraints = ON");
+    database
+      .prepare(
+        "UPDATE fiscal_periods SET data = json_set(data, '$.phase', 'unknown_phase') WHERE json_extract(data, '$.name') = ?",
+      )
+      .run(periodName);
+  } finally {
+    database.close();
+  }
 }
 
 function markArchivedByPreviousVersion(filePath: string) {

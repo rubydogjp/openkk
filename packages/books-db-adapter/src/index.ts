@@ -1,6 +1,8 @@
 import {
   createBookDbAdapter,
+  readStoredFiscalPeriodLabels,
   type BookDbAdapter,
+  type StoredFiscalPeriodLabel,
 } from "@rubydogjp/openkk-book-db-adapter";
 import {
   assertFiscalPeriodCanCarryOver,
@@ -30,14 +32,29 @@ export {
   BookSplitMismatchError,
   readStoredFiscalPeriodIds,
   splitBookFile,
+  splitReadableBookFilePeriods,
 } from "./book-file.js";
-export type { BookFilePeriod } from "./book-file.js";
+export type {
+  BookFilePeriod,
+  BookFileSplit,
+  UnreadableBookFilePeriod,
+} from "./book-file.js";
 export type { BookSaveStatus } from "./book-saver.js";
 export { createMemoryBookStore, type BookStore } from "./book-store.js";
 
 export const BOOK_FILE_EXTENSION = ".openkk";
 
-export type UnreadableBook = { name: string; error: unknown };
+const UNKNOWN_FISCAL_PERIOD_LABEL: StoredFiscalPeriodLabel = {
+  name: null,
+  startDate: null,
+  endDate: null,
+};
+
+export type UnreadableBook = {
+  name: string;
+  error: unknown;
+  fiscalPeriod: StoredFiscalPeriodLabel;
+};
 
 export type BookFileRelation =
   | { kind: "new" }
@@ -419,8 +436,9 @@ export async function createBooksDbAdapter(
   }
 
   for (const name of (await store.list()).sort()) {
+    let bytes: Uint8Array | null = null;
     try {
-      const bytes = await store.read(name);
+      bytes = await store.read(name);
       if (bytes == null) continue;
       const database = await createBookDbAdapter(bytes);
       const duplicated = database
@@ -433,7 +451,13 @@ export async function createBooksDbAdapter(
       const book = register(name, database);
       if (database.changedOnOpen) book.saver.markChanged();
     } catch (error) {
-      unreadableBooks.push({ name, error });
+      const [fiscalPeriod] =
+        bytes == null ? [] : await readStoredFiscalPeriodLabels(bytes);
+      unreadableBooks.push({
+        name,
+        error,
+        fiscalPeriod: fiscalPeriod ?? UNKNOWN_FISCAL_PERIOD_LABEL,
+      });
     }
   }
 

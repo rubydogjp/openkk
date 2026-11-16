@@ -50,8 +50,15 @@ export class OpenkkBookFileError extends Error {
   }
 }
 
+export type OpenkkFiscalPeriodLabel = {
+  name: string | null;
+  startDate: string | null;
+  endDate: string | null;
+};
+
 export interface OpenkkBookSaveTracking {
-  readonly unreadableBookCount: number;
+  readonly unreadableFiscalPeriods: readonly OpenkkFiscalPeriodLabel[];
+  readonly legacyUnmovedFiscalPeriods: readonly OpenkkFiscalPeriodLabel[];
   getStorageStatus(): OpenkkBookStorageStatus;
   getState(fiscalPeriod: OpenkkBookFileSubject): OpenkkBookFileState | null;
   subscribe(listener: () => void): () => void;

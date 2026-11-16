@@ -1,4 +1,5 @@
 import {
+  BookFileFormatError,
   createBookDbAdapter,
   type BookDbAdapter,
 } from "@rubydogjp/openkk-book-db-adapter";
@@ -12,6 +13,19 @@ export type BookFilePeriod = {
   fiscalPeriod: FiscalPeriodDbRecord;
   lastChangedAt: number | null;
   bytes: Uint8Array;
+};
+
+export type UnreadableBookFilePeriod = {
+  fiscalPeriodId: string | null;
+  name: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  error: unknown;
+};
+
+export type BookFileSplit = {
+  periods: BookFilePeriod[];
+  unreadable: UnreadableBookFilePeriod[];
 };
 
 type PeriodContent = {
@@ -72,36 +86,79 @@ async function keepOnlyPeriod(
   }
 }
 
-export async function splitBookFile(
+async function splitOutPeriod(
+  source: BookDbAdapter,
   bytes: Uint8Array,
-): Promise<BookFilePeriod[]> {
-  const source = await createBookDbAdapter(bytes);
+  ids: readonly string[],
+  id: string,
+): Promise<BookFilePeriod> {
+  const content = await readPeriodContent(source, id);
+  if (content == null) throw new BookSplitMismatchError(id);
+  const single =
+    ids.length === 1 && !source.changedOnOpen
+      ? bytes
+      : await keepOnlyPeriod(
+          bytes,
+          id,
+          ids.filter((otherId) => otherId !== id),
+          content,
+          source.lastChangedAtOnOpen,
+        );
+  return {
+    fiscalPeriod: content.fiscalPeriod,
+    lastChangedAt: source.lastChangedAtOnOpen,
+    bytes: single,
+  };
+}
+
+export async function splitReadableBookFilePeriods(
+  bytes: Uint8Array,
+): Promise<BookFileSplit> {
+  let source: BookDbAdapter;
+  try {
+    source = await createBookDbAdapter(bytes);
+  } catch (error) {
+    if (!(error instanceof BookFileFormatError)) throw error;
+    return {
+      periods: [],
+      unreadable: [
+        {
+          fiscalPeriodId: null,
+          name: null,
+          startDate: null,
+          endDate: null,
+          error,
+        },
+      ],
+    };
+  }
   try {
     const ids = source.listFiscalPeriodIds();
-    const periods: BookFilePeriod[] = [];
+    const split: BookFileSplit = { periods: [], unreadable: [] };
     for (const id of ids) {
-      const content = await readPeriodContent(source, id);
-      if (content == null) throw new BookSplitMismatchError(id);
-      const single =
-        ids.length === 1 && !source.changedOnOpen
-          ? bytes
-          : await keepOnlyPeriod(
-              bytes,
-              id,
-              ids.filter((otherId) => otherId !== id),
-              content,
-              source.lastChangedAtOnOpen,
-            );
-      periods.push({
-        fiscalPeriod: content.fiscalPeriod,
-        lastChangedAt: source.lastChangedAtOnOpen,
-        bytes: single,
-      });
+      try {
+        split.periods.push(await splitOutPeriod(source, bytes, ids, id));
+      } catch (error) {
+        split.unreadable.push({
+          fiscalPeriodId: id,
+          ...source.readStoredFiscalPeriodLabel(id),
+          error,
+        });
+      }
     }
-    return periods;
+    return split;
   } finally {
     source.close();
   }
+}
+
+export async function splitBookFile(
+  bytes: Uint8Array,
+): Promise<BookFilePeriod[]> {
+  const { periods, unreadable } = await splitReadableBookFilePeriods(bytes);
+  const [firstUnreadable] = unreadable;
+  if (firstUnreadable != null) throw firstUnreadable.error;
+  return periods;
 }
 
 export async function readStoredFiscalPeriodIds(store: {

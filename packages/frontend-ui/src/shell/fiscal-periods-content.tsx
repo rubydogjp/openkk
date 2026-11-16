@@ -6,10 +6,12 @@ import {
   AppError,
   fiscalPeriodPhaseLabel,
   type FiscalPeriod,
+  type OpenkkFiscalPeriodLabel,
 } from "@rubydogjp/openkk-driver";
 import {
   useOpenkkAppState,
   useOpenkkBookFiles,
+  useOpenkkBookStorage,
   useOpenkkConfig,
   usePlatformAdapter,
 } from "../bindings/index.js";
@@ -38,7 +40,15 @@ import {
   isLegacyArchiveZipFile,
 } from "../legacy/legacy-archive-import.js";
 import { LEGACY_PURGED_PERIOD_LABEL } from "../legacy/legacy-purged-fiscal-period-screen.js";
+import {
+  LEGACY_UNMOVED_PERIOD_REASON,
+  useLegacyUnmovedFiscalPeriods,
+} from "../legacy/legacy-unmoved-fiscal-periods.js";
 import { useRouter } from "../routing/routing.js";
+import { UnavailableFiscalPeriodRow } from "./unavailable-fiscal-period-row.js";
+
+const UNREADABLE_PERIOD_REASON = "読み込めませんでした";
+const NO_FISCAL_PERIOD_LABELS: readonly OpenkkFiscalPeriodLabel[] = [];
 
 export function FiscalPeriodsContent() {
   const router = useRouter();
@@ -48,6 +58,9 @@ export function FiscalPeriodsContent() {
   const allowLegacyArchiveImport =
     openkkConfig.fiscalPeriodPolicy.allowLegacyArchiveImport;
   const bookFiles = useOpenkkBookFiles();
+  const unreadableFiscalPeriods =
+    useOpenkkBookStorage()?.unreadableFiscalPeriods ?? NO_FISCAL_PERIOD_LABELS;
+  const legacyUnmovedFiscalPeriods = useLegacyUnmovedFiscalPeriods();
   const platform = usePlatformAdapter();
   const { confirm, dialog: bookImportDialog } = useConfirmDialog();
   const notices = useOpenkkNotices();
@@ -283,6 +296,16 @@ export function FiscalPeriodsContent() {
 
         <FiscalPeriodsTable
           items={appState.fiscalPeriods}
+          unavailable={[
+            ...unreadableFiscalPeriods.map((period) => ({
+              period,
+              reason: UNREADABLE_PERIOD_REASON,
+            })),
+            ...legacyUnmovedFiscalPeriods.map((period) => ({
+              period,
+              reason: LEGACY_UNMOVED_PERIOD_REASON,
+            })),
+          ]}
           onSelect={(periodId) => {
             appState.selectFiscalPeriod(periodId);
             router.push("/steps");
@@ -346,12 +369,17 @@ function FileMenuItem(props: {
 
 function FiscalPeriodsTable({
   items,
+  unavailable,
   onSelect,
 }: {
   items: FiscalPeriod[];
+  unavailable: ReadonlyArray<{
+    period: OpenkkFiscalPeriodLabel;
+    reason: string;
+  }>;
   onSelect: (periodId: string) => void;
 }) {
-  const isEmpty = items.length === 0;
+  const isEmpty = items.length === 0 && unavailable.length === 0;
   return (
     <div
       style={{
@@ -408,6 +436,14 @@ function FiscalPeriodsTable({
                 period={period}
                 showDivider={index > 0}
                 onSelect={() => onSelect(period.id)}
+              />
+            ))}
+            {unavailable.map(({ period, reason }, index) => (
+              <UnavailableFiscalPeriodRow
+                key={`unavailable-${index}`}
+                period={period}
+                reason={reason}
+                showDivider={items.length + index > 0}
               />
             ))}
             <div

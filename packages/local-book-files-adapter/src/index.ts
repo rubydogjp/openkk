@@ -11,6 +11,7 @@ import {
   type OpenkkBookFileSaveResult,
   type OpenkkBookFileState,
   type OpenkkBookImportItem,
+  type OpenkkFiscalPeriodLabel,
   type PlatformKeyValueStorage,
 } from "@rubydogjp/openkk-driver";
 import { BookFileFormatError } from "@rubydogjp/openkk-book-db-adapter";
@@ -34,6 +35,7 @@ export type LocalBookFilesAdapterOptions = {
     | "subscribe"
     | "unreadableBooks"
   >;
+  legacyUnmovedFiscalPeriods: readonly OpenkkFiscalPeriodLabel[];
   userId: string;
   storage: PlatformKeyValueStorage;
   now(): number;
@@ -119,7 +121,10 @@ export function createLocalBookFilesAdapter(
   }
 
   const saveTracking: OpenkkBookSaveTracking = {
-    unreadableBookCount: books.unreadableBooks.length,
+    unreadableFiscalPeriods: books.unreadableBooks.map(
+      ({ fiscalPeriod }) => fiscalPeriod,
+    ),
+    legacyUnmovedFiscalPeriods: options.legacyUnmovedFiscalPeriods,
     getStorageStatus: () => books.storageStatus(),
     getState(fiscalPeriod) {
       const fiscalPeriodId = fiscalPeriod.id;
@@ -210,7 +215,7 @@ export function createLocalBookFilesAdapter(
             if (lastChangedAt == null) continue;
             records.write(fiscalPeriod.id, { savedAt, lastChangedAt });
           }
-          await books.flush();
+          await books.flush().catch(() => {});
           notify();
           return imported.map((fiscalPeriod) => fiscalPeriod.id);
         },

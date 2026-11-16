@@ -23,6 +23,12 @@ export class BookFileFormatError extends Error {
   }
 }
 
+export type StoredFiscalPeriodLabel = {
+  name: string | null;
+  startDate: string | null;
+  endDate: string | null;
+};
+
 export type BookDbAdapter = {
   db: OpenkkDbPort;
   changedOnOpen: boolean;
@@ -30,6 +36,7 @@ export type BookDbAdapter = {
   lastChangedAt(): number;
   restoreLastChangedAt(stamp: number): void;
   listFiscalPeriodIds(): string[];
+  readStoredFiscalPeriodLabel(fiscalPeriodId: string): StoredFiscalPeriodLabel;
   compact(): void;
   exportBytes(): Uint8Array;
   onChange(listener: () => void): () => void;
@@ -46,6 +53,36 @@ const RESTORE_LAST_CHANGED_AT_SQL =
   "INSERT OR REPLACE INTO openkk_meta(key, value) VALUES('last_changed_at', ?)";
 const FISCAL_PERIOD_IDS_QUERY =
   "SELECT id FROM fiscal_periods ORDER BY created_at ASC, id ASC";
+const FISCAL_PERIOD_DATA_QUERY = "SELECT data FROM fiscal_periods WHERE id = ?";
+const ALL_FISCAL_PERIOD_DATA_QUERY =
+  "SELECT data FROM fiscal_periods ORDER BY created_at ASC, id ASC";
+const UNKNOWN_FISCAL_PERIOD_LABEL: StoredFiscalPeriodLabel = {
+  name: null,
+  startDate: null,
+  endDate: null,
+};
+
+function parseStoredFiscalPeriodLabel(data: unknown): StoredFiscalPeriodLabel {
+  if (typeof data !== "string") return UNKNOWN_FISCAL_PERIOD_LABEL;
+  let stored: unknown;
+  try {
+    stored = JSON.parse(data);
+  } catch {
+    return UNKNOWN_FISCAL_PERIOD_LABEL;
+  }
+  if (typeof stored !== "object" || stored === null) {
+    return UNKNOWN_FISCAL_PERIOD_LABEL;
+  }
+  const text = (key: string) => {
+    const value = (stored as Record<string, unknown>)[key];
+    return typeof value === "string" && value !== "" ? value : null;
+  };
+  return {
+    name: text("name"),
+    startDate: text("startDate"),
+    endDate: text("endDate"),
+  };
+}
 
 let sqliteModulePromise: ReturnType<typeof sqlite3InitModule> | null = null;
 
@@ -129,6 +166,10 @@ export async function createBookDbAdapter(
       },
       listFiscalPeriodIds: () =>
         database.selectValues(FISCAL_PERIOD_IDS_QUERY).map(String),
+      readStoredFiscalPeriodLabel: (fiscalPeriodId) =>
+        parseStoredFiscalPeriodLabel(
+          database.selectValue(FISCAL_PERIOD_DATA_QUERY, [fiscalPeriodId]),
+        ),
       compact() {
         database.exec("VACUUM");
         lastSeenChanges.reset();
@@ -143,6 +184,35 @@ export async function createBookDbAdapter(
   } catch (error) {
     database.close();
     throw error;
+  }
+}
+
+export async function readStoredFiscalPeriodLabels(
+  bytes: Uint8Array,
+): Promise<StoredFiscalPeriodLabel[]> {
+  try {
+    assertSqliteHeader(bytes);
+    const sqlite3 = await initializeSqliteWasm();
+    const { capi, wasm } = sqlite3;
+    const database = new sqlite3.oo1.DB(":memory:");
+    try {
+      const resultCode = capi.sqlite3_deserialize(
+        database.pointer!,
+        "main",
+        wasm.allocFromTypedArray(bytes),
+        bytes.byteLength,
+        bytes.byteLength,
+        capi.SQLITE_DESERIALIZE_FREEONCLOSE,
+      );
+      if (resultCode !== capi.SQLITE_OK) return [];
+      return database
+        .selectValues(ALL_FISCAL_PERIOD_DATA_QUERY)
+        .map(parseStoredFiscalPeriodLabel);
+    } finally {
+      database.close();
+    }
+  } catch {
+    return [];
   }
 }
 

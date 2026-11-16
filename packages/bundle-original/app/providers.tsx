@@ -119,7 +119,10 @@ async function openBooksPorts(
   const userId = openkkConfig.embeddedUser.id;
   await holdBooksLock(onWaitingForAnotherTab);
   void requestBrowserPersistentStorage();
-  await legacyBook.moveInto(inAppBookStore, onWaitingForAnotherTab);
+  const legacyBookMove = await legacyBook.moveInto(
+    inAppBookStore,
+    onWaitingForAnotherTab,
+  );
   const forgottenFiscalPeriodIds: string[] = [];
   let forgetFiscalPeriod = (fiscalPeriodId: string) => {
     forgottenFiscalPeriodIds.push(fiscalPeriodId);
@@ -135,6 +138,7 @@ async function openBooksPorts(
   });
   const bookFiles = createLocalBookFilesAdapter({
     books,
+    legacyUnmovedFiscalPeriods: legacyBookMove.unmovedFiscalPeriods,
     userId,
     storage: browserPlatformAdapter.storage,
     now: () => Date.now(),

@@ -12,6 +12,7 @@ import {
   type OpenkkBookFile,
 } from "../bindings/index.js";
 
+import { useLegacyUnmovedFiscalPeriodsNotice } from "../legacy/legacy-unmoved-fiscal-periods.js";
 import { debugAppError } from "../shared/app-error-text.js";
 import { useOpenkkStandingNotice } from "../shared/notices/notices.js";
 import { safeUserErrorMessage } from "../shared/safe-error-message.js";
@@ -25,8 +26,8 @@ const NEVER_SAVED_MESSAGE = "まだバックアップしていません";
 const SAVE_OVERDUE_MESSAGE = "30 日、バックアップしていません";
 const LOAD_FAILED_MESSAGE = "データを読み込めませんでした";
 
-function unreadableBooksMessage(count: number): string {
-  return `読み込めない会計期間が ${count} 件あります。ページを読み込み直してください`;
+function unreadableFiscalPeriodsMessage(count: number): string {
+  return `読み込めない会計期間が ${count} 件あります`;
 }
 
 function useBookStorageNotices(): void {
@@ -46,15 +47,15 @@ function useBookStorageNotices(): void {
         }
       : null,
   );
-  const unreadableBookCount = storage?.unreadableBookCount ?? 0;
+  const unreadableCount = storage?.unreadableFiscalPeriods.length ?? 0;
   useOpenkkStandingNotice(
     "book-unreadable",
-    unreadableBookCount > 0
+    unreadableCount > 0
       ? {
           tone: "warning",
-          message: unreadableBooksMessage(unreadableBookCount),
+          message: unreadableFiscalPeriodsMessage(unreadableCount),
           action: null,
-          closable: false,
+          closable: true,
           onClose: null,
         }
       : null,
@@ -149,6 +150,7 @@ export function ShellNotices(props: {
   onSave: (() => void) | null;
 }) {
   useKeptInBrowserNotice(props.hasSession);
+  useLegacyUnmovedFiscalPeriodsNotice(props.hasSession);
   useBookStorageNotices();
   useBookSaveReminder(props.bookFile, props.onSave);
   useDataLoadNotice();

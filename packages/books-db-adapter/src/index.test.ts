@@ -301,8 +301,16 @@ describe("books-db-adapter storage", () => {
     expect(
       (await books.adapter.db.fiscalPeriods.getAll(USER)).map(({ id }) => id),
     ).toEqual(["fp-good"]);
-    expect(books.adapter.unreadableBooks.map(({ name }) => name)).toEqual([
-      "a.openkk",
+    expect(
+      books.adapter.unreadableBooks.map(({ name, fiscalPeriod }) => ({
+        name,
+        fiscalPeriod,
+      })),
+    ).toEqual([
+      {
+        name: "a.openkk",
+        fiscalPeriod: { name: null, startDate: null, endDate: null },
+      },
     ]);
     expect(await store.list()).toHaveLength(2);
   });
@@ -321,9 +329,12 @@ describe("books-db-adapter storage", () => {
     const books = await openTestBooks(store);
 
     expect(await books.adapter.db.fiscalPeriods.getAll(USER)).toHaveLength(1);
-    expect(books.adapter.unreadableBooks.map(({ name }) => name)).toEqual([
-      "b.openkk",
-    ]);
+    expect(
+      books.adapter.unreadableBooks.map(({ name, fiscalPeriod }) => ({
+        name,
+        fiscalPeriod,
+      })),
+    ).toEqual([{ name: "b.openkk", fiscalPeriod: period2026 }]);
   });
 });
 
