@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { useOpenkkAppState } from "../bindings/index.js";
+import { useOpenkkAppState, useOpenkkBookFiles } from "../bindings/index.js";
+
+import { debugAppError } from "../shared/app-error-text.js";
 
 import {
   fontSize,
@@ -11,9 +13,15 @@ import {
   shadows,
 } from "../shared/design-tokens.js";
 import { usePopoverLifecycle } from "../shared/dismissible-layer.js";
-import { CheckIcon, ChevronDownIcon } from "../shared/icons.js";
+import { ExclusiveActionLock } from "../shared/exclusive-action-lock.js";
+import { CheckIcon, ChevronDownIcon, DownloadIcon } from "../shared/icons.js";
+import { useOpenkkNotices } from "../shared/notices/notices.js";
 import { SHELL_PALETTE } from "./shell-palette.js";
 import { useRouter } from "../routing/routing.js";
+
+const BACKED_UP_MESSAGE = "バックアップしました";
+const BACKUP_FAILED_MESSAGE = "バックアップできませんでした";
+const MENU_ICON_SIZE = 16;
 
 export function ShellFiscalPeriodMenu(props: {
   pathname: string;
@@ -33,6 +41,34 @@ export function ShellFiscalPeriodMenu(props: {
   useEffect(() => {
     setMenuOpen(false);
   }, [props.pathname]);
+
+  const bookFiles = useOpenkkBookFiles();
+  const notices = useOpenkkNotices();
+  const backupLock = useRef(new ExclusiveActionLock());
+  const currentFiscalPeriodId = appState.currentFiscalPeriodId;
+  const backsUpFromMenu =
+    bookFiles != null &&
+    bookFiles.saveTracking == null &&
+    currentFiscalPeriodId != null;
+
+  const handleBackup = () => {
+    if (bookFiles == null || currentFiscalPeriodId == null) return;
+    const release = backupLock.current.tryAcquire();
+    if (release == null) return;
+    setMenuOpen(false);
+    void bookFiles
+      .save(currentFiscalPeriodId)
+      .then((result) => {
+        if (result === "saved") {
+          notices.show({ tone: "success", message: BACKED_UP_MESSAGE });
+        }
+      })
+      .catch((error: unknown) => {
+        debugAppError(error);
+        notices.show({ tone: "danger", message: BACKUP_FAILED_MESSAGE });
+      })
+      .finally(release);
+  };
 
   const fiscalPeriodLabel = appState.currentFiscalPeriod?.name ?? "期間 未選択";
 
@@ -210,6 +246,36 @@ export function ShellFiscalPeriodMenu(props: {
                 リストを開く
               </span>
             </button>
+            {backsUpFromMenu ? (
+              <button
+                type="button"
+                role="menuitem"
+                className="bk-menu-item"
+                onClick={handleBackup}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "8px 14px",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  textAlign: "left",
+                }}
+              >
+                <DownloadIcon size={MENU_ICON_SIZE} color={palette.brand} />
+                <span
+                  style={{
+                    fontSize: fontSize.base,
+                    fontWeight: fontWeight.semibold,
+                    color: palette.brand,
+                  }}
+                >
+                  バックアップ
+                </span>
+              </button>
+            ) : null}
           </div>
         </div>
       ) : null}

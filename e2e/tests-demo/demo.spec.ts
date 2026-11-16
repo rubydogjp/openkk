@@ -187,3 +187,28 @@ test("favicon・アプリ内・ホーム画面のアイコンを配信する", a
   for (const { src } of manifest.icons)
     expect((await request.get(src)).ok()).toBe(true);
 });
+
+test("期間のメニューから、いつでも今の期間をバックアップできる", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expectStep(page, "日々の仕訳");
+  await expect(
+    page
+      .getByRole("complementary")
+      .getByRole("button", { name: "バックアップ", exact: true }),
+  ).toHaveCount(0);
+
+  await page
+    .getByRole("button", { name: /デモ期間2026年分/ })
+    .first()
+    .click();
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("menuitem", { name: "バックアップ" }).click();
+  const download = await downloadPromise;
+
+  expect(download.suggestedFilename()).toBe("デモ期間2026年分.openkk");
+  await expect(
+    page.getByRole("status").filter({ hasText: "バックアップしました" }),
+  ).toBeVisible();
+});
