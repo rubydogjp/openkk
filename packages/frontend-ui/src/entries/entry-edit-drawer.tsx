@@ -123,38 +123,13 @@ export function EntryEditDrawer(props: {
   const update = (patch: Partial<EntryFormState>) =>
     setDraft((current) => ({ ...current, ...patch }));
 
-  const updatePartner = (value: string) =>
-    setDraft((current) => ({
-      ...current,
-      partner: value,
-      pairs: current.pairs.map((row) => ({
-        ...row,
-        debitPartnerName: null,
-        creditPartnerName: null,
-      })),
-    }));
+  const updatePartner = (value: string) => update({ partner: value });
 
   const updateTaxCategory = (value: string) =>
-    setDraft((current) => ({
-      ...current,
-      taxCategory: value,
-      pairs: current.pairs.map((row) => ({
-        ...row,
-        debitTaxCategoryId: null,
-        creditTaxCategoryId: null,
-      })),
-    }));
+    update({ taxCategory: value, storedTaxCategoryId: null });
 
   const updateBusinessCategory = (value: string) =>
-    setDraft((current) => ({
-      ...current,
-      businessCategory: value,
-      pairs: current.pairs.map((row) => ({
-        ...row,
-        debitBusinessCategoryId: null,
-        creditBusinessCategoryId: null,
-      })),
-    }));
+    update({ businessCategory: value, storedBusinessCategoryId: null });
 
   const updateRow = (index: number, patch: Partial<EntryLinePair>) => {
     setDraft((current) => ({

@@ -231,6 +231,49 @@ describe("buildJournalTableRows", () => {
   });
 });
 
+describe("one partner and category per entry", () => {
+  const mixed = stored("e-mixed", [
+    line("debit", "acct_bank", 900, { partnerName: null }),
+    line("credit", "acct_sales", 1000, {
+      partnerName: "△△社",
+      taxCategoryId: "tax_purchase_10",
+      taxCategoryName: "課税仕入 10%",
+    }),
+    line("debit", "acct_supplies", 100, { partnerName: "銀行" }),
+  ]);
+
+  it("writes the entry's first filled partner and categories on every row", () => {
+    expect(
+      buildJournalTableRows([mixed], master).map((row) => [
+        row.partner,
+        row.taxCategory,
+        row.businessCategory,
+      ]),
+    ).toEqual([
+      ["△△社", "対象外", "対象外"],
+      ["△△社", "対象外", "対象外"],
+    ]);
+  });
+
+  it("reads its own rows back as an entry whose lines all agree", () => {
+    const [read] = readEntries(
+      formatJournalTableCsv(buildJournalTableRows([mixed], master)),
+    );
+
+    expect(
+      read?.lines.map((item) => [
+        item.partnerName,
+        item.taxCategoryId,
+        item.businessCategoryId,
+      ]),
+    ).toEqual([
+      ["△△社", "tax_out_of_scope", "biz_none"],
+      ["△△社", "tax_out_of_scope", "biz_none"],
+      ["△△社", "tax_out_of_scope", "biz_none"],
+    ]);
+  });
+});
+
 describe("journal table CSV", () => {
   it("reads back what it writes, including compound entries", () => {
     const csv = formatJournalTableCsv(
@@ -393,6 +436,33 @@ describe("readJournalTableEntries problems", () => {
     );
 
     expect(result.ok).toBe(true);
+  });
+
+  it("asks to split an entry whose rows differ in partner, tax category or business category", () => {
+    expect(
+      problemsOf(
+        [
+          HEADER,
+          "a,2026-06-01,普通預金,900,売上高,1000,入金,△△社,,,",
+          "a,2026-06-01,事業主貸,100,,,入金,銀行,,,",
+          "b,2026-06-02,普通預金,300,売上高,500,入金,,課税仕入 10%,,",
+          "b,2026-06-02,事業主貸,200,,,入金,,,第5種,",
+          "c,2026-06-03,普通預金,300,売上高,500,入金,,,対象外,",
+          "c,2026-06-03,事業主貸,200,,,入金,,対象外,,",
+        ].join("\n"),
+      ),
+    ).toEqual([
+      {
+        rowNumber: 3,
+        message:
+          "仕訳番号「a」の行で、取引先・税区分・事業区分がそろっていません。違うときは別の仕訳に分けてください",
+      },
+      {
+        rowNumber: 5,
+        message:
+          "仕訳番号「b」の行で、取引先・税区分・事業区分がそろっていません。違うときは別の仕訳に分けてください",
+      },
+    ]);
   });
 
   it("does not take entry numbers reserved for generated entries", () => {

@@ -397,6 +397,54 @@ export const BACKEND_CONTRACT_CASES: BackendContractCase[] = [
     },
   ),
 
+  contractCase(
+    "refuses an entry whose lines disagree on partner or category",
+    async (backend) => {
+      const period = await journalizingPeriod(backend);
+      const master = await loadJournalMaster(backend);
+      const agreeing = pairEntry(master, {
+        date: "2026-03-01",
+        description: "取引先が行ごとに違う",
+        debit: CASH,
+        credit: SALES,
+        amount: 100,
+        localId: null,
+      });
+      const [debit, credit] = agreeing.lines;
+      check(
+        debit != null && credit != null,
+        "the pair entry has a debit and a credit line",
+      );
+      const [, otherTaxCategory] = master.taxCategories;
+      const [, otherBusinessCategory] = master.businessCategories;
+      check(
+        otherTaxCategory != null && otherBusinessCategory != null,
+        "master data has two tax and two business categories",
+      );
+      for (const disagreeingCredit of [
+        { ...credit, partnerName: "別の取引先" },
+        { ...credit, taxCategoryId: otherTaxCategory.id },
+        { ...credit, businessCategoryId: otherBusinessCategory.id },
+      ]) {
+        const disagreeing = { ...agreeing, lines: [debit, disagreeingCredit] };
+        await checkRejectedWith(
+          HTTP_BAD_REQUEST,
+          backend.entries.create(period.id, disagreeing),
+          "an entry whose lines disagree on partner or category is refused",
+        );
+        await checkRejectedWith(
+          HTTP_BAD_REQUEST,
+          backend.entries.importMany(period.id, [disagreeing]),
+          "an import whose lines disagree on partner or category is refused",
+        );
+      }
+      check(
+        (await backend.entries.getAll(period.id)).length === 0,
+        "a refused entry is not stored",
+      );
+    },
+  ),
+
   contractCase("refuses an entry whose sides differ", async (backend) => {
     const period = await journalizingPeriod(backend);
     const master = await loadJournalMaster(backend);

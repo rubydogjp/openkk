@@ -1,8 +1,8 @@
 import {
+  entrySharedLineValues,
   entryToVisualPairs,
   formatBusinessRatePercent,
   parseAmount,
-  resolveEntryPairMetadata,
   type BookAccountType,
   type EntryLine,
   type EntryRecord,
@@ -19,17 +19,11 @@ export type EntryLinePair = {
   debitAccountName: string;
   debitAccountType: BookAccountType;
   debitAmount: string;
-  debitPartnerName: string | null;
-  debitTaxCategoryId: string | null;
-  debitBusinessCategoryId: string | null;
   creditLineId: string | null;
   creditAccountId: string | null;
   creditAccountName: string;
   creditAccountType: BookAccountType;
   creditAmount: string;
-  creditPartnerName: string | null;
-  creditTaxCategoryId: string | null;
-  creditBusinessCategoryId: string | null;
 };
 
 export type EntryFormState = {
@@ -39,7 +33,9 @@ export type EntryFormState = {
   businessRateInput: string;
   businessRate: number | null;
   taxCategory: string;
+  storedTaxCategoryId: string | null;
   businessCategory: string;
+  storedBusinessCategoryId: string | null;
   pairs: EntryLinePair[];
 };
 
@@ -65,17 +61,11 @@ export function newEntryLinePair(
     debitAccountName: debit?.name ?? "",
     debitAccountType: debit?.accountType ?? "expense",
     debitAmount: "",
-    debitPartnerName: null,
-    debitTaxCategoryId: null,
-    debitBusinessCategoryId: null,
     creditLineId: null,
     creditAccountId: credit?.id ?? null,
     creditAccountName: credit?.name ?? "",
     creditAccountType: credit?.accountType ?? "asset",
     creditAmount: "",
-    creditPartnerName: null,
-    creditTaxCategoryId: null,
-    creditBusinessCategoryId: null,
   };
 }
 
@@ -91,29 +81,24 @@ export function entryToFormState(
     debitAccountName: debit?.accountName ?? "",
     debitAccountType: debit?.accountType ?? "expense",
     debitAmount: debit?.amount ?? "",
-    debitPartnerName: debit?.partnerName ?? null,
-    debitTaxCategoryId: debit?.taxCategoryId ?? null,
-    debitBusinessCategoryId: debit?.businessCategoryId ?? null,
     creditLineId: credit?.id ?? null,
     creditAccountId: credit?.bookAccountId ?? null,
     creditAccountName: credit?.accountName ?? "",
     creditAccountType: credit?.accountType ?? "asset",
     creditAmount: credit?.amount ?? "",
-    creditPartnerName: credit?.partnerName ?? null,
-    creditTaxCategoryId: credit?.taxCategoryId ?? null,
-    creditBusinessCategoryId: credit?.businessCategoryId ?? null,
   }));
-  const metadata = resolveEntryPairMetadata(
-    visualPairs[0] ?? { debit: null, credit: null },
-  );
+  const shared = entrySharedLineValues(draft);
   return {
     date: draft.date,
     description: draft.description,
-    partner: metadata.partner,
+    partner: shared.partnerName ?? "",
     businessRateInput: draft.businessRateInput,
     businessRate: draft.businessRate,
-    taxCategory: metadata.taxCategory,
-    businessCategory: metadata.businessCategory,
+    taxCategory: shared.taxCategoryName ?? shared.taxCategoryId ?? "",
+    storedTaxCategoryId: shared.taxCategoryId,
+    businessCategory:
+      shared.businessCategoryName ?? shared.businessCategoryId ?? "",
+    storedBusinessCategoryId: shared.businessCategoryId,
     pairs,
   };
 }
@@ -122,6 +107,13 @@ export function entryFormStateToEntryDraft(
   form: EntryFormState,
   accounts: EntryMasterAccountOption[],
 ): EntryDraft {
+  const sharedValues = {
+    partnerName: form.partner,
+    taxCategoryId: form.storedTaxCategoryId,
+    taxCategoryName: form.taxCategory,
+    businessCategoryId: form.storedBusinessCategoryId,
+    businessCategoryName: form.businessCategory,
+  };
   const lines: EntryLine[] = [];
   for (const pair of form.pairs) {
     if (
@@ -141,11 +133,7 @@ export function entryFormStateToEntryDraft(
         accountType: pair.debitAccountType,
         amount: pair.debitAmount,
         bookAccountId: matched?.id ?? null,
-        partnerName: pair.debitPartnerName ?? form.partner,
-        taxCategoryId: pair.debitTaxCategoryId,
-        taxCategoryName: form.taxCategory,
-        businessCategoryId: pair.debitBusinessCategoryId,
-        businessCategoryName: form.businessCategory,
+        ...sharedValues,
       });
     }
     if (
@@ -165,11 +153,7 @@ export function entryFormStateToEntryDraft(
         accountType: pair.creditAccountType,
         amount: pair.creditAmount,
         bookAccountId: matched?.id ?? null,
-        partnerName: pair.creditPartnerName ?? form.partner,
-        taxCategoryId: pair.creditTaxCategoryId,
-        taxCategoryName: form.taxCategory,
-        businessCategoryId: pair.creditBusinessCategoryId,
-        businessCategoryName: form.businessCategory,
+        ...sharedValues,
       });
     }
   }

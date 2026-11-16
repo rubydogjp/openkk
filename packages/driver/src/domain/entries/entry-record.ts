@@ -258,6 +258,42 @@ export function entryToVisualPairs(entry: {
   return pairs;
 }
 
+export type EntrySharedLineValues = {
+  partnerName: string | null;
+  taxCategoryId: string | null;
+  taxCategoryName: string | null;
+  businessCategoryId: string | null;
+  businessCategoryName: string | null;
+};
+
+export function entrySharedLineValues(entry: {
+  lines: EntryLine[];
+}): EntrySharedLineValues {
+  const lines = entryToVisualPairs(entry).flatMap((pair) =>
+    [pair.debit, pair.credit].filter((line) => line != null),
+  );
+  const firstWith = (read: (line: EntryLine) => string | null) =>
+    lines.find((line) => (read(line) ?? "") !== "") ?? null;
+  const taxLine = firstWith(
+    (line) => line.taxCategoryName ?? line.taxCategoryId,
+  );
+  const businessLine = firstWith(
+    (line) => line.businessCategoryName ?? line.businessCategoryId,
+  );
+  return {
+    partnerName: firstWith((line) => line.partnerName)?.partnerName ?? null,
+    taxCategoryId: taxLine?.taxCategoryId ?? null,
+    taxCategoryName: taxLine?.taxCategoryName ?? null,
+    businessCategoryId: businessLine?.businessCategoryId ?? null,
+    businessCategoryName: businessLine?.businessCategoryName ?? null,
+  };
+}
+
+export function withSharedLineValues(lines: EntryLine[]): EntryLine[] {
+  const shared = entrySharedLineValues({ lines });
+  return lines.map((line) => ({ ...line, ...shared }));
+}
+
 export function recordToPreviewRows(record: EntryRecord): EntryPreviewRow[] {
   const pairs = entryToVisualPairs(record);
   const dateLabel = `${record.date.slice(5, 7)}/${record.date.slice(8, 10)}`;

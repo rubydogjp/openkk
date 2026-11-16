@@ -150,7 +150,7 @@ describe("JSON export/import round-trip", () => {
     expect(imported[0]?.localId).toBe("bom-json");
   });
 
-  it("preserves compound journal lines through JSON export then import", () => {
+  it("keeps compound journal lines through JSON export then import, with one partner and category for the entry", () => {
     const original = entry({
       localId: "compound-1",
       debit: "仕入",
@@ -207,10 +207,17 @@ describe("JSON export/import round-trip", () => {
       fiscalPeriodId: "fp-2",
     });
 
-    expect(imported[0]?.lines).toEqual(original.lines);
+    expect(imported[0]?.lines).toEqual(
+      original.lines.map((line) => ({
+        ...line,
+        partnerName: "仕入先A",
+        taxCategoryId: "tax_8",
+        businessCategoryId: "biz_2",
+      })),
+    );
   });
 
-  it("preserves simple-entry account and category IDs as exported lines", () => {
+  it("keeps simple-entry account IDs and gives both lines the first line's category IDs", () => {
     const original = entry({
       debitBookAccountId: "acct_bank_custom",
       creditBookAccountId: "acct_sales_custom",
@@ -235,8 +242,8 @@ describe("JSON export/import round-trip", () => {
       expect.objectContaining({
         side: "credit",
         bookAccountId: "acct_sales_custom",
-        taxCategoryId: "tax_credit_custom",
-        businessCategoryId: "biz_credit_custom",
+        taxCategoryId: "tax_debit_custom",
+        businessCategoryId: "biz_debit_custom",
       }),
     ]);
   });

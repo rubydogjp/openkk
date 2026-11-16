@@ -137,4 +137,66 @@ describe("entry edit model", () => {
       "line-bank",
     ]);
   });
+
+  it("shows the first filled partner and categories and writes them to every line", () => {
+    const line = (
+      id: string,
+      side: "debit" | "credit",
+      accountName: string,
+      shared: {
+        partnerName: string | null;
+        taxCategoryId: string | null;
+        taxCategoryName: string | null;
+      },
+    ) => ({
+      id,
+      side,
+      accountName,
+      accountType: "asset" as const,
+      amount: "1,000",
+      bookAccountId: null,
+      businessCategoryId: "biz_none",
+      businessCategoryName: "対象外",
+      ...shared,
+    });
+    const formState = entryToFormState(
+      {
+        date: "2026-01-01",
+        description: "食い違った仕訳",
+        businessRateInput: "100",
+        businessRate: 1,
+        lines: [
+          line("line-debit", "debit", "普通預金", {
+            partnerName: null,
+            taxCategoryId: null,
+            taxCategoryName: null,
+          }),
+          line("line-credit", "credit", "売上", {
+            partnerName: "△△社",
+            taxCategoryId: "tax_sales_10",
+            taxCategoryName: "課税 10%",
+          }),
+        ],
+      },
+      () => "pair-1",
+    );
+
+    expect(formState).toMatchObject({
+      partner: "△△社",
+      taxCategory: "課税 10%",
+      businessCategory: "対象外",
+    });
+    expect(
+      entryFormStateToEntryDraft(formState, []).lines.map((item) => [
+        item.id,
+        item.partnerName,
+        item.taxCategoryId,
+        item.taxCategoryName,
+        item.businessCategoryId,
+      ]),
+    ).toEqual([
+      ["line-debit", "△△社", "tax_sales_10", "課税 10%", "biz_none"],
+      ["line-credit", "△△社", "tax_sales_10", "課税 10%", "biz_none"],
+    ]);
+  });
 });

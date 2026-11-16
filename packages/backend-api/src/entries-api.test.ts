@@ -341,6 +341,37 @@ describe("backend-api entries", () => {
     );
   });
 
+  it.each(["partnerName", "taxCategoryId", "businessCategoryId"] as const)(
+    "rejects lines that disagree on %s and asks to split the entry",
+    async (field) => {
+      const backendApi = createOpenkkBackendApi(createEntryDb(), {
+        userId: "user-1",
+      });
+      const original = await backendApi.entries.create(
+        "fp-1",
+        validEntryInput(),
+      );
+      const [debit, credit] = validEntryInput().lines;
+      const disagreeing = validEntryInput({
+        localId: "disagreeing",
+        lines: [debit!, { ...credit!, [field]: "only-on-credit" }],
+      });
+
+      for (const result of [
+        backendApi.entries.create("fp-1", disagreeing),
+        backendApi.entries.update("fp-1", original.id, disagreeing),
+        backendApi.entries.importMany("fp-1", [disagreeing]),
+      ]) {
+        await expect(result).rejects.toMatchObject({
+          statusCode: 400,
+          messageForUser:
+            "取引先・税区分・事業区分は、1 つの仕訳で同じにしてください。違うときは別の仕訳に分けてください",
+        });
+      }
+      expect(await backendApi.entries.getAll("fp-1")).toEqual([original]);
+    },
+  );
+
   it("reserves generated localIds for the atomic closing operation", async () => {
     const db = createEntryDb();
     const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });

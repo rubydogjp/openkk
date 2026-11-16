@@ -1,6 +1,7 @@
 import {
   entryToVisualPairs,
   resolveEntryPairMetadata,
+  withSharedLineValues,
   type EntryLine,
   type EntryRecord,
 } from "../entries/entry-record.js";
@@ -255,7 +256,9 @@ function normalizeEntry(input: {
   const partner = input.partner.trim();
   const taxCategory = input.taxCategory.trim() || "対象外";
   const businessCategory = input.businessCategory.trim() || "対象外";
-  const importedLines = normalizeLines(input.lines, input.rowNumber);
+  const importedLines = withSharedLineValues(
+    normalizeLines(input.lines, input.rowNumber),
+  );
   const lines =
     importedLines.length > 0
       ? importedLines

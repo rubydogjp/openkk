@@ -28,6 +28,7 @@ export function assertEditableEntryInput(
       "この仕訳識別子は本締め用に予約されています",
     );
   }
+  assertLinesShareEntryValues(input.lines);
   if (input.description !== existing?.description) {
     assertTextFieldLength(input.description, "Entry description");
   }
@@ -37,5 +38,19 @@ export function assertEditableEntryInput(
         assertTextFieldLength(line[field], label);
       }
     }
+  }
+}
+
+function assertLinesShareEntryValues(lines: EntryUpsertInput["lines"]): void {
+  const [first, ...others] = lines;
+  if (first == null) return;
+  const differs = others.some((line) =>
+    LINE_TEXT_FIELDS.some(([field]) => line[field] !== first[field]),
+  );
+  if (differs) {
+    throw engineValidationError(
+      "Entry lines must share one partner, tax category and business category",
+      "取引先・税区分・事業区分は、1 つの仕訳で同じにしてください。違うときは別の仕訳に分けてください",
+    );
   }
 }

@@ -31,6 +31,7 @@ import {
   type EntryLineMaster,
 } from "./entry-input-mapping.js";
 import {
+  entrySharedLineValues,
   entryToVisualPairs,
   type EntryLine,
   type EntryRecord,
@@ -147,25 +148,20 @@ function entryRows(
       : (labels.get(line.bookAccountId ?? "") ?? line.accountName);
   const amount = (line: EntryLine | null) =>
     line == null ? "" : String(parseAmount(line.amount));
-  return entryToVisualPairs(entry).map((pair) => {
-    const pick = (read: (line: EntryLine) => string | null) =>
-      [pair.debit, pair.credit]
-        .map((line) => (line == null ? "" : (read(line) ?? "")))
-        .find((value) => value !== "") ?? "";
-    return {
-      entryNumber: journalEntryNumber(entry),
-      date: entry.date,
-      debitAccount: accountLabel(pair.debit),
-      debitAmount: amount(pair.debit),
-      creditAccount: accountLabel(pair.credit),
-      creditAmount: amount(pair.credit),
-      description: entry.description,
-      partner: pick((line) => line.partnerName),
-      taxCategory: pick((line) => line.taxCategoryName),
-      businessCategory: pick((line) => line.businessCategoryName),
-      businessRate: formatBusinessRatePercent(entry.businessRate),
-    };
-  });
+  const shared = entrySharedLineValues(entry);
+  return entryToVisualPairs(entry).map((pair) => ({
+    date: entry.date,
+    debitAccount: accountLabel(pair.debit),
+    debitAmount: amount(pair.debit),
+    creditAccount: accountLabel(pair.credit),
+    creditAmount: amount(pair.credit),
+    description: entry.description,
+    partner: shared.partnerName ?? "",
+    taxCategory: shared.taxCategoryName ?? "",
+    businessCategory: shared.businessCategoryName ?? "",
+    businessRate: formatBusinessRatePercent(entry.businessRate),
+    entryNumber: journalEntryNumber(entry),
+  }));
 }
 
 export function formatJournalTableCsv(
@@ -324,6 +320,7 @@ export function readJournalTableEntries(
     }
 
     const lines: EntryLine[] = [];
+    const sharedValuesOfRows: Array<{ rowNumber: number; values: string }> = [];
     let valid = true;
     for (const row of group) {
       const partner = row.partner.trim();
@@ -344,6 +341,10 @@ export function readJournalTableEntries(
         valid = false;
         continue;
       }
+      sharedValuesOfRows.push({
+        rowNumber: row.rowNumber,
+        values: JSON.stringify([partner, taxCategory.id, businessCategory.id]),
+      });
       const sides = [
         { side: "debit", account: row.debitAccount, amount: row.debitAmount },
         {
@@ -392,6 +393,16 @@ export function readJournalTableEntries(
       }
     }
     if (!valid) continue;
+    const differingRow = sharedValuesOfRows.find(
+      (row) => row.values !== sharedValuesOfRows[0]?.values,
+    );
+    if (differingRow != null) {
+      report(
+        differingRow.rowNumber,
+        `仕訳番号「${entryNumber}」の行で、取引先・税区分・事業区分がそろっていません。違うときは別の仕訳に分けてください`,
+      );
+      continue;
+    }
     if (lines.length > MAX_ENTRY_LINES) {
       report(
         first.rowNumber,
