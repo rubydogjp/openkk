@@ -16,7 +16,7 @@
   },
   "scripts": {
     "lint": "tsc -p tsconfig.json --noEmit",
-    "build": "tsc -p tsconfig.build.json"
+    "build": "tsc -p tsconfig.build.json && node -e \"require('node:fs').chmodSync('dist/bin.js', 0o755)\""
   },
   "dependencies": {
     "@rubydogjp/openkk-backend-api": "^26.3.1",

@@ -9,6 +9,8 @@
 
 ## コントリビューター向けクイックスタート
 
+Node.js 24 以上が要ります (コマンドとテストが `node:sqlite` を使うため)。
+
 ```bash
 npm install
 npm run format     # Prettier で整形
@@ -22,6 +24,13 @@ npm run check:full # 生成物検査 + 上記 + 3アプリbuild + Playwright
 npm run dev:vscode:original# 無印版（データはブラウザの中。「バックアップ」で .openkk に書き出す）— port 4322
 npm run dev:vscode:sim    # Sim版（memory DB）— port 4303
 npm run dev:vscode:demo   # デモ版（サンプルデータ・再読み込みで初期化）— port 4304
+```
+
+コマンド (ベータ) を動かす:
+
+```bash
+npx openkk init               # 今のフォルダに帳簿のファイル (book.openkk) を作る
+npx openkk periods list       # 使い方は npx openkk --help
 ```
 
 E2E テスト:
