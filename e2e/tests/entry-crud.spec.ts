@@ -169,7 +169,7 @@ test.describe("entry CRUD", () => {
     await expect(drawer).toBeVisible();
 
     await drawer.getByRole("button", { name: "削除", exact: true }).click();
-    const confirmDialog = page.getByRole("dialog", { name: "仕訳の削除確認" });
+    const confirmDialog = page.getByRole("dialog", { name: "仕訳の削除" });
     await expect(confirmDialog).toBeVisible();
     await confirmDialog
       .getByRole("button", { name: "削除", exact: true })
@@ -212,7 +212,7 @@ test.describe("entry CRUD", () => {
     });
     await deleteButton.click();
     const deleteDialog = page.getByRole("dialog", {
-      name: "仕訳の削除確認",
+      name: "仕訳の削除",
     });
     const cancelButton = deleteDialog.getByRole("button", {
       name: "キャンセル",

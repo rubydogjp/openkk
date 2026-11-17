@@ -1,5 +1,6 @@
 import {
   readLegacyFiscalPeriodArchiveStatus,
+  readLegacyFiscalPeriodMasterSetId,
   type FiscalPeriod,
 } from "../../domain/index.js";
 import type { FiscalPeriodApiRecord } from "../../ports/index.js";
@@ -17,6 +18,7 @@ export function mapRemoteFiscalPeriod(
     archiveStatus: readLegacyFiscalPeriodArchiveStatus(period.archiveStatus),
     openingBalancesCompleted: period.openingBalancesCompleted,
     documentsReceivedCompleted: period.documentsReceivedCompleted,
+    masterSetId: readLegacyFiscalPeriodMasterSetId(period),
     createdAt: period.createdAt,
     updatedAt: period.updatedAt,
     opening: {

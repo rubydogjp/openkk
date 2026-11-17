@@ -197,7 +197,7 @@ export function OpeningBsCarryover({
     try {
       const confirmed = await confirm({
         tone: "danger",
-        title: "前の期間から引き継ぐ",
+        title: "前の期間からの引き継ぎ",
         body: [
           `選んだ項目を、「${source.name}」の内容で上書きします。`,
           ...(items.fixed

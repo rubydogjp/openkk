@@ -29,6 +29,7 @@ import {
   StepSecondaryButton,
 } from "../step-ui.js";
 import { useRouter } from "../../routing/routing.js";
+import { MasterSetRow } from "./master-set-row.js";
 
 export function FiscalPeriodSettingsBody({
   onSwitchToStep,
@@ -108,11 +109,8 @@ export function FiscalPeriodSettingsBody({
     if (release == null) return;
     const confirmed = await confirm({
       tone: "success",
-      title: "期間を開始",
-      body: [
-        "開始すると、期間や一部のデータは変更できなくなります。",
-        "内容に間違いがないことを確認したうえで開始してください。",
-      ],
+      title: "期間の開始",
+      body: ["開始すると、期間や一部のデータは変更できなくなります。"],
       confirmLabel: "開始する",
     });
     if (!confirmed) {
@@ -149,7 +147,7 @@ export function FiscalPeriodSettingsBody({
     try {
       const confirmed = await confirm({
         tone: "danger",
-        title: "この期間を削除",
+        title: "期間の削除",
         body: [`「${currentFiscalPeriod.name}」を削除します。取り消せません。`],
         confirmLabel: "削除する",
       });
@@ -232,6 +230,10 @@ export function FiscalPeriodSettingsBody({
           divider
           control={<FormReadOnlyValue width={200}>税込経理</FormReadOnlyValue>}
           hint="現在は「税込経理」のみ対応しています。"
+        />
+        <MasterSetRow
+          fiscalPeriod={currentFiscalPeriod}
+          editingLocked={editingLocked}
         />
       </StepMetaCard>
 

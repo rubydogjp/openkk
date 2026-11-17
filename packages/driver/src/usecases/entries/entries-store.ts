@@ -1,5 +1,6 @@
 import {
   AppError,
+  MASTER_SET_ID_OF_RECORDS_WITHOUT_ONE,
   draftBusinessRate,
   entryLinesToInputs,
   recordToPreviewRows,
@@ -9,11 +10,15 @@ import {
   type EntryRecord,
   type JournalTableChanges,
   type JournalTableMaster,
+  type MasterSetSummary,
   type OpenkkConfig,
 } from "../../domain/index.js";
+import type { MasterSetApiRecord } from "../../ports/index.js";
 import {
+  EMPTY_JOURNAL_MASTER,
+  journalMasterOfSet,
   loadEntryRecords,
-  loadJournalMaster,
+  loadMasterSets,
   type LoadedJournalMaster,
 } from "../records/load-records.js";
 import type { OpenkkAppStore } from "../session/app-store.js";
@@ -79,6 +84,7 @@ export type EntriesState = {
     skipped: number;
   }>;
   journalTableMaster: JournalTableMaster;
+  masterSets: MasterSetSummary[];
   applyJournalTableChanges: (
     fiscalPeriodId: string,
     changes: JournalTableChanges,
@@ -101,6 +107,7 @@ export type OpenkkEntriesStore = ReadableState<EntriesState> & {
 
 type EntriesData = {
   records: EntryRecord[];
+  masterSets: MasterSetApiRecord[] | null;
   master: LoadedJournalMaster;
   masterLoadError: unknown;
   entriesLoadError: unknown;
@@ -109,6 +116,7 @@ type EntriesData = {
 type AppSelection = {
   sessionUserId: string | null;
   currentFiscalPeriodId: string | null;
+  currentMasterSetId: string | null;
   currentFiscalPeriodDataPurged: boolean;
 };
 
@@ -125,7 +133,8 @@ export function createOpenkkEntriesStore(dependencies: {
   const entryMutationQueue = new KeyedAsyncMutationQueue<string>();
   const data = createWritableState<EntriesData>({
     records: [],
-    master: { accounts: [], taxCategories: [], businessCategories: [] },
+    masterSets: null,
+    master: EMPTY_JOURNAL_MASTER,
     masterLoadError: null,
     entriesLoadError: null,
   });
@@ -144,6 +153,26 @@ export function createOpenkkEntriesStore(dependencies: {
 
   const appState = () => app.getState();
 
+  const masterFor = (fiscalPeriodId: string): LoadedJournalMaster => {
+    const { masterSets, master } = data.getState();
+    const period =
+      appState().fiscalPeriods.find(
+        (candidate) => candidate.id === fiscalPeriodId,
+      ) ?? null;
+    if (masterSets == null || period == null) return master;
+    return journalMasterOfSet(masterSets, period.masterSetId);
+  };
+
+  const masterOfSelection = (
+    masterSets: ReadonlyArray<MasterSetApiRecord>,
+  ): LoadedJournalMaster => {
+    const masterSetId = readAppSelection(app).currentMasterSetId;
+    return journalMasterOfSet(
+      masterSets,
+      masterSetId ?? MASTER_SET_ID_OF_RECORDS_WITHOUT_ONE,
+    );
+  };
+
   const loadMaster = () => {
     masterLoadGeneration += 1;
     const generation = masterLoadGeneration;
@@ -153,9 +182,13 @@ export function createOpenkkEntriesStore(dependencies: {
     }
     void (async () => {
       try {
-        const master = await loadJournalMaster(backend);
+        const masterSets = await loadMasterSets(backend);
         if (generation !== masterLoadGeneration) return;
-        update({ master, masterLoadError: null });
+        update({
+          masterSets,
+          master: masterOfSelection(masterSets),
+          masterLoadError: null,
+        });
         loadEntries();
       } catch (error) {
         if (generation !== masterLoadGeneration) return;
@@ -223,7 +256,13 @@ export function createOpenkkEntriesStore(dependencies: {
     followedSelection = next;
     if (!started) return;
     if (next.sessionUserId !== previous.sessionUserId) loadMaster();
+    const masterSets = data.getState().masterSets;
+    const masterSetChanged =
+      next.currentMasterSetId !== previous.currentMasterSetId &&
+      masterSets != null;
+    if (masterSetChanged) update({ master: masterOfSelection(masterSets) });
     if (
+      masterSetChanged ||
       next.currentFiscalPeriodId !== previous.currentFiscalPeriodId ||
       next.currentFiscalPeriodDataPurged !==
         previous.currentFiscalPeriodDataPurged
@@ -235,7 +274,11 @@ export function createOpenkkEntriesStore(dependencies: {
 
   const actions = {
     async loadFiscalPeriodEntries(fiscalPeriodId: string) {
-      return loadEntryRecords(backend, fiscalPeriodId, data.getState().master);
+      return loadEntryRecords(
+        backend,
+        fiscalPeriodId,
+        masterFor(fiscalPeriodId),
+      );
     },
     async createEntryFromDraft(fiscalPeriodId: string, draft: EntryDraft) {
       assertEditingUnlocked(
@@ -243,7 +286,7 @@ export function createOpenkkEntriesStore(dependencies: {
         "entries.createEntryFromDraft",
       );
       const authOperationVersion = appState().captureAuthOperationVersion();
-      const master = data.getState().master;
+      const master = masterFor(fiscalPeriodId);
       periodVersions.invalidate(fiscalPeriodId);
       const lines = entryLinesToInputs(draft.lines, master, {
         messageForDeveloper:
@@ -269,9 +312,10 @@ export function createOpenkkEntriesStore(dependencies: {
     async saveEntry(entryId: string, draft: EntryDraft) {
       assertEditingUnlocked(config.editingPolicy, "entries.saveEntry");
       const authOperationVersion = appState().captureAuthOperationVersion();
-      const { records, master } = data.getState();
+      const { records } = data.getState();
       const currentRecord = records.find((record) => record.id === entryId);
       if (currentRecord == null) return false;
+      const master = masterFor(currentRecord.fiscalPeriodId);
       const lines = entryLinesToInputs(draft.lines, master, {
         messageForDeveloper:
           "entries.saveEntry: bookAccountId resolution failed",
@@ -334,7 +378,7 @@ export function createOpenkkEntriesStore(dependencies: {
         "entries.mergeFiscalPeriodEntries",
       );
       const authOperationVersion = appState().captureAuthOperationVersion();
-      const master = data.getState().master;
+      const master = masterFor(fiscalPeriodId);
       periodVersions.invalidate(fiscalPeriodId);
       try {
         const result = await importEntryRecords(
@@ -363,7 +407,7 @@ export function createOpenkkEntriesStore(dependencies: {
       const authOperationVersion = appState().captureAuthOperationVersion();
       const assertAuthStillCurrent = () =>
         appState().assertAuthOperationCurrent(authOperationVersion);
-      const master = data.getState().master;
+      const master = masterFor(fiscalPeriodId);
       const reloadFiscalPeriodRecords = async () => {
         const remoteEntries = await backend.entries.getAll(fiscalPeriodId);
         assertAuthStillCurrent();
@@ -420,7 +464,7 @@ export function createOpenkkEntriesStore(dependencies: {
       try {
         for (let attempt = 0; attempt < MAX_RELOAD_ATTEMPTS; attempt += 1) {
           const readVersion = periodVersions.capture(fiscalPeriodId);
-          const master = data.getState().master;
+          const master = masterFor(fiscalPeriodId);
           const remoteEntries = await backend.entries.getAll(fiscalPeriodId);
           appState().assertAuthOperationCurrent(authOperationVersion);
           if (!periodVersions.isCurrent(fiscalPeriodId, readVersion)) continue;
@@ -475,6 +519,9 @@ export function createOpenkkEntriesStore(dependencies: {
       getEntry: (entryId) =>
         records.find((record) => record.id === entryId) ?? null,
       journalTableMaster: master,
+      masterSets: (current.masterSets ?? []).map(
+        ({ id, name, effectiveFrom }) => ({ id, name, effectiveFrom }),
+      ),
       accountOptions: buildEntryMasterAccountOptions(master.accounts),
       taxCategoryOptions: master.taxCategories.map((category) => ({
         id: category.id,
@@ -513,6 +560,7 @@ function readAppSelection(app: OpenkkAppStore): AppSelection {
   return {
     sessionUserId: appState.session?.user.id ?? null,
     currentFiscalPeriodId: appState.currentFiscalPeriodId,
+    currentMasterSetId: appState.currentFiscalPeriod?.masterSetId ?? null,
     currentFiscalPeriodDataPurged:
       appState.currentFiscalPeriod?.archiveStatus === "purged",
   };

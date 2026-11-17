@@ -1,6 +1,7 @@
 import type { EntryLine, EntryRecord } from "../../entries/entry-record.js";
 import type { BookAccountType } from "../../entries/book-account.js";
 import type { OpeningBalanceLine } from "../../shared/models.js";
+import type { PrintHeading } from "../print-heading.js";
 
 const FISCAL_PERIOD_ID = "fp-example";
 
@@ -45,6 +46,12 @@ function exampleEntry(input: ExampleEntry): EntryRecord {
     localId: null,
   };
 }
+
+export const PRINT_HEADING_EXAMPLE: PrintHeading = {
+  periodLabel: "2026年分 (2026/01/01〜2026/12/31)",
+  preparedOnLabel: "作成日 2027/02/10",
+  provisional: true,
+};
 
 export const JOURNAL_EXAMPLE_OPENING_BALANCE_LINES: OpeningBalanceLine[] = [
   { id: "a:現金", accountId: "a:現金", amount: 50000 },

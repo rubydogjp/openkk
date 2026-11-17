@@ -1,3 +1,4 @@
+import { masterSetRecords } from "./master-sets.js";
 import {
   assertClosingEntriesMatch,
   assertFiscalPeriodCanCarryOver,
@@ -231,6 +232,9 @@ function createMasterDataUsecase(db: OpenkkDbPort) {
     },
     async getBusinessCategories() {
       return db.masterData.getBusinessCategories();
+    },
+    async getMasterSets() {
+      return masterSetRecords();
     },
   };
 }

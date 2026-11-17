@@ -129,7 +129,7 @@ export function ClosingBody({
     try {
       const confirmed = await confirm({
         tone: "danger",
-        title: "仮締めを取り消す",
+        title: "仮締めの取り消し",
         body: [
           "1つ前の手順に戻り、ロックを解除して再び編集できるようにします。",
         ],

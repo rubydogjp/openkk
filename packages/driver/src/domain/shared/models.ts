@@ -19,6 +19,7 @@ export type FiscalPeriod = {
   archiveStatus: FiscalPeriodArchiveStatus;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
+  masterSetId: string;
   createdAt: string;
   updatedAt: string;
   opening: FiscalPeriodOpening;
@@ -57,5 +58,5 @@ export function fiscalPeriodPhaseLabel(phase: FiscalPeriodPhase): string {
   if (phase === "pre_opening") return "開始前";
   if (phase === "journalizing") return "記帳中";
   if (phase === "pre_closing") return "仮締め済み";
-  return "決算後";
+  return "決算済み";
 }

@@ -85,6 +85,7 @@ describe("archived closing reports", () => {
         preview.map((entry) =>
           entryRecordToImportPayload(entry, {
             accounts,
+            otherAccounts: [],
             taxCategories,
             businessCategories,
           }),

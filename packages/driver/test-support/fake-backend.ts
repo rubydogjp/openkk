@@ -11,6 +11,7 @@ import type {
   FixedAssetApiRecord,
   MaintenanceStatus,
   MasterBookAccountApiRecord,
+  MasterSetApiRecord,
   OpenkkBackendPort,
   PlatformKeyValueStorage,
 } from "../src/ports/index.js";
@@ -45,6 +46,25 @@ function fakeAccount(
   };
 }
 
+const FAKE_TAX_CATEGORIES = [
+  {
+    id: "tax_out_of_scope",
+    name: "対象外",
+    rate: 0,
+    createdAt: TIMESTAMP,
+    updatedAt: TIMESTAMP,
+  },
+];
+
+const FAKE_BUSINESS_CATEGORIES = [
+  {
+    id: "biz_none",
+    name: "対象外",
+    createdAt: TIMESTAMP,
+    updatedAt: TIMESTAMP,
+  },
+];
+
 export function fakeFiscalPeriod(
   overrides: Partial<FiscalPeriodApiRecord>,
 ): FiscalPeriodApiRecord {
@@ -59,6 +79,7 @@ export function fakeFiscalPeriod(
     archivedAt: null,
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,
+    masterSetId: "jp-2026",
     opening: { balanceLines: [], journals: [] },
     createdAt: TIMESTAMP,
     updatedAt: TIMESTAMP,
@@ -106,6 +127,7 @@ export type FakeBackend = {
   fiscalPeriods: FiscalPeriodApiRecord[];
   entries: EntryApiRecord[];
   fixedAssets: FixedAssetApiRecord[];
+  masterSets: MasterSetApiRecord[];
   maintenance: { status: MaintenanceStatus };
   calls: string[];
   rejectNext(call: string, error: unknown): void;
@@ -116,6 +138,16 @@ export function fakeBackend(): FakeBackend {
   const fiscalPeriods: FiscalPeriodApiRecord[] = [];
   const entries: EntryApiRecord[] = [];
   const fixedAssets: FixedAssetApiRecord[] = [];
+  const masterSets: MasterSetApiRecord[] = [
+    {
+      id: "jp-2026",
+      name: "2026年版",
+      effectiveFrom: "2000-01-01",
+      bookAccounts: FAKE_ACCOUNTS,
+      taxCategories: FAKE_TAX_CATEGORIES,
+      businessCategories: FAKE_BUSINESS_CATEGORIES,
+    },
+  ];
   const maintenance = {
     status: { enabled: false, title: "", message: "", updatedAt: null },
   };
@@ -333,24 +365,14 @@ export function fakeBackend(): FakeBackend {
       getBookAccounts: () =>
         respond("masterData.getBookAccounts", () => FAKE_ACCOUNTS),
       getTaxCategories: () =>
-        respond("masterData.getTaxCategories", () => [
-          {
-            id: "tax_out_of_scope",
-            name: "対象外",
-            rate: 0,
-            createdAt: TIMESTAMP,
-            updatedAt: TIMESTAMP,
-          },
-        ]),
+        respond("masterData.getTaxCategories", () => FAKE_TAX_CATEGORIES),
       getBusinessCategories: () =>
-        respond("masterData.getBusinessCategories", () => [
-          {
-            id: "biz_none",
-            name: "対象外",
-            createdAt: TIMESTAMP,
-            updatedAt: TIMESTAMP,
-          },
-        ]),
+        respond(
+          "masterData.getBusinessCategories",
+          () => FAKE_BUSINESS_CATEGORIES,
+        ),
+      getMasterSets: () =>
+        respond("masterData.getMasterSets", () => masterSets),
     },
     maintenance: {
       get: () => respond("maintenance.get", () => maintenance.status),
@@ -362,6 +384,7 @@ export function fakeBackend(): FakeBackend {
     fiscalPeriods,
     entries,
     fixedAssets,
+    masterSets,
     maintenance,
     calls,
     rejectNext(call, error) {

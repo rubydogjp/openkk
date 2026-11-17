@@ -1,4 +1,9 @@
-import { escapeHtml } from "./print-shell.js";
+import {
+  PRINT_HEADING_ROW_HEIGHT,
+  printHeadingRowHtml,
+  printTitleHtml,
+  type PrintHeading,
+} from "./print-heading.js";
 
 const PAGE_WIDTH = 794;
 const PAGE_HEIGHT = 1123;
@@ -7,15 +12,18 @@ const TOP_PADDING = 11;
 const BOTTOM_PADDING = 19;
 const TITLE_FONT_SIZE = 16;
 const TITLE_GAP = 19;
-const BODY_TOP = TOP_PADDING + TITLE_FONT_SIZE + TITLE_GAP;
+const TITLE_TOP = TOP_PADDING + PRINT_HEADING_ROW_HEIGHT;
+const BODY_TOP = TITLE_TOP + TITLE_FONT_SIZE + TITLE_GAP;
 
 export function buildPortraitPage(
   title: string,
+  heading: PrintHeading,
   bodyHtml: string,
   pageNumber: number,
 ): string {
   return `<div class="bk-page" style="position:relative;width:${PAGE_WIDTH}px;min-height:${PAGE_HEIGHT}px;height:auto;overflow:visible;padding-bottom:${BOTTOM_PADDING + 24}px;">
-<div style="position:absolute;top:${TOP_PADDING}px;left:${SIDE_PADDING}px;right:${SIDE_PADDING}px;text-align:center;color:#1D4ED8;font-weight:700;font-size:${TITLE_FONT_SIZE}px;line-height:1;">${escapeHtml(title)}</div>
+${printHeadingRowHtml(heading, TOP_PADDING, SIDE_PADDING)}
+<div style="position:absolute;top:${TITLE_TOP}px;left:${SIDE_PADDING}px;right:${SIDE_PADDING}px;text-align:center;color:#1D4ED8;font-weight:700;font-size:${TITLE_FONT_SIZE}px;line-height:1;">${printTitleHtml(title, heading)}</div>
 <div style="position:absolute;top:${BODY_TOP}px;left:${SIDE_PADDING}px;right:${SIDE_PADDING}px;">
 ${bodyHtml}
 </div>

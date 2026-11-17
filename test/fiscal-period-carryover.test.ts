@@ -767,6 +767,7 @@ describe("atomic fiscal period carryover", () => {
           archivedAt: timestamp,
           openingBalancesCompleted: true,
           documentsReceivedCompleted: true,
+          masterSetId: "jp-2026",
           opening: { balanceLines: [], journals: [] },
           createdAt: timestamp,
           updatedAt: timestamp,

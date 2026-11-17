@@ -79,7 +79,7 @@ export function JournalizingBody({
         <StepCallout tone="warning">この手順はまだ進められません。</StepCallout>
         <StepSpacer height={null} />
         <section>
-          <StepSectionLabel>記録中</StepSectionLabel>
+          <StepSectionLabel>記帳中</StepSectionLabel>
           <JournalizingNotStartedTrendChart points={trendPoints} />
         </section>
         <div
@@ -120,10 +120,9 @@ export function JournalizingBody({
       if (isMidPeriod) {
         const forceConfirmed = await confirm({
           tone: "danger",
-          title: "まだ期中です",
+          title: "期中の仮締め",
           body: [
             "現在日付はまだこの期間の途中です。通常は翌2月ごろに実行される操作です。",
-            "内容を確認したうえで、そのまま進める場合のみ実行してください。",
           ],
           confirmLabel: "実行する",
         });
@@ -193,7 +192,7 @@ export function JournalizingBody({
             <>
               <StepSpacer height={null} />
               <section>
-                <StepSectionLabel>記録中</StepSectionLabel>
+                <StepSectionLabel>記帳中</StepSectionLabel>
                 <JournalizingCurrentTrendChart points={trendPoints} />
               </section>
             </>

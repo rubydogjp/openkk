@@ -118,6 +118,7 @@ describe("driver/engine closing contract", () => {
       }).map((entry) =>
         entryRecordToImportPayload(entry, {
           accounts,
+          otherAccounts: [],
           taxCategories,
           businessCategories,
         }),

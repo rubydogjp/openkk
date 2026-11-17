@@ -5,12 +5,14 @@ import { fileURLToPath } from "node:url";
 import { formatGenerated } from "./format-generated.mjs";
 
 const rootDirectory = join(dirname(fileURLToPath(import.meta.url)), "..");
-const sourceRelativePath = "resources/gen/bookkeeping_master_data.json";
-const sourcePath = join(rootDirectory, sourceRelativePath);
-const catalog = JSON.parse(readFileSync(sourcePath, "utf8"));
+const sourceRelativePath = "resources/gen/master-sets";
+const sourceDirectory = join(rootDirectory, sourceRelativePath);
+const index = JSON.parse(
+  readFileSync(join(sourceDirectory, "index.json"), "utf8"),
+);
 const checkOnly = process.argv.includes("--check");
 
-validateCatalog(catalog);
+const masterSets = readMasterSets(index);
 
 const outputs = [
   {
@@ -22,7 +24,7 @@ const outputs = [
       "domain",
       "generated-master-data.ts",
     ),
-    source: buildTypescript(catalog, {
+    source: buildTypescript(masterSets, {
       accountTypeName: "MasterBookAccountType",
       declareAccountType: true,
       header: "",
@@ -38,7 +40,7 @@ const outputs = [
       "entries",
       "generated-master-data.ts",
     ),
-    source: buildTypescript(catalog, {
+    source: buildTypescript(masterSets, {
       accountTypeName: "BookAccountType",
       declareAccountType: false,
       header: 'import type { BookAccountType } from "./book-account.js";\n\n',
@@ -63,11 +65,69 @@ if (staleOutputs.length > 0) {
 }
 
 if (!checkOnly) {
-  console.log(
-    `generated ${catalog.bookAccounts.length} book accounts, ` +
-      `${catalog.taxCategories.length} tax categories, ` +
-      `${catalog.businessCategories.length} business categories`,
-  );
+  for (const masterSet of masterSets) {
+    console.log(
+      `generated ${masterSet.id}: ${masterSet.catalog.bookAccounts.length} book accounts, ` +
+        `${masterSet.catalog.taxCategories.length} tax categories, ` +
+        `${masterSet.catalog.businessCategories.length} business categories`,
+    );
+  }
+}
+
+function readMasterSets(value) {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error("master sets index must be a non-empty array");
+  }
+  const seenSetIds = new Set();
+  const kindById = new Map();
+  let previousEffectiveFrom = "";
+  return value.map((entry) => {
+    if (entry == null || typeof entry !== "object" || Array.isArray(entry)) {
+      throw new Error("master set entry must be an object");
+    }
+    requireNonBlankString(entry.id, "master set id");
+    requireNonBlankString(entry.name, `master set name (${entry.id})`);
+    requireNonBlankString(entry.file, `master set file (${entry.id})`);
+    if (!/^[a-z0-9-]+$/.test(entry.id) || seenSetIds.has(entry.id)) {
+      throw new Error(`master set id is invalid or repeated: ${entry.id}`);
+    }
+    seenSetIds.add(entry.id);
+    if (
+      typeof entry.effectiveFrom !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(entry.effectiveFrom) ||
+      entry.effectiveFrom <= previousEffectiveFrom
+    ) {
+      throw new Error(
+        `master set effectiveFrom must be a date later than the previous set: ${entry.id}`,
+      );
+    }
+    previousEffectiveFrom = entry.effectiveFrom;
+    const catalog = JSON.parse(
+      readFileSync(join(sourceDirectory, entry.file), "utf8"),
+    );
+    validateCatalog(catalog);
+    for (const [kind, records] of [
+      ["taxCategories", catalog.taxCategories],
+      ["businessCategories", catalog.businessCategories],
+      ["bookAccounts", catalog.bookAccounts],
+    ]) {
+      for (const record of records) {
+        const known = kindById.get(record.id);
+        if (known != null && known !== kind) {
+          throw new Error(
+            `id "${record.id}" is ${known} in one master set and ${kind} in another`,
+          );
+        }
+        kindById.set(record.id, kind);
+      }
+    }
+    return {
+      id: entry.id,
+      name: entry.name,
+      effectiveFrom: entry.effectiveFrom,
+      catalog,
+    };
+  });
 }
 
 function validateCatalog(value) {
@@ -204,24 +264,40 @@ function buildTypescript(
     "export type DefaultTaxCategory = { id: string; name: string; rate: number };\n" +
     "export type DefaultBusinessCategory = { id: string; name: string };\n\n";
 
-  source += "export const DEFAULT_BOOK_ACCOUNTS: DefaultBookAccount[] = [\n";
-  for (const account of value.bookAccounts) {
-    source += formatBookAccount(account);
-  }
-  source += "];\n\n";
-
-  source += "export const DEFAULT_TAX_CATEGORIES: DefaultTaxCategory[] = [\n";
-  for (const category of value.taxCategories) {
-    source += `  { id: ${quoted(category.id)}, name: ${quoted(category.name)}, rate: ${category.rate} },\n`;
-  }
-  source += "];\n\n";
-
   source +=
-    "export const DEFAULT_BUSINESS_CATEGORIES: DefaultBusinessCategory[] = [\n";
-  for (const category of value.businessCategories) {
-    source += `  { id: ${quoted(category.id)}, name: ${quoted(category.name)} },\n`;
+    "export type MasterSet = {\n" +
+    "  id: string;\n  name: string;\n  effectiveFrom: string;\n" +
+    "  bookAccounts: DefaultBookAccount[];\n" +
+    "  taxCategories: DefaultTaxCategory[];\n" +
+    "  businessCategories: DefaultBusinessCategory[];\n};\n\n";
+  source += "export const MASTER_SETS: MasterSet[] = [\n";
+  for (const masterSet of value) {
+    source += "  {\n";
+    source += `    id: ${quoted(masterSet.id)},\n`;
+    source += `    name: ${quoted(masterSet.name)},\n`;
+    source += `    effectiveFrom: ${quoted(masterSet.effectiveFrom)},\n`;
+    source += "    bookAccounts: [\n";
+    for (const account of masterSet.catalog.bookAccounts) {
+      source += formatBookAccount(account);
+    }
+    source += "    ],\n    taxCategories: [\n";
+    for (const category of masterSet.catalog.taxCategories) {
+      source += `      { id: ${quoted(category.id)}, name: ${quoted(category.name)}, rate: ${category.rate} },\n`;
+    }
+    source += "    ],\n    businessCategories: [\n";
+    for (const category of masterSet.catalog.businessCategories) {
+      source += `      { id: ${quoted(category.id)}, name: ${quoted(category.name)} },\n`;
+    }
+    source += "    ],\n  },\n";
   }
-  return source + "];\n";
+  source += "];\n\n";
+  source +=
+    "export const FIRST_MASTER_SET_ID = MASTER_SETS[0]!.id;\n\n" +
+    "export const LATEST_MASTER_SET = MASTER_SETS[MASTER_SETS.length - 1]!;\n\n" +
+    "export const DEFAULT_BOOK_ACCOUNTS: DefaultBookAccount[] =\n  LATEST_MASTER_SET.bookAccounts;\n\n" +
+    "export const DEFAULT_TAX_CATEGORIES: DefaultTaxCategory[] =\n  LATEST_MASTER_SET.taxCategories;\n\n" +
+    "export const DEFAULT_BUSINESS_CATEGORIES: DefaultBusinessCategory[] =\n  LATEST_MASTER_SET.businessCategories;\n";
+  return source;
 }
 
 function formatBookAccount(account) {

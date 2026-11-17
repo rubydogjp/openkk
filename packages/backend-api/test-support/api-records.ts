@@ -25,6 +25,7 @@ export function fiscalPeriod(
     archiveStatus: "active",
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,
+    masterSetId: "jp-2026",
     opening: emptyOpening(),
     createdAt: TEST_TIMESTAMP,
     updatedAt: TEST_TIMESTAMP,

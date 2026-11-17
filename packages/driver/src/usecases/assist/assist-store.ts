@@ -1,5 +1,6 @@
 import {
   AppError,
+  MASTER_SET_ID_OF_RECORDS_WITHOUT_ONE,
   capFixedAssetPreviewDate,
   draftBusinessRate,
   mapFixedAsset,
@@ -15,8 +16,15 @@ import {
   type OpenkkConfig,
   type UnresolvedAccountMessages,
 } from "../../domain/index.js";
-import type { FixedAssetApiRecord } from "../../ports/index.js";
-import { loadJournalMaster } from "../records/load-records.js";
+import type {
+  FixedAssetApiRecord,
+  MasterSetApiRecord,
+} from "../../ports/index.js";
+import {
+  journalMasterOfSet,
+  loadMasterSets,
+  type LoadedJournalMaster,
+} from "../records/load-records.js";
 import { valueById } from "../shared/value-by-id.js";
 import type { OpenkkAppStore } from "../session/app-store.js";
 import { KeyedAsyncMutationQueue } from "../shared/async-mutation-queue.js";
@@ -72,6 +80,7 @@ type NamedCategory = { id: string; name: string };
 
 type AssistMaster = {
   accounts: BookAccount[];
+  otherAccounts: BookAccount[];
   taxCategories: NamedCategory[];
   businessCategories: NamedCategory[];
   accountNameById: Record<string, string>;
@@ -82,6 +91,7 @@ type AssistMaster = {
 
 type AssistData = {
   fixedAssets: FixedAsset[];
+  masterSets: MasterSetApiRecord[] | null;
   master: AssistMaster;
   masterLoadError: unknown;
   fixedAssetsLoadError: unknown;
@@ -92,6 +102,7 @@ type AssistData = {
 type FixedAssetScope = {
   sessionUserId: string | null;
   fiscalPeriodId: string | null;
+  masterSetId: string | null;
   fiscalPeriodEndDate: string | null;
   fiscalPeriodDataPurged: boolean;
   previewAsOf: Date;
@@ -99,6 +110,7 @@ type FixedAssetScope = {
 
 const EMPTY_MASTER: AssistMaster = {
   accounts: [],
+  otherAccounts: [],
   taxCategories: [],
   businessCategories: [],
   accountNameById: {},
@@ -106,6 +118,26 @@ const EMPTY_MASTER: AssistMaster = {
   taxCategoryNameById: {},
   businessCategoryNameById: {},
 };
+
+function assistMasterOf(loaded: LoadedJournalMaster): AssistMaster {
+  const knownAccounts = [...loaded.otherAccounts, ...loaded.accounts];
+  return {
+    accounts: loaded.accounts,
+    otherAccounts: loaded.otherAccounts,
+    taxCategories: loaded.taxCategories,
+    businessCategories: loaded.businessCategories,
+    accountNameById: valueById(knownAccounts, (account) => account.name),
+    accountTypeById: valueById(knownAccounts, (account) => account.accountType),
+    taxCategoryNameById: valueById(
+      loaded.taxCategories,
+      (category) => category.name,
+    ),
+    businessCategoryNameById: valueById(
+      loaded.businessCategories,
+      (category) => category.name,
+    ),
+  };
+}
 
 export function createOpenkkAssistStore(dependencies: {
   config: OpenkkConfig;
@@ -118,6 +150,7 @@ export function createOpenkkAssistStore(dependencies: {
   const assetMutationQueue = new KeyedAsyncMutationQueue<string>();
   const data = createWritableState<AssistData>({
     fixedAssets: [],
+    masterSets: null,
     master: EMPTY_MASTER,
     masterLoadError: null,
     fixedAssetsLoadError: null,
@@ -136,6 +169,7 @@ export function createOpenkkAssistStore(dependencies: {
     return {
       sessionUserId: appState.session?.user.id ?? null,
       fiscalPeriodId: appState.currentFiscalPeriodId,
+      masterSetId: period?.masterSetId ?? null,
       fiscalPeriodEndDate: endDate,
       fiscalPeriodDataPurged: period?.archiveStatus === "purged",
       previewAsOf: capFixedAssetPreviewDate(today.getState(), endDate),
@@ -171,30 +205,16 @@ export function createOpenkkAssistStore(dependencies: {
     }
     void (async () => {
       try {
-        const loaded = await loadJournalMaster(backend);
+        const masterSets = await loadMasterSets(backend);
         if (generation !== masterLoadGeneration) return;
         update({
-          master: {
-            accounts: loaded.accounts,
-            taxCategories: loaded.taxCategories,
-            businessCategories: loaded.businessCategories,
-            accountNameById: valueById(
-              loaded.accounts,
-              (account) => account.name,
+          masterSets,
+          master: assistMasterOf(
+            journalMasterOfSet(
+              masterSets,
+              readScope().masterSetId ?? MASTER_SET_ID_OF_RECORDS_WITHOUT_ONE,
             ),
-            accountTypeById: valueById(
-              loaded.accounts,
-              (account) => account.accountType,
-            ),
-            taxCategoryNameById: valueById(
-              loaded.taxCategories,
-              (category) => category.name,
-            ),
-            businessCategoryNameById: valueById(
-              loaded.businessCategories,
-              (category) => category.name,
-            ),
-          },
+          ),
           masterLoadError: null,
         });
         loadFixedAssets();
@@ -275,7 +295,21 @@ export function createOpenkkAssistStore(dependencies: {
     followedScope = next;
     if (!started) return;
     if (next.sessionUserId !== previous.sessionUserId) loadMaster();
+    const masterSets = data.getState().masterSets;
+    const masterSetChanged =
+      next.masterSetId !== previous.masterSetId && masterSets != null;
+    if (masterSetChanged) {
+      update({
+        master: assistMasterOf(
+          journalMasterOfSet(
+            masterSets,
+            next.masterSetId ?? MASTER_SET_ID_OF_RECORDS_WITHOUT_ONE,
+          ),
+        ),
+      });
+    }
     if (
+      masterSetChanged ||
       next.fiscalPeriodId !== previous.fiscalPeriodId ||
       next.fiscalPeriodEndDate !== previous.fiscalPeriodEndDate ||
       next.fiscalPeriodDataPurged !== previous.fiscalPeriodDataPurged ||

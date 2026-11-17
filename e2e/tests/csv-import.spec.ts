@@ -98,7 +98,7 @@ test.describe("journal table import and export", () => {
       ),
     );
     const confirmation = page.getByRole("alertdialog", {
-      name: "仕訳を足しますか？",
+      name: "仕訳の追加",
     });
     await expect(confirmation).toContainText(
       "ファイルの 1 件を新しい仕訳として足します。",
@@ -251,7 +251,7 @@ test.describe("journal table import and export", () => {
 });
 
 function overwriteConfirmation(page: Page) {
-  return page.getByRole("alertdialog", { name: "CSV で上書きしますか？" });
+  return page.getByRole("alertdialog", { name: "CSV での上書き" });
 }
 
 function csvFile(text: string) {

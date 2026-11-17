@@ -4,11 +4,16 @@ import type {
   OpenkkBackendPort,
 } from "../ports/index.js";
 import { isOpenkkApiErrorDto } from "../ports/index.js";
+import {
+  MASTER_SET_ID_OF_RECORDS_WITHOUT_ONE,
+  masterSetForStartDate,
+} from "../domain/index.js";
 import { copyFiscalPeriodToBackend } from "../usecases/archive/fiscal-period-transfer.js";
 import { buildFinalClosingPayload } from "../usecases/closing/final-closing.js";
 import {
   loadFiscalPeriodReportInput,
-  loadJournalMaster,
+  journalMasterOfSet,
+  loadMasterSets,
   type LoadedJournalMaster,
 } from "../usecases/records/load-records.js";
 
@@ -36,6 +41,11 @@ const PERIOD_2027 = {
 };
 const CLOSING_DAY = new Date(2026, 11, 31);
 const HTTP_BAD_REQUEST = 400;
+
+async function loadLatestJournalMaster(backend: OpenkkBackendPort) {
+  const masterSets = await loadMasterSets(backend);
+  return journalMasterOfSet(masterSets, masterSets.at(-1)?.id ?? "");
+}
 const HTTP_NOT_FOUND = 404;
 const HTTP_CONFLICT = 409;
 const CASH = "現金";
@@ -178,7 +188,7 @@ async function closedPeriod(
       journals: [],
     },
   });
-  const master = await loadJournalMaster(backend);
+  const master = await loadLatestJournalMaster(backend);
   await backend.entries.create(
     period.id,
     pairEntry(master, {
@@ -254,7 +264,7 @@ function contractCase(
 
 export const BACKEND_CONTRACT_CASES: BackendContractCase[] = [
   contractCase("serves master data with unique ids", async (backend) => {
-    const master = await loadJournalMaster(backend);
+    const master = await loadLatestJournalMaster(backend);
     for (const [label, items] of [
       ["book accounts", master.accounts],
       ["tax categories", master.taxCategories],
@@ -270,6 +280,73 @@ export const BACKEND_CONTRACT_CASES: BackendContractCase[] = [
       accountId(master, name);
     }
   }),
+
+  contractCase(
+    "serves the versions of accounts and categories, oldest first",
+    async (backend) => {
+      const masterSets = await backend.masterData.getMasterSets();
+      check(masterSets.length > 0, "there is at least one version");
+      check(
+        new Set(masterSets.map((masterSet) => masterSet.id)).size ===
+          masterSets.length,
+        "versions have unique ids",
+      );
+      check(
+        masterSets.every(
+          (masterSet, index) =>
+            index === 0 ||
+            masterSets[index - 1]!.effectiveFrom < masterSet.effectiveFrom,
+        ),
+        "versions are listed from the oldest",
+      );
+      check(
+        masterSets.some(
+          (masterSet) => masterSet.id === MASTER_SET_ID_OF_RECORDS_WITHOUT_ONE,
+        ),
+        `the version ${MASTER_SET_ID_OF_RECORDS_WITHOUT_ONE} that records without one are read as is served`,
+      );
+    },
+  ),
+
+  contractCase(
+    "gives a new period the version in effect on its start date and switches it only before pre-closing",
+    async (backend) => {
+      const masterSets = await backend.masterData.getMasterSets();
+      const created = await backend.fiscalPeriods.create(PERIOD_2026);
+      check(
+        created.masterSetId ===
+          masterSetForStartDate(PERIOD_2026.startDate, masterSets)?.id,
+        "a new period takes the newest version in effect on its start date",
+      );
+      const switched = await backend.fiscalPeriods.patch(created.id, {
+        masterSetId: created.masterSetId,
+      });
+      check(
+        switched.masterSetId === created.masterSetId,
+        "a period before opening can be given a known version",
+      );
+      await checkRejectedWith(
+        HTTP_BAD_REQUEST,
+        backend.fiscalPeriods.patch(created.id, {
+          masterSetId: "unknown-version",
+        }),
+        "a version the server does not know is refused",
+      );
+      const next = await backend.fiscalPeriods.create(PERIOD_2027);
+      await backend.fiscalPeriods.start(next.id);
+      const period = await backend.fiscalPeriods.patch(next.id, {
+        openingBalancesCompleted: true,
+      });
+      await backend.preClosings.run(period.id);
+      await checkRejectedWith(
+        HTTP_CONFLICT,
+        backend.fiscalPeriods.patch(period.id, {
+          masterSetId: period.masterSetId,
+        }),
+        "a pre-closed period keeps its version",
+      );
+    },
+  ),
 
   contractCase("starts with no fiscal periods", async (backend) => {
     check(
@@ -353,7 +430,7 @@ export const BACKEND_CONTRACT_CASES: BackendContractCase[] = [
 
   contractCase("stores, changes and removes an entry", async (backend) => {
     const period = await journalizingPeriod(backend);
-    const master = await loadJournalMaster(backend);
+    const master = await loadLatestJournalMaster(backend);
     const input = pairEntry(master, {
       date: "2026-03-01",
       description: "売上",
@@ -399,7 +476,7 @@ export const BACKEND_CONTRACT_CASES: BackendContractCase[] = [
     "refuses an entry outside the fiscal period",
     async (backend) => {
       const period = await journalizingPeriod(backend);
-      const master = await loadJournalMaster(backend);
+      const master = await loadLatestJournalMaster(backend);
       await checkRejectedWith(
         HTTP_BAD_REQUEST,
         backend.entries.create(
@@ -422,7 +499,7 @@ export const BACKEND_CONTRACT_CASES: BackendContractCase[] = [
     "refuses an entry whose lines disagree on partner or category",
     async (backend) => {
       const period = await journalizingPeriod(backend);
-      const master = await loadJournalMaster(backend);
+      const master = await loadLatestJournalMaster(backend);
       const agreeing = pairEntry(master, {
         date: "2026-03-01",
         description: "取引先が行ごとに違う",
@@ -468,7 +545,7 @@ export const BACKEND_CONTRACT_CASES: BackendContractCase[] = [
 
   contractCase("refuses an entry whose sides differ", async (backend) => {
     const period = await journalizingPeriod(backend);
-    const master = await loadJournalMaster(backend);
+    const master = await loadLatestJournalMaster(backend);
     const balanced = pairEntry(master, {
       date: "2026-03-01",
       description: "貸借が合わない",
@@ -491,7 +568,7 @@ export const BACKEND_CONTRACT_CASES: BackendContractCase[] = [
 
   contractCase("imports an entry once per localId", async (backend) => {
     const period = await journalizingPeriod(backend);
-    const master = await loadJournalMaster(backend);
+    const master = await loadLatestJournalMaster(backend);
     const entries = [
       pairEntry(master, {
         date: "2026-03-01",
@@ -523,7 +600,7 @@ export const BACKEND_CONTRACT_CASES: BackendContractCase[] = [
 
   contractCase("keeps fixed assets per fiscal period", async (backend) => {
     const period = await journalizingPeriod(backend);
-    const master = await loadJournalMaster(backend);
+    const master = await loadLatestJournalMaster(backend);
     const created = await backend.fixedAssets.create(period.id, {
       name: "ノートパソコン",
       acquisitionDate: "2026-01-10",
@@ -572,7 +649,7 @@ export const BACKEND_CONTRACT_CASES: BackendContractCase[] = [
     "accepts the closing entries the driver builds",
     async (backend) => {
       const period = await journalizingPeriod(backend);
-      const master = await loadJournalMaster(backend);
+      const master = await loadLatestJournalMaster(backend);
       await backend.entries.create(
         period.id,
         pairEntry(master, {
@@ -665,7 +742,7 @@ export const BACKEND_CONTRACT_CASES: BackendContractCase[] = [
     "carries over into an opened period by replacing what it had, keeping the assets bought in that period",
     async (backend) => {
       const source = await closedPeriodWithFixedAsset(backend);
-      const master = await loadJournalMaster(backend);
+      const master = await loadLatestJournalMaster(backend);
       const created = await backend.fiscalPeriods.create(PERIOD_2027);
       await backend.fiscalPeriods.start(created.id);
       const asset = {
@@ -739,7 +816,7 @@ export const BACKEND_CONTRACT_CASES: BackendContractCase[] = [
   contractCase(
     "carries over only what it is asked to into an opened period",
     async (backend) => {
-      const master = await loadJournalMaster(backend);
+      const master = await loadLatestJournalMaster(backend);
       const sourceOpen = await backend.fiscalPeriods.create(PERIOD_2026);
       await backend.fiscalPeriods.start(sourceOpen.id);
       await backend.fiscalPeriods.patch(sourceOpen.id, {

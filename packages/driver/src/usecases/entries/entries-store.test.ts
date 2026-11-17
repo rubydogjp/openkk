@@ -121,6 +121,49 @@ describe("createOpenkkEntriesStore", () => {
     expect(entries.getState().loadError).toBeNull();
   });
 
+  it("reads the period's entries with the accounts of its version, again after the version is switched", async () => {
+    const fake = fakeBackend();
+    const [firstSet] = fake.masterSets;
+    fake.masterSets.push({
+      ...firstSet!,
+      id: "jp-2028",
+      name: "2028年版",
+      effectiveFrom: "2028-01-01",
+      bookAccounts: firstSet!.bookAccounts
+        .filter((account) => account.id !== "acct_equipment")
+        .map((account) =>
+          account.id === "acct_cash"
+            ? { ...account, name: "現金預金" }
+            : account,
+        ),
+    });
+    fake.fiscalPeriods.push(fakeFiscalPeriod({ id: "fp-1" }));
+    storedEntry(fake, "fp-1", "2026-01-05");
+    const { app, entries } = await startedStores(fake, "fp-1");
+    expect(entries.getState().masterSets.map(({ id }) => id)).toEqual([
+      "jp-2026",
+      "jp-2028",
+    ]);
+    expect(
+      entries.getState().listFiscalPeriodEntries("fp-1")[0]?.lines[0]
+        ?.accountName,
+    ).toBe("現金");
+
+    await app.getState().updateFiscalPeriod("fp-1", { masterSetId: "jp-2028" });
+    await settle();
+
+    expect(
+      entries.getState().listFiscalPeriodEntries("fp-1")[0]?.lines[0]
+        ?.accountName,
+    ).toBe("現金預金");
+    expect(
+      entries.getState().accountOptions.map((option) => option.id),
+    ).toEqual(["acct_cash", "acct_sales"]);
+    expect(entries.getState().journalTableMaster.otherAccounts).toEqual([
+      expect.objectContaining({ id: "acct_equipment" }),
+    ]);
+  });
+
   it("adds, changes and removes an entry in the shared list", async () => {
     const fake = fakeBackend();
     fake.fiscalPeriods.push(fakeFiscalPeriod({ id: "fp-1" }));

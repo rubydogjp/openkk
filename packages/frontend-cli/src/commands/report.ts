@@ -29,9 +29,11 @@ export async function runReportCommand(
     );
   }
   const period = await requireFiscalPeriod(context.backend, periodId ?? null);
+  const today = context.today();
   const html = buildFiscalPeriodReport(
     kind,
-    await loadFiscalPeriodReportInput(context.backend, period, context.today()),
+    await loadFiscalPeriodReportInput(context.backend, period, today),
+    today,
   );
   if (context.options.out == null) {
     context.output.raw(html);

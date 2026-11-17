@@ -212,6 +212,7 @@ function archiveOf(
       phase: source.phase,
       openingBalancesCompleted: source.openingBalancesCompleted,
       documentsReceivedCompleted: source.documentsReceivedCompleted,
+      masterSetId: source.masterSetId,
       opening: source.opening,
     },
     entries: entries.map((entry) => ({

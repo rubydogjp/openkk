@@ -14,6 +14,7 @@ export type FiscalPeriodDbData = {
   archivedAt: string | null;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
+  masterSetId: string;
 };
 
 export type FixedAssetDbData = {

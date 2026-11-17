@@ -203,11 +203,27 @@ export function normalizeArchiveImportInput(
       phase,
       openingBalancesCompleted,
       documentsReceivedCompleted,
+      masterSetId: normalizeArchivedMasterSetId(fiscalPeriod.masterSetId),
       opening: normalizedOpening,
     },
     entries: normalizedEntries,
     fixedAssets: normalizedFixedAssets,
   };
+}
+
+function normalizeArchivedMasterSetId(value: unknown): string | null {
+  if (value == null) return null;
+  if (
+    typeof value !== "string" ||
+    value.trim() === "" ||
+    value !== value.trim()
+  ) {
+    throw engineValidationError(
+      "archive fiscalPeriod.masterSetId is invalid",
+      null,
+    );
+  }
+  return value;
 }
 
 function normalizeFiscalPeriodPhase(value: unknown): FiscalPeriodPhase {

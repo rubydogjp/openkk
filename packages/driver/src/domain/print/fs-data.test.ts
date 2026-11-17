@@ -49,6 +49,106 @@ describe("computeFsAggregate", () => {
     expect(aggregate.amounts[6]).toBe(115_000);
   });
 
+  it("puts every cost-of-sales account other than inventory into row 3 so that rows 2 to 6 add up", () => {
+    const aggregate = computeFsAggregate({
+      openingBalanceLines: [],
+      entries: [
+        entry({
+          debit: "期首商品棚卸高",
+          debitType: "cost_of_sales",
+          debitAmount: "40,000",
+          credit: "商品",
+          creditType: "asset",
+          creditAmount: "40,000",
+        }),
+        entry({
+          debit: "仕入",
+          debitType: "cost_of_sales",
+          debitAmount: "100,000",
+          credit: "普通預金",
+          creditType: "asset",
+          creditAmount: "100,000",
+        }),
+        entry({
+          debit: "普通預金",
+          debitType: "asset",
+          debitAmount: "3,000",
+          credit: "仕入値引戻し高",
+          creditType: "cost_of_sales",
+          creditAmount: "3,000",
+        }),
+        entry({
+          debit: "外注加工費",
+          debitType: "cost_of_sales",
+          debitAmount: "20,000",
+          credit: "普通預金",
+          creditType: "asset",
+          creditAmount: "20,000",
+        }),
+        entry({
+          debit: "商品",
+          debitType: "asset",
+          debitAmount: "25,000",
+          credit: "期末商品棚卸高",
+          creditType: "cost_of_sales",
+          creditAmount: "25,000",
+        }),
+      ],
+    });
+
+    expect(aggregate.amounts[2]).toBe(40_000);
+    expect(aggregate.amounts[3]).toBe(117_000);
+    expect(aggregate.amounts[4]).toBe(157_000);
+    expect(aggregate.amounts[5]).toBe(25_000);
+    expect(aggregate.amounts[6]).toBe(132_000);
+    expect(aggregate.amounts[4]! - aggregate.amounts[5]!).toBe(
+      aggregate.amounts[6],
+    );
+  });
+
+  it("shows an expense with a negative balance on its row so the rows add up to row 32", () => {
+    const aggregate = computeFsAggregate({
+      openingBalanceLines: [],
+      entries: [
+        entry({
+          debit: "通信費",
+          debitType: "expense",
+          debitAmount: "8,000",
+          credit: "普通預金",
+          creditType: "asset",
+          creditAmount: "8,000",
+        }),
+        entry({
+          debit: "普通預金",
+          debitType: "asset",
+          debitAmount: "2,000",
+          credit: "消耗品費",
+          creditType: "expense",
+          creditAmount: "2,000",
+        }),
+        entry({
+          debit: "普通預金",
+          debitType: "asset",
+          debitAmount: "500",
+          credit: "研修費",
+          creditType: "expense",
+          creditAmount: "500",
+        }),
+      ],
+    });
+
+    expect(aggregate.amounts[12]).toBe(8_000);
+    expect(aggregate.amounts[17]).toBe(-2_000);
+    expect(aggregate.expenseWriteIns).toEqual([
+      { row: 26, label: "研修費", amount: -500 },
+    ]);
+    const expenseRows = Array.from({ length: 24 }, (_, index) => index + 8);
+    expect(
+      expenseRows.reduce((sum, row) => sum + (aggregate.amounts[row] ?? 0), 0),
+    ).toBe(aggregate.amounts[32]);
+    expect(aggregate.amounts[32]).toBe(5_500);
+  });
+
   it("builds profit-and-loss and balance-sheet values from real entries", () => {
     const aggregate = computeFsAggregate({
       openingBalanceLines: [

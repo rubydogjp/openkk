@@ -19,7 +19,7 @@ const USER_ID = "openkk-original-user";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const UNSAVED_STATUS = "バックアップしていない変更があります";
 const SAME_MESSAGE = "今のデータと同じです。";
-const OVERWRITE_TITLE = "ファイルで上書きしますか？";
+const OVERWRITE_TITLE = "ファイルでの上書き";
 const KEPT_IN_BROWSER_MESSAGE = "データはこのブラウザの中だけにあります";
 const CHANGED_OUTSIDE_MESSAGE =
   "ファイルを優先して、アプリの中の「2026年分」を上書きします。";
@@ -614,7 +614,7 @@ test("shows a period the previous version archived as an ordinary closed period 
 
   await expect(
     page.getByRole("button", { name: /^圧縮保存した期間 / }),
-  ).toContainText("決算後");
+  ).toContainText("決算済み");
   await expect(page.getByText("圧縮保存済み")).toHaveCount(0);
   await page.getByRole("button", { name: "追加" }).click();
   await expect(

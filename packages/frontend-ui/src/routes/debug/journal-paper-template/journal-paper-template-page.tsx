@@ -8,18 +8,24 @@ import {
   buildJournalBody,
   buildJournalDocument,
   JOURNAL_EXAMPLE_ENTRIES,
+  PRINT_HEADING_EXAMPLE,
 } from "@rubydogjp/openkk-driver";
 
 export function JournalPaperTemplatePage() {
   const printDocument = usePrintDocument();
-  const bodyHtml = useMemo(() => buildJournalBody(JOURNAL_EXAMPLE_ENTRIES), []);
+  const bodyHtml = useMemo(
+    () => buildJournalBody(JOURNAL_EXAMPLE_ENTRIES, PRINT_HEADING_EXAMPLE),
+    [],
+  );
 
   return (
     <PreviewScaffold
       title="仕訳帳 (テンプレート + 例の値)"
       bodyHtml={bodyHtml}
       onPrint={() =>
-        printDocument(buildJournalDocument(JOURNAL_EXAMPLE_ENTRIES))
+        printDocument(
+          buildJournalDocument(JOURNAL_EXAMPLE_ENTRIES, PRINT_HEADING_EXAMPLE),
+        )
       }
     />
   );

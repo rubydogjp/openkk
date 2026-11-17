@@ -1,4 +1,5 @@
 import {
+  assertKnownMasterSetId,
   assertDateRange,
   assertNonBlankString,
   assertOpeningMatchesRules,
@@ -270,6 +271,9 @@ export function assertFiscalPeriodPatchInput(
     value.documentsReceivedCompleted,
     "Fiscal period documentsReceivedCompleted",
   );
+  if (value.masterSetId !== undefined) {
+    assertKnownMasterSetId(value.masterSetId);
+  }
   const startDate =
     value.startDate === undefined ? current.startDate : value.startDate;
   const endDate = value.endDate === undefined ? current.endDate : value.endDate;

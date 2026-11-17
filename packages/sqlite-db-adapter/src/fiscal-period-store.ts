@@ -1,5 +1,7 @@
 import {
+  assertKnownMasterSetId,
   keepsFixedAssetOnCarryover,
+  masterSetForStartDate,
   applyPatch,
   assertEntryMatchesRules,
   assertFiscalPeriodCanCarryOver,
@@ -23,6 +25,7 @@ import type {
   OpeningBalanceLineDbRecord,
   OpeningJournalDbRecord,
 } from "@rubydogjp/openkk-engine";
+import { readLegacyStoredMasterSetId } from "./legacy/legacy-master-set.js";
 import { createEntriesDb, insertEntry } from "./entry-store.js";
 import { createFixedAssetsDb, insertFixedAsset } from "./fixed-asset-store.js";
 import {
@@ -378,6 +381,9 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         openingBalancesCompleted: input.fiscalPeriod.openingBalancesCompleted,
         documentsReceivedCompleted:
           input.fiscalPeriod.documentsReceivedCompleted,
+        masterSetId: readLegacyStoredMasterSetId(
+          input.fiscalPeriod.masterSetId,
+        ),
         opening,
         createdAt: timestamp,
         updatedAt: timestamp,
@@ -431,6 +437,9 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
       return runInTransaction(db, async () => {
         const current = await requireFiscalPeriodRecord(db, id);
         assertDbFiscalPeriodPatchAllowed(current, patch);
+        if (patch.masterSetId !== undefined) {
+          assertKnownMasterSetId(patch.masterSetId);
+        }
         const now = nowMs();
         const updated = applyPatch(
           { ...current, updatedAt: msToIso(now) },
@@ -496,6 +505,7 @@ function newFiscalPeriodRecord(
     archivedAt: null,
     openingBalancesCompleted: false,
     documentsReceivedCompleted: false,
+    masterSetId: masterSetForStartDate(input.startDate).id,
     opening: emptyOpening(),
     createdAt: timestamp,
     updatedAt: timestamp,

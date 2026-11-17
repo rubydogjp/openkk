@@ -91,9 +91,10 @@ function memoryStorage() {
 function readAsCurrentVersion(
   fiscalPeriod: ReleasePeriodRecords["fiscalPeriod"],
 ): StoredRecord {
-  return fiscalPeriod.archiveStatus === "archived"
-    ? { ...fiscalPeriod, archiveStatus: "active", archivedAt: null }
-    : fiscalPeriod;
+  const withMasterSet = { ...fiscalPeriod, masterSetId: "jp-2026" };
+  return withMasterSet.archiveStatus === "archived"
+    ? { ...withMasterSet, archiveStatus: "active", archivedAt: null }
+    : withMasterSet;
 }
 
 function byId(left: { id: string }, right: { id: string }): number {
@@ -186,7 +187,7 @@ describe(`a database written by ${fixture.madeBy}`, () => {
     ).toEqual(expect.arrayContaining(["active", "archived", "purged"]));
   });
 
-  it("moves every fiscal period into a book of its own and reads back each record as the release stored it", async () => {
+  it("moves every fiscal period into a book of its own and reads back each record as the release stored it, as the first version of accounts and categories", async () => {
     const { result, store, moved } = await moveReleaseDatabase(legacyBytes);
     const books = await openMovedBooks(store);
     const movedPeriods = fixture.database.filter(

@@ -374,7 +374,7 @@ function FixedAssetCardBody(props: { asset: FixedAsset }) {
             gap: 4,
           }}
         >
-          購入額
+          取得価額
           <AmountText bold={false}>
             {formatAmount(asset.acquisitionCost)}
           </AmountText>
@@ -389,7 +389,7 @@ function FixedAssetCardBody(props: { asset: FixedAsset }) {
             gap: 4,
           }}
         >
-          現在の価値
+          帳簿価額
           <AmountText bold>{formatAmount(asset.currentBookValue)}</AmountText>円
         </span>
       </div>

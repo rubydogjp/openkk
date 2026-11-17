@@ -28,6 +28,7 @@ function seedPeriod(id: string, year: number): FiscalPeriodDbRecord {
     archivedAt: null,
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,
+    masterSetId: "jp-2026",
     opening: { balanceLines: [], journals: [] },
     createdAt: `${year}-01-01T00:00:00.000Z`,
     updatedAt: `${year}-01-01T00:00:00.000Z`,

@@ -296,12 +296,8 @@ export function computeFsAggregate({
     );
   }
 
-  const expense = (label: string): number | null => {
-    const amount = expenseByName.get(label) ?? 0;
-    return amount > 0 ? amount : null;
-  };
-  const purchasesAmount = sumByNames(costOfSalesByName, ["仕入", "商品仕入高"]);
-  const purchases = purchasesAmount > 0 ? purchasesAmount : null;
+  const expense = (label: string): number | null =>
+    nonZeroOrNull(expenseByName.get(label) ?? 0);
   const openingInventoryAmount = sumByNames(
     costOfSalesByName,
     OPENING_INVENTORY_ACCOUNTS,
@@ -310,11 +306,13 @@ export function computeFsAggregate({
     costOfSalesByName,
     CLOSING_INVENTORY_ACCOUNTS,
   );
+  const purchasesAmount =
+    costOfSalesTotal - openingInventoryAmount + closingInventoryAmount;
 
   const writeInCandidates = [...expenseByName.entries()]
     .filter(
       ([name, value]) =>
-        value > 0 &&
+        value !== 0 &&
         !NAMED_EXPENSE_ACCOUNTS.has(name) &&
         !RESERVE_AND_FAMILY_ACCOUNTS.has(name),
     )
@@ -335,10 +333,10 @@ export function computeFsAggregate({
 
   const amounts: Record<number, number | null> = {
     1: salesForDisplay !== 0 ? salesForDisplay : null,
-    2: openingInventoryAmount > 0 ? openingInventoryAmount : null,
-    3: purchases,
+    2: nonZeroOrNull(openingInventoryAmount),
+    3: nonZeroOrNull(purchasesAmount),
     4: openingInventoryAmount + purchasesAmount,
-    5: closingInventoryAmount > 0 ? closingInventoryAmount : null,
+    5: nonZeroOrNull(closingInventoryAmount),
     6: costOfSalesTotal,
     7: grossProfitForDisplay,
     8: expense("租税公課"),
@@ -364,15 +362,15 @@ export function computeFsAggregate({
     28: writeInAmount(28),
     29: writeInAmount(29),
     30: writeInAmount(30),
-    31: miscTotal > 0 ? miscTotal : null,
+    31: nonZeroOrNull(miscTotal),
     32: operatingExpensesForDisplay,
     33: ordinaryIncomeForDisplay,
-    34: badDebtReversal > 0 ? badDebtReversal : null,
+    34: nonZeroOrNull(badDebtReversal),
     35: null,
     36: null,
     37: reversalSubtotal,
-    38: familyEmployeeSalary > 0 ? familyEmployeeSalary : null,
-    39: badDebtProvision > 0 ? badDebtProvision : null,
+    38: nonZeroOrNull(familyEmployeeSalary),
+    39: nonZeroOrNull(badDebtProvision),
     40: null,
     41: null,
     42: provisionSubtotal,

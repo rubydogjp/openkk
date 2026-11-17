@@ -9,6 +9,7 @@ import { formatAmount, parseAmount } from "../shared/parse-utils.js";
 import { OPENING_EQUITY_LABELS } from "../shared/balance-sheet-layout.js";
 import { buildPrintDocument, escapeHtml } from "./print-shell.js";
 import { buildPortraitPage } from "./portrait-page.js";
+import type { PrintHeading } from "./print-heading.js";
 import {
   formatAmountOrBlank,
   formatMonthLabel,
@@ -25,6 +26,11 @@ import {
 
 function formatBalance(balance: number): string {
   return formatAmount(Math.abs(balance));
+}
+
+function balanceSide(balance: number, debitNormal: boolean): string {
+  if (balance === 0) return "";
+  return balance > 0 === debitNormal ? "借" : "貸";
 }
 
 function isDebitNormal(type: BookAccountType): boolean {
@@ -58,6 +64,7 @@ const COLUMN_WIDTHS = {
   counterAccount: 120,
   debitAmount: 68,
   creditAmount: 68,
+  balanceSide: 24,
   balance: 81,
 };
 const MEMO_COLUMN_WIDTH =
@@ -66,10 +73,12 @@ const MEMO_COLUMN_WIDTH =
   COLUMN_WIDTHS.counterAccount -
   COLUMN_WIDTHS.debitAmount -
   COLUMN_WIDTHS.creditAmount -
+  COLUMN_WIDTHS.balanceSide -
   COLUMN_WIDTHS.balance;
 const METADATA_COLUMN_WIDTH =
   COLUMN_WIDTHS.debitAmount +
   COLUMN_WIDTHS.creditAmount +
+  COLUMN_WIDTHS.balanceSide +
   COLUMN_WIDTHS.balance;
 const BAND_LABEL_COLUMN_WIDTH =
   COLUMN_WIDTHS.date + COLUMN_WIDTHS.counterAccount + MEMO_COLUMN_WIDTH;
@@ -165,6 +174,7 @@ const BAND_CELL_STYLE =
 export function buildGeneralLedgerBody(
   entries: EntryRecord[],
   openingBalanceLines: Array<{ accountId: string; amount: number }>,
+  heading: PrintHeading,
 ): string {
   const encounterOrder: AccountIdentity[] = [];
   const seen = new Set<string>();
@@ -256,7 +266,8 @@ export function buildGeneralLedgerBody(
 
   if (ledgers.length === 0) {
     return buildPortraitPage(
-      "",
+      "総勘定元帳",
+      heading,
       `<div style="text-align:center;padding:48px;color:#475569;font-size:14px;">仕訳データがありません</div>`,
       1,
     );
@@ -286,6 +297,7 @@ export function buildGeneralLedgerBody(
   <td colspan="2" style="${BAND_CELL_STYLE}"></td>
   <td style="${BAND_CELL_STYLE};text-align:right">${openingOnDebit ? formatAmountOrBlank(openingAmount) : ""}</td>
   <td style="${BAND_CELL_STYLE};text-align:right">${openingOnCredit ? formatAmountOrBlank(openingAmount) : ""}</td>
+  <td style="${BAND_CELL_STYLE};text-align:center">${balanceSide(ledger.openingBalance, ledger.debitNormal)}</td>
   <td style="${BAND_CELL_STYLE};text-align:right">${formatBalance(ledger.openingBalance)}</td>
 </tr>
 `;
@@ -295,7 +307,7 @@ export function buildGeneralLedgerBody(
   <td colspan="3" style="${BAND_CELL_STYLE}">${formatMonthLabel(row.monthKey)} 合計</td>
   <td style="${BAND_CELL_STYLE};text-align:right">${formatAmountOrBlank(row.subtotal.debit)}</td>
   <td style="${BAND_CELL_STYLE};text-align:right">${formatAmountOrBlank(row.subtotal.credit)}</td>
-  <td style="${BAND_CELL_STYLE}"></td>
+  <td colspan="2" style="${BAND_CELL_STYLE}"></td>
 </tr>
 `;
             }
@@ -310,7 +322,7 @@ export function buildGeneralLedgerBody(
   <td colspan="3" style="${BAND_CELL_STYLE}">合計</td>
   <td style="${BAND_CELL_STYLE};text-align:right">${formatAmountOrBlank(grandDebit)}</td>
   <td style="${BAND_CELL_STYLE};text-align:right">${formatAmountOrBlank(grandCredit)}</td>
-  <td style="${BAND_CELL_STYLE}"></td>
+  <td colspan="2" style="${BAND_CELL_STYLE}"></td>
 </tr>
 `;
             }
@@ -319,13 +331,14 @@ export function buildGeneralLedgerBody(
   <td rowspan="2" style="${BODY_CELL_STYLE};vertical-align:middle;text-align:center">${escapeHtml(formatPrintDate(line.date))}</td>
   <td style="${BODY_CELL_STYLE}">${escapeHtml(line.counterAccount)}</td>
   <td style="${BODY_CELL_STYLE}">${escapeHtml(line.memo)}</td>
-  <td colspan="3" style="${BODY_CELL_STYLE}">${escapeHtml(line.metadata)}</td>
+  <td colspan="4" style="${BODY_CELL_STYLE}">${escapeHtml(line.metadata)}</td>
 </tr>
 <tr>
   <td style="${BODY_CELL_STYLE}"></td>
   <td style="${BODY_CELL_STYLE}"></td>
   <td style="${BODY_CELL_STYLE};text-align:right">${formatAmountOrBlank(line.debitAmount)}</td>
   <td style="${BODY_CELL_STYLE};text-align:right">${formatAmountOrBlank(line.creditAmount)}</td>
+  <td style="${BODY_CELL_STYLE};text-align:center">${balanceSide(line.balance, ledger.debitNormal)}</td>
   <td style="${BODY_CELL_STYLE};text-align:right">${formatBalance(line.balance)}</td>
 </tr>
 `;
@@ -334,20 +347,21 @@ export function buildGeneralLedgerBody(
 
         const tableHtml = `<table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px">
   <colgroup>
-    <col style="width:${COLUMN_WIDTHS.date}px"><col style="width:${COLUMN_WIDTHS.counterAccount}px"><col><col style="width:${COLUMN_WIDTHS.debitAmount}px"><col style="width:${COLUMN_WIDTHS.creditAmount}px"><col style="width:${COLUMN_WIDTHS.balance}px">
+    <col style="width:${COLUMN_WIDTHS.date}px"><col style="width:${COLUMN_WIDTHS.counterAccount}px"><col><col style="width:${COLUMN_WIDTHS.debitAmount}px"><col style="width:${COLUMN_WIDTHS.creditAmount}px"><col style="width:${COLUMN_WIDTHS.balanceSide}px"><col style="width:${COLUMN_WIDTHS.balance}px">
   </colgroup>
   <thead>
     <tr>
       <th rowspan="2" style="${HEADER_CELL_STYLE}">取引日</th>
       <th style="${HEADER_CELL_STYLE}">相手勘定科目</th>
       <th style="${HEADER_CELL_STYLE}">摘要</th>
-      <th colspan="3" style="${HEADER_CELL_STYLE}">取引先・区分</th>
+      <th colspan="4" style="${HEADER_CELL_STYLE}">取引先・区分</th>
     </tr>
     <tr>
       <th style="${HEADER_CELL_STYLE}">相手補助科目</th>
       <th style="${HEADER_CELL_STYLE}">補助科目</th>
       <th style="${HEADER_CELL_STYLE}">借方金額</th>
       <th style="${HEADER_CELL_STYLE}">貸方金額</th>
+      <th style="${HEADER_CELL_STYLE}">借/貸</th>
       <th style="${HEADER_CELL_STYLE}">残高</th>
     </tr>
   </thead>
@@ -360,7 +374,7 @@ export function buildGeneralLedgerBody(
           (duplicateNameCounts.get(ledger.accountName) ?? 0) > 1
             ? `${ledger.accountName}（${accountTypeLabel(ledger.accountType)}）`
             : ledger.accountName;
-        return buildPortraitPage(title, tableHtml, pageNumber);
+        return buildPortraitPage(title, heading, tableHtml, pageNumber);
       });
     })
     .join("");
@@ -442,11 +456,12 @@ function accountTypeLabel(type: BookAccountType): string {
 export function buildGeneralLedgerDocument(
   entries: EntryRecord[],
   openingBalanceLines: Array<{ accountId: string; amount: number }>,
+  heading: PrintHeading,
 ): string {
   return buildPrintDocument({
     title: "総勘定元帳",
     orientation: "portrait",
-    body: buildGeneralLedgerBody(entries, openingBalanceLines),
+    body: buildGeneralLedgerBody(entries, openingBalanceLines, heading),
   });
 }
 

@@ -118,7 +118,7 @@ export function JournalizingAnalyticsPage() {
               letterSpacing: "-0.01em",
             }}
           >
-            記録中
+            記帳中
           </h1>
           <p
             style={{

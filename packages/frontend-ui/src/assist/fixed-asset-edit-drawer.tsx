@@ -138,8 +138,8 @@ export function FixedAssetEditDrawer({
     try {
       const confirmed = await confirm({
         tone: "danger",
-        title: "固定資産を削除する",
-        body: ["この固定資産を削除します。"],
+        title: "固定資産の削除",
+        body: ["削除すると元に戻せません。"],
         confirmLabel: "削除する",
       });
       if (!confirmed) return;
@@ -526,7 +526,7 @@ function DepreciationPreview({
         value={`${Math.round(progress * 100)}% (${remaining})`}
       />
       <PreviewRow
-        label="現在簿価"
+        label="帳簿価額"
         value={`${formatAmount(currentBookValue)} 円`}
       />
       <PreviewRow

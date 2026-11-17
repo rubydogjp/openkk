@@ -1,6 +1,7 @@
 import {
   fixedAssetsReplacedByCarryover,
   formatAmount,
+  loadJournalMaster,
   loadFiscalPeriodArchivePayload,
 } from "@rubydogjp/openkk-driver";
 import type {
@@ -62,7 +63,7 @@ export async function runOpeningCommand(
           "期首の残高を 1 つ以上、科目=金額 の形で指定してください",
         );
       }
-      const accounts = await backend.masterData.getBookAccounts();
+      const { accounts } = await loadJournalMaster(backend, period.masterSetId);
       const lines = balances.map((argument) =>
         parseBalanceArgument(argument, accounts),
       );

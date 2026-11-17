@@ -9,6 +9,7 @@ import {
   buildGeneralLedgerDocument,
   JOURNAL_EXAMPLE_ENTRIES,
   JOURNAL_EXAMPLE_OPENING_BALANCE_LINES,
+  PRINT_HEADING_EXAMPLE,
 } from "@rubydogjp/openkk-driver";
 
 export function GeneralLedgerPaperTemplatePage() {
@@ -18,6 +19,7 @@ export function GeneralLedgerPaperTemplatePage() {
       buildGeneralLedgerBody(
         JOURNAL_EXAMPLE_ENTRIES,
         JOURNAL_EXAMPLE_OPENING_BALANCE_LINES,
+        PRINT_HEADING_EXAMPLE,
       ),
     [],
   );
@@ -31,6 +33,7 @@ export function GeneralLedgerPaperTemplatePage() {
           buildGeneralLedgerDocument(
             JOURNAL_EXAMPLE_ENTRIES,
             JOURNAL_EXAMPLE_OPENING_BALANCE_LINES,
+            PRINT_HEADING_EXAMPLE,
           ),
         )
       }

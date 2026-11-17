@@ -104,7 +104,7 @@ describe("entryRecordToImportPayload", () => {
         entry({
           debitBookAccountId: "unknown",
         }),
-        { accounts, taxCategories, businessCategories },
+        { accounts, otherAccounts: [], taxCategories, businessCategories },
       ),
     ).toThrow("entries.import: unresolved bookAccountId");
   });
@@ -120,6 +120,7 @@ describe("entryRecordToImportPayload", () => {
     }));
     const payload = entryRecordToImportPayload(record, {
       accounts,
+      otherAccounts: [],
       taxCategories,
       businessCategories,
     });
@@ -136,6 +137,7 @@ describe("entryRecordToImportPayload", () => {
   it("maps a blank tax category to out-of-scope taxation", () => {
     const payload = entryRecordToImportPayload(entry({ taxCategory: "" }), {
       accounts,
+      otherAccounts: [],
       taxCategories,
       businessCategories,
     });
@@ -200,6 +202,7 @@ describe("entryRecordToImportPayload", () => {
 
     const payload = entryRecordToImportPayload(entry, {
       accounts,
+      otherAccounts: [],
       taxCategories,
       businessCategories,
     });
@@ -237,7 +240,7 @@ describe("entryRecordToImportPayload", () => {
       entry({
         businessRate: 0.3333333333333333,
       }),
-      { accounts, taxCategories, businessCategories },
+      { accounts, otherAccounts: [], taxCategories, businessCategories },
     );
 
     expect(payload.businessRate).toBe(0.3333333333333333);
@@ -275,7 +278,7 @@ describe("entryRecordToImportPayload", () => {
           },
         ],
       }),
-      { accounts, taxCategories, businessCategories },
+      { accounts, otherAccounts: [], taxCategories, businessCategories },
     );
 
     expect(payload.lines).toEqual([

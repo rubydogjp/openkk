@@ -200,6 +200,7 @@ describe("createRecordsBookFilesAdapter", () => {
     expect(period?.id).toBe(importedId);
     expect(period?.name).toBe("2026年分");
     expect(period?.archiveStatus).toBe("active");
+    expect(period?.masterSetId).toBe("jp-2026");
     expect(await target.entries.getAll(importedId!)).toHaveLength(1);
     expect(await target.fixedAssets.getAll(importedId!)).toHaveLength(1);
   });

@@ -60,6 +60,7 @@ export type JournalTableFileRow = JournalTableRow & { rowNumber: number };
 
 export type JournalTableMaster = {
   accounts: ReadonlyArray<SectionedBookAccount>;
+  otherAccounts: ReadonlyArray<SectionedBookAccount>;
   taxCategories: ReadonlyArray<{ id: string; name: string }>;
   businessCategories: ReadonlyArray<{ id: string; name: string }>;
 };
@@ -141,7 +142,7 @@ export function buildJournalTableEntryRows(
   entries: ReadonlyArray<EntryRecord>,
   master: JournalTableMaster,
 ): JournalTableEntryRow[] {
-  const labels = buildBookAccountLabels(master.accounts);
+  const labels = journalTableAccountLabels(master);
   return entries
     .filter((entry) => !isMaterializedVirtualEntry(entry))
     .flatMap((entry) =>
@@ -284,7 +285,10 @@ export function readJournalTableEntries(
   };
   const exceedsTextLimit = (text: string) =>
     text.length > MAX_TEXT_FIELD_LENGTH && !input.storedTexts.has(text);
-  const resolveAccount = createAccountResolver(input.master.accounts);
+  const resolveAccount = createAccountResolver(
+    input.master.accounts,
+    input.master.otherAccounts,
+  );
   const resolveTaxCategory = createCategoryResolver(
     input.master.taxCategories,
     DEFAULT_TAX_CATEGORY_ID,
@@ -490,7 +494,7 @@ export function diffJournalTableEntries(
   incoming: ReadonlyArray<EntryRecord>,
   master: JournalTableMaster,
 ): JournalTableChanges {
-  const labels = buildBookAccountLabels(master.accounts);
+  const labels = journalTableAccountLabels(master);
   const tableText = (entry: EntryRecord) =>
     JSON.stringify(
       entryRows(entry, labels).map((row) =>
@@ -545,7 +549,39 @@ export function journalTableOperations(
   };
 }
 
+function journalTableAccountLabels(
+  master: Pick<JournalTableMaster, "accounts" | "otherAccounts">,
+): Map<string, string> {
+  const labels = buildBookAccountLabels(master.accounts);
+  for (const account of master.otherAccounts) {
+    labels.set(account.id, customCategoryLabel(account.name));
+  }
+  return labels;
+}
+
 function createAccountResolver(
+  accounts: ReadonlyArray<SectionedBookAccount>,
+  otherAccounts: ReadonlyArray<SectionedBookAccount>,
+): (text: string) => SectionedBookAccount | string {
+  const resolveInSet = createAccountInSetResolver(accounts);
+  return (text) => {
+    const inSet = resolveInSet(text);
+    if (typeof inSet !== "string") return inSet;
+    const value = categoryTextValue(text);
+    const other =
+      otherAccounts.find((account) => account.name === value) ??
+      otherAccounts.find((account) => account.id === value) ??
+      null;
+    if (other != null) return other;
+    if (value !== text) {
+      const plain = resolveInSet(value);
+      if (typeof plain !== "string") return plain;
+    }
+    return inSet;
+  };
+}
+
+function createAccountInSetResolver(
   accounts: ReadonlyArray<SectionedBookAccount>,
 ): (text: string) => SectionedBookAccount | string {
   const labels = buildBookAccountLabels(accounts);

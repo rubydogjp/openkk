@@ -619,7 +619,7 @@ export function DeleteConfirmDialog(props: {
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label="仕訳の削除確認"
+        aria-label="仕訳の削除"
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
         style={{
@@ -639,7 +639,7 @@ export function DeleteConfirmDialog(props: {
             color: entryDrawerColors.text,
           }}
         >
-          仕訳を削除しますか
+          仕訳の削除
         </div>
         <div
           style={{

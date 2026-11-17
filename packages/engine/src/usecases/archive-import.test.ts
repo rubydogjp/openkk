@@ -94,6 +94,24 @@ describe("normalizeArchiveImportInput", () => {
     expect(normalized.fiscalPeriod.opening).toBeDefined();
   });
 
+  it("keeps the version of accounts and categories written in the archive, and leaves it unset when the archive has none", () => {
+    const written = validArchiveInput();
+    written.fiscalPeriod.masterSetId = "jp-2099";
+    expect(normalizeArchiveImportInput(written).fiscalPeriod.masterSetId).toBe(
+      "jp-2099",
+    );
+    expect(
+      normalizeArchiveImportInput(validArchiveInput()).fiscalPeriod.masterSetId,
+    ).toBeNull();
+    for (const invalid of ["", " jp-2026", 2026]) {
+      const input = validArchiveInput();
+      input.fiscalPeriod.masterSetId = invalid;
+      expect(() => normalizeArchiveImportInput(input)).toThrow(
+        /masterSetId is invalid/,
+      );
+    }
+  });
+
   it("rejects fiscal period id mismatch", () => {
     const input = validArchiveInput();
     input.fiscalPeriod.id = "another-period";

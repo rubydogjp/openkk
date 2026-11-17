@@ -48,6 +48,7 @@ export type FiscalPeriodDbRecord = {
   archivedAt: string | null;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
+  masterSetId: string;
   opening: FiscalPeriodOpeningDbRecord;
   createdAt: string;
   updatedAt: string;
@@ -89,6 +90,7 @@ export type FiscalPeriodDbPatchInput = {
   endDate?: string;
   openingBalancesCompleted?: boolean;
   documentsReceivedCompleted?: boolean;
+  masterSetId?: string;
   opening?: FiscalPeriodOpeningDbRecord;
 };
 
@@ -224,6 +226,7 @@ export type FiscalPeriodDbImportInput = {
   phase: FiscalPeriodDbPhase;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
+  masterSetId: string | null;
   opening: FiscalPeriodOpeningDbRecord;
 };
 

@@ -74,7 +74,7 @@ function inZipOrder(
 
 describe(`archive zips written by ${fixture.madeBy}`, () => {
   it.each(Object.keys(fixture.zips))(
-    "%s is imported with the same records the release imported",
+    "%s is imported with the same records the release imported, read as the first version of accounts and categories",
     async (name) => {
       const db = await createMemoryDbAdapter(null);
       const backend = createOpenkkBackendApi(db, { userId: fixture.userId });
@@ -88,8 +88,12 @@ describe(`archive zips written by ${fixture.madeBy}`, () => {
         fixedAssets: await db.fixedAssets.getAll(imported.id),
       };
 
+      const released = inZipOrder(fixture.zips[name]!, payload.entries);
       expect(withNumberedIds(current)).toEqual(
-        withNumberedIds(inZipOrder(fixture.zips[name]!, payload.entries)),
+        withNumberedIds({
+          ...released,
+          fiscalPeriod: { ...released.fiscalPeriod, masterSetId: "jp-2026" },
+        }),
       );
     },
   );

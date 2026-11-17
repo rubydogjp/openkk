@@ -20,11 +20,11 @@ test("仕訳と期首BSを変更でき、再読み込みでサンプルに戻る
   await page.getByRole("button", { name: /^手順 \d+ 期首のBSを入力 / }).click();
   await expect(
     page.getByRole("region", { name: "資産の部", exact: true }),
-  ).toContainText("2,602,000");
+  ).toContainText("4,281,876");
   await page.getByRole("button", { name: "編集する", exact: true }).click();
   for (const [account, value] of [
     ["現金", "330000"],
-    ["元入金", "1844000"],
+    ["元入金", "3523876"],
   ] as const) {
     const amount = page.getByLabel(`${account} 金額`, { exact: true });
     await amount.click();
@@ -37,7 +37,7 @@ test("仕訳と期首BSを変更でき、再読み込みでサンプルに戻る
   await page.getByRole("button", { name: /^手順 \d+ 期首のBSを入力 / }).click();
   await expect(
     page.getByRole("region", { name: "資産の部", exact: true }),
-  ).toContainText("2,612,000");
+  ).toContainText("4,291,876");
 
   await page.getByRole("link", { name: "仕訳", exact: true }).click();
   await page.getByRole("button", { name: "追加", exact: true }).click();
@@ -58,7 +58,7 @@ test("仕訳と期首BSを変更でき、再読み込みでサンプルに戻る
   await page.getByRole("button", { name: /^手順 \d+ 期首のBSを入力 / }).click();
   await expect(
     page.getByRole("region", { name: "資産の部", exact: true }),
-  ).toContainText("2,602,000");
+  ).toContainText("4,281,876");
   expect(writes).toEqual([]);
   expect(errors).toEqual([]);
 });

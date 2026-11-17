@@ -8,6 +8,7 @@ import {
 import { formatAmount, parseAmount } from "../shared/parse-utils.js";
 import { buildPrintDocument, escapeHtml } from "./print-shell.js";
 import { buildPortraitPage } from "./portrait-page.js";
+import type { PrintHeading } from "./print-heading.js";
 import {
   formatAmountOrBlank,
   formatMonthLabel,
@@ -47,7 +48,10 @@ const BODY_CELL_STYLE =
 const BAND_CELL_STYLE =
   "border:1px solid #1D4ED8;color:#111827;background:#EEF5FF;padding:5px 4px;font-weight:700;vertical-align:top;line-height:1.3;";
 
-export function buildJournalBody(entries: EntryRecord[]): string {
+export function buildJournalBody(
+  entries: EntryRecord[],
+  heading: PrintHeading,
+): string {
   const entriesByMonth = new Map<string, EntryRecord[]>();
   for (const entry of entries) {
     const monthKey = entry.date.slice(0, 7);
@@ -64,6 +68,7 @@ export function buildJournalBody(entries: EntryRecord[]): string {
   if (monthGroups.length === 0) {
     return buildPortraitPage(
       JOURNAL_TITLE,
+      heading,
       `<div style="text-align:center;padding:48px;color:#475569;font-size:14px;">仕訳データがありません</div>`,
       1,
     );
@@ -131,7 +136,7 @@ export function buildJournalBody(entries: EntryRecord[]): string {
   </tbody>
 </table>`;
 
-        return buildPortraitPage(JOURNAL_TITLE, tableHtml, pageNumber);
+        return buildPortraitPage(JOURNAL_TITLE, heading, tableHtml, pageNumber);
       });
     })
     .join("");
@@ -228,11 +233,14 @@ function sideTotal(entries: EntryRecord[], side: EntryLine["side"]): number {
   );
 }
 
-export function buildJournalDocument(entries: EntryRecord[]): string {
+export function buildJournalDocument(
+  entries: EntryRecord[],
+  heading: PrintHeading,
+): string {
   return buildPrintDocument({
     title: JOURNAL_TITLE,
     orientation: "portrait",
-    body: buildJournalBody(entries),
+    body: buildJournalBody(entries, heading),
   });
 }
 

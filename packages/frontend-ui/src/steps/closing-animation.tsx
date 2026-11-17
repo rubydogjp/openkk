@@ -182,7 +182,7 @@ function ClosingAnimationFrame({
               whiteSpace: "nowrap",
             }}
           >
-            損益計算書 (PL)
+            損益計算書 (P/L)
           </div>
           <div
             style={{
@@ -195,7 +195,7 @@ function ClosingAnimationFrame({
               whiteSpace: "nowrap",
             }}
           >
-            貸借対照表 (BS)
+            貸借対照表 (B/S)
           </div>
         </>
       ) : null}

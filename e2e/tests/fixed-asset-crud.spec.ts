@@ -89,7 +89,7 @@ test.describe("fixed asset CRUD", () => {
 
     await drawer.getByRole("button", { name: "削除", exact: true }).click();
     const confirmDialog = page.getByRole("alertdialog", {
-      name: "固定資産を削除する",
+      name: "固定資産の削除",
     });
     await expect(confirmDialog).toBeVisible();
     await confirmDialog

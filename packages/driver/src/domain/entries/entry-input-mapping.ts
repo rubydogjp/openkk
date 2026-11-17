@@ -4,6 +4,7 @@ import type { BookAccount, BookAccountType } from "./book-account.js";
 import { resolveBookAccountId } from "./book-account.js";
 import {
   categoryDisplayName,
+  customCategoryLabel,
   resolveCategoryId,
 } from "./category-resolution.js";
 import type { EntryLine, EntryRecord } from "./entry-record.js";
@@ -36,6 +37,7 @@ export type StoredEntryRecord = {
 
 export type EntryLineMaster = {
   accounts: ReadonlyArray<BookAccount>;
+  otherAccounts: ReadonlyArray<BookAccount>;
   taxCategories: ReadonlyArray<{ id: string; name: string }>;
   businessCategories: ReadonlyArray<{ id: string; name: string }>;
 };
@@ -74,7 +76,7 @@ export function entryLinesToInputs(
         line.accountName,
         line.accountType,
       ),
-      accounts: master.accounts,
+      accounts: [...master.accounts, ...master.otherAccounts],
     });
     if (bookAccountId == null) {
       throw new AppError({
@@ -123,13 +125,11 @@ export function storedEntryToRecord(
   master: EntryLineMaster,
 ): EntryRecord {
   const lines = entry.lines.map((line): EntryLine => {
-    const account = master.accounts.find(
-      (candidate) => candidate.id === line.bookAccountId,
-    );
+    const account = accountOfLine(line.bookAccountId, master);
     return {
       side: line.side,
-      accountName: account?.name ?? line.bookAccountId,
-      accountType: account?.accountType ?? "asset",
+      accountName: account.name,
+      accountType: account.accountType,
       amount: formatAmount(Math.abs(line.amount)),
       bookAccountId: line.bookAccountId,
       partnerName: line.partnerName,
@@ -161,4 +161,20 @@ function categoryName(
 ): string {
   if (id.length === 0) return "対象外";
   return categoryDisplayName(id, categories);
+}
+
+export function accountOfLine(
+  bookAccountId: string,
+  master: Pick<EntryLineMaster, "accounts" | "otherAccounts">,
+): { name: string; accountType: BookAccountType } {
+  const inSet = master.accounts.find((account) => account.id === bookAccountId);
+  if (inSet != null) {
+    return { name: inSet.name, accountType: inSet.accountType };
+  }
+  const other = master.otherAccounts.find(
+    (account) => account.id === bookAccountId,
+  );
+  return other != null
+    ? { name: other.name, accountType: other.accountType }
+    : { name: customCategoryLabel(bookAccountId), accountType: "asset" };
 }

@@ -60,7 +60,7 @@ export async function runClosingCommand(
       }
       const [input, master] = await Promise.all([
         loadFiscalPeriodReportInput(backend, period, context.today()),
-        loadJournalMaster(backend),
+        loadJournalMaster(backend, period.masterSetId),
       ]);
       const updated = await backend.closings.run(
         period.id,

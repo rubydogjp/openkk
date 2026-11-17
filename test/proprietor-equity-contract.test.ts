@@ -10,6 +10,15 @@ import {
   importEntriesFromLegacyJson,
   type EntryRecord as DriverEntryRecord,
 } from "../packages/driver/src/domain/index.js";
+import { buildPrintHeading } from "../packages/driver/src/domain/print/print-heading.js";
+
+const FINAL_HEADING = buildPrintHeading({
+  fiscalPeriodName: "2026年分",
+  startDate: "2026-01-01",
+  endDate: "2026-12-31",
+  preparedOn: new Date(2027, 1, 10),
+  provisional: false,
+});
 import { entryRecordToImportPayload } from "../packages/driver/src/domain/entries/entry-input-mapping.js";
 import { createMemoryDbAdapter } from "../packages/memory-db-adapter/src/index.js";
 import {
@@ -22,6 +31,7 @@ import { createOpenkkBackendApi } from "../packages/backend-api/src/index.js";
 const OWNER_LOAN = "acct_proprietor_loan";
 const master = {
   accounts: DEFAULT_BOOK_ACCOUNTS,
+  otherAccounts: [],
   taxCategories: DEFAULT_TAX_CATEGORIES,
   businessCategories: DEFAULT_BUSINESS_CATEGORIES,
 };
@@ -131,10 +141,13 @@ describe("事業主借 equity contract", () => {
             : item,
         ),
       };
-      expect(buildGeneralLedgerBody([record], openingBalanceLines)).toBe(
+      expect(
+        buildGeneralLedgerBody([record], openingBalanceLines, FINAL_HEADING),
+      ).toBe(
         buildGeneralLedgerBody(
           [recordWithLoanAsLiability],
           openingBalanceLines,
+          FINAL_HEADING,
         ),
       );
       expect(

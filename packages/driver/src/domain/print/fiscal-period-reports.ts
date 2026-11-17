@@ -11,6 +11,7 @@ import { buildFinancialStatementsDocument } from "./financial-statements-print.j
 import { computeFsAggregate } from "./fs-data.js";
 import { buildGeneralLedgerDocument } from "./general-ledger-print.js";
 import { buildJournalDocument } from "./journal-print.js";
+import { buildPrintHeading } from "./print-heading.js";
 
 export const FISCAL_PERIOD_REPORT_KINDS = [
   "journal",
@@ -35,13 +36,14 @@ export const FISCAL_PERIOD_REPORT_LABELS: Record<
   },
   financialStatements: {
     name: "財務諸表",
-    description: "一般に PL, BS と呼ばれる書類",
+    description: "一般に P/L・B/S と呼ばれる書類",
   },
 };
 
 export type FiscalPeriodReportInput = {
   fiscalPeriod: {
     id: string;
+    name: string;
     phase: FiscalPeriodPhase;
     startDate: string;
     endDate: string;
@@ -54,11 +56,23 @@ export type FiscalPeriodReportInput = {
   carryovers: OpeningCarryoverRecord[];
 };
 
+export function isProvisionalReport(phase: FiscalPeriodPhase): boolean {
+  return phase !== "post_closing";
+}
+
 export function buildFiscalPeriodReport(
   kind: FiscalPeriodReportKind,
   input: FiscalPeriodReportInput,
+  preparedOn: Date,
 ): string {
   const { fiscalPeriod } = input;
+  const heading = buildPrintHeading({
+    fiscalPeriodName: fiscalPeriod.name,
+    startDate: fiscalPeriod.startDate,
+    endDate: fiscalPeriod.endDate,
+    preparedOn,
+    provisional: isProvisionalReport(fiscalPeriod.phase),
+  });
   const entries = withClosingVirtualEntries({
     fiscalPeriodId: fiscalPeriod.id,
     phase: fiscalPeriod.phase,
@@ -71,12 +85,13 @@ export function buildFiscalPeriodReport(
   const openingBalanceLines = fiscalPeriod.opening.balanceLines;
   switch (kind) {
     case "journal":
-      return buildJournalDocument(entries);
+      return buildJournalDocument(entries, heading);
     case "generalLedger":
-      return buildGeneralLedgerDocument(entries, openingBalanceLines);
+      return buildGeneralLedgerDocument(entries, openingBalanceLines, heading);
     case "financialStatements":
       return buildFinancialStatementsDocument(
         computeFsAggregate({ entries, openingBalanceLines }),
+        heading,
       );
   }
 }

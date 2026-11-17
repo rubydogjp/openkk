@@ -5,6 +5,7 @@ import {
   MAX_ENTRY_LINES,
   MAX_FIXED_ASSET_USEFUL_LIFE_YEARS,
   MAX_FISCAL_PERIOD_ARCHIVE_FILE_BYTES,
+  masterSetForStartDate,
 } from "../src/domain/index.js";
 
 import type { OpenkkDbPort } from "../src/ports/db-port.js";
@@ -78,6 +79,7 @@ export function runDbPortConformance(
         archivedAt: null,
         openingBalancesCompleted: true,
         documentsReceivedCompleted: false,
+        masterSetId: "jp-2026",
         opening: emptyOpening(),
         createdAt: "1970-01-01T00:00:00.000Z",
         updatedAt: "1970-01-01T00:00:00.000Z",
@@ -210,6 +212,53 @@ export function runDbPortConformance(
       expect(updated.phase).toBe("pre_opening");
       expect(updated.startDate).toBe("2026-01-01");
       expect(updated.endDate).toBe("2026-12-31");
+    });
+
+    it("gives a created period the version of accounts and categories in effect on its start date", async () => {
+      const db = await makeDb();
+      const created = await db.fiscalPeriods.create("user-1", {
+        name: "FY2026",
+        startDate: "2026-01-01",
+        endDate: "2026-12-31",
+      });
+
+      expect(created.masterSetId).toBe(masterSetForStartDate("2026-01-01").id);
+      expect((await db.fiscalPeriods.getById(created.id))?.masterSetId).toBe(
+        created.masterSetId,
+      );
+    });
+
+    it("switches the version of accounts and categories before pre-closing, and refuses a version it does not know or a closed period", async () => {
+      const seed = seedWithPeriods("fp-open", "fp-pre-closed");
+      seed.fiscalPeriods[0] = {
+        ...seed.fiscalPeriods[0]!,
+        masterSetId: "jp-1999",
+      };
+      seed.fiscalPeriods[1] = {
+        ...seed.fiscalPeriods[1]!,
+        startDate: "2027-01-01",
+        endDate: "2027-12-31",
+        phase: "pre_closing",
+        masterSetId: "jp-1999",
+      };
+      const db = await ctx.makeSeededAdapter(seed);
+
+      const switched = await db.fiscalPeriods.patch("fp-open", {
+        masterSetId: "jp-2026",
+      });
+      expect(switched.masterSetId).toBe("jp-2026");
+      expect((await db.fiscalPeriods.getById("fp-open"))?.masterSetId).toBe(
+        "jp-2026",
+      );
+      await expect(
+        db.fiscalPeriods.patch("fp-open", { masterSetId: "jp-2099" }),
+      ).rejects.toThrow(/Unknown master set/);
+      await expect(
+        db.fiscalPeriods.patch("fp-pre-closed", { masterSetId: "jp-2026" }),
+      ).rejects.toThrow(/cannot be updated from phase pre_closing/);
+      expect(
+        (await db.fiscalPeriods.getById("fp-pre-closed"))?.masterSetId,
+      ).toBe("jp-1999");
     });
 
     it("start moves a pre-opening period to journalizing only once", async () => {
@@ -611,6 +660,7 @@ export function runDbPortConformance(
           phase: source.phase,
           openingBalancesCompleted: source.openingBalancesCompleted,
           documentsReceivedCompleted: source.documentsReceivedCompleted,
+          masterSetId: source.masterSetId,
           opening: source.opening,
         },
         entries: seed.entries
@@ -824,6 +874,7 @@ export function runDbPortConformance(
           phase: "post_closing",
           openingBalancesCompleted: true,
           documentsReceivedCompleted: true,
+          masterSetId: null,
           opening: { balanceLines: [], journals: [] },
         },
         entries: [
@@ -857,6 +908,7 @@ export function runDbPortConformance(
 
       expect(imported.archiveStatus).toBe("active");
       expect(imported.phase).toBe("post_closing");
+      expect(imported.masterSetId).toBe("jp-2026");
       expect(await db.fiscalPeriods.getAll("user-1")).toEqual([imported]);
       expect(await db.entries.getAll(imported.id)).toHaveLength(1);
       expect((await db.fixedAssets.getAll(imported.id))[0]).toMatchObject({
@@ -868,6 +920,29 @@ export function runDbPortConformance(
         db.fiscalPeriods.importArchived("user-1", archiveInput),
       ).rejects.toThrow(/overlaps active fiscal period/);
       expect(await db.fiscalPeriods.getAll("user-1")).toHaveLength(1);
+    });
+
+    it("keeps the version of accounts and categories written in an imported archive, even one it does not know", async () => {
+      const db = await makeDb();
+      const imported = await db.fiscalPeriods.importArchived("user-1", {
+        fiscalPeriod: {
+          name: "Archived FY2030",
+          startDate: "2030-01-01",
+          endDate: "2030-12-31",
+          phase: "journalizing",
+          openingBalancesCompleted: false,
+          documentsReceivedCompleted: false,
+          masterSetId: "jp-2099",
+          opening: { balanceLines: [], journals: [] },
+        },
+        entries: [],
+        fixedAssets: [],
+      });
+
+      expect(imported.masterSetId).toBe("jp-2099");
+      expect((await db.fiscalPeriods.getById(imported.id))?.masterSetId).toBe(
+        "jp-2099",
+      );
     });
 
     it("reads an imported archive's entries and fixed assets back in the archive's order", async () => {
@@ -889,6 +964,7 @@ export function runDbPortConformance(
           phase: "post_closing",
           openingBalancesCompleted: true,
           documentsReceivedCompleted: true,
+          masterSetId: null,
           opening: { balanceLines: [], journals: [] },
         },
         entries: descriptions.map((description) =>
@@ -928,6 +1004,7 @@ export function runDbPortConformance(
           phase: "journalizing",
           openingBalancesCompleted: true,
           documentsReceivedCompleted: false,
+          masterSetId: null,
           opening: { balanceLines: [], journals: [] },
         },
         entries: [
@@ -958,6 +1035,7 @@ export function runDbPortConformance(
           phase: "journalizing",
           openingBalancesCompleted: false,
           documentsReceivedCompleted: false,
+          masterSetId: null,
           opening: { balanceLines: [], journals: [] },
         },
         entries: [],
@@ -1716,6 +1794,7 @@ export function runDbPortConformance(
             archiveStatus: "active",
             openingBalancesCompleted: false,
             documentsReceivedCompleted: false,
+            masterSetId: "jp-2026",
             opening: emptyOpening(),
             createdAt: "1970-01-01T00:00:00.000Z",
             updatedAt: "1970-01-01T00:00:00.000Z",

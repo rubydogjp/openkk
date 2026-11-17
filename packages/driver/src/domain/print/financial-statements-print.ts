@@ -1,5 +1,11 @@
 import { formatAmount } from "../shared/parse-utils.js";
 import type { FsBsRow, FsExpenseWriteIn } from "./fs-data.js";
+import {
+  PRINT_HEADING_ROW_HEIGHT,
+  printHeadingRowHtml,
+  printTitleHtml,
+  type PrintHeading,
+} from "./print-heading.js";
 import { buildPrintDocument, escapeHtml } from "./print-shell.js";
 
 function writeInLabelOverrides(
@@ -235,10 +241,12 @@ const PAGE_TOP_PADDING = 11;
 const PAGE_BOTTOM_PADDING = 16;
 const PAGE_TITLE_FONT_SIZE = 16;
 const PAGE_TITLE_GAP = 19;
-const PAGE_BODY_TOP = PAGE_TOP_PADDING + PAGE_TITLE_FONT_SIZE + PAGE_TITLE_GAP;
+const PAGE_TITLE_TOP = PAGE_TOP_PADDING + PRINT_HEADING_ROW_HEIGHT;
+const PAGE_BODY_TOP = PAGE_TITLE_TOP + PAGE_TITLE_FONT_SIZE + PAGE_TITLE_GAP;
 
 export function buildFinancialStatementsBody(
   args: FinancialStatementsArgs,
+  heading: PrintHeading,
 ): string {
   const { amounts, bsRows, expenseWriteIns } = args;
   const labelOverrides = writeInLabelOverrides(expenseWriteIns);
@@ -246,19 +254,22 @@ export function buildFinancialStatementsBody(
   return (
     buildLandscapePage(
       "損益計算書 (P/L)",
+      heading,
       buildPlHtml(amounts, labelOverrides),
       1,
-    ) + buildLandscapePage("貸借対照表 (B/S)", buildBsHtml(bsRows), 2)
+    ) + buildLandscapePage("貸借対照表 (B/S)", heading, buildBsHtml(bsRows), 2)
   );
 }
 
 function buildLandscapePage(
   title: string,
+  heading: PrintHeading,
   bodyHtml: string,
   pageNumber: number,
 ): string {
   return `<div class="bk-page" style="position:relative;width:${PAGE_WIDTH}px;height:${PAGE_HEIGHT}px;overflow:hidden;">
-<div style="position:absolute;top:${PAGE_TOP_PADDING}px;left:${PAGE_SIDE_PADDING}px;right:${PAGE_SIDE_PADDING}px;text-align:center;color:${BLUE};font-weight:700;font-size:${PAGE_TITLE_FONT_SIZE}px;line-height:1;">${escapeHtml(title)}</div>
+${printHeadingRowHtml(heading, PAGE_TOP_PADDING, PAGE_SIDE_PADDING)}
+<div style="position:absolute;top:${PAGE_TITLE_TOP}px;left:${PAGE_SIDE_PADDING}px;right:${PAGE_SIDE_PADDING}px;text-align:center;color:${BLUE};font-weight:700;font-size:${PAGE_TITLE_FONT_SIZE}px;line-height:1;">${printTitleHtml(title, heading)}</div>
 <div style="position:absolute;top:${PAGE_BODY_TOP}px;left:${PAGE_SIDE_PADDING}px;right:${PAGE_SIDE_PADDING}px;">
 ${bodyHtml}
 </div>
@@ -268,10 +279,11 @@ ${bodyHtml}
 
 export function buildFinancialStatementsDocument(
   args: FinancialStatementsArgs,
+  heading: PrintHeading,
 ): string {
   return buildPrintDocument({
     title: "財務諸表",
     orientation: "landscape",
-    body: buildFinancialStatementsBody(args),
+    body: buildFinancialStatementsBody(args, heading),
   });
 }

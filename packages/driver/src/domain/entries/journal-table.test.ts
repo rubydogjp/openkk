@@ -64,6 +64,7 @@ const accounts: SectionedBookAccount[] = [
 
 const master: JournalTableMaster = {
   accounts,
+  otherAccounts: [],
   taxCategories: [
     { id: "tax_out_of_scope", name: "対象外" },
     { id: "tax_purchase_10", name: "課税仕入 10%" },
@@ -655,6 +656,85 @@ describe("diffJournalTableEntries", () => {
       changed: [],
       removed: [],
       unchangedCount: 1,
+    });
+  });
+});
+
+describe("accounts outside the period's version of accounts and categories", () => {
+  const retired: SectionedBookAccount = {
+    id: "acct_retired_fee",
+    name: "旧手数料",
+    accountType: "expense",
+    balanceSheetSection: "none",
+  };
+  const withRetired: JournalTableMaster = {
+    ...master,
+    otherAccounts: [retired],
+  };
+  const fee = stored("e-fee", [
+    {
+      ...line("debit", "acct_supplies", 500),
+      accountName: retired.name,
+      accountType: retired.accountType,
+      bookAccountId: retired.id,
+    },
+    line("credit", "acct_bank", 500),
+  ]);
+  const readWithRetired = (text: string) => {
+    const result = readJournalTableEntries(parseJournalTableCsv(text), {
+      ...period,
+      master: withRetired,
+    });
+    if (!result.ok) throw new Error(JSON.stringify(result.problems));
+    return result.entries;
+  };
+
+  it("writes such an account as custom and reads it back unchanged", () => {
+    const csv = formatJournalTableCsv(
+      buildJournalTableRows([fee], withRetired),
+    );
+
+    expect(csv).toContain(",カスタム(旧手数料),500,普通預金,500,");
+    const incoming = readWithRetired(csv);
+    expect(incoming[0]!.lines.map((item) => item.bookAccountId)).toEqual([
+      "acct_retired_fee",
+      "acct_bank",
+    ]);
+    expect(diffJournalTableEntries([fee], incoming, withRetired)).toMatchObject(
+      { added: [], changed: [], removed: [], unchangedCount: 1 },
+    );
+  });
+
+  it("takes the plain name of an account another version has", () => {
+    const csv = formatJournalTableCsv(
+      buildJournalTableRows([fee], withRetired),
+    ).replace("カスタム(旧手数料)", "旧手数料");
+
+    expect(readWithRetired(csv)[0]!.lines[0]).toMatchObject({
+      bookAccountId: "acct_retired_fee",
+      accountName: "旧手数料",
+      accountType: "expense",
+    });
+  });
+
+  it("still refuses an account no version has", () => {
+    const csv = formatJournalTableCsv(
+      buildJournalTableRows([fee], withRetired),
+    ).replace("カスタム(旧手数料)", "カスタム(どこにもない科目)");
+
+    expect(
+      readJournalTableEntries(parseJournalTableCsv(csv), {
+        ...period,
+        master: withRetired,
+      }),
+    ).toMatchObject({
+      ok: false,
+      problems: [
+        {
+          message:
+            "借方: 勘定科目「カスタム(どこにもない科目)」が見つかりません",
+        },
+      ],
     });
   });
 });

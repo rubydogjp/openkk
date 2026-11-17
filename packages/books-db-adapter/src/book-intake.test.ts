@@ -122,13 +122,14 @@ function silenceErrors(): string[] {
 }
 
 describe("books-db-adapter importing a book file", () => {
-  it("rebuilds the book from its records, keeping timestamps, order and the file's stamp", async () => {
+  it("rebuilds the book from its records, keeping timestamps, order, the version of accounts and categories and the file's stamp", async () => {
     const file = await bookFileOf(period2026, ["first", "second", "third"]);
     const tampered = changedBookBytes(file.bytes, [
       "CREATE TABLE smuggled(id INTEGER PRIMARY KEY)",
       "CREATE TRIGGER smuggled_trigger AFTER INSERT ON entries BEGIN DELETE FROM entry_lines; END",
       "INSERT INTO openkk_meta(key, value) VALUES('smuggled', '1')",
       "UPDATE entries SET created_at = 1700000000000, updated_at = 1700000500000",
+      "UPDATE fiscal_periods SET data = json_set(data, '$.masterSetId', 'jp-2099')",
     ]);
     const books = await openTestBooks(emptyStore());
 
@@ -141,6 +142,10 @@ describe("books-db-adapter importing a book file", () => {
     await books.adapter.flush();
 
     expect(books.adapter.lastChangedAt(file.fiscalPeriodId)).toBe(file.stamp);
+    expect(
+      (await books.adapter.db.fiscalPeriods.getById(file.fiscalPeriodId))
+        ?.masterSetId,
+    ).toBe("jp-2099");
     const entries = await books.adapter.db.entries.getAll(file.fiscalPeriodId);
     expect(entries.map(({ description }) => description)).toEqual([
       "first",
@@ -299,6 +304,7 @@ async function mergeBooks(
           phase: period!.phase,
           openingBalancesCompleted: period!.openingBalancesCompleted,
           documentsReceivedCompleted: period!.documentsReceivedCompleted,
+          masterSetId: period!.masterSetId,
           opening: period!.opening,
         },
         entries: [],

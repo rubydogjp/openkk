@@ -1,7 +1,10 @@
 import {
+  BUILT_IN_MASTER_SETS,
   DEFAULT_BOOK_ACCOUNTS,
   DEFAULT_BUSINESS_CATEGORIES,
   DEFAULT_TAX_CATEGORIES,
+  MASTER_SET_ID_OF_RECORDS_WITHOUT_ONE,
+  masterSetForStartDate,
   parseAmount,
   resolveBookAccountId,
   resolveCategoryId,
@@ -21,6 +24,10 @@ import {
 } from "./demo-content";
 
 const DEMO_SEED_TIMESTAMP = new Date(0).toISOString();
+const DEMO_START_DATE = "2026-01-01";
+const DEMO_MASTER_SET_ID =
+  masterSetForStartDate(DEMO_START_DATE, BUILT_IN_MASTER_SETS)?.id ??
+  MASTER_SET_ID_OF_RECORDS_WITHOUT_ONE;
 
 export function buildOpenkkDemoSeed(config: OpenkkConfig): DbSnapshot {
   const fiscalPeriod = buildDemoSeedFiscalPeriod(config);
@@ -42,12 +49,13 @@ function buildDemoSeedFiscalPeriod(
     id: "fp-2026",
     userId: config.embeddedUser.id,
     name: "デモ期間2026年分",
-    startDate: "2026-01-01",
+    startDate: DEMO_START_DATE,
     endDate: "2026-12-31",
     phase: "journalizing",
     archiveStatus: "active",
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,
+    masterSetId: DEMO_MASTER_SET_ID,
     opening: {
       balanceLines: demoOpeningBalanceLines,
       journals: [],

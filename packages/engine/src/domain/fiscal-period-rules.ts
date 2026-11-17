@@ -8,6 +8,7 @@ export const FISCAL_PERIOD_PATCH_KEYS = [
   "endDate",
   "openingBalancesCompleted",
   "documentsReceivedCompleted",
+  "masterSetId",
   "opening",
 ] as const;
 
@@ -20,9 +21,10 @@ const PATCHABLE_KEYS_BY_PHASE: Record<
     "startDate",
     "endDate",
     "openingBalancesCompleted",
+    "masterSetId",
     "opening",
   ]),
-  journalizing: new Set(["openingBalancesCompleted", "opening"]),
+  journalizing: new Set(["openingBalancesCompleted", "masterSetId", "opening"]),
   pre_closing: new Set(),
   post_closing: new Set(["documentsReceivedCompleted"]),
 };

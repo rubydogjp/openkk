@@ -9,16 +9,145 @@ import { buildFinancialStatementsDocument } from "./financial-statements-print.j
 import { computeFsAggregate } from "./fs-data.js";
 import { buildGeneralLedgerDocument } from "./general-ledger-print.js";
 import { buildJournalDocument } from "./journal-print.js";
+import { buildPrintHeading } from "./print-heading.js";
+import { buildFiscalPeriodReport } from "./fiscal-period-reports.js";
+
+const PROVISIONAL_HEADING = buildPrintHeading({
+  fiscalPeriodName: "2026年分",
+  startDate: "2026-01-01",
+  endDate: "2026-12-31",
+  preparedOn: new Date(2026, 11, 28),
+  provisional: true,
+});
+
+const FINAL_HEADING = buildPrintHeading({
+  fiscalPeriodName: "2026年分",
+  startDate: "2026-01-01",
+  endDate: "2026-12-31",
+  preparedOn: new Date(2027, 1, 10),
+  provisional: false,
+});
 
 describe("print documents", () => {
-  it("renders journal data from supplied entries and escapes HTML", () => {
-    const html = buildJournalDocument([
+  it("prints the period, the date it was made and 決算前 on every page of a provisional report only", () => {
+    const entries = Array.from({ length: 60 }, (_, index) =>
       entry({
-        date: "2026-01-15<script>",
-        description: "売上 <確認>",
-        partner: "A&B",
+        id: `heading-${index + 1}`,
+        date: "2026-03-10",
+        description: `ヘッダーの確かめ ${index + 1}`,
       }),
+    );
+    const provisionalPages = buildJournalDocument(entries, PROVISIONAL_HEADING)
+      .split('class="bk-page"')
+      .slice(1);
+    const finalHtml = buildGeneralLedgerDocument(entries, [], FINAL_HEADING);
+    const fsHtml = buildFinancialStatementsDocument(
+      computeFsAggregate({ entries, openingBalanceLines: [] }),
+      PROVISIONAL_HEADING,
+    );
+
+    expect(provisionalPages.length).toBeGreaterThan(1);
+    for (const page of provisionalPages) {
+      expect(page).toContain("2026年分 (2026/01/01〜2026/12/31)");
+      expect(page).toContain("作成日 2026/12/28");
+      expect(page).toContain(">決算前<");
+    }
+    expect(finalHtml).toContain("作成日 2027/02/10");
+    expect(finalHtml).not.toContain("決算前");
+    expect(fsHtml.match(/>決算前</g)).toHaveLength(2);
+  });
+
+  it("shortens a very long period name in the heading", () => {
+    const heading = buildPrintHeading({
+      fiscalPeriodName: "あ".repeat(40),
+      startDate: "2026-01-01",
+      endDate: "2026-12-31",
+      preparedOn: new Date(2026, 0, 5),
+      provisional: false,
+    });
+
+    expect(heading.periodLabel).toBe(
+      `${"あ".repeat(29)}… (2026/01/01〜2026/12/31)`,
+    );
+  });
+
+  it("marks a report as 決算前 until the period is closed for good", () => {
+    const report = (phase: "journalizing" | "pre_closing" | "post_closing") =>
+      buildFiscalPeriodReport(
+        "journal",
+        {
+          fiscalPeriod: {
+            id: "fp-1",
+            name: "2026年分",
+            phase,
+            startDate: "2026-01-01",
+            endDate: "2026-12-31",
+            opening: { balanceLines: [] },
+          },
+          entries: [entry({})],
+          assets: [],
+          carryovers: [],
+        },
+        new Date(2027, 1, 10),
+      );
+
+    expect(report("journalizing")).toContain(">決算前<");
+    expect(report("pre_closing")).toContain(">決算前<");
+    expect(report("post_closing")).not.toContain("決算前");
+    expect(report("post_closing")).toContain("作成日 2027/02/10");
+  });
+
+  it("shows on which side each ledger balance stands", () => {
+    const html = buildGeneralLedgerDocument(
+      [
+        entry({
+          debit: "普通預金",
+          debitType: "asset",
+          debitAmount: "30,000",
+          credit: "売上",
+          creditType: "revenue",
+          creditAmount: "30,000",
+        }),
+        entry({
+          date: "2026-02-01",
+          debit: "仮払金",
+          debitType: "asset",
+          debitAmount: "80,000",
+          credit: "普通預金",
+          creditType: "asset",
+          creditAmount: "80,000",
+        }),
+      ],
+      [],
+      FINAL_HEADING,
+    );
+    const bankPage = html
+      .split('class="bk-page"')
+      .find((page) => page.includes(">普通預金</div>"))!;
+    const balanceCells = [
+      ...bankPage.matchAll(
+        /text-align:center">(借|貸|)<\/td>\s*<td[^>]*text-align:right">([\d,]+)<\/td>/g,
+      ),
+    ].map((match) => [match[1], match[2]]);
+
+    expect(bankPage).toContain(">借/貸</th>");
+    expect(balanceCells).toEqual([
+      ["借", "30,000"],
+      ["貸", "50,000"],
     ]);
+  });
+
+  it("renders journal data from supplied entries and escapes HTML", () => {
+    const html = buildJournalDocument(
+      [
+        entry({
+          date: "2026-01-15<script>",
+          description: "売上 <確認>",
+          partner: "A&B",
+        }),
+      ],
+      FINAL_HEADING,
+    );
 
     expect(html).toContain("<title>仕訳帳</title>");
     expect(html).toContain("2026/01/15&lt;script&gt;");
@@ -31,6 +160,7 @@ describe("print documents", () => {
     const html = buildGeneralLedgerDocument(
       [entry({})],
       [{ accountId: "a:普通預金", amount: 50_000 }],
+      FINAL_HEADING,
     );
 
     expect(html).toContain("<title>総勘定元帳</title>");
@@ -47,6 +177,7 @@ describe("print documents", () => {
         { accountId: "a:敷金<保証>", amount: 300_000 },
         { accountId: "l:元入金", amount: 300_000 },
       ],
+      FINAL_HEADING,
     );
 
     expect(html.match(/class="bk-page"/g)).toHaveLength(2);
@@ -68,6 +199,7 @@ describe("print documents", () => {
         }),
       ],
       [{ accountId: "l:現金", amount: 50_000 }],
+      FINAL_HEADING,
     );
 
     expect(html.match(/class="bk-page"/g)).toHaveLength(2);
@@ -135,12 +267,16 @@ describe("print documents", () => {
       ],
     });
 
-    const journalHtml = buildJournalDocument([compound]);
+    const journalHtml = buildJournalDocument([compound], FINAL_HEADING);
     expect(journalHtml).toContain("荷造運賃");
     expect(journalHtml).toContain("42,000");
     expect(journalHtml).toContain("210,000");
 
-    const ledgerHtml = buildGeneralLedgerDocument([compound], []);
+    const ledgerHtml = buildGeneralLedgerDocument(
+      [compound],
+      [],
+      FINAL_HEADING,
+    );
     expect(ledgerHtml).toContain("荷造運賃");
     expect(ledgerHtml).toContain("未払金");
     expect(ledgerHtml).toContain("42,000");
@@ -194,13 +330,17 @@ describe("print documents", () => {
       ],
     });
 
-    const journalHtml = buildJournalDocument([compound]);
+    const journalHtml = buildJournalDocument([compound], FINAL_HEADING);
     expect(journalHtml).toContain("借: 通信会社A / 貸: 決済会社C");
     expect(journalHtml).toContain("借: 課税仕入 10% / 貸: 非課税");
     expect(journalHtml).toContain("取引先: 銀行B");
     expect(journalHtml).toContain("事業区分: 対象外");
 
-    const ledgerHtml = buildGeneralLedgerDocument([compound], []);
+    const ledgerHtml = buildGeneralLedgerDocument(
+      [compound],
+      [],
+      FINAL_HEADING,
+    );
     expect(ledgerHtml).toContain("取引先: 通信会社A");
     expect(ledgerHtml).toContain("取引先: 銀行B");
     expect(ledgerHtml).toContain("取引先: 決済会社C");
@@ -276,6 +416,7 @@ describe("print documents", () => {
         }),
       ],
       [],
+      FINAL_HEADING,
     );
 
     expect(html).toContain("賞与（売上原価）");
@@ -319,8 +460,8 @@ describe("print documents", () => {
       }),
     );
 
-    const journalHtml = buildJournalDocument(entries);
-    const ledgerHtml = buildGeneralLedgerDocument(entries, []);
+    const journalHtml = buildJournalDocument(entries, FINAL_HEADING);
+    const ledgerHtml = buildGeneralLedgerDocument(entries, [], FINAL_HEADING);
     expect(journalHtml.match(/class="bk-page"/g)?.length).toBeGreaterThan(1);
     expect(ledgerHtml.match(/class="bk-page"/g)?.length).toBeGreaterThan(2);
     expect(journalHtml).toContain("row-60");
@@ -341,7 +482,7 @@ describe("print documents", () => {
       }),
     );
 
-    const pages = buildJournalDocument(entries)
+    const pages = buildJournalDocument(entries, FINAL_HEADING)
       .split('class="bk-page"')
       .slice(1);
 
@@ -360,7 +501,7 @@ describe("print documents", () => {
       }),
     );
 
-    const ledgerHtml = buildGeneralLedgerDocument(entries, []);
+    const ledgerHtml = buildGeneralLedgerDocument(entries, [], FINAL_HEADING);
 
     expect(ledgerHtml.match(/class="bk-page"/g)?.length).toBeGreaterThan(2);
   });
@@ -399,7 +540,7 @@ describe("print documents", () => {
       ],
     });
 
-    const html = buildJournalDocument([compound]);
+    const html = buildJournalDocument([compound], FINAL_HEADING);
 
     expect(html.match(/class="bk-page"/g)).toHaveLength(2);
     expect(html).toContain("経費60");
@@ -408,18 +549,23 @@ describe("print documents", () => {
   });
 
   it("normalises non-finite printed amounts to blanks", () => {
-    const journalHtml = buildJournalDocument([
-      entry({ debitAmount: "Infinity", creditAmount: "-Infinity" }),
-    ]);
+    const journalHtml = buildJournalDocument(
+      [entry({ debitAmount: "Infinity", creditAmount: "-Infinity" })],
+      FINAL_HEADING,
+    );
     const ledgerHtml = buildGeneralLedgerDocument(
       [entry({ debitAmount: "Infinity", creditAmount: "-Infinity" })],
       [],
+      FINAL_HEADING,
     );
-    const fsHtml = buildFinancialStatementsDocument({
-      amounts: { 1: Infinity, 2: -Infinity },
-      bsRows: [],
-      expenseWriteIns: [],
-    });
+    const fsHtml = buildFinancialStatementsDocument(
+      {
+        amounts: { 1: Infinity, 2: -Infinity },
+        bsRows: [],
+        expenseWriteIns: [],
+      },
+      FINAL_HEADING,
+    );
 
     expect(journalHtml).not.toContain("Infinity");
     expect(ledgerHtml).not.toContain("Infinity");
@@ -429,8 +575,15 @@ describe("print documents", () => {
   it("does not render NaN month labels for malformed entry dates", () => {
     const malformedDateEntry = entry({ date: "not-a-date" });
 
-    const journalHtml = buildJournalDocument([malformedDateEntry]);
-    const ledgerHtml = buildGeneralLedgerDocument([malformedDateEntry], []);
+    const journalHtml = buildJournalDocument(
+      [malformedDateEntry],
+      FINAL_HEADING,
+    );
+    const ledgerHtml = buildGeneralLedgerDocument(
+      [malformedDateEntry],
+      [],
+      FINAL_HEADING,
+    );
 
     expect(journalHtml).not.toContain("NaN月");
     expect(ledgerHtml).not.toContain("NaN月");
@@ -445,11 +598,14 @@ describe("print documents", () => {
       ],
       entries: [entry({})],
     });
-    const html = buildFinancialStatementsDocument({
-      amounts: aggregate.amounts,
-      bsRows: aggregate.bsRows,
-      expenseWriteIns: [],
-    });
+    const html = buildFinancialStatementsDocument(
+      {
+        amounts: aggregate.amounts,
+        bsRows: aggregate.bsRows,
+        expenseWriteIns: [],
+      },
+      FINAL_HEADING,
+    );
 
     expect(html).toContain("<title>財務諸表</title>");
     expect(html).toContain("100,000");

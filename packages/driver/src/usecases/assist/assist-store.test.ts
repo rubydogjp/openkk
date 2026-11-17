@@ -223,7 +223,7 @@ describe("createOpenkkAssistStore", () => {
     fake.fiscalPeriods.push(fakeFiscalPeriod({ id: "fp-1" }));
     const { assist } = await startedStores(fake, "fp-1");
     const failure = new Error("offline");
-    fake.rejectNext("masterData.getBookAccounts", failure);
+    fake.rejectNext("masterData.getMasterSets", failure);
 
     assist.getState().reload();
     await settle();

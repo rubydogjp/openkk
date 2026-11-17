@@ -318,6 +318,7 @@ export function createOpenkkBackendApi(
       getBookAccounts: () => usecases.masterData.getBookAccounts(),
       getTaxCategories: () => usecases.masterData.getTaxCategories(),
       getBusinessCategories: () => usecases.masterData.getBusinessCategories(),
+      getMasterSets: () => usecases.masterData.getMasterSets(),
     },
   };
   return {

@@ -12,6 +12,7 @@ import {
   LEGACY_STORED_ARCHIVE_STATUSES,
   readLegacyStoredArchiveState,
 } from "./legacy/legacy-archived-fiscal-period.js";
+import { readLegacyStoredMasterSetId } from "./legacy/legacy-master-set.js";
 import type { FiscalPeriodDbData, FixedAssetDbData } from "./table-types.js";
 
 export function msToIso(ms: number): string {
@@ -54,6 +55,11 @@ export function parseFiscalPeriodDbData(json: string): FiscalPeriodDbData {
       ),
       archivedAt: nullableValue(value, "archivedAt", isoTimestamp),
     });
+    const masterSetId = readLegacyStoredMasterSetId(
+      value.masterSetId === undefined
+        ? null
+        : nonBlankString(value, "masterSetId"),
+    );
     assertDateRange(startDate, endDate, "fiscal period");
     assertFiscalPeriodLifecycleFlags(
       {
@@ -77,6 +83,7 @@ export function parseFiscalPeriodDbData(json: string): FiscalPeriodDbData {
       archivedAt,
       openingBalancesCompleted,
       documentsReceivedCompleted,
+      masterSetId,
     };
   });
 }
@@ -92,6 +99,7 @@ export function serializeFiscalPeriodDbData(value: FiscalPeriodDbData): string {
     archivedAt: value.archivedAt,
     openingBalancesCompleted: value.openingBalancesCompleted,
     documentsReceivedCompleted: value.documentsReceivedCompleted,
+    masterSetId: value.masterSetId,
   };
   return serializeRecord(data, parseFiscalPeriodDbData);
 }

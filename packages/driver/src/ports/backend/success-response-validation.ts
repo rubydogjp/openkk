@@ -77,6 +77,10 @@ export function isValidSuccessBody(
         isObject(body) &&
         isUniqueRecordArray(body.businessCategories, isBusinessCategory)
       );
+    case "masterSets":
+      return (
+        isObject(body) && isUniqueRecordArray(body.masterSets, isMasterSet)
+      );
     case "maintenanceGet":
       return (
         isObject(body) &&
@@ -103,7 +107,8 @@ function isFiscalPeriod(value: unknown): boolean {
     ["active", "archived", "purged"].includes(String(value.archiveStatus)) &&
     isNullableIsoTimestamp(value.archivedAt) &&
     typeof value.openingBalancesCompleted === "boolean" &&
-    typeof value.documentsReceivedCompleted === "boolean"
+    typeof value.documentsReceivedCompleted === "boolean" &&
+    (value.masterSetId === undefined || isNonBlankString(value.masterSetId))
   )) {
     return false;
   }
@@ -291,6 +296,17 @@ function isBusinessCategory(value: unknown): boolean {
     hasStrings(value, ["createdAt", "updatedAt"]) &&
     isIsoTimestamp(value.createdAt) &&
     isIsoTimestamp(value.updatedAt)
+  );
+}
+
+function isMasterSet(value: unknown): boolean {
+  return (
+    isObject(value) &&
+    hasNonBlankStrings(value, ["id", "name"]) &&
+    isIsoDateString(value.effectiveFrom) &&
+    isUniqueRecordArray(value.bookAccounts, isBookAccount) &&
+    isUniqueRecordArray(value.taxCategories, isTaxCategory) &&
+    isUniqueRecordArray(value.businessCategories, isBusinessCategory)
   );
 }
 

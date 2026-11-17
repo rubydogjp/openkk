@@ -870,8 +870,12 @@ describe("openkk cli", () => {
     expect(unconfirmedFinal.code).toBe(1);
     expect(unconfirmedFinal.stderr).not.toContain("使い方");
     expect(finalized.code).toBe(0);
-    expect(finalized.stdout).toContain("決算後");
-    expect(final.stdout).toBe(provisional.stdout);
+    expect(finalized.stdout).toContain("決算済み");
+    expect(provisional.stdout).toContain(">決算前<");
+    expect(final.stdout).not.toContain("決算前");
+    expect(final.stdout).toBe(
+      provisional.stdout.replace(/<span[^>]*>決算前<\/span>/g, ""),
+    );
     expect(nextPeriod).toMatchObject({
       name: "2027年分",
       startDate: "2027-01-01",

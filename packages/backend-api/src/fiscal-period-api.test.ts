@@ -866,12 +866,13 @@ function createFiscalPeriodDb(
         userId: string,
         input: FiscalPeriodArchiveDbImportInput,
       ) {
-        const { opening, ...rest } = input.fiscalPeriod;
+        const { opening, masterSetId, ...rest } = input.fiscalPeriod;
         const id = `fp-${fiscalPeriods.size + 1}`;
         const record = fiscalPeriod({
           id,
           userId,
           ...rest,
+          masterSetId: masterSetId ?? "jp-2026",
           opening: {
             balanceLines: opening?.balanceLines ?? [],
             journals: opening?.journals ?? [],

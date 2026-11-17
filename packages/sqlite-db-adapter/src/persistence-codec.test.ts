@@ -62,6 +62,7 @@ describe("SQLite persistence codecs", () => {
       archiveStatus: "active",
       openingBalancesCompleted: false,
       documentsReceivedCompleted: false,
+      masterSetId: "jp-2026",
       createdAt: "1970-01-01T00:00:00.000Z",
       updatedAt: "1970-01-01T00:00:00.000Z",
       opening: {
@@ -78,6 +79,31 @@ describe("SQLite persistence codecs", () => {
     expect(parsed).not.toHaveProperty("updatedAt");
   });
 
+  it("reads a fiscal period stored before versions of accounts and categories as the first version, and keeps a version it does not know", () => {
+    const stored = {
+      id: "fp-1",
+      name: "FY2026",
+      startDate: "2026-01-01",
+      endDate: "2026-12-31",
+      phase: "journalizing",
+      archiveStatus: "active",
+      archivedAt: null,
+      openingBalancesCompleted: true,
+      documentsReceivedCompleted: false,
+    };
+
+    expect(parseFiscalPeriodDbData(JSON.stringify(stored)).masterSetId).toBe(
+      "jp-2026",
+    );
+    const later = parseFiscalPeriodDbData(
+      JSON.stringify({ ...stored, masterSetId: "jp-2099" }),
+    );
+    expect(later.masterSetId).toBe("jp-2099");
+    expect(JSON.parse(serializeFiscalPeriodDbData(later)).masterSetId).toBe(
+      "jp-2099",
+    );
+  });
+
   it.each([
     ["an inverted range", { startDate: "2027-01-01" }],
     ["a blank name", { name: "   " }],
@@ -88,6 +114,8 @@ describe("SQLite persistence codecs", () => {
     ["an unknown archive status", { archiveStatus: "deleted" }],
     ["an active archive timestamp", { archivedAt: "2026-12-31T00:00:00.000Z" }],
     ["a missing archivedAt field", { archivedAt: undefined }],
+    ["a blank version of accounts and categories", { masterSetId: " " }],
+    ["a version that is not text", { masterSetId: 2026 }],
   ])("rejects a fiscal period with %s", (_label, patch) => {
     expect(() =>
       parseFiscalPeriodDbData(

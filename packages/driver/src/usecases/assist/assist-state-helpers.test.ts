@@ -314,6 +314,7 @@ describe("compound opening journals", () => {
       draft,
       {
         accounts,
+        otherAccounts: [],
         taxCategories: [
           { id: "tax_10", name: "課税 10%" },
           { id: "tax_out_of_scope", name: "対象外" },
@@ -357,6 +358,7 @@ describe("compound opening journals", () => {
       draft,
       {
         accounts,
+        otherAccounts: [],
         taxCategories: [
           { id: "tax_10", name: "課税 10%" },
           { id: "tax_out_of_scope", name: "対象外" },
@@ -399,6 +401,7 @@ describe("compound opening journals", () => {
         draft,
         {
           accounts,
+          otherAccounts: [],
           taxCategories: [],
           businessCategories: [],
         },

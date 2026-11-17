@@ -76,6 +76,7 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
               archiveStatus: "active",
               openingBalancesCompleted: false,
               documentsReceivedCompleted: false,
+              masterSetId: "jp-2026",
               opening: {
                 balanceLines: [],
                 journals: [],
@@ -231,6 +232,7 @@ function embeddedBackendApi(
       getBookAccounts: async () => [],
       getTaxCategories: async () => [],
       getBusinessCategories: async () => [],
+      getMasterSets: async () => [],
       ...overrides.masterData,
     },
   };

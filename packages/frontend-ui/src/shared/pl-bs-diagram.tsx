@@ -69,7 +69,7 @@ function PLPanel({ pl }: { pl: PLData }) {
   );
 
   return (
-    <DiagramPanel title="損益計算書 (PL)">
+    <DiagramPanel title="損益計算書 (P/L)">
       <DiagramColumn
         side="left"
         blocks={result.side === "left" ? [expenses, resultBlock] : [expenses]}
@@ -106,7 +106,7 @@ function BSPanel({ bs }: { bs: BSData }) {
   );
 
   return (
-    <DiagramPanel title="貸借対照表 (BS)">
+    <DiagramPanel title="貸借対照表 (B/S)">
       <DiagramColumn
         side="left"
         blocks={result.side === "left" ? [assets, resultBlock] : [assets]}

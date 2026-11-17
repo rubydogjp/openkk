@@ -45,7 +45,7 @@ export async function runEntriesCommand(
       const records = await loadEntryRecords(
         backend,
         period.id,
-        await loadJournalMaster(backend),
+        await loadJournalMaster(backend, period.masterSetId),
       );
       if (options.json) {
         output.json(records);
@@ -60,7 +60,7 @@ export async function runEntriesCommand(
     }
     case "add": {
       const period = await requireFiscalPeriod(backend, periodId ?? null);
-      const master = await loadJournalMaster(backend);
+      const master = await loadJournalMaster(backend, period.masterSetId);
       const created = await backend.entries.create(
         period.id,
         buildSinglePairInput(options, master),
@@ -83,7 +83,7 @@ export async function runEntriesCommand(
       const fileKind = requireJournalFileKind(
         options.format ?? fileExtension(filePath),
       );
-      const master = await loadJournalMaster(backend);
+      const master = await loadJournalMaster(backend, period.masterSetId);
       const plan = planJournalImport({
         fileKind,
         bytes: context.files.readBytes(filePath),
@@ -114,7 +114,7 @@ export async function runEntriesCommand(
     case "export": {
       const period = await requireFiscalPeriod(backend, periodId ?? null);
       const fileKind = requireJournalFileKind(options.format ?? "csv");
-      const master = await loadJournalMaster(backend);
+      const master = await loadJournalMaster(backend, period.masterSetId);
       const entries = await loadEntryRecords(backend, period.id, master);
       const exported = formatJournalExport(fileKind, entries, master);
       const data = fileKind === "json" ? `${exported}\n` : exported;

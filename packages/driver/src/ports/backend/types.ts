@@ -110,6 +110,7 @@ export type FiscalPeriodApiRecord = {
   archivedAt: string | null;
   openingBalancesCompleted: boolean;
   documentsReceivedCompleted: boolean;
+  masterSetId: string;
   opening: FiscalPeriodOpeningApiRecord;
   createdAt: string;
   updatedAt: string;
@@ -151,6 +152,7 @@ export type FiscalPeriodPatchInput = {
   endDate?: string;
   openingBalancesCompleted?: boolean;
   documentsReceivedCompleted?: boolean;
+  masterSetId?: string;
   opening?: FiscalPeriodOpeningApiRecord;
 };
 
@@ -359,6 +361,16 @@ export type MasterBusinessCategoriesRequest = OpenkkEmptyRequest;
 export type MasterBusinessCategoriesResponse = {
   businessCategories: MasterBusinessCategoryApiRecord[];
 };
+export type MasterSetApiRecord = {
+  id: string;
+  name: string;
+  effectiveFrom: string;
+  bookAccounts: MasterBookAccountApiRecord[];
+  taxCategories: MasterTaxCategoryApiRecord[];
+  businessCategories: MasterBusinessCategoryApiRecord[];
+};
+export type MasterSetsRequest = OpenkkEmptyRequest;
+export type MasterSetsResponse = { masterSets: MasterSetApiRecord[] };
 
 export type OpenkkHttpEndpointSpec<
   Request,
@@ -513,6 +525,11 @@ export type OpenkkHttpEndpointSpecs = {
     MasterBusinessCategoriesResponse,
     200
   >;
+  masterSets: OpenkkHttpEndpointSpec<
+    MasterSetsRequest,
+    MasterSetsResponse,
+    200
+  >;
   maintenanceGet: OpenkkHttpEndpointSpec<
     MaintenanceGetRequest,
     MaintenanceGetResponse,
@@ -659,6 +676,11 @@ export const OPENKK_HTTP_ENDPOINTS = {
     path: "/master/business-categories",
     successStatus: 200,
   },
+  masterSets: {
+    method: "GET",
+    path: "/master/sets",
+    successStatus: 200,
+  },
   maintenanceGet: {
     method: "GET",
     path: "/maintenance",
@@ -756,6 +778,7 @@ export interface MasterDataApi {
   getBookAccounts(): Promise<MasterBookAccountApiRecord[]>;
   getTaxCategories(): Promise<MasterTaxCategoryApiRecord[]>;
   getBusinessCategories(): Promise<MasterBusinessCategoryApiRecord[]>;
+  getMasterSets(): Promise<MasterSetApiRecord[]>;
 }
 
 export interface MaintenanceApi {

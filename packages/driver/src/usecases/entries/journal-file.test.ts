@@ -10,6 +10,7 @@ import {
 
 const MASTER = {
   accounts: FAKE_ACCOUNTS,
+  otherAccounts: [],
   taxCategories: [{ id: "tax_out_of_scope", name: "対象外" }],
   businessCategories: [{ id: "biz_none", name: "対象外" }],
 };

@@ -10,6 +10,7 @@ import {
   computeFsAggregate,
   JOURNAL_EXAMPLE_ENTRIES,
   JOURNAL_EXAMPLE_OPENING_BALANCE_LINES,
+  PRINT_HEADING_EXAMPLE,
 } from "@rubydogjp/openkk-driver";
 
 export function FinancialStatementsPaperTemplatePage() {
@@ -24,7 +25,7 @@ export function FinancialStatementsPaperTemplatePage() {
   );
 
   const bodyHtml = useMemo(
-    () => buildFinancialStatementsBody(aggregate),
+    () => buildFinancialStatementsBody(aggregate, PRINT_HEADING_EXAMPLE),
     [aggregate],
   );
 
@@ -32,7 +33,11 @@ export function FinancialStatementsPaperTemplatePage() {
     <PreviewScaffold
       title="財務諸表 (テンプレート + 例の値)"
       bodyHtml={bodyHtml}
-      onPrint={() => printDocument(buildFinancialStatementsDocument(aggregate))}
+      onPrint={() =>
+        printDocument(
+          buildFinancialStatementsDocument(aggregate, PRINT_HEADING_EXAMPLE),
+        )
+      }
     />
   );
 }

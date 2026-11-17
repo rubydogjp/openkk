@@ -168,6 +168,10 @@ export function createOpenkkEmbeddedBackendAdapter(
         const response = await request("masterBusinessCategories", {});
         return response.businessCategories;
       },
+      getMasterSets: async () => {
+        const response = await request("masterSets", {});
+        return response.masterSets;
+      },
     },
     maintenance: {
       get: async () => request("maintenanceGet", {}),
@@ -380,6 +384,10 @@ async function embeddedResponseBody(
     case "masterBusinessCategories":
       return {
         businessCategories: await backendApi.masterData.getBusinessCategories(),
+      };
+    case "masterSets":
+      return {
+        masterSets: await backendApi.masterData.getMasterSets(),
       };
     case "maintenanceGet":
       return EMBEDDED_MAINTENANCE_STATUS;

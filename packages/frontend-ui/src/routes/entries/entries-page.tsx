@@ -345,7 +345,7 @@ export function EntriesPage() {
         }
         const confirmed = await confirmOverwrite({
           tone: "danger",
-          title: "CSV で上書きしますか？",
+          title: "CSV での上書き",
           body: [
             OVERWRITE_PRIORITY_MESSAGE,
             changeCountsMessage(changes),
@@ -364,7 +364,7 @@ export function EntriesPage() {
       if (plan.kind === "add") {
         const confirmed = await confirmOverwrite({
           tone: "success",
-          title: "仕訳を足しますか？",
+          title: "仕訳の追加",
           body: [
             addedFromCsvMessage(plan.entries.length),
             KEEPS_CURRENT_ENTRIES_MESSAGE,

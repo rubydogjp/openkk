@@ -9,6 +9,7 @@ import {
 import {
   useOpenkkAssist,
   useOpenkkEntries,
+  useOpenkkToday,
   usePrintDocument,
 } from "../bindings/index.js";
 
@@ -25,6 +26,7 @@ export function useStepDocuments(
   const entriesState = useOpenkkEntries();
   const assistState = useOpenkkAssist();
   const printDocument = usePrintDocument();
+  const today = useOpenkkToday();
 
   const available =
     entriesState.loadError == null && assistState.loadError == null;
@@ -35,12 +37,16 @@ export function useStepDocuments(
     print: () => {
       if (fiscalPeriod == null || !available) return;
       printDocument(
-        buildFiscalPeriodReport(kind, {
-          fiscalPeriod,
-          entries: entriesState.listFiscalPeriodEntries(fiscalPeriod.id),
-          assets: assistState.listFixedAssets(fiscalPeriod.id),
-          carryovers: assistState.listOpeningCarryovers(fiscalPeriod.id),
-        }),
+        buildFiscalPeriodReport(
+          kind,
+          {
+            fiscalPeriod,
+            entries: entriesState.listFiscalPeriodEntries(fiscalPeriod.id),
+            assets: assistState.listFixedAssets(fiscalPeriod.id),
+            carryovers: assistState.listOpeningCarryovers(fiscalPeriod.id),
+          },
+          today,
+        ),
       );
     },
   }));

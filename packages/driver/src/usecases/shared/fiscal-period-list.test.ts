@@ -80,6 +80,7 @@ function period(overrides: Partial<FiscalPeriod> = {}): FiscalPeriod {
     archiveStatus: "active",
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,
+    masterSetId: "jp-2026",
     createdAt: "1970-01-01T00:00:00.000Z",
     updatedAt: "1970-01-01T00:00:00.000Z",
     opening: {
@@ -103,6 +104,7 @@ function remotePeriod(
     archiveStatus: "active",
     openingBalancesCompleted: true,
     documentsReceivedCompleted: false,
+    masterSetId: "jp-2026",
     opening: {
       balanceLines: [],
       journals: [],

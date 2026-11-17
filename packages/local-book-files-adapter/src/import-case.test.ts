@@ -15,6 +15,7 @@ const existing = {
   archivedAt: null,
   openingBalancesCompleted: true,
   documentsReceivedCompleted: false,
+  masterSetId: "jp-2026",
   opening: { balanceLines: [], journals: [] },
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",

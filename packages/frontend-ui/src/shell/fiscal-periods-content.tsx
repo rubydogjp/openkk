@@ -126,7 +126,7 @@ export function FiscalPeriodsContent() {
       if (review.kind === "confirm") {
         const confirmed = await confirm({
           tone: "danger",
-          title: "ファイルで上書きしますか？",
+          title: "ファイルでの上書き",
           body: review.messages,
           confirmLabel: "上書きする",
         });

@@ -126,6 +126,7 @@ type OpenkkBackendPort = {
 | ----------------------------------------- | -------------------------------------------------------- | -------------------------------------------- |
 | `fiscalPeriods.applyCarryover`            | `POST /fiscal-periods/{id}/apply-carryover`              | `FiscalPeriodCarryoverApplyInput`            |
 | `fiscalPeriods.applyCarryoverFromArchive` | `POST /fiscal-periods/{id}/apply-carryover-from-archive` | `FiscalPeriodCarryoverFromArchiveApplyInput` |
+| `masterData.getMasterSets`                | `GET /master/sets`                                       | なし                                         |
 
 どちらも成功すると `200` で `{ fiscalPeriod }` を返す。決まり:
 
@@ -137,6 +138,15 @@ type OpenkkBackendPort = {
 - 再振替: `reversalEntryIds` (`applyCarryover`) と `reversalEntryIndexes` (`applyCarryoverFromArchive`) は、`null` と `[]` で意味が違う。`null` は「今の期首の再振替仕訳を残す」、`[]` は「再振替仕訳を消す」、要素があれば「その仕訳から作り直す」。`null` を `[]` と同じに扱うと、利用者が入れた再振替仕訳を消してしまう。`reversalEntryIndexes` は `archive.entries` の中の位置 (0 から)。`reversalEntryIds` は元の期間の仕訳の ID
 - 1 つのトランザクションで行い、途中で失敗したら何も変えない
 - `fiscalPeriods.createNext` の `reversalEntryIds` は、今までどおり配列だけ (`null` は来ない)
+
+### 科目と区分の版 (`masterSetId`)
+
+- `GET /master/sets` は `200` で `{ masterSets: MasterSetApiRecord[] }` を返す。`MasterSetApiRecord` は `{ id, name, effectiveFrom, bookAccounts, taxCategories, businessCategories }` で、中身の形は今の 3 つの口 (`/master/book-accounts` など) と同じ。古いものから順に並べ、`effectiveFrom` (`YYYY-MM-DD`) は後の版ほど大きい。最初の版は `jp-2026` (版を持たない期間をこの版と読むため、必ず返す)。今の 3 つの口は最新の版の中身を返すまま残す。使う側は `/master/sets` が `404` のときだけ 3 つの口から `jp-2026` の 1 版を作るので、サーバーの更新が後になっても動くが、版ごとの一覧は使えない
+- `FiscalPeriodApiRecord` に `masterSetId: string` を足した。使う側は、来なければ `jp-2026` と読む
+- `create`・`createNext` で作る期間の `masterSetId` は、サーバーが開始日で決める (`effectiveFrom` が開始日以前の版のうち最新。`masterSetForStartDate`)。入力には来ない。開始日を変えても版は変えない
+- `importArchived`・`applyCarryoverFromArchive` の `archive.fiscalPeriod.masterSetId` は、あればそのまま保ち (サーバーの知らない版でも)、なければ `jp-2026` にする。空や前後に空白のある文字列は `400`
+- `PATCH /fiscal-periods/{id}` の入力に `masterSetId` を足した (`FiscalPeriodPatchInput`)。`pre_opening` と `journalizing` の期間だけ変えられ、`pre_closing` は今までどおり `409`、`post_closing` も `409` (書類の受領以外は変えられない)。サーバーの知らない版 ID は `400`。切り替えても仕訳・固定資産・期首は書き換えない
+- 仕訳・固定資産の `bookAccountId` は、サーバーの知っているどれかの版にある ID なら受け付ける (期間の版にあるかは問わない)
 
 ### なくした口と設定
 
