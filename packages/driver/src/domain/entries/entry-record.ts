@@ -266,27 +266,82 @@ export type EntrySharedLineValues = {
   businessCategoryName: string | null;
 };
 
+export const OUT_OF_SCOPE_TAX_CATEGORY_ID = "tax_out_of_scope";
+export const OUT_OF_SCOPE_BUSINESS_CATEGORY_ID = "biz_none";
+const OUT_OF_SCOPE_CATEGORY_NAME = "対象外";
+
+export type EntrySharedLineField = "取引先" | "税区分" | "事業区分";
+
+function entryLinesInOrder(entry: { lines: EntryLine[] }): EntryLine[] {
+  return entryToVisualPairs(entry).flatMap((pair) =>
+    [pair.debit, pair.credit].filter((line) => line != null),
+  );
+}
+
+function sharedLineReaders(): Array<{
+  field: EntrySharedLineField;
+  read: (line: EntryLine) => string;
+  outOfScopeId: string | null;
+}> {
+  return [
+    {
+      field: "取引先",
+      read: (line) => line.partnerName ?? "",
+      outOfScopeId: null,
+    },
+    {
+      field: "税区分",
+      read: (line) => line.taxCategoryId ?? line.taxCategoryName ?? "",
+      outOfScopeId: OUT_OF_SCOPE_TAX_CATEGORY_ID,
+    },
+    {
+      field: "事業区分",
+      read: (line) =>
+        line.businessCategoryId ?? line.businessCategoryName ?? "",
+      outOfScopeId: OUT_OF_SCOPE_BUSINESS_CATEGORY_ID,
+    },
+  ];
+}
+
+function isOutOfScopeValue(
+  value: string,
+  outOfScopeId: string | null,
+): boolean {
+  return (
+    outOfScopeId != null &&
+    (value === outOfScopeId || value === OUT_OF_SCOPE_CATEGORY_NAME)
+  );
+}
+
 export function entrySharedLineValues(entry: {
   lines: EntryLine[];
 }): EntrySharedLineValues {
-  const lines = entryToVisualPairs(entry).flatMap((pair) =>
-    [pair.debit, pair.credit].filter((line) => line != null),
-  );
-  const firstWith = (read: (line: EntryLine) => string | null) =>
-    lines.find((line) => (read(line) ?? "") !== "") ?? null;
-  const taxLine = firstWith(
-    (line) => line.taxCategoryName ?? line.taxCategoryId,
-  );
-  const businessLine = firstWith(
-    (line) => line.businessCategoryName ?? line.businessCategoryId,
+  const lines = entryLinesInOrder(entry);
+  const [partner, tax, business] = sharedLineReaders().map(
+    ({ read, outOfScopeId }) =>
+      lines.find((line) => {
+        const value = read(line);
+        return value !== "" && !isOutOfScopeValue(value, outOfScopeId);
+      }) ??
+      lines.find((line) => read(line) !== "") ??
+      null,
   );
   return {
-    partnerName: firstWith((line) => line.partnerName)?.partnerName ?? null,
-    taxCategoryId: taxLine?.taxCategoryId ?? null,
-    taxCategoryName: taxLine?.taxCategoryName ?? null,
-    businessCategoryId: businessLine?.businessCategoryId ?? null,
-    businessCategoryName: businessLine?.businessCategoryName ?? null,
+    partnerName: partner?.partnerName ?? null,
+    taxCategoryId: tax?.taxCategoryId ?? null,
+    taxCategoryName: tax?.taxCategoryName ?? null,
+    businessCategoryId: business?.businessCategoryId ?? null,
+    businessCategoryName: business?.businessCategoryName ?? null,
   };
+}
+
+export function entryLineValueDifferences(entry: {
+  lines: EntryLine[];
+}): EntrySharedLineField[] {
+  const lines = entryLinesInOrder(entry);
+  return sharedLineReaders()
+    .filter(({ read }) => new Set(lines.map(read)).size > 1)
+    .map(({ field }) => field);
 }
 
 export function withSharedLineValues(lines: EntryLine[]): EntryLine[] {

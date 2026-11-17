@@ -23,6 +23,7 @@ import {
   sizes,
 } from "../shared/design-tokens.js";
 import {
+  entryLineValueDifferences,
   resolveGuideBookAccount,
   type QuickGuideOption,
   type QuickGuidePage,
@@ -59,6 +60,7 @@ import {
 } from "./entry-edit-controls.js";
 import { CloseIcon } from "../shared/icons.js";
 import type {
+  EntrySharedLineField,
   EntryDraft,
   EntryMasterAccountOption,
   EntryMasterCategoryOption,
@@ -85,6 +87,12 @@ const BUSINESS_RATE_PRESETS = [
   "0",
 ];
 
+function lineValueDifferencesMessage(
+  fields: readonly EntrySharedLineField[],
+): string {
+  return `この仕訳は、行ごとに${fields.join("・")}が違います。保存すると、どの行もここの値にそろいます。`;
+}
+
 export function EntryEditDrawer(props: {
   entry: EntryDraft;
   accountOptions: EntryMasterAccountOption[];
@@ -105,6 +113,9 @@ export function EntryEditDrawer(props: {
   };
   const [draft, setDraft] = useState<EntryFormState>(() =>
     entryToFormState(props.entry, nextLinePairId),
+  );
+  const [storedLineValueDifferences] = useState(() =>
+    entryLineValueDifferences(props.entry),
   );
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -707,6 +718,18 @@ export function EntryEditDrawer(props: {
                 hint={null}
                 divider={false}
               />
+              {storedLineValueDifferences.length > 0 ? (
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: fontSize.sm,
+                    color: palette.textLabel,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {lineValueDifferencesMessage(storedLineValueDifferences)}
+                </p>
+              ) : null}
             </>
           )}
         </div>

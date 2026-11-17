@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { SectionedBookAccount } from "./book-account.js";
-import type { EntryLine, EntryRecord } from "./entry-record.js";
+import {
+  entryLineValueDifferences,
+  entrySharedLineValues,
+  type EntryLine,
+  type EntryRecord,
+} from "./entry-record.js";
 import {
   buildJournalTableEntryRows,
   buildJournalTableRows,
@@ -260,7 +265,7 @@ describe("one partner and category per entry", () => {
     line("debit", "acct_supplies", 100, { partnerName: "銀行" }),
   ]);
 
-  it("writes the entry's first filled partner and categories on every row", () => {
+  it("writes the entry's first filled partner and the first category other than 対象外 on every row", () => {
     expect(
       buildJournalTableRows([mixed], master).map((row) => [
         row.partner,
@@ -268,8 +273,8 @@ describe("one partner and category per entry", () => {
         row.businessCategory,
       ]),
     ).toEqual([
-      ["△△社", "対象外", "対象外"],
-      ["△△社", "対象外", "対象外"],
+      ["△△社", "課税仕入 10%", "対象外"],
+      ["△△社", "課税仕入 10%", "対象外"],
     ]);
   });
 
@@ -285,10 +290,36 @@ describe("one partner and category per entry", () => {
         item.businessCategoryId,
       ]),
     ).toEqual([
-      ["△△社", "tax_out_of_scope", "biz_none"],
-      ["△△社", "tax_out_of_scope", "biz_none"],
-      ["△△社", "tax_out_of_scope", "biz_none"],
+      ["△△社", "tax_purchase_10", "biz_none"],
+      ["△△社", "tax_purchase_10", "biz_none"],
+      ["△△社", "tax_purchase_10", "biz_none"],
     ]);
+  });
+});
+
+describe("entry line values that differ", () => {
+  it("prefers a category other than 対象外 even on a later line and names the fields that differ", () => {
+    const entry = stored("e-old", [
+      line("debit", "acct_bank", 1000),
+      line("credit", "acct_sales", 1000, {
+        taxCategoryId: "tax_purchase_10",
+        taxCategoryName: "課税仕入 10%",
+      }),
+    ]);
+
+    expect(entrySharedLineValues(entry)).toMatchObject({
+      taxCategoryId: "tax_purchase_10",
+      businessCategoryId: "biz_none",
+    });
+    expect(entryLineValueDifferences(entry)).toEqual(["税区分"]);
+    expect(entryLineValueDifferences(reward)).toEqual([]);
+  });
+
+  it("keeps 対象外 when no line has another value", () => {
+    expect(entrySharedLineValues(reward)).toMatchObject({
+      taxCategoryId: "tax_out_of_scope",
+      businessCategoryId: "biz_none",
+    });
   });
 });
 
