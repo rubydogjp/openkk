@@ -130,7 +130,7 @@ type OpenkkBackendPort = {
 どちらも成功すると `200` で `{ fiscalPeriod }` を返す。決まり:
 
 - 引き継ぎ先 (`{id}`) は `active` で、`pre_opening` か `journalizing` の期間だけ。それ以外は `409`
-- 引き継ぎ元は本締め (`post_closing`) と書類の受領 (`documentsReceivedCompleted`) を終えていて、`purged` でなく、引き継ぎ先の開始日が引き継ぎ元の終了日より後であること。違えば `409` (日付は `400`)。`applyCarryover` の元は同じ利用者の期間 (`sourceFiscalPeriodId`)、`applyCarryoverFromArchive` の元は入力の `archive` (別の帳簿ファイルから読んだ期間) で、`archive` は `importArchived` と同じ決まりで確かめる
+- 引き継ぎ元は本締め (`post_closing`) と書類の受領 (`documentsReceivedCompleted`) を終えていて、`purged` でなく、引き継ぎ先の開始日が引き継ぎ元の終了日の翌日であること (すぐ前の期間からだけ引き継げる。26.3.1 は「終了日より後」なら間が空いていても通した。`createNext` も同じ)。違えば `409` (日付は `400`)。`applyCarryover` の元は同じ利用者の期間 (`sourceFiscalPeriodId`)、`applyCarryoverFromArchive` の元は入力の `archive` (別の帳簿ファイルから読んだ期間) で、`archive` は `importArchived` と同じ決まりで確かめる
 - `carryBalances: true` なら期首の残高を元の期末の残高で置き換え、`openingBalancesCompleted` を `true` にする。`false` なら今の期首の残高をそのまま残す
 - `carryFixedAssets: true` なら、引き継ぎ先の固定資産のうち取得日が引き継ぎ先の開始日より前のものを消してから、元の固定資産のうち引き継げるものを入れる。取得日が引き継ぎ先の期間の中にあるもの (その期間に買って登録したもの) は残す (`keepsFixedAssetOnCarryover`)。`false` なら触らない
 - 再振替に使う勘定科目は、未収入金・未収収益・前払金・前払費用・貯蔵品・未払金・未払費用・前受金・前受収益だけ。26.3.1 にあった在庫の科目 (棚卸資産・商品・製品・原材料・仕掛品) は外した (期末のしーくりくりしーと二重になるため)

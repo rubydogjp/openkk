@@ -41,6 +41,7 @@ import {
   StepSpacer,
   StepUnavailableNotice,
 } from "../step-ui.js";
+import { isDayBefore } from "./opening-bs-carryover.js";
 
 type CarryOptions = {
   bs: boolean;
@@ -130,6 +131,8 @@ export function NextFiscalPeriodBody({
     .listFiscalPeriodEntries(currentFiscalPeriod.id)
     .filter(isOpeningCarryoverCandidate);
   const dateValidation = validateFiscalPeriodDates(startDate, endDate);
+  const followsCurrentPeriod =
+    !dateValidation.ok || isDayBefore(currentFiscalPeriod.endDate, startDate);
   const hasOverlap =
     dateValidation.ok &&
     hasActiveFiscalPeriodOverlap(
@@ -148,6 +151,7 @@ export function NextFiscalPeriodBody({
     startDate.trim() !== "" &&
     endDate.trim() !== "" &&
     dateValidation.ok &&
+    followsCurrentPeriod &&
     !hasOverlap;
 
   const handleCreate = async () => {
@@ -271,6 +275,10 @@ export function NextFiscalPeriodBody({
                 ) : canEnterPage && !dateValidation.ok ? (
                   <FormErrorText id={periodProblemId}>
                     {dateValidation.message}
+                  </FormErrorText>
+                ) : canEnterPage && !followsCurrentPeriod ? (
+                  <FormErrorText id={periodProblemId}>
+                    開始日は、この期間の終了日の翌日にしてください。
                   </FormErrorText>
                 ) : canEnterPage && hasOverlap ? (
                   <FormErrorText id={periodProblemId}>

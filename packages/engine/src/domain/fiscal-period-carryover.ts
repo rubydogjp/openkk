@@ -11,7 +11,7 @@ import type {
   OpeningJournal,
 } from "./models.js";
 import { PURGED_FISCAL_PERIOD_MESSAGE } from "./fiscal-period-rules.js";
-import { assertEntryLinesBalanced } from "./validation.js";
+import { assertEntryLinesBalanced, parseIsoDate } from "./validation.js";
 
 const CAPITAL_ACCOUNTS = new Set([
   "事業主貸",
@@ -53,12 +53,19 @@ export function assertFiscalPeriodCanCarryOver(
       PURGED_FISCAL_PERIOD_MESSAGE,
     );
   }
-  if (nextStartDate <= source.endDate) {
+  if (nextStartDate !== dayAfterIsoDate(source.endDate)) {
     throw engineValidationError(
-      "Next fiscal period must start after the source period ends",
-      "次の期間の開始日は引き継ぎ元の終了日より後にしてください",
+      "Carryover target must start the day after the source period ends",
+      "引き継げるのは、すぐ前の期間からだけです。引き継ぎ先は、引き継ぎ元の終了日の翌日から始めてください",
     );
   }
+}
+
+function dayAfterIsoDate(isoDate: string): string | null {
+  const date = parseIsoDate(isoDate);
+  if (date == null) return null;
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
 }
 
 export function keepsFixedAssetOnCarryover(

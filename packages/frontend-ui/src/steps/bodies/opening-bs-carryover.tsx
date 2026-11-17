@@ -57,6 +57,12 @@ const DEFAULT_CARRY_ITEMS: CarryItems = {
   fixed: false,
 };
 
+export function isDayBefore(endDate: string, startDate: string): boolean {
+  const next = new Date(`${endDate}T00:00:00Z`);
+  next.setUTCDate(next.getUTCDate() + 1);
+  return next.toISOString().slice(0, 10) === startDate;
+}
+
 export function carryoverSourceCandidates(
   target: FiscalPeriod,
   periods: FiscalPeriod[],
@@ -68,7 +74,7 @@ export function carryoverSourceCandidates(
         period.phase === "post_closing" &&
         period.documentsReceivedCompleted &&
         period.archiveStatus !== "purged" &&
-        period.endDate < target.startDate,
+        isDayBefore(period.endDate, target.startDate),
     )
     .sort((left, right) => right.endDate.localeCompare(left.endDate));
 }

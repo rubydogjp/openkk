@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   canApplyCarryover,
+  isDayBefore,
   reversalCandidatesMessage,
 } from "./opening-bs-carryover.js";
 
@@ -32,5 +33,14 @@ describe("reversal candidates of a carryover", () => {
         { kind: "loading" },
       ),
     ).toBe(true);
+  });
+});
+
+describe("carryover sources", () => {
+  it("offers only the period that ends the day before the target starts", () => {
+    expect(isDayBefore("2025-12-31", "2026-01-01")).toBe(true);
+    expect(isDayBefore("2024-02-28", "2024-02-29")).toBe(true);
+    expect(isDayBefore("2024-12-31", "2026-01-01")).toBe(false);
+    expect(isDayBefore("2025-12-30", "2026-01-01")).toBe(false);
   });
 });
