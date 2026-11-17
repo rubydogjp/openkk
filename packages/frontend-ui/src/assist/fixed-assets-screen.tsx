@@ -20,6 +20,7 @@ export function FixedAssetsScreen(props: {
   readOnly: boolean;
   onAdd: (() => void) | null;
   onOpenItem: ((itemId: string) => void) | null;
+  onDisposeItem: ((itemId: string) => void) | null;
   contentMaxWidth: number | null;
   addButtonSlot: ReactNode | null;
 }) {
@@ -74,16 +75,18 @@ export function FixedAssetsScreen(props: {
           items={props.items}
           readOnly={isReadOnly}
           onOpenItem={isReadOnly ? null : props.onOpenItem}
+          onDisposeItem={isReadOnly ? null : props.onDisposeItem}
         />
       </div>
     </section>
   );
 }
 
-function FixedAssetsTable(props: {
+export function FixedAssetsTable(props: {
   items: FixedAsset[];
   readOnly: boolean;
   onOpenItem: ((itemId: string) => void) | null;
+  onDisposeItem: ((itemId: string) => void) | null;
 }) {
   const isEmpty = props.items.length === 0;
   const isReadOnly = props.readOnly;
@@ -118,6 +121,7 @@ function FixedAssetsTable(props: {
         .bk-fixed-assets-row { transition: background 80ms ease; }
         .bk-fixed-assets-row.is-clickable { cursor: pointer; }
         .bk-fixed-assets-row.is-clickable:hover { background: ${palette.hoverStrong} !important; }
+        .bk-fixed-asset-dispose:hover { background: ${palette.hoverSubtle} !important; }
       `}</style>
       {isEmpty ? (
         <FixedAssetsEmptyState readOnly={isReadOnly} />
@@ -142,6 +146,9 @@ function FixedAssetsTable(props: {
                 key={asset.id}
                 asset={asset}
                 onOpen={props.onOpenItem}
+                onDispose={
+                  asset.status === "active" ? props.onDisposeItem : null
+                }
                 showDivider={index > 0}
               />
             ))}
@@ -257,33 +264,80 @@ function EmptyFixedAssetIcon() {
 function FixedAssetRow(props: {
   asset: FixedAsset;
   onOpen: ((itemId: string) => void) | null;
+  onDispose: ((itemId: string) => void) | null;
   showDivider: boolean;
 }) {
   const clickable = props.onOpen != null;
+  const onDispose = props.onDispose;
   return (
-    <button
-      type="button"
-      onClick={() => props.onOpen?.(props.asset.id)}
+    <div
       className={`bk-fixed-assets-row${clickable ? " is-clickable" : ""}`}
+      onClick={() => props.onOpen?.(props.asset.id)}
       style={{
-        border: "none",
+        position: "relative",
         borderTop: props.showDivider
           ? `1px solid ${palette.borderSubtle}`
           : "none",
         background: palette.surface,
         padding: "14px 16px",
-        textAlign: "left",
-        width: "100%",
         boxSizing: "border-box",
-        cursor: clickable ? "pointer" : "default",
       }}
     >
-      <FixedAssetCardBody asset={props.asset} />
-    </button>
+      {clickable ? (
+        <button
+          type="button"
+          aria-label={`${props.asset.name}を開く`}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            border: "none",
+            background: "transparent",
+            cursor: "pointer",
+            padding: 0,
+          }}
+        />
+      ) : null}
+      <div style={{ position: "relative" }}>
+        <FixedAssetCardBody
+          asset={props.asset}
+          action={
+            onDispose == null ? null : (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onDispose(props.asset.id);
+                }}
+                aria-label={`${props.asset.name}の売却・廃棄`}
+                className="bk-fixed-asset-dispose bk-phone-tap-target"
+                style={{
+                  height: 28,
+                  padding: "0 10px",
+                  borderRadius: 6,
+                  border: `1px solid ${palette.borderStrong}`,
+                  background: palette.surface,
+                  color: palette.text,
+                  fontSize: fontSize.sm,
+                  fontWeight: fontWeight.semibold,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                売却・廃棄
+              </button>
+            )
+          }
+        />
+      </div>
+    </div>
   );
 }
 
-function FixedAssetCardBody(props: { asset: FixedAsset }) {
+function FixedAssetCardBody(props: {
+  asset: FixedAsset;
+  action: ReactNode | null;
+}) {
   const asset = props.asset;
   const progressQuarterCount = 4;
   const meterLineWidth = 1;
@@ -301,6 +355,7 @@ function FixedAssetCardBody(props: { asset: FixedAsset }) {
         >
           {asset.name}
         </div>
+        {props.action}
         <AssetStatusChip status={asset.status} />
       </div>
 

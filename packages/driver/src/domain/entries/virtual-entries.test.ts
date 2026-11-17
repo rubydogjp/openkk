@@ -30,6 +30,7 @@ function depreciatingAsset(overrides: Partial<FixedAsset> = {}): FixedAsset {
     businessRate: 1,
     disposalDate: null,
     disposalPrice: null,
+    disposalProceedsTo: null,
     depreciationStartLabel: "",
     remainingDepreciationLabel: "",
     depreciationProgress: 0,
@@ -145,11 +146,55 @@ describe("buildVirtualFixedAssetRows", () => {
       }),
       expect.objectContaining({
         side: "credit",
-        accountName: "固定資産売却益",
+        accountName: "事業主借",
         amount: "59,999",
       }),
     ]);
   });
+
+  it.each([
+    ["cash", "現金"],
+    ["owner", "事業主貸"],
+  ] as const)(
+    "shows the proceeds received into %s as %s and a loss on 事業主貸, like the closing entries",
+    (destination, accountName) => {
+      const entries = buildVirtualFixedAssetEntries({
+        fiscalPeriodId: "fp-2026",
+        assets: [
+          depreciatingAsset({
+            status: "sold",
+            disposalDate: "2026-06-15",
+            disposalPrice: 800_000,
+            disposalProceedsTo: destination,
+          }),
+        ],
+        periodStartDate: "2026-01-01",
+        periodEndDate: "2026-12-31",
+      });
+      expect(
+        entries.find((item) =>
+          item.localId?.includes("virtual-fixed-asset-sale-fa-1"),
+        )?.lines,
+      ).toEqual([
+        expect.objectContaining({
+          side: "debit",
+          accountName,
+          amount: "800,000",
+        }),
+        expect.objectContaining({
+          side: "debit",
+          accountName: "事業主貸",
+          bookAccountId: "acct_proprietor_withdrawal",
+          amount: "40,001",
+        }),
+        expect.objectContaining({
+          side: "credit",
+          accountName: "工具器具備品",
+          amount: "840,001",
+        }),
+      ]);
+    },
+  );
 
   it("keeps the final-year depreciation when the asset is marked complete", () => {
     const rows = buildVirtualFixedAssetRows({

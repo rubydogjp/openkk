@@ -239,7 +239,7 @@ describe("entry scenario rows", () => {
       }),
       expect.objectContaining({
         debit: "",
-        credit: "固定資産売却益",
+        credit: "事業主借",
         creditAmount: "99,999",
         lineIndex: 1,
         lineCount: 2,
@@ -338,8 +338,8 @@ describe("entry scenario rows", () => {
         },
         {
           side: "credit",
-          accountName: "固定資産売却益",
-          accountType: "revenue",
+          accountName: "事業主借",
+          accountType: "equity",
           amount: "99,999",
         },
       ],
@@ -478,6 +478,7 @@ function fixedAsset(
     businessRate: 1,
     disposalDate: null,
     disposalPrice: null,
+    disposalProceedsTo: null,
     depreciationStartLabel: "",
     remainingDepreciationLabel: "",
     depreciationProgress: 0,

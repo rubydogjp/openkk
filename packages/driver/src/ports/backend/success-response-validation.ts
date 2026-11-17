@@ -244,7 +244,10 @@ function isFixedAsset(value: unknown): boolean {
     isUnitRate(value.businessRate) &&
     ["active", "sold", "disposed", "retired"].includes(String(value.status)) &&
     (value.disposalPrice === null ||
-      isNonNegativeSafeInteger(value.disposalPrice))
+      isNonNegativeSafeInteger(value.disposalPrice)) &&
+    (!("disposalProceedsTo" in value) ||
+      value.disposalProceedsTo === null ||
+      ["bank", "cash", "owner"].includes(String(value.disposalProceedsTo)))
   );
 }
 

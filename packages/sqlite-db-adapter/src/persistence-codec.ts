@@ -136,6 +136,11 @@ export function parseFixedAssetDbData(json: string): FixedAssetDbData {
       "disposalPrice",
       nonNegativeInteger,
     );
+    const disposalProceedsTo =
+      value.disposalProceedsTo === undefined ||
+      value.disposalProceedsTo === null
+        ? null
+        : enumValue(value, "disposalProceedsTo", ["bank", "cash", "owner"]);
     const bookAccountId = nonBlankString(value, "bookAccountId");
     return {
       id,
@@ -149,6 +154,7 @@ export function parseFixedAssetDbData(json: string): FixedAssetDbData {
       status,
       disposalDate,
       disposalPrice,
+      disposalProceedsTo,
       bookAccountId,
     };
   });
@@ -167,6 +173,7 @@ export function serializeFixedAssetDbData(value: FixedAssetDbData): string {
     status: value.status,
     disposalDate: value.disposalDate,
     disposalPrice: value.disposalPrice,
+    disposalProceedsTo: value.disposalProceedsTo,
     bookAccountId: value.bookAccountId,
   };
   return serializeRecord(data, parseFixedAssetDbData);

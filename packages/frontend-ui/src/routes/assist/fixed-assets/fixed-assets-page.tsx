@@ -18,6 +18,7 @@ import {
 import { ClosedPeriodLock } from "../../../shared/closed-period-lock.js";
 import { pathWithSearchParams } from "../../../shared/pathname.js";
 import { LockButton } from "../../../shared/locked-action.js";
+import { FixedAssetDisposalDrawer } from "../../../assist/fixed-asset-disposal-drawer.js";
 import { FixedAssetEditDrawer } from "../../../assist/fixed-asset-edit-drawer.js";
 import { FixedAssetsScreen } from "../../../assist/fixed-assets-screen.js";
 import { useRouter, useSearchParams } from "../../../routing/routing.js";
@@ -40,6 +41,7 @@ export function FixedAssetsPage() {
   const [newAssetDraft, setNewAssetDraft] = useState<FixedAssetDraft | null>(
     null,
   );
+  const [disposingAssetId, setDisposingAssetId] = useState<string | null>(null);
 
   const currentFiscalPeriod = appState.currentFiscalPeriod;
   const lockMessage = buildPeriodLockMessage(currentFiscalPeriod, null);
@@ -62,7 +64,17 @@ export function FixedAssetsPage() {
 
   useEffect(() => {
     setNewAssetDraft(null);
+    setDisposingAssetId(null);
   }, [currentFiscalPeriod?.id]);
+  const candidateDisposingAsset =
+    disposingAssetId == null
+      ? null
+      : assistState.getFixedAsset(disposingAssetId);
+  const disposingAsset =
+    candidateDisposingAsset?.fiscalPeriodId === currentFiscalPeriod?.id &&
+    candidateDisposingAsset?.status === "active"
+      ? candidateDisposingAsset
+      : null;
 
   const navigateWithAssetParam = useCallback(
     (assetId: string | null) => {
@@ -109,6 +121,14 @@ export function FixedAssetsPage() {
             ? null
             : (itemId) => navigateWithAssetParam(itemId)
         }
+        onDisposeItem={
+          isReadOnlyPeriod || editingLocked
+            ? null
+            : (itemId) => {
+                navigateWithAssetParam(null);
+                setDisposingAssetId(itemId);
+              }
+        }
         addButtonSlot={
           !isReadOnlyPeriod && editingLocked ? (
             <LockButton label="追加" />
@@ -136,6 +156,18 @@ export function FixedAssetsPage() {
             }
             return ok;
           }}
+        />
+      ) : null}
+      {disposingAsset != null && !isReadOnlyPeriod && !editingLocked ? (
+        <FixedAssetDisposalDrawer
+          key={`dispose:${disposingAsset.id}`}
+          asset={disposingAsset}
+          periodStartDate={currentFiscalPeriod.startDate}
+          periodEndDate={currentFiscalPeriod.endDate}
+          onClose={() => setDisposingAssetId(null)}
+          onRecord={(draft) =>
+            assistState.updateFixedAsset(disposingAsset.id, draft)
+          }
         />
       ) : null}
       {newAssetDraft != null && !isReadOnlyPeriod && !editingLocked ? (
@@ -187,5 +219,6 @@ function buildNewFixedAssetDraft(acquisitionDate: string): FixedAssetDraft {
     status: "active",
     disposalDate: null,
     disposalPrice: null,
+    disposalProceedsTo: null,
   };
 }

@@ -64,6 +64,8 @@ export type FiscalPeriodOpening = {
 
 export type FixedAssetStatus = "active" | "sold" | "disposed" | "retired";
 
+export type FixedAssetDisposalProceedsTo = "bank" | "cash" | "owner";
+
 export type FixedAsset = {
   name: string;
   acquisitionDate: string;
@@ -74,6 +76,7 @@ export type FixedAsset = {
   status: FixedAssetStatus;
   disposalDate: string | null;
   disposalPrice: number | null;
+  disposalProceedsTo: FixedAssetDisposalProceedsTo | null;
   bookAccountId: string;
 };
 
@@ -88,6 +91,7 @@ export type FixedAssetRecord = {
   status: FixedAssetStatus;
   disposalDate: string | null;
   disposalPrice: number | null;
+  disposalProceedsTo: FixedAssetDisposalProceedsTo | null;
   bookAccountId: string;
 };
 

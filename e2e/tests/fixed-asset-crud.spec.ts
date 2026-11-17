@@ -34,6 +34,74 @@ test.describe("fixed asset CRUD", () => {
     await expect(page.getByText("償却中", { exact: true })).toBeVisible();
   });
 
+  test("records a sale through the guide, shows it read-only, and takes it back", async ({
+    page,
+  }) => {
+    await addFixedAsset(page, {
+      name: "売る予定のカメラ",
+      acquisitionDate: "2026-02-01",
+      acquisitionCost: "240000",
+      usefulLife: "4",
+    });
+
+    await page
+      .getByRole("button", { name: "売る予定のカメラの売却・廃棄" })
+      .click();
+    const guide = page.getByRole("dialog", {
+      name: "売る予定のカメラの売却・廃棄",
+    });
+    await expect(
+      guide.getByRole("heading", { name: "どうしましたか？" }),
+    ).toBeVisible();
+    await guide.getByRole("button", { name: "売った" }).click();
+    await expect(
+      guide.getByRole("heading", { name: "いつ・いくらで売りましたか？" }),
+    ).toBeVisible();
+    await guide.getByLabel("売った日").fill("2027-01-01");
+    await guide.getByLabel("売った金額 (円)").fill("100000");
+    await guide.getByRole("button", { name: "次へ" }).click();
+    await expect(guide).toContainText("処分日は会計期間内にしてください");
+    await guide.getByLabel("売った日").fill("2026-08-31");
+    await guide.getByRole("button", { name: "次へ" }).click();
+    await guide.getByRole("button", { name: "個人の口座・財布" }).click();
+    const preview = guide.getByRole("table", { name: "本締めで入る仕訳" });
+    await expect(preview).toContainText("事業主貸");
+    await expect(preview).toContainText("100,000");
+    await guide.getByRole("button", { name: "戻る" }).click();
+    await expect(
+      guide.getByRole("heading", { name: "代金はどこに入りましたか？" }),
+    ).toBeVisible();
+    await guide.getByRole("button", { name: "現金" }).click();
+    await expect(preview).toContainText("現金");
+    await guide.getByRole("button", { name: "記録する" }).click();
+    await expect(guide).not.toBeVisible({ timeout: 5_000 });
+
+    await expect(page.getByText("売却済み", { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "売る予定のカメラの売却・廃棄" }),
+    ).toHaveCount(0);
+
+    await expect(
+      page.getByRole("button", { name: "売る予定のカメラを開く" }),
+    ).toHaveCount(1);
+    await page.getByText("売る予定のカメラ", { exact: true }).click();
+    const drawer = page.getByRole("dialog", { name: "固定資産の編集" });
+    await expect(drawer.getByLabel("状態", { exact: true })).toHaveCount(0);
+    await expect(drawer).toContainText("現金");
+    await expect(drawer).toContainText("2026-08-31");
+    await drawer.getByRole("button", { name: "売却・廃棄の取り消し" }).click();
+    const confirm = page.getByRole("alertdialog", {
+      name: "売却・廃棄の取り消し",
+    });
+    await expect(confirm).toContainText("償却中に戻します。");
+    await confirm.getByRole("button", { name: "取り消す" }).click();
+    await expect(drawer).not.toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText("償却中", { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "売る予定のカメラの売却・廃棄" }),
+    ).toBeVisible();
+  });
+
   test("does not leave a fixed asset behind when creation is cancelled", async ({
     page,
   }) => {

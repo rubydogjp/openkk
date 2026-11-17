@@ -337,6 +337,59 @@ describe("backend-api fixed assets", () => {
     );
   });
 
+  it("keeps where the proceeds of a sale went, and refuses a destination for anything but a sale", async () => {
+    const db = createFixedAssetDb();
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
+    const created = await backendApi.fixedAssets.create("fp-1", {
+      name: "売る資産",
+      acquisitionDate: "2026-04-01",
+      acquisitionCost: 180000,
+      usefulLife: 4,
+      depreciationMethod: "straight_line",
+      businessRate: 1,
+      bookAccountId: "acct_equipment",
+    });
+    expect(created.disposalProceedsTo).toBeNull();
+
+    await expect(
+      backendApi.fixedAssets.patch("fp-1", created.id, {
+        status: "disposed",
+        disposalDate: "2026-12-01",
+        disposalProceedsTo: "cash",
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    await expect(
+      backendApi.fixedAssets.patch("fp-1", created.id, {
+        status: "sold",
+        disposalDate: "2026-12-01",
+        disposalPrice: 1000,
+        disposalProceedsTo: "pocket" as never,
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+
+    const sold = await backendApi.fixedAssets.patch("fp-1", created.id, {
+      status: "sold",
+      disposalDate: "2026-12-01",
+      disposalPrice: 1000,
+      disposalProceedsTo: "owner",
+    });
+    expect(sold.disposalProceedsTo).toBe("owner");
+    await expect(
+      backendApi.fixedAssets.patch("fp-1", created.id, {
+        status: "active",
+        disposalDate: null,
+        disposalPrice: null,
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    const reverted = await backendApi.fixedAssets.patch("fp-1", created.id, {
+      status: "active",
+      disposalDate: null,
+      disposalPrice: null,
+      disposalProceedsTo: null,
+    });
+    expect(reverted.disposalProceedsTo).toBeNull();
+  });
+
   it("rejects future acquisitions and out-of-period disposals", async () => {
     const db = createFixedAssetDb();
     const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });

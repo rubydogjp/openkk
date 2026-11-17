@@ -79,7 +79,7 @@ erDiagram
   }
 ```
 
-期首データと仕訳明細は子テーブルへ正規化する。締めの状態は `fiscal_periods.data` の `phase` で表す。科目と区分の版は `fiscal_periods.data` の `masterSetId` に持つ (CHECK 制約には入れていない)。版を足す前の行には無く、読むときに `jp-2026` とみなす (`legacy/legacy-master-set.ts`)。スキーマの版は変えていない。
+期首データと仕訳明細は子テーブルへ正規化する。締めの状態は `fiscal_periods.data` の `phase` で表す。科目と区分の版は `fiscal_periods.data` の `masterSetId` に持つ (CHECK 制約には入れていない)。版を足す前の行には無く、読むときに `jp-2026` とみなす (`legacy/legacy-master-set.ts`)。スキーマの版は変えていない。売却の代金の入った先は `fixed_assets.data` の `disposalProceedsTo` (`"bank" | "cash" | "owner" | null`) に持つ (CHECK 制約には入れていない)。足す前の行には無く、読むときに `null` とみなす。
 
 子テーブルは親の削除時に `ON DELETE CASCADE` で削除される。残る `data` 列は `json_valid` と主要列との一致をCHECK制約で検証する。
 

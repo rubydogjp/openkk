@@ -72,6 +72,7 @@ describe("buildExpectedClosingEntries fixed-asset disposal", () => {
           status: "sold",
           disposalDate: "2026-06-15",
           disposalPrice: 900_000,
+          disposalProceedsTo: null,
           bookAccountId: "acct_equipment",
         },
       ],
@@ -92,11 +93,170 @@ describe("buildExpectedClosingEntries fixed-asset disposal", () => {
         { side: "credit", bookAccountId: "acct_equipment", amount: 840_001 },
         {
           side: "credit",
-          bookAccountId: "acct_revenue_固定資産売却益",
+          bookAccountId: "acct_proprietor_loan",
           amount: 59_999,
         },
       ],
     });
+  });
+
+  function saleEntry(input: {
+    disposalPrice: number;
+    disposalProceedsTo: "bank" | "cash" | "owner" | null;
+  }) {
+    const entries = buildExpectedClosingEntries({
+      periodStartDate: "2026-01-01",
+      periodEndDate: "2026-12-31",
+      entries: [],
+      openingJournals: [],
+      bookAccounts: [],
+      fixedAssets: [
+        {
+          id: "asset-2",
+          name: "社用車",
+          acquisitionDate: "2020-01-01",
+          acquisitionCost: 1_200_000,
+          usefulLife: 4,
+          depreciationMethod: "straight_line",
+          businessRate: 0.7,
+          status: "sold",
+          disposalDate: "2026-03-31",
+          disposalPrice: input.disposalPrice,
+          disposalProceedsTo: input.disposalProceedsTo,
+          bookAccountId: "acct_vehicle",
+        },
+      ],
+    });
+    return entries.find(
+      (entry) => entry.localId === "virtual:virtual-fixed-asset-sale-asset-2",
+    );
+  }
+
+  it.each([
+    ["bank", "acct_bank"],
+    ["cash", "acct_cash"],
+    ["owner", "acct_proprietor_withdrawal"],
+    [null, "acct_bank"],
+  ] as const)(
+    "puts the proceeds received into %s on %s and the gain on 事業主借, not on the profit and loss",
+    (destination, account) => {
+      expect(
+        saleEntry({ disposalPrice: 50_000, disposalProceedsTo: destination })
+          ?.lines,
+      ).toEqual([
+        expect.objectContaining({
+          side: "debit",
+          bookAccountId: account,
+          amount: 50_000,
+        }),
+        expect.objectContaining({
+          side: "credit",
+          bookAccountId: "acct_vehicle",
+          amount: 1,
+        }),
+        expect.objectContaining({
+          side: "credit",
+          bookAccountId: "acct_proprietor_loan",
+          amount: 49_999,
+        }),
+      ]);
+    },
+  );
+
+  it("puts a loss on 事業主貸 and books nothing for the proceeds when they are zero", () => {
+    const entries = buildExpectedClosingEntries({
+      periodStartDate: "2026-01-01",
+      periodEndDate: "2026-12-31",
+      entries: [],
+      openingJournals: [],
+      bookAccounts: [],
+      fixedAssets: [
+        {
+          id: "asset-3",
+          name: "カメラ",
+          acquisitionDate: "2025-01-01",
+          acquisitionCost: 300_000,
+          usefulLife: 5,
+          depreciationMethod: "straight_line",
+          businessRate: 1,
+          status: "sold",
+          disposalDate: "2026-06-30",
+          disposalPrice: 0,
+          disposalProceedsTo: "owner",
+          bookAccountId: "acct_machine",
+        },
+      ],
+    });
+    const sale = entries.find((entry) =>
+      entry.localId?.endsWith("fixed-asset-sale-asset-3"),
+    );
+    expect(sale?.lines).toEqual([
+      expect.objectContaining({
+        side: "debit",
+        bookAccountId: "acct_proprietor_withdrawal",
+        amount: 210_001,
+      }),
+      expect.objectContaining({
+        side: "credit",
+        bookAccountId: "acct_machine",
+        amount: 210_001,
+      }),
+    ]);
+  });
+
+  it("books only the proceeds against the book value when they are equal", () => {
+    expect(
+      saleEntry({ disposalPrice: 1, disposalProceedsTo: "cash" })?.lines,
+    ).toEqual([
+      expect.objectContaining({
+        side: "debit",
+        bookAccountId: "acct_cash",
+        amount: 1,
+      }),
+      expect.objectContaining({
+        side: "credit",
+        bookAccountId: "acct_vehicle",
+        amount: 1,
+      }),
+    ]);
+  });
+
+  it("keeps a disposal as a retirement loss", () => {
+    const entries = buildExpectedClosingEntries({
+      periodStartDate: "2026-01-01",
+      periodEndDate: "2026-12-31",
+      entries: [],
+      openingJournals: [],
+      bookAccounts: [],
+      fixedAssets: [
+        {
+          id: "asset-4",
+          name: "プリンター",
+          acquisitionDate: "2025-01-01",
+          acquisitionCost: 100_000,
+          usefulLife: 5,
+          depreciationMethod: "straight_line",
+          businessRate: 1,
+          status: "disposed",
+          disposalDate: "2026-06-30",
+          disposalPrice: null,
+          disposalProceedsTo: null,
+          bookAccountId: "acct_equipment",
+        },
+      ],
+    });
+    expect(
+      entries.find((entry) => entry.localId?.endsWith("retire-asset-4"))?.lines,
+    ).toEqual([
+      expect.objectContaining({
+        side: "debit",
+        bookAccountId: "acct_expense_固定資産除却損",
+      }),
+      expect.objectContaining({
+        side: "credit",
+        bookAccountId: "acct_equipment",
+      }),
+    ]);
   });
 
   it("books the final-year depreciation for an asset marked retired", () => {
@@ -118,6 +278,7 @@ describe("buildExpectedClosingEntries fixed-asset disposal", () => {
           status: "retired",
           disposalDate: null,
           disposalPrice: null,
+          disposalProceedsTo: null,
           bookAccountId: "acct_equipment",
         },
       ],
@@ -154,6 +315,7 @@ describe("buildExpectedClosingEntries fixed-asset disposal", () => {
           status: "active",
           disposalDate: null,
           disposalPrice: null,
+          disposalProceedsTo: null,
           bookAccountId: "acct_equipment",
         },
       ],

@@ -405,6 +405,33 @@ describe("document-db-adapter rebuilt book", () => {
     }
   });
 
+  it("keeps where the proceeds of a sale went through export and rebuild", async () => {
+    const book = await open(null);
+    const created = await book.db.fiscalPeriods.create("user-1", period);
+    await book.db.fiscalPeriods.start(created.id);
+    const asset = await book.db.fixedAssets.create(
+      "user-1",
+      created.id,
+      assetInput("売ったカメラ"),
+    );
+    await book.db.fixedAssets.patch(asset.id, {
+      status: "sold",
+      disposalDate: "2026-09-30",
+      disposalPrice: 120000,
+      disposalProceedsTo: "owner",
+    });
+
+    const reopened = await open(book.exportBytes());
+    const [records] = await readBookRecords(reopened);
+    expect(records!.fixedAssets[0]?.disposalProceedsTo).toBe("owner");
+    const rebuilt = await open(
+      await rebuildBookFileBytes(records!, reopened.lastChangedAt()),
+    );
+    expect(
+      (await rebuilt.db.fixedAssets.getById(asset.id))?.disposalProceedsTo,
+    ).toBe("owner");
+  });
+
   it("refuses a period row whose id differs from the id in its data", async () => {
     const book = await open(null);
     const created = await book.db.fiscalPeriods.create("user-1", period);

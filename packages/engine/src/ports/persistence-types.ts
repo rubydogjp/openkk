@@ -126,6 +126,8 @@ export type EntryDbUpsertInput = {
 
 export type FixedAssetDbStatus = "active" | "sold" | "disposed" | "retired";
 
+export type FixedAssetDbDisposalProceedsTo = "bank" | "cash" | "owner";
+
 export type FixedAssetDbRecord = {
   id: string;
   userId: string;
@@ -139,6 +141,7 @@ export type FixedAssetDbRecord = {
   status: FixedAssetDbStatus;
   disposalDate: string | null;
   disposalPrice: number | null;
+  disposalProceedsTo: FixedAssetDbDisposalProceedsTo | null;
   bookAccountId: string;
   createdAt: string;
   updatedAt: string;
@@ -164,6 +167,7 @@ export type FixedAssetDbPatchInput = {
   status?: FixedAssetDbStatus;
   disposalDate?: string | null;
   disposalPrice?: number | null;
+  disposalProceedsTo?: FixedAssetDbDisposalProceedsTo | null;
   bookAccountId?: string;
 };
 
@@ -216,6 +220,7 @@ export type FixedAssetDbImportInput = {
   status: FixedAssetDbStatus;
   disposalDate: string | null;
   disposalPrice: number | null;
+  disposalProceedsTo: FixedAssetDbDisposalProceedsTo | null;
   bookAccountId: string;
 };
 

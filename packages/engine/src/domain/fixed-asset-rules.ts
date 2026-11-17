@@ -1,7 +1,11 @@
 import { engineValidationError } from "./app-error.js";
 import { computeFixedAssetBookValue } from "./closing-entries.js";
 import { getDefaultBookAccount } from "./master-data.js";
-import type { FixedAsset, FixedAssetStatus } from "./models.js";
+import type {
+  FixedAsset,
+  FixedAssetDisposalProceedsTo,
+  FixedAssetStatus,
+} from "./models.js";
 import {
   assertIsoDate,
   assertNonNegativeSafeInteger,
@@ -22,6 +26,7 @@ export const FIXED_ASSET_PATCH_KEYS = [
   "status",
   "disposalDate",
   "disposalPrice",
+  "disposalProceedsTo",
   "bookAccountId",
 ] as const;
 
@@ -32,8 +37,19 @@ const FIXED_ASSET_STATUSES: ReadonlyArray<FixedAssetStatus> = [
   "retired",
 ];
 
+export const FIXED_ASSET_DISPOSAL_PROCEEDS_DESTINATIONS: ReadonlyArray<FixedAssetDisposalProceedsTo> =
+  ["bank", "cash", "owner"];
+
 function isFixedAssetStatus(value: unknown): value is FixedAssetStatus {
   return FIXED_ASSET_STATUSES.some((status) => status === value);
+}
+
+function isDisposalProceedsTo(
+  value: unknown,
+): value is FixedAssetDisposalProceedsTo {
+  return FIXED_ASSET_DISPOSAL_PROCEEDS_DESTINATIONS.some(
+    (destination) => destination === value,
+  );
 }
 
 export function assertFixedAssetMatchesRules(
@@ -75,6 +91,7 @@ export function assertFixedAssetMatchesRules(
     acquisitionDate: value.acquisitionDate,
     disposalDate: value.disposalDate,
     disposalPrice: value.disposalPrice,
+    disposalProceedsTo: value.disposalProceedsTo,
   });
   if (value.acquisitionDate > period.endDate) {
     throw engineValidationError(
@@ -113,6 +130,7 @@ function assertFixedAssetDisposal(asset: {
   acquisitionDate: string;
   disposalDate: unknown;
   disposalPrice: unknown;
+  disposalProceedsTo: unknown;
 }): void {
   const status = asset.status;
   if (asset.disposalDate !== null) {
@@ -147,6 +165,15 @@ function assertFixedAssetDisposal(asset: {
     throw engineValidationError(
       `Fixed asset with status ${status} must not have a disposal price`,
       "売却済み以外の固定資産には売却額を設定できません",
+    );
+  }
+  if (
+    asset.disposalProceedsTo !== null &&
+    (status !== "sold" || !isDisposalProceedsTo(asset.disposalProceedsTo))
+  ) {
+    throw engineValidationError(
+      `Fixed asset with status ${status} cannot have disposal proceeds destination ${String(asset.disposalProceedsTo)}`,
+      "売却の代金の入った先が不正です",
     );
   }
   if (typeof asset.disposalDate !== "string") return;

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { readLegacyArchiveZip } from "../packages/driver/src/domain/index.js";
 import { createMemoryDbAdapter } from "../packages/memory-db-adapter/src/index.js";
 import { createOpenkkBackendApi } from "../packages/backend-api/src/index.js";
+import { buildExpectedClosingEntries } from "../packages/engine/src/index.js";
 
 const FIXTURE_DIR = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -93,8 +94,42 @@ describe(`archive zips written by ${fixture.madeBy}`, () => {
         withNumberedIds({
           ...released,
           fiscalPeriod: { ...released.fiscalPeriod, masterSetId: "jp-2026" },
+          fixedAssets: released.fixedAssets.map((asset) => ({
+            ...asset,
+            disposalProceedsTo: null,
+          })),
         }),
       );
     },
   );
+});
+
+describe(`a sale recorded by ${fixture.madeBy}`, () => {
+  it("is read without a destination and, when recalculated, books the proceeds on 普通預金 and the loss on 事業主貸", async () => {
+    const db = await createMemoryDbAdapter(null);
+    const backend = createOpenkkBackendApi(db, { userId: fixture.userId });
+    const zip = new Uint8Array(
+      fs.readFileSync(path.join(FIXTURE_DIR, "archive-2023-closed.zip")),
+    );
+    const imported = await backend.fiscalPeriods.importArchived(
+      readLegacyArchiveZip(zip),
+    );
+    const assets = await db.fixedAssets.getAll(imported.id);
+    const sold = assets.find((asset) => asset.status === "sold")!;
+    expect(sold.disposalProceedsTo).toBeNull();
+
+    const sale = buildExpectedClosingEntries({
+      periodStartDate: imported.startDate,
+      periodEndDate: imported.endDate,
+      entries: [],
+      fixedAssets: [sold],
+      openingJournals: [],
+      bookAccounts: [],
+    }).find((entry) => entry.localId?.includes("fixed-asset-sale"));
+    expect(sale?.lines.map((line) => [line.side, line.bookAccountId])).toEqual([
+      ["debit", "acct_bank"],
+      ["debit", "acct_proprietor_withdrawal"],
+      ["credit", sold.bookAccountId],
+    ]);
+  });
 });

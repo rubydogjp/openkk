@@ -22,7 +22,13 @@ export function assertFixedAssetCreateInput(
   const value = requireObject(input, "Fixed asset input");
   assertNonBlankTextField(value.name, "Fixed asset name");
   assertFixedAssetMatchesRules(
-    { ...value, status: "active", disposalDate: null, disposalPrice: null },
+    {
+      ...value,
+      status: "active",
+      disposalDate: null,
+      disposalPrice: null,
+      disposalProceedsTo: null,
+    },
     period,
   );
 }

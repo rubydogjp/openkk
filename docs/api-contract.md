@@ -148,6 +148,12 @@ type OpenkkBackendPort = {
 - `PATCH /fiscal-periods/{id}` の入力に `masterSetId` を足した (`FiscalPeriodPatchInput`)。`pre_opening` と `journalizing` の期間だけ変えられ、`pre_closing` は今までどおり `409`、`post_closing` も `409` (書類の受領以外は変えられない)。サーバーの知らない版 ID は `400`。切り替えても仕訳・固定資産・期首は書き換えない
 - 仕訳・固定資産の `bookAccountId` は、サーバーの知っているどれかの版にある ID なら受け付ける (期間の版にあるかは問わない)
 
+### 固定資産の売却の代金の入った先 (`disposalProceedsTo`)
+
+- `FixedAssetApiRecord` に `disposalProceedsTo: "bank" | "cash" | "owner" | null` を足した。売却 (`status: "sold"`) のときだけ値を持てる。`FixedAssetPatchInput` でも送れる。売却以外で `null` でない値、または知らない値は `400`。売却で `null` は「普通預金」として扱う (26.3.1 までに保存した売却と同じ)。使う側は、来なければ `null` と読む
+- 本締めで照合する売却の自動仕訳 (`buildExpectedClosingEntries`) を変えた。借方に代金 (`bank` と `null` → 普通預金 `acct_bank`、`cash` → 現金 `acct_cash`、`owner` → 事業主貸 `acct_proprietor_withdrawal`)、貸方に処分日の帳簿価額 (資産の科目)。差額は、益なら貸方 事業主借 (`acct_proprietor_loan`)、損なら借方 事業主貸 (`acct_proprietor_withdrawal`)。固定資産売却益・売却損 (`acct_revenue_固定資産売却益`・`acct_expense_固定資産売却損`) は使わない (個人の事業用資産の売却は譲渡所得で、事業所得に入れないため)。廃棄 (`disposed`) は今までどおり固定資産除却損。サーバーは同じ計算で照合すること。本締め済みの期間に保存されている仕訳は書き換えない
+- `importArchived`・`applyCarryoverFromArchive` の `archive.fixedAssets[].disposalProceedsTo` は、あれば保ち、なければ `null` にする
+
 ### なくした口と設定
 
 - `POST /fiscal-periods/{id}/archive` と `POST /fiscal-periods/{id}/purge-archived-data` (圧縮保存と、圧縮保存したデータの削除) はもう呼ばない。サーバーに残しておいてもよいが、使う側からは来ない

@@ -340,6 +340,7 @@ export function fakeBackend(): FakeBackend {
             status: "active",
             disposalDate: null,
             disposalPrice: null,
+            disposalProceedsTo: null,
             createdAt: TIMESTAMP,
             updatedAt: TIMESTAMP,
           };

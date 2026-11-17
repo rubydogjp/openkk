@@ -120,6 +120,8 @@ export function fixedAssetDraftToPatch(
       draft.status === "sold"
         ? parseAmount(requireDraftValue(draft.disposalPrice, "disposalPrice"))
         : null,
+    disposalProceedsTo:
+      draft.status === "sold" ? draft.disposalProceedsTo : null,
     bookAccountId,
   };
 }

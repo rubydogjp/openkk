@@ -2,7 +2,11 @@ import { formatAmount, parseIsoLocalDate } from "../shared/parse-utils.js";
 import type { BookAccountType } from "../entries/book-account.js";
 import { customCategoryLabel } from "../entries/category-resolution.js";
 import { computeStraightLineDepreciation } from "./fixed-asset-depreciation.js";
-import type { FixedAsset, FixedAssetStatus } from "./fixed-asset-data.js";
+import type {
+  FixedAsset,
+  FixedAssetDisposalProceedsTo,
+  FixedAssetStatus,
+} from "./fixed-asset-data.js";
 import type { OpeningCarryoverRecord } from "./opening-carryover.js";
 
 export type StoredOpeningJournal = {
@@ -32,6 +36,7 @@ export type StoredFixedAsset = {
   status: FixedAssetStatus;
   disposalDate: string | null;
   disposalPrice: number | null;
+  disposalProceedsTo: FixedAssetDisposalProceedsTo | null;
   bookAccountId: string;
 };
 
@@ -104,6 +109,7 @@ export function mapFixedAsset(
     businessRate: asset.businessRate,
     disposalDate: asset.disposalDate,
     disposalPrice: asset.disposalPrice,
+    disposalProceedsTo: asset.disposalProceedsTo ?? null,
     depreciationStartLabel: depreciation.periodLabel,
     remainingDepreciationLabel: depreciation.remainingLabel,
     depreciationProgress: depreciation.progress,

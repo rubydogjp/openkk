@@ -7,6 +7,17 @@ export const FIXED_ASSET_STATUS_LABELS: Record<FixedAssetStatus, string> = {
   disposed: "廃棄済み",
 };
 
+export type FixedAssetDisposalProceedsTo = "bank" | "cash" | "owner";
+
+export const FIXED_ASSET_DISPOSAL_PROCEEDS_LABELS: Record<
+  FixedAssetDisposalProceedsTo,
+  string
+> = {
+  bank: "事業用の口座 (普通預金)",
+  cash: "現金",
+  owner: "個人の口座・財布",
+};
+
 export function fixedAssetStatusRequiresDisposal(
   status: FixedAssetStatus,
 ): boolean {
@@ -26,6 +37,7 @@ export type FixedAsset = {
   businessRate: number;
   disposalDate: string | null;
   disposalPrice: number | null;
+  disposalProceedsTo: FixedAssetDisposalProceedsTo | null;
   depreciationStartLabel: string;
   remainingDepreciationLabel: string;
   depreciationProgress: number;
@@ -43,4 +55,5 @@ export type FixedAssetDraft = {
   status: FixedAssetStatus;
   disposalDate: string | null;
   disposalPrice: string | null;
+  disposalProceedsTo: FixedAssetDisposalProceedsTo | null;
 };

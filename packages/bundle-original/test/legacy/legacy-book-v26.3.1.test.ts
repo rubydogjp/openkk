@@ -222,7 +222,9 @@ describe(`a database written by ${fixture.madeBy}`, () => {
       );
       expect([...entries].sort(byId)).toEqual([...period.entries].sort(byId));
       expect([...fixedAssets].sort(byId)).toEqual(
-        [...period.fixedAssets].sort(byId),
+        period.fixedAssets
+          .map((asset) => ({ ...asset, disposalProceedsTo: null }))
+          .sort(byId),
       );
       expect(entries.map(({ id }) => id)).toEqual(
         inStoredOrder(

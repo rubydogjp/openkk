@@ -27,6 +27,7 @@ export function fixedAssetToDraft(asset: FixedAsset): FixedAssetDraft {
     disposalDate: asset.disposalDate,
     disposalPrice:
       asset.disposalPrice == null ? null : formatAmount(asset.disposalPrice),
+    disposalProceedsTo: asset.disposalProceedsTo,
   };
 }
 

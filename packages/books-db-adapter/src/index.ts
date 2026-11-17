@@ -243,6 +243,7 @@ function archiveOf(
       status: asset.status,
       disposalDate: asset.disposalDate,
       disposalPrice: asset.disposalPrice,
+      disposalProceedsTo: asset.disposalProceedsTo,
       bookAccountId: asset.bookAccountId,
     })),
   };

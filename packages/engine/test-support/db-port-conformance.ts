@@ -488,6 +488,7 @@ export function runDbPortConformance(
         status: "active" as const,
         disposalDate: null,
         disposalPrice: null,
+        disposalProceedsTo: null,
         bookAccountId: "acct_equipment",
         createdAt: timestamp,
         updatedAt: timestamp,
@@ -684,6 +685,7 @@ export function runDbPortConformance(
             status: asset.status,
             disposalDate: asset.disposalDate,
             disposalPrice: asset.disposalPrice,
+            disposalProceedsTo: asset.disposalProceedsTo,
             bookAccountId: asset.bookAccountId,
           })),
       };
@@ -898,6 +900,7 @@ export function runDbPortConformance(
             status: "sold",
             disposalDate: "2026-12-01",
             disposalPrice: 50000,
+            disposalProceedsTo: "owner",
           },
         ],
       };
@@ -915,6 +918,7 @@ export function runDbPortConformance(
         name: "Imported Camera",
         status: "sold",
         disposalDate: "2026-12-01",
+        disposalProceedsTo: "owner",
       });
       await expect(
         db.fiscalPeriods.importArchived("user-1", archiveInput),
@@ -981,6 +985,7 @@ export function runDbPortConformance(
           status: "active" as const,
           disposalDate: null,
           disposalPrice: null,
+          disposalProceedsTo: null,
         })),
       });
 
@@ -1616,6 +1621,40 @@ export function runDbPortConformance(
         disposalPrice: null,
       });
     });
+
+    it("keeps where the proceeds of a sale went and refuses it for anything but a sale", async () => {
+      const db = await makeDb();
+      const period = await createTestFiscalPeriod(db);
+      const asset = await db.fixedAssets.create("user-1", period.id, {
+        name: "Camera",
+        acquisitionDate: "2026-04-01",
+        acquisitionCost: 100000,
+        usefulLife: 4,
+        depreciationMethod: "straight_line",
+        businessRate: 1,
+        bookAccountId: "acct_equipment",
+      });
+      expect(asset.disposalProceedsTo).toBeNull();
+
+      await expect(
+        db.fixedAssets.patch(asset.id, {
+          status: "disposed",
+          disposalDate: "2026-12-31",
+          disposalProceedsTo: "cash",
+        }),
+      ).rejects.toThrow(/disposal proceeds destination/);
+      const sold = await db.fixedAssets.patch(asset.id, {
+        status: "sold",
+        disposalDate: "2026-12-31",
+        disposalPrice: 30000,
+        disposalProceedsTo: "cash",
+      });
+      expect(sold.disposalProceedsTo).toBe("cash");
+      expect(await db.fixedAssets.getById(asset.id)).toMatchObject({
+        status: "sold",
+        disposalProceedsTo: "cash",
+      });
+    });
   });
 
   describe(`OpenkkDbPort conformance [${label}] / closings`, () => {
@@ -1844,6 +1883,7 @@ export function runDbPortConformance(
           status: "active" as const,
           disposalDate: null,
           disposalPrice: null,
+          disposalProceedsTo: null,
           bookAccountId: "acct_equipment",
           createdAt,
           updatedAt,

@@ -634,6 +634,48 @@ export const BACKEND_CONTRACT_CASES: BackendContractCase[] = [
     );
   }),
 
+  contractCase(
+    "keeps where the proceeds of a sale went and refuses it for anything but a sale",
+    async (backend) => {
+      const period = await journalizingPeriod(backend);
+      const master = await loadLatestJournalMaster(backend);
+      const created = await backend.fixedAssets.create(period.id, {
+        name: "カメラ",
+        acquisitionDate: "2026-01-10",
+        acquisitionCost: 240_000,
+        usefulLife: 4,
+        depreciationMethod: "straight_line",
+        businessRate: 1,
+        bookAccountId: accountId(master, EQUIPMENT),
+      });
+      check(
+        created.disposalProceedsTo === null,
+        "a new fixed asset has no proceeds destination",
+      );
+      await checkRejectedWith(
+        HTTP_BAD_REQUEST,
+        backend.fixedAssets.patch(period.id, created.id, {
+          status: "disposed",
+          disposalDate: "2026-06-30",
+          disposalProceedsTo: "cash",
+        }),
+        "a disposal without a sale refuses a proceeds destination",
+      );
+      const sold = await backend.fixedAssets.patch(period.id, created.id, {
+        status: "sold",
+        disposalDate: "2026-06-30",
+        disposalPrice: 100_000,
+        disposalProceedsTo: "owner",
+      });
+      check(
+        sold.disposalProceedsTo === "owner" &&
+          (await backend.fixedAssets.getAll(period.id))[0]
+            ?.disposalProceedsTo === "owner",
+        "a sale keeps where its proceeds went",
+      );
+    },
+  ),
+
   contractCase("moves into pre-closing and back", async (backend) => {
     const period = await journalizingPeriod(backend);
     const preClosed = await backend.preClosings.run(period.id);

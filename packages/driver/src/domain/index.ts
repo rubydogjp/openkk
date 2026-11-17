@@ -26,6 +26,7 @@ export * from "./entries/virtual-entries.js";
 
 export * from "./assist/fixed-asset-data.js";
 export * from "./assist/fixed-asset-draft.js";
+export * from "./assist/fixed-asset-disposal.js";
 export * from "./assist/fixed-asset-depreciation.js";
 export * from "./assist/opening-carryover.js";
 export * from "./assist/stored-record-mapping.js";

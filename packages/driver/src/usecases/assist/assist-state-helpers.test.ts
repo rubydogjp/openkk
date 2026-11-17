@@ -428,6 +428,7 @@ function draft(overrides: Partial<FixedAssetDraft> = {}): FixedAssetDraft {
     businessRate: null,
     disposalDate: null,
     disposalPrice: null,
+    disposalProceedsTo: null,
   };
   return Object.assign(base, overrides);
 }
@@ -446,6 +447,7 @@ function previewAsset(overrides: Partial<FixedAsset> = {}): FixedAsset {
     businessRate: 0.8,
     disposalDate: null,
     disposalPrice: null,
+    disposalProceedsTo: null,
     depreciationStartLabel: "2026年4月〜",
     remainingDepreciationLabel: "あと48ヶ月",
     depreciationProgress: 0,

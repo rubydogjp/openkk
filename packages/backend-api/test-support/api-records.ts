@@ -76,6 +76,7 @@ export function fixedAsset(
     status: "active",
     disposalDate: null,
     disposalPrice: null,
+    disposalProceedsTo: null,
     bookAccountId: "",
     createdAt: TEST_TIMESTAMP,
     updatedAt: TEST_TIMESTAMP,

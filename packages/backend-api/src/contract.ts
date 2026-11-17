@@ -35,6 +35,8 @@ export type FiscalPeriodApiArchiveStatus = "active" | "purged";
 
 export type FixedAssetApiStatus = "active" | "sold" | "disposed" | "retired";
 
+export type FixedAssetApiDisposalProceedsTo = "bank" | "cash" | "owner";
+
 export type MasterBookAccountApiAccountType =
   "asset" | "liability" | "equity" | "revenue" | "cost_of_sales" | "expense";
 
@@ -175,6 +177,7 @@ export type FixedAssetApiRecord = {
   status: FixedAssetApiStatus;
   disposalDate: string | null;
   disposalPrice: number | null;
+  disposalProceedsTo: FixedAssetApiDisposalProceedsTo | null;
   bookAccountId: string;
   createdAt: string;
   updatedAt: string;
@@ -200,6 +203,7 @@ export type FixedAssetPatchInput = {
   status?: FixedAssetApiStatus;
   disposalDate?: string | null;
   disposalPrice?: number | null;
+  disposalProceedsTo?: FixedAssetApiDisposalProceedsTo | null;
   bookAccountId?: string;
 };
 

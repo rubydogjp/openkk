@@ -1,6 +1,7 @@
 import {
   fixedAssetStatusRequiresDisposal,
   type FixedAsset,
+  type FixedAssetDisposalProceedsTo,
 } from "../assist/fixed-asset-data.js";
 import {
   computePeriodDepreciation,
@@ -23,6 +24,27 @@ import { formatAmount, parseIsoLocalDate } from "../shared/parse-utils.js";
 import { MAX_TEXT_FIELD_LENGTH, truncateText } from "../shared/text-limits.js";
 
 const BUSINESS_RATE_TRANSFER_ROW_ID = "business-rate-transfer";
+const OWNER_WITHDRAWAL_ACCOUNT = {
+  accountName: "事業主貸",
+  accountType: "asset",
+  bookAccountId: "acct_proprietor_withdrawal",
+} as const;
+const DISPOSAL_PROCEEDS_ACCOUNTS: Record<
+  FixedAssetDisposalProceedsTo,
+  Omit<FixedAssetEntryLineInput, "amount">
+> = {
+  bank: {
+    accountName: "普通預金",
+    accountType: "asset",
+    bookAccountId: "acct_bank",
+  },
+  cash: {
+    accountName: "現金",
+    accountType: "asset",
+    bookAccountId: "acct_cash",
+  },
+  owner: OWNER_WITHDRAWAL_ACCOUNT,
+};
 
 export function isMaterializedVirtualEntry(entry: {
   localId: string | null;
@@ -107,6 +129,21 @@ export function buildVirtualFixedAssetEntries(input: {
     .flatMap((asset) =>
       fixedAssetEntries(asset, periodStartDate, input.periodEndDate),
     );
+}
+
+export function buildFixedAssetDisposalEntries(
+  asset: FixedAsset,
+  periodStartDate: string,
+): EntryRecord[] {
+  const start = parseIsoLocalDate(periodStartDate);
+  if (start == null || !fixedAssetStatusRequiresDisposal(asset.status)) {
+    return [];
+  }
+  return fixedAssetEntries(asset, start, null).filter(
+    (entry) =>
+      entry.id === `virtual-fixed-asset-sale-${asset.id}` ||
+      entry.id === `virtual-fixed-asset-retire-${asset.id}`,
+  );
 }
 
 export function buildVirtualFixedAssetRows(input: {
@@ -224,19 +261,12 @@ function buildSaleEntries(input: {
   const credits: FixedAssetEntryLineInput[] = [];
   if (disposalPrice > 0) {
     debits.push({
-      accountName: "普通預金",
-      accountType: "asset",
-      bookAccountId: "acct_bank",
+      ...DISPOSAL_PROCEEDS_ACCOUNTS[input.asset.disposalProceedsTo ?? "bank"],
       amount: disposalPrice,
     });
   }
   if (loss > 0) {
-    debits.push({
-      accountName: "固定資産売却損",
-      accountType: "expense",
-      bookAccountId: "acct_expense_固定資産売却損",
-      amount: loss,
-    });
+    debits.push({ ...OWNER_WITHDRAWAL_ACCOUNT, amount: loss });
   }
   if (input.bookValue > 0) {
     credits.push({
@@ -248,9 +278,9 @@ function buildSaleEntries(input: {
   }
   if (gain > 0) {
     credits.push({
-      accountName: "固定資産売却益",
-      accountType: "revenue",
-      bookAccountId: "acct_revenue_固定資産売却益",
+      accountName: "事業主借",
+      accountType: "equity",
+      bookAccountId: "acct_proprietor_loan",
       amount: gain,
     });
   }

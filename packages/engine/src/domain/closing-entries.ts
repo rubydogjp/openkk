@@ -3,6 +3,7 @@ import type {
   BookAccount,
   Entry,
   EntryLine,
+  FixedAssetDisposalProceedsTo,
   FixedAssetRecord,
   OpeningJournal,
 } from "./models.js";
@@ -17,8 +18,7 @@ const TAX_OUT_OF_SCOPE = "tax_out_of_scope";
 const BUSINESS_NONE = "biz_none";
 const DEPRECIATION_EXPENSE = "acct_depreciation";
 const BANK = "acct_bank";
-const ASSET_SALE_GAIN = "acct_revenue_固定資産売却益";
-const ASSET_SALE_LOSS = "acct_expense_固定資産売却損";
+const CASH = "acct_cash";
 const ASSET_RETIREMENT_LOSS = "acct_expense_固定資産除却損";
 const OWNER_WITHDRAWAL = "acct_proprietor_withdrawal";
 const OWNER_LOAN = "acct_proprietor_loan";
@@ -137,14 +137,22 @@ function buildFixedAssetEntries(
     const gain = Math.max(0, disposalPrice - bookValue);
     const loss = Math.max(0, bookValue - disposalPrice);
     const debits = [
-      ...(disposalPrice > 0 ? [line("debit", BANK, disposalPrice)] : []),
-      ...(loss > 0 ? [line("debit", ASSET_SALE_LOSS, loss)] : []),
+      ...(disposalPrice > 0
+        ? [
+            line(
+              "debit",
+              disposalProceedsAccount(asset.disposalProceedsTo),
+              disposalPrice,
+            ),
+          ]
+        : []),
+      ...(loss > 0 ? [line("debit", OWNER_WITHDRAWAL, loss)] : []),
     ];
     const credits = [
       ...(bookValue > 0
         ? [line("credit", asset.bookAccountId, bookValue)]
         : []),
-      ...(gain > 0 ? [line("credit", ASSET_SALE_GAIN, gain)] : []),
+      ...(gain > 0 ? [line("credit", OWNER_LOAN, gain)] : []),
     ];
     if (debits.length > 0 || credits.length > 0) {
       entries.push({
@@ -168,6 +176,20 @@ function buildFixedAssetEntries(
     });
   }
   return entries;
+}
+
+function disposalProceedsAccount(
+  destination: FixedAssetDisposalProceedsTo | null,
+): string {
+  switch (destination) {
+    case "cash":
+      return CASH;
+    case "owner":
+      return OWNER_WITHDRAWAL;
+    case "bank":
+    case null:
+      return BANK;
+  }
 }
 
 function buildBusinessRateTransfer(input: {

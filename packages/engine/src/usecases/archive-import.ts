@@ -5,6 +5,7 @@ import {
   assertFiscalPeriodClosingRecords,
   assertFiscalPeriodLifecycleFlags,
   assertFixedAssetMatchesRules,
+  FIXED_ASSET_DISPOSAL_PROCEEDS_DESTINATIONS,
   assertIsoDate,
   assertNonNegativeSafeInteger,
   assertOpeningMatchesRules,
@@ -21,6 +22,7 @@ import {
 import type {
   EntryDbUpsertInput,
   FiscalPeriodArchiveDbImportInput,
+  FixedAssetDbDisposalProceedsTo,
   FixedAssetDbImportInput,
 } from "../ports/index.js";
 import { migrateLegacyArchiveV1 } from "./legacy/legacy-archive-import-v1.js";
@@ -386,6 +388,7 @@ function normalizeArchivedFixedAsset(
     status,
     disposalDate,
     disposalPrice,
+    disposalProceedsTo: archiveDisposalProceedsTo(value.disposalProceedsTo),
     bookAccountId,
   };
   assertFixedAssetMatchesRules(fixedAsset, {
@@ -513,4 +516,20 @@ function requireArchiveVersion(value: unknown): FiscalPeriodArchiveVersion {
     "archive manifest.version is not supported",
     null,
   );
+}
+
+function archiveDisposalProceedsTo(
+  value: unknown,
+): FixedAssetDbDisposalProceedsTo | null {
+  if (value === undefined || value === null) return null;
+  const destination = FIXED_ASSET_DISPOSAL_PROCEEDS_DESTINATIONS.find(
+    (candidate) => candidate === value,
+  );
+  if (destination == null) {
+    throw engineValidationError(
+      "archive fixedAsset.disposalProceedsTo is invalid",
+      null,
+    );
+  }
+  return destination;
 }

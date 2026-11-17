@@ -21,7 +21,7 @@ const SALE_PRICE = "1,200,000";
 const BOOK_VALUE_AT_DISPOSAL = "1,080,001";
 
 test.describe("固定資産の売却 → 締めフローの帳票一貫性", () => {
-  test("売却の減価償却・売却益が仮帳票と確定帳票で一致して計上される", async ({
+  test("案内で売った資産の減価償却と、事業主借に入る帳簿価額との差が、仮帳票と確定帳票で一致して計上される", async ({
     page,
   }) => {
     await disablePrintBeforeFirstNavigation(page);
@@ -39,6 +39,7 @@ test.describe("固定資産の売却 → 締めフローの帳票一貫性", () 
     await sellFixedAsset(page, "売却検証サーバー", {
       disposalDate: "2026-06-30",
       disposalPrice: "1200000",
+      proceedsTo: "事業用の口座 (普通預金)",
     });
 
     await page.getByRole("link", { name: "仕訳" }).click();
@@ -46,7 +47,8 @@ test.describe("固定資産の売却 → 締めフローの帳票一貫性", () 
     await expect(
       page.getByText("売却検証サーバーの売却").first(),
     ).toBeVisible();
-    await expect(page.getByText("固定資産売却益").first()).toBeVisible();
+    await expect(page.getByText("事業主借").first()).toBeVisible();
+    await expect(page.getByText("固定資産売却益")).toHaveCount(0);
     await saveScreenshot(page, SHOTS, "01-entry-list-sale");
 
     await page.getByRole("link", { name: "手順" }).click();
@@ -61,7 +63,8 @@ test.describe("固定資産の売却 → 締めフローの帳票一貫性", () 
     const draftJournal = await readPrintedReport(page, "仮_仕訳帳.pdf");
     expect(draftJournal).toContain("売却検証サーバーの売却");
     expect(draftJournal).toContain("売却検証サーバーの減価償却");
-    expect(draftJournal).toContain("固定資産売却益");
+    expect(draftJournal).toContain("事業主借");
+    expect(draftJournal).not.toContain("固定資産売却益");
     expect(draftJournal).toContain(DEPRECIATION_AND_SALE_GAIN);
     expect(draftJournal).toContain(SALE_PRICE);
     expect(draftJournal).toContain(BOOK_VALUE_AT_DISPOSAL);
@@ -79,7 +82,8 @@ test.describe("固定資産の売却 → 締めフローの帳票一貫性", () 
 
     const finalJournal = await readPrintedReport(page, "仕訳帳.pdf");
     expect(finalJournal).toContain("売却検証サーバーの売却");
-    expect(finalJournal).toContain("固定資産売却益");
+    expect(finalJournal).toContain("事業主借");
+    expect(finalJournal).not.toContain("固定資産売却益");
     expect(extractReportAmounts(finalJournal)).toEqual(
       extractReportAmounts(draftJournal),
     );
@@ -89,14 +93,19 @@ test.describe("固定資産の売却 → 締めフローの帳票一貫性", () 
 async function sellFixedAsset(
   page: Page,
   name: string,
-  input: { disposalDate: string; disposalPrice: string },
+  input: { disposalDate: string; disposalPrice: string; proceedsTo: string },
 ) {
-  await page.getByText(name).click();
-  const drawer = page.getByRole("dialog", { name: "固定資産の編集" });
+  await page.getByRole("button", { name: `${name}の売却・廃棄` }).click();
+  const drawer = page.getByRole("dialog", { name: `${name}の売却・廃棄` });
   await expect(drawer).toBeVisible();
-  await drawer.getByLabel("状態").selectOption("売却済み");
-  await drawer.getByLabel("処分日").fill(input.disposalDate);
-  await drawer.getByLabel("売却額").fill(input.disposalPrice);
-  await clickButton(page, "保存");
+  await drawer.getByRole("button", { name: "売った" }).click();
+  await drawer.getByLabel("売った日").fill(input.disposalDate);
+  await drawer.getByLabel("売った金額 (円)").fill(input.disposalPrice);
+  await drawer.getByRole("button", { name: "次へ" }).click();
+  await drawer.getByRole("button", { name: input.proceedsTo }).click();
+  await expect(
+    drawer.getByRole("heading", { name: "本締めで入る仕訳" }),
+  ).toBeVisible();
+  await drawer.getByRole("button", { name: "記録する" }).click();
   await expect(drawer).not.toBeVisible({ timeout: 5_000 });
 }

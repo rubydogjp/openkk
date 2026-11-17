@@ -132,6 +132,7 @@ function fixedAssetItemToApiRecord(
     status: item.status,
     disposalDate: item.disposalDate,
     disposalPrice: item.disposalPrice,
+    disposalProceedsTo: item.status === "sold" ? "bank" : null,
     bookAccountId: item.bookAccountId,
     createdAt: DEMO_SEED_TIMESTAMP,
     updatedAt: DEMO_SEED_TIMESTAMP,

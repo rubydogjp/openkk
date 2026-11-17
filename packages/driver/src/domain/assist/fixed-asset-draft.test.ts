@@ -99,6 +99,7 @@ describe("computeFixedAssetDraftPeriodDepreciation", () => {
           businessRate: null,
           disposalDate: null,
           disposalPrice: null,
+          disposalProceedsTo: null,
         },
         periodStartDate: "2026-01-01",
         asOf: new Date(2026, 11, 31),
@@ -120,6 +121,7 @@ describe("validateFixedAssetDraft", () => {
       businessRate: null,
       disposalDate: null,
       disposalPrice: null,
+      disposalProceedsTo: null,
     };
     return Object.assign(base, patch);
   };

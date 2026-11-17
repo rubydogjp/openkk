@@ -53,6 +53,7 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
         status: "active",
         disposalDate: null,
         disposalPrice: null,
+        disposalProceedsTo: null,
         bookAccountId: input.bookAccountId,
         createdAt: timestamp,
         updatedAt: timestamp,

@@ -29,6 +29,7 @@ const EQUIPMENT_DRAFT: FixedAssetDraft = {
   status: "active",
   disposalDate: null,
   disposalPrice: null,
+  disposalProceedsTo: null,
 };
 
 const CARRYOVER_DRAFT: OpeningCarryoverDraft = {

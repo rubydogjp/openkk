@@ -20,14 +20,17 @@ import {
 import {
   FormStyles,
   FormPrimaryButton,
+  FormReadOnlyValue,
   FormSecondaryButton,
   FormTextInput,
 } from "../shared/form-fields.js";
 import {
   computeFixedAssetDraftPeriodDepreciation,
   computeStraightLineDepreciation,
+  FIXED_ASSET_DISPOSAL_PROCEEDS_LABELS,
   FIXED_ASSET_STATUS_LABELS,
   fixedAssetStatusRequiresDisposal,
+  revertFixedAssetDisposalDraft,
   MAX_FIXED_ASSET_USEFUL_LIFE_YEARS,
   formatAmount,
   parseAmount,
@@ -65,8 +68,9 @@ export function FixedAssetEditDrawer({
   const [errorText, setErrorText] = useState<string | null>(null);
   const mutationLock = useRef(new ExclusiveActionLock());
   const { confirm, dialog } = useConfirmDialog();
-  const needsDisposalDate = fixedAssetStatusRequiresDisposal(draft.status);
-  const needsDisposalPrice = draft.status === "sold";
+  const recordedDisposal = fixedAssetStatusRequiresDisposal(
+    initialDraft.status,
+  );
 
   const calculatedPreview = useMemo(() => {
     const asOf = resolveFixedAssetDraftPreviewDate(
@@ -145,6 +149,34 @@ export function FixedAssetEditDrawer({
       setErrorText(safeUserErrorMessage(error, "保存に失敗しました"));
     } finally {
       setSaving(false);
+      release();
+    }
+  };
+
+  const handleUndoDisposal = async () => {
+    const release = mutationLock.current.tryAcquire();
+    if (release == null) return;
+    try {
+      const confirmed = await confirm({
+        tone: "danger",
+        title: "売却・廃棄の取り消し",
+        body: ["償却中に戻します。"],
+        confirmLabel: "取り消す",
+      });
+      if (!confirmed) return;
+      setSaving(true);
+      setErrorText(null);
+      try {
+        const ok = await onSave(revertFixedAssetDisposalDraft(draft));
+        if (!ok) setErrorText("保存に失敗しました");
+        else onClose();
+      } catch (error) {
+        debugAppError(error);
+        setErrorText(safeUserErrorMessage(error, "保存に失敗しました"));
+      } finally {
+        setSaving(false);
+      }
+    } finally {
       release();
     }
   };
@@ -272,7 +304,7 @@ export function FixedAssetEditDrawer({
               }
             />
           </Field>
-          {mode === "edit" ? (
+          {mode === "edit" && !recordedDisposal ? (
             <Field label="状態">
               <StatusField
                 value={draft.status}
@@ -280,28 +312,12 @@ export function FixedAssetEditDrawer({
               />
             </Field>
           ) : null}
-          {mode === "edit" && needsDisposalDate ? (
-            <Field label="処分日">
-              <DateInput
-                value={draft.disposalDate ?? ""}
-                min={laterIsoDate(draft.acquisitionDate, periodStartDate)}
-                max={periodEndDate}
-                onChange={(value) =>
-                  setDraft({ ...draft, disposalDate: value })
-                }
-              />
-            </Field>
-          ) : null}
-          {mode === "edit" && needsDisposalPrice ? (
-            <Field label="売却額">
-              <AmountInput
-                value={draft.disposalPrice ?? ""}
-                onChange={(value) =>
-                  setDraft({ ...draft, disposalPrice: value })
-                }
-                ariaLabel={null}
-              />
-            </Field>
+          {mode === "edit" && recordedDisposal ? (
+            <RecordedDisposal
+              draft={initialDraft}
+              disabled={saving || deleting}
+              onUndo={handleUndoDisposal}
+            />
           ) : null}
 
           <DepreciationPreview
@@ -383,13 +399,19 @@ export function FixedAssetEditDrawer({
   );
 }
 
-function laterIsoDate(left: string, right: string): string {
+export function laterIsoDate(left: string, right: string): string {
   if (parseIsoLocalDate(left) == null) return right;
   if (parseIsoLocalDate(right) == null) return left;
   return left > right ? left : right;
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+export function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
   return (
     <label
       style={{
@@ -426,7 +448,7 @@ const controlStyle = {
   fontFamily: "inherit" as const,
 };
 
-function DateInput({
+export function DateInput({
   value,
   min,
   max,
@@ -602,6 +624,46 @@ function AccountField({
   );
 }
 
+function RecordedDisposal({
+  draft,
+  disabled,
+  onUndo,
+}: {
+  draft: FixedAssetDraft;
+  disabled: boolean;
+  onUndo: () => void;
+}) {
+  const rows: Array<[string, string]> = [
+    ["状態", FIXED_ASSET_STATUS_LABELS[draft.status]],
+    ["処分日", draft.disposalDate ?? ""],
+    ...(draft.status === "sold"
+      ? ([
+          ["売却額", `${draft.disposalPrice ?? "0"} 円`],
+          [
+            "代金の入った先",
+            FIXED_ASSET_DISPOSAL_PROCEEDS_LABELS[
+              draft.disposalProceedsTo ?? "bank"
+            ],
+          ],
+        ] as Array<[string, string]>)
+      : []),
+  ];
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {rows.map(([label, value]) => (
+        <Field key={label} label={label}>
+          <FormReadOnlyValue width={null}>{value}</FormReadOnlyValue>
+        </Field>
+      ))}
+      <div>
+        <FormSecondaryButton onClick={onUndo} disabled={disabled}>
+          売却・廃棄の取り消し
+        </FormSecondaryButton>
+      </div>
+    </div>
+  );
+}
+
 function StatusField({
   value,
   onChange,
@@ -609,7 +671,7 @@ function StatusField({
   value: FixedAssetStatus;
   onChange: (value: FixedAssetStatus) => void;
 }) {
-  const options: FixedAssetStatus[] = ["active", "retired", "sold", "disposed"];
+  const options: FixedAssetStatus[] = ["active", "retired"];
   return (
     <select
       value={value}

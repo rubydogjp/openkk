@@ -1,6 +1,7 @@
 import type {
   FiscalPeriodDbArchiveStatus,
   FiscalPeriodDbPhase,
+  FixedAssetDbDisposalProceedsTo,
   FixedAssetDbStatus,
 } from "@rubydogjp/openkk-engine";
 
@@ -29,5 +30,6 @@ export type FixedAssetDbData = {
   status: FixedAssetDbStatus;
   disposalDate: string | null;
   disposalPrice: number | null;
+  disposalProceedsTo: FixedAssetDbDisposalProceedsTo | null;
   bookAccountId: string;
 };

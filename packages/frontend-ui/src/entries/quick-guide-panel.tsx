@@ -41,61 +41,14 @@ export function QuickGuidePanel({
         flexShrink: 0,
       }}
     >
-      <style>{`
-        .bk-quick-guide-option { transition: background 80ms ease; }
-        .bk-quick-guide-option:hover { background: ${palette.hoverSubtle}; }
-      `}</style>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        {canGoBack ? (
-          <button
-            type="button"
-            onClick={onBack}
-            aria-label="戻る"
-            className="bk-phone-tap-target"
-            style={iconButtonStyle}
-          >
-            <BackArrowIcon />
-          </button>
-        ) : (
-          <div style={{ width: 28, height: 28 }} />
-        )}
-        <h2
-          ref={titleRef}
-          tabIndex={-1}
-          style={{
-            margin: 0,
-            outline: "none",
-            flex: 1,
-            fontSize: fontSize.md,
-            fontWeight: fontWeight.bold,
-            color: palette.text,
-            lineHeight: 1.4,
-          }}
-        >
-          {title}
-        </h2>
-        <button
-          type="button"
-          onClick={onClose}
-          style={{
-            border: "none",
-            background: "transparent",
-            color: palette.textLabel,
-            fontSize: fontSize.base,
-            fontWeight: fontWeight.semibold,
-            cursor: "pointer",
-            padding: "4px 8px",
-          }}
-        >
-          閉じる
-        </button>
-      </div>
+      <style>{QUICK_GUIDE_CHOICE_STYLES}</style>
+      <QuickGuideHeader
+        title={title}
+        titleRef={titleRef}
+        canGoBack={canGoBack}
+        onBack={onBack}
+        onClose={onClose}
+      />
 
       {description != null ? (
         <div
@@ -123,11 +76,102 @@ export function QuickGuidePanel({
   );
 }
 
+export function QuickGuideHeader({
+  title,
+  titleRef,
+  canGoBack,
+  onBack,
+  onClose,
+}: {
+  title: string;
+  titleRef: RefObject<HTMLHeadingElement | null>;
+  canGoBack: boolean;
+  onBack: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+      }}
+    >
+      {canGoBack ? (
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label="戻る"
+          className="bk-phone-tap-target"
+          style={iconButtonStyle}
+        >
+          <BackArrowIcon />
+        </button>
+      ) : (
+        <div style={{ width: 28, height: 28 }} />
+      )}
+      <h2
+        ref={titleRef}
+        tabIndex={-1}
+        style={{
+          margin: 0,
+          outline: "none",
+          flex: 1,
+          fontSize: fontSize.md,
+          fontWeight: fontWeight.bold,
+          color: palette.text,
+          lineHeight: 1.4,
+        }}
+      >
+        {title}
+      </h2>
+      <button
+        type="button"
+        onClick={onClose}
+        style={{
+          border: "none",
+          background: "transparent",
+          color: palette.textLabel,
+          fontSize: fontSize.base,
+          fontWeight: fontWeight.semibold,
+          cursor: "pointer",
+          padding: "4px 8px",
+        }}
+      >
+        閉じる
+      </button>
+    </div>
+  );
+}
+
+export const QUICK_GUIDE_CHOICE_STYLES = `
+  .bk-quick-guide-option { transition: background 80ms ease; }
+  .bk-quick-guide-option:hover { background: ${palette.hoverSubtle}; }
+`;
+
 function QuickGuideOptionRow({
   option,
   onClick,
 }: {
   option: QuickGuideOption;
+  onClick: () => void;
+}) {
+  return (
+    <QuickGuideChoice
+      title={option.title}
+      subtitle={option.subtitle}
+      onClick={onClick}
+    />
+  );
+}
+
+export function QuickGuideChoice({
+  title,
+  subtitle,
+  onClick,
+}: {
+  title: string;
+  subtitle: string | null;
   onClick: () => void;
 }) {
   return (
@@ -157,9 +201,9 @@ function QuickGuideOptionRow({
             lineHeight: 1.5,
           }}
         >
-          {option.title}
+          {title}
         </div>
-        {option.subtitle != null && option.subtitle.trim() !== "" ? (
+        {subtitle != null && subtitle.trim() !== "" ? (
           <div
             style={{
               marginTop: 4,
@@ -168,7 +212,7 @@ function QuickGuideOptionRow({
               lineHeight: 1.5,
             }}
           >
-            {option.subtitle}
+            {subtitle}
           </div>
         ) : null}
       </div>
