@@ -56,20 +56,15 @@ export function findCreatedNextFiscalPeriod<
   current: { id: string; endDate: string },
   periods: ReadonlyArray<Period>,
 ): Period | null {
-  const suggestion = buildNextFiscalPeriodSuggestion(current.endDate);
-  const [earliestLater] = periods
-    .filter(
+  const nextStartDate = addDaysToIsoDate(current.endDate, 1);
+  return (
+    periods.find(
       (period) =>
         period.id !== current.id &&
         period.archiveStatus !== "purged" &&
-        period.startDate > current.endDate,
-    )
-    .sort((left, right) => left.startDate.localeCompare(right.startDate));
-  if (earliestLater == null) return null;
-  return earliestLater.startDate <= suggestion.endDate &&
-    earliestLater.endDate >= suggestion.startDate
-    ? earliestLater
-    : null;
+        period.startDate === nextStartDate,
+    ) ?? null
+  );
 }
 
 function addDaysToIsoDate(value: string, days: number): string | null {

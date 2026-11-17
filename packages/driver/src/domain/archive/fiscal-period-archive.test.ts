@@ -12,6 +12,7 @@ import {
   FISCAL_PERIOD_ARCHIVE_VERSION,
   buildFiscalPeriodArchivePayload,
   buildFiscalPeriodBookFilename,
+  buildFiscalPeriodJournalFilename,
 } from "./fiscal-period-archive.js";
 
 describe("fiscal period archive", () => {
@@ -356,10 +357,17 @@ describe("fiscal period archive", () => {
 
   it("names a single-period book file after the period", () => {
     expect(buildFiscalPeriodBookFilename({ name: '2026 年分 / "main"' })).toBe(
-      "2026_年分____main_.openkk",
+      "2026 年分 _ _main_.openkk",
     );
-    expect(buildFiscalPeriodBookFilename({ name: "  " })).toBe(
-      "fiscal-period.openkk",
+    expect(buildFiscalPeriodBookFilename({ name: "  " })).toBe("帳簿.openkk");
+    expect(
+      buildFiscalPeriodBookFilename({ name: `..年分\u0007\u001b[2J. ` }),
+    ).toBe("年分__[2J.openkk");
+    expect(
+      buildFiscalPeriodBookFilename({ name: `${"長".repeat(79)} .末尾` }),
+    ).toBe(`${"長".repeat(79)}.openkk`);
+    expect(buildFiscalPeriodJournalFilename({ name: "" }, "csv")).toBe(
+      "会計期間_仕訳.csv",
     );
   });
 

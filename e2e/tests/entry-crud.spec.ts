@@ -85,6 +85,34 @@ test.describe("entry CRUD", () => {
     await expect(page.getByText("期末商品棚卸高への振替")).toBeVisible();
   });
 
+  test("asks before a template replaces the lines that were typed", async ({
+    page,
+  }) => {
+    await page.getByRole("button", { name: "追加" }).click();
+    const drawer = page.getByRole("dialog", { name: "仕訳の新規作成" });
+    await drawer.getByLabel("借方金額").first().fill("3000");
+    await drawer.getByRole("button", { name: "簡単入力ガイド" }).click();
+    await drawer.getByRole("button", { name: /決算・その他/ }).click();
+    await drawer.getByRole("button", { name: /しーくりくりしー/ }).click();
+    const template = drawer.getByRole("button", {
+      name: /期末に残った在庫を売上原価から除く/,
+    });
+
+    await template.click();
+    const replace = page.getByRole("alertdialog", {
+      name: "テンプレートの適用",
+    });
+    await expect(replace).toContainText("入力した行は消えます。");
+    await replace.getByRole("button", { name: "キャンセル" }).click();
+    await expect(replace).toHaveCount(0);
+    await expect(drawer).toContainText("¥3,000");
+
+    await template.click();
+    await replace.getByRole("button", { name: "適用する" }).click();
+    await expect(drawer.getByLabel("借方科目")).toContainText("商品");
+    await expect(drawer.getByLabel("借方金額").first()).toHaveValue("");
+  });
+
   test("edits an entry and the change is reflected in the list", async ({
     page,
   }) => {

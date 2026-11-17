@@ -118,7 +118,7 @@ export async function addFixedAsset(
   await drawer.getByLabel("取得日").fill(input.acquisitionDate);
   await drawer.getByLabel("取得価額").fill(input.acquisitionCost);
   await drawer.getByLabel("耐用年数 (年)").fill(input.usefulLife);
-  await clickButton(page, "保存");
+  await clickButton(page, "作成");
   await expect(drawer).not.toBeVisible({ timeout: 5_000 });
   await expect(page.getByText(input.name)).toBeVisible();
 }

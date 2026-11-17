@@ -47,6 +47,42 @@ const ARGUMENT_LIMITS = new Map<string, number>([
   ["report", 2],
 ]);
 
+const COMMANDS_WITHOUT_JSON = new Set([
+  "init",
+  "report",
+  "closing pre",
+  "closing cancel",
+  "closing final",
+  "entries export",
+]);
+
+const READ_ONLY_COMMANDS = new Set([
+  "periods list",
+  "periods show",
+  "opening show",
+  "entries list",
+  "entries export",
+  "report",
+]);
+
+export function cliCommandName(command: string, args: string[]): string {
+  const [subcommand] = args;
+  return command === "report" || command === INIT_COMMAND || subcommand == null
+    ? command
+    : `${command} ${subcommand}`;
+}
+
+export function isReadOnlyCliCommand(command: string, args: string[]): boolean {
+  return READ_ONLY_COMMANDS.has(cliCommandName(command, args));
+}
+
+function assertJsonIsUsable(invocation: CliInvocation): void {
+  if (!invocation.options.json) return;
+  const name = cliCommandName(invocation.command, invocation.args);
+  if (!COMMANDS_WITHOUT_JSON.has(name)) return;
+  throw new CliUsageError(`--json は ${name} では使えません`);
+}
+
 function assertNoExtraArguments(invocation: CliInvocation): void {
   const [subcommand] = invocation.args;
   const limit =
@@ -118,6 +154,7 @@ export async function runCliCommand(
   environment: CliEnvironment,
 ): Promise<void> {
   const { bookPath, output, files, books } = environment;
+  assertJsonIsUsable(invocation);
   if (invocation.command === INIT_COMMAND) {
     const existed = files.exists(bookPath);
     (await books.open(bookPath)).close();

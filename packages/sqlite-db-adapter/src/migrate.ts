@@ -20,6 +20,19 @@ export function runMigrations(db: MigrationDb): void {
   const pending = SCHEMA_MIGRATIONS.filter(
     (migration) => migration.version > currentVersion,
   );
+  const foreignKeysWereOn = Number(db.selectValue("PRAGMA foreign_keys")) === 1;
+  db.exec("PRAGMA foreign_keys = OFF");
+  try {
+    applyMigrations(db, pending);
+  } finally {
+    if (foreignKeysWereOn) db.exec("PRAGMA foreign_keys = ON");
+  }
+}
+
+function applyMigrations(
+  db: MigrationDb,
+  pending: ReadonlyArray<(typeof SCHEMA_MIGRATIONS)[number]>,
+): void {
   for (const migration of pending) {
     db.exec("BEGIN");
     try {

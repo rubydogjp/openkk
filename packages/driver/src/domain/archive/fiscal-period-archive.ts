@@ -71,24 +71,35 @@ export function archiveClosingRecords(fiscalPeriod: {
 
 export const OPENKK_BOOK_FILE_EXTENSION = ".openkk";
 
-function fiscalPeriodFileBase(name: string): string {
-  const safeName = name
+const UNSAFE_FILE_NAME_CHARACTERS = /[\u0000-\u001f\u007f<>:"/\\|?*]/g;
+const MAX_FILE_NAME_STEM_LENGTH = 80;
+const EMPTY_BOOK_FILE_NAME_STEM = "帳簿";
+const EMPTY_PERIOD_FILE_NAME_STEM = "会計期間";
+
+function trimFileNameStem(value: string): string {
+  return value
     .trim()
-    .replace(/[\\/:*?"<>|]+/g, "_")
-    .replace(/\s+/g, "_")
-    .slice(0, 80);
-  return safeName.length > 0 ? safeName : "fiscal-period";
+    .replace(/^\.+/, "")
+    .replace(/[. ]+$/, "");
+}
+
+export function fileNameStem(name: string, fallback: string): string {
+  const safe = trimFileNameStem(name.replace(UNSAFE_FILE_NAME_CHARACTERS, "_"));
+  const limited = trimFileNameStem(
+    Array.from(safe).slice(0, MAX_FILE_NAME_STEM_LENGTH).join(""),
+  );
+  return limited === "" ? fallback : limited;
 }
 
 export function buildFiscalPeriodJournalFilename(
   input: { name: string },
   extension: "csv" | "json",
 ): string {
-  return `${fiscalPeriodFileBase(input.name)}_仕訳.${extension}`;
+  return `${fileNameStem(input.name, EMPTY_PERIOD_FILE_NAME_STEM)}_仕訳.${extension}`;
 }
 
 export function buildFiscalPeriodBookFilename(input: { name: string }): string {
-  return `${fiscalPeriodFileBase(input.name)}${OPENKK_BOOK_FILE_EXTENSION}`;
+  return `${fileNameStem(input.name, EMPTY_BOOK_FILE_NAME_STEM)}${OPENKK_BOOK_FILE_EXTENSION}`;
 }
 
 export function assertFiscalPeriodArchivePayload(

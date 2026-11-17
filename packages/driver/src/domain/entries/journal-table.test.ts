@@ -484,9 +484,55 @@ describe("readJournalTableEntries problems", () => {
       { rowNumber: 10, message: "摘要を入れてください" },
       {
         rowNumber: 11,
-        message: "事業割合「120」は 0 から 100 の数で入れてください",
+        message:
+          "事業割合「120」は 0 から 100 の数で入れてください (80% なら 80)",
       },
     ]);
+  });
+
+  it("takes only plain amounts and percent rates, and does not read 0.8 as 0.8%", () => {
+    const problems = problemsOf(
+      [
+        HEADER,
+        "a,2026-06-01,消耗品費,1e3,普通預金,1e3,文具,,,,",
+        "b,2026-06-01,消耗品費,0x10,普通預金,0x10,文具,,,,",
+        "c,2026-06-01,消耗品費,1.000,普通預金,1.000,文具,,,,",
+        "d,2026-06-01,消耗品費,1000,普通預金,1000,文具,,,,0.8",
+        "e,2026-06-01,消耗品費,1000,普通預金,1000,文具,,,,1e1",
+      ].join("\n"),
+    );
+    expect([...new Set(problems.map((problem) => problem.rowNumber))]).toEqual([
+      2, 3, 4, 5, 6,
+    ]);
+    const [entry] = readEntries(
+      [
+        HEADER,
+        'g,2026-06-01,消耗品費,"1,234,567",普通預金,1234567,文具,,,,80%',
+      ].join("\n"),
+    );
+    expect(entry?.lines[0]?.amount).toBe("1,234,567");
+    expect(entry?.businessRate).toBe(0.8);
+  });
+
+  it("refuses a table that has the same column twice", () => {
+    expect(() => parseJournalTableCsv(`${HEADER},摘要\n`)).toThrow(
+      "journal CSV has the column 摘要 twice",
+    );
+  });
+
+  it("keeps a row without an entry number apart from an entry numbered like the internal key", () => {
+    const entries = readEntries(
+      [
+        HEADER,
+        ",2026-06-01,消耗品費,100,普通預金,100,番号なし,,,,",
+        "row:2,2026-06-02,消耗品費,200,普通預金,200,番号あり,,,,",
+      ].join("\n"),
+    );
+    expect(entries.map((entry) => entry.description)).toEqual([
+      "番号なし",
+      "番号あり",
+    ]);
+    expect(new Set(entries.map((entry) => entry.id)).size).toBe(2);
   });
 
   it("asks for a description and keeps texts within the length the records take", () => {
@@ -625,6 +671,38 @@ describe("diffJournalTableEntries", () => {
     ).toMatchObject({
       taxCategoryId: "課税10%",
       taxCategoryName: "カスタム(課税10%)",
+    });
+  });
+
+  it("does not count an entry as changed when its text starts with an apostrophe or a formula sign", () => {
+    const quoted = [
+      stored(
+        "e-quoted",
+        [
+          line("debit", "acct_supplies", 1000),
+          line("credit", "acct_bank", 1000),
+        ],
+        { description: "'=SUM(A1)" },
+      ),
+      stored(
+        "e-full-width",
+        [line("debit", "acct_supplies", 500), line("credit", "acct_bank", 500)],
+        { description: "＝全角で始まる摘要" },
+      ),
+    ];
+    const incoming = readEntries(
+      formatJournalTableCsv(buildJournalTableRows(quoted, master)),
+    );
+
+    expect(incoming.map((entry) => entry.description)).toEqual([
+      "'=SUM(A1)",
+      "＝全角で始まる摘要",
+    ]);
+    expect(diffJournalTableEntries(quoted, incoming, master)).toMatchObject({
+      added: [],
+      changed: [],
+      removed: [],
+      unchangedCount: 2,
     });
   });
 

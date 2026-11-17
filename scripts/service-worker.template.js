@@ -60,7 +60,10 @@ async function precacheAppShell() {
     pathname,
     isAppShell: true,
   }));
-  const queuedPathnames = new Set(PRECACHE_URLS);
+  const queuedPathnames = new Map(
+    PRECACHE_URLS.map((pathname) => [samePathKey(pathname), pathname]),
+  );
+  const aliasPathnames = [];
   const fetchedPathnames = new Set();
   const unreachableAppShellPathnames = new Set();
   const markUnreachable = (resource) => {
@@ -91,8 +94,12 @@ async function precacheAppShell() {
       if (isDiscoverableText(response)) {
         const text = await response.clone().text();
         for (const asset of discoverSameOriginAssets(text, request.url)) {
-          if (queuedPathnames.has(asset)) continue;
-          queuedPathnames.add(asset);
+          const queued = queuedPathnames.get(samePathKey(asset));
+          if (queued != null) {
+            if (queued !== asset) aliasPathnames.push([queued, asset]);
+            continue;
+          }
+          queuedPathnames.set(samePathKey(asset), asset);
           pendingResources.push({ pathname: asset, isAppShell: false });
         }
       }
@@ -102,6 +109,7 @@ async function precacheAppShell() {
   }
 
   for (const resource of pendingResources) markUnreachable(resource);
+  await cacheAliasPathnames(cache, aliasPathnames);
 
   if (unreachableAppShellPathnames.size > 0) {
     throw new Error(
@@ -141,6 +149,32 @@ function isDiscoverableText(response) {
     type.includes("text/plain") ||
     type.includes("text/javascript")
   );
+}
+
+function samePathKey(pathname) {
+  return pathname
+    .split("/")
+    .map((segment) => {
+      try {
+        return decodeURIComponent(segment);
+      } catch {
+        return segment;
+      }
+    })
+    .join("/");
+}
+
+async function cacheAliasPathnames(cache, aliasPathnames) {
+  for (const [cachedPathname, aliasPathname] of aliasPathnames) {
+    const cached = await cache.match(
+      new Request(new URL(cachedPathname, self.location.origin)),
+    );
+    if (cached == null) continue;
+    await cache.put(
+      new Request(new URL(aliasPathname, self.location.origin)),
+      cached,
+    );
+  }
 }
 
 function discoverSameOriginAssets(text, baseUrl) {

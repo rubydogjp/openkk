@@ -124,7 +124,7 @@ export function JournalizingBody({
           body: [
             "現在日付はまだこの期間の途中です。通常は翌2月ごろに実行される操作です。",
           ],
-          confirmLabel: "実行する",
+          confirmLabel: "期中に仮締めする",
         });
         if (!forceConfirmed) return;
       }

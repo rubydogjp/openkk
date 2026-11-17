@@ -308,6 +308,48 @@ describe("download service worker", () => {
     );
   });
 
+  it("fetches a font named with two spellings of the same path once and caches it under both", async () => {
+    const fetched: string[] = [];
+    const stored = new Map<string, Response>();
+    const { precacheAppShell } = loadWorker({
+      fetch: vi.fn(async (request: Request) => {
+        const { pathname } = new URL(request.url);
+        fetched.push(pathname);
+        if (pathname === "/") {
+          return new Response(
+            '<link href="/_next/static/media/Mono_wdth%2Cwght.ttf"><style>@font-face{src:url(/_next/static/media/Mono_wdth,wght.ttf)}</style>',
+            { status: 200, headers: { "Content-Type": "text/html" } },
+          );
+        }
+        return new Response("font", { status: 200 });
+      }) as unknown as typeof fetch,
+      caches: {
+        open: vi.fn(async () => ({
+          put: vi.fn(async (request: Request, response: Response) => {
+            stored.set(new URL(request.url).pathname, response);
+          }),
+          match: vi.fn(
+            async (request: Request) =>
+              stored.get(new URL(request.url).pathname) ?? undefined,
+          ),
+        })),
+        match: vi.fn(),
+      },
+    });
+
+    await precacheAppShell();
+
+    expect(
+      fetched.filter((pathname) => pathname.includes("Mono_wdth")),
+    ).toHaveLength(1);
+    expect([...stored.keys()]).toEqual(
+      expect.arrayContaining([
+        "/_next/static/media/Mono_wdth%2Cwght.ttf",
+        "/_next/static/media/Mono_wdth,wght.ttf",
+      ]),
+    );
+  });
+
   it("precaches every page at the address the browser opens it with", () => {
     const source = readFileSync(workerUrls[0]!, "utf8");
 

@@ -11,11 +11,11 @@ import {
   sizes,
   typography,
 } from "../shared/design-tokens.js";
-import { useShellAuthActions } from "./use-shell-auth-actions.js";
+import { useSharedShellAuthActions } from "./use-shell-auth-actions.js";
 
 export function SignInContent() {
   const openkkConfig = useOpenkkConfig();
-  const auth = useShellAuthActions();
+  const auth = useSharedShellAuthActions();
   const submitting = auth.authActionPending;
 
   return (

@@ -46,7 +46,9 @@ export function mapOpeningJournalToRecord(
   const lines = journal.lines.map((line) => ({
     id: line.id,
     side: line.side,
-    accountName: accountNameById[line.bookAccountId] ?? line.bookAccountId,
+    accountName:
+      accountNameById[line.bookAccountId] ??
+      customCategoryLabel(line.bookAccountId),
     accountType: accountTypeById[line.bookAccountId] ?? "asset",
     amount: formatAmount(Math.abs(line.amount)),
     bookAccountId: line.bookAccountId,

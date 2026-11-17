@@ -182,6 +182,24 @@ describe("createNoticeBoard", () => {
     expect(notified).toBe(1);
   });
 
+  it("keeps a success result while it is held and lets it expire a full lifetime after release", () => {
+    const clock = manualTimers();
+    const board = createNoticeBoard(clock.timers);
+    board.post({ tone: "success", message: "反映しました" });
+
+    const release = board.hold();
+    clock.elapse();
+    expect(messages(board)).toEqual(["反映しました"]);
+
+    release();
+    release();
+    expect(clock.pending.map((timer) => timer.delayMs)).toEqual([
+      SUCCESS_NOTICE_LIFETIME_MS,
+    ]);
+    clock.elapse();
+    expect(messages(board)).toEqual([]);
+  });
+
   it("stops its timers when disposed", () => {
     const clock = manualTimers();
     const board = createNoticeBoard(clock.timers);

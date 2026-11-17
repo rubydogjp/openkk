@@ -477,6 +477,27 @@ describe("importEntriesFromLegacyJson — error handling", () => {
     expect(imported[0]?.businessRate).toBe(1);
   });
 
+  it("reads a percent rate written with a percent sign and refuses one it cannot read", () => {
+    const payload = JSON.parse(exportEntriesAsLegacyJson([entry()])) as {
+      entries: Array<Record<string, unknown>>;
+    };
+    delete payload.entries[0]!.businessRateRatio;
+    payload.entries[0]!.businessRate = "50%";
+    expect(
+      importEntriesFromLegacyJson({
+        text: JSON.stringify(payload),
+        fiscalPeriodId: "fp-1",
+      })[0]?.businessRate,
+    ).toBe(0.5);
+    payload.entries[0]!.businessRate = "半分";
+    expect(() =>
+      importEntriesFromLegacyJson({
+        text: JSON.stringify(payload),
+        fiscalPeriodId: "fp-1",
+      }),
+    ).toThrow(/row 1: invalid businessRate/);
+  });
+
   it("rejects an invalid businessRateRatio", () => {
     const payload = JSON.parse(exportEntriesAsLegacyJson([entry()])) as {
       entries: Array<{ businessRateRatio: unknown }>;
@@ -693,6 +714,19 @@ describe("importEntriesFromLegacyCsv", () => {
     expect(
       isLegacyJournalCsv("仕訳番号,日付,借方科目,借方金額,貸方科目,貸方金額"),
     ).toBe(false);
+  });
+
+  it("recognises the previous CSV format when a spreadsheet quoted its header", () => {
+    const quotedHeader = header
+      .split(",")
+      .map((name) => `"${name}"`)
+      .join(",");
+    expect(isLegacyJournalCsv(`${quotedHeader}\n${row}`)).toBe(true);
+    const [imported] = importEntriesFromLegacyCsv({
+      text: `${quotedHeader}\n${row}\n`,
+      fiscalPeriodId: "fp-1",
+    });
+    expect(imported?.description).toBe("=報酬の入金");
   });
 
   it("reads every line of a compound entry and undoes the formula protection", () => {

@@ -38,7 +38,9 @@ test("export smoke (prod): 全ルートにアセット欠落・JS エラーが�
     await page.goto(route, { waitUntil: "networkidle" });
     await waitUntilBootPhase(page, "ready");
     await waitUntilSettled(page);
-    await expect(page.locator("body")).not.toContainText("初期化に失敗");
+    await expect(page.locator("body")).not.toContainText(
+      "データを準備できませんでした",
+    );
   }
   await page.goto(INSTALL_ROUTE, { waitUntil: "networkidle" });
   await expect(
@@ -68,7 +70,9 @@ test("export smoke (prod): 2タブ目は1タブ目を閉じるまで待ち、閉
   await expect(secondTab.locator("body")).not.toContainText(
     "別のタブで開いています",
   );
-  await expect(secondTab.locator("body")).not.toContainText("初期化に失敗");
+  await expect(secondTab.locator("body")).not.toContainText(
+    "データを準備できませんでした",
+  );
 });
 
 test("export smoke (prod): 再読み込みしても同じタブを別のタブと取り違えない", async ({
@@ -80,5 +84,7 @@ test("export smoke (prod): 再読み込みしても同じタブを別のタブ�
     await page.reload();
     await waitUntilBootPhase(page, "ready");
   }
-  await expect(page.locator("body")).not.toContainText("初期化に失敗");
+  await expect(page.locator("body")).not.toContainText(
+    "データを準備できませんでした",
+  );
 });

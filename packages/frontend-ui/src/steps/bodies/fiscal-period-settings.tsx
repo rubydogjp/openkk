@@ -15,7 +15,7 @@ import { useConfirmDialog } from "../../shared/confirm-dialog.js";
 import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 import {
   FormDatePair,
-  FormErrorText,
+  FormMessageSlot,
   FormReadOnlyValue,
   FormStyles,
   FormTextInput,
@@ -208,15 +208,15 @@ export function FiscalPeriodSettingsBody({
                 onChangeEnd={setEndDate}
                 readOnly={isReadOnly}
               />
-              {!dateValidation.ok && !isReadOnly ? (
-                <FormErrorText id={periodProblemId}>
-                  {dateValidation.message}
-                </FormErrorText>
-              ) : hasOverlap && !isReadOnly ? (
-                <FormErrorText id={periodProblemId}>
-                  ほかの会計期間と日付が重なっています。
-                </FormErrorText>
-              ) : null}
+              {isReadOnly ? null : (
+                <FormMessageSlot tone="error" id={periodProblemId}>
+                  {!dateValidation.ok
+                    ? dateValidation.message
+                    : hasOverlap
+                      ? "ほかの会計期間と日付が重なっています。"
+                      : null}
+                </FormMessageSlot>
+              )}
             </>
           }
           hint={

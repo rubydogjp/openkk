@@ -167,9 +167,9 @@ function buildLedger(
 const HEADER_CELL_STYLE =
   "border:1px solid #1D4ED8;background:#EEF5FF;color:#1D4ED8;font-weight:700;padding:5px 4px;text-align:center;line-height:1.3;";
 const BODY_CELL_STYLE =
-  "border:1px solid #1D4ED8;color:#111827;background:#FFFFFF;padding:4px 4px;vertical-align:top;line-height:1.25;";
+  "border:1px solid #1D4ED8;color:#111827;background:#FFFFFF;padding:4px 4px;vertical-align:top;line-height:1.25;overflow-wrap:anywhere;";
 const BAND_CELL_STYLE =
-  "border:1px solid #1D4ED8;color:#111827;background:#EEF5FF;padding:4px 4px;font-weight:700;vertical-align:top;line-height:1.25;";
+  "border:1px solid #1D4ED8;color:#111827;background:#EEF5FF;padding:4px 4px;font-weight:700;vertical-align:top;line-height:1.25;overflow-wrap:anywhere;";
 
 export function buildGeneralLedgerBody(
   entries: EntryRecord[],
@@ -257,10 +257,40 @@ export function buildGeneralLedgerBody(
     return buildLedger(account, entries, openingBalance);
   });
   const duplicateNameCounts = new Map<string, number>();
+  const sameNameAndTypeCounts = new Map<string, number>();
   for (const ledger of ledgers) {
     duplicateNameCounts.set(
       ledger.accountName,
       (duplicateNameCounts.get(ledger.accountName) ?? 0) + 1,
+    );
+    const nameAndType = `${ledger.accountName}\u0000${ledger.accountType}`;
+    sameNameAndTypeCounts.set(
+      nameAndType,
+      (sameNameAndTypeCounts.get(nameAndType) ?? 0) + 1,
+    );
+  }
+  const ledgerTitles = new Map<(typeof ledgers)[number], string>();
+  const seenNameAndType = new Map<string, number>();
+  for (const ledger of ledgers) {
+    const nameAndType = `${ledger.accountName}\u0000${ledger.accountType}`;
+    const position = (seenNameAndType.get(nameAndType) ?? 0) + 1;
+    seenNameAndType.set(nameAndType, position);
+    const sharesNameWithAnotherType =
+      (duplicateNameCounts.get(ledger.accountName) ?? 0) >
+      (sameNameAndTypeCounts.get(nameAndType) ?? 0);
+    const qualifiers = [
+      ...(sharesNameWithAnotherType
+        ? [accountTypeLabel(ledger.accountType)]
+        : []),
+      ...((sameNameAndTypeCounts.get(nameAndType) ?? 0) > 1
+        ? [String(position)]
+        : []),
+    ];
+    ledgerTitles.set(
+      ledger,
+      qualifiers.length === 0
+        ? ledger.accountName
+        : `${ledger.accountName}（${qualifiers.join("・")}）`,
     );
   }
 
@@ -370,10 +400,7 @@ export function buildGeneralLedgerBody(
   </tbody>
 </table>`;
 
-        const title =
-          (duplicateNameCounts.get(ledger.accountName) ?? 0) > 1
-            ? `${ledger.accountName}（${accountTypeLabel(ledger.accountType)}）`
-            : ledger.accountName;
+        const title = ledgerTitles.get(ledger) ?? ledger.accountName;
         return buildPortraitPage(title, heading, tableHtml, pageNumber);
       });
     })

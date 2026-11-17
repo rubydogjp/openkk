@@ -27,7 +27,21 @@ describe("ImportProblemsDialog", () => {
     expect(html.match(/<button/g)).toHaveLength(1);
   });
 
-  it("says how many more rows the list holds when they do not all fit", () => {
-    expect(render(8)).toContain("ほか 3 行");
+  it("says how many more problems the list holds when they do not all fit", () => {
+    expect(render(8)).toContain("ほか 3 件");
+  });
+
+  it("lists the problems in row order", () => {
+    const html = renderToStaticMarkup(
+      <ImportProblemsDialog
+        problems={[
+          { rowNumber: 9, message: "後の行" },
+          { rowNumber: 3, message: "前の行" },
+        ]}
+        onClose={() => {}}
+      />,
+    );
+
+    expect(html.replace(/<[^>]*>/g, "")).toContain("3 行目前の行9 行目後の行");
   });
 });

@@ -47,8 +47,10 @@ describe("createOpenkkAppStore", () => {
 
     store.start();
     expect(store.getState().isReady).toBe(true);
+    expect(store.getState().fiscalPeriodsLoaded).toBe(false);
     expect(store.getState().currentFiscalPeriodId).toBe("fp-1");
     await settle();
+    expect(store.getState().fiscalPeriodsLoaded).toBe(true);
 
     expect(store.getState().fiscalPeriods.map((period) => period.id)).toEqual([
       "fp-1",

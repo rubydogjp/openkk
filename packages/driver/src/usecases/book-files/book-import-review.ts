@@ -1,3 +1,4 @@
+import { AppError } from "../../domain/index.js";
 import {
   OpenkkBookFileError,
   type OpenkkBookFileProblem,
@@ -76,7 +77,8 @@ export function reviewBookImport(
 }
 
 export function bookFileProblemMessage(error: unknown): string | null {
-  return error instanceof OpenkkBookFileError
-    ? PROBLEM_MESSAGES[error.problem]
-    : null;
+  if (error instanceof OpenkkBookFileError) {
+    return PROBLEM_MESSAGES[error.problem];
+  }
+  return error instanceof AppError ? error.messageForUser : null;
 }

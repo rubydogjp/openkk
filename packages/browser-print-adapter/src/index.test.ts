@@ -53,6 +53,10 @@ describe("openBrowserPrintFrame", () => {
     });
 
     openBrowserPrintFrame("<html><body>帳票</body></html>");
+    expect(iframe.setAttribute).toHaveBeenCalledWith(
+      "sandbox",
+      "allow-same-origin allow-modals",
+    );
     expect(frameWindow.print).toHaveBeenCalledOnce();
 
     frameListeners.get("afterprint")?.();

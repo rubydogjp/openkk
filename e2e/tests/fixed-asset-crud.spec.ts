@@ -25,7 +25,9 @@ test.describe("fixed asset CRUD", () => {
     await drawer.getByLabel("取得日").fill("2026-04-01");
     await drawer.getByLabel("取得価額").fill("300000");
     await drawer.getByLabel("耐用年数 (年)").fill("4");
-    await clickButton(page, "保存");
+    await expect(drawer.getByLabel("勘定科目")).toHaveValue("工具器具備品");
+    await drawer.getByLabel("勘定科目").selectOption("機械装置");
+    await clickButton(page, "作成");
 
     await expect(drawer).not.toBeVisible({ timeout: 5_000 });
     await expect(page.getByText("テスト用ノートPC")).toBeVisible();
@@ -47,6 +49,25 @@ test.describe("fixed asset CRUD", () => {
     await expect(drawer).not.toBeVisible({ timeout: 5_000 });
     await expect(page.getByText("まだ固定資産がありません")).toBeVisible();
     await expect(page.getByText("キャンセルされる固定資産")).not.toBeVisible();
+  });
+
+  test("asks before Escape throws away what was typed", async ({ page }) => {
+    await page.getByRole("button", { name: "追加" }).click();
+    const drawer = page.getByRole("dialog", { name: "固定資産の追加" });
+    await expect(drawer).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(drawer).not.toBeVisible({ timeout: 5_000 });
+
+    await page.getByRole("button", { name: "追加" }).click();
+    await drawer.getByLabel("名称").fill("消える前の資産");
+    await page.keyboard.press("Escape");
+    const discard = page.getByRole("alertdialog", { name: "入力の破棄" });
+    await expect(discard).toContainText("入力した内容は保存されません。");
+    await discard.getByRole("button", { name: "キャンセル" }).click();
+    await expect(drawer.getByLabel("名称")).toHaveValue("消える前の資産");
+    await page.keyboard.press("Escape");
+    await discard.getByRole("button", { name: "破棄する" }).click();
+    await expect(drawer).not.toBeVisible({ timeout: 5_000 });
   });
 
   test("edits an existing fixed asset and the change is reflected", async ({

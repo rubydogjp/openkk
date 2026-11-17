@@ -383,6 +383,37 @@ describe("books-db-adapter saving", () => {
     };
   }
 
+  it("returns from a change only after the book is written, and still returns when the write fails", async () => {
+    const gated = gatedStore();
+    const books = await openTestBooks(gated.store);
+    const { db } = books.adapter;
+    const created = await db.fiscalPeriods.create(USER, period2026);
+    await db.fiscalPeriods.start(created.id);
+    expect(books.adapter.storageStatus()).toBe("saved");
+
+    const release = gated.hold();
+    let returned = false;
+    const creating = db.entries
+      .create(USER, created.id, entryInput("売上", "2026-06-01", 100))
+      .then(() => {
+        returned = true;
+      });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(returned).toBe(false);
+    release();
+    await creating;
+    expect(books.adapter.storageStatus()).toBe("saved");
+    expect(await db.entries.getAll(created.id)).toHaveLength(1);
+
+    gated.failNext();
+    await db.entries.create(
+      USER,
+      created.id,
+      entryInput("売上", "2026-06-02", 200),
+    );
+    expect(books.adapter.storageStatus()).toBe("failed");
+  });
+
   it("saves a changed book, writing only the latest content while a save is running", async () => {
     const gated = gatedStore();
     const books = await openTestBooks(gated.store);
@@ -395,17 +426,25 @@ describe("books-db-adapter saving", () => {
     books.adapter.subscribe(() => statuses.push(books.adapter.storageStatus()));
 
     const release = gated.hold();
-    for (const amount of [100, 200, 300]) {
-      await db.entries.create(
-        USER,
-        created.id,
-        entryInput("売上", "2026-06-01", amount),
-      );
-    }
+    let returned = false;
+    const creating = Promise.all(
+      [100, 200, 300].map((amount) =>
+        db.entries.create(
+          USER,
+          created.id,
+          entryInput("売上", "2026-06-01", amount),
+        ),
+      ),
+    ).then(() => {
+      returned = true;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(returned).toBe(false);
     expect(books.adapter.storageStatus()).toBe("saving");
     release();
-    await books.adapter.flush();
+    await creating;
 
+    expect(books.adapter.storageStatus()).toBe("saved");
     expect(gated.writes).toHaveLength(2);
     expect(books.adapter.storageStatus()).toBe("saved");
     expect(statuses).toContain("saving");
@@ -424,7 +463,6 @@ describe("books-db-adapter saving", () => {
 
     gated.failNext();
     await db.fiscalPeriods.patch(created.id, { name: "2026年" });
-    await expect(books.adapter.flush()).rejects.toThrow(/could not be saved/);
     expect(books.adapter.storageStatus()).toBe("failed");
     expect(books.saveErrors).toHaveLength(1);
 
@@ -444,36 +482,35 @@ describe("books-db-adapter saving", () => {
     const removed = await db.fiscalPeriods.create(USER, period2026);
     const replaced = await db.fiscalPeriods.create(USER, period2027);
     const exported = await books.adapter.exportBook(replaced.id);
-    const inspected = await books.adapter.inspectBookFile(
-      exported!.bytes,
-      USER,
-    );
-    await db.fiscalPeriods.patch(replaced.id, { name: "あとで変えた" });
-    const changed = await books.adapter.inspectBookFile(exported!.bytes, USER);
-    void inspected;
+    await books.adapter.flush();
+    gated.writes.length = 0;
 
-    await Promise.all([
-      db.fiscalPeriods.patch(removed.id, { name: "消す直前に変えた" }),
-      db.fiscalPeriods.remove(removed.id),
-      db.fiscalPeriods.patch(replaced.id, { name: "置き換える直前に変えた" }),
-    ]);
-    const racing = await books.adapter.inspectBookFile(exported!.bytes, USER);
-    await Promise.all([
-      db.fiscalPeriods.patch(replaced.id, { name: "さらに変えた" }),
-      books.adapter
-        .importBookFile(exported!.bytes, USER, expectationsOf(racing))
-        .catch((error: unknown) => error),
-    ]);
-    const latest = await books.adapter.inspectBookFile(exported!.bytes, USER);
-    await books.adapter.importBookFile(
-      exported!.bytes,
-      USER,
-      expectationsOf(latest),
-    );
+    const release = gated.hold();
+    const changingRemoved = db.fiscalPeriods.patch(removed.id, {
+      name: "消す直前に変えた",
+    });
+    const changingReplaced = db.fiscalPeriods.patch(replaced.id, {
+      name: "置き換える直前に変えた",
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const removing = db.fiscalPeriods.remove(removed.id);
+    const replacing = books.adapter
+      .inspectBookFile(exported!.bytes, USER)
+      .then((inspected) =>
+        books.adapter.importBookFile(
+          exported!.bytes,
+          USER,
+          expectationsOf(inspected),
+        ),
+      );
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(gated.writes).toEqual([]);
+    release();
+    await Promise.all([changingRemoved, changingReplaced, removing, replacing]);
     await books.adapter.flush();
 
-    expect(changed[0]?.relation.kind).toBe("same_period");
     expect(await gated.store.list()).toHaveLength(1);
+    expect(await db.fiscalPeriods.getById(removed.id)).toBeNull();
     expect((await db.fiscalPeriods.getById(replaced.id))?.name).toBe(
       "2027年分",
     );

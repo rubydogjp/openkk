@@ -271,6 +271,38 @@ describe("createOpenkkEntriesStore", () => {
     expect(entries.getState().loadError).toBeNull();
   });
 
+  it("does not keep a failed wait-for-reload as the error of a period that is no longer selected", async () => {
+    const fake = fakeBackend();
+    fake.fiscalPeriods.push(
+      fakeFiscalPeriod({ id: "fp-1" }),
+      fakeFiscalPeriod({ id: "fp-2", name: "2027年" }),
+    );
+    const { app, entries } = await startedStores(fake, "fp-1");
+    const failure = new Error("offline");
+    const read = fake.backend.entries.getAll;
+    let failFirstRead = () => {};
+    const firstReadFails = new Promise<void>((resolve) => {
+      failFirstRead = resolve;
+    });
+    let first = true;
+    fake.backend.entries.getAll = async (fiscalPeriodId) => {
+      if (first) {
+        first = false;
+        await firstReadFails;
+        throw failure;
+      }
+      return read(fiscalPeriodId);
+    };
+
+    const waiting = entries.getState().reloadAndWait();
+    app.getState().selectFiscalPeriod("fp-2");
+    await settle();
+    failFirstRead();
+
+    await expect(waiting).rejects.toBe(failure);
+    expect(entries.getState().loadError).toBeNull();
+  });
+
   it("drops an answer that a change made stale and reads the entries again", async () => {
     const fake = fakeBackend();
     fake.fiscalPeriods.push(

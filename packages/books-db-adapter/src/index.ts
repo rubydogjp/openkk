@@ -30,7 +30,11 @@ import {
   type BookSaveStatus,
 } from "./book-saver.js";
 import type { BookStore } from "./book-store.js";
-import { createOperationQueue, runThroughQueue } from "./operation-queue.js";
+import {
+  createOperationQueue,
+  runThroughQueue,
+  waitingAfterChanges,
+} from "./operation-queue.js";
 
 export {
   BookSplitMismatchError,
@@ -269,6 +273,21 @@ export async function createBooksDbAdapter(
     for (const listener of listeners) listener();
   };
 
+  let changeCount = 0;
+  const lastChangeOfBook = new Map<Book, number>();
+
+  async function waitUntilWritten(changedSince: number): Promise<void> {
+    for (const book of [...books]) {
+      if ((lastChangeOfBook.get(book) ?? 0) <= changedSince) continue;
+      await book.saver.flush().catch(() => {});
+    }
+  }
+
+  const afterChangesAreWritten = <Namespace extends object>(
+    namespace: Namespace,
+  ): Namespace =>
+    waitingAfterChanges(namespace, () => changeCount, waitUntilWritten);
+
   function register(name: string, database: BookDbAdapter): Book {
     let open = true;
     const book: Book = {
@@ -286,6 +305,8 @@ export async function createBooksDbAdapter(
       }),
     };
     database.onChange(() => {
+      changeCount += 1;
+      lastChangeOfBook.set(book, changeCount);
       book.fiscalPeriodIds = new Set(database.listFiscalPeriodIds());
       book.lastChangedAt = database.lastChangedAt();
       book.saver.markChanged();
@@ -595,168 +616,178 @@ export async function createBooksDbAdapter(
   );
 
   const db: OpenkkDbPort = {
-    fiscalPeriods: runThroughQueue(queue, {
-      getAll: (userId) => periodsOfUser(userId, null),
-      getById: (id) => dbOfPeriod(id).fiscalPeriods.getById(id),
-      async create(userId, input) {
-        await assertNoOverlapInOtherBooks(userId, input, null);
-        return createBook((bookDb) =>
-          bookDb.fiscalPeriods.create(userId, input),
-        );
-      },
-      async createNext(userId, input) {
-        const carried = await readCarryoverSource(
-          userId,
-          input.sourceFiscalPeriodId,
-          input.startDate,
-          input.reversalEntryIds,
-          input.carryFixedAssets,
-        );
-        await assertNoOverlapInOtherBooks(userId, input, null);
-        return createBook(async (bookDb) => {
-          const created = await bookDb.fiscalPeriods.create(userId, {
-            name: input.name,
-            startDate: input.startDate,
-            endDate: input.endDate,
+    fiscalPeriods: afterChangesAreWritten(
+      runThroughQueue(queue, {
+        getAll: (userId) => periodsOfUser(userId, null),
+        getById: (id) => dbOfPeriod(id).fiscalPeriods.getById(id),
+        async create(userId, input) {
+          await assertNoOverlapInOtherBooks(userId, input, null);
+          return createBook((bookDb) =>
+            bookDb.fiscalPeriods.create(userId, input),
+          );
+        },
+        async createNext(userId, input) {
+          const carried = await readCarryoverSource(
+            userId,
+            input.sourceFiscalPeriodId,
+            input.startDate,
+            input.reversalEntryIds,
+            input.carryFixedAssets,
+          );
+          await assertNoOverlapInOtherBooks(userId, input, null);
+          return createBook(async (bookDb) => {
+            const created = await bookDb.fiscalPeriods.create(userId, {
+              name: input.name,
+              startDate: input.startDate,
+              endDate: input.endDate,
+            });
+            return bookDb.fiscalPeriods.applyCarryoverFromArchive(created.id, {
+              archive: carried.archive,
+              carryBalances: input.carryBalances,
+              reversalEntryIndexes: carried.reversalEntryIndexes,
+              carryFixedAssets: input.carryFixedAssets,
+            });
           });
-          return bookDb.fiscalPeriods.applyCarryoverFromArchive(created.id, {
+        },
+        async applyCarryover(id, input) {
+          const targetBook = bookOfPeriod(id);
+          const targetDb = (targetBook?.database ?? blank).db;
+          const current = await targetDb.fiscalPeriods.getById(id);
+          if (
+            current == null ||
+            targetBook === bookOfPeriod(input.sourceFiscalPeriodId)
+          ) {
+            return targetDb.fiscalPeriods.applyCarryover(id, input);
+          }
+          assertDbCarryoverTargetAllowed(current);
+          const carried = await readCarryoverSource(
+            current.userId,
+            input.sourceFiscalPeriodId,
+            current.startDate,
+            input.reversalEntryIds ?? [],
+            input.carryFixedAssets,
+          );
+          return targetDb.fiscalPeriods.applyCarryoverFromArchive(id, {
             archive: carried.archive,
             carryBalances: input.carryBalances,
-            reversalEntryIndexes: carried.reversalEntryIndexes,
+            reversalEntryIndexes:
+              input.reversalEntryIds == null
+                ? null
+                : carried.reversalEntryIndexes,
             carryFixedAssets: input.carryFixedAssets,
           });
-        });
-      },
-      async applyCarryover(id, input) {
-        const targetBook = bookOfPeriod(id);
-        const targetDb = (targetBook?.database ?? blank).db;
-        const current = await targetDb.fiscalPeriods.getById(id);
-        if (
-          current == null ||
-          targetBook === bookOfPeriod(input.sourceFiscalPeriodId)
-        ) {
-          return targetDb.fiscalPeriods.applyCarryover(id, input);
-        }
-        assertDbCarryoverTargetAllowed(current);
-        const carried = await readCarryoverSource(
-          current.userId,
-          input.sourceFiscalPeriodId,
-          current.startDate,
-          input.reversalEntryIds ?? [],
-          input.carryFixedAssets,
-        );
-        return targetDb.fiscalPeriods.applyCarryoverFromArchive(id, {
-          archive: carried.archive,
-          carryBalances: input.carryBalances,
-          reversalEntryIndexes:
-            input.reversalEntryIds == null
-              ? null
-              : carried.reversalEntryIndexes,
-          carryFixedAssets: input.carryFixedAssets,
-        });
-      },
-      applyCarryoverFromArchive: (id, input) =>
-        dbOfPeriod(id).fiscalPeriods.applyCarryoverFromArchive(id, input),
-      async importArchived(userId, input) {
-        await assertNoOverlapInOtherBooks(userId, input.fiscalPeriod, null);
-        return createBook((bookDb) =>
-          bookDb.fiscalPeriods.importArchived(userId, input),
-        );
-      },
-      async patch(id, patch) {
-        const book = bookOfPeriod(id);
-        const current =
-          book == null
-            ? null
-            : await book.database.db.fiscalPeriods.getById(id);
-        if (
-          current != null &&
-          (patch.startDate != null || patch.endDate != null)
-        ) {
-          await assertNoOverlapInOtherBooks(
-            current.userId,
-            {
-              startDate: patch.startDate ?? current.startDate,
-              endDate: patch.endDate ?? current.endDate,
-            },
-            book,
+        },
+        applyCarryoverFromArchive: (id, input) =>
+          dbOfPeriod(id).fiscalPeriods.applyCarryoverFromArchive(id, input),
+        async importArchived(userId, input) {
+          await assertNoOverlapInOtherBooks(userId, input.fiscalPeriod, null);
+          return createBook((bookDb) =>
+            bookDb.fiscalPeriods.importArchived(userId, input),
           );
-        }
-        return dbOfPeriod(id).fiscalPeriods.patch(id, patch);
-      },
-      start: (id) => dbOfPeriod(id).fiscalPeriods.start(id),
-      async remove(id) {
-        const book = bookOfPeriod(id);
-        if (book == null) return;
-        if (book.fiscalPeriodIds.size === 1) {
-          await removeBook(book);
-          notify();
-        } else {
-          await book.database.db.fiscalPeriods.remove(id);
-        }
-        options.onFiscalPeriodRemoved(id);
-      },
-    }),
-    entries: runThroughQueue(queue, {
-      getAll: (fiscalPeriodId) =>
-        dbOfPeriod(fiscalPeriodId).entries.getAll(fiscalPeriodId),
-      getById: async (id) =>
-        (
-          await dbHolding((bookDb) => bookDb.entries.getById(id))
-        ).entries.getById(id),
-      create: (userId, fiscalPeriodId, input) =>
-        dbOfPeriod(fiscalPeriodId).entries.create(
-          userId,
-          fiscalPeriodId,
-          input,
-        ),
-      update: async (id, input) =>
-        (
-          await dbHolding((bookDb) => bookDb.entries.getById(id))
-        ).entries.update(id, input),
-      remove: async (id) =>
-        (
-          await dbHolding((bookDb) => bookDb.entries.getById(id))
-        ).entries.remove(id),
-      importMany: (userId, fiscalPeriodId, entries) =>
-        dbOfPeriod(fiscalPeriodId).entries.importMany(
-          userId,
-          fiscalPeriodId,
-          entries,
-        ),
-    }),
-    fixedAssets: runThroughQueue(queue, {
-      getAll: (fiscalPeriodId) =>
-        dbOfPeriod(fiscalPeriodId).fixedAssets.getAll(fiscalPeriodId),
-      getById: async (id) =>
-        (
-          await dbHolding((bookDb) => bookDb.fixedAssets.getById(id))
-        ).fixedAssets.getById(id),
-      create: (userId, fiscalPeriodId, input) =>
-        dbOfPeriod(fiscalPeriodId).fixedAssets.create(
-          userId,
-          fiscalPeriodId,
-          input,
-        ),
-      patch: async (id, patch) =>
-        (
-          await dbHolding((bookDb) => bookDb.fixedAssets.getById(id))
-        ).fixedAssets.patch(id, patch),
-      remove: async (id) =>
-        (
-          await dbHolding((bookDb) => bookDb.fixedAssets.getById(id))
-        ).fixedAssets.remove(id),
-    }),
-    preClosings: runThroughQueue(queue, {
-      run: (fiscalPeriodId) =>
-        dbOfPeriod(fiscalPeriodId).preClosings.run(fiscalPeriodId),
-      cancel: (fiscalPeriodId) =>
-        dbOfPeriod(fiscalPeriodId).preClosings.cancel(fiscalPeriodId),
-    }),
-    closings: runThroughQueue(queue, {
-      run: (fiscalPeriodId, entries) =>
-        dbOfPeriod(fiscalPeriodId).closings.run(fiscalPeriodId, entries),
-    }),
+        },
+        async patch(id, patch) {
+          const book = bookOfPeriod(id);
+          const current =
+            book == null
+              ? null
+              : await book.database.db.fiscalPeriods.getById(id);
+          if (
+            current != null &&
+            (patch.startDate != null || patch.endDate != null)
+          ) {
+            await assertNoOverlapInOtherBooks(
+              current.userId,
+              {
+                startDate: patch.startDate ?? current.startDate,
+                endDate: patch.endDate ?? current.endDate,
+              },
+              book,
+            );
+          }
+          return dbOfPeriod(id).fiscalPeriods.patch(id, patch);
+        },
+        start: (id) => dbOfPeriod(id).fiscalPeriods.start(id),
+        async remove(id) {
+          const book = bookOfPeriod(id);
+          if (book == null) return;
+          if (book.fiscalPeriodIds.size === 1) {
+            await removeBook(book);
+            notify();
+          } else {
+            await book.database.db.fiscalPeriods.remove(id);
+          }
+          options.onFiscalPeriodRemoved(id);
+        },
+      }),
+    ),
+    entries: afterChangesAreWritten(
+      runThroughQueue(queue, {
+        getAll: (fiscalPeriodId) =>
+          dbOfPeriod(fiscalPeriodId).entries.getAll(fiscalPeriodId),
+        getById: async (id) =>
+          (
+            await dbHolding((bookDb) => bookDb.entries.getById(id))
+          ).entries.getById(id),
+        create: (userId, fiscalPeriodId, input) =>
+          dbOfPeriod(fiscalPeriodId).entries.create(
+            userId,
+            fiscalPeriodId,
+            input,
+          ),
+        update: async (id, input) =>
+          (
+            await dbHolding((bookDb) => bookDb.entries.getById(id))
+          ).entries.update(id, input),
+        remove: async (id) =>
+          (
+            await dbHolding((bookDb) => bookDb.entries.getById(id))
+          ).entries.remove(id),
+        importMany: (userId, fiscalPeriodId, entries) =>
+          dbOfPeriod(fiscalPeriodId).entries.importMany(
+            userId,
+            fiscalPeriodId,
+            entries,
+          ),
+      }),
+    ),
+    fixedAssets: afterChangesAreWritten(
+      runThroughQueue(queue, {
+        getAll: (fiscalPeriodId) =>
+          dbOfPeriod(fiscalPeriodId).fixedAssets.getAll(fiscalPeriodId),
+        getById: async (id) =>
+          (
+            await dbHolding((bookDb) => bookDb.fixedAssets.getById(id))
+          ).fixedAssets.getById(id),
+        create: (userId, fiscalPeriodId, input) =>
+          dbOfPeriod(fiscalPeriodId).fixedAssets.create(
+            userId,
+            fiscalPeriodId,
+            input,
+          ),
+        patch: async (id, patch) =>
+          (
+            await dbHolding((bookDb) => bookDb.fixedAssets.getById(id))
+          ).fixedAssets.patch(id, patch),
+        remove: async (id) =>
+          (
+            await dbHolding((bookDb) => bookDb.fixedAssets.getById(id))
+          ).fixedAssets.remove(id),
+      }),
+    ),
+    preClosings: afterChangesAreWritten(
+      runThroughQueue(queue, {
+        run: (fiscalPeriodId) =>
+          dbOfPeriod(fiscalPeriodId).preClosings.run(fiscalPeriodId),
+        cancel: (fiscalPeriodId) =>
+          dbOfPeriod(fiscalPeriodId).preClosings.cancel(fiscalPeriodId),
+      }),
+    ),
+    closings: afterChangesAreWritten(
+      runThroughQueue(queue, {
+        run: (fiscalPeriodId, entries) =>
+          dbOfPeriod(fiscalPeriodId).closings.run(fiscalPeriodId, entries),
+      }),
+    ),
     masterData: createMasterDataDb(),
   };
 

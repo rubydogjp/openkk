@@ -12,6 +12,7 @@ const focusableSelector = [
 ].join(",");
 
 const activeLayerStack: symbol[] = [];
+const IME_PROCESS_KEY_CODE = 229;
 
 export function useDismissibleLayer<ElementType extends HTMLElement>(options: {
   open: boolean;
@@ -47,6 +48,7 @@ export function useDismissibleLayer<ElementType extends HTMLElement>(options: {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (activeLayerStack.at(-1) !== id) return;
       if (event.key === "Escape") {
+        if (event.isComposing || event.keyCode === IME_PROCESS_KEY_CODE) return;
         event.preventDefault();
         event.stopImmediatePropagation();
         onDismissRef.current();

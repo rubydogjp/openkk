@@ -68,7 +68,7 @@ test("サンプルで締め処理と次期への引継ぎを試せる", async ({
   await expectStep(page, "日々の仕訳");
   await clickButton(page, "仮締めを実行");
   await clickButton(page, "実行する");
-  await clickButton(page, "実行する");
+  await clickButton(page, "期中に仮締めする");
   await clickButton(page, "次の手順へ");
   await expectStep(page, "本締め");
   await clickButton(page, "本締めを実行");

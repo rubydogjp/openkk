@@ -77,6 +77,21 @@ function isProfitAndLossType(type: BookAccountType): boolean {
   return type === "revenue" || type === "expense" || type === "cost_of_sales";
 }
 
+const BUSINESS_RATE_SCALE = 1_000_000n;
+
+export function businessShareOfAmount(amount: number, rate: number): number {
+  if (!Number.isSafeInteger(amount) || !Number.isFinite(rate)) {
+    return Math.round(amount * rate);
+  }
+  const rateUnits = BigInt(Math.round(rate * Number(BUSINESS_RATE_SCALE)));
+  const doubled = BigInt(amount) * rateUnits * 2n;
+  const share =
+    doubled >= 0n
+      ? (doubled + BUSINESS_RATE_SCALE) / (2n * BUSINESS_RATE_SCALE)
+      : -((-doubled + BUSINESS_RATE_SCALE - 1n) / (2n * BUSINESS_RATE_SCALE));
+  return Number(share);
+}
+
 export function applyBusinessRateToLines(
   lines: EntryLine[],
   rate: number,
@@ -90,7 +105,7 @@ export function applyBusinessRateToLines(
       continue;
     }
     const raw = parseAmount(line.amount);
-    const business = Math.round(raw * rate);
+    const business = businessShareOfAmount(raw, rate);
     const personal = raw - business;
     result.push({ ...line, amount: formatAmount(business) });
     if (personal <= 0) continue;

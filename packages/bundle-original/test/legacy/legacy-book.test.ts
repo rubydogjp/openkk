@@ -14,13 +14,20 @@ import {
 import type { OpenkkFiscalPeriodLabel } from "@rubydogjp/openkk-driver";
 
 import { createDiskDbAdapter } from "../../../disk-db-adapter/src/index.js";
+import { createLocalBookFilesAdapter } from "@rubydogjp/openkk-local-book-files-adapter";
+
 import {
   createLegacyBook,
+  createLegacyBookWatchRecordStore,
   createLegacyMergedFiscalPeriodsRecord,
   createLegacyUnmovedFiscalPeriodsRecord,
   splitLegacyDatabaseIntoPeriods,
   type LegacyBookDependencies,
 } from "../../app/legacy/legacy-book";
+import {
+  canonicalPeriodContent,
+  fingerprintBytes,
+} from "../../app/legacy/legacy-fingerprint";
 
 const USER = "openkk-original-user";
 const tempDirs: string[] = [];
@@ -121,6 +128,8 @@ function setup(
       createLegacyUnmovedFiscalPeriodsRecord(memoryStorage()),
     mergedFiscalPeriodsRecord:
       createLegacyMergedFiscalPeriodsRecord(memoryStorage()),
+    watchRecord: createLegacyBookWatchRecordStore(memoryStorage()),
+    fingerprintDatabase: fingerprintBytes,
     exportLegacyDatabase: vi.fn(async () => legacyBytes),
     splitIntoPeriods: splitLegacyDatabaseIntoPeriods,
     storedFiscalPeriodIds: readStoredFiscalPeriodIds,
@@ -465,5 +474,310 @@ describe("legacy book", () => {
     await legacyBook.moveInto(emptyStore(), onWaiting);
 
     expect(onWaiting).toHaveBeenCalledTimes(1);
+  });
+});
+
+async function changeLegacyDatabase(
+  filePath: string,
+  change: (
+    legacy: Awaited<ReturnType<typeof createDiskDbAdapter>>,
+  ) => Promise<void>,
+): Promise<Uint8Array> {
+  const legacy = await createDiskDbAdapter(filePath, null);
+  try {
+    await change(legacy);
+  } finally {
+    legacy.close();
+  }
+  return new Uint8Array(fs.readFileSync(filePath));
+}
+
+async function periodIdNamed(
+  legacy: Awaited<ReturnType<typeof createDiskDbAdapter>>,
+  name: string,
+): Promise<string> {
+  const periods = await legacy.db.fiscalPeriods.getAll(USER);
+  return periods.find((period) => period.name === name)!.id;
+}
+
+async function addLegacySale(
+  legacy: Awaited<ReturnType<typeof createDiskDbAdapter>>,
+  fiscalPeriodId: string,
+  description: string,
+): Promise<void> {
+  await legacy.db.entries.create(USER, fiscalPeriodId, {
+    date: "2025-07-01",
+    description,
+    localId: null,
+    businessRate: 1,
+    lines: [
+      { ...line, side: "debit", bookAccountId: "acct_cash", amount: 500 },
+      { ...line, side: "credit", bookAccountId: "acct_sales", amount: 500 },
+    ],
+  });
+}
+
+function watchedSetup(filePath: string, storage = memoryStorage()) {
+  const current: { bytes: Uint8Array } = {
+    bytes: new Uint8Array(fs.readFileSync(filePath)),
+  };
+  const splitIntoPeriods = vi.fn(splitLegacyDatabaseIntoPeriods);
+  const prepared = setup(null, {
+    watchRecord: createLegacyBookWatchRecordStore(storage),
+    exportLegacyDatabase: vi.fn(async () => current.bytes),
+    splitIntoPeriods,
+  });
+  return { ...prepared, current, splitIntoPeriods, storage };
+}
+
+describe("legacy book: changes made in the previous version after the move", () => {
+  it("remembers the fingerprint of each period and the stamp of the book it moved into", async () => {
+    const store = emptyStore();
+    const filePath = await legacyDatabaseFile(2);
+    const { legacyBook, storage } = watchedSetup(filePath);
+
+    await legacyBook.moveInto(store, () => {});
+    const books = await openBooks(store);
+    const record = JSON.parse(storage.getItem("openkk.legacy-book.watch")!);
+
+    expect(record.databaseFingerprint).toBe(
+      await fingerprintBytes(new Uint8Array(fs.readFileSync(filePath))),
+    );
+    expect(
+      record.periods.map(
+        (period: { label: { name: string }; movedLastChangedAt: number }) => [
+          period.label.name,
+          period.movedLastChangedAt,
+        ],
+      ),
+    ).toEqual(
+      record.periods.map(
+        (period: { fiscalPeriodId: string; label: { name: string } }) => [
+          period.label.name,
+          books.lastChangedAt(period.fiscalPeriodId),
+        ],
+      ),
+    );
+    expect(record.periods).toHaveLength(2);
+  });
+
+  it("does not split the previous version again while it has not changed", async () => {
+    const store = emptyStore();
+    const { legacyBook, splitIntoPeriods } = watchedSetup(
+      await legacyDatabaseFile(2),
+    );
+    await legacyBook.moveInto(store, () => {});
+    splitIntoPeriods.mockClear();
+
+    expect(await legacyBook.detectChanges()).toBeNull();
+    expect(splitIntoPeriods).not.toHaveBeenCalled();
+  });
+
+  it("finds nothing before the move", async () => {
+    const { legacyBook, dependencies } = watchedSetup(
+      await legacyDatabaseFile(1),
+    );
+
+    expect(await legacyBook.detectChanges()).toBeNull();
+    expect(dependencies.exportLegacyDatabase).not.toHaveBeenCalled();
+  });
+
+  it("finds the periods changed, added and removed in the previous version", async () => {
+    const store = emptyStore();
+    const filePath = await legacyDatabaseFile(2);
+    const { legacyBook, current, storage } = watchedSetup(filePath);
+    await legacyBook.moveInto(store, () => {});
+    const moved = JSON.parse(storage.getItem("openkk.legacy-book.watch")!);
+    current.bytes = await changeLegacyDatabase(filePath, async (legacy) => {
+      await addLegacySale(
+        legacy,
+        await periodIdNamed(legacy, "2025年分"),
+        "前の版で足した売上",
+      );
+      await legacy.db.fiscalPeriods.remove(
+        await periodIdNamed(legacy, "2026年分"),
+      );
+      await legacy.db.fiscalPeriods.create(USER, {
+        name: "2027年分",
+        startDate: "2027-01-01",
+        endDate: "2027-12-31",
+      });
+    });
+
+    const changes = await legacyBook.detectChanges();
+
+    expect(
+      changes?.changed.map(({ label, movedLastChangedAt }) => [
+        label.name,
+        movedLastChangedAt,
+      ]),
+    ).toEqual([
+      [
+        "2025年分",
+        moved.periods.find(
+          (period: { label: { name: string } }) =>
+            period.label.name === "2025年分",
+        ).movedLastChangedAt,
+      ],
+      ["2027年分", null],
+    ]);
+    expect(changes?.removed).toEqual([
+      { name: "2026年分", startDate: "2026-01-01", endDate: "2026-12-31" },
+    ]);
+  });
+
+  it("finds the same changes again until they are accepted, and nothing after", async () => {
+    const store = emptyStore();
+    const filePath = await legacyDatabaseFile(1);
+    const { legacyBook, current, storage } = watchedSetup(filePath);
+    await legacyBook.moveInto(store, () => {});
+    current.bytes = await changeLegacyDatabase(filePath, async (legacy) =>
+      addLegacySale(
+        legacy,
+        await periodIdNamed(legacy, "2025年分"),
+        "前の版で足した売上",
+      ),
+    );
+
+    const first = await legacyBook.detectChanges();
+    const second = await legacyBook.detectChanges();
+    const fiscalPeriodId = second!.changed[0]!.fiscalPeriodId;
+    second!.accept(new Map([[fiscalPeriodId, 12345]]));
+    const record = JSON.parse(storage.getItem("openkk.legacy-book.watch")!);
+
+    expect(first?.changed).toHaveLength(1);
+    expect(second?.changed).toHaveLength(1);
+    expect(await legacyBook.detectChanges()).toBeNull();
+    expect(record.periods).toEqual([
+      expect.objectContaining({ fiscalPeriodId, movedLastChangedAt: 12345 }),
+    ]);
+  });
+
+  it("takes the previous version as it is when nothing was remembered, and watches it from then on", async () => {
+    const store = emptyStore();
+    const filePath = await legacyDatabaseFile(1);
+    const { legacyBook, current, storage } = watchedSetup(filePath);
+    await legacyBook.moveInto(store, () => {});
+    storage.removeItem("openkk.legacy-book.watch");
+
+    const firstLook = await legacyBook.detectChanges();
+    current.bytes = await changeLegacyDatabase(filePath, async (legacy) =>
+      addLegacySale(
+        legacy,
+        await periodIdNamed(legacy, "2025年分"),
+        "前の版で足した売上",
+      ),
+    );
+    const changes = await legacyBook.detectChanges();
+
+    expect(firstLook).toBeNull();
+    expect(
+      changes?.changed.map(({ label, movedLastChangedAt }) => [
+        label.name,
+        movedLastChangedAt,
+      ]),
+    ).toEqual([["2025年分", null]]);
+  });
+
+  it("does not mark the move when what it moved cannot be remembered", async () => {
+    const store = emptyStore();
+    const broken = {
+      getItem: () => null,
+      setItem: () => {},
+      removeItem: () => {},
+    };
+    const { legacyBook, state } = watchedSetup(
+      await legacyDatabaseFile(1),
+      broken,
+    );
+
+    await expect(legacyBook.moveInto(store, () => {})).rejects.toThrow(
+      /was not remembered/,
+    );
+    expect(state.moved).toBe(false);
+  });
+
+  it("reads the same fingerprint however the records are ordered", async () => {
+    const entries = [
+      { id: "e-2", amount: 1 },
+      { id: "e-1", amount: 2 },
+    ];
+    const fixedAssets = [{ id: "fa-1" }];
+
+    expect(
+      canonicalPeriodContent({
+        fiscalPeriod: { name: "2025年分", id: "fp" },
+        entries,
+        fixedAssets,
+      }),
+    ).toBe(
+      canonicalPeriodContent({
+        fiscalPeriod: { id: "fp", name: "2025年分" },
+        entries: [...entries]
+          .reverse()
+          .map(({ amount, id }) => ({ amount, id })),
+        fixedAssets,
+      }),
+    );
+    const bytes = await legacyDatabaseBytes(2);
+    const once = await splitLegacyDatabaseIntoPeriods(bytes);
+    const again = await splitLegacyDatabaseIntoPeriods(bytes);
+    expect(once.periods.map(({ fingerprint }) => fingerprint)).toEqual(
+      again.periods.map(({ fingerprint }) => fingerprint),
+    );
+  });
+
+  it("moves the changes of the previous version into the books, asking only when the app changed the period too", async () => {
+    const store = emptyStore();
+    const filePath = await legacyDatabaseFile(1);
+    const { legacyBook, current } = watchedSetup(filePath);
+    await legacyBook.moveInto(store, () => {});
+    current.bytes = await changeLegacyDatabase(filePath, async (legacy) =>
+      addLegacySale(
+        legacy,
+        await periodIdNamed(legacy, "2025年分"),
+        "前の版で足した売上",
+      ),
+    );
+    const books = await openBooks(store);
+    const files = createLocalBookFilesAdapter({
+      books,
+      legacyUnmovedFiscalPeriods: [],
+      legacyMergedFiscalPeriods: [],
+      legacyBookWatch: legacyBook,
+      userId: USER,
+      storage: memoryStorage(),
+      now: () => Date.now(),
+      fileNameOf: (name) => `${name}.openkk`,
+      deliver: async () => "saved",
+    });
+    await vi.waitFor(() =>
+      expect(files.saveTracking.getLegacyBookChanges()).not.toBeNull(),
+    );
+    const [period] = await books.db.fiscalPeriods.getAll(USER);
+
+    expect(files.saveTracking.legacyChangesOverwritingApp()).toEqual([]);
+    await books.db.entries.create(USER, period!.id, {
+      date: "2025-08-01",
+      description: "アプリで足した売上",
+      localId: null,
+      businessRate: 1,
+      lines: [
+        { ...line, side: "debit", bookAccountId: "acct_cash", amount: 700 },
+        { ...line, side: "credit", bookAccountId: "acct_sales", amount: 700 },
+      ],
+    });
+    expect(files.saveTracking.legacyChangesOverwritingApp()).toEqual([
+      { name: "2025年分", startDate: "2025-01-01", endDate: "2025-12-31" },
+    ]);
+    await files.saveTracking.moveLegacyBookChanges();
+
+    expect(
+      (await books.db.entries.getAll(period!.id)).map(
+        ({ description }) => description,
+      ),
+    ).toEqual(["2025年の売上", "前の版で足した売上"]);
+    expect(files.saveTracking.getLegacyBookChanges()).toBeNull();
+    expect(await legacyBook.detectChanges()).toBeNull();
   });
 });

@@ -501,8 +501,11 @@ describe("books-db-adapter flush", () => {
     failingName = firstName!;
     heldName = secondName!;
     written.length = 0;
-    await db.fiscalPeriods.patch(second.id, { name: "2027年" });
-    await db.fiscalPeriods.patch(first.id, { name: "2026年" });
+    const patching = Promise.all([
+      db.fiscalPeriods.patch(second.id, { name: "2027年" }),
+      db.fiscalPeriods.patch(first.id, { name: "2026年" }),
+    ]);
+    await new Promise((resolve) => setTimeout(resolve, 20));
 
     const flushing = books.adapter.flush();
     const outcome = flushing.then(
@@ -514,6 +517,7 @@ describe("books-db-adapter flush", () => {
     release();
 
     expect(await outcome).toBe("failed");
+    await patching;
     expect(beforeRelease).toEqual([]);
     expect(written).toEqual([secondName]);
   });

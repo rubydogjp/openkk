@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { EntryUpsertInput } from "@rubydogjp/openkk-driver";
 import type { OpenkkBackendApi } from "@rubydogjp/openkk-backend-api";
@@ -131,14 +131,19 @@ describe("createOpenkkEmbeddedBackendAdapter", () => {
     });
     const api = createOpenkkEmbeddedBackendAdapter(backendApi);
 
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     await expect(api.fiscalPeriods.getAll()).rejects.toEqual({
-      messageForDeveloper:
-        "fiscalPeriodsGetAll returned HTTP 500 without OpenkkApiErrorDto",
-      messageForUser: "サーバー処理でエラーが発生しました",
+      messageForDeveloper: "fiscalPeriodsGetAll failed unexpectedly",
+      messageForUser: "処理できませんでした。画面を再読み込みしてください",
       originalMessage: null,
       statusCode: 500,
       code: null,
     });
+    expect(logged).toHaveBeenCalledWith(
+      "[openkk] fiscalPeriodsGetAll failed unexpectedly:",
+      expect.any(Error),
+    );
+    logged.mockRestore();
   });
 
   it("preserves deliberate HTTP 500 AppError responses", async () => {

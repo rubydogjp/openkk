@@ -14,10 +14,12 @@ import {
 
 import {
   createLegacyBook,
+  createLegacyBookWatchRecordStore,
   createLegacyMergedFiscalPeriodsRecord,
   createLegacyUnmovedFiscalPeriodsRecord,
   splitLegacyDatabaseIntoPeriods,
 } from "../../app/legacy/legacy-book";
+import { fingerprintBytes } from "../../app/legacy/legacy-fingerprint";
 
 const FIXTURE_DIR = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -151,6 +153,8 @@ function prepareMove(
       createLegacyUnmovedFiscalPeriodsRecord(memoryStorage()),
     mergedFiscalPeriodsRecord:
       createLegacyMergedFiscalPeriodsRecord(mergedStorage),
+    watchRecord: createLegacyBookWatchRecordStore(memoryStorage()),
+    fingerprintDatabase: fingerprintBytes,
     exportLegacyDatabase: async () => bytes,
     splitIntoPeriods: splitLegacyDatabaseIntoPeriods,
     storedFiscalPeriodIds: readStoredFiscalPeriodIds,

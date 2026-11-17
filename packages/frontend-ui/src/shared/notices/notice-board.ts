@@ -31,6 +31,7 @@ export type NoticeBoard = {
   pin(key: string, notice: PinnedNotice): void;
   unpin(key: string): void;
   dismiss(key: string): void;
+  hold(): () => void;
   dispose(): void;
 };
 
@@ -78,6 +79,8 @@ export function createNoticeBoard(timers: NoticeTimers): NoticeBoard {
   let entries: BoardEntry[] = [];
   let visible: ReadonlyArray<Notice> = [];
   let sequence = 0;
+  let holders = 0;
+  const expiredWhileHeld = new Set<string>();
 
   const publish = (next: BoardEntry[]) => {
     entries = next;
@@ -97,6 +100,17 @@ export function createNoticeBoard(timers: NoticeTimers): NoticeBoard {
       publish(without(key));
     }
   };
+
+  const expire = (key: string) => {
+    if (holders > 0) {
+      expiredWhileHeld.add(key);
+      return;
+    }
+    remove(key);
+  };
+
+  const startExpiry = (key: string) =>
+    timers.start(() => expire(key), SUCCESS_NOTICE_LIFETIME_MS);
 
   return {
     getState: () => visible,
@@ -122,10 +136,7 @@ export function createNoticeBoard(timers: NoticeTimers): NoticeBoard {
           notice: { ...result, key, action: null, closable: true },
           postedOrder: sequence,
           pinned: false,
-          cancelExpiry:
-            result.tone === "success"
-              ? timers.start(() => remove(key), SUCCESS_NOTICE_LIFETIME_MS)
-              : null,
+          cancelExpiry: result.tone === "success" ? startExpiry(key) : null,
           onClose: null,
         },
       ]);
@@ -166,6 +177,25 @@ export function createNoticeBoard(timers: NoticeTimers): NoticeBoard {
       if (target.pinned) dismissedPinKeys.add(key);
       remove(key);
       target.onClose?.();
+    },
+    hold() {
+      holders += 1;
+      let released = false;
+      return () => {
+        if (released) return;
+        released = true;
+        holders -= 1;
+        if (holders > 0) return;
+        const expired = [...expiredWhileHeld];
+        expiredWhileHeld.clear();
+        publish(
+          entries.map((entry) =>
+            expired.includes(entry.notice.key)
+              ? { ...entry, cancelExpiry: startExpiry(entry.notice.key) }
+              : entry,
+          ),
+        );
+      };
     },
     dispose() {
       for (const entry of entries) entry.cancelExpiry?.();

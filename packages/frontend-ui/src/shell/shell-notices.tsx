@@ -12,6 +12,7 @@ import {
   type OpenkkBookFile,
 } from "../bindings/index.js";
 
+import { useLegacyBookChangesNotice } from "../legacy/legacy-book-changes.js";
 import { useLegacyMergedFiscalPeriodsNotice } from "../legacy/legacy-merged-fiscal-periods.js";
 import { useLegacyUnmovedFiscalPeriodsNotice } from "../legacy/legacy-unmoved-fiscal-periods.js";
 import { debugAppError } from "../shared/app-error-text.js";
@@ -156,5 +157,5 @@ export function ShellNotices(props: {
   useBookStorageNotices();
   useBookSaveReminder(props.bookFile, props.onSave);
   useDataLoadNotice();
-  return null;
+  return useLegacyBookChangesNotice(props.hasSession);
 }

@@ -61,7 +61,7 @@ packages/
 
 使う側 (`driver`・`frontend-*`・`client-*`) と受ける側 (`engine`・`backend-*`・`server-*`) は、互いのコードを読み込まない。つながるのは `driver` の口 backend (`OpenkkBackendPort`) と `backend-api` の間だけ。FiscalPeriod など共通する概念は両側で独立に定義する。
 
-契約の型は、使う側が `driver/src/ports/backend/types.ts`、受ける側が `backend-api/src/contract.ts` に持つ。構造のテストが、名前・本文・エンドポイントの食い違いを見つける。
+契約の型は、使う側が `driver/src/ports/backend/types.ts`、受ける側が `backend-api/src/contract.ts` に持つ。構造のテスト (`test/package-structure.test.ts`) が見つけるのは、名前が `Request`・`Response`・`ApiRecord`・`Input`・`ApiErrorDto` で終わる型と決めた interface のうち両側にあるものの本文の食い違い、境界の型の名前の食い違い、エンドポイントの食い違いまで。選べる値の型 (`FiscalPeriodApiPhase` など) や片側にしかない interface は比べないので、変えるときは両側を手で合わせる。
 
 両側を知ってよいのは、同じプロセスでつなぐ口の実装 (`embedded-backend-adapter`・`local-book-files-adapter`・`records-book-files-adapter`) と、製品だけ。
 
@@ -177,7 +177,7 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 
 - `book-db-adapter`: 帳簿 1 冊のバイト列を SQLite Wasm のメモリ上に開き (`sqlite3_deserialize`)、`OpenkkDbPort` を返す。書き込みのあった操作のあとに `onChange` で知らせ、`exportBytes()` で全体をバイト列に戻す。オープン会計の帳簿でない SQLite と、新しすぎるスキーマは開かない。
 - `books-db-adapter`: 置き場 (`BookStore`: `list` / `read` / `write` / `remove`) にある帳簿をすべて開き、1 つの `OpenkkDbPort` にまとめる。期間の ID で帳簿に振り分け、期間の作成・圧縮済みファイルの取り込みは新しい帳簿を作り、期間の削除は帳簿を消す。日付の重なりは帳簿をまたいで確かめる。次期の作成 (`createNext`) と引き継ぎの上書き (`applyCarryover`) は、引き継ぎ元の帳簿を読んで圧縮保存と同じ形にし、引き継ぎ先の帳簿の `applyCarryoverFromArchive` に渡す。`runDbPortConformance` に通してあり、1 つの DB に全期間を置く実装と同じ振る舞いになる。
-- 変わった帳簿は、操作のあとに置き場へ丸ごと保存する (書き出しを重ねず、最新だけ)。新しい帳簿の作成・削除・上書きは、置き場に書けてから操作を終える。保存の状態 (`saved` / `saving` / `failed`) は `<html data-openkk-storage>` に出し、保存できなかったときは、重ねて出す知らせで伝える (直るまで出す)。保存が済む前にページを離れようとすると、ブラウザの確かめを出す。
+- 変わった帳簿は、操作のあとに置き場へ丸ごと保存する (書き出しを重ねず、最新だけ)。帳簿を変える操作 (期間・仕訳・固定資産・仮締め・本締め) は、変えた帳簿が置き場に書けてから終える (`waitingAfterChanges`。26.3.1 と同じく、画面が成功を出した時点で書けている。スマホでアプリを切り替えた直後に落とされても入力が消えないように)。書けなかったときは操作を失敗にせず、保存できなかった知らせで伝える。1 期間の仕訳 3,000 件で、書き込みの待ちは約 0.05 秒 (CPU を 4 倍遅くして約 0.18 秒)。新しい帳簿の作成・削除・上書きは、置き場に書けてから操作を終える。保存の状態 (`saved` / `saving` / `failed`) は `<html data-openkk-storage>` に出し、保存できなかったときは、重ねて出す知らせで伝える (直るまで出す)。保存が済む前にページを離れようとすると、ブラウザの確かめを出す。
 - 帳簿を読むのも書くのも 1 つの順番待ち (`operation-queue.ts`) を通す。書き出し (`exportBytes`) を別の操作のトランザクションの途中に挟まないため。
 - 起動するとき、帳簿ごとに期間・仕訳・固定資産まで読んで確かめる (`readBookRecords`)。中身が原因で読めない帳簿 (壊れている・新しい版で作られた・記録が今の決まりに合わない・同じ期間が 2 冊ある) は飛ばして起動し、ファイルは消さずに残す。同じ期間が 2 冊あれば、`last_changed_at` の新しいほうを使い、古いほうを読めない帳簿にする。置き場が読めない・メモリが足りないなど、中身と関係のない失敗では起動を止める (`isBookContentError`)。どちらも理由を `console.error` に残す。読めない帳簿は、期間の選択の一覧の下に、押せない行 (「読み込めませんでした」) として出し、分かる範囲で名前と日付を添える (`readStoredFiscalPeriods`。読めなければ「名前の分からない期間」)。重ねて出す知らせ「読み込めない会計期間が N 件あります」は × で閉じられ、次に開いたときにまだ読めなければまた出す (`OpenkkBookSaveTracking.unreadableFiscalPeriods`)。前の版から移せなかった期間の行と同じ部品 (`frontend-ui/src/shell/unavailable-fiscal-period-row.tsx`) を使う。
 - `browser-platform-adapter` の `inAppBookStore`: OPFS に `BookStore` を実装する。書き込みは worker の sync access handle で行う (Safari でも書けるように)。手順は `in-app-book-protocol.ts` にあり、控え (`.next`) を書き切ってから「準備済み」の印 (`.ready`) を置き、本体を書いてから両方を消す。一覧を読むときに印や控えが残っていれば、印があれば本体を控えで戻し、控えだけなら控えを消す (初めての保存の途中で止まった帳簿も、ここで仕上げるか捨てる)。帳簿のファイル名は中身と関係のない一意な名前で、どの期間の帳簿かは中身から読む。

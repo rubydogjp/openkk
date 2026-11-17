@@ -11,7 +11,9 @@ import {
   type OpenkkBookFileSaveResult,
   type OpenkkBookFileState,
   type OpenkkBookImportItem,
+  type OpenkkBookImportResult,
   type OpenkkFiscalPeriodLabel,
+  type OpenkkLegacyBookChanges,
   type PlatformKeyValueStorage,
 } from "@rubydogjp/openkk-driver";
 import { BookFileFormatError } from "@rubydogjp/openkk-book-db-adapter";
@@ -22,6 +24,23 @@ import { createBookSaveRecords } from "./save-records.js";
 export { bookImportCase } from "./import-case.js";
 
 export const BOOK_SAVE_REMINDER_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000;
+
+export type LegacyBookChangedPeriod = {
+  fiscalPeriodId: string;
+  label: OpenkkFiscalPeriodLabel;
+  bytes: Uint8Array;
+  movedLastChangedAt: number | null;
+};
+
+export type LegacyBookChangeSet = {
+  changed: readonly LegacyBookChangedPeriod[];
+  removed: readonly OpenkkFiscalPeriodLabel[];
+  accept(movedLastChangedAt: ReadonlyMap<string, number>): void;
+};
+
+export type LegacyBookWatch = {
+  detectChanges(): Promise<LegacyBookChangeSet | null>;
+};
 
 export type LocalBookFilesAdapterOptions = {
   books: Pick<
@@ -37,6 +56,7 @@ export type LocalBookFilesAdapterOptions = {
   >;
   legacyUnmovedFiscalPeriods: readonly OpenkkFiscalPeriodLabel[];
   legacyMergedFiscalPeriods: readonly OpenkkFiscalPeriodLabel[];
+  legacyBookWatch: LegacyBookWatch | null;
   userId: string;
   storage: PlatformKeyValueStorage;
   now(): number;
@@ -99,6 +119,94 @@ export function createLocalBookFilesAdapter(
 
   books.subscribe(notify);
 
+  let legacyChangeSet: LegacyBookChangeSet | null = null;
+  let legacyChanges: OpenkkLegacyBookChanges | null = null;
+  options.legacyBookWatch?.detectChanges().then(
+    (changeSet) => {
+      if (changeSet == null) return;
+      legacyChangeSet = changeSet;
+      legacyChanges = {
+        changedFiscalPeriods: changeSet.changed.map((period) => period.label),
+        removedFiscalPeriods: changeSet.removed,
+      };
+      notify();
+    },
+    (error: unknown) => {
+      console.error(
+        "[openkk] the previous version's data could not be checked:",
+        error,
+      );
+    },
+  );
+
+  function changedInAppSinceMoved(period: LegacyBookChangedPeriod): boolean {
+    const current = books.lastChangedAt(period.fiscalPeriodId);
+    return current != null && current !== period.movedLastChangedAt;
+  }
+
+  async function moveLegacyPeriod(
+    period: LegacyBookChangedPeriod,
+  ): Promise<string> {
+    let inspected: InspectedBookPeriod[];
+    try {
+      inspected = await books.inspectBookFile(period.bytes, options.userId);
+    } catch (error) {
+      throw bookFileError(error);
+    }
+    const target = inspected.find(
+      (candidate) => candidate.fiscalPeriod.id === period.fiscalPeriodId,
+    );
+    if (target == null) throw new OpenkkBookFileError("no_fiscal_period");
+    if (
+      target.relation.kind !== "new" &&
+      target.relation.kind !== "same_period"
+    ) {
+      throw new OpenkkBookFileError("books_changed");
+    }
+    try {
+      await books.importBookFile(period.bytes, options.userId, [
+        expectationOf(target),
+      ]);
+    } catch (error) {
+      throw bookFileError(error);
+    }
+    return period.fiscalPeriodId;
+  }
+
+  async function moveLegacyBookChanges(): Promise<OpenkkBookImportResult> {
+    const changeSet = legacyChangeSet;
+    if (changeSet == null) {
+      return { fiscalPeriodIds: [], allBooksStored: true };
+    }
+    const fiscalPeriodIds: string[] = [];
+    for (const period of changeSet.changed) {
+      fiscalPeriodIds.push(await moveLegacyPeriod(period));
+    }
+    const movedLastChangedAt = new Map<string, number>();
+    for (const fiscalPeriodId of fiscalPeriodIds) {
+      const lastChangedAt = books.lastChangedAt(fiscalPeriodId);
+      if (lastChangedAt != null) {
+        movedLastChangedAt.set(fiscalPeriodId, lastChangedAt);
+      }
+    }
+    try {
+      changeSet.accept(movedLastChangedAt);
+    } catch (error) {
+      console.error(
+        "[openkk] the moved data of the previous version could not be remembered:",
+        error,
+      );
+    }
+    legacyChangeSet = null;
+    legacyChanges = null;
+    const allBooksStored = await books.flush().then(
+      () => true,
+      () => false,
+    );
+    notify();
+    return { fiscalPeriodIds, allBooksStored };
+  }
+
   function itemOf(period: InspectedBookPeriod): OpenkkBookImportItem {
     const { relation } = period;
     if (relation.kind === "unreadable_book") {
@@ -136,6 +244,12 @@ export function createLocalBookFilesAdapter(
     ),
     legacyUnmovedFiscalPeriods: options.legacyUnmovedFiscalPeriods,
     legacyMergedFiscalPeriods: options.legacyMergedFiscalPeriods,
+    getLegacyBookChanges: () => legacyChanges,
+    legacyChangesOverwritingApp: () =>
+      (legacyChangeSet?.changed ?? [])
+        .filter(changedInAppSinceMoved)
+        .map((period) => period.label),
+    moveLegacyBookChanges,
     getStorageStatus: () => books.storageStatus(),
     getState(fiscalPeriod) {
       const fiscalPeriodId = fiscalPeriod.id;

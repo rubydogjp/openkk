@@ -1,7 +1,8 @@
 import { AppError } from "./app-error.js";
 
 const BYTE_ORDER_MARK = "﻿";
-const FORMULA_START = /^[=+\-@\t\r\n]/;
+const PROTECTED_START = /^'*[=+\-@\t\r\n＝＋－＠]/;
+const UNPROTECTED_START = /^'+[=+\-@\t\r\n＝＋－＠]/;
 
 export function stripByteOrderMark(text: string): string {
   return text.startsWith(BYTE_ORDER_MARK) ? text.slice(1) : text;
@@ -12,13 +13,11 @@ export function formatCsv(rows: ReadonlyArray<ReadonlyArray<string>>): string {
 }
 
 export function protectSpreadsheetFormula(value: string): string {
-  return FORMULA_START.test(value) ? `'${value}` : value;
+  return PROTECTED_START.test(value) ? `'${value}` : value;
 }
 
 export function unprotectSpreadsheetFormula(value: string): string {
-  return value.startsWith("'") && FORMULA_START.test(value.slice(1))
-    ? value.slice(1)
-    : value;
+  return UNPROTECTED_START.test(value) ? value.slice(1) : value;
 }
 
 function formatCsvLine(values: ReadonlyArray<string>): string {

@@ -17,6 +17,7 @@ describe("SQLite schema", () => {
 type FakeMeta = {
   schemaVersion: number | string | null;
   metaTableExists: boolean;
+  foreignKeys: boolean;
 };
 
 function createFakeDb(initial: Partial<FakeMeta> = {}): {
@@ -29,6 +30,7 @@ function createFakeDb(initial: Partial<FakeMeta> = {}): {
   const state: FakeMeta = {
     metaTableExists: initial.metaTableExists ?? false,
     schemaVersion: initial.schemaVersion ?? null,
+    foreignKeys: initial.foreignKeys ?? false,
   };
   const execLog: Array<string | { sql: string; bind?: unknown[] }> = [];
   let pendingError: Error | null = null;
@@ -42,11 +44,16 @@ function createFakeDb(initial: Partial<FakeMeta> = {}): {
       if (sql.includes("FROM openkk_meta") && sql.includes("schema_version")) {
         return state.schemaVersion == null ? null : String(state.schemaVersion);
       }
+      if (sql === "PRAGMA foreign_keys") return state.foreignKeys ? 1 : 0;
       throw new Error(`unexpected selectValue: ${sql}`);
     },
     exec(arg: string | { sql: string; bind?: unknown[] }) {
       execLog.push(arg);
       const sql = typeof arg === "string" ? arg : arg.sql;
+      if (sql.startsWith("PRAGMA foreign_keys = ")) {
+        state.foreignKeys = sql.endsWith("ON");
+        return;
+      }
       if (sql === "ROLLBACK" && rollbackError != null) {
         throw rollbackError;
       }
@@ -90,6 +97,23 @@ describe("runMigrations", () => {
     expect(commitCount).toBe(SCHEMA_VERSION);
   });
 
+  it("migrates with foreign keys off and puts the previous mode back, even when a migration fails", () => {
+    const enabled = createFakeDb({ metaTableExists: false, foreignKeys: true });
+    runMigrations(enabled.db);
+    expect(enabled.execLog[0]).toBe("PRAGMA foreign_keys = OFF");
+    expect(enabled.execLog.at(-1)).toBe("PRAGMA foreign_keys = ON");
+    expect(enabled.state.foreignKeys).toBe(true);
+
+    const failing = createFakeDb({ metaTableExists: false, foreignKeys: true });
+    failing.setExecError(new Error("boom"));
+    expect(() => runMigrations(failing.db)).toThrow(/migration to version 1/);
+    expect(failing.state.foreignKeys).toBe(true);
+
+    const disabled = createFakeDb({ metaTableExists: false });
+    runMigrations(disabled.db);
+    expect(disabled.state.foreignKeys).toBe(false);
+  });
+
   it("is a no-op when current version already matches", () => {
     const { db, execLog } = createFakeDb({
       metaTableExists: true,
@@ -115,7 +139,8 @@ describe("runMigrations", () => {
     setExecError(new Error("syntax error near 'WHATEVER'"));
     expect(() => runMigrations(db)).toThrow(/migration to version 1 failed/);
 
-    expect(execLog[0]).toBe("BEGIN");
+    expect(execLog[0]).toBe("PRAGMA foreign_keys = OFF");
+    expect(execLog[1]).toBe("BEGIN");
     expect(execLog).toContain("ROLLBACK");
     expect(state.schemaVersion).toBeNull();
   });

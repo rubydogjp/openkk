@@ -43,7 +43,10 @@ import { ShellNav } from "./shell-nav.js";
 import { CloseIcon } from "../shared/icons.js";
 import { ShellNotices } from "./shell-notices.js";
 import { SHELL_PALETTE } from "./shell-palette.js";
-import { useShellAuthActions } from "./use-shell-auth-actions.js";
+import {
+  ShellAuthActionsContext,
+  useShellAuthActions,
+} from "./use-shell-auth-actions.js";
 import { showsEntriesSheet } from "../entries/entries-view.js";
 import { usePathname, useRouter, useSearchParams } from "../routing/routing.js";
 
@@ -183,37 +186,11 @@ function ShellChrome({
     trapFocus: true,
   });
 
+  const isNarrow = useIsNarrowScreen();
+
   useEffect(() => {
     setDrawerOpen(false);
-  }, [pathname, fillsScreen]);
-
-  if (fillsScreen) {
-    return (
-      <main
-        className="bk-shell-main bk-shell-main--fills-screen"
-        style={{ height: VIEWPORT_HEIGHT, overflow: "hidden" }}
-      >
-        <div
-          className="bk-shell-content"
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            height: VIEWPORT_HEIGHT,
-            overflow: "auto",
-            minWidth: 0,
-            background: palette.surface,
-          }}
-        >
-          <ShellNotices
-            hasSession={hasSession}
-            bookFile={bookSave?.bookFile ?? null}
-            onSave={bookSave?.save ?? null}
-          />
-          {children}
-        </div>
-      </main>
-    );
-  }
+  }, [pathname, fillsScreen, isNarrow]);
 
   return (
     <>
@@ -225,7 +202,10 @@ function ShellChrome({
         .bk-menu-item:hover:not(:disabled) { background: ${SHELL_PALETTE.navHoverBg}; }
       `}</style>
 
-      <div className="bk-mobile-topbar">
+      <div
+        className="bk-mobile-topbar"
+        style={fillsScreen ? { display: "none" } : {}}
+      >
         <button
           type="button"
           aria-label="メニューを開く"
@@ -273,7 +253,7 @@ function ShellChrome({
         {bookSave != null ? <ShellBookSaveCompact bookSave={bookSave} /> : null}
       </div>
 
-      {drawerOpen ? (
+      {drawerOpen && !fillsScreen ? (
         <div
           className="bk-shell-backdrop"
           aria-hidden="true"
@@ -282,16 +262,23 @@ function ShellChrome({
       ) : null}
 
       <main
-        className="bk-shell-main"
+        className={
+          fillsScreen
+            ? "bk-shell-main bk-shell-main--fills-screen"
+            : "bk-shell-main"
+        }
         style={{
           height: VIEWPORT_HEIGHT,
           display: "grid",
-          gridTemplateColumns: `${sizes.shell.sidebarWidth} 1fr`,
+          gridTemplateColumns: fillsScreen
+            ? "1fr"
+            : `${sizes.shell.sidebarWidth} 1fr`,
           overflow: "hidden",
         }}
       >
         <aside
           ref={sidebarRef}
+          inert={fillsScreen || (isNarrow && !drawerOpen)}
           role={drawerOpen ? "dialog" : undefined}
           aria-modal={drawerOpen ? "true" : undefined}
           aria-label={drawerOpen ? "ナビゲーションメニュー" : undefined}
@@ -304,7 +291,7 @@ function ShellChrome({
           style={{
             background: SHELL_PALETTE.sidebarBg,
             borderRight: `1px solid ${SHELL_PALETTE.sidebarBorder}`,
-            display: "flex",
+            display: fillsScreen ? "none" : "flex",
             flexDirection: "column",
             position: "relative",
             width: sizes.shell.sidebarWidth,
@@ -419,9 +406,25 @@ function ShellChrome({
             bookFile={bookSave?.bookFile ?? null}
             onSave={bookSave?.save ?? null}
           />
-          {children}
+          <ShellAuthActionsContext value={auth}>
+            {children}
+          </ShellAuthActionsContext>
         </div>
       </main>
     </>
   );
+}
+
+const NARROW_SCREEN_QUERY = "(max-width: 640px)";
+
+function useIsNarrowScreen(): boolean {
+  const [isNarrow, setIsNarrow] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia(NARROW_SCREEN_QUERY);
+    const update = () => setIsNarrow(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  return isNarrow;
 }

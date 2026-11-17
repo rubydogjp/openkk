@@ -7,6 +7,7 @@ import { AmountInput } from "../shared/amount-field.js";
 import { DatePickerButton } from "../shared/date-picker.js";
 import { ExclusiveActionLock } from "../shared/exclusive-action-lock.js";
 import { useModalLifecycle } from "../shared/dismissible-layer.js";
+import { useConfirmDialog } from "../shared/confirm-dialog.js";
 import {
   DRAWER_SLIDE_IN_ANIMATION,
   DRAWER_SLIDE_IN_KEYFRAMES,
@@ -126,10 +127,35 @@ export function EntryEditDrawer(props: {
 
   const [guideStack, setGuideStack] = useState<QuickGuidePage[]>([]);
 
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
+  const [initialDraftText] = useState(() => JSON.stringify(draft));
+  const hasEnteredLines =
+    props.mode === "edit" ||
+    draft.pairs.length > 1 ||
+    draft.pairs.some(
+      (pair) =>
+        pair.debitAmount.trim() !== "" || pair.creditAmount.trim() !== "",
+    );
+
   const requestClose = () => {
     if (!mutationLock.current.isLocked) props.onClose();
   };
-  const drawerRef = useModalLifecycle<HTMLElement>(requestClose, null);
+  const requestDismiss = () => {
+    if (mutationLock.current.isLocked) return;
+    if (JSON.stringify(draft) === initialDraftText) {
+      props.onClose();
+      return;
+    }
+    void confirm({
+      tone: "danger",
+      title: "入力の破棄",
+      body: ["入力した内容は保存されません。"],
+      confirmLabel: "破棄する",
+    }).then((confirmed) => {
+      if (confirmed && !mutationLock.current.isLocked) props.onClose();
+    });
+  };
+  const drawerRef = useModalLifecycle<HTMLElement>(requestDismiss, null);
 
   const update = (patch: Partial<EntryFormState>) =>
     setDraft((current) => ({ ...current, ...patch }));
@@ -233,8 +259,20 @@ export function EntryEditDrawer(props: {
   };
 
   const handleGuideSelectOption = (option: QuickGuideOption) => {
-    if (option.template != null) {
-      applyGuideTemplate(option.template);
+    const template = option.template;
+    if (template != null) {
+      if (!hasEnteredLines) {
+        applyGuideTemplate(template);
+        return;
+      }
+      void confirm({
+        tone: "danger",
+        title: "テンプレートの適用",
+        body: ["入力した行は消えます。"],
+        confirmLabel: "適用する",
+      }).then((confirmed) => {
+        if (confirmed) applyGuideTemplate(template);
+      });
       return;
     }
     if (option.nextPage != null) {
@@ -366,7 +404,7 @@ export function EntryEditDrawer(props: {
   return (
     <>
       <div
-        onClick={requestClose}
+        onClick={requestDismiss}
         aria-hidden="true"
         style={{
           position: "fixed",
@@ -736,17 +774,26 @@ export function EntryEditDrawer(props: {
 
         <footer
           style={{
-            padding: footerMessages.length > 0 ? "12px 20px 16px" : "16px 20px",
+            position: "relative",
+            padding: "16px 20px",
             borderTop: `1px solid ${entryDrawerColors.border}`,
             background: entryDrawerColors.bg,
             display: "flex",
             flexDirection: "column",
-            gap: 12,
             flexShrink: 0,
           }}
         >
           {footerMessages.length > 0 ? (
-            <ValidationCard messages={footerMessages} />
+            <div
+              style={{
+                position: "absolute",
+                left: 20,
+                right: 20,
+                bottom: "calc(100% + 8px)",
+              }}
+            >
+              <ValidationCard messages={footerMessages} />
+            </div>
           ) : null}
           <div
             style={{
@@ -757,25 +804,34 @@ export function EntryEditDrawer(props: {
               width: "100%",
             }}
           >
-            {props.mode === "edit" && props.onDelete != null ? (
-              <button
-                type="button"
-                onClick={() => setConfirmingDelete(true)}
-                disabled={deleting || saving}
-                style={{
-                  ...deleteEntryButtonStyle,
-                  opacity: deleting || saving ? 0.5 : 1,
-                  cursor: deleting || saving ? "default" : "pointer",
-                }}
-              >
-                {deleting ? "削除中…" : "削除"}
-              </button>
-            ) : (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: 10,
+                minWidth: 0,
+              }}
+            >
+              {props.mode === "edit" && props.onDelete != null ? (
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDelete(true)}
+                  disabled={deleting || saving}
+                  style={{
+                    ...deleteEntryButtonStyle,
+                    opacity: deleting || saving ? 0.5 : 1,
+                    cursor: deleting || saving ? "default" : "pointer",
+                  }}
+                >
+                  {deleting ? "削除中…" : "削除"}
+                </button>
+              ) : null}
               <BalanceIndicator
                 debitAmount={debitTotal}
                 creditAmount={creditTotal}
               />
-            )}
+            </div>
             <div style={{ display: "flex", gap: 10 }}>
               <button
                 type="button"
@@ -804,6 +860,7 @@ export function EntryEditDrawer(props: {
             </div>
           </div>
         </footer>
+        {confirmDialog}
         {confirmingDelete ? (
           <DeleteConfirmDialog
             deleting={deleting}

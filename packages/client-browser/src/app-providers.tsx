@@ -110,7 +110,7 @@ export function OpenkkAppProviders(props: {
   if (bootError != null) {
     return (
       <div role="alert" style={{ padding: 24, fontSize: 14, color: "#994636" }}>
-        ローカルデータベースの初期化に失敗しました。ブラウザを再読込してください。
+        データを準備できませんでした。画面を再読み込みしてください。
       </div>
     );
   }

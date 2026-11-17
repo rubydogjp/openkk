@@ -25,7 +25,10 @@ export function ImportProblemsDialog(props: {
   problems: JournalTableProblem[];
   onClose: () => void;
 }) {
-  const { problems, onClose } = props;
+  const { onClose } = props;
+  const problems = [...props.problems].sort(
+    (left, right) => left.rowNumber - right.rowNumber,
+  );
   const titleId = useId();
   const bodyId = useId();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -164,7 +167,7 @@ export function ImportProblemsDialog(props: {
                 color: palette.textSoft,
               }}
             >
-              ほか {hiddenRowCount} 行 (中をスクロール)
+              ほか {hiddenRowCount} 件 (中をスクロール)
             </div>
           ) : null}
           <div

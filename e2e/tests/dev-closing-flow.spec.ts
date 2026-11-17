@@ -54,7 +54,7 @@ test.describe("openkk closing flow", () => {
     await expectStep(page, "日々の仕訳");
     await clickButton(page, "仮締めを実行");
     await clickButton(page, "実行する");
-    await clickButton(page, "実行する");
+    await clickButton(page, "期中に仮締めする");
     await expect(page.getByText("記録終了")).toBeVisible();
     await waitUntilSettled(page);
     await page.getByRole("button", { name: "次の手順へ" }).click();

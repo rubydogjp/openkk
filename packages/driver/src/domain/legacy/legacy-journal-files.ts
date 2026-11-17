@@ -12,7 +12,6 @@ import {
   formatAmount,
   formatBusinessRatePercent,
   parseAmount,
-  parseBusinessRate,
   parseIsoLocalDate,
   weekdayJa,
 } from "../shared/parse-utils.js";
@@ -133,8 +132,9 @@ const csvHeaders = [
 const OPENKK_JOURNAL_CSV_SCHEMA = "openkk-journal-csv-v1";
 
 export function isLegacyJournalCsv(text: string): boolean {
-  const header = stripByteOrderMark(text).split(/\r?\n/, 1)[0] ?? "";
-  return header.split(",").some((name) => name.trim() === "localId");
+  const headerLine = stripByteOrderMark(text).split(/\r?\n/, 1)[0] ?? "";
+  const [header = []] = parseCsv(headerLine);
+  return header.some((name) => name.trim() === "localId");
 }
 
 export function importEntriesFromLegacyCsv(input: {
@@ -327,7 +327,13 @@ function importedBusinessRate(input: {
 }): number {
   const ratio = input.businessRateRatio;
   if (ratio == null || ratio === "") {
-    return parseBusinessRate(input.businessRate);
+    const percentText = input.businessRate.trim().replace(/%$/, "").trim();
+    if (percentText === "") return 1;
+    const percent = Number(percentText);
+    if (!/^\d+(\.\d+)?$/.test(percentText) || !Number.isFinite(percent)) {
+      throw importFileRowError(input.rowNumber, "invalid businessRate");
+    }
+    return Math.min(100, percent) / 100;
   }
   const rate =
     typeof ratio === "number"

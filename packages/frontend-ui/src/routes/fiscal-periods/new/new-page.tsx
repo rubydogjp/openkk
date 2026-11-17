@@ -26,7 +26,7 @@ import {
 } from "../../../shared/design-tokens.js";
 import {
   FormDatePair,
-  FormErrorText,
+  FormMessageSlot,
   FormPrimaryButton,
   FormSecondaryButton,
   FormStyles,
@@ -160,15 +160,15 @@ export function CreateFiscalPeriodPage() {
                   onChangeEnd={setEndDate}
                   readOnly={editingLocked}
                 />
-                {!dateValidation.ok && !editingLocked ? (
-                  <FormErrorText id={periodProblemId}>
-                    {dateValidation.message}
-                  </FormErrorText>
-                ) : hasOverlap && !editingLocked ? (
-                  <FormErrorText id={periodProblemId}>
-                    ほかの会計期間と日付が重なっています。
-                  </FormErrorText>
-                ) : null}
+                {editingLocked ? null : (
+                  <FormMessageSlot tone="error" id={periodProblemId}>
+                    {!dateValidation.ok
+                      ? dateValidation.message
+                      : hasOverlap
+                        ? "ほかの会計期間と日付が重なっています。"
+                        : null}
+                  </FormMessageSlot>
+                )}
               </>
             }
             hint={

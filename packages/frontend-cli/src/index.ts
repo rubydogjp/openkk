@@ -1,6 +1,7 @@
 export {
   CliUsageError,
   createCliOutput,
+  printableTerminalText,
   type CliOutput,
 } from "./cli-output.js";
 export {
@@ -18,6 +19,7 @@ export {
   CLI_COMMAND_NAME,
   CLI_COMMAND_OPTION_USAGE,
   CLI_COMMAND_USAGE,
+  isReadOnlyCliCommand,
   runCliCommand,
   type CliEnvironment,
   type CliInvocation,

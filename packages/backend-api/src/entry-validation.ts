@@ -1,5 +1,6 @@
 import {
   assertEntryMatchesRules,
+  assertEntryNumberLength,
   assertTextFieldLength,
   engineValidationError,
   VIRTUAL_ENTRY_LOCAL_ID_PREFIX,
@@ -27,6 +28,9 @@ export function assertEditableEntryInput(
       `Entry localId prefix ${VIRTUAL_ENTRY_LOCAL_ID_PREFIX} is reserved`,
       "この仕訳識別子は本締め用に予約されています",
     );
+  }
+  if (input.localId !== existing?.localId) {
+    assertEntryNumberLength(input.localId, "Entry localId");
   }
   assertLinesShareEntryValues(input.lines);
   if (input.description !== existing?.description) {

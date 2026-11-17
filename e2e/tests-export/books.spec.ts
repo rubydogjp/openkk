@@ -596,6 +596,73 @@ test("moves a database written by 26.3.1 into one book per period, merges a peri
   await expectLegacyDatabaseKept(page, legacyBytes);
 });
 
+test("moves again a period the previous version changed after the move, and asks first when the app changed it too", async ({
+  page,
+}) => {
+  const fixture = fs.readFileSync(
+    path.join(RELEASE_FIXTURE_DIR, "openkk.sqlite3"),
+  );
+  await seedLegacyDatabase(page, fixture);
+  await startApp(page);
+  await expect(page.getByRole("button", { name: /^2025年分 / })).toHaveCount(1);
+  await waitUntilBooksStored(page);
+  const changedNotice = page.getByRole("status").filter({
+    hasText: "前の版で「2025年分」が変わっています",
+  });
+  await expect(changedNotice).toHaveCount(0);
+
+  await seedLegacyDatabase(
+    page,
+    legacyFixtureWithSales(fixture, ["前の版で足した売上 1"]),
+  );
+  await startApp(page);
+  await changedNotice.getByRole("button", { name: "移し直す" }).click();
+  await waitUntilBootPhase(page, "ready");
+  await expect(changedNotice).toHaveCount(0);
+  const sheet = await openSheetOf2025(page);
+  await expect(sheet).toContainText("前の版で足した売上 1");
+
+  await page.getByRole("button", { name: "月ごと", exact: true }).click();
+  await page.getByRole("button", { name: "追加", exact: true }).click();
+  const drawer = page.getByRole("dialog", { name: "仕訳の新規作成" });
+  await drawer.getByLabel("摘要").fill("アプリで足した売上");
+  await drawer.getByLabel("借方金額").first().fill("1000");
+  await drawer.getByLabel("貸方金額").last().fill("1000");
+  await clickButton(page, "作成");
+  await expect(drawer).not.toBeVisible();
+  await waitUntilBooksStored(page);
+
+  await seedLegacyDatabase(
+    page,
+    legacyFixtureWithSales(fixture, [
+      "前の版で足した売上 1",
+      "前の版で足した売上 2",
+    ]),
+  );
+  await startApp(page);
+  const overwrite = page.getByRole("alertdialog", {
+    name: "前の版での上書き",
+  });
+  await changedNotice.getByRole("button", { name: "移し直す" }).click();
+  await expect(overwrite).toContainText(
+    "アプリの中の「2025年分」に、移したあとで入れた変更があります。前の版を優先して上書きすると失われます。",
+  );
+  await overwrite.getByRole("button", { name: "キャンセル" }).click();
+  await expect(overwrite).toHaveCount(0);
+  await expect(changedNotice).toBeVisible();
+  const kept = await openSheetOf2025(page);
+  await expect(kept).toContainText("アプリで足した売上");
+  await expect(kept).not.toContainText("前の版で足した売上 2");
+
+  await changedNotice.getByRole("button", { name: "移し直す" }).click();
+  await overwrite.getByRole("button", { name: "上書きする" }).click();
+  await waitUntilBootPhase(page, "ready");
+  await expect(changedNotice).toHaveCount(0);
+  const replaced = await openSheetOf2025(page);
+  await expect(replaced).toContainText("前の版で足した売上 2");
+  await expect(replaced).not.toContainText("アプリで足した売上");
+});
+
 test("shows a period the previous version archived as an ordinary closed period that counts when dates overlap", async ({
   page,
 }) => {
@@ -811,6 +878,56 @@ async function expectLegacyDatabaseKept(page: Page, seeded: Buffer) {
   expect(kept.names).toEqual(["/openkk.sqlite3"]);
   expect(Buffer.from(kept.bytes).equals(seeded)).toBe(true);
   expect(schemaVersionOf(kept.bytes)).toBe("5");
+}
+
+function legacyFixtureWithSales(
+  fixture: Buffer,
+  descriptions: readonly string[],
+): Buffer {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "openkk-legacy-change-"));
+  tempDirs.push(dir);
+  const filePath = path.join(dir, "openkk.sqlite3");
+  fs.writeFileSync(filePath, fixture);
+  const database = new DatabaseSync(filePath);
+  try {
+    const { id: fiscalPeriodId } = database
+      .prepare(
+        "SELECT id FROM fiscal_periods WHERE json_extract(data, '$.name') = ?",
+      )
+      .get("2025年分") as { id: string };
+    descriptions.forEach((description, index) => {
+      const entryId = `entry_changed_in_previous_version_${index}`;
+      const at = Date.parse("2025-07-01T00:00:00.000Z") + index;
+      database
+        .prepare(
+          "INSERT INTO entries (id, fiscal_period_id, date, local_id, description, business_rate, created_at, updated_at) VALUES (?, ?, '2025-07-01', NULL, ?, 1, ?, ?)",
+        )
+        .run(entryId, fiscalPeriodId, description, at, at);
+      for (const [position, side, account] of [
+        [0, "debit", "acct_cash"],
+        [1, "credit", "acct_sales"],
+      ] as const) {
+        database
+          .prepare(
+            "INSERT INTO entry_lines (entry_id, id, side, book_account_id, amount, partner_name, tax_category_id, business_category_id, position) VALUES (?, ?, ?, ?, 3000, '', 'tax_10', 'biz_5', ?)",
+          )
+          .run(entryId, `${entryId}_${side}`, side, account, position);
+      }
+    });
+  } finally {
+    database.close();
+  }
+  return fs.readFileSync(filePath);
+}
+
+async function openSheetOf2025(page: Page) {
+  await gotoInApp(page, "/fiscal-periods");
+  await page.getByRole("button", { name: /^2025年分 / }).click();
+  await page.getByRole("link", { name: "仕訳", exact: true }).click();
+  await page.getByRole("button", { name: "シート", exact: true }).click();
+  const sheet = page.getByRole("table", { name: "仕訳のシート" });
+  await expect(sheet).toBeVisible();
+  return sheet;
 }
 
 async function seedLegacyDatabase(page: Page, bytes: Buffer) {

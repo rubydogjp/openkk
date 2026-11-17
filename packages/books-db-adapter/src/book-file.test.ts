@@ -2,7 +2,10 @@ import fs from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { BookFileFormatError } from "@rubydogjp/openkk-book-db-adapter";
+import {
+  BookFileFormatError,
+  createBookDbAdapter,
+} from "@rubydogjp/openkk-book-db-adapter";
 import type { FiscalPeriodDbRecord } from "@rubydogjp/openkk-engine";
 
 import {
@@ -99,6 +102,31 @@ describe("splitReadableBookFilePeriods", () => {
           ({ fiscalPeriod }) => fiscalPeriod.id,
         ),
       ).toEqual([period.fiscalPeriod.id]);
+    }
+  });
+
+  it("tells the change stamp each split-out book holds", async () => {
+    const bytes = await seededBookBytes({
+      fiscalPeriods: [seedPeriod("fp-2025", 2025), seedPeriod("fp-2026", 2026)],
+      entries: [],
+      fixedAssets: [],
+    });
+    const single = await seededBookBytes({
+      fiscalPeriods: [seedPeriod("fp-2027", 2027)],
+      entries: [],
+      fixedAssets: [],
+    });
+
+    for (const source of [bytes, single]) {
+      for (const period of (await splitReadableBookFilePeriods(source))
+        .periods) {
+        const book = await createBookDbAdapter(period.bytes);
+        try {
+          expect(book.lastChangedAt()).toBe(period.bookLastChangedAt);
+        } finally {
+          book.close();
+        }
+      }
     }
   });
 

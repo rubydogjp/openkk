@@ -493,7 +493,9 @@ export function createOpenkkEntriesStore(dependencies: {
       } catch (error) {
         if (!appState().isAuthOperationCurrent(authOperationVersion))
           throw error;
-        update({ entriesLoadError: error });
+        if (readAppSelection(app).currentFiscalPeriodId === fiscalPeriodId) {
+          update({ entriesLoadError: error });
+        }
         throw error;
       }
     },

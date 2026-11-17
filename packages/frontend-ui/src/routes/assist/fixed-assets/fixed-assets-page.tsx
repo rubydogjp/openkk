@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   useOpenkkAppState,
   useOpenkkAssist,
+  useOpenkkEntries,
   useOpenkkConfig,
   useOpenkkToday,
 } from "../../../bindings/index.js";
@@ -25,6 +26,13 @@ export function FixedAssetsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const assistState = useOpenkkAssist();
+  const entriesState = useOpenkkEntries();
+  const fixedAssetAccountOptions = DEPRECIABLE_ASSET_ACCOUNT_NAMES.filter(
+    (name) =>
+      entriesState.journalTableMaster.accounts.some(
+        (account) => account.name === name && account.accountType === "asset",
+      ),
+  );
   const appState = useOpenkkAppState();
   const openkkConfig = useOpenkkConfig();
   const today = useOpenkkToday();
@@ -116,6 +124,7 @@ export function FixedAssetsPage() {
           periodStartDate={currentFiscalPeriod.startDate}
           periodEndDate={currentFiscalPeriod.endDate}
           previewAsOf={fixedAssetPreviewAsOf}
+          accountOptions={fixedAssetAccountOptions}
           onClose={() => navigateWithAssetParam(null)}
           onSave={(draft) =>
             assistState.updateFixedAsset(drawerAsset.id, draft)
@@ -137,6 +146,7 @@ export function FixedAssetsPage() {
           periodStartDate={currentFiscalPeriod.startDate}
           periodEndDate={currentFiscalPeriod.endDate}
           previewAsOf={fixedAssetPreviewAsOf}
+          accountOptions={fixedAssetAccountOptions}
           onClose={() => setNewAssetDraft(null)}
           onSave={async (draft) => {
             const createdId = await assistState.addFixedAsset(draft);
@@ -152,6 +162,18 @@ export function FixedAssetsPage() {
     </>
   );
 }
+
+const DEPRECIABLE_ASSET_ACCOUNT_NAMES = [
+  "建物",
+  "建物附属設備",
+  "構築物",
+  "機械装置",
+  "車両運搬具",
+  "工具器具備品",
+  "その他の有形固定資産",
+  "ソフトウエア",
+  "その他の無形固定資産",
+];
 
 function buildNewFixedAssetDraft(acquisitionDate: string): FixedAssetDraft {
   return {

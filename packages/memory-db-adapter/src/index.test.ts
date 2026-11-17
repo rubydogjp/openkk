@@ -12,3 +12,12 @@ describe("createMemoryDbAdapter", () => {
     expect(first).not.toBe(second);
   });
 });
+
+describe("closing a memory database", () => {
+  it("stops answering once closed", async () => {
+    const adapter = await createMemoryDbAdapter(null);
+    expect(await adapter.fiscalPeriods.getAll("user-1")).toEqual([]);
+    adapter.close();
+    await expect(adapter.fiscalPeriods.getAll("user-1")).rejects.toThrow();
+  });
+});

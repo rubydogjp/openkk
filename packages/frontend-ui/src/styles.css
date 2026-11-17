@@ -249,7 +249,7 @@ body:has(.bk-shell-main--fills-screen) .bk-entry-drawer {
 
 .bk-notice-layer {
   position: fixed;
-  left: var(--openkk-size-shell-sidebar-width, 216px);
+  left: 0;
   right: 0;
   bottom: 24px;
   z-index: 40;
@@ -259,6 +259,9 @@ body:has(.bk-shell-main--fills-screen) .bk-entry-drawer {
   gap: 8px;
   padding: 0 12px;
   pointer-events: none;
+}
+body:has(.bk-shell-sidebar) .bk-notice-layer {
+  left: var(--openkk-size-shell-sidebar-width, 216px);
 }
 .bk-notice-action {
   height: var(--openkk-size-button-compact-height, 36px);
@@ -298,7 +301,8 @@ body:has(.bk-drawer) .bk-notice-layer {
   }
 }
 @media (max-width: 640px) {
-  .bk-notice-layer {
+  .bk-notice-layer,
+  body:has(.bk-shell-sidebar) .bk-notice-layer {
     left: 0;
     bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   }

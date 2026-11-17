@@ -24,8 +24,7 @@ import { LockButton } from "../../shared/locked-action.js";
 import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 import {
   FormDatePair,
-  FormErrorText,
-  FormNoteText,
+  FormMessageSlot,
   FormStyles,
   FormTextInput,
 } from "../../shared/form-fields.js";
@@ -60,6 +59,15 @@ const DEFAULT_CARRIES: CarryOptions = {
   fixed: true,
 };
 
+export function backupFileHint(
+  fileName: string,
+  keepsBooksInFiles: boolean,
+): string {
+  return keepsBooksInFiles
+    ? `この会計期間のデータを、そのままファイル (${fileName}) としてダウンロードします。メニューの「バックアップ」と同じファイルで、期間の選択の「ファイル」から取り込めます。`
+    : `この会計期間のデータを、ファイル (${fileName}) として手元に残せます。`;
+}
+
 export function NextFiscalPeriodBody({
   onSwitchToStep,
 }: {
@@ -71,6 +79,9 @@ export function NextFiscalPeriodBody({
   const bookFiles = useOpenkkBookFiles();
   const entriesState = useOpenkkEntries();
   const [screenError, setScreenError] = useState<unknown>(null);
+  const [createError, setCreateError] = useState<unknown>(null);
+  const periodDateProblemId = useId();
+  const createProblemId = useId();
   const [backupMessage, setBackupMessage] = useState<string | null>(null);
   const currentFiscalPeriod = appState.currentFiscalPeriod;
 
@@ -100,6 +111,7 @@ export function NextFiscalPeriodBody({
     setCarries(DEFAULT_CARRIES);
     setReversalEntryIds([]);
     setScreenError(null);
+    setCreateError(null);
   }, [
     currentFiscalPeriod?.id,
     suggested.endDate,
@@ -140,7 +152,6 @@ export function NextFiscalPeriodBody({
       appState.fiscalPeriods,
       null,
     );
-  const periodProblemId = useId();
   const canCreateNext =
     canEnterPage &&
     currentFiscalPeriod.documentsReceivedCompleted &&
@@ -153,6 +164,21 @@ export function NextFiscalPeriodBody({
     dateValidation.ok &&
     followsCurrentPeriod &&
     !hasOverlap;
+  const periodDateProblem = !dateValidation.ok
+    ? dateValidation.message
+    : !followsCurrentPeriod
+      ? "開始日は、この期間の終了日の翌日にしてください。"
+      : hasOverlap
+        ? "ほかの会計期間と日付が重なっています。"
+        : null;
+  const createBlockedReason =
+    canCreateNext || isCreating || isSavingBackup
+      ? null
+      : !currentFiscalPeriod.documentsReceivedCompleted
+        ? "書類の受け取りを済ませると作成できます"
+        : name.trim() === ""
+          ? "名称を入れると作成できます"
+          : "期間を直すと作成できます";
 
   const handleCreate = async () => {
     if (!canCreateNext) return;
@@ -172,7 +198,7 @@ export function NextFiscalPeriodBody({
         carryFixedAssets: carries.fixed,
       });
       appState.assertAuthOperationCurrent(authOperationVersion);
-      setScreenError(null);
+      setCreateError(null);
       appState.selectFiscalPeriod(createdId);
     } catch (error) {
       if (
@@ -182,7 +208,7 @@ export function NextFiscalPeriodBody({
         appState.selectFiscalPeriod(createdId);
       }
       if (!appState.isAuthOperationCurrent(authOperationVersion)) return;
-      setScreenError(
+      setCreateError(
         AppError.from(error, {
           fallbackUserMessage: "次の期間の作成に失敗しました",
           fallbackDeveloperMessage:
@@ -270,20 +296,13 @@ export function NextFiscalPeriodBody({
                   }}
                   readOnly={!canEditNext}
                 />
-                {canEnterPage && createdNext != null ? (
-                  <FormNoteText>作成済みです</FormNoteText>
-                ) : canEnterPage && !dateValidation.ok ? (
-                  <FormErrorText id={periodProblemId}>
-                    {dateValidation.message}
-                  </FormErrorText>
-                ) : canEnterPage && !followsCurrentPeriod ? (
-                  <FormErrorText id={periodProblemId}>
-                    開始日は、この期間の終了日の翌日にしてください。
-                  </FormErrorText>
-                ) : canEnterPage && hasOverlap ? (
-                  <FormErrorText id={periodProblemId}>
-                    ほかの会計期間と日付が重なっています。
-                  </FormErrorText>
+                {canEnterPage ? (
+                  <FormMessageSlot
+                    tone={createdNext != null ? "note" : "error"}
+                    id={createdNext != null ? null : periodDateProblemId}
+                  >
+                    {createdNext != null ? "作成済みです" : periodDateProblem}
+                  </FormMessageSlot>
                 ) : null}
               </>
             }
@@ -302,35 +321,43 @@ export function NextFiscalPeriodBody({
             value={currentFiscalPeriod.name}
             divider={false}
           />
-          <StepFormRow
-            label="引き継ぎ項目"
-            divider
-            control={
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 2,
-                }}
-              >
-                {CARRY_ITEMS.map((item) => (
-                  <CarryCheckboxItem
-                    key={item.id}
-                    inputId={`carry-${item.id}`}
-                    checked={carries[item.id]}
-                    onChange={() => {
-                      if (canEditNext) toggleCarry(item.id);
-                    }}
-                    label={item.label}
-                    disabled={!canEditNext}
-                  />
-                ))}
-              </div>
-            }
-            hint="引き継いだ期首のBSなどは、次の期間の仮締めまでいつでも編集・引き継ぎ直しができます。"
-          />
+          {createdNext != null ? (
+            <StepMetaRow
+              label="引き継ぎ項目"
+              value="引き継いだ内容は、次の期間の期首のBSの手順で見直せます。"
+              divider
+            />
+          ) : (
+            <StepFormRow
+              label="引き継ぎ項目"
+              divider
+              control={
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 2,
+                  }}
+                >
+                  {CARRY_ITEMS.map((item) => (
+                    <CarryCheckboxItem
+                      key={item.id}
+                      inputId={`carry-${item.id}`}
+                      checked={carries[item.id]}
+                      onChange={() => {
+                        if (canEditNext) toggleCarry(item.id);
+                      }}
+                      label={item.label}
+                      disabled={!canEditNext}
+                    />
+                  ))}
+                </div>
+              }
+              hint="引き継いだ期首のBSなどは、次の期間の仮締めまでいつでも編集・引き継ぎ直しができます。"
+            />
+          )}
         </StepMetaCard>
-        {canEnterPage && carries.transfer ? (
+        {canEnterPage && createdNext == null && carries.transfer ? (
           <StepMetaCard>
             <StepFormRow
               label="再振替する仕訳"
@@ -395,7 +422,7 @@ export function NextFiscalPeriodBody({
                 <LockButton label="次の期間を作成" />
               ) : (
                 <StepPrimaryButton
-                  describedBy={canCreateNext ? null : periodProblemId}
+                  describedBy={canCreateNext ? null : createProblemId}
                   onClick={() => {
                     if (canCreateNext) void handleCreate();
                   }}
@@ -407,6 +434,29 @@ export function NextFiscalPeriodBody({
                 </StepPrimaryButton>
               )}
             </div>
+            {createdNext == null && !editingLocked ? (
+              <div
+                style={{
+                  marginTop: 8,
+                  minHeight: "1lh",
+                  textAlign: "right",
+                  fontSize: fontSize.sm,
+                  lineHeight: 1.6,
+                }}
+              >
+                {createError != null ? (
+                  <AppErrorText
+                    error={createError}
+                    style={{ fontSize: fontSize.sm }}
+                    fallbackUserMessage={null}
+                  />
+                ) : (
+                  <FormMessageSlot tone="note" id={createProblemId}>
+                    {createBlockedReason}
+                  </FormMessageSlot>
+                )}
+              </div>
+            ) : null}
           </>
         ) : (
           <div
@@ -438,7 +488,10 @@ export function NextFiscalPeriodBody({
           <StepMetaCard>
             <StepMetaRow
               label="ファイル"
-              value={`この会計期間のデータを、そのままファイル (${bookFiles.fileNameOf(currentFiscalPeriod.name)}) としてダウンロードします。${bookFiles.saveTracking != null ? "メニューの「バックアップ」と同じファイルで、" : ""}期間の選択の「ファイル」から取り込めます。`}
+              value={backupFileHint(
+                bookFiles.fileNameOf(currentFiscalPeriod.name),
+                bookFiles.saveTracking != null,
+              )}
               divider={false}
             />
           </StepMetaCard>

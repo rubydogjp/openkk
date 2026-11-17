@@ -60,7 +60,7 @@ const LEFT_GROUPS: PLGroup[] = [
     ],
   },
   {
-    title: "差し引き金額",
+    title: "差引金額",
     rows: [{ label: "差引金額", note: "(1-6)", index: 7, height: 29 }],
   },
   {

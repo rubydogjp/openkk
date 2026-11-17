@@ -197,7 +197,7 @@ async function dispatchEmbeddedHttp(
       body: await embeddedResponseBody(backendApi, key, body),
     };
   } catch (error) {
-    return backendErrorToEmbeddedHttpResponse(error);
+    return backendErrorToEmbeddedHttpResponse(key, error);
   }
 }
 
@@ -402,7 +402,11 @@ function jsonRoundTrip<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+const UNEXPECTED_FAILURE_MESSAGE =
+  "処理できませんでした。画面を再読み込みしてください";
+
 function backendErrorToEmbeddedHttpResponse(
+  key: OpenkkHttpEndpointKey,
   error: unknown,
 ): OpenkkHttpResponse {
   if (isOpenkkApiErrorDto(error)) {
@@ -418,9 +422,16 @@ function backendErrorToEmbeddedHttpResponse(
       } satisfies OpenkkApiErrorDto,
     };
   }
+  console.error(`[openkk] ${key} failed unexpectedly:`, error);
   return {
     status: 500,
-    body: null,
+    body: {
+      messageForDeveloper: `${key} failed unexpectedly`,
+      messageForUser: UNEXPECTED_FAILURE_MESSAGE,
+      originalMessage: null,
+      statusCode: 500,
+      code: null,
+    } satisfies OpenkkApiErrorDto,
   };
 }
 

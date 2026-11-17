@@ -39,7 +39,8 @@ export class AppError extends Error implements AppErrorLike {
         options.fallbackDeveloperMessage ??
         "Engine AppError.from: non-AppError was wrapped",
       messageForUser:
-        options.fallbackUserMessage ?? "サーバー処理でエラーが発生しました",
+        options.fallbackUserMessage ??
+        "処理できませんでした。画面を再読み込みしてください",
       originalMessage: stringifyOriginalMessage(error),
       statusCode: options.statusCode,
       code: null,

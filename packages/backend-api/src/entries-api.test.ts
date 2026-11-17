@@ -5,6 +5,7 @@ import {
   MAX_ENTRY_IMPORT_ITEMS,
   MAX_ENTRY_IMPORT_LINES,
   MAX_ENTRY_LINES,
+  MAX_ENTRY_NUMBER_LENGTH,
   MAX_TEXT_FIELD_LENGTH,
 } from "@rubydogjp/openkk-engine";
 import type {
@@ -291,6 +292,20 @@ describe("backend-api entries", () => {
         }),
       ),
     ).rejects.toThrow(/character limit/);
+    await expect(
+      backendApi.entries.create(
+        "fp-1",
+        validEntryInput({ localId: "n".repeat(MAX_ENTRY_NUMBER_LENGTH + 1) }),
+      ),
+    ).rejects.toMatchObject({ messageForUser: "仕訳番号は100文字までです" });
+    expect(
+      (
+        await backendApi.entries.create(
+          "fp-1",
+          validEntryInput({ localId: "n".repeat(MAX_ENTRY_NUMBER_LENGTH) }),
+        )
+      ).localId,
+    ).toHaveLength(MAX_ENTRY_NUMBER_LENGTH);
 
     expect(
       (

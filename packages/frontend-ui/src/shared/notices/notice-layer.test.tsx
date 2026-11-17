@@ -8,7 +8,11 @@ const NO_TIMERS = { start: () => () => {} };
 
 function render(board: ReturnType<typeof createNoticeBoard>): string {
   return renderToStaticMarkup(
-    <NoticeStack notices={board.getState()} onDismiss={() => {}} />,
+    <NoticeStack
+      notices={board.getState()}
+      onDismiss={() => {}}
+      onHold={() => () => {}}
+    />,
   );
 }
 
@@ -20,7 +24,9 @@ describe("NoticeStack", () => {
   it("renders nothing but the empty layer when there is no notice", () => {
     const board = createNoticeBoard(NO_TIMERS);
 
-    expect(render(board)).toBe('<div class="bk-notice-layer"></div>');
+    expect(render(board)).toBe(
+      '<div class="bk-notice-layer" aria-live="polite"></div>',
+    );
   });
 
   it("announces failures as alerts and the rest as status, oldest first", () => {

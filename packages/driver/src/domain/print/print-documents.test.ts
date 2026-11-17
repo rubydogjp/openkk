@@ -189,6 +189,33 @@ describe("print documents", () => {
     expect(html).not.toContain("仕訳データがありません");
   });
 
+  it("tells apart ledgers of two accounts that share both name and type, and puts the year on each month", () => {
+    const html = buildGeneralLedgerDocument(
+      [
+        entry({
+          debit: "消耗品費",
+          debitType: "expense",
+          debitBookAccountId: "acct_supplies_a",
+          debitAmount: "1,000",
+          creditAmount: "1,000",
+        }),
+        entry({
+          debit: "消耗品費",
+          debitType: "expense",
+          debitBookAccountId: "acct_supplies_b",
+          debitAmount: "2,000",
+          creditAmount: "2,000",
+        }),
+      ],
+      [],
+      FINAL_HEADING,
+    );
+
+    expect(html).toContain("消耗品費（1）");
+    expect(html).toContain("消耗品費（2）");
+    expect(html).toMatch(/\d{4}年\d{1,2}月分 合計/);
+  });
+
   it("keeps a contrary opening balance in the same account ledger", () => {
     const html = buildGeneralLedgerDocument(
       [

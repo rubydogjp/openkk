@@ -226,6 +226,16 @@ export function parseJournalTableCsv(text: string): JournalTableFileRow[] {
       "以前の形式のCSVです。",
     );
   }
+  const duplicatedHeader =
+    JOURNAL_TABLE_FIELDS.map((field) => JOURNAL_TABLE_HEADERS[field]).find(
+      (headerName) => names.filter((name) => name === headerName).length > 1,
+    ) ?? null;
+  if (duplicatedHeader != null) {
+    throw journalTableFileError(
+      `journal CSV has the column ${duplicatedHeader} twice`,
+      `CSVに「${duplicatedHeader}」の列が 2 つあります。1 つにしてください。`,
+    );
+  }
   const columns = JOURNAL_TABLE_FIELDS.map((field) =>
     names.indexOf(JOURNAL_TABLE_HEADERS[field]),
   );
@@ -301,15 +311,19 @@ export function readJournalTableEntries(
   const groups = new Map<string, JournalTableFileRow[]>();
   for (const row of rows) {
     const entryNumber = row.entryNumber.trim();
-    const key = entryNumber === "" ? `row:${row.rowNumber}` : entryNumber;
+    const key =
+      entryNumber === "" ? `row:${row.rowNumber}` : `number:${entryNumber}`;
     const group = groups.get(key);
     if (group == null) groups.set(key, [row]);
     else group.push(row);
   }
-  if (groups.size > MAX_ENTRY_IMPORT_ITEMS) {
+  const unnumberedCount = rows.filter(
+    (row) => row.entryNumber.trim() === "",
+  ).length;
+  if (unnumberedCount > MAX_ENTRY_IMPORT_ITEMS) {
     report(
       rows[0]?.rowNumber ?? 1,
-      `仕訳は ${MAX_ENTRY_IMPORT_ITEMS} 件までです`,
+      `仕訳番号のない行は ${MAX_ENTRY_IMPORT_ITEMS} 行までです`,
     );
     return { ok: false, problems };
   }
@@ -341,7 +355,7 @@ export function readJournalTableEntries(
     if (businessRate == null) {
       report(
         first.rowNumber,
-        `事業割合「${first.businessRate}」は 0 から 100 の数で入れてください`,
+        `事業割合「${first.businessRate}」は 0 から 100 の数で入れてください (80% なら 80)`,
       );
       continue;
     }
@@ -625,16 +639,23 @@ function createCategoryResolver(
   };
 }
 
+const TABLE_AMOUNT_PATTERN = /^(\d{1,3}(,\d{3})+|\d+)$/;
+const TABLE_PERCENT_PATTERN = /^\d+(\.\d+)?$/;
+
 function parseTableAmount(text: string): number | null {
-  const value = Number(text.replaceAll(",", "").trim());
+  const trimmed = text.trim();
+  if (!TABLE_AMOUNT_PATTERN.test(trimmed)) return null;
+  const value = Number(trimmed.replaceAll(",", ""));
   return Number.isSafeInteger(value) && value > 0 ? value : null;
 }
 
 function parseTableBusinessRate(text: string): number | null {
-  const value = text.trim().replace(/%$/, "");
+  const value = text.trim().replace(/%$/, "").trim();
   if (value === "") return 1;
+  if (!TABLE_PERCENT_PATTERN.test(value)) return null;
   const percent = Number(value);
-  if (!Number.isFinite(percent) || percent < 0 || percent > 100) return null;
+  if (!Number.isFinite(percent) || percent > 100) return null;
+  if (percent > 0 && percent < 1) return null;
   return percent / 100;
 }
 

@@ -71,7 +71,8 @@ const BACKUP_ICON_SIZE = 16;
 const COMPACT_STATUS_LINE_HEIGHT = 1.25;
 const COMPACT_STATUS_MAX_LINES = 2;
 
-const SIDEBAR_BACKUP_STATUS_HEIGHT = 14;
+const SIDEBAR_BACKUP_STATUS_LINE_HEIGHT = 14;
+const SIDEBAR_BACKUP_STATUS_LINES = 2;
 const BACKUP_BUTTON_LABEL = "バックアップ";
 const SAVING_BACKUP_BUTTON_OPACITY = 0.62;
 const UNAVAILABLE_BACKUP_BUTTON_OPACITY = 0.38;
@@ -176,12 +177,14 @@ function SidebarBackupRow(props: {
       <div
         role="status"
         style={{
-          height: SIDEBAR_BACKUP_STATUS_HEIGHT,
+          height:
+            SIDEBAR_BACKUP_STATUS_LINE_HEIGHT * SIDEBAR_BACKUP_STATUS_LINES,
           fontSize: fontSize.xs,
           fontWeight: fontWeight.semibold,
           color: props.failed ? palette.danger : SHELL_PALETTE.subtitleColor,
-          lineHeight: `${SIDEBAR_BACKUP_STATUS_HEIGHT}px`,
-          whiteSpace: "nowrap",
+          lineHeight: `${SIDEBAR_BACKUP_STATUS_LINE_HEIGHT}px`,
+          overflow: "hidden",
+          paddingRight: 12,
         }}
       >
         {props.status}

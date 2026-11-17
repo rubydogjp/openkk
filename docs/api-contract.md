@@ -9,7 +9,7 @@
 | 受ける側の保存先 | `@rubydogjp/openkk-engine`      | `OpenkkDbPort`, `*DbRecord`, `*Db*Input`                                                  |
 | Errors           | `driver`・`engine` の domain    | `AppError`, `AppErrorLike`                                                                |
 
-使う側 (`driver`) と受ける側 (`backend-api`) は、契約を独立に定義する。食い違いは `test/package-structure.test.ts` が見つける。
+使う側 (`driver`) と受ける側 (`backend-api`) は、契約を独立に定義する。`test/package-structure.test.ts` が見つけるのは、境界の型 (名前が `Request`・`Response`・`ApiRecord`・`Input`・`ApiErrorDto` で終わるものと決めた interface) の名前と本文、エンドポイントの食い違いまで。選べる値の型 (`FiscalPeriodApiPhase` など) は比べないので、両側を手で合わせる。
 
 振る舞いの契約は `@rubydogjp/openkk-driver/backend-contract` の `BACKEND_CONTRACT_CASES` にある。口 backend (`OpenkkBackendPort`) の実装は、これに通す。
 

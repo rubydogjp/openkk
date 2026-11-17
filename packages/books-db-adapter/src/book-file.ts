@@ -30,8 +30,12 @@ export type UnreadableBookFilePeriod = {
   error: unknown;
 };
 
+export type SplitBookFilePeriod = BookFilePeriod & {
+  bookLastChangedAt: number;
+};
+
 export type BookFileSplit = {
-  periods: BookFilePeriod[];
+  periods: SplitBookFilePeriod[];
   unreadable: UnreadableBookFilePeriod[];
 };
 
@@ -71,7 +75,7 @@ async function keepOnlyPeriod(
   otherIds: readonly string[],
   expected: PeriodContent,
   lastChangedAt: number | null,
-): Promise<Uint8Array> {
+): Promise<{ bytes: Uint8Array; lastChangedAt: number }> {
   const copy = await createBookDbAdapter(bytes);
   try {
     for (const otherId of otherIds) {
@@ -87,7 +91,7 @@ async function keepOnlyPeriod(
     ) {
       throw new BookSplitMismatchError(fiscalPeriodId);
     }
-    return copy.exportBytes();
+    return { bytes: copy.exportBytes(), lastChangedAt: copy.lastChangedAt() };
   } finally {
     copy.close();
   }
@@ -98,12 +102,12 @@ async function splitOutPeriod(
   bytes: Uint8Array,
   ids: readonly string[],
   id: string,
-): Promise<BookFilePeriod> {
+): Promise<SplitBookFilePeriod> {
   const content = await readPeriodContent(source, id);
   if (content == null) throw new BookSplitMismatchError(id);
   const single =
     ids.length === 1 && !source.changedOnOpen
-      ? bytes
+      ? { bytes, lastChangedAt: source.lastChangedAt() }
       : await keepOnlyPeriod(
           bytes,
           id,
@@ -114,7 +118,8 @@ async function splitOutPeriod(
   return {
     ...content,
     lastChangedAt: source.lastChangedAtOnOpen,
-    bytes: single,
+    bytes: single.bytes,
+    bookLastChangedAt: single.lastChangedAt,
   };
 }
 

@@ -1,12 +1,14 @@
 const PRINT_FRAME_LOAD_TIMEOUT_MS = 3000;
 const PRINT_FRAME_REMOVAL_DELAY_MS = 100;
 const PRINT_FRAME_MAX_LIFETIME_MS = 60_000;
+const PRINT_FRAME_SANDBOX = "allow-same-origin allow-modals";
 
 export function openBrowserPrintFrame(html: string): void {
   if (typeof document === "undefined") return;
 
   const iframe = document.createElement("iframe");
   iframe.setAttribute("aria-hidden", "true");
+  iframe.setAttribute("sandbox", PRINT_FRAME_SANDBOX);
   iframe.tabIndex = -1;
   iframe.style.position = "fixed";
   iframe.style.right = "0";

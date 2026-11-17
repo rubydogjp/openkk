@@ -5,6 +5,7 @@ import {
   type OpenkkBookImportCase,
   type OpenkkBookImportItem,
 } from "../../ports/index.js";
+import { AppError } from "../../domain/index.js";
 
 import {
   bookFileProblemMessage,
@@ -120,5 +121,19 @@ describe("bookFileProblemMessage", () => {
       bookFileProblemMessage(new OpenkkBookFileError("books_changed")),
     ).toContain("もう一度取り込んでください");
     expect(bookFileProblemMessage(new Error("other"))).toBeNull();
+  });
+
+  it("passes on the message the receiving side wrote for the user", () => {
+    expect(
+      bookFileProblemMessage(
+        new AppError({
+          messageForDeveloper: "archive exceeds the size limit",
+          messageForUser: "保存できる容量を超えています。",
+          originalMessage: null,
+          statusCode: 400,
+          code: null,
+        }),
+      ),
+    ).toBe("保存できる容量を超えています。");
   });
 });

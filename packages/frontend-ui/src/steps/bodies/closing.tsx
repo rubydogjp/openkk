@@ -63,6 +63,8 @@ export function ClosingBody({
   const runningSectionRef = useRef<HTMLElement>(null);
   const resultSectionRef = useRef<HTMLElement>(null);
   const [animationKey, setAnimationKey] = useState(0);
+  const [isFinalizing, setIsFinalizing] = useState(false);
+  const [animationEnded, setAnimationEnded] = useState(false);
   const closingMutationLock = useRef(new ExclusiveActionLock());
   const currentFiscalPeriod = appState.currentFiscalPeriod;
   const [screenError, setScreenError] = usePeriodScopedError(
@@ -104,6 +106,12 @@ export function ClosingBody({
   useEffect(() => {
     if (showRunningAnimation) runningSectionRef.current?.focus();
   }, [showRunningAnimation]);
+
+  useEffect(() => {
+    if (showRunningAnimation && animationEnded && !isFinalizing) {
+      setShowRunningAnimation(false);
+    }
+  }, [showRunningAnimation, animationEnded, isFinalizing]);
 
   const [resultFocusPending, setResultFocusPending] = useState(false);
   const [closedInThisVisit, setClosedInThisVisit] = useState(false);
@@ -170,6 +178,8 @@ export function ClosingBody({
       if (!confirmed) return;
 
       onBusyChange(true);
+      setIsFinalizing(true);
+      setAnimationEnded(prefersReducedMotion);
       setShowRunningAnimation(true);
       setResultFocusPending(true);
       setAnimationKey((key) => key + 1);
@@ -189,6 +199,7 @@ export function ClosingBody({
         );
         await closingApi.runFinal(currentFiscalPeriod.id, entries);
       } catch (error) {
+        setIsFinalizing(false);
         setShowRunningAnimation(false);
         onBusyChange(false);
         setResultFocusPending(false);
@@ -205,9 +216,10 @@ export function ClosingBody({
         await entriesState.reloadAndWait();
         setScreenError(null);
         setClosedInThisVisit(true);
-        if (prefersReducedMotion) setShowRunningAnimation(false);
+        setIsFinalizing(false);
       } catch (error) {
         debugAppError(error);
+        setIsFinalizing(false);
         setShowRunningAnimation(false);
         onBusyChange(false);
         setScreenError(
@@ -305,7 +317,7 @@ export function ClosingBody({
               <ClosingExplainerAnimation
                 key={animationKey}
                 onCompleted={() => {
-                  setShowRunningAnimation(false);
+                  setAnimationEnded(true);
                 }}
               />
             )}

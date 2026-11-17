@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   assertClosingEntriesMatch,
   buildExpectedClosingEntries,
+  businessShareOfAmount,
   computeFixedAssetBookValue,
 } from "./closing-entries.js";
 import type { Entry } from "./models.js";
@@ -175,5 +176,22 @@ describe("computeFixedAssetBookValue", () => {
         asOf: "2026-06-30",
       }),
     ).toBe(8_363_827_879_402_282);
+  });
+});
+
+describe("businessShareOfAmount", () => {
+  it("rounds half up on the exact share where floating point falls just below", () => {
+    expect(100 * 0.145).toBeLessThan(14.5);
+    expect(businessShareOfAmount(100, 0.145)).toBe(15);
+    expect(businessShareOfAmount(1_000, 0.335)).toBe(335);
+    expect(businessShareOfAmount(5, 0.5)).toBe(3);
+    expect(businessShareOfAmount(1_000, 1)).toBe(1_000);
+    expect(businessShareOfAmount(1_000, 0)).toBe(0);
+  });
+
+  it("stays exact for the largest safe amount", () => {
+    expect(businessShareOfAmount(Number.MAX_SAFE_INTEGER, 1)).toBe(
+      Number.MAX_SAFE_INTEGER,
+    );
   });
 });

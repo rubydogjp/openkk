@@ -31,6 +31,7 @@
 - 帳簿は `openkk_meta` の `last_changed_at` に最後に変えた時刻を持ち、openkk-cli の変更でも更新される (`sqlite-db-adapter` の共通の層で記録する)。無印版は取り込むときにこの値を見て、ダイアログ「ファイルでの上書き」で確かめ、無印版の側にバックアップしていない変更があれば、それが失われることを知らせる
 - 取り込みは期間の ID で同じ期間を見分けて上書きする。`archive import` や `periods export` は期間の ID を付け直すので、無印版から見ると別に作られた期間になる (同じ日付なら、確かめたうえで帳簿ごと上書きする)。無印版に戻すつもりのファイルは、バックアップしたファイルをそのまま変える
 - 複数の期間を入れたファイルも取り込める。無印版が期間ごとの帳簿に分ける
+- openkk-cli は帳簿ファイルを SQLite の rollback journal (`journal_mode = DELETE`) で直接書き換える。書き込みが済むたびに `-journal` のファイルは消え、正常に終われば帳簿ファイルだけが残る。書き込みの途中でプロセスが止まると `<帳簿>-journal` が残る。そのときは帳簿ファイルだけを持ち出したり無印版に取り込んだりせず、先に同じファイルを openkk-cli で 1 回開く (`periods list` など)。開くと SQLite が途中の書き込みを取り消し、`-journal` が消える
 - 無印版のデータは userId `openkk-original-user` で保存されている (`packages/bundle-original/app/openkk-config.ts`)。openkk-cli も同じ userId を既定にする。ほかの userId の期間は無印版に取り込まれない
 - 26.3 までの無印版は OPFS SAHPool VFS (`legacy-db-adapter`) の 1 つの DB に置いていた。プール内のファイルは独自ヘッダ付きなのでそのままは使えず、新しい無印版が起動するときに `exportLegacyDbBytes` で標準の SQLite として読み、期間ごとの帳簿に分けて移す
 

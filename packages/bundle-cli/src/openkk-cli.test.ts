@@ -1135,6 +1135,92 @@ describe("openkk cli", () => {
     );
   });
 
+  it("refuses repeated options, a dash value without =, and --json where it does nothing, in Japanese", async () => {
+    const { run } = workspace();
+    const id = await startedPeriod(run);
+    const entry = (...extra: string[]) =>
+      run(
+        "entries",
+        "add",
+        id,
+        "--date",
+        "2026-04-01",
+        "--debit",
+        "通信費",
+        "--credit",
+        "普通預金",
+        "--amount",
+        "1000",
+        ...extra,
+      );
+
+    const repeated = await entry("--description", "回線", "--amount", "2000");
+    const dashValue = await entry("--description", "-割引");
+    const withEquals = await entry("--description=-割引");
+    const jsonOnClosing = await run("closing", "pre", id, "--json");
+    const unknown = await run("periods", "list", "--bogus");
+
+    expect(repeated.code).toBe(2);
+    expect(repeated.stderr).toContain("--amount が 2 回あります");
+    expect(dashValue.code).toBe(2);
+    expect(dashValue.stderr).toContain(
+      "--description の値が - で始まるときは --description=-割引",
+    );
+    expect(withEquals.code).toBe(0);
+    expect(jsonOnClosing.code).toBe(2);
+    expect(jsonOnClosing.stderr).toContain(
+      "--json は closing pre では使えません",
+    );
+    expect(unknown.stderr).toContain("--bogus というオプションはありません");
+  });
+
+  it("shows control characters from the book as escapes and warns before writing as another user", async () => {
+    const { run } = workspace();
+    const id = await startedPeriod(run);
+    await run(
+      "entries",
+      "add",
+      id,
+      "--date",
+      "2026-04-01",
+      "--debit",
+      "通信費",
+      "--credit",
+      "普通預金",
+      "--amount",
+      "1000",
+      "--description",
+      "回線\u001b[2Jおわり",
+    );
+    const listed = await run("entries", "list", id);
+    const otherUser = await run(
+      "--user",
+      "someone",
+      "periods",
+      "create",
+      "--name",
+      "別の人の期間",
+      "--start",
+      "2030-01-01",
+      "--end",
+      "2030-12-31",
+    );
+    const otherUserList = await run("--user", "someone", "periods", "list");
+
+    expect(listed.stdout).not.toContain("\u001b");
+    expect(listed.stdout).toContain("回線\\u001b[2Jおわり");
+    expect(otherUser.code).toBe(0);
+    expect(otherUser.stderr).toContain("注意: --user someone で書いた期間は");
+    expect(otherUserList.stderr).toBe("");
+  });
+
+  it("leaves only the book file behind after writing, without a rollback journal", async () => {
+    const { cwd, run } = workspace();
+    await startedPeriod(run);
+
+    expect(fs.readdirSync(cwd).sort()).toEqual([DEFAULT_CLI_FILE]);
+  });
+
   it("rejects unknown commands and options as usage errors", async () => {
     const { run } = workspace();
     await run("init");

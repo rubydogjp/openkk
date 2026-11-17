@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useRef, useSyncExternalStore } from "react";
 
 import {
   fontSize,
@@ -58,13 +58,34 @@ function NoticeToneIcon(props: { tone: NoticeTone }) {
   }
 }
 
-function NoticeCard(props: { notice: Notice; onDismiss: () => void }) {
+function NoticeCard(props: {
+  notice: Notice;
+  onDismiss: () => void;
+  onHold: () => () => void;
+}) {
   const { notice } = props;
+  const releaseHover = useRef<(() => void) | null>(null);
+  const releaseFocus = useRef<(() => void) | null>(null);
+  const holdWith = (slot: { current: (() => void) | null }) => {
+    if (slot.current == null) slot.current = props.onHold();
+  };
+  const releaseWith = (slot: { current: (() => void) | null }) => {
+    slot.current?.();
+    slot.current = null;
+  };
   const endsWithControl = notice.action != null || notice.closable;
   return (
     <div
       role={notice.tone === "danger" ? "alert" : "status"}
       data-notice-tone={notice.tone}
+      onMouseEnter={() => holdWith(releaseHover)}
+      onMouseLeave={() => releaseWith(releaseHover)}
+      onFocus={() => holdWith(releaseFocus)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          releaseWith(releaseFocus);
+        }
+      }}
       style={{
         pointerEvents: "auto",
         width: "100%",
@@ -137,14 +158,16 @@ function NoticeCard(props: { notice: Notice; onDismiss: () => void }) {
 export function NoticeStack(props: {
   notices: ReadonlyArray<Notice>;
   onDismiss: (key: string) => void;
+  onHold: () => () => void;
 }) {
   return (
-    <div className="bk-notice-layer">
+    <div className="bk-notice-layer" aria-live="polite">
       {props.notices.map((notice) => (
         <NoticeCard
           key={notice.key}
           notice={notice}
           onDismiss={() => props.onDismiss(notice.key)}
+          onHold={props.onHold}
         />
       ))}
     </div>
@@ -158,5 +181,11 @@ export function NoticeLayer(props: { board: NoticeBoard }) {
     board.getState,
     () => NO_NOTICES,
   );
-  return <NoticeStack notices={notices} onDismiss={board.dismiss} />;
+  return (
+    <NoticeStack
+      notices={notices}
+      onDismiss={board.dismiss}
+      onHold={board.hold}
+    />
+  );
 }

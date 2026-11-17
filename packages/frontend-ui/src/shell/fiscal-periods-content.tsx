@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import {
   AppError,
   fiscalPeriodPhaseLabel,
+  MAX_FISCAL_PERIOD_ARCHIVE_BYTES,
   type FiscalPeriod,
   type OpenkkFiscalPeriodLabel,
 } from "@rubydogjp/openkk-driver";
@@ -51,6 +52,9 @@ import { UnavailableFiscalPeriodRow } from "./unavailable-fiscal-period-row.js";
 
 const UNREADABLE_PERIOD_REASON = "読み込めませんでした";
 const NO_FISCAL_PERIOD_LABELS: readonly OpenkkFiscalPeriodLabel[] = [];
+
+const FILE_BUTTON_MIN_WIDTH = 116;
+const BOOK_FILE_TOO_LARGE_MESSAGE = "このファイルは大きすぎて取り込めません。";
 
 export function FiscalPeriodsContent() {
   const router = useRouter();
@@ -107,6 +111,10 @@ export function FiscalPeriodsContent() {
 
   const handleBookFile = async (file: File) => {
     if (bookFiles == null) return;
+    if (file.size > MAX_FISCAL_PERIOD_ARCHIVE_BYTES) {
+      showImportFailure(bookImportError(BOOK_FILE_TOO_LARGE_MESSAGE));
+      return;
+    }
     const release = archiveImportLock.current.tryAcquire();
     if (release == null) return;
     setIsImportingArchive(true);
@@ -234,6 +242,7 @@ export function FiscalPeriodsContent() {
                   aria-expanded={fileMenuOpen}
                   style={{
                     height: 34,
+                    minWidth: FILE_BUTTON_MIN_WIDTH,
                     padding: "0 14px",
                     borderRadius: radii.sm,
                     border: `1px solid ${palette.borderStrong}`,
@@ -304,6 +313,8 @@ export function FiscalPeriodsContent() {
 
         <FiscalPeriodsTable
           canImportFile={showFileMenu}
+          canAdd={!editingLocked}
+          loading={!appState.fiscalPeriodsLoaded}
           items={appState.fiscalPeriods}
           unavailable={[
             ...unreadableFiscalPeriods.map((period) => ({
@@ -381,8 +392,12 @@ function FiscalPeriodsTable({
   unavailable,
   onSelect,
   canImportFile,
+  canAdd,
+  loading,
 }: {
   canImportFile: boolean;
+  canAdd: boolean;
+  loading: boolean;
   items: FiscalPeriod[];
   unavailable: ReadonlyArray<{
     period: OpenkkFiscalPeriodLabel;
@@ -424,7 +439,11 @@ function FiscalPeriodsTable({
         .bk-fiscal-period-row.is-clickable:hover { background: ${palette.hoverStrong} !important; }
       `}</style>
       {isEmpty ? (
-        <FiscalPeriodsEmptyState canImportFile={canImportFile} />
+        <FiscalPeriodsEmptyState
+          canImportFile={canImportFile}
+          canAdd={canAdd}
+          loading={loading}
+        />
       ) : (
         <div
           className="bk-fiscal-periods-scroll"
@@ -583,8 +602,12 @@ function FiscalPeriodRow({
 
 function FiscalPeriodsEmptyState({
   canImportFile,
+  canAdd,
+  loading,
 }: {
   canImportFile: boolean;
+  canAdd: boolean;
+  loading: boolean;
 }) {
   return (
     <div
@@ -621,7 +644,7 @@ function FiscalPeriodsEmptyState({
             color: palette.text,
           }}
         >
-          期間がありません
+          {loading ? "読み込んでいます" : "期間がありません"}
         </div>
         <div
           style={{
@@ -631,9 +654,11 @@ function FiscalPeriodsEmptyState({
             lineHeight: 1.7,
           }}
         >
-          {canImportFile
-            ? "上の「追加」で作るか、「ファイル」からバックアップを取り込めます。"
-            : "上の「追加」ボタンから 1 件目を作成できます。"}
+          {loading || !canAdd
+            ? ""
+            : canImportFile
+              ? "上の「追加」で作るか、「ファイル」からバックアップを取り込めます。"
+              : "上の「追加」ボタンから 1 件目を作成できます。"}
         </div>
       </div>
     </div>

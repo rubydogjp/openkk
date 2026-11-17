@@ -193,7 +193,10 @@ function buildBusinessRateTransfer(input: {
       ) {
         continue;
       }
-      const businessAmount = Math.round(entryLine.amount * entry.businessRate);
+      const businessAmount = businessShareOfAmount(
+        entryLine.amount,
+        entry.businessRate,
+      );
       const personalAmount = entryLine.amount - businessAmount;
       if (personalAmount <= 0) continue;
       const sign = entryLine.side === "debit" ? 1 : -1;
@@ -302,6 +305,21 @@ export function computeFixedAssetBookValue(input: {
   asOf: string;
 }): number {
   return computeDepreciationSnapshot(input).currentBookValue;
+}
+
+const BUSINESS_RATE_SCALE = 1_000_000n;
+
+export function businessShareOfAmount(amount: number, rate: number): number {
+  if (!Number.isSafeInteger(amount) || !Number.isFinite(rate)) {
+    return Math.round(amount * rate);
+  }
+  const rateUnits = BigInt(Math.round(rate * Number(BUSINESS_RATE_SCALE)));
+  const doubled = BigInt(amount) * rateUnits * 2n;
+  const share =
+    doubled >= 0n
+      ? (doubled + BUSINESS_RATE_SCALE) / (2n * BUSINESS_RATE_SCALE)
+      : -((-doubled + BUSINESS_RATE_SCALE - 1n) / (2n * BUSINESS_RATE_SCALE));
+  return Number(share);
 }
 
 function fixedAssetDescription(name: string, suffix: string): string {

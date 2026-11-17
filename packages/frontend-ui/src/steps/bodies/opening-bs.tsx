@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import {
   AppError,
@@ -26,7 +33,7 @@ import {
   typography,
 } from "../../shared/design-tokens.js";
 import { LockButton } from "../../shared/locked-action.js";
-import { FormStyles } from "../../shared/form-fields.js";
+import { FormMessageSlot, FormStyles } from "../../shared/form-fields.js";
 import { ExclusiveActionLock } from "../../shared/exclusive-action-lock.js";
 import {
   StepCallout,
@@ -61,6 +68,7 @@ export function OpeningBsBody({
   const [isSaving, setIsSaving] = useState(false);
   const saveLock = useRef(new ExclusiveActionLock());
   const [isEditingCompleted, setIsEditingCompleted] = useState(false);
+  const amountsProblemId = useId();
   const currentFiscalPeriod = appState.currentFiscalPeriod;
 
   const openingBalanceLines = currentFiscalPeriod?.opening.balanceLines ?? [];
@@ -217,11 +225,20 @@ export function OpeningBsBody({
           </StepCallout>
         ) : null}
 
-        {!isPeriodLocked && !editingLocked && isCompleted && !isEditing ? (
-          <SavedOpeningBsNotice onEdit={() => setIsEditingCompleted(true)} />
+        {!isPeriodLocked && !editingLocked && isCompleted ? (
+          <SavedOpeningBsNotice
+            isEditing={isEditing}
+            canCarryOver={carryoverSources.length > 0}
+            onEdit={() => setIsEditingCompleted(true)}
+            onCancel={() => {
+              setAmounts(buildInitialAmounts(openingBalanceLines));
+              setIsEditingCompleted(false);
+              setScreenError(null);
+            }}
+          />
         ) : null}
 
-        {carryoverSources.length > 0 && !isEditingCompleted ? (
+        {carryoverSources.length > 0 ? (
           <OpeningBsCarryover
             target={currentFiscalPeriod}
             sources={carryoverSources}
@@ -288,18 +305,16 @@ export function OpeningBsBody({
           </div>
         </div>
 
-        {isEditing && !amountsAreWhole ? (
-          <StepCallout tone="warning">
-            金額は 0 以上の整数で入れてください。
-          </StepCallout>
-        ) : isEditing && !amountsAreSafe ? (
-          <StepCallout tone="warning">
-            金額や合計が大きすぎます。9,000 兆円未満にしてください。
-          </StepCallout>
-        ) : isEditing && !balancesMatch ? (
-          <StepCallout tone="warning">
-            資産合計と負債・純資産合計を一致させてください。
-          </StepCallout>
+        {isEditing ? (
+          <FormMessageSlot tone="error" id={amountsProblemId}>
+            {!amountsAreWhole
+              ? "金額は 0 以上の整数で入れてください。"
+              : !amountsAreSafe
+                ? "金額や合計が大きすぎます。9,000 兆円未満にしてください。"
+                : !balancesMatch
+                  ? "資産合計と負債・純資産合計を一致させてください。"
+                  : null}
+          </FormMessageSlot>
         ) : null}
 
         <div
@@ -326,7 +341,7 @@ export function OpeningBsBody({
             </StepPrimaryButton>
           ) : (
             <StepPrimaryButton
-              describedBy={null}
+              describedBy={balancesMatch ? null : amountsProblemId}
               onClick={handleSave}
               disabled={isSaving || !balancesMatch}
               variant="success"
@@ -357,7 +372,17 @@ function formatOpeningTotal(value: number | null): string {
   return value == null ? "—" : formatAmount(value);
 }
 
-function SavedOpeningBsNotice({ onEdit }: { onEdit: () => void }) {
+function SavedOpeningBsNotice({
+  isEditing,
+  canCarryOver,
+  onEdit,
+  onCancel,
+}: {
+  isEditing: boolean;
+  canCarryOver: boolean;
+  onEdit: () => void;
+  onCancel: () => void;
+}) {
   return (
     <StepCallout tone="info">
       <div
@@ -375,7 +400,7 @@ function SavedOpeningBsNotice({ onEdit }: { onEdit: () => void }) {
             lineHeight: 1.5,
           }}
         >
-          保存済み
+          {isEditing ? "編集中" : "保存済み"}
         </div>
         <div
           style={{
@@ -384,7 +409,9 @@ function SavedOpeningBsNotice({ onEdit }: { onEdit: () => void }) {
             lineHeight: 1.6,
           }}
         >
-          仮締めまでの間は、いつでも金額を編集したり、前の期間から引き継ぎ直したりできます
+          {canCarryOver
+            ? "仮締めまでの間は、いつでも金額を編集したり、前の期間から引き継ぎ直したりできます"
+            : "仮締めまでの間は、いつでも金額を編集できます"}
         </div>
         <div
           style={{
@@ -395,7 +422,7 @@ function SavedOpeningBsNotice({ onEdit }: { onEdit: () => void }) {
         >
           <button
             type="button"
-            onClick={onEdit}
+            onClick={isEditing ? onCancel : onEdit}
             style={{
               height: sizes.button.compactHeight,
               minWidth: sizes.button.compactMinWidth,
@@ -412,7 +439,7 @@ function SavedOpeningBsNotice({ onEdit }: { onEdit: () => void }) {
               gap: spacing.s8,
             }}
           >
-            <span>編集する</span>
+            <span>{isEditing ? "キャンセル" : "編集する"}</span>
           </button>
         </div>
       </div>

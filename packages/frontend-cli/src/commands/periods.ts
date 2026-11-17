@@ -118,7 +118,7 @@ export async function runPeriodsCommand(
           output.line(
             carriedOver
               ? "期首のBSと固定資産を引き継ぎました"
-              : `${source.name} はまだ本締めと書類の受け取りを終えていないので、引き継いでいません。終えたら openkk --file ${bookPath} opening carry ${period.id} --from ${input.bookPath} で引き継げます`,
+              : `${source.name} はまだ本締めと書類の受け取りを終えていないので、引き継いでいません。終えたら openkk --file ${shellQuoted(bookPath)} opening carry ${period.id} --from ${shellQuoted(input.bookPath)} で引き継げます`,
           );
         });
         return;
@@ -188,4 +188,8 @@ function formatPeriodDetail(period: FiscalPeriodApiRecord): string {
     `期首のBS: ${period.openingBalancesCompleted ? "入力済み" : "未入力"}`,
     `書類の受け取り: ${period.documentsReceivedCompleted ? "済み" : "まだ"}`,
   ].join("\n");
+}
+
+function shellQuoted(value: string): string {
+  return `'${value.replaceAll("'", "'\\''")}'`;
 }

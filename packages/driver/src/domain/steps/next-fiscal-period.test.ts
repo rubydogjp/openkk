@@ -60,16 +60,20 @@ describe("findCreatedNextFiscalPeriod", () => {
     ).toBe(year2027);
   });
 
-  it("finds a next period whose dates only partly match the suggestion", () => {
-    const shortYear = {
+  it("counts only the period that starts the day after, whatever its end", () => {
+    const halfYear = { ...year2027, endDate: "2027-06-30" };
+    const startsLater = {
       ...year2027,
       startDate: "2027-04-01",
       endDate: "2028-03-31",
     };
 
-    expect(findCreatedNextFiscalPeriod(year2026, [year2026, shortYear])).toBe(
-      shortYear,
+    expect(findCreatedNextFiscalPeriod(year2026, [year2026, halfYear])).toBe(
+      halfYear,
     );
+    expect(
+      findCreatedNextFiscalPeriod(year2026, [year2026, startsLater]),
+    ).toBeNull();
   });
 
   it("finds nothing when no later period exists or the earliest one leaves the next dates free", () => {

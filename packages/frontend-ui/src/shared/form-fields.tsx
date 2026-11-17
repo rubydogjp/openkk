@@ -183,27 +183,16 @@ function ReadOnlyDate({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function FormNoteText({ children }: { children: ReactNode }) {
-  return (
-    <p
-      style={{
-        margin: `${spacing.s12} 0 0`,
-        color: palette.textSoft,
-        ...typography.helper,
-        fontWeight: fontWeight.semibold,
-      }}
-    >
-      {children}
-    </p>
-  );
-}
+export type FormMessageTone = "error" | "note";
 
-export function FormErrorText({
-  children,
+export function FormMessageSlot({
+  tone,
   id,
+  children,
 }: {
-  children: ReactNode;
+  tone: FormMessageTone;
   id: string | null;
+  children: ReactNode | null;
 }) {
   return (
     <p
@@ -211,7 +200,8 @@ export function FormErrorText({
       role="status"
       style={{
         margin: `${spacing.s12} 0 0`,
-        color: palette.danger,
+        minHeight: "1lh",
+        color: tone === "error" ? palette.danger : palette.textSoft,
         ...typography.helper,
         fontWeight: fontWeight.semibold,
       }}

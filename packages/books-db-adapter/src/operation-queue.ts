@@ -30,3 +30,22 @@ export function runThroughQueue<Namespace extends object>(
     },
   });
 }
+
+export function waitingAfterChanges<Namespace extends object>(
+  namespace: Namespace,
+  changeCount: () => number,
+  waitUntilWritten: (changedSince: number) => Promise<void>,
+): Namespace {
+  return new Proxy(namespace, {
+    get(target, property, receiver) {
+      const member = Reflect.get(target, property, receiver) as unknown;
+      if (typeof member !== "function") return member;
+      return async (...args: unknown[]) => {
+        const before = changeCount();
+        const result = (await Reflect.apply(member, target, args)) as unknown;
+        if (changeCount() !== before) await waitUntilWritten(before);
+        return result;
+      };
+    },
+  });
+}

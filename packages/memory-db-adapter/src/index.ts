@@ -24,14 +24,21 @@ function initializeSqliteWasm() {
   return initialization;
 }
 
+export type MemoryDbAdapter = OpenkkDbPort & { close(): void };
+
 export async function createMemoryDbAdapter(
   seed: DbSnapshot | null,
-): Promise<OpenkkDbPort> {
+): Promise<MemoryDbAdapter> {
   const sqlite3 = await initializeSqliteWasm();
   const db = new sqlite3.oo1.DB(":memory:");
-  runMigrations(db);
-
-  const sync = db as unknown as { exec(arg: unknown): unknown };
-  const sqlDb: SqlDb = { exec: async (arg) => sync.exec(arg) };
-  return createSqliteDbAdapter(sqlDb, seed);
+  try {
+    runMigrations(db);
+    const sync = db as unknown as { exec(arg: unknown): unknown };
+    const sqlDb: SqlDb = { exec: async (arg) => sync.exec(arg) };
+    const port = await createSqliteDbAdapter(sqlDb, seed);
+    return { ...port, close: () => db.close() };
+  } catch (error) {
+    db.close();
+    throw error;
+  }
 }

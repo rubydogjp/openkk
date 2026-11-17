@@ -18,6 +18,7 @@ import {
   typography,
   VIEWPORT_HEIGHT,
 } from "./design-tokens.js";
+import { useOpenkkToday } from "../bindings/index.js";
 import { useModalLifecycle } from "./dismissible-layer.js";
 import type { IconProps } from "./icons.js";
 
@@ -105,6 +106,7 @@ function DatePickerDialog(props: {
   onCancel: () => void;
 }) {
   const titleId = useId();
+  const today = useOpenkkToday();
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useModalLifecycle<HTMLDivElement>(
     props.onCancel,
@@ -115,7 +117,7 @@ function DatePickerDialog(props: {
   const maxDate =
     props.maxDate == null ? null : parseIsoLocalDate(props.maxDate);
   const initial = clampDateToBounds(
-    parseIsoLocalDate(props.value) ?? new Date(),
+    parseIsoLocalDate(props.value) ?? today,
     minDate,
     maxDate,
   );

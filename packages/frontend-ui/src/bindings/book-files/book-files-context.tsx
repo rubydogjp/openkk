@@ -14,6 +14,7 @@ import type {
   OpenkkBookFileSubject,
   OpenkkBookStorageStatus,
   OpenkkFiscalPeriodLabel,
+  OpenkkLegacyBookChanges,
 } from "@rubydogjp/openkk-driver";
 
 export type OpenkkBookFile = OpenkkBookFileState & {
@@ -115,5 +116,25 @@ export function useOpenkkBookStorage(): OpenkkBookStorage | null {
             retry: () => saveTracking.retryStorage(),
           },
     [saveTracking, status],
+  );
+}
+
+export function useOpenkkLegacyBookChanges(): OpenkkLegacyBookChanges | null {
+  const saveTracking = useContext(BookFilesContext)?.saveTracking ?? null;
+  const store = useMemo(
+    () =>
+      saveTracking == null
+        ? { subscribe: subscribeNothing, getSnapshot: noState }
+        : {
+            subscribe: (listener: () => void) =>
+              saveTracking.subscribe(listener),
+            getSnapshot: () => saveTracking.getLegacyBookChanges(),
+          },
+    [saveTracking],
+  );
+  return useSyncExternalStore(
+    store.subscribe,
+    store.getSnapshot,
+    store.getSnapshot,
   );
 }

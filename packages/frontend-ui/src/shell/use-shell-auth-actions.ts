@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { createContext, useContext, useRef, useState } from "react";
 
 import {
   usePlatformAdapter,
@@ -14,7 +14,25 @@ import { ExclusiveActionLock } from "../shared/exclusive-action-lock.js";
 import { useOpenkkNotices } from "../shared/notices/notices.js";
 import { useRouter } from "../routing/routing.js";
 
-export function useShellAuthActions() {
+export type ShellAuthActions = {
+  authActionPending: boolean;
+  signIn: () => void;
+  signOut: () => void;
+};
+
+export const ShellAuthActionsContext = createContext<ShellAuthActions | null>(
+  null,
+);
+
+export function useSharedShellAuthActions(): ShellAuthActions {
+  const shared = useContext(ShellAuthActionsContext);
+  if (shared == null) {
+    throw new Error("ShellAuthActionsContext is not provided");
+  }
+  return shared;
+}
+
+export function useShellAuthActions(): ShellAuthActions {
   const appState = useOpenkkAppState();
   const openkkConfig = useOpenkkConfig();
   const navigation = usePlatformAdapter().navigation;

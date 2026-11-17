@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   OpenkkBookFileError,
@@ -14,6 +14,8 @@ import {
 import {
   BOOK_SAVE_REMINDER_INTERVAL_MS,
   createLocalBookFilesAdapter,
+  type LegacyBookChangedPeriod,
+  type LegacyBookWatch,
 } from "./index.js";
 
 const openAdapters: BooksDbAdapter[] = [];
@@ -61,6 +63,10 @@ const MERGED_FROM_PREVIOUS_VERSION = [
 ];
 
 async function openApp() {
+  return openAppWatching(null);
+}
+
+async function openAppWatching(legacyBookWatch: LegacyBookWatch | null) {
   const books = await openTestBooks(emptyStore());
   const values = new Map<string, string>();
   const delivered: Array<{ fileName: string; bytes: Uint8Array }> = [];
@@ -72,6 +78,7 @@ async function openApp() {
     books: books.adapter,
     legacyUnmovedFiscalPeriods: UNMOVED_FROM_PREVIOUS_VERSION,
     legacyMergedFiscalPeriods: MERGED_FROM_PREVIOUS_VERSION,
+    legacyBookWatch,
     userId: USER,
     storage: {
       getItem: (key) => values.get(key) ?? null,
@@ -135,6 +142,7 @@ describe("book files adapter: save", () => {
       books: books.adapter,
       legacyUnmovedFiscalPeriods: [],
       legacyMergedFiscalPeriods: [],
+      legacyBookWatch: null,
       userId: USER,
       storage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
       now: () => 0,
@@ -167,6 +175,7 @@ describe("book files adapter: save", () => {
       },
       legacyUnmovedFiscalPeriods: [],
       legacyMergedFiscalPeriods: [],
+      legacyBookWatch: null,
       userId: USER,
       storage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
       now: () => app.state.now,
@@ -354,6 +363,7 @@ describe("book files adapter: import", () => {
       books: outside.adapter,
       legacyUnmovedFiscalPeriods: [],
       legacyMergedFiscalPeriods: [],
+      legacyBookWatch: null,
       userId: USER,
       storage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
       now: () => app.state.now,
@@ -493,5 +503,212 @@ describe("book files adapter: import", () => {
     app.files.forgetFiscalPeriod(period.id);
 
     expect([...app.values.keys()]).toEqual([]);
+  });
+});
+
+function watchReturning(changed: LegacyBookChangedPeriod[]) {
+  const accepted: Array<ReadonlyMap<string, number>> = [];
+  let resolveChanges: (changes: LegacyBookChangedPeriod[]) => void = () => {};
+  const changes = new Promise<LegacyBookChangedPeriod[]>((resolve) => {
+    resolveChanges = resolve;
+  });
+  const watch: LegacyBookWatch = {
+    detectChanges: async () => ({
+      changed: await changes,
+      removed: [
+        { name: "2022年分", startDate: "2022-01-01", endDate: "2022-12-31" },
+      ],
+      accept: (movedLastChangedAt) => {
+        accepted.push(movedLastChangedAt);
+      },
+    }),
+  };
+  return { watch, accepted, release: () => resolveChanges(changed) };
+}
+
+async function previousVersionBytes(
+  app: Awaited<ReturnType<typeof openApp>>,
+  fiscalPeriodId: string,
+  name: string,
+): Promise<Uint8Array> {
+  const previous = await openApp();
+  await (
+    await previous.files.inspect(
+      (await app.books.adapter.exportBook(fiscalPeriodId))!.bytes,
+    )
+  ).apply();
+  await previous.db.fiscalPeriods.patch(fiscalPeriodId, { name });
+  return (await previous.books.adapter.exportBook(fiscalPeriodId))!.bytes;
+}
+
+describe("book files adapter: changes made in the previous version", () => {
+  it("passes on nothing until the previous version has been checked", async () => {
+    const pending = watchReturning([]);
+    const app = await openAppWatching(pending.watch);
+
+    expect(app.files.saveTracking.getLegacyBookChanges()).toBeNull();
+    pending.release();
+    await vi.waitFor(() =>
+      expect(app.files.saveTracking.getLegacyBookChanges()).toEqual({
+        changedFiscalPeriods: [],
+        removedFiscalPeriods: [
+          { name: "2022年分", startDate: "2022-01-01", endDate: "2022-12-31" },
+        ],
+      }),
+    );
+  });
+
+  it("moves a period changed only in the previous version and remembers the book it made", async () => {
+    const seed = await openApp();
+    const period = await seed.db.fiscalPeriods.create(USER, period2026);
+    const movedBytes = (await seed.books.adapter.exportBook(period.id))!.bytes;
+    const changedBytes = await previousVersionBytes(
+      seed,
+      period.id,
+      "前の版で変えた",
+    );
+    const movedLastChangedAt = seed.books.adapter.lastChangedAt(period.id);
+    const label = { ...period2026, name: "前の版で変えた" };
+    const { watch, accepted, release } = watchReturning([
+      {
+        fiscalPeriodId: period.id,
+        label,
+        bytes: changedBytes,
+        movedLastChangedAt,
+      },
+    ]);
+    const watched = await openAppWatching(watch);
+    await (await watched.files.inspect(movedBytes)).apply();
+    const stampInApp = watched.books.adapter.lastChangedAt(period.id);
+    release();
+    await vi.waitFor(() =>
+      expect(
+        watched.files.saveTracking.getLegacyBookChanges()?.changedFiscalPeriods,
+      ).toEqual([label]),
+    );
+
+    expect(stampInApp).toBe(movedLastChangedAt);
+    expect(watched.files.saveTracking.legacyChangesOverwritingApp()).toEqual(
+      [],
+    );
+    const moved = await watched.files.saveTracking.moveLegacyBookChanges();
+
+    expect(moved).toEqual({
+      fiscalPeriodIds: [period.id],
+      allBooksStored: true,
+    });
+    expect((await watched.db.fiscalPeriods.getById(period.id))?.name).toBe(
+      "前の版で変えた",
+    );
+    expect(accepted).toEqual([
+      new Map([[period.id, watched.books.adapter.lastChangedAt(period.id)]]),
+    ]);
+    expect(watched.files.saveTracking.getLegacyBookChanges()).toBeNull();
+  });
+
+  it("names the periods whose changes in the app the move would overwrite", async () => {
+    const seed = await openApp();
+    const period = await seed.db.fiscalPeriods.create(USER, period2026);
+    const movedBytes = (await seed.books.adapter.exportBook(period.id))!.bytes;
+    const changedBytes = await previousVersionBytes(
+      seed,
+      period.id,
+      "前の版で変えた",
+    );
+    const label = { ...period2026, name: "前の版で変えた" };
+    const { watch, release } = watchReturning([
+      {
+        fiscalPeriodId: period.id,
+        label,
+        bytes: changedBytes,
+        movedLastChangedAt: null,
+      },
+    ]);
+    const app = await openAppWatching(watch);
+    await (await app.files.inspect(movedBytes)).apply();
+    release();
+    await vi.waitFor(() =>
+      expect(app.files.saveTracking.getLegacyBookChanges()).not.toBeNull(),
+    );
+
+    expect(app.files.saveTracking.legacyChangesOverwritingApp()).toEqual([
+      label,
+    ]);
+    await app.files.saveTracking.moveLegacyBookChanges();
+    expect((await app.db.fiscalPeriods.getById(period.id))?.name).toBe(
+      "前の版で変えた",
+    );
+  });
+
+  it("adds a period that only the previous version has", async () => {
+    const elsewhere = await openApp();
+    const other = await elsewhere.db.fiscalPeriods.create(USER, period2027);
+    const bytes = (await elsewhere.books.adapter.exportBook(other.id))!.bytes;
+    const { watch, accepted, release } = watchReturning([
+      {
+        fiscalPeriodId: other.id,
+        label: period2027,
+        bytes,
+        movedLastChangedAt: null,
+      },
+    ]);
+    const app = await openAppWatching(watch);
+    release();
+    await vi.waitFor(() =>
+      expect(app.files.saveTracking.getLegacyBookChanges()).not.toBeNull(),
+    );
+
+    expect(app.files.saveTracking.legacyChangesOverwritingApp()).toEqual([]);
+    await app.files.saveTracking.moveLegacyBookChanges();
+
+    expect(
+      (await app.db.fiscalPeriods.getAll(USER)).map(({ id }) => id),
+    ).toEqual([other.id]);
+    expect(app.files.saveTracking.getState(other)?.hasUnsavedChanges).toBe(
+      true,
+    );
+    expect(accepted).toHaveLength(1);
+  });
+
+  it("keeps the changes and remembers nothing when a period cannot be moved", async () => {
+    const elsewhere = await openApp();
+    const other = await elsewhere.db.fiscalPeriods.create(USER, period2026);
+    const bytes = (await elsewhere.books.adapter.exportBook(other.id))!.bytes;
+    const { watch, accepted, release } = watchReturning([
+      {
+        fiscalPeriodId: other.id,
+        label: period2026,
+        bytes,
+        movedLastChangedAt: null,
+      },
+    ]);
+    const app = await openAppWatching(watch);
+    const mine = await app.db.fiscalPeriods.create(USER, period2026);
+    release();
+    await vi.waitFor(() =>
+      expect(app.files.saveTracking.getLegacyBookChanges()).not.toBeNull(),
+    );
+
+    await expect(
+      app.files.saveTracking.moveLegacyBookChanges(),
+    ).rejects.toMatchObject({ problem: "books_changed" });
+    expect(accepted).toEqual([]);
+    expect(app.files.saveTracking.getLegacyBookChanges()).not.toBeNull();
+    expect(
+      (await app.db.fiscalPeriods.getAll(USER)).map(({ id }) => id),
+    ).toEqual([mine.id]);
+  });
+
+  it("tells nothing when the previous version cannot be checked", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const app = await openAppWatching({
+      detectChanges: async () => {
+        throw new Error("the previous version could not be read");
+      },
+    });
+    await vi.waitFor(() => expect(logged).toHaveBeenCalled());
+
+    expect(app.files.saveTracking.getLegacyBookChanges()).toBeNull();
+    logged.mockRestore();
   });
 });

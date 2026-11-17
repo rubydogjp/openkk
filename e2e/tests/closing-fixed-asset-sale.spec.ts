@@ -53,7 +53,7 @@ test.describe("固定資産の売却 → 締めフローの帳票一貫性", () 
     await expectStep(page, "日々の仕訳");
     await clickButton(page, "仮締めを実行");
     await clickButton(page, "実行する");
-    await clickButton(page, "実行する");
+    await clickButton(page, "期中に仮締めする");
     await clickButton(page, "次の手順へ");
     await expectStep(page, "本締め");
     await saveScreenshot(page, SHOTS, "02-pre-closing-documents");

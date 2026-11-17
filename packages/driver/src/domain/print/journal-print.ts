@@ -44,9 +44,9 @@ const ROW_HEIGHT_BUDGET = PORTRAIT_TABLE_HEIGHT_BUDGET - HEADER_HEIGHT;
 const HEADER_CELL_STYLE =
   "border:1px solid #1D4ED8;background:#EEF5FF;color:#1D4ED8;font-weight:700;padding:5px 4px;text-align:center;line-height:1.3;";
 const BODY_CELL_STYLE =
-  "border:1px solid #1D4ED8;color:#111827;background:#FFFFFF;padding:5px 4px;vertical-align:top;line-height:1.3;";
+  "border:1px solid #1D4ED8;color:#111827;background:#FFFFFF;padding:5px 4px;vertical-align:top;line-height:1.3;overflow-wrap:anywhere;";
 const BAND_CELL_STYLE =
-  "border:1px solid #1D4ED8;color:#111827;background:#EEF5FF;padding:5px 4px;font-weight:700;vertical-align:top;line-height:1.3;";
+  "border:1px solid #1D4ED8;color:#111827;background:#EEF5FF;padding:5px 4px;font-weight:700;vertical-align:top;line-height:1.3;overflow-wrap:anywhere;";
 
 export function buildJournalBody(
   entries: EntryRecord[],

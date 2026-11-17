@@ -61,10 +61,18 @@ export type OpenkkFiscalPeriodLabel = {
   endDate: string | null;
 };
 
+export type OpenkkLegacyBookChanges = {
+  changedFiscalPeriods: readonly OpenkkFiscalPeriodLabel[];
+  removedFiscalPeriods: readonly OpenkkFiscalPeriodLabel[];
+};
+
 export interface OpenkkBookSaveTracking {
   readonly unreadableFiscalPeriods: readonly OpenkkFiscalPeriodLabel[];
   readonly legacyUnmovedFiscalPeriods: readonly OpenkkFiscalPeriodLabel[];
   readonly legacyMergedFiscalPeriods: readonly OpenkkFiscalPeriodLabel[];
+  getLegacyBookChanges(): OpenkkLegacyBookChanges | null;
+  legacyChangesOverwritingApp(): readonly OpenkkFiscalPeriodLabel[];
+  moveLegacyBookChanges(): Promise<OpenkkBookImportResult>;
   getStorageStatus(): OpenkkBookStorageStatus;
   getState(fiscalPeriod: OpenkkBookFileSubject): OpenkkBookFileState | null;
   subscribe(listener: () => void): () => void;

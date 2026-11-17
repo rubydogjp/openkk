@@ -44,11 +44,13 @@ export function FixedAssetEditDrawer({
   periodStartDate,
   periodEndDate,
   previewAsOf,
+  accountOptions,
   onClose,
   onSave,
   onDelete,
 }: {
   mode: "create" | "edit";
+  accountOptions: readonly string[];
   initialDraft: FixedAssetDraft;
   periodStartDate: string;
   periodEndDate: string;
@@ -104,10 +106,26 @@ export function FixedAssetEditDrawer({
   });
   const canSave = validationError == null;
 
+  const [initialDraftText] = useState(() => JSON.stringify(initialDraft));
   const requestClose = () => {
     if (!mutationLock.current.isLocked) onClose();
   };
-  const drawerRef = useModalLifecycle<HTMLElement>(requestClose, null);
+  const requestDismiss = () => {
+    if (mutationLock.current.isLocked) return;
+    if (JSON.stringify(draft) === initialDraftText) {
+      onClose();
+      return;
+    }
+    void confirm({
+      tone: "danger",
+      title: "入力の破棄",
+      body: ["入力した内容は保存されません。"],
+      confirmLabel: "破棄する",
+    }).then((confirmed) => {
+      if (confirmed && !mutationLock.current.isLocked) onClose();
+    });
+  };
+  const drawerRef = useModalLifecycle<HTMLElement>(requestDismiss, null);
 
   const handleSave = async () => {
     if (!canSave) {
@@ -166,7 +184,7 @@ export function FixedAssetEditDrawer({
       <DrawerFrame
         label={mode === "create" ? "固定資産の追加" : "固定資産の編集"}
         drawerRef={drawerRef}
-        onBackdropClick={requestClose}
+        onBackdropClick={requestDismiss}
       >
         <header
           style={{
@@ -211,13 +229,10 @@ export function FixedAssetEditDrawer({
             />
           </Field>
           <Field label="勘定科目">
-            <FormTextInput
+            <AccountField
               value={draft.account}
+              options={accountOptions}
               onChange={(value) => setDraft({ ...draft, account: value })}
-              readOnly={false}
-              width={null}
-              placeholder={null}
-              ariaLabel={null}
             />
           </Field>
           <Field label="取得日">
@@ -358,7 +373,7 @@ export function FixedAssetEditDrawer({
               onClick={handleSave}
               disabled={saving || deleting}
             >
-              {saving ? "保存中…" : "保存"}
+              {saving ? "保存中…" : mode === "create" ? "作成" : "保存"}
             </FormPrimaryButton>
           </div>
         </footer>
@@ -553,6 +568,37 @@ function PreviewRow({ label, value }: { label: string; value: string }) {
         {value}
       </span>
     </div>
+  );
+}
+
+function AccountField({
+  value,
+  options,
+  onChange,
+}: {
+  value: string;
+  options: readonly string[];
+  onChange: (value: string) => void;
+}) {
+  const choices =
+    value === "" || options.includes(value) ? options : [value, ...options];
+  return (
+    <select
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      style={{ ...controlStyle, width: "100%" }}
+    >
+      {value === "" ? (
+        <option value="" disabled>
+          選んでください
+        </option>
+      ) : null}
+      {choices.map((option) => (
+        <option key={option} value={option}>
+          {option}
+        </option>
+      ))}
+    </select>
   );
 }
 

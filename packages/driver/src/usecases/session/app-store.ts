@@ -51,6 +51,7 @@ export type OpenkkAppState = {
   currentFiscalPeriod: FiscalPeriod | null;
   isReady: boolean;
   fiscalPeriodLoadError: unknown;
+  fiscalPeriodsLoaded: boolean;
   reloadFiscalPeriods: () => void;
   createFiscalPeriod: (input: FiscalPeriodCreateInput) => Promise<string>;
   createNextFiscalPeriod: (
@@ -93,6 +94,7 @@ type AppData = {
   currentFiscalPeriodId: string | null;
   isReady: boolean;
   fiscalPeriodLoadError: unknown;
+  fiscalPeriodsLoaded: boolean;
 };
 
 const ALL_FISCAL_PERIODS = "all";
@@ -117,6 +119,7 @@ export function createOpenkkAppStore(dependencies: {
     currentFiscalPeriodId: buildBootstrapFiscalPeriodId(config),
     isReady: false,
     fiscalPeriodLoadError: null,
+    fiscalPeriodsLoaded: false,
   });
   let started = false;
   let fiscalPeriodLoadGeneration = 0;
@@ -154,7 +157,7 @@ export function createOpenkkAppStore(dependencies: {
     fiscalPeriodLoadGeneration += 1;
     const generation = fiscalPeriodLoadGeneration;
     if (data.getState().user == null) {
-      update({ fiscalPeriods: [] });
+      update({ fiscalPeriods: [], fiscalPeriodsLoaded: true });
       return;
     }
     const readVersion = fiscalPeriodListVersion.capture(ALL_FISCAL_PERIODS);
@@ -175,6 +178,7 @@ export function createOpenkkAppStore(dependencies: {
         update({
           fiscalPeriods: mapped,
           fiscalPeriodLoadError: null,
+          fiscalPeriodsLoaded: true,
           currentFiscalPeriodId:
             selected == null || mapped.some((period) => period.id === selected)
               ? selected
@@ -187,7 +191,7 @@ export function createOpenkkAppStore(dependencies: {
           return;
         }
         console.error("[openkk] fiscal period load failed:", error);
-        update({ fiscalPeriodLoadError: error });
+        update({ fiscalPeriodLoadError: error, fiscalPeriodsLoaded: true });
       }
     })();
   };
@@ -197,6 +201,7 @@ export function createOpenkkAppStore(dependencies: {
     update({
       fiscalPeriods: [],
       fiscalPeriodLoadError: null,
+      fiscalPeriodsLoaded: false,
       user: nextUser,
       currentFiscalPeriodId: buildBootstrapFiscalPeriodId(config),
     });
@@ -417,6 +422,7 @@ export function createOpenkkAppStore(dependencies: {
       ) ?? null,
     isReady: current.isReady,
     fiscalPeriodLoadError: current.fiscalPeriodLoadError,
+    fiscalPeriodsLoaded: current.fiscalPeriodsLoaded,
     ...actions,
   }));
 

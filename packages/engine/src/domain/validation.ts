@@ -6,6 +6,7 @@ export const MAX_ENTRY_IMPORT_LINES = 100_000;
 export const MAX_ENTRY_LINES = 1_000;
 export const MAX_FIXED_ASSET_USEFUL_LIFE_YEARS = 100;
 export const MAX_TEXT_FIELD_LENGTH = 400;
+export const MAX_ENTRY_NUMBER_LENGTH = 100;
 
 type EntryLineBalance = { side: EntrySide; amount: number };
 
@@ -141,6 +142,18 @@ export function assertTextFieldLength(value: string, label: string): void {
     throw engineValidationError(
       `${label} exceeds the ${MAX_TEXT_FIELD_LENGTH.toLocaleString("en-US")} character limit`,
       `入力できる文字数は${MAX_TEXT_FIELD_LENGTH.toLocaleString("ja-JP")}文字までです`,
+    );
+  }
+}
+
+export function assertEntryNumberLength(
+  localId: string | null,
+  label: string,
+): void {
+  if (localId != null && localId.length > MAX_ENTRY_NUMBER_LENGTH) {
+    throw engineValidationError(
+      `${label} exceeds the ${MAX_ENTRY_NUMBER_LENGTH} character limit`,
+      `仕訳番号は${MAX_ENTRY_NUMBER_LENGTH}文字までです`,
     );
   }
 }
