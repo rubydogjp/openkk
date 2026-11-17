@@ -910,6 +910,15 @@ describe("openkk cli", () => {
       businessRate: 1,
       bookAccountId: "acct_equipment",
     });
+    await nextBook.backend.fixedAssets.create(nextId, {
+      name: "前の年に買って手で入れた机",
+      acquisitionDate: "2026-06-01",
+      acquisitionCost: 150000,
+      usefulLife: 8,
+      depreciationMethod: "straight_line",
+      businessRate: 1,
+      bookAccountId: "acct_equipment",
+    });
     nextBook.close();
     const carry = (...extra: string[]) =>
       run(
@@ -944,16 +953,22 @@ describe("openkk cli", () => {
 
     expect(first.code).toBe(0);
     expect(first.stdout).toContain("期首のBS");
-    expect(afterFirst).toEqual(["2027年に買ったPC"]);
+    expect(afterFirst).toEqual([
+      "2027年に買ったPC",
+      "前の年に買って手で入れた机",
+    ]);
     expect(again.code).toBe(1);
     expect(again.stderr).toMatch(
       /^エラー: [^\n]*期首のBS 2 行[^\n]*--yes[^\n]*\n$/,
     );
     expect(withAssets.code).toBe(1);
     expect(withAssets.stderr).toContain("固定資産 1 件");
-    expect(afterRefusal).toEqual(["2027年に買ったPC"]);
+    expect(afterRefusal).toEqual([
+      "2027年に買ったPC",
+      "前の年に買って手で入れた机",
+    ]);
     expect(confirmed.code).toBe(0);
-    expect(await fixedAssetNames()).toEqual([]);
+    expect(await fixedAssetNames()).toEqual(["2027年に買ったPC"]);
     expect(unknownItem.code).toBe(2);
   });
 

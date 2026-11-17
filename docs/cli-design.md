@@ -69,7 +69,7 @@ openkk closing pre | cancel | final <期間id> [--yes]
 openkk periods receive | next <期間id>
 openkk periods next <期間id> --out <file.openkk>   # 次の期間を新しいファイルに作る (本締め・書類の受け取り済みなら引き継ぐ)
 openkk opening carry <期間id> --from <file.openkk> [--from-period <id>] [--items bs,fixed-assets] [--yes]
-                                                   # 別のファイルの期間から引き継ぐ。既定は期首のBSだけ。今ある期首のBSや固定資産が置き換わるときは、その行数・件数を出して --yes を求める。再振替は Web 版だけ
+                                                   # 別のファイルの期間から引き継ぐ。既定は期首のBSだけ。今ある期首のBSや固定資産 (その期間より前に買ったもの。その期間に買ったものは残る) が置き換わるときは、その行数・件数を出して --yes を求める。再振替は Web 版だけ
 openkk periods export <期間id> [--out <file.openkk>]   # その期間だけを入れた帳簿ファイルを作る (1 期間 = 1 ファイル)
 ```
 

@@ -662,20 +662,28 @@ export const BACKEND_CONTRACT_CASES: BackendContractCase[] = [
   }),
 
   contractCase(
-    "carries over into an opened period by replacing what it had",
+    "carries over into an opened period by replacing what it had, keeping the assets bought in that period",
     async (backend) => {
       const source = await closedPeriodWithFixedAsset(backend);
       const master = await loadJournalMaster(backend);
       const created = await backend.fiscalPeriods.create(PERIOD_2027);
       await backend.fiscalPeriods.start(created.id);
-      await backend.fixedAssets.create(created.id, {
-        name: "引き継ぐ前の資産",
-        acquisitionDate: "2027-01-10",
+      const asset = {
         acquisitionCost: 120_000,
         usefulLife: 4,
-        depreciationMethod: "straight_line",
+        depreciationMethod: "straight_line" as const,
         businessRate: 1,
         bookAccountId: accountId(master, EQUIPMENT),
+      };
+      await backend.fixedAssets.create(created.id, {
+        ...asset,
+        name: "前の年に買って手で入れた資産",
+        acquisitionDate: "2026-11-10",
+      });
+      await backend.fixedAssets.create(created.id, {
+        ...asset,
+        name: "今期に買った資産",
+        acquisitionDate: PERIOD_2027.startDate,
       });
       const carryover = {
         sourceFiscalPeriodId: source.id,
@@ -696,10 +704,13 @@ export const BACKEND_CONTRACT_CASES: BackendContractCase[] = [
             OPENING_CASH + SALES_IN_CASH,
         "the opened period takes the source's closing balance",
       );
-      const fixedAssets = await backend.fixedAssets.getAll(created.id);
+      const fixedAssetNames = (await backend.fixedAssets.getAll(created.id))
+        .map((fixedAsset) => fixedAsset.name)
+        .sort();
       check(
-        fixedAssets.length === 1 && fixedAssets[0]?.name === "ノートパソコン",
-        "the carried fixed assets replace the ones the period had, without duplicates",
+        JSON.stringify(fixedAssetNames) ===
+          JSON.stringify(["ノートパソコン", "今期に買った資産"].sort()),
+        "the carried fixed assets replace the ones bought before the period, without duplicates, and keep the ones bought in it",
       );
     },
   ),

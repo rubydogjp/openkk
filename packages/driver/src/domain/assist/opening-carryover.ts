@@ -16,3 +16,9 @@ export type OpeningCarryoverDraft = {
   businessRate: number | null;
   lines: EntryLine[];
 };
+
+export function fixedAssetsReplacedByCarryover<
+  Asset extends { acquisitionDate: string },
+>(assets: readonly Asset[], target: { startDate: string }): Asset[] {
+  return assets.filter((asset) => asset.acquisitionDate < target.startDate);
+}

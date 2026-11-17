@@ -1,4 +1,5 @@
 import {
+  fixedAssetsReplacedByCarryover,
   formatAmount,
   loadFiscalPeriodArchivePayload,
 } from "@rubydogjp/openkk-driver";
@@ -173,7 +174,10 @@ async function describeReplacedItems(
 ): Promise<string[]> {
   const balanceLineCount = target.opening.balanceLines.length;
   const fixedAssetCount = items.fixedAssets
-    ? (await backend.fixedAssets.getAll(target.id)).length
+    ? fixedAssetsReplacedByCarryover(
+        await backend.fixedAssets.getAll(target.id),
+        target,
+      ).length
     : 0;
   return [
     ...(items.balances && balanceLineCount > 0

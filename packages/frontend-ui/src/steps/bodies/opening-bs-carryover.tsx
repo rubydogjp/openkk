@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   AppError,
+  fixedAssetsReplacedByCarryover,
   isOpeningCarryoverCandidate,
   type EntryRecord,
   type FiscalPeriod,
@@ -29,6 +30,14 @@ import {
   StepPrimaryButton,
   StepSecondaryButton,
 } from "../step-ui.js";
+
+function replacedFixedAssetsMessage(count: number | null): string {
+  const replaced =
+    count == null
+      ? "この期間より前に買った固定資産"
+      : `この期間より前に買った固定資産 ${count} 件`;
+  return `${replaced}を入れ替えます。この期間に買った物は残ります。`;
+}
 
 export type CarryItems = {
   bs: boolean;
@@ -183,7 +192,21 @@ export function OpeningBsCarryover({
       const confirmed = await confirm({
         tone: "danger",
         title: "前の期間から引き継ぐ",
-        body: [`選んだ項目を、「${source.name}」の内容で上書きします。`],
+        body: [
+          `選んだ項目を、「${source.name}」の内容で上書きします。`,
+          ...(items.fixed
+            ? [
+                replacedFixedAssetsMessage(
+                  assist.loadError == null
+                    ? fixedAssetsReplacedByCarryover(
+                        assist.listFixedAssets(target.id),
+                        target,
+                      ).length
+                    : null,
+                ),
+              ]
+            : []),
+        ],
         confirmLabel: "上書きする",
       });
       if (!confirmed) return;

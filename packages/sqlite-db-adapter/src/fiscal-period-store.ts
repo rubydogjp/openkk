@@ -1,4 +1,5 @@
 import {
+  keepsFixedAssetOnCarryover,
   applyPatch,
   assertEntryMatchesRules,
   assertFiscalPeriodCanCarryOver,
@@ -212,10 +213,13 @@ async function writeCarryover(
   });
   await replaceOpening(db, current.id, updated.opening);
   if (options.carryFixedAssets) {
-    await db.exec({
-      sql: `DELETE FROM fixed_assets WHERE fiscal_period_id = ?`,
-      bind: [current.id],
-    });
+    for (const asset of await createFixedAssetsDb(db).getAll(current.id)) {
+      if (keepsFixedAssetOnCarryover(asset, updated)) continue;
+      await db.exec({
+        sql: `DELETE FROM fixed_assets WHERE id = ?`,
+        bind: [asset.id],
+      });
+    }
     await insertCarriedFixedAssets(db, await sourceFixedAssets(), updated);
   }
   return updated;

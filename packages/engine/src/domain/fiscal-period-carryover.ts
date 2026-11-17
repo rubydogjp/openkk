@@ -66,6 +66,13 @@ export function assertFiscalPeriodCanCarryOver(
   }
 }
 
+export function keepsFixedAssetOnCarryover(
+  asset: { acquisitionDate: string },
+  target: { startDate: string },
+): boolean {
+  return asset.acquisitionDate >= target.startDate;
+}
+
 export function buildCarryoverOpeningBalances(input: {
   openingBalanceLines: ReadonlyArray<OpeningBalanceLine>;
   entries: ReadonlyArray<Entry>;

@@ -508,7 +508,13 @@ export function runDbPortConformance(
         ],
         fixedAssets: [
           fixedAsset("fa-source", "fp-source", "Camera", "2026-04-01"),
-          fixedAsset("fa-target", "fp-target", "Typed by hand", "2027-02-01"),
+          fixedAsset("fa-target", "fp-target", "Typed by hand", "2026-11-01"),
+          fixedAsset(
+            "fa-bought",
+            "fp-target",
+            "Bought this year",
+            "2027-02-01",
+          ),
         ],
       };
       return seed;
@@ -535,7 +541,9 @@ export function runDbPortConformance(
       expect(updated.opening.journals[0]!.date).toBe("2027-01-01");
       expect(await db.fiscalPeriods.getById("fp-target")).toEqual(updated);
       const assets = await db.fixedAssets.getAll("fp-target");
-      expect(assets.map((asset) => asset.name)).toEqual(["Camera"]);
+      expect(assets.map((asset) => asset.name).sort()).toEqual(
+        ["Bought this year", "Camera"].sort(),
+      );
     });
 
     it("applyCarryover leaves unselected items untouched", async () => {
@@ -551,7 +559,9 @@ export function runDbPortConformance(
 
       expect(updated.opening).toEqual(before!.opening);
       const assets = await db.fixedAssets.getAll("fp-target");
-      expect(assets.map((asset) => asset.name)).toEqual(["Camera"]);
+      expect(assets.map((asset) => asset.name).sort()).toEqual(
+        ["Bought this year", "Camera"].sort(),
+      );
     });
 
     it("applyCarryover rejects a pre-closed target without changes", async () => {
@@ -568,7 +578,7 @@ export function runDbPortConformance(
       ).rejects.toThrow();
 
       expect(await db.fiscalPeriods.getById("fp-target")).toEqual(before);
-      expect(await db.fixedAssets.getAll("fp-target")).toHaveLength(1);
+      expect(await db.fixedAssets.getAll("fp-target")).toHaveLength(2);
     });
 
     it("applyCarryover rejects a source that is not fully closed", async () => {
@@ -668,7 +678,9 @@ export function runDbPortConformance(
       expect(updated.opening.journals[0]!.date).toBe("2027-01-01");
       expect(await db.fiscalPeriods.getById("fp-target")).toEqual(updated);
       const assets = await db.fixedAssets.getAll("fp-target");
-      expect(assets.map((asset) => asset.name)).toEqual(["Camera"]);
+      expect(assets.map((asset) => asset.name).sort()).toEqual(
+        ["Bought this year", "Camera"].sort(),
+      );
       expect(await db.fiscalPeriods.getAll("user-1")).toHaveLength(1);
     });
 
@@ -689,7 +701,9 @@ export function runDbPortConformance(
 
       expect(updated.opening).toEqual(before!.opening);
       const assets = await db.fixedAssets.getAll("fp-target");
-      expect(assets.map((asset) => asset.name)).toEqual(["Camera"]);
+      expect(assets.map((asset) => asset.name).sort()).toEqual(
+        ["Bought this year", "Camera"].sort(),
+      );
     });
 
     it("applyCarryoverFromArchive rejects an archive that is not fully closed", async () => {
@@ -714,7 +728,7 @@ export function runDbPortConformance(
       ).rejects.toThrow();
 
       expect(await db.fiscalPeriods.getById("fp-target")).toEqual(before);
-      expect(await db.fixedAssets.getAll("fp-target")).toHaveLength(1);
+      expect(await db.fixedAssets.getAll("fp-target")).toHaveLength(2);
     });
 
     it("applyCarryoverFromArchive rejects a reversal entry outside the archive", async () => {
@@ -732,7 +746,7 @@ export function runDbPortConformance(
       ).rejects.toThrow();
 
       expect(await db.fiscalPeriods.getById("fp-target")).toEqual(before);
-      expect(await db.fixedAssets.getAll("fp-target")).toHaveLength(1);
+      expect(await db.fixedAssets.getAll("fp-target")).toHaveLength(2);
     });
 
     it("deletes child entries and fixed assets with the fiscal period", async () => {
