@@ -4,6 +4,7 @@ import { parseAmount } from "../shared/parse-utils.js";
 import {
   ALLOWANCE_FOR_DOUBTFUL_ACCOUNTS,
   BALANCE_SHEET_ROWS,
+  isNegativeCapitalLine,
   OPENING_EQUITY_LABELS,
   balanceSheetExtraSlotCount,
   balanceSheetRowLabel,
@@ -224,12 +225,16 @@ export function computeFsAggregate({
   const liabilityOpeningByName = new Map<string, number>();
   const equityOpeningByName = new Map<string, number>();
   for (const line of openingBalanceLines) {
+    const name = line.accountId.slice(2);
     if (line.accountId.startsWith("a:")) {
-      assetOpeningByName.set(line.accountId.slice(2), line.amount);
+      if (isNegativeCapitalLine(line)) {
+        addAmount(equityOpeningByName, name, -line.amount);
+      } else {
+        assetOpeningByName.set(name, line.amount);
+      }
     } else if (line.accountId.startsWith("l:")) {
-      const name = line.accountId.slice(2);
       if (OPENING_EQUITY_LABELS.has(name))
-        equityOpeningByName.set(name, line.amount);
+        addAmount(equityOpeningByName, name, line.amount);
       else liabilityOpeningByName.set(name, line.amount);
     }
   }

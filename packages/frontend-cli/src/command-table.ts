@@ -111,6 +111,7 @@ export const CLI_COMMAND_USAGE = `コマンド:
                                          会計期間を 1 冊の帳簿ファイルにバックアップする (中身はその期間だけ)
   opening show <期間id>                  期首のBS
   opening set <期間id> <科目>=<金額> ...  期首のBSを保存する (例: 現金=100000 元入金=100000)
+                                         元入金がマイナスなら 元入金=-100000 (△100000 でもよい)
   opening carry <期間id> --from <file.openkk> [--from-period <id>] [--items bs,fixed-assets] [--yes]
                                          別の帳簿ファイルの期間から引き継ぐ (既定は期首のBSだけ。
                                          今ある期首のBSや固定資産を置き換えるときは --yes が要る)

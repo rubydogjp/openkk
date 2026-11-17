@@ -1,4 +1,4 @@
-import { formatAmount } from "../shared/parse-utils.js";
+import { formatSignedAmountText } from "../shared/balance-sheet-layout.js";
 import type { FsBsRow, FsExpenseWriteIn } from "./fs-data.js";
 import {
   PRINT_HEADING_ROW_HEIGHT,
@@ -18,7 +18,7 @@ function writeInLabelOverrides(
 
 function formatOptionalAmount(amount: number | null): string {
   if (amount === null || !Number.isFinite(amount)) return "";
-  return formatAmount(amount);
+  return formatSignedAmountText(amount);
 }
 
 const BLUE = "#1D4ED8";

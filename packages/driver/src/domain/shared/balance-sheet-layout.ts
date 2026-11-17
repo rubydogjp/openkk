@@ -75,3 +75,28 @@ export function balanceSheetRowLabel(
 export function balanceSheetExtraSlotCount(side: BalanceSheetSide): number {
   return balanceSheetSlots(side).filter((slot) => slot.kind === "extra").length;
 }
+
+export const CAPITAL_ACCOUNT_NAME = "元入金";
+export const NEGATIVE_CAPITAL_ACCOUNT_ID = `a:${CAPITAL_ACCOUNT_NAME}`;
+
+export function isNegativeCapitalLine(line: { accountId: string }): boolean {
+  return line.accountId === NEGATIVE_CAPITAL_ACCOUNT_ID;
+}
+
+export function openingSideTotals(
+  lines: ReadonlyArray<{ accountId: string; amount: number }>,
+): { assets: number; liabilitiesAndEquity: number } {
+  let assets = 0;
+  let liabilitiesAndEquity = 0;
+  for (const line of lines) {
+    if (isNegativeCapitalLine(line)) liabilitiesAndEquity -= line.amount;
+    else if (line.accountId.startsWith("a:")) assets += line.amount;
+    else liabilitiesAndEquity += line.amount;
+  }
+  return { assets, liabilitiesAndEquity };
+}
+
+export function formatSignedAmountText(amount: number): string {
+  const grouped = new Intl.NumberFormat("ja-JP").format(Math.abs(amount));
+  return amount < 0 ? `△${grouped}` : grouped;
+}

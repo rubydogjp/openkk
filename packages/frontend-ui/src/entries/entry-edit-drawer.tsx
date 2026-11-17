@@ -602,6 +602,7 @@ export function EntryEditDrawer(props: {
                         </StackedField>
                         <StackedField label="借方金額">
                           <AmountInput
+                            signed={false}
                             value={row.debitAmount}
                             onChange={(value) =>
                               updateRow(index, { debitAmount: value })
@@ -611,6 +612,7 @@ export function EntryEditDrawer(props: {
                         </StackedField>
                         <StackedField label="貸方金額">
                           <AmountInput
+                            signed={false}
                             value={row.creditAmount}
                             onChange={(value) =>
                               updateRow(index, { creditAmount: value })

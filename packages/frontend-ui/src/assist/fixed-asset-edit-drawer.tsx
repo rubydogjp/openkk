@@ -279,6 +279,7 @@ export function FixedAssetEditDrawer({
           </Field>
           <Field label="取得価額">
             <AmountInput
+              signed={false}
               value={draft.acquisitionCost}
               onChange={(value) =>
                 setDraft({ ...draft, acquisitionCost: value })

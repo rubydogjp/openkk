@@ -57,6 +57,34 @@ describe("print documents", () => {
     expect(fsHtml.match(/>決算前</g)).toHaveLength(2);
   });
 
+  it("prints a negative capital with △ and the general ledger opens it on the debit side", () => {
+    const openingBalanceLines = [
+      { id: "a:現金", accountId: "a:現金", amount: 100_000 },
+      { id: "l:借入金", accountId: "l:借入金", amount: 300_000 },
+      { id: "a:元入金", accountId: "a:元入金", amount: 200_000 },
+    ];
+    const fsHtml = buildFinancialStatementsDocument(
+      computeFsAggregate({ entries: [], openingBalanceLines }),
+      FINAL_HEADING,
+    );
+    const ledgerHtml = buildGeneralLedgerDocument(
+      [],
+      openingBalanceLines,
+      FINAL_HEADING,
+    );
+
+    expect(fsHtml).toContain("△200,000");
+    expect(fsHtml).not.toContain("-200,000");
+    const capitalSection = ledgerHtml.slice(ledgerHtml.indexOf("元入金"));
+    const openingRowStart = capitalSection.indexOf("前期繰越");
+    const openingRow = capitalSection.slice(
+      openingRowStart,
+      capitalSection.indexOf("</tr>", openingRowStart),
+    );
+    expect(openingRow).toMatch(/>借</);
+    expect(openingRow).toContain("200,000");
+  });
+
   it("shortens a very long period name in the heading", () => {
     const heading = buildPrintHeading({
       fiscalPeriodName: "あ".repeat(40),

@@ -154,6 +154,12 @@ type OpenkkBackendPort = {
 - 本締めで照合する売却の自動仕訳 (`buildExpectedClosingEntries`) を変えた。借方に代金 (`bank` と `null` → 普通預金 `acct_bank`、`cash` → 現金 `acct_cash`、`owner` → 事業主貸 `acct_proprietor_withdrawal`)、貸方に処分日の帳簿価額 (資産の科目)。差額は、益なら貸方 事業主借 (`acct_proprietor_loan`)、損なら借方 事業主貸 (`acct_proprietor_withdrawal`)。固定資産売却益・売却損 (`acct_revenue_固定資産売却益`・`acct_expense_固定資産売却損`) は使わない (個人の事業用資産の売却は譲渡所得で、事業所得に入れないため)。廃棄 (`disposed`) は今までどおり固定資産除却損。サーバーは同じ計算で照合すること。本締め済みの期間に保存されている仕訳は書き換えない
 - `importArchived`・`applyCarryoverFromArchive` の `archive.fixedAssets[].disposalProceedsTo` は、あれば保ち、なければ `null` にする
 
+### マイナスの元入金 (`a:元入金`)
+
+- 期首の行 (`OpeningBalanceLineApiRecord`) の金額は今までどおり 0 以上。マイナスの元入金は `accountId: "a:元入金"` (資産の側の元入金) と、その絶対値で表す。期首の資産合計と負債・純資産合計の一致は、`a:` と `l:` の合計で今までどおり確かめられる
+- 引き継ぎ (`createNext`・`applyCarryover`・`applyCarryoverFromArchive`) で元入金がマイナスになったら `a:元入金` を出す。26.3.1 は `a:事業主貸` を出していたが、青色申告決算書では期首の事業主貸・事業主借の欄は書かない (斜線) ため改めた。サーバーも同じ計算にすること。保存済みの期首 (前に `a:事業主貸` として入った物) は書き換えない。次の引き継ぎでは、事業主貸・事業主借・元入金をまとめて元入金に入れる (`buildCarryoverOpeningBalances`)
+- 使う側は `a:元入金` を、貸借対照表の元入金の欄にマイナス (「△」) で出し、総勘定元帳では元入金の口座の期首を借方に置く
+
 ### なくした口と設定
 
 - `POST /fiscal-periods/{id}/archive` と `POST /fiscal-periods/{id}/purge-archived-data` (圧縮保存と、圧縮保存したデータの削除) はもう呼ばない。サーバーに残しておいてもよいが、使う側からは来ない

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { amountInputValue, formatGrouped } from "./amount-field.js";
+import {
+  amountInputValue,
+  formatAmountText,
+  formatGrouped,
+} from "./amount-field.js";
 
 describe("amountInputValue", () => {
   it("keeps a pasted decimal amount as typed so it is not read 100 times larger", () => {
@@ -34,5 +38,15 @@ describe("formatGrouped", () => {
   it("does not regroup an amount that is not a whole number", () => {
     expect(formatGrouped("1.5")).toBe("1.5");
     expect(formatGrouped("-500")).toBe("-500");
+  });
+});
+
+describe("signed amount text", () => {
+  it("shows a negative 元入金 with △ and leaves other amounts unsigned", () => {
+    expect(formatAmountText("-200000", true)).toBe("△200,000");
+    expect(formatAmountText("△200,000", true)).toBe("△200,000");
+    expect(formatAmountText("200000", true)).toBe("200,000");
+    expect(formatAmountText("", true)).toBe("");
+    expect(formatAmountText("-200000", false)).toBe("-200000");
   });
 });

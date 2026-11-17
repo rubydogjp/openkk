@@ -1,6 +1,11 @@
 import {
+  CAPITAL_ACCOUNT_NAME,
   fixedAssetsReplacedByCarryover,
   formatAmount,
+  formatSignedAmountText,
+  isNegativeCapitalLine,
+  NEGATIVE_CAPITAL_ACCOUNT_ID,
+  openingSideTotals,
   loadJournalMaster,
   loadFiscalPeriodArchivePayload,
 } from "@rubydogjp/openkk-driver";
@@ -21,7 +26,7 @@ import { requireAccountByExactName } from "./records.js";
 
 const ASSET_PREFIX = "a:";
 const LIABILITY_AND_EQUITY_PREFIX = "l:";
-const BALANCE_ARGUMENT = /^(.+)=([1-9]\d*|[1-9]\d{0,2}(?:,\d{3})+)$/;
+const BALANCE_ARGUMENT = /^(.+)=([-△]?)([1-9]\d*|[1-9]\d{0,2}(?:,\d{3})+)$/;
 const CARRY_ITEM_BALANCES = "bs";
 const CARRY_ITEM_FIXED_ASSETS = "fixed-assets";
 const CARRY_ITEMS = new Set([CARRY_ITEM_BALANCES, CARRY_ITEM_FIXED_ASSETS]);
@@ -50,8 +55,9 @@ export async function runOpeningCommand(
         return;
       }
       for (const line of period.opening.balanceLines) {
+        const negativeCapital = isNegativeCapitalLine(line);
         output.line(
-          `${line.accountId.startsWith(ASSET_PREFIX) ? "資産" : "負債・純資産"}  ${line.accountId.slice(2)}  ${formatAmount(line.amount)}`,
+          `${line.accountId.startsWith(ASSET_PREFIX) && !negativeCapital ? "資産" : "負債・純資産"}  ${line.accountId.slice(2)}  ${formatSignedAmountText(negativeCapital ? -line.amount : line.amount)}`,
         );
       }
       return;
@@ -68,8 +74,9 @@ export async function runOpeningCommand(
         parseBalanceArgument(argument, accounts),
       );
       assertUniqueAccounts(lines);
-      const assetTotal = sumLines(lines, ASSET_PREFIX);
-      const liabilityTotal = sumLines(lines, LIABILITY_AND_EQUITY_PREFIX);
+      const totals = openingSideTotals(lines);
+      const assetTotal = totals.assets;
+      const liabilityTotal = totals.liabilitiesAndEquity;
       if (assetTotal !== liabilityTotal) {
         throw cliRefusal(
           `資産合計 (${formatAmount(assetTotal)}) と負債・純資産合計 (${formatAmount(liabilityTotal)}) を一致させてください`,
@@ -198,8 +205,20 @@ function parseBalanceArgument(
       `期首の残高は 科目=金額 の形で指定してください: ${argument}`,
     );
   }
-  const [, accountName, amount] = match;
+  const [, accountName, sign, amount] = match;
   const account = requireAccountByExactName(accountName!, accounts);
+  if (sign !== "") {
+    if (account.name !== CAPITAL_ACCOUNT_NAME) {
+      throw new CliUsageError(
+        `マイナスの金額を書けるのは元入金だけです: ${argument}`,
+      );
+    }
+    return {
+      id: NEGATIVE_CAPITAL_ACCOUNT_ID,
+      accountId: NEGATIVE_CAPITAL_ACCOUNT_ID,
+      amount: Number(amount!.replaceAll(",", "")),
+    };
+  }
   const prefix =
     account.accountType === "asset" && account.normalBalanceSide === "debit"
       ? ASSET_PREFIX
@@ -233,15 +252,6 @@ function assertUniqueAccounts(
     }
     seen.add(line.accountId);
   }
-}
-
-function sumLines(
-  lines: ReadonlyArray<OpeningBalanceLineApiRecord>,
-  prefix: string,
-): number {
-  return lines
-    .filter((line) => line.accountId.startsWith(prefix))
-    .reduce((total, line) => total + line.amount, 0);
 }
 
 async function requireCarryoverSource(

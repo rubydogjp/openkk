@@ -111,10 +111,7 @@ export function buildCarryoverOpeningBalances(input: {
         null,
       );
     }
-    const accountId =
-      name === "元入金" && balance > 0n
-        ? "a:事業主貸"
-        : `${balance > 0n ? "a" : "l"}:${name}`;
+    const accountId = `${balance > 0n ? "a" : "l"}:${name}`;
     return [{ id: accountId, accountId, amount }];
   });
 }

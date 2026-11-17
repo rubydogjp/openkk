@@ -211,6 +211,7 @@ export function FixedAssetDisposalDrawer({
               {answers.kind === "sold" ? (
                 <Field label="売った金額 (円)">
                   <AmountInput
+                    signed={false}
                     value={answers.disposalPrice}
                     onChange={(value) =>
                       setAnswers({ ...answers, disposalPrice: value })

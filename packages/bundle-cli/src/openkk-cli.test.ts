@@ -1004,6 +1004,49 @@ describe("openkk cli", () => {
     expect(shown.stdout).toContain("負債・純資産  貸倒引当金  5,000");
   });
 
+  it("takes a negative capital only for 元入金 and shows it with △", async () => {
+    const { run } = workspace();
+    const id = await startedPeriod(run);
+
+    const negative = await run(
+      "opening",
+      "set",
+      id,
+      "現金=100000",
+      "借入金=300000",
+      "元入金=-200000",
+      "--json",
+    );
+    const shown = await run("opening", "show", id);
+    const triangle = await run(
+      "opening",
+      "set",
+      id,
+      "現金=100000",
+      "借入金=300000",
+      "元入金=△200000",
+    );
+    const otherAccount = await run(
+      "opening",
+      "set",
+      id,
+      "現金=-100000",
+      "元入金=-100000",
+    );
+
+    expect(negative.code).toBe(0);
+    expect(JSON.parse(negative.stdout)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ accountId: "a:元入金", amount: 200000 }),
+      ]),
+    );
+    expect(shown.stdout).toContain("負債・純資産  元入金  △200,000");
+    expect(triangle.code).toBe(0);
+    expect(triangle.stdout).toContain("資産合計 100,000");
+    expect(otherAccount.code).toBe(2);
+    expect(otherAccount.stderr).toContain("元入金だけ");
+  });
+
   it("tells a missing period, a busy or foreign file in one line without the usage text", async () => {
     const { cwd, run } = workspace();
     await run("init");

@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildAssetLabels,
   buildInitialAmounts,
   buildLiabilityLabels,
   enteredOpeningLines,
+  formatOpeningRowAmount,
+  openingAmountsAreValid,
   parseOpeningAmount,
   sumOpeningAmounts,
+  sumOpeningSection,
   unrenderedOpeningLines,
 } from "./opening-bs-model.js";
 
@@ -156,5 +160,50 @@ describe("opening balance amount safety", () => {
     expect(
       sumOpeningAmounts(["4503599627370496", "4503599627370496"]),
     ).toBeNull();
+  });
+});
+
+describe("a negative capital", () => {
+  const NEGATIVE_CAPITAL_LINES = [
+    { accountId: "a:現金", amount: 100_000 },
+    { accountId: "l:借入金", amount: 300_000 },
+    { accountId: "a:元入金", amount: 200_000 },
+  ];
+
+  it("shows a stored negative capital on the 元入金 row, not as an asset row", () => {
+    expect(buildInitialAmounts(NEGATIVE_CAPITAL_LINES)).toEqual({
+      "a:現金": "100000",
+      "l:借入金": "300000",
+      "l:元入金": "-200000",
+    });
+    expect(buildAssetLabels(NEGATIVE_CAPITAL_LINES)).not.toContain("元入金");
+    expect(
+      unrenderedOpeningLines(
+        NEGATIVE_CAPITAL_LINES,
+        buildAssetLabels(NEGATIVE_CAPITAL_LINES),
+        buildLiabilityLabels(NEGATIVE_CAPITAL_LINES),
+      ),
+    ).toEqual([]);
+    expect(formatOpeningRowAmount("l:元入金", "-200000")).toBe("△200,000");
+    expect(formatOpeningRowAmount("a:現金", "100000")).toBe("100,000");
+  });
+
+  it("takes - or △ only on the 元入金 row and balances with it", () => {
+    const labels = buildLiabilityLabels(NEGATIVE_CAPITAL_LINES);
+    const amounts = { "l:借入金": "300,000", "l:元入金": "△200,000" };
+
+    expect(openingAmountsAreValid(amounts)).toBe(true);
+    expect(openingAmountsAreValid({ "l:元入金": "-200000" })).toBe(true);
+    expect(openingAmountsAreValid({ "a:現金": "-100000" })).toBe(false);
+    expect(sumOpeningSection("liability", labels, amounts, [])).toBe(100_000);
+    expect(enteredOpeningLines("liability", labels, amounts, [])).toEqual(
+      expect.arrayContaining([
+        { id: "a:元入金", accountId: "a:元入金", amount: 200_000 },
+        { id: "l:借入金", accountId: "l:借入金", amount: 300_000 },
+      ]),
+    );
+    expect(
+      enteredOpeningLines("liability", labels, { "l:元入金": "50000" }, []),
+    ).toEqual([{ id: "l:元入金", accountId: "l:元入金", amount: 50_000 }]);
   });
 });

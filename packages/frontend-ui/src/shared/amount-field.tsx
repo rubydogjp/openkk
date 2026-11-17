@@ -49,14 +49,18 @@ export function AmountInput({
   value,
   onChange,
   ariaLabel,
+  signed,
 }: {
   value: string;
   onChange: (raw: string) => void;
   ariaLabel: string | null;
+  signed: boolean;
 }) {
   const [focused, setFocused] = useState(false);
   const [composing, setComposing] = useState(false);
-  const display = focused ? value.replace(/,/g, "") : formatGrouped(value);
+  const display = focused
+    ? value.replace(/,/g, "")
+    : formatAmountText(value, signed);
   return (
     <input
       className="bk-amount-input"
@@ -67,7 +71,7 @@ export function AmountInput({
       onFocus={() => setFocused(true)}
       onBlur={() => {
         setFocused(false);
-        onChange(formatGrouped(value));
+        onChange(formatAmountText(value, signed));
       }}
       onCompositionStart={() => setComposing(true)}
       onCompositionEnd={(event) => {
@@ -118,6 +122,16 @@ export function AmountReadOnlyField({ value }: { value: string }) {
 
 export function amountInputValue(raw: string, composing: boolean): string {
   return composing ? raw : normalizeAmountInput(raw);
+}
+
+const NEGATIVE_SIGN_PATTERN = /^[-−－△]/;
+
+export function formatAmountText(value: string, signed: boolean): string {
+  if (!signed) return formatGrouped(value);
+  const text = value.trim();
+  const negative = NEGATIVE_SIGN_PATTERN.test(text);
+  const grouped = formatGrouped(negative ? text.slice(1) : text);
+  return negative && grouped !== "" ? `△${grouped}` : grouped;
 }
 
 export function formatGrouped(value: string): string {

@@ -1,4 +1,9 @@
 import {
+  CAPITAL_ACCOUNT_NAME,
+  formatAmount,
+  formatSignedAmountText,
+  isNegativeCapitalLine,
+  NEGATIVE_CAPITAL_ACCOUNT_ID,
   balanceSheetRowLabel,
   isWholeAmountText,
   balanceSheetSlots,
@@ -22,6 +27,44 @@ export function parseOpeningAmount(value: string | number): number | null {
   return parsed;
 }
 
+const CAPITAL_ROW_KEY = `l:${CAPITAL_ACCOUNT_NAME}`;
+const NEGATIVE_SIGN_PATTERN = /^[-−－△]/;
+
+function parseCapitalAmount(value: string): number | null {
+  const text = value.trim();
+  const negative = NEGATIVE_SIGN_PATTERN.test(text);
+  const amount = parseOpeningAmount(negative ? text.slice(1) : text);
+  if (amount == null) return null;
+  return negative ? -amount : amount;
+}
+
+function parseRowAmount(key: string, value: string): number | null {
+  return key === CAPITAL_ROW_KEY
+    ? parseCapitalAmount(value)
+    : parseOpeningAmount(value);
+}
+
+export function openingAmountsAreValid(
+  amounts: Record<string, string>,
+): boolean {
+  return Object.entries(amounts).every(
+    ([key, value]) => parseRowAmount(key, value) != null,
+  );
+}
+
+export function formatOpeningRowAmount(key: string, value: string): string {
+  if (value.trim() === "") return "";
+  const amount = parseRowAmount(key, value);
+  if (amount == null) return value;
+  return key === CAPITAL_ROW_KEY
+    ? formatSignedAmountText(amount)
+    : formatAmount(amount);
+}
+
+export function isCapitalRow(key: string): boolean {
+  return key === CAPITAL_ROW_KEY;
+}
+
 export function sumOpeningAmounts(
   values: Iterable<string | number>,
 ): number | null {
@@ -42,14 +85,19 @@ export function sumOpeningSection(
   preservedLines: OpeningLine[],
 ): number | null {
   const key = side === "asset" ? assetKey : liabilityKey;
-  return sumOpeningAmounts([
-    ...labels
-      .filter((label) => label !== "")
-      .map((label) => amounts[key(label)] ?? ""),
-    ...preservedLines
-      .filter((line) => splitAccountId(line.accountId).side === side)
-      .map((line) => line.amount),
-  ]);
+  let total = 0;
+  for (const label of labels) {
+    if (label === "") continue;
+    const amount = parseRowAmount(key(label), amounts[key(label)] ?? "");
+    if (amount == null) return null;
+    total += amount;
+  }
+  for (const line of preservedLines) {
+    const account = splitAccountId(line.accountId);
+    if (account.side !== side) continue;
+    total += account.sign * line.amount;
+  }
+  return Number.isSafeInteger(total) ? total : null;
 }
 
 export function buildAssetLabels(
@@ -70,10 +118,10 @@ export function buildInitialAmounts(
   const amounts = new Map<string, number>();
   for (const line of openingBalanceLines) {
     if (line.amount <= 0) continue;
-    const { side, name } = splitAccountId(line.accountId);
+    const { side, name, sign } = splitAccountId(line.accountId);
     const label = balanceSheetRowLabel(side, name) ?? name;
     const key = side === "asset" ? assetKey(label) : liabilityKey(label);
-    amounts.set(key, (amounts.get(key) ?? 0) + line.amount);
+    amounts.set(key, (amounts.get(key) ?? 0) + sign * line.amount);
   }
   return Object.fromEntries(
     [...amounts].map(([key, amount]) => [key, String(amount)]),
@@ -89,6 +137,13 @@ export function enteredOpeningLines(
   const key = side === "asset" ? assetKey : liabilityKey;
   return labels.flatMap((label) => {
     if (label === "") return [];
+    if (isCapitalRow(key(label))) {
+      const capital = parseCapitalAmount(amounts[key(label)] ?? "") ?? 0;
+      if (capital === 0) return [];
+      const accountId =
+        capital < 0 ? NEGATIVE_CAPITAL_ACCOUNT_ID : CAPITAL_ROW_KEY;
+      return [{ id: accountId, accountId, amount: Math.abs(capital) }];
+    }
     const amount = parseOpeningAmount(amounts[key(label)] ?? "") ?? 0;
     if (amount <= 0) return [];
     const storedInRow = storedLines.filter((line) => {
@@ -154,9 +209,14 @@ function buildRowLabels(
 function splitAccountId(accountId: string): {
   side: BalanceSheetSide;
   name: string;
+  sign: 1 | -1;
 } {
+  if (isNegativeCapitalLine({ accountId })) {
+    return { side: "liability", name: CAPITAL_ACCOUNT_NAME, sign: -1 };
+  }
   return {
     side: accountId.startsWith("a:") ? "asset" : "liability",
     name: accountId.slice(2),
+    sign: 1,
   };
 }

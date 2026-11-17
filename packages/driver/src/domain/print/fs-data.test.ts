@@ -8,6 +8,36 @@ import type { EntryRecord } from "../entries/entry-record.js";
 import { computeFsAggregate } from "./fs-data.js";
 
 describe("computeFsAggregate", () => {
+  it("shows a negative capital on the 元入金 row and not as an asset or 事業主貸", () => {
+    const aggregate = computeFsAggregate({
+      openingBalanceLines: [
+        { id: "a:現金", accountId: "a:現金", amount: 100_000 },
+        { id: "l:借入金", accountId: "l:借入金", amount: 300_000 },
+        { id: "a:元入金", accountId: "a:元入金", amount: 200_000 },
+      ],
+      entries: [],
+    });
+    const capital = aggregate.bsRows.find(
+      (row) => row.liabilityLabel === "元入金",
+    );
+    expect(capital?.liabilityOpening).toBe(-200_000);
+    expect(capital?.liabilityClosing).toBe(-200_000);
+    expect(aggregate.bsRows.some((row) => row.assetLabel === "元入金")).toBe(
+      false,
+    );
+    expect(
+      aggregate.bsRows.find((row) => row.assetLabel === "事業主貸")
+        ?.assetOpening ?? null,
+    ).toBeNull();
+    const total = aggregate.bsRows.at(-1)!;
+    expect([total.assetOpening, total.liabilityOpening]).toEqual([
+      100_000, 100_000,
+    ]);
+    expect([total.assetClosing, total.liabilityClosing]).toEqual([
+      100_000, 100_000,
+    ]);
+  });
+
   it("shows opening and closing inventory in the cost-of-sales rows", () => {
     const aggregate = computeFsAggregate({
       openingBalanceLines: [

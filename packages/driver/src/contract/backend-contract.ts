@@ -754,6 +754,80 @@ export const BACKEND_CONTRACT_CASES: BackendContractCase[] = [
     },
   ),
 
+  contractCase(
+    "carries a negative capital as a negative capital, not as 事業主貸",
+    async (backend) => {
+      const created = await backend.fiscalPeriods.create(PERIOD_2026);
+      await backend.fiscalPeriods.start(created.id);
+      await backend.fiscalPeriods.patch(created.id, {
+        openingBalancesCompleted: true,
+        opening: {
+          balanceLines: [
+            {
+              id: CASH_BALANCE_LINE_ID,
+              accountId: CASH_BALANCE_LINE_ID,
+              amount: OPENING_CASH,
+            },
+            {
+              id: `l:${OWNER_EQUITY}`,
+              accountId: `l:${OWNER_EQUITY}`,
+              amount: OPENING_CASH,
+            },
+          ],
+          journals: [],
+        },
+      });
+      const master = await loadLatestJournalMaster(backend);
+      await backend.entries.create(
+        created.id,
+        pairEntry(master, {
+          date: "2026-05-01",
+          description: "赤字になる経費",
+          debit: COMMUNICATION_EXPENSE,
+          credit: ACCRUED_EXPENSE,
+          amount: 250_000,
+          localId: null,
+        }),
+      );
+      const preClosed = await backend.preClosings.run(created.id);
+      await backend.closings.run(
+        created.id,
+        buildFinalClosingPayload(
+          await loadFiscalPeriodReportInput(backend, preClosed, CLOSING_DAY),
+          master,
+        ),
+      );
+      await backend.fiscalPeriods.patch(created.id, {
+        documentsReceivedCompleted: true,
+      });
+
+      const next = await backend.fiscalPeriods.createNext({
+        sourceFiscalPeriodId: created.id,
+        ...PERIOD_2027,
+        carryBalances: true,
+        reversalEntryIds: [],
+        carryFixedAssets: false,
+      });
+
+      const lines = Object.fromEntries(
+        next.opening.balanceLines.map((line) => [line.accountId, line.amount]),
+      );
+      check(
+        lines[`a:${OWNER_EQUITY}`] === 150_000,
+        "a capital of -150,000 opens as a:元入金 150,000",
+      );
+      check(
+        lines["a:事業主貸"] == null && lines[`l:${OWNER_EQUITY}`] == null,
+        "the negative capital is neither 事業主貸 nor a positive 元入金",
+      );
+      check(
+        lines[CASH_BALANCE_LINE_ID] === OPENING_CASH &&
+          lines[`l:${ACCRUED_EXPENSE}`] === 250_000,
+        "the other balances open as they closed",
+      );
+    },
+  ),
+
   contractCase("creates the next period from a closed one", async (backend) => {
     const period = await closedPeriodWithFixedAsset(backend);
 

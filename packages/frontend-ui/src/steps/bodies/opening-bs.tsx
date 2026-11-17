@@ -12,7 +12,6 @@ import {
 import {
   AppError,
   formatAmount,
-  isWholeAmountText,
   type BookAccountType,
 } from "@rubydogjp/openkk-driver";
 import { AppErrorText } from "../../shared/app-error-text.js";
@@ -46,9 +45,11 @@ import {
   buildInitialAmounts,
   enteredOpeningLines,
   buildLiabilityLabels,
+  formatOpeningRowAmount,
+  isCapitalRow,
   liabilityAccountType,
   liabilityKey,
-  parseOpeningAmount,
+  openingAmountsAreValid,
   sumOpeningSection,
   unrenderedOpeningLines,
 } from "./opening-bs-model.js";
@@ -139,7 +140,7 @@ export function OpeningBsBody({
     currentFiscalPeriod.phase === "journalizing" && !editingLocked
       ? carryoverSourceCandidates(currentFiscalPeriod, appState.fiscalPeriods)
       : [];
-  const amountsAreWhole = Object.values(amounts).every(isWholeAmountText);
+  const amountsAreWhole = openingAmountsAreValid(amounts);
   const amountsAreSafe = assetTotal != null && liabilityTotal != null;
   const balancesMatch = amountsAreSafe && assetTotal === liabilityTotal;
 
@@ -283,6 +284,7 @@ export function OpeningBsBody({
                         hasLabel={label !== ""}
                         editable={isEditing}
                         ariaLabel={`${label} 金額`}
+                        rowKey={id}
                         value={amounts[id] ?? ""}
                         onChange={(value) =>
                           setAmounts((previous) => ({
@@ -485,12 +487,14 @@ function AmountCell({
   hasLabel,
   editable,
   ariaLabel,
+  rowKey,
   value,
   onChange,
 }: {
   hasLabel: boolean;
   editable: boolean;
   ariaLabel: string;
+  rowKey: string;
   value: string;
   onChange: (raw: string) => void;
 }) {
@@ -501,13 +505,14 @@ function AmountCell({
   return (
     <div style={{ minWidth: 0 }}>
       {editable ? (
-        <AmountInput value={value} onChange={onChange} ariaLabel={ariaLabel} />
-      ) : (
-        <AmountReadOnlyField
-          value={
-            value === "" ? "" : formatAmount(parseOpeningAmount(value) ?? 0)
-          }
+        <AmountInput
+          value={value}
+          onChange={onChange}
+          ariaLabel={ariaLabel}
+          signed={isCapitalRow(rowKey)}
         />
+      ) : (
+        <AmountReadOnlyField value={formatOpeningRowAmount(rowKey, value)} />
       )}
     </div>
   );

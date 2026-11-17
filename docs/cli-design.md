@@ -65,7 +65,7 @@ openkk periods list | show | create --name --start --end | start <期間id>
 openkk entries list [--json] | add | import <file.csv> [--yes] | export   # CSV は表の形。import は上書きで、--yes がなければ違いを標準出力に出すだけで変えない (終了コード 0、--json なら applied: false の JSON)。仕訳番号の列がない CSV は足すだけ。JSON は非推奨
 openkk report <期間id> journal|ledger|fs [--out <file.html>]
 openkk archive import <zip>                          # 以前の圧縮済みファイルを取り込む (レガシー。書き出しは periods export で .openkk に)
-openkk opening show | set <期間id> <科目>=<金額> ...   # set は 1 つ以上要る。貸倒引当金・減価償却累計額のような貸方の残高の資産の科目は負債・純資産の側に置く
+openkk opening show | set <期間id> <科目>=<金額> ...   # set は 1 つ以上要る。貸倒引当金・減価償却累計額のような貸方の残高の資産の科目は負債・純資産の側に置く。マイナスの元入金は 元入金=-100000 (△100000 でもよい) と書き、a:元入金 として保存する
 openkk closing pre | cancel | final <期間id> [--yes]
 openkk periods receive | next <期間id>
 openkk periods next <期間id> --out <file.openkk>   # 次の期間を新しいファイルに作る (本締め・書類の受け取り済みなら引き継ぐ)

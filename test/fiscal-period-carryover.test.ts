@@ -243,7 +243,7 @@ describe("carryover calculations", () => {
       [balance("a:現金", 400_000), balance("l:元入金", 400_000)],
     ],
     [
-      "negative capital as 事業主貸",
+      "a negative capital as a:元入金, not as 事業主貸",
       [balance("a:現金", 100_000), balance("l:長期借入金", 100_000)],
       [
         [
@@ -258,7 +258,7 @@ describe("carryover calculations", () => {
       [
         balance("a:現金", 50_000),
         balance("l:長期借入金", 100_000),
-        balance("a:事業主貸", 50_000),
+        balance("a:元入金", 50_000),
       ],
     ],
     [
@@ -292,8 +292,52 @@ describe("carryover calculations", () => {
       [
         balance("l:現金", 50_000),
         balance("l:長期借入金", 100_000),
-        balance("a:事業主貸", 150_000),
+        balance("a:元入金", 150_000),
       ],
+    ],
+    [
+      "a negative capital as a negative capital again after a second loss",
+      [
+        balance("l:現金", 50_000),
+        balance("l:長期借入金", 100_000),
+        balance("a:元入金", 150_000),
+      ],
+      [
+        [
+          line("debit", "acct_communication", 50_000),
+          line("credit", "acct_cash", 50_000),
+        ],
+      ],
+      [
+        balance("l:現金", 100_000),
+        balance("l:長期借入金", 100_000),
+        balance("a:元入金", 200_000),
+      ],
+    ],
+    [
+      "an owner drawing carried by an earlier version into the capital",
+      [
+        balance("a:現金", 100_000),
+        balance("a:事業主貸", 30_000),
+        balance("l:長期借入金", 130_000),
+      ],
+      [],
+      [
+        balance("a:現金", 100_000),
+        balance("l:長期借入金", 130_000),
+        balance("a:元入金", 30_000),
+      ],
+    ],
+    [
+      "a capital of zero as no capital line",
+      [balance("a:現金", 100_000), balance("l:元入金", 100_000)],
+      [
+        [
+          line("debit", "acct_communication", 100_000),
+          line("credit", "acct_cash", 100_000),
+        ],
+      ],
+      [],
     ],
   ] as const)("carries %s", (_name, openingBalanceLines, lines, expected) => {
     const actual = buildCarryoverOpeningBalances({

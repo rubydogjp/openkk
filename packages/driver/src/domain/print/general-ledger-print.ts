@@ -216,12 +216,11 @@ export function buildGeneralLedgerBody(
       target = {
         key: `opening:${line.accountId}`,
         name,
-        type:
-          prefix === "a:"
+        type: OPENING_EQUITY_LABELS.has(name)
+          ? "equity"
+          : prefix === "a:"
             ? "asset"
-            : OPENING_EQUITY_LABELS.has(name)
-              ? "equity"
-              : "liability",
+            : "liability",
       };
       encounterOrder.push(target);
     }
