@@ -36,6 +36,7 @@ export type LocalBookFilesAdapterOptions = {
     | "unreadableBooks"
   >;
   legacyUnmovedFiscalPeriods: readonly OpenkkFiscalPeriodLabel[];
+  legacyMergedFiscalPeriods: readonly OpenkkFiscalPeriodLabel[];
   userId: string;
   storage: PlatformKeyValueStorage;
   now(): number;
@@ -134,6 +135,7 @@ export function createLocalBookFilesAdapter(
       ({ fiscalPeriod }) => fiscalPeriod,
     ),
     legacyUnmovedFiscalPeriods: options.legacyUnmovedFiscalPeriods,
+    legacyMergedFiscalPeriods: options.legacyMergedFiscalPeriods,
     getStorageStatus: () => books.storageStatus(),
     getState(fiscalPeriod) {
       const fiscalPeriodId = fiscalPeriod.id;

@@ -12,6 +12,7 @@ import {
   type OpenkkBookFile,
 } from "../bindings/index.js";
 
+import { useLegacyMergedFiscalPeriodsNotice } from "../legacy/legacy-merged-fiscal-periods.js";
 import { useLegacyUnmovedFiscalPeriodsNotice } from "../legacy/legacy-unmoved-fiscal-periods.js";
 import { debugAppError } from "../shared/app-error-text.js";
 import { useOpenkkStandingNotice } from "../shared/notices/notices.js";
@@ -23,7 +24,7 @@ const SEEN_VALUE = "1";
 const KEPT_IN_BROWSER_MESSAGE = "データはこのブラウザの中だけにあります";
 const STORAGE_FAILED_MESSAGE = "ブラウザに保存できませんでした";
 const NEVER_SAVED_MESSAGE = "まだバックアップしていません";
-const SAVE_OVERDUE_MESSAGE = "30 日、バックアップしていません";
+const SAVE_OVERDUE_MESSAGE = "30 日以上バックアップしていません";
 const LOAD_FAILED_MESSAGE = "データを読み込めませんでした";
 
 function unreadableFiscalPeriodsMessage(count: number): string {
@@ -151,6 +152,7 @@ export function ShellNotices(props: {
 }) {
   useKeptInBrowserNotice(props.hasSession);
   useLegacyUnmovedFiscalPeriodsNotice(props.hasSession);
+  useLegacyMergedFiscalPeriodsNotice(props.hasSession);
   useBookStorageNotices();
   useBookSaveReminder(props.bookFile, props.onSave);
   useDataLoadNotice();

@@ -16,6 +16,7 @@ import type { OpenkkFiscalPeriodLabel } from "@rubydogjp/openkk-driver";
 import { createDiskDbAdapter } from "../../../disk-db-adapter/src/index.js";
 import {
   createLegacyBook,
+  createLegacyMergedFiscalPeriodsRecord,
   createLegacyUnmovedFiscalPeriodsRecord,
   splitLegacyDatabaseIntoPeriods,
   type LegacyBookDependencies,
@@ -118,6 +119,8 @@ function setup(
     },
     unmovedFiscalPeriodsRecord:
       createLegacyUnmovedFiscalPeriodsRecord(memoryStorage()),
+    mergedFiscalPeriodsRecord:
+      createLegacyMergedFiscalPeriodsRecord(memoryStorage()),
     exportLegacyDatabase: vi.fn(async () => legacyBytes),
     splitIntoPeriods: splitLegacyDatabaseIntoPeriods,
     storedFiscalPeriodIds: readStoredFiscalPeriodIds,
@@ -183,6 +186,7 @@ describe("legacy book", () => {
     expect(again).toEqual({
       movedFiscalPeriodIds: [],
       unmovedFiscalPeriods: [],
+      mergedFiscalPeriods: [],
     });
     expect(dependencies.exportLegacyDatabase).toHaveBeenCalledTimes(1);
     expect(await store.list()).toHaveLength(1);
@@ -195,6 +199,7 @@ describe("legacy book", () => {
     expect(await legacyBook.moveInto(store, () => {})).toEqual({
       movedFiscalPeriodIds: [],
       unmovedFiscalPeriods: [],
+      mergedFiscalPeriods: [],
     });
     expect(state.moved).toBe(true);
     expect(await store.list()).toEqual([]);
@@ -207,6 +212,7 @@ describe("legacy book", () => {
     expect(await legacyBook.moveInto(store, () => {})).toEqual({
       movedFiscalPeriodIds: [],
       unmovedFiscalPeriods: [],
+      mergedFiscalPeriods: [],
     });
     expect(state.moved).toBe(true);
     expect(await store.list()).toEqual([]);
@@ -267,6 +273,7 @@ describe("legacy book", () => {
     expect(again).toEqual({
       movedFiscalPeriodIds: [],
       unmovedFiscalPeriods: unmoved,
+      mergedFiscalPeriods: [],
     });
     expect(dependencies.exportLegacyDatabase).toHaveBeenCalledTimes(1);
     expect(periods.map(({ name }) => name)).toEqual(["2025年分", "2027年分"]);
@@ -294,6 +301,7 @@ describe("legacy book", () => {
         { name: "2025年分", startDate: "2025-01-01", endDate: "2025-12-31" },
         { name: null, startDate: null, endDate: null },
       ],
+      mergedFiscalPeriods: [],
     });
     expect(state.moved).toBe(true);
     expect(await store.list()).toEqual([]);
@@ -311,6 +319,7 @@ describe("legacy book", () => {
     expect(move).toEqual({
       movedFiscalPeriodIds: [],
       unmovedFiscalPeriods: [{ name: null, startDate: null, endDate: null }],
+      mergedFiscalPeriods: [],
     });
     expect(state.moved).toBe(true);
   });

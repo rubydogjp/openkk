@@ -64,6 +64,7 @@ export type OpenkkFiscalPeriodLabel = {
 export interface OpenkkBookSaveTracking {
   readonly unreadableFiscalPeriods: readonly OpenkkFiscalPeriodLabel[];
   readonly legacyUnmovedFiscalPeriods: readonly OpenkkFiscalPeriodLabel[];
+  readonly legacyMergedFiscalPeriods: readonly OpenkkFiscalPeriodLabel[];
   getStorageStatus(): OpenkkBookStorageStatus;
   getState(fiscalPeriod: OpenkkBookFileSubject): OpenkkBookFileState | null;
   subscribe(listener: () => void): () => void;

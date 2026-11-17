@@ -24,6 +24,7 @@ export type OpenkkBookStorage = {
   status: OpenkkBookStorageStatus;
   unreadableFiscalPeriods: readonly OpenkkFiscalPeriodLabel[];
   legacyUnmovedFiscalPeriods: readonly OpenkkFiscalPeriodLabel[];
+  legacyMergedFiscalPeriods: readonly OpenkkFiscalPeriodLabel[];
   retry: () => Promise<void>;
 };
 
@@ -110,6 +111,7 @@ export function useOpenkkBookStorage(): OpenkkBookStorage | null {
             status,
             unreadableFiscalPeriods: saveTracking.unreadableFiscalPeriods,
             legacyUnmovedFiscalPeriods: saveTracking.legacyUnmovedFiscalPeriods,
+            legacyMergedFiscalPeriods: saveTracking.legacyMergedFiscalPeriods,
             retry: () => saveTracking.retryStorage(),
           },
     [saveTracking, status],

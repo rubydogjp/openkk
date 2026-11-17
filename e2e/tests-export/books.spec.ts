@@ -4,7 +4,6 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { expect, test, type Page } from "@playwright/test";
 
-import { archivedPeriodZip } from "../archived-period";
 import {
   clickButton,
   createFiscalPeriod,
@@ -30,6 +29,7 @@ const UNMOVED_NOTICE = "前の版から移せなかった会計期間が 1 件�
 const UNREADABLE_NOTICE = "読み込めない会計期間が 1 件あります";
 const LEGACY_SEED_PATH = "/__legacy-seed/";
 const SQLITE_WASM_DIR = path.resolve("node_modules/@sqlite.org/sqlite-wasm");
+const RELEASE_FIXTURE_DIR = path.resolve("test/legacy-fixtures/v26.3.1");
 const LEGACY_SEED_WORKER = `
 import sqlite3InitModule from "${LEGACY_SEED_PATH}sqlite-wasm/index.mjs";
 self.onmessage = async (event) => {
@@ -46,6 +46,25 @@ self.onmessage = async (event) => {
   }
 };
 `;
+const LEGACY_READ_WORKER = `
+import sqlite3InitModule from "${LEGACY_SEED_PATH}sqlite-wasm/index.mjs";
+self.onmessage = async () => {
+  try {
+    const sqlite3 = await sqlite3InitModule();
+    const pool = await sqlite3.installOpfsSAHPoolVfs({ name: "openkk" });
+    const names = pool.getFileNames();
+    const bytes = names.length === 1 ? pool.exportFile(names[0]) : null;
+    pool.pauseVfs();
+    self.postMessage({ ok: true, names, bytes, error: null });
+  } catch (error) {
+    self.postMessage({ ok: false, names: [], bytes: null, error: String(error) });
+  }
+};
+`;
+const LEGACY_WORKERS: Record<string, string> = {
+  "worker.mjs": LEGACY_SEED_WORKER,
+  "read-worker.mjs": LEGACY_READ_WORKER,
+};
 
 type PeriodInput = { name: string; startDate: string; endDate: string };
 
@@ -390,7 +409,7 @@ test("refuses a book whose dates overlap another period, and a file that is not 
   await expect(page.getByRole("button", { name: /^2026年分 / })).toBeVisible();
 });
 
-test("takes in a compressed file of the previous version and downloads a backup as a plain book", async ({
+test("takes in a compressed file written by 26.3.1 and downloads a backup as a plain book", async ({
   page,
 }) => {
   await startApp(page);
@@ -401,15 +420,17 @@ test("takes in a compressed file of the previous version and downloads a backup 
   ).toContainText("以前の圧縮済みファイル (.zip) も取り込めます");
   await page.keyboard.press("Escape");
   await page.getByLabel("取り込むファイル").setInputFiles({
-    name: "2026.zip",
+    name: "2024.zip",
     mimeType: "application/zip",
-    buffer: Buffer.from(await archivedPeriodZip()),
+    buffer: fs.readFileSync(
+      path.join(RELEASE_FIXTURE_DIR, "archive-2024-closed.zip"),
+    ),
   });
 
   await expectStep(page, "次の期間へ");
   await expect(saveStatus(page)).toHaveText(UNSAVED_STATUS);
   await expect(page.getByRole("button", { name: /圧縮保存/ })).toHaveCount(0);
-  const backupPath = await downloadFrom(page, "2026年.openkk", () =>
+  const backupPath = await downloadFrom(page, "2024年分.openkk", () =>
     page.getByRole("button", { name: "バックアップをダウンロード" }).click(),
   );
 
@@ -418,7 +439,7 @@ test("takes in a compressed file of the previous version and downloads a backup 
   ).toBeVisible();
   await expect(saveStatus(page)).toHaveText(/^前回 /);
   expect(await readBookPeriods(backupPath)).toEqual([
-    { name: "2026年", phase: "post_closing" },
+    { name: "2024年分", phase: "post_closing" },
   ]);
   await importBook(page, backupPath);
   await expect(
@@ -449,14 +470,14 @@ test("reminds to save a period that was changed and not saved for 30 days", asyn
 
   await page.clock.setFixedTime(start + 80 * DAY_MS);
   await reloadInApp(page);
-  await expect(page.getByText("30 日、バックアップしていません")).toHaveCount(
+  await expect(page.getByText("30 日以上バックアップしていません")).toHaveCount(
     0,
   );
   await startOpenedPeriod(page);
   await expect(
     page
       .getByRole("status")
-      .filter({ hasText: "30 日、バックアップしていません" }),
+      .filter({ hasText: "30 日以上バックアップしていません" }),
   ).toBeVisible();
 });
 
@@ -467,7 +488,8 @@ test("moves the periods the previous version kept in this browser into one book 
     { name: "2025年分", startDate: "2025-01-01", endDate: "2025-12-31" },
     year2026,
   ]);
-  await seedLegacyDatabase(page, fs.readFileSync(legacyPath));
+  const legacyBytes = fs.readFileSync(legacyPath);
+  await seedLegacyDatabase(page, legacyBytes);
   const oldVersionTab = await holdLegacyDatabaseInAnotherTab(page);
 
   await page.goto("/");
@@ -485,7 +507,7 @@ test("moves the periods the previous version kept in this browser into one book 
   await expect(page.getByRole("button", { name: /^2026年分 / })).toBeVisible();
   await waitUntilBooksStored(page);
   expect(await countStoredBooks(page)).toBe(2);
-  expect(await hasPreviousVersionStorage(page)).toBe(true);
+  await expectLegacyDatabaseKept(page, legacyBytes);
 
   await page.getByRole("button", { name: /^2025年分 / }).click();
   await page.getByRole("link", { name: "仕訳" }).click();
@@ -501,6 +523,77 @@ test("moves the periods the previous version kept in this browser into one book 
   await expect(page.getByRole("button", { name: /^2025年分 / })).toHaveCount(1);
   await expect(page.getByRole("button", { name: /^2026年分 / })).toHaveCount(1);
   expect(await countStoredBooks(page)).toBe(2);
+});
+
+test("moves a database written by 26.3.1 into one book per period, merges a period imported back from its archive, and leaves that database as it was", async ({
+  page,
+}) => {
+  const legacyBytes = fs.readFileSync(
+    path.join(RELEASE_FIXTURE_DIR, "openkk.sqlite3"),
+  );
+  await seedLegacyDatabase(page, legacyBytes);
+
+  await startApp(page);
+
+  await expect(
+    page.locator(".bk-fiscal-period-row").filter({ hasText: "2021年分" }),
+  ).toContainText("データ削除済み");
+  for (const name of ["2024年分", "2025年分", "2027年分"]) {
+    await expect(
+      page.getByRole("button", { name: new RegExp(`^${name} `) }),
+    ).toHaveCount(1);
+  }
+  await expect(page.getByRole("button", { name: /^2023年分 / })).toHaveCount(1);
+  await waitUntilBooksStored(page);
+  expect(await countStoredBooks(page)).toBe(5);
+  expect(
+    await page.evaluate(() =>
+      localStorage.getItem("openkk.legacy-book.merged-fiscal-periods"),
+    ),
+  ).toBe(
+    JSON.stringify([
+      { name: "2023年分", startDate: "2023-01-01", endDate: "2023-12-31" },
+    ]),
+  );
+  const mergedNotice = page.getByRole("status").filter({
+    hasText: "前の版で「2023年分」が 2 つあったので、1 つにまとめました",
+  });
+  await expect(mergedNotice).toBeVisible();
+  await mergedNotice.getByRole("button", { name: "閉じる" }).click();
+  await expect(mergedNotice).toHaveCount(0);
+  await reloadInApp(page);
+  await expect(page.getByRole("heading", { name: "期間の選択" })).toBeVisible();
+  await expect(mergedNotice).toHaveCount(0);
+
+  await page.getByRole("button", { name: /^2024年分 / }).click();
+  await page.getByRole("link", { name: "仕訳" }).click();
+  await expect(page.getByText("2024年12月", { exact: true })).toBeVisible();
+  for (const description of ["ノートパソコンの減価償却", "家事按分の振替"]) {
+    await expect(
+      page.getByText(description, { exact: true }).first(),
+    ).toBeVisible();
+  }
+  await showEarlierJournalMonth(page, 2024, 12, 8);
+  await expect(page.getByText(/^まとめて取り込んだ仕訳 /)).toHaveText([
+    "まとめて取り込んだ仕訳 A",
+    "まとめて取り込んだ仕訳 B",
+    "まとめて取り込んだ仕訳 C",
+  ]);
+  await showEarlierJournalMonth(page, 2024, 8, 5);
+  await expect(page.getByText(/^同じ日の仕訳 /)).toHaveText([
+    "同じ日の仕訳 1",
+    "同じ日の仕訳 2",
+    "同じ日の仕訳 4",
+    "同じ日の仕訳 5",
+    "同じ日の仕訳 6",
+  ]);
+  await expect(page.getByText(/^長い摘要のための文章です。/)).toHaveCount(1);
+  await showEarlierJournalMonth(page, 2024, 5, 1);
+  await expect(
+    page.getByText("再振替: 年末の外注費 (未払)", { exact: true }),
+  ).toBeVisible();
+
+  await expectLegacyDatabaseKept(page, legacyBytes);
 });
 
 test("shows a period the previous version archived as an ordinary closed period that counts when dates overlap", async ({
@@ -525,7 +618,7 @@ test("shows a period the previous version archived as an ordinary closed period 
   await expect(page.getByText("圧縮保存済み")).toHaveCount(0);
   await page.getByRole("button", { name: "追加" }).click();
   await expect(
-    page.getByText("既存の有効な会計期間と日付が重複しています。"),
+    page.getByText("ほかの会計期間と日付が重なっています。"),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "作成する" })).toBeDisabled();
 });
@@ -538,7 +631,8 @@ test("moves the periods it can read and shows the one it could not move", async 
     year2026,
   ]);
   makeUnreadableForThisVersion(legacyPath, "2025年分");
-  await seedLegacyDatabase(page, fs.readFileSync(legacyPath));
+  const legacyBytes = fs.readFileSync(legacyPath);
+  await seedLegacyDatabase(page, legacyBytes);
 
   await startApp(page);
 
@@ -555,7 +649,7 @@ test("moves the periods it can read and shows the one it could not move", async 
   await expect(unmovedNotice).toBeVisible();
   await waitUntilBooksStored(page);
   expect(await countStoredBooks(page)).toBe(1);
-  expect(await hasPreviousVersionStorage(page)).toBe(true);
+  await expectLegacyDatabaseKept(page, legacyBytes);
 
   await unmovedNotice.getByRole("button", { name: "閉じる" }).click();
   await expect(unmovedNotice).toHaveCount(0);
@@ -712,16 +806,11 @@ async function countStoredBooks(page: Page) {
   });
 }
 
-async function hasPreviousVersionStorage(page: Page) {
-  return page.evaluate(async () => {
-    const root = await navigator.storage.getDirectory();
-    try {
-      await root.getDirectoryHandle(".openkk", { create: false });
-      return true;
-    } catch {
-      return false;
-    }
-  });
+async function expectLegacyDatabaseKept(page: Page, seeded: Buffer) {
+  const kept = await readLegacyDatabase(page);
+  expect(kept.names).toEqual(["/openkk.sqlite3"]);
+  expect(Buffer.from(kept.bytes).equals(seeded)).toBe(true);
+  expect(schemaVersionOf(kept.bytes)).toBe("5");
 }
 
 async function seedLegacyDatabase(page: Page, bytes: Buffer) {
@@ -736,10 +825,11 @@ async function seedLegacyDatabase(page: Page, bytes: Buffer) {
       });
       return;
     }
-    if (relative === "worker.mjs") {
+    const workerBody = LEGACY_WORKERS[relative];
+    if (workerBody != null) {
       await route.fulfill({
         contentType: "text/javascript",
-        body: LEGACY_SEED_WORKER,
+        body: workerBody,
       });
       return;
     }
@@ -772,6 +862,77 @@ async function seedLegacyDatabase(page: Page, bytes: Buffer) {
     },
     { workerUrl: `${LEGACY_SEED_PATH}worker.mjs`, data: [...bytes] },
   );
+}
+
+async function showEarlierJournalMonth(
+  page: Page,
+  year: number,
+  fromMonth: number,
+  toMonth: number,
+) {
+  for (let month = fromMonth - 1; month >= toMonth; month -= 1) {
+    await page.getByRole("button", { name: "前の月" }).click();
+    await expect(
+      page.getByText(`${year}年${month}月`, { exact: true }),
+    ).toBeVisible();
+  }
+}
+
+async function readLegacyDatabase(
+  page: Page,
+): Promise<{ names: string[]; bytes: Uint8Array }> {
+  const reader = await page.context().newPage();
+  try {
+    await reader.goto(LEGACY_SEED_PATH);
+    const read = await reader.evaluate(async (workerUrl) => {
+      const worker = new Worker(workerUrl, { type: "module" });
+      const result = await new Promise<{
+        names: string[];
+        bytes: number[] | null;
+      }>((resolve, reject) => {
+        worker.onmessage = (
+          event: MessageEvent<{
+            ok: boolean;
+            names: string[];
+            bytes: Uint8Array | null;
+            error: string | null;
+          }>,
+        ) => {
+          if (!event.data.ok) {
+            reject(new Error(event.data.error ?? "read failed"));
+            return;
+          }
+          resolve({
+            names: event.data.names,
+            bytes: event.data.bytes == null ? null : [...event.data.bytes],
+          });
+        };
+        worker.onerror = (event) => reject(new Error(event.message));
+        worker.postMessage(null);
+      });
+      worker.terminate();
+      return result;
+    }, `${LEGACY_SEED_PATH}read-worker.mjs`);
+    if (read.bytes == null) {
+      throw new Error(`the previous version holds ${read.names.join(", ")}`);
+    }
+    return { names: read.names, bytes: new Uint8Array(read.bytes) };
+  } finally {
+    await reader.close();
+  }
+}
+
+function schemaVersionOf(bytes: Uint8Array): unknown {
+  const filePath = path.join(makeTempDir(), "openkk.sqlite3");
+  fs.writeFileSync(filePath, bytes);
+  const database = new DatabaseSync(filePath, { readOnly: true });
+  try {
+    return database
+      .prepare("SELECT value FROM openkk_meta WHERE key = 'schema_version'")
+      .get()?.value;
+  } finally {
+    database.close();
+  }
 }
 
 async function holdLegacyDatabaseInAnotherTab(page: Page) {

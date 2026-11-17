@@ -139,6 +139,7 @@ async function openBooksPorts(
   const bookFiles = createLocalBookFilesAdapter({
     books,
     legacyUnmovedFiscalPeriods: legacyBookMove.unmovedFiscalPeriods,
+    legacyMergedFiscalPeriods: legacyBookMove.mergedFiscalPeriods,
     userId,
     storage: browserPlatformAdapter.storage,
     now: () => Date.now(),

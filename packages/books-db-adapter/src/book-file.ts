@@ -16,6 +16,8 @@ import type {
 
 export type BookFilePeriod = {
   fiscalPeriod: FiscalPeriodDbRecord;
+  entries: EntryDbRecord[];
+  fixedAssets: FixedAssetDbRecord[];
   lastChangedAt: number | null;
   bytes: Uint8Array;
 };
@@ -110,7 +112,7 @@ async function splitOutPeriod(
           source.lastChangedAtOnOpen,
         );
   return {
-    fiscalPeriod: content.fiscalPeriod,
+    ...content,
     lastChangedAt: source.lastChangedAtOnOpen,
     bytes: single,
   };
@@ -188,7 +190,7 @@ async function rebuildBookFilePeriods(
     const periods: BookFilePeriod[] = [];
     for (const records of await readBookRecords(source)) {
       periods.push({
-        fiscalPeriod: records.fiscalPeriod,
+        ...records,
         lastChangedAt,
         bytes: await rebuildBookFileBytes(records, lastChangedAt),
       });

@@ -1,0 +1,2641 @@
+{
+  "madeBy": "v26.3.1",
+  "userId": "openkk-original-user",
+  "schemaVersion": "5",
+  "database": [
+    {
+      "fiscalPeriod": {
+        "id": "fp_8cdc4652-f6d5-4f71-a7d3-fc5c6bef01f8",
+        "name": "2021年分",
+        "startDate": "2021-01-01",
+        "endDate": "2021-12-31",
+        "phase": "post_closing",
+        "archiveStatus": "purged",
+        "archivedAt": "2026-11-17T04:20:21.240Z",
+        "openingBalancesCompleted": true,
+        "documentsReceivedCompleted": true,
+        "userId": "openkk-original-user",
+        "createdAt": "2026-11-17T04:20:21.233Z",
+        "updatedAt": "2026-11-17T04:20:21.241Z",
+        "opening": {
+          "balanceLines": [],
+          "journals": []
+        }
+      },
+      "entries": [],
+      "fixedAssets": [],
+      "entryIdsInStoredOrder": [],
+      "fixedAssetIdsInStoredOrder": []
+    },
+    {
+      "fiscalPeriod": {
+        "id": "fp_a0d71d28-99f0-4d32-8f7c-a20e2bfcc09e",
+        "name": "2023年分",
+        "startDate": "2023-01-01",
+        "endDate": "2023-12-31",
+        "phase": "post_closing",
+        "archiveStatus": "archived",
+        "archivedAt": "2026-11-17T04:20:21.254Z",
+        "openingBalancesCompleted": true,
+        "documentsReceivedCompleted": true,
+        "userId": "openkk-original-user",
+        "createdAt": "2026-11-17T04:20:21.241Z",
+        "updatedAt": "2026-11-17T04:20:21.254Z",
+        "opening": {
+          "balanceLines": [
+            {
+              "id": "a:現金",
+              "accountId": "a:現金",
+              "amount": 120000
+            },
+            {
+              "id": "a:その他の預金",
+              "accountId": "a:その他の預金",
+              "amount": 800000
+            },
+            {
+              "id": "a:普通預金",
+              "accountId": "a:普通預金",
+              "amount": 300000
+            },
+            {
+              "id": "l:元入金",
+              "accountId": "l:元入金",
+              "amount": 1220000
+            }
+          ],
+          "journals": []
+        }
+      },
+      "entries": [
+        {
+          "id": "entry_fa10dcdc-241d-4991-9c91-d94cecca9cd0",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_a0d71d28-99f0-4d32-8f7c-a20e2bfcc09e",
+          "date": "2023-03-10",
+          "description": "制作の売上 (3 月分)",
+          "localId": null,
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.243Z",
+          "updatedAt": "2026-11-17T04:20:21.243Z",
+          "lines": [
+            {
+              "id": "eline_2943bd46-6aaf-4d76-9e5f-e06959c19401",
+              "side": "debit",
+              "bookAccountId": "acct_bank",
+              "amount": 330000,
+              "partnerName": "サンプル商店",
+              "taxCategoryId": "tax_10",
+              "businessCategoryId": "biz_5"
+            },
+            {
+              "id": "eline_8e64ab6d-a978-463e-9219-38cab0199356",
+              "side": "credit",
+              "bookAccountId": "acct_sales",
+              "amount": 330000,
+              "partnerName": "サンプル商店",
+              "taxCategoryId": "tax_10",
+              "businessCategoryId": "biz_5"
+            }
+          ]
+        },
+        {
+          "id": "entry_65fb1228-bf34-4042-b33e-5a0e91627077",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_a0d71d28-99f0-4d32-8f7c-a20e2bfcc09e",
+          "date": "2023-04-02",
+          "description": "機材と配送をまとめて支払い",
+          "localId": null,
+          "businessRate": 0.8,
+          "createdAt": "2026-11-17T04:20:21.243Z",
+          "updatedAt": "2026-11-17T04:20:21.243Z",
+          "lines": [
+            {
+              "id": "eline_8b1d3bf9-68d9-46f4-8f14-3ab822f3168b",
+              "side": "debit",
+              "bookAccountId": "acct_cost_of_sales_消耗品費",
+              "amount": 44000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_90c7026f-1aa8-4784-96c6-56d718fdbfa7",
+              "side": "debit",
+              "bookAccountId": "acct_expense_荷造運賃",
+              "amount": 6000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_c341e51c-477c-4da7-83cc-cd5188985250",
+              "side": "credit",
+              "bookAccountId": "acct_bank",
+              "amount": 50000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_7c04d2e8-a75e-4695-abc6-eb9afab710e2",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_a0d71d28-99f0-4d32-8f7c-a20e2bfcc09e",
+          "date": "2023-10-31",
+          "description": "デスクの除却",
+          "localId": "virtual:virtual-fixed-asset-retire-fa_ab5482af-7179-4b94-bbb6-e4a2bea3cf65",
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.248Z",
+          "updatedAt": "2026-11-17T04:20:21.248Z",
+          "lines": [
+            {
+              "id": "eline_a298be03-dd23-4ac4-bfc0-5d3fbf85e615",
+              "side": "debit",
+              "bookAccountId": "acct_expense_固定資産除却損",
+              "amount": 134376,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_9d3b19af-830f-436b-ad88-ab1e0ff14f54",
+              "side": "credit",
+              "bookAccountId": "acct_equipment",
+              "amount": 134376,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_f415dc32-f43f-4bd8-aa38-970246199ec4",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_a0d71d28-99f0-4d32-8f7c-a20e2bfcc09e",
+          "date": "2023-10-31",
+          "description": "デスクの減価償却",
+          "localId": "virtual:virtual-fixed-asset-fa_ab5482af-7179-4b94-bbb6-e4a2bea3cf65",
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.248Z",
+          "updatedAt": "2026-11-17T04:20:21.248Z",
+          "lines": [
+            {
+              "id": "eline_03cf2334-b248-4150-9fc8-9d3e1f2dc5d8",
+              "side": "debit",
+              "bookAccountId": "acct_depreciation",
+              "amount": 15624,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_91e97a85-6be3-4935-825f-1106a3076921",
+              "side": "credit",
+              "bookAccountId": "acct_equipment",
+              "amount": 15624,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_796c24b9-f5ad-4d88-82a8-4bbd8f9ad890",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_a0d71d28-99f0-4d32-8f7c-a20e2bfcc09e",
+          "date": "2023-11-30",
+          "description": "カメラの減価償却",
+          "localId": "virtual:virtual-fixed-asset-fa_be133b53-5a21-4995-80e1-b463d228201e",
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.248Z",
+          "updatedAt": "2026-11-17T04:20:21.248Z",
+          "lines": [
+            {
+              "id": "eline_09fc410a-2695-4df5-bf32-1d13c5667947",
+              "side": "debit",
+              "bookAccountId": "acct_depreciation",
+              "amount": 54999,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_52f81075-1520-4f80-ab0f-8a28a9be867d",
+              "side": "credit",
+              "bookAccountId": "acct_equipment",
+              "amount": 54999,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_b1c068b1-8f73-4d15-abfd-36e9de5ef3c2",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_a0d71d28-99f0-4d32-8f7c-a20e2bfcc09e",
+          "date": "2023-11-30",
+          "description": "カメラの売却",
+          "localId": "virtual:virtual-fixed-asset-sale-fa_be133b53-5a21-4995-80e1-b463d228201e",
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.248Z",
+          "updatedAt": "2026-11-17T04:20:21.248Z",
+          "lines": [
+            {
+              "id": "eline_8be99ff0-3fba-4ebf-bc0e-cf094d619382",
+              "side": "debit",
+              "bookAccountId": "acct_bank",
+              "amount": 200000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_b298e367-d2ee-40c4-bb96-e97e183fc4c9",
+              "side": "debit",
+              "bookAccountId": "acct_expense_固定資産売却損",
+              "amount": 45001,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_2dea1226-e992-4898-a31d-e2b6c11fe664",
+              "side": "credit",
+              "bookAccountId": "acct_equipment",
+              "amount": 245001,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_d3fac4cf-8f79-49c5-bb23-4318b6147dc6",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_a0d71d28-99f0-4d32-8f7c-a20e2bfcc09e",
+          "date": "2023-12-20",
+          "description": "年末の外注費 (未払)",
+          "localId": null,
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.243Z",
+          "updatedAt": "2026-11-17T04:20:21.243Z",
+          "lines": [
+            {
+              "id": "eline_36199c46-a021-4f51-8f3f-5e2c7c6f178b",
+              "side": "debit",
+              "bookAccountId": "acct_expense_外注費",
+              "amount": 70000,
+              "partnerName": "デザイン事務所",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_1aa35613-d9f4-471d-9b1a-472847261387",
+              "side": "credit",
+              "bookAccountId": "acct_accrued_expense",
+              "amount": 70000,
+              "partnerName": "デザイン事務所",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_5448398a-e0b2-48dd-be21-e0f7f06a0e9b",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_a0d71d28-99f0-4d32-8f7c-a20e2bfcc09e",
+          "date": "2023-12-31",
+          "description": "ノートパソコンの減価償却",
+          "localId": "virtual:virtual-fixed-asset-fa_1536ccb5-dd29-45ad-99f0-c79e9113a64b",
+          "businessRate": 0.8,
+          "createdAt": "2026-11-17T04:20:21.248Z",
+          "updatedAt": "2026-11-17T04:20:21.248Z",
+          "lines": [
+            {
+              "id": "eline_38af9ca9-f392-4b10-adc3-8b6387730f1e",
+              "side": "debit",
+              "bookAccountId": "acct_depreciation",
+              "amount": 54999,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_94a6be2e-7772-49cc-909b-820bf678e3ff",
+              "side": "credit",
+              "bookAccountId": "acct_equipment",
+              "amount": 54999,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_8b719e68-eb22-459e-8b50-5588901ab9d8",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_a0d71d28-99f0-4d32-8f7c-a20e2bfcc09e",
+          "date": "2023-12-31",
+          "description": "家事按分の振替",
+          "localId": "virtual:business-rate-transfer",
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.248Z",
+          "updatedAt": "2026-11-17T04:20:21.248Z",
+          "lines": [
+            {
+              "id": "eline_1553ed95-dee2-464b-8bd5-680c50581428",
+              "side": "credit",
+              "bookAccountId": "acct_cost_of_sales_消耗品費",
+              "amount": 8800,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_15881dd2-a5ab-47d7-a9a7-c5c89dbe4c41",
+              "side": "debit",
+              "bookAccountId": "acct_proprietor_withdrawal",
+              "amount": 21000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_d40b44dc-9296-40b0-9b8f-3d1ff4e83c46",
+              "side": "credit",
+              "bookAccountId": "acct_expense_荷造運賃",
+              "amount": 1200,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_bdd7f201-9dfe-43b5-9503-000ea78e3243",
+              "side": "credit",
+              "bookAccountId": "acct_depreciation",
+              "amount": 11000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        }
+      ],
+      "fixedAssets": [
+        {
+          "id": "fa_1536ccb5-dd29-45ad-99f0-c79e9113a64b",
+          "fiscalPeriodId": "fp_a0d71d28-99f0-4d32-8f7c-a20e2bfcc09e",
+          "name": "ノートパソコン",
+          "acquisitionDate": "2023-02-15",
+          "acquisitionCost": 240000,
+          "usefulLife": 4,
+          "depreciationMethod": "straight_line",
+          "businessRate": 0.8,
+          "status": "active",
+          "disposalDate": null,
+          "disposalPrice": null,
+          "bookAccountId": "acct_equipment",
+          "userId": "openkk-original-user",
+          "createdAt": "2026-11-17T04:20:21.244Z",
+          "updatedAt": "2026-11-17T04:20:21.244Z"
+        },
+        {
+          "id": "fa_be133b53-5a21-4995-80e1-b463d228201e",
+          "fiscalPeriodId": "fp_a0d71d28-99f0-4d32-8f7c-a20e2bfcc09e",
+          "name": "カメラ",
+          "acquisitionDate": "2023-01-05",
+          "acquisitionCost": 300000,
+          "usefulLife": 5,
+          "depreciationMethod": "straight_line",
+          "businessRate": 1,
+          "status": "sold",
+          "disposalDate": "2023-11-30",
+          "disposalPrice": 200000,
+          "bookAccountId": "acct_equipment",
+          "userId": "openkk-original-user",
+          "createdAt": "2026-11-17T04:20:21.244Z",
+          "updatedAt": "2026-11-17T04:20:21.245Z"
+        },
+        {
+          "id": "fa_ab5482af-7179-4b94-bbb6-e4a2bea3cf65",
+          "fiscalPeriodId": "fp_a0d71d28-99f0-4d32-8f7c-a20e2bfcc09e",
+          "name": "デスク",
+          "acquisitionDate": "2023-01-20",
+          "acquisitionCost": 150000,
+          "usefulLife": 8,
+          "depreciationMethod": "straight_line",
+          "businessRate": 1,
+          "status": "disposed",
+          "disposalDate": "2023-10-31",
+          "disposalPrice": null,
+          "bookAccountId": "acct_equipment",
+          "userId": "openkk-original-user",
+          "createdAt": "2026-11-17T04:20:21.245Z",
+          "updatedAt": "2026-11-17T04:20:21.246Z"
+        }
+      ],
+      "entryIdsInStoredOrder": [
+        "entry_fa10dcdc-241d-4991-9c91-d94cecca9cd0",
+        "entry_65fb1228-bf34-4042-b33e-5a0e91627077",
+        "entry_d3fac4cf-8f79-49c5-bb23-4318b6147dc6",
+        "entry_5448398a-e0b2-48dd-be21-e0f7f06a0e9b",
+        "entry_796c24b9-f5ad-4d88-82a8-4bbd8f9ad890",
+        "entry_b1c068b1-8f73-4d15-abfd-36e9de5ef3c2",
+        "entry_f415dc32-f43f-4bd8-aa38-970246199ec4",
+        "entry_7c04d2e8-a75e-4695-abc6-eb9afab710e2",
+        "entry_8b719e68-eb22-459e-8b50-5588901ab9d8"
+      ],
+      "fixedAssetIdsInStoredOrder": [
+        "fa_1536ccb5-dd29-45ad-99f0-c79e9113a64b",
+        "fa_be133b53-5a21-4995-80e1-b463d228201e",
+        "fa_ab5482af-7179-4b94-bbb6-e4a2bea3cf65"
+      ]
+    },
+    {
+      "fiscalPeriod": {
+        "id": "fp_54d0dbdd-0de6-4ea3-9cfe-4cf4f7ea8a15",
+        "name": "2024年分",
+        "startDate": "2024-01-01",
+        "endDate": "2024-12-31",
+        "phase": "post_closing",
+        "archiveStatus": "active",
+        "archivedAt": null,
+        "openingBalancesCompleted": true,
+        "documentsReceivedCompleted": true,
+        "userId": "openkk-original-user",
+        "createdAt": "2026-11-17T04:20:21.251Z",
+        "updatedAt": "2026-11-17T04:20:21.263Z",
+        "opening": {
+          "balanceLines": [
+            {
+              "id": "a:現金",
+              "accountId": "a:現金",
+              "amount": 120000
+            },
+            {
+              "id": "a:その他の預金",
+              "accountId": "a:その他の預金",
+              "amount": 800000
+            },
+            {
+              "id": "a:普通預金",
+              "accountId": "a:普通預金",
+              "amount": 780000
+            },
+            {
+              "id": "l:元入金",
+              "accountId": "l:元入金",
+              "amount": 1125001
+            },
+            {
+              "id": "l:工具器具備品",
+              "accountId": "l:工具器具備品",
+              "amount": 504999
+            },
+            {
+              "id": "l:未払金",
+              "accountId": "l:未払金",
+              "amount": 70000
+            }
+          ],
+          "journals": [
+            {
+              "id": "oc-entry_d3fac4cf-8f79-49c5-bb23-4318b6147dc6-1",
+              "date": "2024-01-01",
+              "description": "再振替: 年末の外注費 (未払)",
+              "businessRate": 1,
+              "lines": [
+                {
+                  "id": "oc-entry_d3fac4cf-8f79-49c5-bb23-4318b6147dc6-1-b",
+                  "side": "debit",
+                  "bookAccountId": "acct_accrued_expense",
+                  "amount": 70000,
+                  "partnerName": "デザイン事務所",
+                  "taxCategoryId": "tax_out_of_scope",
+                  "businessCategoryId": "biz_none"
+                },
+                {
+                  "id": "oc-entry_d3fac4cf-8f79-49c5-bb23-4318b6147dc6-1-p",
+                  "side": "credit",
+                  "bookAccountId": "acct_expense_外注費",
+                  "amount": 70000,
+                  "partnerName": "デザイン事務所",
+                  "taxCategoryId": "tax_out_of_scope",
+                  "businessCategoryId": "biz_none"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "entries": [
+        {
+          "id": "entry_39e04453-d3f5-4022-a28d-8a544dbc11c0",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_54d0dbdd-0de6-4ea3-9cfe-4cf4f7ea8a15",
+          "date": "2024-01-01",
+          "description": "再振替: 年末の外注費 (未払)",
+          "localId": "virtual:virtual-opening-carryover-oc-entry_d3fac4cf-8f79-49c5-bb23-4318b6147dc6-1",
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.262Z",
+          "updatedAt": "2026-11-17T04:20:21.262Z",
+          "lines": [
+            {
+              "id": "eline_6f7ce276-1e20-48a9-9269-b07864988acf",
+              "side": "debit",
+              "bookAccountId": "acct_accrued_expense",
+              "amount": 70000,
+              "partnerName": "デザイン事務所",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_a77bb6b0-8a3d-4c1c-a83c-a376bbdd1463",
+              "side": "credit",
+              "bookAccountId": "acct_expense_外注費",
+              "amount": 70000,
+              "partnerName": "デザイン事務所",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_615a7929-3143-469d-8f3c-a0efe71ef90c",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_54d0dbdd-0de6-4ea3-9cfe-4cf4f7ea8a15",
+          "date": "2024-05-10",
+          "description": "同じ日の仕訳 2",
+          "localId": null,
+          "businessRate": 0.8,
+          "createdAt": "2026-11-17T04:20:21.257Z",
+          "updatedAt": "2026-11-17T04:20:21.257Z",
+          "lines": [
+            {
+              "id": "eline_2e4dfbee-8fbd-40d9-8ef1-5bbeb027585d",
+              "side": "debit",
+              "bookAccountId": "acct_cost_of_sales_通信費",
+              "amount": 2000,
+              "partnerName": "取引先2",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_d5fa941f-10cd-4523-a229-7e06bbf940c2",
+              "side": "credit",
+              "bookAccountId": "acct_cash",
+              "amount": 2000,
+              "partnerName": "取引先2",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_75d1d9a3-73c7-4a7f-9821-30330a965824",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_54d0dbdd-0de6-4ea3-9cfe-4cf4f7ea8a15",
+          "date": "2024-05-10",
+          "description": "同じ日の仕訳 1",
+          "localId": null,
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.257Z",
+          "updatedAt": "2026-11-17T04:20:21.257Z",
+          "lines": [
+            {
+              "id": "eline_42b30b0f-6c7d-4005-8380-882645e092ae",
+              "side": "debit",
+              "bookAccountId": "acct_cost_of_sales_通信費",
+              "amount": 1000,
+              "partnerName": "取引先1",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_70ce886d-e8e1-46db-9f81-7c0d680f0c76",
+              "side": "credit",
+              "bookAccountId": "acct_cash",
+              "amount": 1000,
+              "partnerName": "取引先1",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_3745dced-0b40-40ab-b3da-a0fa584e4273",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_54d0dbdd-0de6-4ea3-9cfe-4cf4f7ea8a15",
+          "date": "2024-05-10",
+          "description": "同じ日の仕訳 4",
+          "localId": null,
+          "businessRate": 0.8,
+          "createdAt": "2026-11-17T04:20:21.258Z",
+          "updatedAt": "2026-11-17T04:20:21.258Z",
+          "lines": [
+            {
+              "id": "eline_8550fba9-2679-41dc-a12c-79980be5ba1d",
+              "side": "debit",
+              "bookAccountId": "acct_cost_of_sales_通信費",
+              "amount": 4000,
+              "partnerName": "取引先4",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_e1767909-51ac-4719-a029-343f84ef9aa5",
+              "side": "credit",
+              "bookAccountId": "acct_cash",
+              "amount": 4000,
+              "partnerName": "取引先4",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_936728af-4471-4dd6-8a51-97f0155866dc",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_54d0dbdd-0de6-4ea3-9cfe-4cf4f7ea8a15",
+          "date": "2024-05-10",
+          "description": "長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘（終）",
+          "localId": null,
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.258Z",
+          "updatedAt": "2026-11-17T04:20:21.258Z",
+          "lines": [
+            {
+              "id": "eline_9a697e77-5b52-4a7a-b92a-fc0cd497764f",
+              "side": "debit",
+              "bookAccountId": "acct_cost_of_sales_通信費",
+              "amount": 3000,
+              "partnerName": "取引先3",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_48ffee0f-7dd5-45c9-848d-4a1c38b818b0",
+              "side": "credit",
+              "bookAccountId": "acct_cash",
+              "amount": 3000,
+              "partnerName": "取引先3",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_d25764a5-db6d-4ce1-9902-f9f134183df7",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_54d0dbdd-0de6-4ea3-9cfe-4cf4f7ea8a15",
+          "date": "2024-05-10",
+          "description": "同じ日の仕訳 5",
+          "localId": null,
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.258Z",
+          "updatedAt": "2026-11-17T04:20:21.258Z",
+          "lines": [
+            {
+              "id": "eline_ac7f2f34-44e2-4816-a643-b4656602e6ac",
+              "side": "debit",
+              "bookAccountId": "acct_cost_of_sales_通信費",
+              "amount": 5000,
+              "partnerName": "取引先5",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_4bbe57f1-d810-48d4-aac1-711cdef3a123",
+              "side": "credit",
+              "bookAccountId": "acct_cash",
+              "amount": 5000,
+              "partnerName": "取引先5",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_a8db825f-2213-46fd-b63b-e41202168a82",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_54d0dbdd-0de6-4ea3-9cfe-4cf4f7ea8a15",
+          "date": "2024-05-10",
+          "description": "同じ日の仕訳 6",
+          "localId": null,
+          "businessRate": 0.8,
+          "createdAt": "2026-11-17T04:20:21.259Z",
+          "updatedAt": "2026-11-17T04:20:21.259Z",
+          "lines": [
+            {
+              "id": "eline_78b7a790-9826-4a16-8a8c-47411b72d21b",
+              "side": "debit",
+              "bookAccountId": "acct_cost_of_sales_通信費",
+              "amount": 6000,
+              "partnerName": "取引先6",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_70bf05df-0217-41dc-90d2-b2d56b22b795",
+              "side": "credit",
+              "bookAccountId": "acct_cash",
+              "amount": 6000,
+              "partnerName": "取引先6",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_6a4b5387-6005-4524-9c7f-03405818cf7d",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_54d0dbdd-0de6-4ea3-9cfe-4cf4f7ea8a15",
+          "date": "2024-07-01",
+          "description": "家賃 (自宅兼事務所)",
+          "localId": null,
+          "businessRate": 0.5,
+          "createdAt": "2026-11-17T04:20:21.259Z",
+          "updatedAt": "2026-11-17T04:20:21.259Z",
+          "lines": [
+            {
+              "id": "eline_6e96f5cb-13b6-4ae6-9135-fafa122fcdac",
+              "side": "debit",
+              "bookAccountId": "acct_rent",
+              "amount": 100000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_35f047e5-6f2f-4d5f-a76e-94b49b87213e",
+              "side": "credit",
+              "bookAccountId": "acct_bank",
+              "amount": 100000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_109e0183-fcb2-4581-8152-50aba9af04ba",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_54d0dbdd-0de6-4ea3-9cfe-4cf4f7ea8a15",
+          "date": "2024-08-31",
+          "description": "まとめて取り込んだ仕訳 B",
+          "localId": "import-b",
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.259Z",
+          "updatedAt": "2026-11-17T04:20:21.259Z",
+          "lines": [
+            {
+              "id": "eline_49839d21-4cb6-43b7-841f-282934f9b721",
+              "side": "debit",
+              "bookAccountId": "acct_cost_of_sales_旅費交通費",
+              "amount": 3500,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_bb5e6417-daa6-4bcd-b251-86a719b9b673",
+              "side": "credit",
+              "bookAccountId": "acct_cash",
+              "amount": 3500,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_43e7cc79-b052-47fa-b83e-7d01a2cb778a",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_54d0dbdd-0de6-4ea3-9cfe-4cf4f7ea8a15",
+          "date": "2024-08-31",
+          "description": "まとめて取り込んだ仕訳 A",
+          "localId": "import-a",
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.259Z",
+          "updatedAt": "2026-11-17T04:20:21.259Z",
+          "lines": [
+            {
+              "id": "eline_893d63f4-c40b-4260-a832-ab58d87b55dd",
+              "side": "debit",
+              "bookAccountId": "acct_cost_of_sales_旅費交通費",
+              "amount": 2500,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_cb712587-1e09-48ba-b3b4-6a1855ea20ca",
+              "side": "credit",
+              "bookAccountId": "acct_cash",
+              "amount": 2500,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_bcaf0469-a9c1-45b6-a9ec-dc86b37fd460",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_54d0dbdd-0de6-4ea3-9cfe-4cf4f7ea8a15",
+          "date": "2024-08-31",
+          "description": "まとめて取り込んだ仕訳 C",
+          "localId": "import-c",
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.259Z",
+          "updatedAt": "2026-11-17T04:20:21.259Z",
+          "lines": [
+            {
+              "id": "eline_8f5468d9-4a61-472a-b7c9-fd877fd67f3d",
+              "side": "debit",
+              "bookAccountId": "acct_cost_of_sales_旅費交通費",
+              "amount": 4500,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_cf94fd9b-5f1a-48f2-8191-28e2092935c1",
+              "side": "credit",
+              "bookAccountId": "acct_cash",
+              "amount": 4500,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_22b6263e-77c1-4bcc-9c43-7bb88a4aa48c",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_54d0dbdd-0de6-4ea3-9cfe-4cf4f7ea8a15",
+          "date": "2024-12-31",
+          "description": "家事按分の振替",
+          "localId": "virtual:business-rate-transfer",
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.262Z",
+          "updatedAt": "2026-11-17T04:20:21.262Z",
+          "lines": [
+            {
+              "id": "eline_8d59c12d-3915-42d2-a2d5-8f02eeb3a766",
+              "side": "credit",
+              "bookAccountId": "acct_cost_of_sales_通信費",
+              "amount": 2400,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_eb64fc83-c9ea-4da4-9afe-6322fcd5cb29",
+              "side": "debit",
+              "bookAccountId": "acct_proprietor_withdrawal",
+              "amount": 64400,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_3b81e13e-7052-4997-a29b-4c99ee7f1d15",
+              "side": "credit",
+              "bookAccountId": "acct_rent",
+              "amount": 50000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_ddcf6dd1-aa2d-4050-90f7-1c013bdad6d5",
+              "side": "credit",
+              "bookAccountId": "acct_depreciation",
+              "amount": 12000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_e8e0ff17-db09-4988-9541-fb1be284d41c",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_54d0dbdd-0de6-4ea3-9cfe-4cf4f7ea8a15",
+          "date": "2024-12-31",
+          "description": "ノートパソコンの減価償却",
+          "localId": "virtual:virtual-fixed-asset-fa_188e555f-6461-44c1-bced-28fd4508e901",
+          "businessRate": 0.8,
+          "createdAt": "2026-11-17T04:20:21.262Z",
+          "updatedAt": "2026-11-17T04:20:21.262Z",
+          "lines": [
+            {
+              "id": "eline_17c31e7c-3966-4d01-b32b-47618307318f",
+              "side": "debit",
+              "bookAccountId": "acct_depreciation",
+              "amount": 60000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_8e3275ea-5231-4d61-953d-9bca720bb905",
+              "side": "credit",
+              "bookAccountId": "acct_equipment",
+              "amount": 60000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        }
+      ],
+      "fixedAssets": [
+        {
+          "id": "fa_188e555f-6461-44c1-bced-28fd4508e901",
+          "fiscalPeriodId": "fp_54d0dbdd-0de6-4ea3-9cfe-4cf4f7ea8a15",
+          "name": "ノートパソコン",
+          "acquisitionDate": "2023-02-15",
+          "acquisitionCost": 240000,
+          "usefulLife": 4,
+          "depreciationMethod": "straight_line",
+          "businessRate": 0.8,
+          "status": "active",
+          "disposalDate": null,
+          "disposalPrice": null,
+          "bookAccountId": "acct_equipment",
+          "userId": "openkk-original-user",
+          "createdAt": "2026-11-17T04:20:21.251Z",
+          "updatedAt": "2026-11-17T04:20:21.251Z"
+        }
+      ],
+      "entryIdsInStoredOrder": [
+        "entry_75d1d9a3-73c7-4a7f-9821-30330a965824",
+        "entry_615a7929-3143-469d-8f3c-a0efe71ef90c",
+        "entry_936728af-4471-4dd6-8a51-97f0155866dc",
+        "entry_3745dced-0b40-40ab-b3da-a0fa584e4273",
+        "entry_d25764a5-db6d-4ce1-9902-f9f134183df7",
+        "entry_a8db825f-2213-46fd-b63b-e41202168a82",
+        "entry_6a4b5387-6005-4524-9c7f-03405818cf7d",
+        "entry_43e7cc79-b052-47fa-b83e-7d01a2cb778a",
+        "entry_109e0183-fcb2-4581-8152-50aba9af04ba",
+        "entry_bcaf0469-a9c1-45b6-a9ec-dc86b37fd460",
+        "entry_39e04453-d3f5-4022-a28d-8a544dbc11c0",
+        "entry_e8e0ff17-db09-4988-9541-fb1be284d41c",
+        "entry_22b6263e-77c1-4bcc-9c43-7bb88a4aa48c"
+      ],
+      "fixedAssetIdsInStoredOrder": ["fa_188e555f-6461-44c1-bced-28fd4508e901"]
+    },
+    {
+      "fiscalPeriod": {
+        "id": "fp_e1a94f38-d279-43b5-bea7-6e2d3405244d",
+        "name": "2023年分",
+        "startDate": "2023-01-01",
+        "endDate": "2023-12-31",
+        "phase": "post_closing",
+        "archiveStatus": "active",
+        "archivedAt": null,
+        "openingBalancesCompleted": true,
+        "documentsReceivedCompleted": true,
+        "userId": "openkk-original-user",
+        "createdAt": "2026-11-17T04:20:21.255Z",
+        "updatedAt": "2026-11-17T04:20:21.255Z",
+        "opening": {
+          "balanceLines": [
+            {
+              "id": "a:現金",
+              "accountId": "a:現金",
+              "amount": 120000
+            },
+            {
+              "id": "a:その他の預金",
+              "accountId": "a:その他の預金",
+              "amount": 800000
+            },
+            {
+              "id": "a:普通預金",
+              "accountId": "a:普通預金",
+              "amount": 300000
+            },
+            {
+              "id": "l:元入金",
+              "accountId": "l:元入金",
+              "amount": 1220000
+            }
+          ],
+          "journals": []
+        }
+      },
+      "entries": [
+        {
+          "id": "entry_ca0f4e06-eefd-4e7f-941c-25bcf706397f",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_e1a94f38-d279-43b5-bea7-6e2d3405244d",
+          "date": "2023-03-10",
+          "description": "制作の売上 (3 月分)",
+          "localId": null,
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.255Z",
+          "updatedAt": "2026-11-17T04:20:21.255Z",
+          "lines": [
+            {
+              "id": "eline_4dde94b7-7320-451e-ba3e-868717648cfe",
+              "side": "debit",
+              "bookAccountId": "acct_bank",
+              "amount": 330000,
+              "partnerName": "サンプル商店",
+              "taxCategoryId": "tax_10",
+              "businessCategoryId": "biz_5"
+            },
+            {
+              "id": "eline_ba9812e1-a572-4910-a0ae-54ea830be83e",
+              "side": "credit",
+              "bookAccountId": "acct_sales",
+              "amount": 330000,
+              "partnerName": "サンプル商店",
+              "taxCategoryId": "tax_10",
+              "businessCategoryId": "biz_5"
+            }
+          ]
+        },
+        {
+          "id": "entry_bc50b088-2280-48fa-b3d6-7cee992dd973",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_e1a94f38-d279-43b5-bea7-6e2d3405244d",
+          "date": "2023-04-02",
+          "description": "機材と配送をまとめて支払い",
+          "localId": null,
+          "businessRate": 0.8,
+          "createdAt": "2026-11-17T04:20:21.255Z",
+          "updatedAt": "2026-11-17T04:20:21.255Z",
+          "lines": [
+            {
+              "id": "eline_159e55cf-8431-4f0b-b48a-8a971506391f",
+              "side": "debit",
+              "bookAccountId": "acct_cost_of_sales_消耗品費",
+              "amount": 44000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_aefb946d-1591-47bc-814e-4aa04bce8986",
+              "side": "debit",
+              "bookAccountId": "acct_expense_荷造運賃",
+              "amount": 6000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_e1720502-59ca-49f0-b98a-754517a65f44",
+              "side": "credit",
+              "bookAccountId": "acct_bank",
+              "amount": 50000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_c5dd4aab-3d49-40d1-a675-52ea9a8cd372",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_e1a94f38-d279-43b5-bea7-6e2d3405244d",
+          "date": "2023-10-31",
+          "description": "デスクの減価償却",
+          "localId": "virtual:virtual-fixed-asset-fa_ab5482af-7179-4b94-bbb6-e4a2bea3cf65",
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.255Z",
+          "updatedAt": "2026-11-17T04:20:21.255Z",
+          "lines": [
+            {
+              "id": "eline_daf62980-07db-4818-a315-066eb411eb94",
+              "side": "debit",
+              "bookAccountId": "acct_depreciation",
+              "amount": 15624,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_6b81b041-21b2-4664-845c-6ded43ef4918",
+              "side": "credit",
+              "bookAccountId": "acct_equipment",
+              "amount": 15624,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_e6823e1f-eadd-40c3-99a2-6614fc1c0c24",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_e1a94f38-d279-43b5-bea7-6e2d3405244d",
+          "date": "2023-10-31",
+          "description": "デスクの除却",
+          "localId": "virtual:virtual-fixed-asset-retire-fa_ab5482af-7179-4b94-bbb6-e4a2bea3cf65",
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.255Z",
+          "updatedAt": "2026-11-17T04:20:21.255Z",
+          "lines": [
+            {
+              "id": "eline_dca2bc27-746c-4e4a-a999-4ed98d80e0c7",
+              "side": "debit",
+              "bookAccountId": "acct_expense_固定資産除却損",
+              "amount": 134376,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_afaea51a-4bb5-4b74-89ce-1da7ad5d807b",
+              "side": "credit",
+              "bookAccountId": "acct_equipment",
+              "amount": 134376,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_2c5280d7-5931-4d4c-8051-22eef6b107c1",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_e1a94f38-d279-43b5-bea7-6e2d3405244d",
+          "date": "2023-11-30",
+          "description": "カメラの減価償却",
+          "localId": "virtual:virtual-fixed-asset-fa_be133b53-5a21-4995-80e1-b463d228201e",
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.255Z",
+          "updatedAt": "2026-11-17T04:20:21.255Z",
+          "lines": [
+            {
+              "id": "eline_0d3fa2e3-6ea3-499f-a699-f9489caf2605",
+              "side": "debit",
+              "bookAccountId": "acct_depreciation",
+              "amount": 54999,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_cb93aaf0-9f26-44bb-85c9-006d71268ec5",
+              "side": "credit",
+              "bookAccountId": "acct_equipment",
+              "amount": 54999,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_ec28acc5-269d-4f67-800b-1bacb26d3aef",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_e1a94f38-d279-43b5-bea7-6e2d3405244d",
+          "date": "2023-11-30",
+          "description": "カメラの売却",
+          "localId": "virtual:virtual-fixed-asset-sale-fa_be133b53-5a21-4995-80e1-b463d228201e",
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.255Z",
+          "updatedAt": "2026-11-17T04:20:21.255Z",
+          "lines": [
+            {
+              "id": "eline_2895ea84-160e-4c02-91a0-7fd94274e2d5",
+              "side": "debit",
+              "bookAccountId": "acct_bank",
+              "amount": 200000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_31154e65-9a39-422d-a2f8-efffafd4c50b",
+              "side": "debit",
+              "bookAccountId": "acct_expense_固定資産売却損",
+              "amount": 45001,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_6aedd412-8004-4ca7-94b4-f7d1111683ac",
+              "side": "credit",
+              "bookAccountId": "acct_equipment",
+              "amount": 245001,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_a48f33a3-fdd4-4766-97b5-f9160b3fa0f5",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_e1a94f38-d279-43b5-bea7-6e2d3405244d",
+          "date": "2023-12-20",
+          "description": "年末の外注費 (未払)",
+          "localId": null,
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.255Z",
+          "updatedAt": "2026-11-17T04:20:21.255Z",
+          "lines": [
+            {
+              "id": "eline_6ad10cbc-fe7f-4d3c-91fd-f230856c495b",
+              "side": "debit",
+              "bookAccountId": "acct_expense_外注費",
+              "amount": 70000,
+              "partnerName": "デザイン事務所",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_1de36845-12a2-438e-be41-d92afbf5d436",
+              "side": "credit",
+              "bookAccountId": "acct_accrued_expense",
+              "amount": 70000,
+              "partnerName": "デザイン事務所",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_27287c8e-b7c0-4f33-97d5-13df5f3a57e5",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_e1a94f38-d279-43b5-bea7-6e2d3405244d",
+          "date": "2023-12-31",
+          "description": "ノートパソコンの減価償却",
+          "localId": "virtual:virtual-fixed-asset-fa_1536ccb5-dd29-45ad-99f0-c79e9113a64b",
+          "businessRate": 0.8,
+          "createdAt": "2026-11-17T04:20:21.255Z",
+          "updatedAt": "2026-11-17T04:20:21.255Z",
+          "lines": [
+            {
+              "id": "eline_de0bed32-0624-4ec9-86d9-4c363d938145",
+              "side": "debit",
+              "bookAccountId": "acct_depreciation",
+              "amount": 54999,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_3dd2a05f-d148-496d-95df-351f52c8a5cd",
+              "side": "credit",
+              "bookAccountId": "acct_equipment",
+              "amount": 54999,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_95c60212-fda7-43ad-9ba5-7eba0dcb9aa7",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_e1a94f38-d279-43b5-bea7-6e2d3405244d",
+          "date": "2023-12-31",
+          "description": "家事按分の振替",
+          "localId": "virtual:business-rate-transfer",
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.255Z",
+          "updatedAt": "2026-11-17T04:20:21.255Z",
+          "lines": [
+            {
+              "id": "eline_b56285e7-112a-4e9d-9c6a-9582296a44ce",
+              "side": "credit",
+              "bookAccountId": "acct_cost_of_sales_消耗品費",
+              "amount": 8800,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_2c0f1012-dbb4-4106-bf5d-3897fe9c448c",
+              "side": "debit",
+              "bookAccountId": "acct_proprietor_withdrawal",
+              "amount": 21000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_505d5bc3-eacf-4509-aacf-3819c6373cfd",
+              "side": "credit",
+              "bookAccountId": "acct_expense_荷造運賃",
+              "amount": 1200,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_d4c1acef-a9d2-4744-b68c-562e1badf485",
+              "side": "credit",
+              "bookAccountId": "acct_depreciation",
+              "amount": 11000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        }
+      ],
+      "fixedAssets": [
+        {
+          "id": "fa_071547a3-af7d-422d-820b-fd2251ba89b9",
+          "fiscalPeriodId": "fp_e1a94f38-d279-43b5-bea7-6e2d3405244d",
+          "name": "デスク",
+          "acquisitionDate": "2023-01-20",
+          "acquisitionCost": 150000,
+          "usefulLife": 8,
+          "depreciationMethod": "straight_line",
+          "businessRate": 1,
+          "status": "disposed",
+          "disposalDate": "2023-10-31",
+          "disposalPrice": null,
+          "bookAccountId": "acct_equipment",
+          "userId": "openkk-original-user",
+          "createdAt": "2026-11-17T04:20:21.255Z",
+          "updatedAt": "2026-11-17T04:20:21.255Z"
+        },
+        {
+          "id": "fa_71500992-57dc-44e8-a5b1-cbdb060b25e6",
+          "fiscalPeriodId": "fp_e1a94f38-d279-43b5-bea7-6e2d3405244d",
+          "name": "ノートパソコン",
+          "acquisitionDate": "2023-02-15",
+          "acquisitionCost": 240000,
+          "usefulLife": 4,
+          "depreciationMethod": "straight_line",
+          "businessRate": 0.8,
+          "status": "active",
+          "disposalDate": null,
+          "disposalPrice": null,
+          "bookAccountId": "acct_equipment",
+          "userId": "openkk-original-user",
+          "createdAt": "2026-11-17T04:20:21.255Z",
+          "updatedAt": "2026-11-17T04:20:21.255Z"
+        },
+        {
+          "id": "fa_86709e6b-98ed-41c2-94cd-e67bee2642f0",
+          "fiscalPeriodId": "fp_e1a94f38-d279-43b5-bea7-6e2d3405244d",
+          "name": "カメラ",
+          "acquisitionDate": "2023-01-05",
+          "acquisitionCost": 300000,
+          "usefulLife": 5,
+          "depreciationMethod": "straight_line",
+          "businessRate": 1,
+          "status": "sold",
+          "disposalDate": "2023-11-30",
+          "disposalPrice": 200000,
+          "bookAccountId": "acct_equipment",
+          "userId": "openkk-original-user",
+          "createdAt": "2026-11-17T04:20:21.255Z",
+          "updatedAt": "2026-11-17T04:20:21.255Z"
+        }
+      ],
+      "entryIdsInStoredOrder": [
+        "entry_ca0f4e06-eefd-4e7f-941c-25bcf706397f",
+        "entry_bc50b088-2280-48fa-b3d6-7cee992dd973",
+        "entry_e6823e1f-eadd-40c3-99a2-6614fc1c0c24",
+        "entry_c5dd4aab-3d49-40d1-a675-52ea9a8cd372",
+        "entry_2c5280d7-5931-4d4c-8051-22eef6b107c1",
+        "entry_ec28acc5-269d-4f67-800b-1bacb26d3aef",
+        "entry_a48f33a3-fdd4-4766-97b5-f9160b3fa0f5",
+        "entry_27287c8e-b7c0-4f33-97d5-13df5f3a57e5",
+        "entry_95c60212-fda7-43ad-9ba5-7eba0dcb9aa7"
+      ],
+      "fixedAssetIdsInStoredOrder": [
+        "fa_71500992-57dc-44e8-a5b1-cbdb060b25e6",
+        "fa_86709e6b-98ed-41c2-94cd-e67bee2642f0",
+        "fa_071547a3-af7d-422d-820b-fd2251ba89b9"
+      ]
+    },
+    {
+      "fiscalPeriod": {
+        "id": "fp_2855df12-9b3e-4b6e-baaf-6733e24f1828",
+        "name": "2025年分",
+        "startDate": "2025-01-01",
+        "endDate": "2025-12-31",
+        "phase": "journalizing",
+        "archiveStatus": "active",
+        "archivedAt": null,
+        "openingBalancesCompleted": true,
+        "documentsReceivedCompleted": false,
+        "userId": "openkk-original-user",
+        "createdAt": "2026-11-17T04:20:21.263Z",
+        "updatedAt": "2026-11-17T04:20:21.264Z",
+        "opening": {
+          "balanceLines": [
+            {
+              "id": "a:現金",
+              "accountId": "a:現金",
+              "amount": 88500
+            },
+            {
+              "id": "a:その他の預金",
+              "accountId": "a:その他の預金",
+              "amount": 800000
+            },
+            {
+              "id": "a:普通預金",
+              "accountId": "a:普通預金",
+              "amount": 680000
+            },
+            {
+              "id": "l:元入金",
+              "accountId": "l:元入金",
+              "amount": 1003501
+            },
+            {
+              "id": "l:工具器具備品",
+              "accountId": "l:工具器具備品",
+              "amount": 564999
+            }
+          ],
+          "journals": []
+        }
+      },
+      "entries": [
+        {
+          "id": "entry_4a3ea93d-ba76-4a73-9ebe-9926cc9fb0e6",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_2855df12-9b3e-4b6e-baaf-6733e24f1828",
+          "date": "2025-02-03",
+          "description": "記帳中の期間の売上",
+          "localId": null,
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.264Z",
+          "updatedAt": "2026-11-17T04:20:21.264Z",
+          "lines": [
+            {
+              "id": "eline_ba82d012-4565-4e6a-a589-1577638e9024",
+              "side": "debit",
+              "bookAccountId": "acct_receivable",
+              "amount": 55000,
+              "partnerName": "サンプル商店",
+              "taxCategoryId": "tax_10",
+              "businessCategoryId": "biz_5"
+            },
+            {
+              "id": "eline_4a03bd1f-453a-4cfe-99ba-b6ef7015f278",
+              "side": "credit",
+              "bookAccountId": "acct_sales",
+              "amount": 55000,
+              "partnerName": "サンプル商店",
+              "taxCategoryId": "tax_10",
+              "businessCategoryId": "biz_5"
+            }
+          ]
+        },
+        {
+          "id": "entry_b97745f3-9081-49bd-bca0-0ae96b9f6ffa",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_2855df12-9b3e-4b6e-baaf-6733e24f1828",
+          "date": "2025-02-28",
+          "description": "売掛金の入金",
+          "localId": null,
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.265Z",
+          "updatedAt": "2026-11-17T04:20:21.265Z",
+          "lines": [
+            {
+              "id": "eline_0ce1b20c-1049-44cd-96bd-61d345491d63",
+              "side": "debit",
+              "bookAccountId": "acct_bank",
+              "amount": 55000,
+              "partnerName": "サンプル商店",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_1c7ff42b-cff3-448a-9291-5ca249b55134",
+              "side": "credit",
+              "bookAccountId": "acct_receivable",
+              "amount": 55000,
+              "partnerName": "サンプル商店",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        }
+      ],
+      "fixedAssets": [
+        {
+          "id": "fa_ed43e085-bb5f-4634-a7c2-674d97c43dfe",
+          "fiscalPeriodId": "fp_2855df12-9b3e-4b6e-baaf-6733e24f1828",
+          "name": "ノートパソコン",
+          "acquisitionDate": "2023-02-15",
+          "acquisitionCost": 240000,
+          "usefulLife": 4,
+          "depreciationMethod": "straight_line",
+          "businessRate": 0.8,
+          "status": "active",
+          "disposalDate": null,
+          "disposalPrice": null,
+          "bookAccountId": "acct_equipment",
+          "userId": "openkk-original-user",
+          "createdAt": "2026-11-17T04:20:21.263Z",
+          "updatedAt": "2026-11-17T04:20:21.263Z"
+        }
+      ],
+      "entryIdsInStoredOrder": [
+        "entry_4a3ea93d-ba76-4a73-9ebe-9926cc9fb0e6",
+        "entry_b97745f3-9081-49bd-bca0-0ae96b9f6ffa"
+      ],
+      "fixedAssetIdsInStoredOrder": ["fa_ed43e085-bb5f-4634-a7c2-674d97c43dfe"]
+    },
+    {
+      "fiscalPeriod": {
+        "id": "fp_4a21b382-12e6-4628-a0ea-247888a8dcc5",
+        "name": "2027年分",
+        "startDate": "2027-01-01",
+        "endDate": "2027-12-31",
+        "phase": "pre_opening",
+        "archiveStatus": "active",
+        "archivedAt": null,
+        "openingBalancesCompleted": false,
+        "documentsReceivedCompleted": false,
+        "userId": "openkk-original-user",
+        "createdAt": "2026-11-17T04:20:21.265Z",
+        "updatedAt": "2026-11-17T04:20:21.265Z",
+        "opening": {
+          "balanceLines": [],
+          "journals": []
+        }
+      },
+      "entries": [],
+      "fixedAssets": [],
+      "entryIdsInStoredOrder": [],
+      "fixedAssetIdsInStoredOrder": []
+    }
+  ],
+  "zips": {
+    "archive-2023-closed.zip": {
+      "fiscalPeriod": {
+        "id": "fp_5a3ca5a9-4a4f-4e7c-9212-09d79e0f1955",
+        "name": "2023年分",
+        "startDate": "2023-01-01",
+        "endDate": "2023-12-31",
+        "phase": "post_closing",
+        "archiveStatus": "active",
+        "archivedAt": null,
+        "openingBalancesCompleted": true,
+        "documentsReceivedCompleted": true,
+        "userId": "openkk-original-user",
+        "createdAt": "2026-11-17T04:20:21.275Z",
+        "updatedAt": "2026-11-17T04:20:21.275Z",
+        "opening": {
+          "balanceLines": [
+            {
+              "id": "a:現金",
+              "accountId": "a:現金",
+              "amount": 120000
+            },
+            {
+              "id": "a:その他の預金",
+              "accountId": "a:その他の預金",
+              "amount": 800000
+            },
+            {
+              "id": "a:普通預金",
+              "accountId": "a:普通預金",
+              "amount": 300000
+            },
+            {
+              "id": "l:元入金",
+              "accountId": "l:元入金",
+              "amount": 1220000
+            }
+          ],
+          "journals": []
+        }
+      },
+      "entries": [
+        {
+          "id": "entry_eb1614cb-7a32-4284-8f2c-d13c1f88e8f6",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_5a3ca5a9-4a4f-4e7c-9212-09d79e0f1955",
+          "date": "2023-03-10",
+          "description": "制作の売上 (3 月分)",
+          "localId": null,
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.275Z",
+          "updatedAt": "2026-11-17T04:20:21.275Z",
+          "lines": [
+            {
+              "id": "eline_91e66ebe-5c6b-4828-ad68-baaa2490278d",
+              "side": "debit",
+              "bookAccountId": "acct_bank",
+              "amount": 330000,
+              "partnerName": "サンプル商店",
+              "taxCategoryId": "tax_10",
+              "businessCategoryId": "biz_5"
+            },
+            {
+              "id": "eline_1801d81d-c014-4a17-99c0-fce52c72c4da",
+              "side": "credit",
+              "bookAccountId": "acct_sales",
+              "amount": 330000,
+              "partnerName": "サンプル商店",
+              "taxCategoryId": "tax_10",
+              "businessCategoryId": "biz_5"
+            }
+          ]
+        },
+        {
+          "id": "entry_f5da62ec-0c1a-45a8-a96c-eb37343d4e81",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_5a3ca5a9-4a4f-4e7c-9212-09d79e0f1955",
+          "date": "2023-04-02",
+          "description": "機材と配送をまとめて支払い",
+          "localId": null,
+          "businessRate": 0.8,
+          "createdAt": "2026-11-17T04:20:21.275Z",
+          "updatedAt": "2026-11-17T04:20:21.275Z",
+          "lines": [
+            {
+              "id": "eline_18a377af-f7ff-4465-8816-f94a3f18892d",
+              "side": "debit",
+              "bookAccountId": "acct_cost_of_sales_消耗品費",
+              "amount": 44000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_ae66450f-1554-4e8f-905a-c94e5b2c1df4",
+              "side": "debit",
+              "bookAccountId": "acct_expense_荷造運賃",
+              "amount": 6000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_991488ab-fba8-4a2a-96c1-74af4cacc6cd",
+              "side": "credit",
+              "bookAccountId": "acct_bank",
+              "amount": 50000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_5094070c-153e-47fa-abdc-00354e7235fe",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_5a3ca5a9-4a4f-4e7c-9212-09d79e0f1955",
+          "date": "2023-10-31",
+          "description": "デスクの減価償却",
+          "localId": "virtual:virtual-fixed-asset-fa_ab5482af-7179-4b94-bbb6-e4a2bea3cf65",
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.275Z",
+          "updatedAt": "2026-11-17T04:20:21.275Z",
+          "lines": [
+            {
+              "id": "eline_9017b6ae-b74f-46bd-adbb-ba31cf135f2f",
+              "side": "debit",
+              "bookAccountId": "acct_depreciation",
+              "amount": 15624,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_a655351d-b024-4443-8aed-bde1cdc9af7f",
+              "side": "credit",
+              "bookAccountId": "acct_equipment",
+              "amount": 15624,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_63c20d63-63eb-47f5-831b-7e738a9fa35b",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_5a3ca5a9-4a4f-4e7c-9212-09d79e0f1955",
+          "date": "2023-10-31",
+          "description": "デスクの除却",
+          "localId": "virtual:virtual-fixed-asset-retire-fa_ab5482af-7179-4b94-bbb6-e4a2bea3cf65",
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.275Z",
+          "updatedAt": "2026-11-17T04:20:21.275Z",
+          "lines": [
+            {
+              "id": "eline_c57563ae-cd80-4a02-973a-602ca75b4cb8",
+              "side": "debit",
+              "bookAccountId": "acct_expense_固定資産除却損",
+              "amount": 134376,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_331e674f-1216-455d-a31d-0b2651a4f4c1",
+              "side": "credit",
+              "bookAccountId": "acct_equipment",
+              "amount": 134376,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_28c80987-735f-4f16-958f-e445aff0cfbd",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_5a3ca5a9-4a4f-4e7c-9212-09d79e0f1955",
+          "date": "2023-11-30",
+          "description": "カメラの売却",
+          "localId": "virtual:virtual-fixed-asset-sale-fa_be133b53-5a21-4995-80e1-b463d228201e",
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.275Z",
+          "updatedAt": "2026-11-17T04:20:21.275Z",
+          "lines": [
+            {
+              "id": "eline_4b776e90-9295-43b9-884e-fbd3f76afdbc",
+              "side": "debit",
+              "bookAccountId": "acct_bank",
+              "amount": 200000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_82d557d5-571a-4f42-a4b0-a7dce4e7ac50",
+              "side": "debit",
+              "bookAccountId": "acct_expense_固定資産売却損",
+              "amount": 45001,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_805dd537-5ca6-4095-ae85-2111702ba768",
+              "side": "credit",
+              "bookAccountId": "acct_equipment",
+              "amount": 245001,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_85a8e0b0-e67a-486b-8914-35adf1650732",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_5a3ca5a9-4a4f-4e7c-9212-09d79e0f1955",
+          "date": "2023-11-30",
+          "description": "カメラの減価償却",
+          "localId": "virtual:virtual-fixed-asset-fa_be133b53-5a21-4995-80e1-b463d228201e",
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.275Z",
+          "updatedAt": "2026-11-17T04:20:21.275Z",
+          "lines": [
+            {
+              "id": "eline_9758114d-7799-4b5f-92c3-bf3bc7979f95",
+              "side": "debit",
+              "bookAccountId": "acct_depreciation",
+              "amount": 54999,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_74ce9093-b932-41ba-9247-f01cf27998a0",
+              "side": "credit",
+              "bookAccountId": "acct_equipment",
+              "amount": 54999,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_44625502-5cc4-4fb8-bd0f-eb7909744c56",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_5a3ca5a9-4a4f-4e7c-9212-09d79e0f1955",
+          "date": "2023-12-20",
+          "description": "年末の外注費 (未払)",
+          "localId": null,
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.275Z",
+          "updatedAt": "2026-11-17T04:20:21.275Z",
+          "lines": [
+            {
+              "id": "eline_97dc46e4-c5e9-4e64-b04f-4a1315450278",
+              "side": "debit",
+              "bookAccountId": "acct_expense_外注費",
+              "amount": 70000,
+              "partnerName": "デザイン事務所",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_e677967d-b417-4969-90d5-6aa97ac27336",
+              "side": "credit",
+              "bookAccountId": "acct_accrued_expense",
+              "amount": 70000,
+              "partnerName": "デザイン事務所",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_2d1a756f-6281-438b-a2c7-3d94064309a6",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_5a3ca5a9-4a4f-4e7c-9212-09d79e0f1955",
+          "date": "2023-12-31",
+          "description": "ノートパソコンの減価償却",
+          "localId": "virtual:virtual-fixed-asset-fa_1536ccb5-dd29-45ad-99f0-c79e9113a64b",
+          "businessRate": 0.8,
+          "createdAt": "2026-11-17T04:20:21.275Z",
+          "updatedAt": "2026-11-17T04:20:21.275Z",
+          "lines": [
+            {
+              "id": "eline_0f270dbf-e392-4df2-81dd-0ebc94e2aa16",
+              "side": "debit",
+              "bookAccountId": "acct_depreciation",
+              "amount": 54999,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_43aeb9e4-69b8-4938-bcc4-4f84e8507643",
+              "side": "credit",
+              "bookAccountId": "acct_equipment",
+              "amount": 54999,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_f99f9829-d008-4b63-8d14-472da04a8702",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_5a3ca5a9-4a4f-4e7c-9212-09d79e0f1955",
+          "date": "2023-12-31",
+          "description": "家事按分の振替",
+          "localId": "virtual:business-rate-transfer",
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.275Z",
+          "updatedAt": "2026-11-17T04:20:21.275Z",
+          "lines": [
+            {
+              "id": "eline_d922717e-852a-40bf-8cee-fb028db654b8",
+              "side": "credit",
+              "bookAccountId": "acct_cost_of_sales_消耗品費",
+              "amount": 8800,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_5705ac92-a6c6-4f10-a196-c825113f4f67",
+              "side": "debit",
+              "bookAccountId": "acct_proprietor_withdrawal",
+              "amount": 21000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_3526dfae-bdb8-4139-9f75-e147b3b65938",
+              "side": "credit",
+              "bookAccountId": "acct_expense_荷造運賃",
+              "amount": 1200,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_3ae986ad-9e22-4791-9211-3cc5acca90f9",
+              "side": "credit",
+              "bookAccountId": "acct_depreciation",
+              "amount": 11000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        }
+      ],
+      "fixedAssets": [
+        {
+          "id": "fa_05949c73-6422-47e4-bf2d-6ba41534bb64",
+          "fiscalPeriodId": "fp_5a3ca5a9-4a4f-4e7c-9212-09d79e0f1955",
+          "name": "ノートパソコン",
+          "acquisitionDate": "2023-02-15",
+          "acquisitionCost": 240000,
+          "usefulLife": 4,
+          "depreciationMethod": "straight_line",
+          "businessRate": 0.8,
+          "status": "active",
+          "disposalDate": null,
+          "disposalPrice": null,
+          "bookAccountId": "acct_equipment",
+          "userId": "openkk-original-user",
+          "createdAt": "2026-11-17T04:20:21.275Z",
+          "updatedAt": "2026-11-17T04:20:21.275Z"
+        },
+        {
+          "id": "fa_24ee901c-8d7b-495b-bdcb-a054da2c4e24",
+          "fiscalPeriodId": "fp_5a3ca5a9-4a4f-4e7c-9212-09d79e0f1955",
+          "name": "カメラ",
+          "acquisitionDate": "2023-01-05",
+          "acquisitionCost": 300000,
+          "usefulLife": 5,
+          "depreciationMethod": "straight_line",
+          "businessRate": 1,
+          "status": "sold",
+          "disposalDate": "2023-11-30",
+          "disposalPrice": 200000,
+          "bookAccountId": "acct_equipment",
+          "userId": "openkk-original-user",
+          "createdAt": "2026-11-17T04:20:21.275Z",
+          "updatedAt": "2026-11-17T04:20:21.275Z"
+        },
+        {
+          "id": "fa_754167ac-b168-41d6-b1dd-d46eedcdd211",
+          "fiscalPeriodId": "fp_5a3ca5a9-4a4f-4e7c-9212-09d79e0f1955",
+          "name": "デスク",
+          "acquisitionDate": "2023-01-20",
+          "acquisitionCost": 150000,
+          "usefulLife": 8,
+          "depreciationMethod": "straight_line",
+          "businessRate": 1,
+          "status": "disposed",
+          "disposalDate": "2023-10-31",
+          "disposalPrice": null,
+          "bookAccountId": "acct_equipment",
+          "userId": "openkk-original-user",
+          "createdAt": "2026-11-17T04:20:21.275Z",
+          "updatedAt": "2026-11-17T04:20:21.275Z"
+        }
+      ]
+    },
+    "archive-2024-closed.zip": {
+      "fiscalPeriod": {
+        "id": "fp_f931949d-afdf-42b2-96d0-f753763fcb57",
+        "name": "2024年分",
+        "startDate": "2024-01-01",
+        "endDate": "2024-12-31",
+        "phase": "post_closing",
+        "archiveStatus": "active",
+        "archivedAt": null,
+        "openingBalancesCompleted": true,
+        "documentsReceivedCompleted": true,
+        "userId": "openkk-original-user",
+        "createdAt": "2026-11-17T04:20:21.282Z",
+        "updatedAt": "2026-11-17T04:20:21.282Z",
+        "opening": {
+          "balanceLines": [
+            {
+              "id": "a:現金",
+              "accountId": "a:現金",
+              "amount": 120000
+            },
+            {
+              "id": "a:その他の預金",
+              "accountId": "a:その他の預金",
+              "amount": 800000
+            },
+            {
+              "id": "a:普通預金",
+              "accountId": "a:普通預金",
+              "amount": 780000
+            },
+            {
+              "id": "l:元入金",
+              "accountId": "l:元入金",
+              "amount": 1125001
+            },
+            {
+              "id": "l:工具器具備品",
+              "accountId": "l:工具器具備品",
+              "amount": 504999
+            },
+            {
+              "id": "l:未払金",
+              "accountId": "l:未払金",
+              "amount": 70000
+            }
+          ],
+          "journals": [
+            {
+              "id": "oc-entry_d3fac4cf-8f79-49c5-bb23-4318b6147dc6-1",
+              "date": "2024-01-01",
+              "description": "再振替: 年末の外注費 (未払)",
+              "businessRate": 1,
+              "lines": [
+                {
+                  "id": "oc-entry_d3fac4cf-8f79-49c5-bb23-4318b6147dc6-1-b",
+                  "side": "debit",
+                  "bookAccountId": "acct_accrued_expense",
+                  "amount": 70000,
+                  "partnerName": "デザイン事務所",
+                  "taxCategoryId": "tax_out_of_scope",
+                  "businessCategoryId": "biz_none"
+                },
+                {
+                  "id": "oc-entry_d3fac4cf-8f79-49c5-bb23-4318b6147dc6-1-p",
+                  "side": "credit",
+                  "bookAccountId": "acct_expense_外注費",
+                  "amount": 70000,
+                  "partnerName": "デザイン事務所",
+                  "taxCategoryId": "tax_out_of_scope",
+                  "businessCategoryId": "biz_none"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "entries": [
+        {
+          "id": "entry_18411e60-4fb6-40dd-8037-36aef62c3dcd",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_f931949d-afdf-42b2-96d0-f753763fcb57",
+          "date": "2024-01-01",
+          "description": "再振替: 年末の外注費 (未払)",
+          "localId": "virtual:virtual-opening-carryover-oc-entry_d3fac4cf-8f79-49c5-bb23-4318b6147dc6-1",
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.282Z",
+          "updatedAt": "2026-11-17T04:20:21.282Z",
+          "lines": [
+            {
+              "id": "eline_dc098f2a-ec40-407c-aff6-7634bc3579ab",
+              "side": "debit",
+              "bookAccountId": "acct_accrued_expense",
+              "amount": 70000,
+              "partnerName": "デザイン事務所",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_61999577-795d-47e3-a15d-279816ac71b8",
+              "side": "credit",
+              "bookAccountId": "acct_expense_外注費",
+              "amount": 70000,
+              "partnerName": "デザイン事務所",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_04deb121-b563-4938-93de-f4778dbea03b",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_f931949d-afdf-42b2-96d0-f753763fcb57",
+          "date": "2024-05-10",
+          "description": "同じ日の仕訳 6",
+          "localId": null,
+          "businessRate": 0.8,
+          "createdAt": "2026-11-17T04:20:21.282Z",
+          "updatedAt": "2026-11-17T04:20:21.282Z",
+          "lines": [
+            {
+              "id": "eline_851e55c4-3426-4505-ae38-50860808a687",
+              "side": "debit",
+              "bookAccountId": "acct_cost_of_sales_通信費",
+              "amount": 6000,
+              "partnerName": "取引先6",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_1a115e53-e3d9-42ae-8ee3-74aeb08af92c",
+              "side": "credit",
+              "bookAccountId": "acct_cash",
+              "amount": 6000,
+              "partnerName": "取引先6",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_1a7093af-719f-4b26-b116-3a2e5bdae39f",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_f931949d-afdf-42b2-96d0-f753763fcb57",
+          "date": "2024-05-10",
+          "description": "同じ日の仕訳 5",
+          "localId": null,
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.282Z",
+          "updatedAt": "2026-11-17T04:20:21.282Z",
+          "lines": [
+            {
+              "id": "eline_fcf1b435-9316-4362-8103-533d4be03227",
+              "side": "debit",
+              "bookAccountId": "acct_cost_of_sales_通信費",
+              "amount": 5000,
+              "partnerName": "取引先5",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_d1a34740-07d6-4f63-a875-8d12365d680f",
+              "side": "credit",
+              "bookAccountId": "acct_cash",
+              "amount": 5000,
+              "partnerName": "取引先5",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_3e447ea2-1c22-4ecb-bda1-8f16934d8d64",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_f931949d-afdf-42b2-96d0-f753763fcb57",
+          "date": "2024-05-10",
+          "description": "同じ日の仕訳 1",
+          "localId": null,
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.282Z",
+          "updatedAt": "2026-11-17T04:20:21.282Z",
+          "lines": [
+            {
+              "id": "eline_bbfbbc43-dde0-4275-9e6e-8afffc22c780",
+              "side": "debit",
+              "bookAccountId": "acct_cost_of_sales_通信費",
+              "amount": 1000,
+              "partnerName": "取引先1",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_14500cce-3ff5-47dd-a76a-b9dcd6851226",
+              "side": "credit",
+              "bookAccountId": "acct_cash",
+              "amount": 1000,
+              "partnerName": "取引先1",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_70adf9f3-3af3-4f11-835a-44dccbbdbe10",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_f931949d-afdf-42b2-96d0-f753763fcb57",
+          "date": "2024-05-10",
+          "description": "長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘要のための文章です。長い摘（終）",
+          "localId": null,
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.282Z",
+          "updatedAt": "2026-11-17T04:20:21.282Z",
+          "lines": [
+            {
+              "id": "eline_34fe71d1-6134-4e0d-8cb8-ffaecb2a45c9",
+              "side": "debit",
+              "bookAccountId": "acct_cost_of_sales_通信費",
+              "amount": 3000,
+              "partnerName": "取引先3",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_961b3f32-922a-4367-86bd-7b5dfe5f5784",
+              "side": "credit",
+              "bookAccountId": "acct_cash",
+              "amount": 3000,
+              "partnerName": "取引先3",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_b7367e15-5304-4e8b-bf23-f8b661c0baf0",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_f931949d-afdf-42b2-96d0-f753763fcb57",
+          "date": "2024-05-10",
+          "description": "同じ日の仕訳 2",
+          "localId": null,
+          "businessRate": 0.8,
+          "createdAt": "2026-11-17T04:20:21.282Z",
+          "updatedAt": "2026-11-17T04:20:21.282Z",
+          "lines": [
+            {
+              "id": "eline_f80487e3-5bd7-423a-b743-0130e2b74085",
+              "side": "debit",
+              "bookAccountId": "acct_cost_of_sales_通信費",
+              "amount": 2000,
+              "partnerName": "取引先2",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_36c8eac5-c13f-49b6-a3ce-9dd793208a29",
+              "side": "credit",
+              "bookAccountId": "acct_cash",
+              "amount": 2000,
+              "partnerName": "取引先2",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_ff9e9796-30d4-4a37-8f12-4aafd698423e",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_f931949d-afdf-42b2-96d0-f753763fcb57",
+          "date": "2024-05-10",
+          "description": "同じ日の仕訳 4",
+          "localId": null,
+          "businessRate": 0.8,
+          "createdAt": "2026-11-17T04:20:21.282Z",
+          "updatedAt": "2026-11-17T04:20:21.282Z",
+          "lines": [
+            {
+              "id": "eline_aca8f7f9-ff96-4508-9729-5870a47aa27f",
+              "side": "debit",
+              "bookAccountId": "acct_cost_of_sales_通信費",
+              "amount": 4000,
+              "partnerName": "取引先4",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_d5a6c08d-7dcb-46c4-a408-b38281d29c77",
+              "side": "credit",
+              "bookAccountId": "acct_cash",
+              "amount": 4000,
+              "partnerName": "取引先4",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_ec0504eb-7479-45b9-b901-7e3fc2c24329",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_f931949d-afdf-42b2-96d0-f753763fcb57",
+          "date": "2024-07-01",
+          "description": "家賃 (自宅兼事務所)",
+          "localId": null,
+          "businessRate": 0.5,
+          "createdAt": "2026-11-17T04:20:21.282Z",
+          "updatedAt": "2026-11-17T04:20:21.282Z",
+          "lines": [
+            {
+              "id": "eline_ba8e8858-8801-42c1-bb04-c08054750473",
+              "side": "debit",
+              "bookAccountId": "acct_rent",
+              "amount": 100000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_c2b57a58-c22f-4b7a-9c1a-b66db564a10b",
+              "side": "credit",
+              "bookAccountId": "acct_bank",
+              "amount": 100000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_71b29bdb-0b05-4c22-8d12-6e293f96033e",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_f931949d-afdf-42b2-96d0-f753763fcb57",
+          "date": "2024-08-31",
+          "description": "まとめて取り込んだ仕訳 A",
+          "localId": "import-a",
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.282Z",
+          "updatedAt": "2026-11-17T04:20:21.282Z",
+          "lines": [
+            {
+              "id": "eline_0fa505c9-5271-406e-9714-f56444a26b87",
+              "side": "debit",
+              "bookAccountId": "acct_cost_of_sales_旅費交通費",
+              "amount": 2500,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_5b07ce31-b6ff-47da-9212-6959d479a61f",
+              "side": "credit",
+              "bookAccountId": "acct_cash",
+              "amount": 2500,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_8f1f708e-ffe2-4fea-babc-4140959d977f",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_f931949d-afdf-42b2-96d0-f753763fcb57",
+          "date": "2024-08-31",
+          "description": "まとめて取り込んだ仕訳 C",
+          "localId": "import-c",
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.282Z",
+          "updatedAt": "2026-11-17T04:20:21.282Z",
+          "lines": [
+            {
+              "id": "eline_eb6945b3-d55b-4adc-b228-034ccef90f46",
+              "side": "debit",
+              "bookAccountId": "acct_cost_of_sales_旅費交通費",
+              "amount": 4500,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_849a582b-8ba4-45f6-b1ac-9ef185bcb8d9",
+              "side": "credit",
+              "bookAccountId": "acct_cash",
+              "amount": 4500,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_c4dd15b8-f119-4e0f-a8c6-8212a3aa6964",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_f931949d-afdf-42b2-96d0-f753763fcb57",
+          "date": "2024-08-31",
+          "description": "まとめて取り込んだ仕訳 B",
+          "localId": "import-b",
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.282Z",
+          "updatedAt": "2026-11-17T04:20:21.282Z",
+          "lines": [
+            {
+              "id": "eline_2bd4136d-db6c-4e6a-a0ce-edd444480a05",
+              "side": "debit",
+              "bookAccountId": "acct_cost_of_sales_旅費交通費",
+              "amount": 3500,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_1d4f55cf-a270-4628-9eab-8993f463a977",
+              "side": "credit",
+              "bookAccountId": "acct_cash",
+              "amount": 3500,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_3277575a-9952-4540-9f58-45a2c8f061ea",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_f931949d-afdf-42b2-96d0-f753763fcb57",
+          "date": "2024-12-31",
+          "description": "家事按分の振替",
+          "localId": "virtual:business-rate-transfer",
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.282Z",
+          "updatedAt": "2026-11-17T04:20:21.282Z",
+          "lines": [
+            {
+              "id": "eline_e088c1ae-1bcc-4266-893d-638fabfd670c",
+              "side": "credit",
+              "bookAccountId": "acct_cost_of_sales_通信費",
+              "amount": 2400,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_0d67450b-2994-4ef8-9315-e527d376fff5",
+              "side": "debit",
+              "bookAccountId": "acct_proprietor_withdrawal",
+              "amount": 64400,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_ee00672a-7667-410c-a334-cec42084e394",
+              "side": "credit",
+              "bookAccountId": "acct_rent",
+              "amount": 50000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_ebd279b6-6b6c-4473-8f71-ac100ee8becc",
+              "side": "credit",
+              "bookAccountId": "acct_depreciation",
+              "amount": 12000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        },
+        {
+          "id": "entry_70016eee-8ba6-4c50-b892-329171706553",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_f931949d-afdf-42b2-96d0-f753763fcb57",
+          "date": "2024-12-31",
+          "description": "ノートパソコンの減価償却",
+          "localId": "virtual:virtual-fixed-asset-fa_188e555f-6461-44c1-bced-28fd4508e901",
+          "businessRate": 0.8,
+          "createdAt": "2026-11-17T04:20:21.282Z",
+          "updatedAt": "2026-11-17T04:20:21.282Z",
+          "lines": [
+            {
+              "id": "eline_32bbe7e8-5ea0-48cb-b395-c8c913f21829",
+              "side": "debit",
+              "bookAccountId": "acct_depreciation",
+              "amount": 60000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_a15bd390-71f0-48d5-837e-4276063d238b",
+              "side": "credit",
+              "bookAccountId": "acct_equipment",
+              "amount": 60000,
+              "partnerName": "",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        }
+      ],
+      "fixedAssets": [
+        {
+          "id": "fa_5b31c690-f7b0-45a7-9dc0-e650edfd3cb2",
+          "fiscalPeriodId": "fp_f931949d-afdf-42b2-96d0-f753763fcb57",
+          "name": "ノートパソコン",
+          "acquisitionDate": "2023-02-15",
+          "acquisitionCost": 240000,
+          "usefulLife": 4,
+          "depreciationMethod": "straight_line",
+          "businessRate": 0.8,
+          "status": "active",
+          "disposalDate": null,
+          "disposalPrice": null,
+          "bookAccountId": "acct_equipment",
+          "userId": "openkk-original-user",
+          "createdAt": "2026-11-17T04:20:21.282Z",
+          "updatedAt": "2026-11-17T04:20:21.282Z"
+        }
+      ]
+    },
+    "archive-2025-journalizing.zip": {
+      "fiscalPeriod": {
+        "id": "fp_a78c3f39-a9d3-4c72-8b1f-139972b63413",
+        "name": "2025年分",
+        "startDate": "2025-01-01",
+        "endDate": "2025-12-31",
+        "phase": "journalizing",
+        "archiveStatus": "active",
+        "archivedAt": null,
+        "openingBalancesCompleted": true,
+        "documentsReceivedCompleted": false,
+        "userId": "openkk-original-user",
+        "createdAt": "2026-11-17T04:20:21.288Z",
+        "updatedAt": "2026-11-17T04:20:21.288Z",
+        "opening": {
+          "balanceLines": [
+            {
+              "id": "a:現金",
+              "accountId": "a:現金",
+              "amount": 88500
+            },
+            {
+              "id": "a:その他の預金",
+              "accountId": "a:その他の預金",
+              "amount": 800000
+            },
+            {
+              "id": "a:普通預金",
+              "accountId": "a:普通預金",
+              "amount": 680000
+            },
+            {
+              "id": "l:元入金",
+              "accountId": "l:元入金",
+              "amount": 1003501
+            },
+            {
+              "id": "l:工具器具備品",
+              "accountId": "l:工具器具備品",
+              "amount": 564999
+            }
+          ],
+          "journals": []
+        }
+      },
+      "entries": [
+        {
+          "id": "entry_ad11fe3f-a8d1-4076-b2a1-356459e90040",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_a78c3f39-a9d3-4c72-8b1f-139972b63413",
+          "date": "2025-02-03",
+          "description": "記帳中の期間の売上",
+          "localId": null,
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.288Z",
+          "updatedAt": "2026-11-17T04:20:21.288Z",
+          "lines": [
+            {
+              "id": "eline_5ced7ea8-bc3d-4474-a461-12b1a60d1748",
+              "side": "debit",
+              "bookAccountId": "acct_receivable",
+              "amount": 55000,
+              "partnerName": "サンプル商店",
+              "taxCategoryId": "tax_10",
+              "businessCategoryId": "biz_5"
+            },
+            {
+              "id": "eline_efa7b06a-57ca-424c-8d60-7c6a30a13945",
+              "side": "credit",
+              "bookAccountId": "acct_sales",
+              "amount": 55000,
+              "partnerName": "サンプル商店",
+              "taxCategoryId": "tax_10",
+              "businessCategoryId": "biz_5"
+            }
+          ]
+        },
+        {
+          "id": "entry_0c41df52-ea5c-417b-9d56-c28fda93cfec",
+          "userId": "openkk-original-user",
+          "fiscalPeriodId": "fp_a78c3f39-a9d3-4c72-8b1f-139972b63413",
+          "date": "2025-02-28",
+          "description": "売掛金の入金",
+          "localId": null,
+          "businessRate": 1,
+          "createdAt": "2026-11-17T04:20:21.288Z",
+          "updatedAt": "2026-11-17T04:20:21.288Z",
+          "lines": [
+            {
+              "id": "eline_30ab8862-8ff1-49fc-86ff-06a44d828375",
+              "side": "debit",
+              "bookAccountId": "acct_bank",
+              "amount": 55000,
+              "partnerName": "サンプル商店",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            },
+            {
+              "id": "eline_d96d7d47-bbb4-4643-bc5d-deec641ad89a",
+              "side": "credit",
+              "bookAccountId": "acct_receivable",
+              "amount": 55000,
+              "partnerName": "サンプル商店",
+              "taxCategoryId": "tax_out_of_scope",
+              "businessCategoryId": "biz_none"
+            }
+          ]
+        }
+      ],
+      "fixedAssets": [
+        {
+          "id": "fa_edfbf205-230d-45ce-a90f-8651e9b11435",
+          "fiscalPeriodId": "fp_a78c3f39-a9d3-4c72-8b1f-139972b63413",
+          "name": "ノートパソコン",
+          "acquisitionDate": "2023-02-15",
+          "acquisitionCost": 240000,
+          "usefulLife": 4,
+          "depreciationMethod": "straight_line",
+          "businessRate": 0.8,
+          "status": "active",
+          "disposalDate": null,
+          "disposalPrice": null,
+          "bookAccountId": "acct_equipment",
+          "userId": "openkk-original-user",
+          "createdAt": "2026-11-17T04:20:21.288Z",
+          "updatedAt": "2026-11-17T04:20:21.288Z"
+        }
+      ]
+    }
+  }
+}

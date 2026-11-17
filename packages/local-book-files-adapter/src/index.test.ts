@@ -56,6 +56,9 @@ const period2027 = {
 const UNMOVED_FROM_PREVIOUS_VERSION = [
   { name: "2024年分", startDate: "2024-01-01", endDate: "2024-12-31" },
 ];
+const MERGED_FROM_PREVIOUS_VERSION = [
+  { name: "2023年分", startDate: "2023-01-01", endDate: "2023-12-31" },
+];
 
 async function openApp() {
   const books = await openTestBooks(emptyStore());
@@ -68,6 +71,7 @@ async function openApp() {
   const files = createLocalBookFilesAdapter({
     books: books.adapter,
     legacyUnmovedFiscalPeriods: UNMOVED_FROM_PREVIOUS_VERSION,
+    legacyMergedFiscalPeriods: MERGED_FROM_PREVIOUS_VERSION,
     userId: USER,
     storage: {
       getItem: (key) => values.get(key) ?? null,
@@ -101,6 +105,14 @@ describe("book files adapter: save", () => {
     );
   });
 
+  it("passes on the periods that were merged into another of the same dates while moving from the previous version", async () => {
+    const app = await openApp();
+
+    expect(app.files.saveTracking.legacyMergedFiscalPeriods).toEqual(
+      MERGED_FROM_PREVIOUS_VERSION,
+    );
+  });
+
   it("names the periods of the books it could not read", async () => {
     const readable = await openApp();
     const period = await readable.books.adapter.db.fiscalPeriods.create(
@@ -122,6 +134,7 @@ describe("book files adapter: save", () => {
     const files = createLocalBookFilesAdapter({
       books: books.adapter,
       legacyUnmovedFiscalPeriods: [],
+      legacyMergedFiscalPeriods: [],
       userId: USER,
       storage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
       now: () => 0,
@@ -153,6 +166,7 @@ describe("book files adapter: save", () => {
         },
       },
       legacyUnmovedFiscalPeriods: [],
+      legacyMergedFiscalPeriods: [],
       userId: USER,
       storage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
       now: () => app.state.now,
@@ -339,6 +353,7 @@ describe("book files adapter: import", () => {
     const outsideFiles = createLocalBookFilesAdapter({
       books: outside.adapter,
       legacyUnmovedFiscalPeriods: [],
+      legacyMergedFiscalPeriods: [],
       userId: USER,
       storage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
       now: () => app.state.now,

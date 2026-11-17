@@ -16,16 +16,19 @@ import type {
   PlatformKeyValueStorage,
 } from "@rubydogjp/openkk-driver";
 
+import { mergeLegacyDuplicatePeriods } from "./legacy-duplicate-periods";
+
 const LEGACY_DATABASE = { vfsName: "openkk", dbFileName: "openkk.sqlite3" };
 const MOVED_MARKER_NAME = "openkk-legacy-book-moved";
 const UNMOVED_FISCAL_PERIODS_KEY = "openkk.legacy-book.unmoved-fiscal-periods";
+const MERGED_FISCAL_PERIODS_KEY = "openkk.legacy-book.merged-fiscal-periods";
 
 export type LegacyBookMarker = {
   isMoved(): Promise<boolean>;
   markMoved(): Promise<void>;
 };
 
-export type LegacyUnmovedFiscalPeriodsRecord = {
+export type LegacyFiscalPeriodsRecord = {
   read(): OpenkkFiscalPeriodLabel[];
   write(periods: readonly OpenkkFiscalPeriodLabel[]): void;
 };
@@ -38,16 +41,19 @@ export type LegacyBookPeriod = {
 export type LegacyBookSplit = {
   periods: LegacyBookPeriod[];
   unmovedFiscalPeriods: OpenkkFiscalPeriodLabel[];
+  mergedFiscalPeriods: OpenkkFiscalPeriodLabel[];
 };
 
 export type LegacyBookMove = {
   movedFiscalPeriodIds: string[];
   unmovedFiscalPeriods: OpenkkFiscalPeriodLabel[];
+  mergedFiscalPeriods: OpenkkFiscalPeriodLabel[];
 };
 
 export type LegacyBookDependencies = {
   marker: LegacyBookMarker;
-  unmovedFiscalPeriodsRecord: LegacyUnmovedFiscalPeriodsRecord;
+  unmovedFiscalPeriodsRecord: LegacyFiscalPeriodsRecord;
+  mergedFiscalPeriodsRecord: LegacyFiscalPeriodsRecord;
   exportLegacyDatabase(
     onWaitingForAnotherTab: () => void,
   ): Promise<Uint8Array | null>;
@@ -66,6 +72,7 @@ export type LegacyBook = {
 const NOTHING_TO_SPLIT: LegacyBookSplit = {
   periods: [],
   unmovedFiscalPeriods: [],
+  mergedFiscalPeriods: [],
 };
 
 export function createLegacyBook(
@@ -77,12 +84,13 @@ export function createLegacyBook(
         return {
           movedFiscalPeriodIds: [],
           unmovedFiscalPeriods: dependencies.unmovedFiscalPeriodsRecord.read(),
+          mergedFiscalPeriods: dependencies.mergedFiscalPeriodsRecord.read(),
         };
       }
       const bytes = await dependencies.exportLegacyDatabase(
         onWaitingForAnotherTab,
       );
-      const { periods, unmovedFiscalPeriods } =
+      const { periods, unmovedFiscalPeriods, mergedFiscalPeriods } =
         bytes == null
           ? NOTHING_TO_SPLIT
           : await dependencies.splitIntoPeriods(bytes);
@@ -97,8 +105,13 @@ export function createLegacyBook(
         movedFiscalPeriodIds.push(period.fiscalPeriodId);
       }
       dependencies.unmovedFiscalPeriodsRecord.write(unmovedFiscalPeriods);
+      dependencies.mergedFiscalPeriodsRecord.write(mergedFiscalPeriods);
       await dependencies.marker.markMoved();
-      return { movedFiscalPeriodIds, unmovedFiscalPeriods };
+      return {
+        movedFiscalPeriodIds,
+        unmovedFiscalPeriods,
+        mergedFiscalPeriods,
+      };
     },
   };
 }
@@ -107,7 +120,7 @@ function textOrNull(value: unknown): string | null {
   return typeof value === "string" && value !== "" ? value : null;
 }
 
-function parseUnmovedFiscalPeriods(
+function parseFiscalPeriodLabels(
   stored: string | null,
 ): OpenkkFiscalPeriodLabel[] {
   if (stored == null) return [];
@@ -130,25 +143,56 @@ function parseUnmovedFiscalPeriods(
     }));
 }
 
-export function createLegacyUnmovedFiscalPeriodsRecord(
+function createLegacyFiscalPeriodsRecord(
   storage: PlatformKeyValueStorage,
-): LegacyUnmovedFiscalPeriodsRecord {
+  key: string,
+  listName: string,
+): LegacyFiscalPeriodsRecord {
   return {
-    read: () =>
-      parseUnmovedFiscalPeriods(storage.getItem(UNMOVED_FISCAL_PERIODS_KEY)),
+    read: () => parseFiscalPeriodLabels(storage.getItem(key)),
     write(periods) {
       const stored = periods.length === 0 ? null : JSON.stringify(periods);
       if (stored == null) {
-        storage.removeItem(UNMOVED_FISCAL_PERIODS_KEY);
+        storage.removeItem(key);
       } else {
-        storage.setItem(UNMOVED_FISCAL_PERIODS_KEY, stored);
+        storage.setItem(key, stored);
       }
-      if (storage.getItem(UNMOVED_FISCAL_PERIODS_KEY) !== stored) {
-        throw new Error(
-          "the list of fiscal periods that could not be moved was not stored",
-        );
+      if (storage.getItem(key) !== stored) {
+        throw new Error(`the list of ${listName} was not stored`);
       }
     },
+  };
+}
+
+export function createLegacyUnmovedFiscalPeriodsRecord(
+  storage: PlatformKeyValueStorage,
+): LegacyFiscalPeriodsRecord {
+  return createLegacyFiscalPeriodsRecord(
+    storage,
+    UNMOVED_FISCAL_PERIODS_KEY,
+    "fiscal periods that could not be moved",
+  );
+}
+
+export function createLegacyMergedFiscalPeriodsRecord(
+  storage: PlatformKeyValueStorage,
+): LegacyFiscalPeriodsRecord {
+  return createLegacyFiscalPeriodsRecord(
+    storage,
+    MERGED_FISCAL_PERIODS_KEY,
+    "fiscal periods merged into another of the same dates",
+  );
+}
+
+function fiscalPeriodLabel(period: {
+  name: string | null;
+  startDate: string | null;
+  endDate: string | null;
+}): OpenkkFiscalPeriodLabel {
+  return {
+    name: period.name,
+    startDate: period.startDate,
+    endDate: period.endDate,
   };
 }
 
@@ -156,16 +200,16 @@ export async function splitLegacyDatabaseIntoPeriods(
   bytes: Uint8Array,
 ): Promise<LegacyBookSplit> {
   const { periods, unreadable } = await splitReadableBookFilePeriods(bytes);
+  const { kept, merged } = mergeLegacyDuplicatePeriods(periods);
   return {
-    periods: periods.map((period) => ({
+    periods: kept.map((period) => ({
       fiscalPeriodId: period.fiscalPeriod.id,
       bytes: period.bytes,
     })),
-    unmovedFiscalPeriods: unreadable.map(({ name, startDate, endDate }) => ({
-      name,
-      startDate,
-      endDate,
-    })),
+    unmovedFiscalPeriods: unreadable.map(fiscalPeriodLabel),
+    mergedFiscalPeriods: merged.map((period) =>
+      fiscalPeriodLabel(period.fiscalPeriod),
+    ),
   };
 }
 
@@ -201,6 +245,9 @@ const storageRootMarker: LegacyBookMarker = {
 export const legacyBook = createLegacyBook({
   marker: storageRootMarker,
   unmovedFiscalPeriodsRecord: createLegacyUnmovedFiscalPeriodsRecord(
+    browserPlatformAdapter.storage,
+  ),
+  mergedFiscalPeriodsRecord: createLegacyMergedFiscalPeriodsRecord(
     browserPlatformAdapter.storage,
   ),
   async exportLegacyDatabase(onWaitingForAnotherTab) {
