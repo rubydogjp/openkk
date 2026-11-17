@@ -103,6 +103,13 @@ export type BookImportExpectation = {
   existingLastChangedAt: number | null;
 };
 
+export class BookOfAnotherUserError extends Error {
+  constructor() {
+    super("the book file holds only fiscal periods of another user");
+    this.name = "BookOfAnotherUserError";
+  }
+}
+
 export class BookImportChangedError extends Error {
   constructor(readonly fiscalPeriodId: string) {
     super(`the books changed after the file was inspected: ${fiscalPeriodId}`);
@@ -798,13 +805,17 @@ export async function createBooksDbAdapter(
       userId: string,
     ): Promise<InspectedBookPeriod[]> {
       const inspected: InspectedBookPeriod[] = [];
-      for (const period of await splitBookFile(bytes)) {
+      const periods = await splitBookFile(bytes);
+      for (const period of periods) {
         if (period.fiscalPeriod.userId !== userId) continue;
         inspected.push({
           fiscalPeriod: period.fiscalPeriod,
           lastChangedAt: period.lastChangedAt,
           relation: await relationOf(userId, period.fiscalPeriod),
         });
+      }
+      if (inspected.length === 0 && periods.length > 0) {
+        throw new BookOfAnotherUserError();
       }
       return inspected;
     },

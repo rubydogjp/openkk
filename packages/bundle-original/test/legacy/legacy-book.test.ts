@@ -744,6 +744,7 @@ describe("legacy book: changes made in the previous version after the move", () 
       books,
       legacyUnmovedFiscalPeriods: [],
       legacyMergedFiscalPeriods: [],
+      legacyMovedFiscalPeriodIds: [],
       legacyBookWatch: legacyBook,
       userId: USER,
       storage: memoryStorage(),

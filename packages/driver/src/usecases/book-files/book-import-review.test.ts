@@ -52,6 +52,10 @@ describe("reviewBookImport", () => {
       "アプリの中の「2026年分」に、バックアップしていない変更があります。ファイルを優先して上書きすると失われます。",
     ],
     [
+      "file_is_older",
+      "ファイルのほうが古いので、アプリの中の「2026年分」の新しい変更が失われます。",
+    ],
+    [
       "changed_both",
       "アプリの中の「2026年分」に、バックアップしていない変更があります。ファイルを優先して上書きすると失われます。",
     ],
@@ -117,6 +121,9 @@ describe("bookFileProblemMessage", () => {
     expect(
       bookFileProblemMessage(new OpenkkBookFileError("no_fiscal_period")),
     ).toContain("取り込める会計期間がありません");
+    expect(
+      bookFileProblemMessage(new OpenkkBookFileError("another_user")),
+    ).toContain("別の利用者");
     expect(
       bookFileProblemMessage(new OpenkkBookFileError("books_changed")),
     ).toContain("もう一度取り込んでください");

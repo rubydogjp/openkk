@@ -203,7 +203,7 @@ function buildBsHtml(bsRows: ReadonlyArray<FsBsRow>): string {
 
   const rowsHtml = bsRows
     .map((row) => {
-      const cellBase = `border:0.8px solid ${BLUE};padding:3px 6px;font-size:10px;height:${BS_ROW_H}px;vertical-align:middle;background:white;font-weight:400;`;
+      const cellBase = `border:0.8px solid ${BLUE};padding:3px 4px;font-size:10px;height:${BS_ROW_H}px;vertical-align:middle;background:white;font-weight:400;overflow-wrap:anywhere;`;
       return `<tr>
   <td style="${cellBase};color:${BLUE}">${escapeHtml(row.assetLabel)}</td>
   <td style="${cellBase};color:${TEXT_DARK};text-align:right">${formatOptionalAmount(row.assetOpening)}</td>

@@ -67,7 +67,7 @@ describe("bookImportCase", () => {
       inFile: 50,
       inApp: 100,
       saved: 100,
-      expected: "replaces_app_changes",
+      expected: "file_is_older",
     },
     {
       label: "the file is older than the last save and the app changed again",
@@ -95,7 +95,7 @@ describe("bookImportCase", () => {
       inFile: null,
       inApp: 100,
       saved: 100,
-      expected: "replaces_app_changes",
+      expected: "file_is_older",
     },
   ])("$label", ({ inFile, inApp, saved, expected }) => {
     expect(

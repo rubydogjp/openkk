@@ -24,7 +24,11 @@ export type JournalFileKind = (typeof JOURNAL_FILE_KINDS)[number];
 
 export type JournalImportPlan =
   | { kind: "replace"; incoming: EntryRecord[]; changes: JournalTableChanges }
-  | { kind: "problems"; problems: JournalTableProblem[] }
+  | {
+      kind: "problems";
+      problems: JournalTableProblem[];
+      problemCount: number;
+    }
   | { kind: "append"; entries: EntryRecord[]; fromLegacyCsv: boolean }
   | { kind: "add"; entries: EntryRecord[] };
 
@@ -66,7 +70,13 @@ export function planJournalImport(input: {
       ]),
     ),
   });
-  if (!read.ok) return { kind: "problems", problems: read.problems };
+  if (!read.ok) {
+    return {
+      kind: "problems",
+      problems: read.problems,
+      problemCount: read.problemCount,
+    };
+  }
   if (!overwrites) return { kind: "add", entries: read.entries };
   return {
     kind: "replace",

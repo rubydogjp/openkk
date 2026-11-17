@@ -20,6 +20,7 @@ export type OpenkkBookImportCase =
   | "same"
   | "changed_outside"
   | "replaces_app_changes"
+  | "file_is_older"
   | "changed_both"
   | "same_dates"
   | "overlapping";
@@ -43,7 +44,11 @@ export interface OpenkkBookImportPlan {
 }
 
 export type OpenkkBookFileProblem =
-  "not_a_book" | "newer_version" | "no_fiscal_period" | "books_changed";
+  | "not_a_book"
+  | "newer_version"
+  | "no_fiscal_period"
+  | "another_user"
+  | "books_changed";
 
 export class OpenkkBookFileError extends Error {
   readonly problem: OpenkkBookFileProblem;

@@ -77,7 +77,11 @@ export function ClosingBody({
   }, [onBusyChange]);
 
   const recordsLoaded =
-    entriesState.loadError == null && assistState.loadError == null;
+    currentFiscalPeriod != null &&
+    entriesState.loadError == null &&
+    assistState.loadError == null &&
+    entriesState.isFiscalPeriodLoaded(currentFiscalPeriod.id) &&
+    assistState.areFixedAssetsLoaded(currentFiscalPeriod.id);
   const fsSummary = useMemo(() => {
     if (currentFiscalPeriod == null || !recordsLoaded) return null;
     const entries = withClosingVirtualEntries({
@@ -321,6 +325,22 @@ export function ClosingBody({
                 }}
               />
             )}
+          </section>
+        </>
+      ) : null}
+
+      {isClosed &&
+      !showRunningAnimation &&
+      fsSummary == null &&
+      entriesState.loadError == null &&
+      assistState.loadError == null ? (
+        <>
+          <StepSpacer height={null} />
+          <section aria-label="財務諸表の概要">
+            <StepSectionLabel>財務諸表の概要</StepSectionLabel>
+            <p role="status" style={{ margin: 0, color: palette.textSoft }}>
+              読み込んでいます
+            </p>
           </section>
         </>
       ) : null}

@@ -85,6 +85,25 @@ describe("print documents", () => {
     expect(openingRow).toContain("200,000");
   });
 
+  it("lets a balance sheet amount of ten billion yen or more wrap inside its cell", () => {
+    const fsHtml = buildFinancialStatementsDocument(
+      computeFsAggregate({
+        entries: [],
+        openingBalanceLines: [
+          { id: "a:現金", accountId: "a:現金", amount: 99_999_999_999 },
+          { id: "l:元入金", accountId: "l:元入金", amount: 99_999_999_999 },
+        ],
+      }),
+      FINAL_HEADING,
+    );
+
+    const cell = fsHtml.slice(
+      fsHtml.lastIndexOf("<td", fsHtml.indexOf("99,999,999,999")),
+      fsHtml.indexOf("99,999,999,999"),
+    );
+    expect(cell).toContain("overflow-wrap:anywhere");
+  });
+
   it("shortens a very long period name in the heading", () => {
     const heading = buildPrintHeading({
       fiscalPeriodName: "あ".repeat(40),

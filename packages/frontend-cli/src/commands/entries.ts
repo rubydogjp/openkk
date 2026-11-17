@@ -91,7 +91,9 @@ export async function runEntriesCommand(
         currentEntries: await loadEntryRecords(backend, period.id, master),
         master,
       });
-      if (plan.kind === "problems") throw unreadableRowsError(plan.problems);
+      if (plan.kind === "problems") {
+        throw unreadableRowsError(plan.problems, plan.problemCount);
+      }
       if (plan.kind === "replace") {
         await replaceEntries(context, period, plan.changes, master);
         return;
@@ -211,6 +213,7 @@ function fileExtension(filePath: string): string {
 
 function unreadableRowsError(
   problems: ReadonlyArray<JournalTableProblem>,
+  problemCount: number,
 ): AppError {
   return new AppError({
     messageForDeveloper: "cli: journal CSV has rows that cannot be read",
@@ -219,6 +222,9 @@ function unreadableRowsError(
       ...problems.map(
         (problem) => `  ${problem.rowNumber} 行目: ${problem.message}`,
       ),
+      ...(problemCount > problems.length
+        ? [`  ほか ${problemCount - problems.length} 件`]
+        : []),
     ].join("\n"),
     originalMessage: null,
     statusCode: null,

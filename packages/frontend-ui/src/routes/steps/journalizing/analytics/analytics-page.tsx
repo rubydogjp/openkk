@@ -165,6 +165,18 @@ export function JournalizingAnalyticsPage() {
               期首のBSの入力が終わると、月別の進捗が表示されます。
             </div>
           </div>
+        ) : !entriesState.isFiscalPeriodLoaded(currentFiscalPeriod.id) ||
+          !assistState.areFixedAssetsLoaded(currentFiscalPeriod.id) ? (
+          <p
+            role="status"
+            style={{
+              marginTop: 24,
+              color: palette.textSoft,
+              fontSize: fontSize.base,
+            }}
+          >
+            読み込んでいます
+          </p>
         ) : (
           <div style={{ marginTop: 24, display: "grid", gap: 12 }}>
             {monthTiles.map((tile) => {

@@ -111,9 +111,10 @@ export function EntriesPage() {
   const notices = useOpenkkNotices();
   const [newEntryDraft, setNewEntryDraft] = useState<EntryDraft | null>(null);
   const [isImporting, setIsImporting] = useState(false);
-  const [importProblems, setImportProblems] = useState<
-    JournalTableProblem[] | null
-  >(null);
+  const [importProblems, setImportProblems] = useState<{
+    problems: JournalTableProblem[];
+    problemCount: number;
+  } | null>(null);
   const { confirm: confirmOverwrite, dialog: overwriteDialog } =
     useConfirmDialog();
   const showsSheet = showsEntriesSheet(ENTRIES_PATH, searchParams);
@@ -334,7 +335,10 @@ export function EntriesPage() {
         master: entriesState.journalTableMaster,
       });
       if (plan.kind === "problems") {
-        setImportProblems(plan.problems);
+        setImportProblems({
+          problems: plan.problems,
+          problemCount: plan.problemCount,
+        });
         return;
       }
       if (plan.kind === "replace") {
@@ -647,7 +651,8 @@ export function EntriesPage() {
       {overwriteDialog}
       {importProblems != null ? (
         <ImportProblemsDialog
-          problems={importProblems}
+          problems={importProblems.problems}
+          problemCount={importProblems.problemCount}
           onClose={() => setImportProblems(null)}
         />
       ) : null}

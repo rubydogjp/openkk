@@ -211,9 +211,13 @@ describe("createOpenkkEntriesStore", () => {
     storedEntry(fake, "fp-2", "2027-04-01");
     const { app, entries } = await startedStores(fake, "fp-1");
     expect(entries.getState().listFiscalPeriodEntries("fp-2")).toEqual([]);
+    expect(entries.getState().isFiscalPeriodLoaded("fp-1")).toBe(true);
+    expect(entries.getState().isFiscalPeriodLoaded("fp-2")).toBe(false);
 
     app.getState().selectFiscalPeriod("fp-2");
+    expect(entries.getState().isFiscalPeriodLoaded("fp-2")).toBe(false);
     await settle();
+    expect(entries.getState().isFiscalPeriodLoaded("fp-2")).toBe(true);
 
     expect(
       entries

@@ -25,6 +25,8 @@ const PROBLEM_MESSAGES: Record<OpenkkBookFileProblem, string> = {
   newer_version:
     "このファイルは新しい版のオープン会計で作られています。アプリを更新してから取り込んでください。",
   no_fiscal_period: "このファイルには取り込める会計期間がありません。",
+  another_user:
+    "このファイルは、別の利用者 (コマンドの --user) で作られた会計期間しか持っていないので、取り込めません。",
   books_changed:
     "確かめている間に帳簿が変わりました。もう一度取り込んでください。",
 };
@@ -40,6 +42,8 @@ function replacingMessage(
     case "replaces_app_changes":
     case "changed_both":
       return `${kept}に、バックアップしていない変更があります。ファイルを優先して上書きすると失われます。`;
+    case "file_is_older":
+      return `ファイルのほうが古いので、${kept}の新しい変更が失われます。`;
     case "same_dates":
       return `${kept}とは別に作られた帳簿です。ファイルを優先して上書きすると、今の帳簿は失われます。`;
   }

@@ -152,7 +152,7 @@ function assertFixedAssetDisposal(asset: {
   if (!disposed && asset.disposalDate != null) {
     throw engineValidationError(
       `Fixed asset with status ${status} must not have a disposal date`,
-      "償却中・完了の固定資産には処分日を設定できません",
+      "償却中・償却済みの固定資産には処分日を設定できません",
     );
   }
   if (status === "sold" && asset.disposalPrice == null) {
@@ -198,6 +198,37 @@ function assertFixedAssetAccount(bookAccountId: unknown): void {
     throw engineValidationError(
       `Fixed asset book account must reference a fixed-asset account: ${String(bookAccountId)}`,
       "固定資産の勘定科目が不正です",
+    );
+  }
+}
+
+export const DEPRECIABLE_FIXED_ASSET_ACCOUNT_NAMES: ReadonlySet<string> =
+  new Set([
+    "建物",
+    "建物附属設備",
+    "構築物",
+    "機械装置",
+    "車両運搬具",
+    "工具器具備品",
+    "その他の有形固定資産",
+    "ソフトウエア",
+    "その他の無形固定資産",
+  ]);
+
+export function assertDepreciableFixedAssetAccount(
+  bookAccountId: unknown,
+): void {
+  const account =
+    typeof bookAccountId === "string"
+      ? getDefaultBookAccount(bookAccountId)
+      : null;
+  if (
+    account == null ||
+    !DEPRECIABLE_FIXED_ASSET_ACCOUNT_NAMES.has(account.name)
+  ) {
+    throw engineValidationError(
+      `Fixed asset book account must be a depreciable account: ${String(bookAccountId)}`,
+      "固定資産の勘定科目は、減価償却する科目から選んでください",
     );
   }
 }

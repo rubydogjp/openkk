@@ -37,7 +37,10 @@ export function buildNextFiscalPeriodSuggestion(
   previousEndDate: string,
 ): NextFiscalPeriodSuggestion {
   const startDate = addDaysToIsoDate(previousEndDate, 1) ?? previousEndDate;
-  const endDate = addYearsToIsoDate(previousEndDate, 1) ?? previousEndDate;
+  const yearAfterStart = addYearsToIsoDate(startDate, 1);
+  const endDate =
+    (yearAfterStart == null ? null : addDaysToIsoDate(yearAfterStart, -1)) ??
+    previousEndDate;
   return {
     name: fiscalPeriodNameForEndDate(endDate) ?? "",
     startDate,

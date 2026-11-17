@@ -298,7 +298,7 @@ function computeDepreciationSnapshot(input: {
     Math.max(1, Math.floor(input.usefulLife) || 1) * 12,
   );
   const rawElapsed =
-    acquisition == null || asOf == null
+    acquisition == null || asOf == null || asOf < acquisition
       ? 0
       : asOf.getUTCFullYear() * 12 +
         asOf.getUTCMonth() -

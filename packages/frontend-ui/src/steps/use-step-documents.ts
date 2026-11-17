@@ -29,7 +29,11 @@ export function useStepDocuments(
   const today = useOpenkkToday();
 
   const available =
-    entriesState.loadError == null && assistState.loadError == null;
+    fiscalPeriod != null &&
+    entriesState.loadError == null &&
+    assistState.loadError == null &&
+    entriesState.isFiscalPeriodLoaded(fiscalPeriod.id) &&
+    assistState.areFixedAssetsLoaded(fiscalPeriod.id);
 
   return FISCAL_PERIOD_REPORT_KINDS.map((kind) => ({
     ...FISCAL_PERIOD_REPORT_LABELS[kind],

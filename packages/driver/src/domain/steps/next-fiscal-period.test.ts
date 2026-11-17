@@ -25,6 +25,17 @@ describe("buildNextFiscalPeriodSuggestion", () => {
     });
   });
 
+  it("ends the next period on the last day of February, also in a leap year", () => {
+    expect(buildNextFiscalPeriodSuggestion("2027-02-28")).toMatchObject({
+      startDate: "2027-03-01",
+      endDate: "2028-02-29",
+    });
+    expect(buildNextFiscalPeriodSuggestion("2028-02-29")).toMatchObject({
+      startDate: "2028-03-01",
+      endDate: "2029-02-28",
+    });
+  });
+
   it("starts on the day after a leap-spanning period ends", () => {
     expect(buildNextFiscalPeriodSuggestion("2025-02-28")).toEqual({
       name: "2026年分",

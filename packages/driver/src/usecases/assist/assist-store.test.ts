@@ -86,6 +86,15 @@ async function startedStores(
 }
 
 describe("createOpenkkAssistStore", () => {
+  it("says when the fixed assets of a period have been read", async () => {
+    const fake = fakeBackend();
+    fake.fiscalPeriods.push(fakeFiscalPeriod({ id: "fp-1" }));
+    const { assist } = await startedStores(fake, "fp-1");
+
+    expect(assist.getState().areFixedAssetsLoaded("fp-1")).toBe(true);
+    expect(assist.getState().areFixedAssetsLoaded("fp-2")).toBe(false);
+  });
+
   it("adds, changes and removes a fixed asset of the selected period", async () => {
     const fake = fakeBackend();
     fake.fiscalPeriods.push(fakeFiscalPeriod({ id: "fp-1" }));

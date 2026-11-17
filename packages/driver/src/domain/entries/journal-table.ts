@@ -69,7 +69,7 @@ export type JournalTableProblem = { rowNumber: number; message: string };
 
 export type JournalTableReadResult =
   | { ok: true; entries: EntryRecord[] }
-  | { ok: false; problems: JournalTableProblem[] };
+  | { ok: false; problems: JournalTableProblem[]; problemCount: number };
 
 export type JournalTableChanges = {
   added: EntryRecord[];
@@ -288,7 +288,9 @@ export function readJournalTableEntries(
   },
 ): JournalTableReadResult {
   const problems: JournalTableProblem[] = [];
+  let problemCount = 0;
   const report = (rowNumber: number, message: string) => {
+    problemCount += 1;
     if (problems.length < MAX_REPORTED_PROBLEMS) {
       problems.push({ rowNumber, message });
     }
@@ -325,7 +327,7 @@ export function readJournalTableEntries(
       rows[0]?.rowNumber ?? 1,
       `仕訳番号のない行は ${MAX_ENTRY_IMPORT_ITEMS} 行までです`,
     );
-    return { ok: false, problems };
+    return { ok: false, problems, problemCount };
   }
 
   const entries: EntryRecord[] = [];
@@ -490,7 +492,9 @@ export function readJournalTableEntries(
       lines,
     });
   }
-  return problems.length > 0 ? { ok: false, problems } : { ok: true, entries };
+  return problems.length > 0
+    ? { ok: false, problems, problemCount }
+    : { ok: true, entries };
 }
 
 const YEAR_FIRST_DATE = /^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/;

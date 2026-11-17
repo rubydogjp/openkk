@@ -23,6 +23,7 @@ const ROW_NUMBER_WIDTH = 64;
 
 export function ImportProblemsDialog(props: {
   problems: JournalTableProblem[];
+  problemCount: number;
   onClose: () => void;
 }) {
   const { onClose } = props;
@@ -33,7 +34,8 @@ export function ImportProblemsDialog(props: {
   const bodyId = useId();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useModalLifecycle<HTMLDivElement>(onClose, closeButtonRef);
-  const hiddenRowCount = problems.length - VISIBLE_PROBLEM_ROWS;
+  const hiddenRowCount =
+    props.problemCount - Math.min(problems.length, VISIBLE_PROBLEM_ROWS);
 
   return (
     <>
@@ -116,7 +118,7 @@ export function ImportProblemsDialog(props: {
             読めない行があります。何も変えていません。
           </p>
           <ul
-            aria-label={`読めない行 ${problems.length} 件`}
+            aria-label={`読めない行 ${props.problemCount} 件`}
             tabIndex={0}
             style={{
               margin: "14px 0 0",
@@ -167,7 +169,10 @@ export function ImportProblemsDialog(props: {
                 color: palette.textSoft,
               }}
             >
-              ほか {hiddenRowCount} 件 (中をスクロール)
+              ほか {hiddenRowCount} 件{" "}
+              {props.problemCount > problems.length
+                ? `(最初の ${problems.length} 件だけ出しています)`
+                : "(中をスクロール)"}
             </div>
           ) : null}
           <div

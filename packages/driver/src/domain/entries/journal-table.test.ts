@@ -435,6 +435,23 @@ describe("journal table dates", () => {
 });
 
 describe("readJournalTableEntries problems", () => {
+  it("lists the first problems and still counts all of them", () => {
+    const result = readCsv(
+      [
+        HEADER,
+        ...Array.from(
+          { length: 150 },
+          (_, index) => `x${index},2026-06-01,消耗品,1000,普通預金,1000,,,,,`,
+        ),
+      ].join("\n"),
+    );
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.problems).toHaveLength(100);
+    expect(result.problemCount).toBe(150);
+  });
+
   it("reports every row that cannot become an entry, with its row number", () => {
     const problems = problemsOf(
       [

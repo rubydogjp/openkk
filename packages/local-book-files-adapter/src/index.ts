@@ -1,5 +1,6 @@
 import {
   BookImportChangedError,
+  BookOfAnotherUserError,
   type BookImportExpectation,
   type BooksDbAdapter,
   type InspectedBookPeriod,
@@ -56,6 +57,7 @@ export type LocalBookFilesAdapterOptions = {
   >;
   legacyUnmovedFiscalPeriods: readonly OpenkkFiscalPeriodLabel[];
   legacyMergedFiscalPeriods: readonly OpenkkFiscalPeriodLabel[];
+  legacyMovedFiscalPeriodIds: readonly string[];
   legacyBookWatch: LegacyBookWatch | null;
   userId: string;
   storage: PlatformKeyValueStorage;
@@ -102,6 +104,9 @@ function bookFileError(error: unknown): unknown {
   if (error instanceof BookImportChangedError) {
     return new OpenkkBookFileError("books_changed");
   }
+  if (error instanceof BookOfAnotherUserError) {
+    return new OpenkkBookFileError("another_user");
+  }
   return error;
 }
 
@@ -118,6 +123,12 @@ export function createLocalBookFilesAdapter(
   };
 
   books.subscribe(notify);
+
+  for (const fiscalPeriodId of options.legacyMovedFiscalPeriodIds) {
+    const lastChangedAt = books.lastChangedAt(fiscalPeriodId);
+    if (lastChangedAt == null || records.read(fiscalPeriodId) != null) continue;
+    records.write(fiscalPeriodId, { savedAt: options.now(), lastChangedAt });
+  }
 
   let legacyChangeSet: LegacyBookChangeSet | null = null;
   let legacyChanges: OpenkkLegacyBookChanges | null = null;
@@ -255,7 +266,15 @@ export function createLocalBookFilesAdapter(
       const fiscalPeriodId = fiscalPeriod.id;
       const lastChangedAt = books.lastChangedAt(fiscalPeriodId);
       if (lastChangedAt == null) return null;
-      const record = records.read(fiscalPeriodId);
+      const now = options.now();
+      const stored = records.read(fiscalPeriodId);
+      const record =
+        stored != null && stored.savedAt > now
+          ? { ...stored, savedAt: now }
+          : stored;
+      if (record !== stored && record != null) {
+        records.write(fiscalPeriodId, record);
+      }
       const hasUnsavedChanges =
         record == null || record.lastChangedAt !== lastChangedAt;
       const next: OpenkkBookFileState = {
@@ -264,8 +283,7 @@ export function createLocalBookFilesAdapter(
         lastSavedAt: record?.savedAt ?? null,
         reminderDue:
           hasUnsavedChanges &&
-          options.now() -
-            (record?.savedAt ?? Date.parse(fiscalPeriod.createdAt)) >=
+          now - (record?.savedAt ?? Date.parse(fiscalPeriod.createdAt)) >=
             BOOK_SAVE_REMINDER_INTERVAL_MS,
       };
       const previous = states.get(fiscalPeriodId);

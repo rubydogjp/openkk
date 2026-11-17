@@ -136,6 +136,18 @@ describe("computePeriodDepreciation", () => {
     ).toBe(240_000);
   });
 
+  it("counts the month of acquisition when the period starts earlier in that month", () => {
+    expect(
+      computePeriodDepreciation({
+        acquisitionDate: "2026-04-20",
+        acquisitionCost: cost,
+        usefulLife,
+        periodStartDate: new Date(2026, 3, 15),
+        asOf: new Date(2026, 11, 31),
+      }),
+    ).toBe(179_999);
+  });
+
   it("prorates the acquisition year by months in service (取得月算入)", () => {
     expect(
       computePeriodDepreciation({

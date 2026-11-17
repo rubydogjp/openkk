@@ -77,7 +77,10 @@ export function computeStraightLineDepreciation(
     usefulLifeYears * 12,
   );
 
-  const rawElapsed = start == null ? 0 : monthsInService(start, input.asOf);
+  const rawElapsed =
+    startDate == null || start == null || input.asOf < startDate
+      ? 0
+      : monthsInService(start, input.asOf);
   const elapsedMonths = Number.isFinite(rawElapsed)
     ? Math.max(0, Math.min(totalMonths, rawElapsed))
     : 0;

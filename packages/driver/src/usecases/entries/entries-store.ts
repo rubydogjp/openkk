@@ -64,6 +64,7 @@ export type EntrySuggestions = {
 
 export type EntriesState = {
   listFiscalPeriodEntries: (fiscalPeriodId: string) => EntryRecord[];
+  isFiscalPeriodLoaded: (fiscalPeriodId: string) => boolean;
   loadFiscalPeriodEntries: (fiscalPeriodId: string) => Promise<EntryRecord[]>;
   listMonthRows: (
     fiscalPeriodId: string,
@@ -107,6 +108,7 @@ export type OpenkkEntriesStore = ReadableState<EntriesState> & {
 
 type EntriesData = {
   records: EntryRecord[];
+  loadedFiscalPeriodId: string | null;
   masterSets: MasterSetApiRecord[] | null;
   master: LoadedJournalMaster;
   masterLoadError: unknown;
@@ -133,6 +135,7 @@ export function createOpenkkEntriesStore(dependencies: {
   const entryMutationQueue = new KeyedAsyncMutationQueue<string>();
   const data = createWritableState<EntriesData>({
     records: [],
+    loadedFiscalPeriodId: null,
     masterSets: null,
     master: EMPTY_JOURNAL_MASTER,
     masterLoadError: null,
@@ -236,6 +239,7 @@ export function createOpenkkEntriesStore(dependencies: {
             fiscalPeriodId,
             loaded,
           ),
+          loadedFiscalPeriodId: fiscalPeriodId,
           entriesLoadError: null,
         });
       } catch (error) {
@@ -477,6 +481,7 @@ export function createOpenkkEntriesStore(dependencies: {
               fiscalPeriodId,
               loaded,
             ),
+            loadedFiscalPeriodId: fiscalPeriodId,
             entriesLoadError: null,
           });
           return loaded;
@@ -510,6 +515,8 @@ export function createOpenkkEntriesStore(dependencies: {
         sortedByDate(
           records.filter((record) => record.fiscalPeriodId === fiscalPeriodId),
         ),
+      isFiscalPeriodLoaded: (fiscalPeriodId) =>
+        current.loadedFiscalPeriodId === fiscalPeriodId,
       listMonthRows: (fiscalPeriodId, yearMonth) =>
         sortedByDate(
           records.filter(

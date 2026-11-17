@@ -438,14 +438,52 @@ describe("backend-api fixed assets", () => {
     };
 
     await expect(backendApi.fixedAssets.create("fp-1", input)).rejects.toThrow(
-      /must reference a fixed-asset account/,
+      /must be a depreciable account/,
     );
     await expect(
       backendApi.fixedAssets.create("fp-1", {
         ...input,
         bookAccountId: "acct_cash",
       }),
-    ).rejects.toThrow(/must reference a fixed-asset account/);
+    ).rejects.toThrow(/must be a depreciable account/);
+  });
+
+  it("takes only depreciable accounts for a new asset or a changed account, and keeps a stored one that is not", async () => {
+    const db = createFixedAssetDb();
+    const backendApi = createOpenkkBackendApi(db, { userId: "user-1" });
+    const input = {
+      name: "土地",
+      acquisitionDate: "2026-04-01",
+      acquisitionCost: 180000,
+      usefulLife: 4,
+      depreciationMethod: "straight_line" as const,
+      businessRate: 1,
+      bookAccountId: "acct_land",
+    };
+
+    await expect(backendApi.fixedAssets.create("fp-1", input)).rejects.toThrow(
+      /must be a depreciable account/,
+    );
+    const created = await backendApi.fixedAssets.create("fp-1", {
+      ...input,
+      name: "車",
+      bookAccountId: "acct_vehicle",
+    });
+    await expect(
+      backendApi.fixedAssets.patch("fp-1", created.id, {
+        bookAccountId: "acct_land",
+      }),
+    ).rejects.toThrow(/must be a depreciable account/);
+
+    const stored = await db.fixedAssets.create("user-1", "fp-1", {
+      ...input,
+      name: "前の版で入れた土地",
+    });
+    await expect(
+      backendApi.fixedAssets.patch("fp-1", stored.id, {
+        name: "土地 (自宅兼)",
+      }),
+    ).resolves.toMatchObject({ bookAccountId: "acct_land" });
   });
 
   it("rejects fixed asset changes in a fiscal period whose data was purged", async () => {

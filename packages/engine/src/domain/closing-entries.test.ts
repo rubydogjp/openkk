@@ -329,6 +329,17 @@ describe("buildExpectedClosingEntries fixed-asset disposal", () => {
 });
 
 describe("computeFixedAssetBookValue", () => {
+  it("keeps the full cost before the asset is bought, even within the month it is bought", () => {
+    expect(
+      computeFixedAssetBookValue({
+        acquisitionDate: "2026-04-20",
+        acquisitionCost: 1_200_000,
+        usefulLife: 5,
+        asOf: "2026-04-14",
+      }),
+    ).toBe(1_200_000);
+  });
+
   it("keeps yen precision near the largest accepted acquisition cost", () => {
     expect(
       computeFixedAssetBookValue({

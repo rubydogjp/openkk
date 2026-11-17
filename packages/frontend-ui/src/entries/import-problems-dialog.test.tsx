@@ -3,13 +3,14 @@ import { describe, expect, it } from "vitest";
 
 import { ImportProblemsDialog } from "./import-problems-dialog.js";
 
-function render(problemCount: number): string {
+function render(listed: number, problemCount = listed): string {
   return renderToStaticMarkup(
     <ImportProblemsDialog
-      problems={Array.from({ length: problemCount }, (_, index) => ({
+      problems={Array.from({ length: listed }, (_, index) => ({
         rowNumber: index + 2,
         message: `理由 ${index + 1}`,
       }))}
+      problemCount={problemCount}
       onClose={() => {}}
     />,
   );
@@ -31,6 +32,14 @@ describe("ImportProblemsDialog", () => {
     expect(render(8)).toContain("ほか 3 件");
   });
 
+  it("counts every problem, also those past the first ones it lists", () => {
+    const html = render(100, 500);
+
+    expect(html).toContain("ほか 495 件");
+    expect(html).toContain("最初の 100 件だけ出しています");
+    expect(html).toContain("読めない行 500 件");
+  });
+
   it("lists the problems in row order", () => {
     const html = renderToStaticMarkup(
       <ImportProblemsDialog
@@ -38,6 +47,7 @@ describe("ImportProblemsDialog", () => {
           { rowNumber: 9, message: "後の行" },
           { rowNumber: 3, message: "前の行" },
         ]}
+        problemCount={2}
         onClose={() => {}}
       />,
     );

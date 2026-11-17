@@ -78,6 +78,7 @@ async function openAppWatching(legacyBookWatch: LegacyBookWatch | null) {
     books: books.adapter,
     legacyUnmovedFiscalPeriods: UNMOVED_FROM_PREVIOUS_VERSION,
     legacyMergedFiscalPeriods: MERGED_FROM_PREVIOUS_VERSION,
+    legacyMovedFiscalPeriodIds: [],
     legacyBookWatch,
     userId: USER,
     storage: {
@@ -142,6 +143,7 @@ describe("book files adapter: save", () => {
       books: books.adapter,
       legacyUnmovedFiscalPeriods: [],
       legacyMergedFiscalPeriods: [],
+      legacyMovedFiscalPeriodIds: [],
       legacyBookWatch: null,
       userId: USER,
       storage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
@@ -175,6 +177,7 @@ describe("book files adapter: save", () => {
       },
       legacyUnmovedFiscalPeriods: [],
       legacyMergedFiscalPeriods: [],
+      legacyMovedFiscalPeriodIds: [],
       legacyBookWatch: null,
       userId: USER,
       storage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
@@ -310,6 +313,57 @@ describe("book files adapter: save", () => {
   });
 });
 
+describe("book files adapter: reminder times", () => {
+  it("takes a save time in the future as now, so the reminder is not put off", async () => {
+    const app = await openApp();
+    const period = await app.db.fiscalPeriods.create(USER, period2026);
+    await app.files.save(period.id);
+    const savedAt = app.state.now;
+    app.state.now -= 10 * DAY;
+    await app.db.fiscalPeriods.patch(period.id, { name: "2026年" });
+
+    expect(app.files.saveTracking.getState(period)?.lastSavedAt).toBe(
+      app.state.now,
+    );
+    expect(app.state.now).toBeLessThan(savedAt);
+    app.state.now += BOOK_SAVE_REMINDER_INTERVAL_MS;
+    expect(app.files.saveTracking.getState(period)?.reminderDue).toBe(true);
+  });
+
+  it("counts a period moved from the previous version as backed up when it was moved", async () => {
+    const app = await openApp();
+    const created = await app.db.fiscalPeriods.create(USER, period2026);
+    const period = { ...created, createdAt: "2023-01-01T00:00:00.000Z" };
+    const values = new Map<string, string>();
+    const files = createLocalBookFilesAdapter({
+      books: app.books.adapter,
+      legacyUnmovedFiscalPeriods: [],
+      legacyMergedFiscalPeriods: [],
+      legacyMovedFiscalPeriodIds: [period.id],
+      legacyBookWatch: null,
+      userId: USER,
+      storage: {
+        getItem: (key) => values.get(key) ?? null,
+        setItem: (key, value) => {
+          values.set(key, value);
+        },
+        removeItem: (key) => {
+          values.delete(key);
+        },
+      },
+      now: () => app.state.now,
+      fileNameOf: (name) => name,
+      deliver: async () => "saved",
+    });
+
+    expect(files.saveTracking.getState(period)).toMatchObject({
+      hasUnsavedChanges: false,
+      lastSavedAt: app.state.now,
+      reminderDue: false,
+    });
+  });
+});
+
 describe("book files adapter: import", () => {
   it("does nothing for the file that was just saved", async () => {
     const app = await openApp();
@@ -363,6 +417,7 @@ describe("book files adapter: import", () => {
       books: outside.adapter,
       legacyUnmovedFiscalPeriods: [],
       legacyMergedFiscalPeriods: [],
+      legacyMovedFiscalPeriodIds: [],
       legacyBookWatch: null,
       userId: USER,
       storage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
@@ -481,7 +536,7 @@ describe("book files adapter: import", () => {
     ).rejects.toBeInstanceOf(OpenkkBookFileError);
   });
 
-  it("explains a book that holds no period of this user", async () => {
+  it("explains a book that holds only periods of another user", async () => {
     const elsewhere = await openTestBooks(emptyStore());
     const foreign = await elsewhere.adapter.db.fiscalPeriods.create(
       "someone-else",
@@ -491,7 +546,7 @@ describe("book files adapter: import", () => {
     const app = await openApp();
 
     await expect(app.files.inspect(bytes)).rejects.toMatchObject({
-      problem: "no_fiscal_period",
+      problem: "another_user",
     });
   });
 

@@ -1,5 +1,6 @@
 import {
   applyPatch,
+  assertDepreciableFixedAssetAccount,
   assertFixedAssetMatchesRules,
   FIXED_ASSET_PATCH_KEYS,
   requireObject,
@@ -21,6 +22,7 @@ export function assertFixedAssetCreateInput(
 ): asserts input is FixedAssetCreateInput {
   const value = requireObject(input, "Fixed asset input");
   assertNonBlankTextField(value.name, "Fixed asset name");
+  assertDepreciableFixedAssetAccount(value.bookAccountId);
   assertFixedAssetMatchesRules(
     {
       ...value,
@@ -40,6 +42,12 @@ export function assertFixedAssetPatchInput(
   const value = requireObject(patch, "Fixed asset patch");
   if (value.name !== undefined) {
     assertTextFieldChange(value.name, existing.name, "Fixed asset name");
+  }
+  if (
+    value.bookAccountId !== undefined &&
+    value.bookAccountId !== existing.bookAccountId
+  ) {
+    assertDepreciableFixedAssetAccount(value.bookAccountId);
   }
 }
 

@@ -49,6 +49,7 @@ const MINIMUM_USEFUL_LIFE_YEARS = 1;
 
 export type AssistState = {
   listFixedAssets: (fiscalPeriodId: string) => FixedAsset[];
+  areFixedAssetsLoaded: (fiscalPeriodId: string) => boolean;
   getFixedAsset: (assetId: string) => FixedAsset | null;
   addFixedAsset: (draft: FixedAssetDraft) => Promise<string | null>;
   updateFixedAsset: (
@@ -91,6 +92,7 @@ type AssistMaster = {
 
 type AssistData = {
   fixedAssets: FixedAsset[];
+  loadedFixedAssetsFiscalPeriodId: string | null;
   masterSets: MasterSetApiRecord[] | null;
   master: AssistMaster;
   masterLoadError: unknown;
@@ -150,6 +152,7 @@ export function createOpenkkAssistStore(dependencies: {
   const assetMutationQueue = new KeyedAsyncMutationQueue<string>();
   const data = createWritableState<AssistData>({
     fixedAssets: [],
+    loadedFixedAssetsFiscalPeriodId: null,
     masterSets: null,
     master: EMPTY_MASTER,
     masterLoadError: null,
@@ -264,6 +267,7 @@ export function createOpenkkAssistStore(dependencies: {
               scope.fiscalPeriodEndDate,
             ),
           ),
+          loadedFixedAssetsFiscalPeriodId: fiscalPeriodId,
           fixedAssetsLoadError: null,
         });
       } catch (error) {
@@ -577,6 +581,8 @@ export function createOpenkkAssistStore(dependencies: {
     return {
       listFixedAssets: (fiscalPeriodId) =>
         listFixedAssetsForPeriod(fixedAssets, fiscalPeriodId),
+      areFixedAssetsLoaded: (fiscalPeriodId) =>
+        current.loadedFixedAssetsFiscalPeriodId === fiscalPeriodId,
       getFixedAsset: (assetId) =>
         fixedAssets.find((asset) => asset.id === assetId) ?? null,
       listOpeningCarryovers(fiscalPeriodId) {

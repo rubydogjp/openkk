@@ -17,6 +17,8 @@ export function bookImportCase(
     savedLastChangedAt == null || inApp !== savedLastChangedAt;
   const changedOutside =
     inFile != null && inFile > (savedLastChangedAt ?? inApp);
-  if (!changedOutside) return "replaces_app_changes";
+  if (!changedOutside) {
+    return changedInApp ? "replaces_app_changes" : "file_is_older";
+  }
   return changedInApp ? "changed_both" : "changed_outside";
 }

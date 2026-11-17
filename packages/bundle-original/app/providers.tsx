@@ -140,6 +140,7 @@ async function openBooksPorts(
     books,
     legacyUnmovedFiscalPeriods: legacyBookMove.unmovedFiscalPeriods,
     legacyMergedFiscalPeriods: legacyBookMove.mergedFiscalPeriods,
+    legacyMovedFiscalPeriodIds: legacyBookMove.movedFiscalPeriodIds,
     legacyBookWatch: legacyBook,
     userId,
     storage: browserPlatformAdapter.storage,

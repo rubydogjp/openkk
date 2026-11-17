@@ -512,7 +512,7 @@ test("moves the periods the previous version kept in this browser into one book 
   await page.getByRole("button", { name: /^2025年分 / }).click();
   await page.getByRole("link", { name: "仕訳" }).click();
   await expect(page.getByText("2025年分の売上")).toBeVisible();
-  await expect(saveStatus(page)).toHaveText(UNSAVED_STATUS);
+  await expect(saveStatus(page)).toHaveText(/^前回 /);
   const savedPath = await saveBook(page, "2025年分.openkk");
   expect(await readBookPeriods(savedPath)).toEqual([
     { name: "2025年分", phase: "journalizing" },
