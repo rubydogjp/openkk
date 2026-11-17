@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
@@ -8,41 +8,62 @@ import { formatGenerated } from "./format-generated.mjs";
 
 const commonRoutes = [
   "/",
-  "/steps",
-  "/steps/fiscal-period-settings",
-  "/steps/opening-bs",
-  "/steps/journalizing",
-  "/steps/journalizing/analytics",
-  "/steps/document-receive",
-  "/steps/closing",
-  "/steps/next-fiscal-period",
-  "/entries",
-  "/assist",
-  "/assist/fixed-assets",
-  "/assist/opening-carryover",
-  "/fiscal-periods",
-  "/fiscal-periods/new",
-  "/install",
+  "/steps/",
+  "/steps/fiscal-period-settings/",
+  "/steps/opening-bs/",
+  "/steps/journalizing/",
+  "/steps/journalizing/analytics/",
+  "/steps/document-receive/",
+  "/steps/closing/",
+  "/steps/next-fiscal-period/",
+  "/entries/",
+  "/assist/",
+  "/assist/fixed-assets/",
+  "/assist/opening-carryover/",
+  "/fiscal-periods/",
+  "/fiscal-periods/new/",
+  "/install/",
 ];
 
 const bundleRoutes = {
   original: commonRoutes,
-  sim: [...commonRoutes, "/debug"],
+  sim: [...commonRoutes, "/debug/"],
   demo: commonRoutes,
 };
+
+const PUBLIC_ASSET_DIRECTORIES = ["icons", "images"];
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const rootDirectory = path.resolve(scriptDirectory, "..");
 const routesPlaceholder = "__OPENKK_APP_SHELL_ROUTES__";
+const publicAssetsPlaceholder = "__OPENKK_PUBLIC_ASSETS__";
 const template = readFileSync(
   path.join(scriptDirectory, "service-worker.template.js"),
   "utf8",
 );
-if (template.split(routesPlaceholder).length !== 2) {
-  throw new Error(
-    "Service worker template must contain one routes placeholder",
+for (const placeholder of [routesPlaceholder, publicAssetsPlaceholder]) {
+  if (template.split(placeholder).length !== 2) {
+    throw new Error(
+      `Service worker template must contain one ${placeholder} placeholder`,
+    );
+  }
+}
+
+function publicAssets(bundle) {
+  const publicDirectory = path.join(
+    rootDirectory,
+    "packages",
+    `bundle-${bundle}`,
+    "public",
+  );
+  return PUBLIC_ASSET_DIRECTORIES.flatMap((directory) =>
+    readdirSync(path.join(publicDirectory, directory))
+      .filter((name) => !name.startsWith("."))
+      .sort()
+      .map((name) => `/${directory}/${name}`),
   );
 }
+
 const checkOnly = process.argv.includes("--check");
 const bundleArgument = process.argv.find((argument) =>
   argument.startsWith("--bundle="),
@@ -71,7 +92,9 @@ for (const bundle of bundles) {
   );
   const generated = await formatGenerated(
     outputPath,
-    template.replace(routesPlaceholder, JSON.stringify(routes)),
+    template
+      .replace(routesPlaceholder, JSON.stringify(routes))
+      .replace(publicAssetsPlaceholder, JSON.stringify(publicAssets(bundle))),
   );
   if (checkOnly) {
     if (readFileSync(outputPath, "utf8") !== generated) {

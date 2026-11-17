@@ -20,9 +20,9 @@ describe("download service worker", () => {
   it("precaches debug routes only for the Sim bundle", () => {
     const sources = workerUrls.map((url) => readFileSync(url, "utf8"));
 
-    expect(sources[0]).not.toContain('"/debug"');
-    expect(sources[1]).toContain('"/debug"');
-    expect(sources[2]).not.toContain('"/debug"');
+    expect(sources[0]).not.toContain('"/debug/"');
+    expect(sources[1]).toContain('"/debug/"');
+    expect(sources[2]).not.toContain('"/debug/"');
   });
 
   it("uses a pathname cache fallback for offline navigation with a query", async () => {
@@ -267,6 +267,53 @@ describe("download service worker", () => {
     );
     expect(requested).not.toContain("/_next/static/chunks/app.js/");
     expect(requested).toContain("/");
+  });
+
+  it("precaches chunks a worker names without the /_next/ prefix and icons named in scripts", async () => {
+    const put = vi.fn();
+    const { precacheAppShell } = loadWorker({
+      fetch: vi.fn(async (request: Request) => {
+        const { pathname } = new URL(request.url);
+        if (pathname === "/_next/static/chunks/app.js") {
+          return new Response(
+            'e.f("static/chunks/turbopack-worker-a.js",["static/chunks/b.js"]);x("/icons/assets.svg")',
+            { status: 200, headers: { "Content-Type": "text/javascript" } },
+          );
+        }
+        if (pathname === "/") {
+          return new Response('<script src="/_next/static/chunks/app.js">', {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+          });
+        }
+        return new Response("", { status: 200 });
+      }) as unknown as typeof fetch,
+      caches: {
+        open: vi.fn(async () => ({ put, match: vi.fn() })),
+        match: vi.fn(),
+      },
+    });
+
+    await precacheAppShell();
+
+    const cached = put.mock.calls.map(
+      (call) => new URL((call[0] as Request).url).pathname,
+    );
+    expect(cached).toEqual(
+      expect.arrayContaining([
+        "/_next/static/chunks/turbopack-worker-a.js",
+        "/_next/static/chunks/b.js",
+        "/icons/assets.svg",
+      ]),
+    );
+  });
+
+  it("precaches every page at the address the browser opens it with", () => {
+    const source = readFileSync(workerUrls[0]!, "utf8");
+
+    expect(source).toContain('"/steps/journalizing/"');
+    expect(source).not.toContain('"/steps/journalizing"');
+    expect(source).toContain('"/icons/assets.svg"');
   });
 
   it("skips discovery candidates that are template literals or escaped strings", async () => {

@@ -8,6 +8,9 @@ import {
   loadFiscalPeriodArchivePayload,
 } from "@rubydogjp/openkk-driver";
 
+import { runTerminalClient } from "@rubydogjp/openkk-client-terminal";
+import type { OpenkkBackendPort } from "@rubydogjp/openkk-driver";
+
 import { openCliBook } from "./book.js";
 import {
   CLI_FILE_ENV,
@@ -87,8 +90,9 @@ describe("openkk cli", () => {
 
     const result = await run("periods", "list");
 
-    expect(result.code).toBe(2);
+    expect(result.code).toBe(1);
     expect(result.stderr).toContain("openkk init");
+    expect(result.stderr).not.toContain("使い方");
     expect(fs.existsSync(path.join(cwd, DEFAULT_CLI_FILE))).toBe(false);
   });
 
@@ -199,6 +203,13 @@ describe("openkk cli", () => {
         .concat("2026-04-02,消耗品費,500,現金,500,切手,,,,,\n"),
     );
     const unconfirmed = await run("entries", "import", id, "journal.csv");
+    const unconfirmedJson = await run(
+      "entries",
+      "import",
+      id,
+      "journal.csv",
+      "--json",
+    );
     const replaced = await run("entries", "import", id, "journal.csv", "--yes");
     const relisted = await run("entries", "list", id);
 
@@ -217,10 +228,19 @@ describe("openkk cli", () => {
       entries: [{ description: "プリンタのインク", businessRateRatio: 0.8 }],
     });
     expect(reimported.stdout).toContain("CSV は今の仕訳と同じです");
-    expect(unconfirmed.code).toBe(2);
-    expect(unconfirmed.stderr).toContain(
+    expect(unconfirmed.code).toBe(0);
+    expect(unconfirmed.stderr).toBe("");
+    expect(unconfirmed.stdout).toContain(
       "追加 1 件 / 変更 1 件 / 削除 0 件 / そのまま 0 件",
     );
+    expect(unconfirmed.stdout).toContain("まだ上書きしていません");
+    expect(JSON.parse(unconfirmedJson.stdout)).toEqual({
+      applied: false,
+      added: 1,
+      changed: 1,
+      removed: 0,
+      unchanged: 0,
+    });
     expect(replaced.stdout).toContain(
       "上書きしました (追加 1 件 / 変更 1 件 / 削除 0 件 / そのまま 0 件)",
     );
@@ -522,7 +542,7 @@ describe("openkk cli", () => {
       ["2026年分", "journalizing"],
     ]);
     expect(bookEntries.stdout).toContain("電車代");
-    expect(overwrite.code).toBe(2);
+    expect(overwrite.code).toBe(1);
     expect(overwrite.stderr).toContain("すでにファイルがあります");
     expect(sourcePeriods).toHaveLength(2);
   });
@@ -547,7 +567,7 @@ describe("openkk cli", () => {
       DEFAULT_CLI_FILE,
     );
 
-    expect([journal.code, report.code]).toEqual([2, 2]);
+    expect([journal.code, report.code]).toEqual([1, 1]);
     expect(journal.stderr).toContain("すでにファイルがあります");
     expect(
       fs.readFileSync(path.join(cwd, DEFAULT_CLI_FILE)).equals(bookBytes),
@@ -637,7 +657,7 @@ describe("openkk cli", () => {
     );
 
     expect(removedExport.code).toBe(2);
-    expect(missingBook.code).toBe(2);
+    expect(missingBook.code).toBe(1);
     expect(JSON.parse(restored.stdout)).toMatchObject({
       name: "2026年分",
       phase: "journalizing",
@@ -841,11 +861,14 @@ describe("openkk cli", () => {
     };
     const nextOpening = await run("opening", "show", nextPeriod.id);
 
-    expect(unbalanced.code).toBe(2);
+    expect(unbalanced.code).toBe(1);
+    expect(unbalanced.stderr).toMatch(/^エラー: 資産合計[^\n]*\n$/);
     expect(opening.stdout).toContain("資産合計 100,000");
-    expect(midPeriod.code).toBe(2);
+    expect(midPeriod.code).toBe(1);
+    expect(midPeriod.stderr).toMatch(/^エラー: まだ期中です[^\n]*\n$/);
     expect(preClosed.stdout).toContain("仮締め済み");
-    expect(unconfirmedFinal.code).toBe(2);
+    expect(unconfirmedFinal.code).toBe(1);
+    expect(unconfirmedFinal.stderr).not.toContain("使い方");
     expect(finalized.code).toBe(0);
     expect(finalized.stdout).toContain("決算後");
     expect(final.stdout).toBe(provisional.stdout);
@@ -857,8 +880,245 @@ describe("openkk cli", () => {
     expect(nextOpening.stdout).toContain("工具器具備品");
   });
 
+  it("carries only the opening balances unless told otherwise and asks before replacing what is there", async () => {
+    const { cwd, run } = workspace();
+    const id = await startedPeriod(run);
+    await run("opening", "set", id, "現金=100000", "元入金=100000");
+    const next = await run(
+      "periods",
+      "next",
+      id,
+      "--out",
+      "2027.openkk",
+      "--json",
+    );
+    const nextId = (JSON.parse(next.stdout) as { fiscalPeriod: { id: string } })
+      .fiscalPeriod.id;
+    await run("closing", "pre", id, "--yes");
+    await run("closing", "final", id, "--yes");
+    await run("periods", "receive", id);
+    const nextBook = await openCliBook(
+      path.join(cwd, "2027.openkk"),
+      DEFAULT_CLI_USER_ID,
+    );
+    await nextBook.backend.fixedAssets.create(nextId, {
+      name: "2027年に買ったPC",
+      acquisitionDate: "2027-02-01",
+      acquisitionCost: 200000,
+      usefulLife: 4,
+      depreciationMethod: "straight_line",
+      businessRate: 1,
+      bookAccountId: "acct_equipment",
+    });
+    nextBook.close();
+    const carry = (...extra: string[]) =>
+      run(
+        "--file",
+        "2027.openkk",
+        "opening",
+        "carry",
+        nextId,
+        "--from",
+        DEFAULT_CLI_FILE,
+        ...extra,
+      );
+    const fixedAssetNames = async () => {
+      const book = await openCliBook(
+        path.join(cwd, "2027.openkk"),
+        DEFAULT_CLI_USER_ID,
+      );
+      const names = (await book.backend.fixedAssets.getAll(nextId)).map(
+        (asset) => asset.name,
+      );
+      book.close();
+      return names;
+    };
+
+    const first = await carry();
+    const afterFirst = await fixedAssetNames();
+    const again = await carry();
+    const withAssets = await carry("--items", "bs,fixed-assets");
+    const afterRefusal = await fixedAssetNames();
+    const confirmed = await carry("--items", "fixed-assets", "--yes");
+    const unknownItem = await carry("--items", "reversals");
+
+    expect(first.code).toBe(0);
+    expect(first.stdout).toContain("期首のBS");
+    expect(afterFirst).toEqual(["2027年に買ったPC"]);
+    expect(again.code).toBe(1);
+    expect(again.stderr).toMatch(
+      /^エラー: [^\n]*期首のBS 2 行[^\n]*--yes[^\n]*\n$/,
+    );
+    expect(withAssets.code).toBe(1);
+    expect(withAssets.stderr).toContain("固定資産 1 件");
+    expect(afterRefusal).toEqual(["2027年に買ったPC"]);
+    expect(confirmed.code).toBe(0);
+    expect(await fixedAssetNames()).toEqual([]);
+    expect(unknownItem.code).toBe(2);
+  });
+
+  it("needs at least one opening balance and puts allowance accounts on the credit side", async () => {
+    const { run } = workspace();
+    const id = await startedPeriod(run);
+
+    const empty = await run("opening", "set", id);
+    const withAllowance = await run(
+      "opening",
+      "set",
+      id,
+      "売掛金=100000",
+      "貸倒引当金=5000",
+      "元入金=95000",
+      "--json",
+    );
+    const shown = await run("opening", "show", id);
+
+    expect(empty.code).toBe(2);
+    expect(empty.stderr).toContain("1 つ以上");
+    expect((await run("opening", "show", id, "--json")).code).toBe(0);
+    expect(withAllowance.code).toBe(0);
+    expect(JSON.parse(withAllowance.stdout)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ accountId: "l:貸倒引当金", amount: 5000 }),
+      ]),
+    );
+    expect(shown.stdout).toContain("負債・純資産  貸倒引当金  5,000");
+  });
+
+  it("tells a missing period, a busy or foreign file in one line without the usage text", async () => {
+    const { cwd, run } = workspace();
+    await run("init");
+    fs.writeFileSync(path.join(cwd, "notes.txt"), "not a book".repeat(100));
+
+    const missingPeriod = await run("periods", "show", "fp-none");
+    const foreign = await run("--file", "notes.txt", "periods", "list");
+
+    expect(missingPeriod.code).toBe(1);
+    expect(missingPeriod.stderr).toBe(
+      "エラー: 会計期間 fp-none はありません\n",
+    );
+    expect(foreign.code).toBe(1);
+    expect(foreign.stderr).toBe(
+      "エラー: このファイルはオープン会計の帳簿ではありません\n",
+    );
+  });
+
+  it("names the file problem instead of a generic or server failure", async () => {
+    const { cwd, run } = workspace();
+    const id = await startedPeriod(run);
+    const internalFailure = {
+      messageForDeveloper:
+        "fiscalPeriodsGetAll returned HTTP 500 without OpenkkApiErrorDto",
+      messageForUser: "サーバー処理でエラーが発生しました",
+      originalMessage: "null",
+      statusCode: 500,
+      code: null,
+    };
+    let stderr = "";
+
+    const missingCsv = await run("entries", "import", id, "nothing.csv");
+    fs.chmodSync(path.join(cwd, DEFAULT_CLI_FILE), 0o444);
+    const readOnly = await run(
+      "periods",
+      "create",
+      "--name",
+      "x",
+      "--start",
+      "2027-01-01",
+      "--end",
+      "2027-12-31",
+    );
+    fs.chmodSync(path.join(cwd, DEFAULT_CLI_FILE), 0o644);
+    const code = await runTerminalClient(
+      ["periods", "list"],
+      {
+        stdout: () => {},
+        stderr: (text) => {
+          stderr += text;
+        },
+        cwd,
+        env: () => null,
+        now: () => new Date("2026-12-31T12:00:00"),
+      },
+      {
+        title: "test",
+        version: "0",
+        defaultBookFile: DEFAULT_CLI_FILE,
+        bookFileEnv: CLI_FILE_ENV,
+        defaultUserId: DEFAULT_CLI_USER_ID,
+        openBook: async () => ({
+          backend: {
+            fiscalPeriods: {
+              getAll: async () => {
+                throw internalFailure;
+              },
+            },
+          } as unknown as OpenkkBackendPort,
+          close: () => {},
+        }),
+      },
+    );
+
+    expect(missingCsv.code).toBe(1);
+    expect(missingCsv.stderr).toBe(
+      `エラー: ファイルがありません: ${path.join(cwd, "nothing.csv")}\n`,
+    );
+    expect(readOnly.code).toBe(1);
+    expect(readOnly.stderr).toContain("書き込めません");
+    expect(code).toBe(1);
+    expect(stderr).not.toContain("サーバー");
+    expect(stderr).toMatch(/^エラー: 帳簿の処理中に/);
+  });
+
+  it("accepts a business rate with up to two decimals and only well-grouped amounts", async () => {
+    const { run } = workspace();
+    const id = await startedPeriod(run);
+    const add = (amount: string, rate: string) =>
+      run(
+        "entries",
+        "add",
+        id,
+        "--date",
+        "2026-04-01",
+        "--debit",
+        "通信費",
+        "--credit",
+        "普通預金",
+        "--amount",
+        amount,
+        "--description",
+        "回線",
+        "--business-rate",
+        rate,
+        "--json",
+      );
+
+    const twoDecimals = await add("1,000", "33.33");
+    const rejected = await Promise.all([
+      add("1000", "0x10"),
+      add("1000", "1e1"),
+      add("1000", "33.333"),
+      add("1000", " 50"),
+      add("1,000000", "50"),
+      add("10,00", "50"),
+    ]);
+    const extraArgument = await run("periods", "list", "extra");
+
+    expect(twoDecimals.code).toBe(0);
+    expect(JSON.parse(twoDecimals.stdout)).toMatchObject({
+      businessRate: 0.3333,
+    });
+    expect(rejected.map((result) => result.code)).toEqual([2, 2, 2, 2, 2, 2]);
+    expect(extraArgument.code).toBe(2);
+    expect(extraArgument.stderr).toContain("extra");
+    expect((await run("entries", "list", id)).stdout.split("\n")).toHaveLength(
+      2,
+    );
+  });
+
   it("rejects unknown commands and options as usage errors", async () => {
     const { run } = workspace();
+    await run("init");
 
     expect((await run("constructor")).code).toBe(2);
     expect((await run("entries")).code).toBe(2);

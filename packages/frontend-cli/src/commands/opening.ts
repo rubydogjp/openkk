@@ -1,15 +1,15 @@
 import {
-  carryOverFromBackend,
   formatAmount,
-  loadJournalMaster,
+  loadFiscalPeriodArchivePayload,
 } from "@rubydogjp/openkk-driver";
 import type {
   FiscalPeriodApiRecord,
+  MasterBookAccountApiRecord,
   OpeningBalanceLineApiRecord,
   OpenkkBackendPort,
 } from "@rubydogjp/openkk-driver";
 
-import { CliUsageError } from "../cli-output.js";
+import { CliUsageError, cliRefusal } from "../cli-output.js";
 import {
   openExistingBook,
   requireFiscalPeriod,
@@ -19,7 +19,13 @@ import { requireAccountByExactName } from "./records.js";
 
 const ASSET_PREFIX = "a:";
 const LIABILITY_AND_EQUITY_PREFIX = "l:";
-const BALANCE_ARGUMENT = /^(.+)=([1-9]\d{0,2}(?:,?\d{3})*)$/;
+const BALANCE_ARGUMENT = /^(.+)=([1-9]\d*|[1-9]\d{0,2}(?:,\d{3})+)$/;
+const CARRY_ITEM_BALANCES = "bs";
+const CARRY_ITEM_FIXED_ASSETS = "fixed-assets";
+const CARRY_ITEMS = new Set([CARRY_ITEM_BALANCES, CARRY_ITEM_FIXED_ASSETS]);
+const NO_AUTH_CHECK = () => {};
+
+type CarryItems = { balances: boolean; fixedAssets: boolean };
 
 export async function runOpeningCommand(
   context: CliCommandContext,
@@ -50,15 +56,20 @@ export async function runOpeningCommand(
     }
     case "set": {
       const period = await requireFiscalPeriod(backend, periodId ?? null);
-      const master = await loadJournalMaster(backend);
+      if (balances.length === 0) {
+        throw new CliUsageError(
+          "期首の残高を 1 つ以上、科目=金額 の形で指定してください",
+        );
+      }
+      const accounts = await backend.masterData.getBookAccounts();
       const lines = balances.map((argument) =>
-        parseBalanceArgument(argument, master.accounts),
+        parseBalanceArgument(argument, accounts),
       );
       assertUniqueAccounts(lines);
       const assetTotal = sumLines(lines, ASSET_PREFIX);
       const liabilityTotal = sumLines(lines, LIABILITY_AND_EQUITY_PREFIX);
       if (assetTotal !== liabilityTotal) {
-        throw new CliUsageError(
+        throw cliRefusal(
           `資産合計 (${formatAmount(assetTotal)}) と負債・純資産合計 (${formatAmount(liabilityTotal)}) を一致させてください`,
         );
       }
@@ -77,6 +88,7 @@ export async function runOpeningCommand(
     }
     case "carry": {
       const target = await requireFiscalPeriod(backend, periodId ?? null);
+      const items = parseCarryItems(options.items);
       if (options.from == null) {
         throw new CliUsageError(
           "引き継ぎ元の帳簿ファイルを --from で指定してください",
@@ -91,18 +103,33 @@ export async function runOpeningCommand(
           sourceBook.backend,
           options.fromPeriod,
         );
-        const updated = await carryOverFromBackend(
-          sourceBook.backend,
-          source,
-          backend,
+        const replaced = await describeReplacedItems(backend, target, items);
+        if (replaced.length > 0 && !options.yes) {
+          throw cliRefusal(
+            `引き継ぐと今の${replaced.join("と")}が置き換わります。置き換えるときは --yes を付けてください`,
+          );
+        }
+        const updated = await backend.fiscalPeriods.applyCarryoverFromArchive(
           target.id,
-          context.today(),
+          {
+            archive: await loadFiscalPeriodArchivePayload(
+              sourceBook.backend,
+              source,
+              context.today(),
+              NO_AUTH_CHECK,
+            ),
+            carryBalances: items.balances,
+            reversalEntryIndexes: null,
+            carryFixedAssets: items.fixedAssets,
+          },
         );
         if (options.json) {
           output.json(updated);
           return;
         }
-        output.line(`引き継ぎました: ${source.name} → ${updated.name}`);
+        output.line(
+          `引き継ぎました: ${source.name} → ${updated.name} (${carriedItemLabels(items).join("・")})`,
+        );
       } finally {
         sourceBook.close();
       }
@@ -117,9 +144,48 @@ export async function runOpeningCommand(
   }
 }
 
+function parseCarryItems(input: string | null): CarryItems {
+  if (input == null) return { balances: true, fixedAssets: false };
+  const names = input.split(",").map((name) => name.trim());
+  const unknown = names.filter((name) => !CARRY_ITEMS.has(name));
+  if (names.length === 0 || unknown.length > 0) {
+    throw new CliUsageError(
+      `--items には ${[...CARRY_ITEMS].join(" / ")} をカンマ区切りで指定してください: ${input}`,
+    );
+  }
+  return {
+    balances: names.includes(CARRY_ITEM_BALANCES),
+    fixedAssets: names.includes(CARRY_ITEM_FIXED_ASSETS),
+  };
+}
+
+function carriedItemLabels(items: CarryItems): string[] {
+  return [
+    ...(items.balances ? ["期首のBS"] : []),
+    ...(items.fixedAssets ? ["固定資産"] : []),
+  ];
+}
+
+async function describeReplacedItems(
+  backend: OpenkkBackendPort,
+  target: FiscalPeriodApiRecord,
+  items: CarryItems,
+): Promise<string[]> {
+  const balanceLineCount = target.opening.balanceLines.length;
+  const fixedAssetCount = items.fixedAssets
+    ? (await backend.fixedAssets.getAll(target.id)).length
+    : 0;
+  return [
+    ...(items.balances && balanceLineCount > 0
+      ? [`期首のBS ${balanceLineCount} 行`]
+      : []),
+    ...(fixedAssetCount > 0 ? [`固定資産 ${fixedAssetCount} 件`] : []),
+  ];
+}
+
 function parseBalanceArgument(
   argument: string,
-  accounts: ReadonlyArray<{ id: string; name: string; accountType: string }>,
+  accounts: ReadonlyArray<MasterBookAccountApiRecord>,
 ): OpeningBalanceLineApiRecord {
   const match = BALANCE_ARGUMENT.exec(argument);
   if (match == null) {
@@ -130,9 +196,11 @@ function parseBalanceArgument(
   const [, accountName, amount] = match;
   const account = requireAccountByExactName(accountName!, accounts);
   const prefix =
-    account.accountType === "asset"
+    account.accountType === "asset" && account.normalBalanceSide === "debit"
       ? ASSET_PREFIX
-      : account.accountType === "liability" || account.accountType === "equity"
+      : account.accountType === "asset" ||
+          account.accountType === "liability" ||
+          account.accountType === "equity"
         ? LIABILITY_AND_EQUITY_PREFIX
         : null;
   if (prefix == null) {

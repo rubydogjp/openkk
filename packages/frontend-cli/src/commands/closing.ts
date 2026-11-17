@@ -6,7 +6,7 @@ import {
   loadJournalMaster,
 } from "@rubydogjp/openkk-driver";
 
-import { CliUsageError } from "../cli-output.js";
+import { CliUsageError, cliRefusal } from "../cli-output.js";
 import {
   requireFiscalPeriod,
   type CliCommandContext,
@@ -39,7 +39,7 @@ export async function runClosingCommand(
           context.today(),
         )
       ) {
-        throw new CliUsageError(
+        throw cliRefusal(
           "まだ期中です。通常は翌2月ごろに実行します。このまま仮締めするときは --yes を付けてください",
         );
       }
@@ -54,7 +54,7 @@ export async function runClosingCommand(
     }
     case "final": {
       if (!options.yes) {
-        throw new CliUsageError(
+        throw cliRefusal(
           "本締めは取り消せません。report で仮の帳票を確かめたうえで、--yes を付けて実行してください",
         );
       }

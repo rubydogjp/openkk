@@ -5,15 +5,16 @@ const MAX_PRECACHE_RESOURCE_COUNT = 250;
 const STATIC_ASSET_PATH_PATTERN =
   /\.(js|css|wasm|png|jpg|jpeg|svg|ico|ttf|woff2?|txt)$/;
 const APP_SHELL_ROUTES = __OPENKK_APP_SHELL_ROUTES__;
+const PUBLIC_ASSETS = __OPENKK_PUBLIC_ASSETS__;
+const NEXT_ASSET_PREFIX = "/_next/";
 const PRECACHE_URLS = [
   ...APP_SHELL_ROUTES,
-  ...APP_SHELL_ROUTES.map((route) =>
-    route === "/" ? "/index.txt" : `${route}/index.txt`,
-  ),
+  ...APP_SHELL_ROUTES.map((route) => `${route}index.txt`),
   "/manifest.json",
   "/favicon.ico",
   "/apple-icon.png",
   "/icon.svg",
+  ...PUBLIC_ASSETS,
 ];
 
 self.addEventListener("install", (event) => {
@@ -148,12 +149,16 @@ function discoverSameOriginAssets(text, baseUrl) {
     /(?:src|href)=["']([^"']+)["']/g,
     /url\(["']?([^"')]+)["']?\)/g,
     /["'](\/_next\/static\/[^"']+)["']/g,
+    /["'](\/(?:icons|images)\/[^"']+)["']/g,
   ];
 
   for (const pattern of patterns) {
     for (const match of text.matchAll(pattern)) {
       tryAddAsset(assets, match[1], baseUrl);
     }
+  }
+  for (const match of text.matchAll(/["'](static\/chunks\/[^"']+)["']/g)) {
+    tryAddAsset(assets, `${NEXT_ASSET_PREFIX}${match[1]}`, baseUrl);
   }
   return assets;
 }

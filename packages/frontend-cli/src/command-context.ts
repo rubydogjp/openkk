@@ -3,7 +3,7 @@ import type {
   OpenkkBackendPort,
 } from "@rubydogjp/openkk-driver";
 
-import { CliUsageError, type CliOutput } from "./cli-output.js";
+import { CliUsageError, cliRefusal, type CliOutput } from "./cli-output.js";
 
 export const CLI_STRING_OPTIONS = [
   "name",
@@ -19,6 +19,7 @@ export const CLI_STRING_OPTIONS = [
   "out",
   "from",
   "from-period",
+  "items",
 ] as const;
 
 export const CLI_FLAG_OPTIONS = ["json", "yes"] as const;
@@ -40,6 +41,7 @@ export type CliOptions = {
   out: string | null;
   from: string | null;
   fromPeriod: string | null;
+  items: string | null;
   json: boolean;
   yes: boolean;
 };
@@ -62,6 +64,7 @@ export function readCliOptions(
     out: text("out"),
     from: text("from"),
     fromPeriod: text("from-period"),
+    items: text("items"),
     json: flag("json"),
     yes: flag("yes"),
   };
@@ -107,14 +110,14 @@ export async function requireFiscalPeriod(
     (candidate) => candidate.id === id,
   );
   if (period == null) {
-    throw new CliUsageError(`会計期間 ${id} はありません`);
+    throw cliRefusal(`会計期間 ${id} はありません`);
   }
   return period;
 }
 
 function assertNoFileAt(context: CliCommandContext, filePath: string): void {
   if (context.files.exists(filePath)) {
-    throw new CliUsageError(`すでにファイルがあります: ${filePath}`);
+    throw cliRefusal(`すでにファイルがあります: ${filePath}`);
   }
 }
 
@@ -150,7 +153,7 @@ export async function openExistingBook(
   filePath: string,
 ): Promise<CliBook> {
   if (!context.files.exists(filePath)) {
-    throw new CliUsageError(`帳簿ファイルがありません: ${filePath}`);
+    throw cliRefusal(`帳簿ファイルがありません: ${filePath}`);
   }
   return context.books.open(filePath);
 }

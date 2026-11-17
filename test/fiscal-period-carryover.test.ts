@@ -160,6 +160,19 @@ describe("carryover calculations", () => {
     }
   });
 
+  it("opens the next period with the closing balance sheet when an account shares a row with the opening", () => {
+    assertCarriesClosingBalanceSheet(
+      [
+        entry([
+          line("debit", "acct_communication", 300_000),
+          line("credit", "acct_bank", 300_000),
+        ]),
+      ],
+      [balance("a:その他の預金", 1_000_000), balance("l:元入金", 1_000_000)],
+      "その他の預金 and 普通預金",
+    );
+  });
+
   it("agrees on every master account about which entries can be reversed", () => {
     for (const account of DEFAULT_BOOK_ACCOUNTS) {
       for (const side of ["debit", "credit"] as const) {

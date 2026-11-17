@@ -18,7 +18,6 @@ if (checkOnly && options.includes("--from-arts")) {
     "Use --from-arts to sync, then --check to verify generated files",
   );
 }
-// The icon source is distributed from arts; ordinary OSS builds need no sibling checkout.
 if (options.includes("--from-arts")) {
   const { DatabaseSync } = await import("node:sqlite");
   const { formatGenerated } = await import("./format-generated.mjs");

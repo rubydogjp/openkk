@@ -25,6 +25,8 @@
 | データを削除済み (`purged`) の期間の知らせ                   | `frontend-ui/src/legacy/legacy-purged-fiscal-period-screen.tsx`                                                                                                                                                                                                           | 以前にデータを削除した期間を選んだときに、保存してあるファイルを取り込むよう案内する                                                                                                                             | `purged` の期間がなくなったとき                                                                          |
 | 以前の形式の仕訳の CSV (localId の列) と JSON                | `driver/src/domain/legacy/legacy-journal-files.ts` (`importEntriesFromLegacyCsv`・`importEntriesFromLegacyJson`・`exportEntriesAsLegacyJson`)                                                                                                                             | 以前に書き出した CSV・JSON を取り込めるようにする。JSON の書き出しは、非推奨として残している                                                                                                                     | 以前の形式のファイルを取り込めなくしてよいと決めたとき                                                   |
 
+クラウド版 (別のリポジトリ) のサーバーが返す `archived` の期間と、クラウド版の画面がまだ持っている圧縮保存の操作は、クラウド版がこのリリースの箱を受け取ったときに初めて上の読み替えに切り替わる。今の公開の決まりでは npm に出さないので、受け取る道がまだない ([`release.md`](./release.md))。
+
 ## レガシーではないもの
 
 名前に archive が付くが、今も使っているもの。

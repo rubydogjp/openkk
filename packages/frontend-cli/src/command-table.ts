@@ -1,4 +1,4 @@
-import { CliUsageError, type CliOutput } from "./cli-output.js";
+import { CliUsageError, cliRefusal, type CliOutput } from "./cli-output.js";
 import type {
   CliBooks,
   CliCommandContext,
@@ -26,6 +26,38 @@ const COMMANDS = new Map<string, (context: CliCommandContext) => Promise<void>>(
   ],
 );
 
+const ARGUMENT_LIMITS = new Map<string, number>([
+  ["periods list", 1],
+  ["periods show", 2],
+  ["periods create", 1],
+  ["periods start", 2],
+  ["periods receive", 2],
+  ["periods next", 2],
+  ["periods export", 2],
+  ["opening show", 2],
+  ["opening carry", 2],
+  ["entries list", 2],
+  ["entries add", 2],
+  ["entries import", 3],
+  ["entries export", 2],
+  ["closing pre", 2],
+  ["closing cancel", 2],
+  ["closing final", 2],
+  ["archive import", 2],
+  ["report", 2],
+]);
+
+function assertNoExtraArguments(invocation: CliInvocation): void {
+  const [subcommand] = invocation.args;
+  const limit =
+    ARGUMENT_LIMITS.get(`${invocation.command} ${subcommand}`) ??
+    ARGUMENT_LIMITS.get(invocation.command);
+  if (limit == null || invocation.args.length <= limit) return;
+  throw new CliUsageError(
+    `余分な引数があります: ${invocation.args.slice(limit).join(" ")}`,
+  );
+}
+
 export const CLI_COMMAND_USAGE = `コマンド:
   init                                   帳簿ファイルを作る
   periods list                           会計期間の一覧
@@ -43,11 +75,12 @@ export const CLI_COMMAND_USAGE = `コマンド:
                                          会計期間を 1 冊の帳簿ファイルに書き出す (中身はその期間だけ)
   opening show <期間id>                  期首のBS
   opening set <期間id> <科目>=<金額> ...  期首のBSを保存する (例: 現金=100000 元入金=100000)
-  opening carry <期間id> --from <file.openkk> [--from-period <id>]
-                                         別の帳簿ファイルの期間から期首のBSと固定資産を引き継ぐ (上書き)
+  opening carry <期間id> --from <file.openkk> [--from-period <id>] [--items bs,fixed-assets] [--yes]
+                                         別の帳簿ファイルの期間から引き継ぐ (既定は期首のBSだけ。
+                                         今ある期首のBSや固定資産を置き換えるときは --yes が要る)
   entries list <期間id>                  仕訳の一覧
   entries add <期間id> --date <YYYY-MM-DD> --debit <科目> --credit <科目> --amount <金額>
-          --description <摘要> [--business-rate <0〜100>]
+          --description <摘要> [--business-rate <0〜100、小数は 2 桁まで>]
                                          借方・貸方 1 組の仕訳を足す
   entries import <期間id> <file.csv> [--yes]
                                          CSV で仕訳を上書きする (仕訳番号で突き合わせ、ファイルにない仕訳は消す。
@@ -99,9 +132,10 @@ export async function runCliCommand(
   if (runCommand == null) {
     throw new CliUsageError(`${invocation.command} というコマンドはありません`);
   }
+  assertNoExtraArguments(invocation);
   if (!files.exists(bookPath)) {
-    throw new CliUsageError(
-      `帳簿ファイルがありません: ${bookPath}\n先に ${CLI_COMMAND_NAME} ${INIT_COMMAND} で作ってください`,
+    throw cliRefusal(
+      `帳簿ファイルがありません: ${bookPath}。先に ${CLI_COMMAND_NAME} ${INIT_COMMAND} で作ってください`,
     );
   }
   const book = await books.open(bookPath);

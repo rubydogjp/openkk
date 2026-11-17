@@ -47,6 +47,9 @@ jobs:
       - name: Production builds (original / Sim / demo)
         run: npm run build:apps
 
+      - name: Offline precache of the built apps
+        run: npm run check:precache
+
       - name: Export checks (original / demo)
         run: npm run test:e2e:export:built
 

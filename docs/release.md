@@ -5,6 +5,8 @@
 今は、どの箱も `private: true` にしてあり、publish されない。26.3.1 まで出していたパッケージ (`openkk-client-*`・`openkk-server-*` など) は、箱の種類 ([`architecture.md`](./architecture.md)) に合わせて名前と分け方を変えた。npm での名前と束ね方が決まるまでは出さない。出すときは、出す箱の `private` を外し、`test/package-structure.test.ts` の `PACKAGE_DIRS_RELEASED_TO_NPM` に足し、下の「新しいパッケージは初回だけ手元から publish」をする。前の名前のパッケージには、非推奨の知らせを付ける。
 製品 (`bundle-*`) はアプリなので、出さない。
 
+クラウド版 (別のリポジトリ) は npm の `^26.x` のパッケージを使って組み立てている。今のままタグを打っても npm には何も出ないので、クラウド版はこのリリースの箱を受け取れず、26.3.1 のまま残る。無印版・デモ版の配信も、前の名前の箱 (`packages/openkk`・`packages/openkk_demo`) を探して止まる。クラウド版に届けるには、npm に出す箱と名前を決めて publish するか、クラウド版の側を npm でない受け取り方 (公開タグからのビルドなど) に変えるかを、先に決める。決めるまでは、このリリースを出してもクラウド版は変わらない。
+
 publish の認証は Trusted Publishing (OIDC) で行い、npm のトークンは使わない。
 
 ## バージョン

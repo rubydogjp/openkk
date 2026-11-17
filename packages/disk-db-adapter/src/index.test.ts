@@ -72,9 +72,56 @@ describe("node-sqlite-db-adapter file persistence", () => {
       .run(String(SCHEMA_VERSION + 1));
     raw.close();
 
-    await expect(createDiskDbAdapter(dbPath, null)).rejects.toThrow(
-      /newer than app SCHEMA_VERSION/,
-    );
+    await expect(createDiskDbAdapter(dbPath, null)).rejects.toMatchObject({
+      statusCode: 400,
+      messageForDeveloper: expect.stringMatching(
+        /newer than app SCHEMA_VERSION/,
+      ),
+      messageForUser:
+        "この帳簿は新しい版のオープン会計で作られています。openkk を更新してください",
+    });
+  });
+
+  it("tells that the folder is missing or the file is not SQLite", async () => {
+    const dbPath = tempDbPath();
+    fs.writeFileSync(dbPath, "this is a text file, not a database".repeat(40));
+
+    await expect(
+      createDiskDbAdapter(
+        path.join(path.dirname(dbPath), "no-such-folder", "b.openkk"),
+        null,
+      ),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      messageForUser: expect.stringMatching(/^帳簿ファイルを開けませんでした/),
+    });
+    await expect(createDiskDbAdapter(dbPath, null)).rejects.toMatchObject({
+      statusCode: 400,
+      messageForUser: "このファイルはオープン会計の帳簿ではありません",
+    });
+  });
+
+  it("waits for another program that is writing the book and then tells it is busy", async () => {
+    const dbPath = tempDbPath();
+    const db = await open(dbPath, null);
+    const other = new DatabaseSync(dbPath);
+    other.exec("BEGIN EXCLUSIVE");
+    const startedAt = Date.now();
+
+    await expect(
+      db.fiscalPeriods.create("openkk-original-user", {
+        name: "2026年分",
+        startDate: "2026-01-01",
+        endDate: "2026-12-31",
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      messageForUser:
+        "帳簿ファイルをほかのプログラムが使っています。少し待ってからやり直してください",
+    });
+    expect(Date.now() - startedAt).toBeGreaterThanOrEqual(1000);
+    other.exec("ROLLBACK");
+    other.close();
   });
 
   it("refuses a SQLite file that is not an openkk book and leaves it as it was", async () => {

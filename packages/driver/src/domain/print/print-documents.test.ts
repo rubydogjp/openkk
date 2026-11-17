@@ -329,8 +329,44 @@ describe("print documents", () => {
     expect(ledgerHtml).not.toContain("overflow:hidden");
   });
 
+  it("splits a busy month by the height its rows take, not by a fixed number of rows", () => {
+    const entries = Array.from({ length: 24 }, (_, index) =>
+      entry({
+        id: `entry-${index + 1}`,
+        date: "2026-09-05",
+        description: `コピー用紙と文具の購入 ${index + 1}`,
+        partner: "",
+        taxCategory: "対象外",
+        businessCategory: "対象外",
+      }),
+    );
+
+    const pages = buildJournalDocument(entries)
+      .split('class="bk-page"')
+      .slice(1);
+
+    expect(pages).toHaveLength(2);
+    expect(pages[0]).not.toContain("9月分 合計");
+    expect(pages[1]).toContain("9月分 合計");
+    expect(pages.join("")).toContain("コピー用紙と文具の購入 24");
+  });
+
+  it("splits a ledger with long descriptions by the height its rows take", () => {
+    const entries = Array.from({ length: 12 }, (_, index) =>
+      entry({
+        id: `entry-${index + 1}`,
+        date: "2026-09-05",
+        description: "長い摘要".repeat(40),
+      }),
+    );
+
+    const ledgerHtml = buildGeneralLedgerDocument(entries, []);
+
+    expect(ledgerHtml.match(/class="bk-page"/g)?.length).toBeGreaterThan(2);
+  });
+
   it("splits a single oversized compound journal across pages", () => {
-    const debitLines = Array.from({ length: 35 }, (_, index) => ({
+    const debitLines = Array.from({ length: 60 }, (_, index) => ({
       side: "debit" as const,
       accountName: `経費${index + 1}`,
       accountType: "expense" as const,
@@ -344,14 +380,14 @@ describe("print documents", () => {
       businessCategoryName: null,
     }));
     const compound = entry({
-      description: "35行の複合仕訳",
+      description: "60行の複合仕訳",
       lines: [
         ...debitLines,
         {
           side: "credit",
           accountName: "現金",
           accountType: "asset",
-          amount: "35",
+          amount: "60",
           id: null,
           bookAccountId: null,
           partnerName: null,
@@ -366,8 +402,8 @@ describe("print documents", () => {
     const html = buildJournalDocument([compound]);
 
     expect(html.match(/class="bk-page"/g)).toHaveLength(2);
-    expect(html).toContain("経費35");
-    expect(html.match(/35行の複合仕訳/g)).toHaveLength(1);
+    expect(html).toContain("経費60");
+    expect(html.match(/60行の複合仕訳/g)).toHaveLength(1);
     expect(html.match(/1月分 合計/g)).toHaveLength(1);
   });
 

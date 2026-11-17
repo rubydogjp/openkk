@@ -6,31 +6,55 @@ const STATIC_ASSET_PATH_PATTERN =
   /\.(js|css|wasm|png|jpg|jpeg|svg|ico|ttf|woff2?|txt)$/;
 const APP_SHELL_ROUTES = [
   "/",
-  "/steps",
-  "/steps/fiscal-period-settings",
-  "/steps/opening-bs",
-  "/steps/journalizing",
-  "/steps/journalizing/analytics",
-  "/steps/document-receive",
-  "/steps/closing",
-  "/steps/next-fiscal-period",
-  "/entries",
-  "/assist",
-  "/assist/fixed-assets",
-  "/assist/opening-carryover",
-  "/fiscal-periods",
-  "/fiscal-periods/new",
-  "/install",
+  "/steps/",
+  "/steps/fiscal-period-settings/",
+  "/steps/opening-bs/",
+  "/steps/journalizing/",
+  "/steps/journalizing/analytics/",
+  "/steps/document-receive/",
+  "/steps/closing/",
+  "/steps/next-fiscal-period/",
+  "/entries/",
+  "/assist/",
+  "/assist/fixed-assets/",
+  "/assist/opening-carryover/",
+  "/fiscal-periods/",
+  "/fiscal-periods/new/",
+  "/install/",
 ];
+const PUBLIC_ASSETS = [
+  "/icons/action.svg",
+  "/icons/assets.svg",
+  "/icons/assist-filled.svg",
+  "/icons/assist.svg",
+  "/icons/beginner.svg",
+  "/icons/document.svg",
+  "/icons/expense.svg",
+  "/icons/file-open.svg",
+  "/icons/liabilities.svg",
+  "/icons/lock.svg",
+  "/icons/loss.svg",
+  "/icons/net-assets.svg",
+  "/icons/openkk-icon-192.png",
+  "/icons/openkk-icon-512.png",
+  "/icons/openkk-icon-maskable-192.png",
+  "/icons/openkk-icon-maskable-512.png",
+  "/icons/profit.svg",
+  "/icons/revenue.svg",
+  "/icons/success.svg",
+  "/icons/warning.svg",
+  "/images/demo-mode.svg",
+  "/images/openkk-icon.png",
+];
+const NEXT_ASSET_PREFIX = "/_next/";
 const PRECACHE_URLS = [
   ...APP_SHELL_ROUTES,
-  ...APP_SHELL_ROUTES.map((route) =>
-    route === "/" ? "/index.txt" : `${route}/index.txt`,
-  ),
+  ...APP_SHELL_ROUTES.map((route) => `${route}index.txt`),
   "/manifest.json",
   "/favicon.ico",
   "/apple-icon.png",
   "/icon.svg",
+  ...PUBLIC_ASSETS,
 ];
 
 self.addEventListener("install", (event) => {
@@ -165,12 +189,16 @@ function discoverSameOriginAssets(text, baseUrl) {
     /(?:src|href)=["']([^"']+)["']/g,
     /url\(["']?([^"')]+)["']?\)/g,
     /["'](\/_next\/static\/[^"']+)["']/g,
+    /["'](\/(?:icons|images)\/[^"']+)["']/g,
   ];
 
   for (const pattern of patterns) {
     for (const match of text.matchAll(pattern)) {
       tryAddAsset(assets, match[1], baseUrl);
     }
+  }
+  for (const match of text.matchAll(/["'](static\/chunks\/[^"']+)["']/g)) {
+    tryAddAsset(assets, `${NEXT_ASSET_PREFIX}${match[1]}`, baseUrl);
   }
   return assets;
 }

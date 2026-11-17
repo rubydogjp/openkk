@@ -15,6 +15,13 @@ import {
   formatPrintDate,
 } from "./print-format.js";
 import { formatEntryMetadata } from "./entry-metadata.js";
+import {
+  estimateRowHeight,
+  packItemsIntoPages,
+  PORTRAIT_TABLE_HEIGHT_BUDGET,
+  type PageItem,
+  type PrintRowMetrics,
+} from "./print-layout.js";
 
 function formatBalance(balance: number): string {
   return formatAmount(Math.abs(balance));
@@ -45,7 +52,31 @@ const PREFERRED_LEDGER_ORDER = [
   "元入金",
 ];
 
-const MAX_LEDGER_LINES_PER_PAGE = 12;
+const TABLE_WIDTH = 740;
+const COLUMN_WIDTHS = {
+  date: 75,
+  counterAccount: 120,
+  debitAmount: 68,
+  creditAmount: 68,
+  balance: 81,
+};
+const MEMO_COLUMN_WIDTH =
+  TABLE_WIDTH -
+  COLUMN_WIDTHS.date -
+  COLUMN_WIDTHS.counterAccount -
+  COLUMN_WIDTHS.debitAmount -
+  COLUMN_WIDTHS.creditAmount -
+  COLUMN_WIDTHS.balance;
+const METADATA_COLUMN_WIDTH =
+  COLUMN_WIDTHS.debitAmount +
+  COLUMN_WIDTHS.creditAmount +
+  COLUMN_WIDTHS.balance;
+const BAND_LABEL_COLUMN_WIDTH =
+  COLUMN_WIDTHS.date + COLUMN_WIDTHS.counterAccount + MEMO_COLUMN_WIDTH;
+const ROW_METRICS: PrintRowMetrics = { lineHeight: 12.5, verticalPadding: 8 };
+const HEADER_ROW_HEIGHT = 24;
+const HEADER_HEIGHT = HEADER_ROW_HEIGHT * 2 + 1;
+const ROW_HEIGHT_BUDGET = PORTRAIT_TABLE_HEIGHT_BUDGET - HEADER_HEIGHT;
 
 type LedgerLine = {
   date: string;
@@ -125,7 +156,7 @@ function buildLedger(
 }
 
 const HEADER_CELL_STYLE =
-  "border:1px solid #1D4ED8;background:#EEF5FF;color:#1D4ED8;font-weight:700;padding:5px 4px;text-align:center;";
+  "border:1px solid #1D4ED8;background:#EEF5FF;color:#1D4ED8;font-weight:700;padding:5px 4px;text-align:center;line-height:1.3;";
 const BODY_CELL_STYLE =
   "border:1px solid #1D4ED8;color:#111827;background:#FFFFFF;padding:4px 4px;vertical-align:top;line-height:1.25;";
 const BAND_CELL_STYLE =
@@ -234,21 +265,23 @@ export function buildGeneralLedgerBody(
   let pageNumber = 0;
   return ledgers
     .flatMap((ledger) => {
-      const chunks = chunkLedgerLines(ledger.lines);
-      return chunks.map((pageLines, chunkIndex) => {
+      const openingOnDebit = ledger.debitNormal
+        ? ledger.openingBalance > 0
+        : ledger.openingBalance < 0;
+      const openingOnCredit = ledger.debitNormal
+        ? ledger.openingBalance < 0
+        : ledger.openingBalance > 0;
+      const openingAmount = Math.abs(ledger.openingBalance);
+      const pages = packItemsIntoPages(
+        ledgerPageItems(ledger),
+        ROW_HEIGHT_BUDGET,
+      );
+      return pages.map((pageRows) => {
         pageNumber += 1;
-        let rowsHtml = "";
-        const processedMonths = new Set<string>();
-        const openingOnDebit = ledger.debitNormal
-          ? ledger.openingBalance > 0
-          : ledger.openingBalance < 0;
-        const openingOnCredit = ledger.debitNormal
-          ? ledger.openingBalance < 0
-          : ledger.openingBalance > 0;
-        const openingAmount = Math.abs(ledger.openingBalance);
-
-        if (chunkIndex === 0 && ledger.openingBalance !== 0) {
-          rowsHtml += `<tr>
+        const rowsHtml = pageRows
+          .map((row) => {
+            if (row.kind === "opening") {
+              return `<tr>
   <td style="${BAND_CELL_STYLE};text-align:center">前期繰越</td>
   <td colspan="2" style="${BAND_CELL_STYLE}"></td>
   <td style="${BAND_CELL_STYLE};text-align:right">${openingOnDebit ? formatAmountOrBlank(openingAmount) : ""}</td>
@@ -256,18 +289,33 @@ export function buildGeneralLedgerBody(
   <td style="${BAND_CELL_STYLE};text-align:right">${formatBalance(ledger.openingBalance)}</td>
 </tr>
 `;
-        }
-
-        const globalStart = chunkIndex * MAX_LEDGER_LINES_PER_PAGE;
-        for (let pageIndex = 0; pageIndex < pageLines.length; pageIndex++) {
-          const line = pageLines[pageIndex]!;
-          const globalIndex = globalStart + pageIndex;
-          const monthKey = line.date.slice(0, 7);
-          const isLastInMonth =
-            globalIndex === ledger.lines.length - 1 ||
-            ledger.lines[globalIndex + 1]!.date.slice(0, 7) !== monthKey;
-
-          rowsHtml += `<tr>
+            }
+            if (row.kind === "month") {
+              return `<tr>
+  <td colspan="3" style="${BAND_CELL_STYLE}">${formatMonthLabel(row.monthKey)} 合計</td>
+  <td style="${BAND_CELL_STYLE};text-align:right">${formatAmountOrBlank(row.subtotal.debit)}</td>
+  <td style="${BAND_CELL_STYLE};text-align:right">${formatAmountOrBlank(row.subtotal.credit)}</td>
+  <td style="${BAND_CELL_STYLE}"></td>
+</tr>
+`;
+            }
+            if (row.kind === "total") {
+              let grandDebit = openingOnDebit ? openingAmount : 0;
+              let grandCredit = openingOnCredit ? openingAmount : 0;
+              for (const subtotal of ledger.monthSubtotals.values()) {
+                grandDebit += subtotal.debit;
+                grandCredit += subtotal.credit;
+              }
+              return `<tr>
+  <td colspan="3" style="${BAND_CELL_STYLE}">合計</td>
+  <td style="${BAND_CELL_STYLE};text-align:right">${formatAmountOrBlank(grandDebit)}</td>
+  <td style="${BAND_CELL_STYLE};text-align:right">${formatAmountOrBlank(grandCredit)}</td>
+  <td style="${BAND_CELL_STYLE}"></td>
+</tr>
+`;
+            }
+            const line = row.line;
+            return `<tr>
   <td rowspan="2" style="${BODY_CELL_STYLE};vertical-align:middle;text-align:center">${escapeHtml(formatPrintDate(line.date))}</td>
   <td style="${BODY_CELL_STYLE}">${escapeHtml(line.counterAccount)}</td>
   <td style="${BODY_CELL_STYLE}">${escapeHtml(line.memo)}</td>
@@ -281,41 +329,12 @@ export function buildGeneralLedgerBody(
   <td style="${BODY_CELL_STYLE};text-align:right">${formatBalance(line.balance)}</td>
 </tr>
 `;
-
-          if (isLastInMonth && !processedMonths.has(monthKey)) {
-            processedMonths.add(monthKey);
-            const subtotal = ledger.monthSubtotals.get(monthKey);
-            if (subtotal) {
-              rowsHtml += `<tr>
-  <td colspan="3" style="${BAND_CELL_STYLE}">${formatMonthLabel(monthKey)} 合計</td>
-  <td style="${BAND_CELL_STYLE};text-align:right">${formatAmountOrBlank(subtotal.debit)}</td>
-  <td style="${BAND_CELL_STYLE};text-align:right">${formatAmountOrBlank(subtotal.credit)}</td>
-  <td style="${BAND_CELL_STYLE}"></td>
-</tr>
-`;
-            }
-          }
-        }
-
-        if (chunkIndex === chunks.length - 1) {
-          let grandDebit = openingOnDebit ? openingAmount : 0;
-          let grandCredit = openingOnCredit ? openingAmount : 0;
-          for (const subtotal of ledger.monthSubtotals.values()) {
-            grandDebit += subtotal.debit;
-            grandCredit += subtotal.credit;
-          }
-          rowsHtml += `<tr>
-  <td colspan="3" style="${BAND_CELL_STYLE}">合計</td>
-  <td style="${BAND_CELL_STYLE};text-align:right">${formatAmountOrBlank(grandDebit)}</td>
-  <td style="${BAND_CELL_STYLE};text-align:right">${formatAmountOrBlank(grandCredit)}</td>
-  <td style="${BAND_CELL_STYLE}"></td>
-</tr>
-`;
-        }
+          })
+          .join("");
 
         const tableHtml = `<table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px">
   <colgroup>
-    <col style="width:75px"><col style="width:120px"><col><col style="width:68px"><col style="width:68px"><col style="width:81px">
+    <col style="width:${COLUMN_WIDTHS.date}px"><col style="width:${COLUMN_WIDTHS.counterAccount}px"><col><col style="width:${COLUMN_WIDTHS.debitAmount}px"><col style="width:${COLUMN_WIDTHS.creditAmount}px"><col style="width:${COLUMN_WIDTHS.balance}px">
   </colgroup>
   <thead>
     <tr>
@@ -347,16 +366,68 @@ export function buildGeneralLedgerBody(
     .join("");
 }
 
-function chunkLedgerLines(lines: LedgerLine[]): LedgerLine[][] {
-  const chunks: LedgerLine[][] = [];
-  for (
-    let index = 0;
-    index < lines.length;
-    index += MAX_LEDGER_LINES_PER_PAGE
-  ) {
-    chunks.push(lines.slice(index, index + MAX_LEDGER_LINES_PER_PAGE));
+type LedgerRow =
+  | { kind: "opening" }
+  | { kind: "line"; line: LedgerLine }
+  | {
+      kind: "month";
+      monthKey: string;
+      subtotal: { debit: number; credit: number };
+    }
+  | { kind: "total" };
+
+function bandRowHeight(label: string): number {
+  return estimateRowHeight(
+    [{ text: label, columnWidth: BAND_LABEL_COLUMN_WIDTH }],
+    ROW_METRICS,
+  );
+}
+
+function ledgerLineHeight(line: LedgerLine): number {
+  const upper = estimateRowHeight(
+    [
+      { text: line.counterAccount, columnWidth: COLUMN_WIDTHS.counterAccount },
+      { text: line.memo, columnWidth: MEMO_COLUMN_WIDTH },
+      { text: line.metadata, columnWidth: METADATA_COLUMN_WIDTH },
+    ],
+    ROW_METRICS,
+  );
+  const lower = estimateRowHeight([], ROW_METRICS);
+  return upper + lower;
+}
+
+function ledgerPageItems(ledger: AccountLedger): PageItem<LedgerRow>[] {
+  const items: PageItem<LedgerRow>[] = [];
+  if (ledger.openingBalance !== 0) {
+    items.push({
+      item: { kind: "opening" },
+      height: bandRowHeight("前期繰越"),
+      keepWithPrevious: false,
+    });
   }
-  return chunks.length === 0 ? [[]] : chunks;
+  ledger.lines.forEach((line, index) => {
+    items.push({
+      item: { kind: "line", line },
+      height: ledgerLineHeight(line),
+      keepWithPrevious: false,
+    });
+    const monthKey = line.date.slice(0, 7);
+    const next = ledger.lines[index + 1];
+    const subtotal = ledger.monthSubtotals.get(monthKey);
+    if ((next == null || next.date.slice(0, 7) !== monthKey) && subtotal) {
+      items.push({
+        item: { kind: "month", monthKey, subtotal },
+        height: bandRowHeight(`${formatMonthLabel(monthKey)} 合計`),
+        keepWithPrevious: true,
+      });
+    }
+  });
+  items.push({
+    item: { kind: "total" },
+    height: bandRowHeight("合計"),
+    keepWithPrevious: true,
+  });
+  return items;
 }
 
 function accountTypeLabel(type: BookAccountType): string {

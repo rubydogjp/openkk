@@ -139,6 +139,33 @@ function bsRow(
   };
 }
 
+function foldSharedBalanceSheetRows(
+  assets: Map<string, number>,
+  liabilities: Map<string, number>,
+): void {
+  for (const row of BALANCE_SHEET_ROWS) {
+    for (const [side, slot] of [
+      ["asset", row.asset],
+      ["liability", row.liability],
+    ] as const) {
+      if (slot.kind !== "account" || slot.aliases.length === 0) continue;
+      const names = [slot.label, ...slot.aliases];
+      if (!names.some((name) => assets.has(name) || liabilities.has(name))) {
+        continue;
+      }
+      const netAsset =
+        sumByNames(assets, names) - sumByNames(liabilities, names);
+      const netOnSide = side === "asset" ? netAsset : -netAsset;
+      if (netOnSide <= 0) continue;
+      for (const name of names) {
+        assets.delete(name);
+        liabilities.delete(name);
+      }
+      (side === "asset" ? assets : liabilities).set(slot.label, netOnSide);
+    }
+  }
+}
+
 function reclassifyContraryBalances(
   assets: Map<string, number>,
   liabilities: Map<string, number>,
@@ -223,6 +250,8 @@ export function computeFsAggregate({
     liabilityNetByName,
   );
   const equityClosingByName = closingMap(equityOpeningByName, equityNetByName);
+  foldSharedBalanceSheetRows(assetOpeningByName, liabilityOpeningByName);
+  foldSharedBalanceSheetRows(assetClosingByName, liabilityClosingByName);
   reclassifyContraryBalances(assetClosingByName, liabilityClosingByName);
 
   const revenueTotal = sumValues(revenueByName);

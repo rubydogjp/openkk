@@ -393,6 +393,38 @@ describe("computeFsAggregate", () => {
     ).toMatchObject({ liabilityClosing: 50_000 });
   });
 
+  it("nets an account against the opening of the row it shares before moving a contrary balance", () => {
+    const aggregate = computeFsAggregate({
+      openingBalanceLines: [
+        {
+          id: "a:その他の預金",
+          accountId: "a:その他の預金",
+          amount: 1_000_000,
+        },
+        { id: "l:元入金", accountId: "l:元入金", amount: 1_000_000 },
+      ],
+      entries: [
+        entry({
+          debit: "通信費",
+          debitType: "expense",
+          debitAmount: "300,000",
+          credit: "普通預金",
+          creditType: "asset",
+          creditAmount: "300,000",
+        }),
+      ],
+    });
+
+    expect(
+      aggregate.bsRows.find((row) => row.assetLabel === "その他の預金"),
+    ).toMatchObject({ assetOpening: 1_000_000, assetClosing: 700_000 });
+    expect(
+      aggregate.bsRows.filter((row) => row.liabilityLabel === "普通預金"),
+    ).toEqual([]);
+    expect(aggregate.summary.assets).toBe(700_000);
+    expect(aggregate.summary.liabilities).toBe(0);
+  });
+
   it("routes 専従者給与 and 貸倒引当金 繰入/戻入 to rows 34/37/38/39/42", () => {
     const expenseEntry = (name: string, amount: string): EntryRecord =>
       entry({

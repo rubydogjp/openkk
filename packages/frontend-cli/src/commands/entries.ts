@@ -28,7 +28,9 @@ import {
 import { requireAccountByExactName } from "./records.js";
 
 const FULL_BUSINESS_RATE_PERCENT = 100;
-const AMOUNT_PATTERN = /^[1-9]\d{0,2}(?:,?\d{3})*$/;
+const AMOUNT_PATTERN = /^(?:[1-9]\d*|[1-9]\d{0,2}(?:,\d{3})+)$/;
+const BUSINESS_RATE_PATTERN = /^(?:100(?:\.0{1,2})?|\d{1,2}(?:\.\d{1,2})?)$/;
+const BUSINESS_RATE_SCALE = 10000;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const NO_AUTH_CHECK = () => {};
 
@@ -177,16 +179,15 @@ function buildSinglePairInput(options: CliOptions, master: EntryLineMaster) {
 
 function parseBusinessRatePercent(input: string | null): number {
   if (input == null) return 1;
-  const percent = Number(input);
-  if (
-    input.trim() === "" ||
-    !Number.isFinite(percent) ||
-    percent < 0 ||
-    percent > FULL_BUSINESS_RATE_PERCENT
-  ) {
-    throw new CliUsageError("--business-rate は 0〜100 で指定してください");
+  if (!BUSINESS_RATE_PATTERN.test(input)) {
+    throw new CliUsageError(
+      "--business-rate は 0〜100 (小数は 2 桁まで) で指定してください",
+    );
   }
-  return percent / FULL_BUSINESS_RATE_PERCENT;
+  const scaledPercent = Math.round(
+    (Number(input) * BUSINESS_RATE_SCALE) / FULL_BUSINESS_RATE_PERCENT,
+  );
+  return scaledPercent / BUSINESS_RATE_SCALE;
 }
 
 function requireJournalFileKind(format: string): JournalFileKind {
@@ -234,9 +235,14 @@ async function replaceEntries(
   const { backend, output, options } = context;
   const hasChanges = hasJournalTableChanges(changes);
   if (hasChanges && !options.yes) {
-    throw new CliUsageError(
-      `CSV で仕訳を上書きします (${describeChanges(changes)})。ファイルにない仕訳は消えます。上書きするときは --yes を付けてください`,
+    if (options.json) {
+      output.json({ applied: false, ...countChanges(changes) });
+      return;
+    }
+    output.line(
+      `まだ上書きしていません。CSV で上書きすると (${describeChanges(changes)}) になり、ファイルにない仕訳は消えます。上書きするときは --yes を付けてください`,
     );
+    return;
   }
   if (hasChanges) {
     await applyJournalTableChanges(
@@ -248,15 +254,19 @@ async function replaceEntries(
     );
   }
   if (options.json) {
-    output.json({
-      added: changes.added.length,
-      changed: changes.changed.length,
-      removed: changes.removed.length,
-      unchanged: changes.unchangedCount,
-    });
+    output.json({ applied: hasChanges, ...countChanges(changes) });
     return;
   }
   reportChanges(output, hasChanges, changes);
+}
+
+function countChanges(changes: JournalTableChanges) {
+  return {
+    added: changes.added.length,
+    changed: changes.changed.length,
+    removed: changes.removed.length,
+    unchanged: changes.unchangedCount,
+  };
 }
 
 function reportChanges(

@@ -63,7 +63,8 @@ type OpenkkApiErrorDto = {
 };
 ```
 
-Typical status codes: `400`, `404`, `409`, or `null`.
+Typical status codes: `400`, `401`, `404`, `409`, or `null`.
+`401` means the sign-in has expired: when any call other than `auth` fails with `401`, the client ends the session and shows the sign-in again (`wrapWithSessionExpiry`). Use it only for that, not for "not allowed" (use `404` or `409`).
 Maintenance mode uses `code: MAINTENANCE_MODE_ERROR_CODE`; `isMaintenanceModeError` reads that `code`.
 For HTTP errors, the HTTP status overrides `OpenkkApiErrorDto.statusCode`.
 Missing or malformed error bodies become a safe client-side `OpenkkApiErrorDto`.
@@ -99,9 +100,11 @@ type OpenkkBackendPort = {
 
 `fiscalPeriods.start` moves a `pre_opening` period to `journalizing`.
 
-`FiscalPeriodArchiveImportInput` creates a new active period in the archived `phase`.
+`FiscalPeriodArchiveImportInput` creates a new active period with a new ID, in the `phase` the archive records (for example `post_closing`). It is used both for an archive zip from an earlier version and for a `.openkk` book file imported into a backend that does not keep book files (Sim, demo and the cloud version).
 
 `fiscalPeriods.createNext` creates the next period atomically from a closed period with completed document receipt. It carries balances, selected reversals and active fixed assets from stored data. The source may already be archived but not purged, and the next start date must follow the source end date.
+
+`fiscalPeriods.applyCarryover` and `fiscalPeriods.applyCarryoverFromArchive` overwrite the chosen items of a period that already exists. See "26.3.1 からの変更".
 
 ## Fiscal Period Policy
 
@@ -112,6 +115,48 @@ type OpenkkBackendPort = {
 | `allowLegacyArchiveImport` | `true`  | Allow importing an archive zip made by an earlier version (legacy import). |
 
 `opening` is always present: a period without opening balances carries an empty one.
+
+## 26.3.1 からの変更
+
+26.3.1 の契約で動くバックエンド (クラウド版の Go のサーバーなど) が、この版の使う側とつなぐために合わせること。
+
+### 足した口
+
+| 口                                        | HTTP                                                     | 入力                                         |
+| ----------------------------------------- | -------------------------------------------------------- | -------------------------------------------- |
+| `fiscalPeriods.applyCarryover`            | `POST /fiscal-periods/{id}/apply-carryover`              | `FiscalPeriodCarryoverApplyInput`            |
+| `fiscalPeriods.applyCarryoverFromArchive` | `POST /fiscal-periods/{id}/apply-carryover-from-archive` | `FiscalPeriodCarryoverFromArchiveApplyInput` |
+
+どちらも成功すると `200` で `{ fiscalPeriod }` を返す。決まり:
+
+- 引き継ぎ先 (`{id}`) は `active` で、`pre_opening` か `journalizing` の期間だけ。それ以外は `409`
+- 引き継ぎ元は本締め (`post_closing`) と書類の受領 (`documentsReceivedCompleted`) を終えていて、`purged` でなく、引き継ぎ先の開始日が引き継ぎ元の終了日より後であること。違えば `409` (日付は `400`)。`applyCarryover` の元は同じ利用者の期間 (`sourceFiscalPeriodId`)、`applyCarryoverFromArchive` の元は入力の `archive` (別の帳簿ファイルから読んだ期間) で、`archive` は `importArchived` と同じ決まりで確かめる
+- `carryBalances: true` なら期首の残高を元の期末の残高で置き換え、`openingBalancesCompleted` を `true` にする。`false` なら今の期首の残高をそのまま残す
+- `carryFixedAssets: true` なら、引き継ぎ先の固定資産を全部消してから、元の固定資産のうち引き継げるものを入れる。`false` なら触らない
+- 再振替: `reversalEntryIds` (`applyCarryover`) と `reversalEntryIndexes` (`applyCarryoverFromArchive`) は、`null` と `[]` で意味が違う。`null` は「今の期首の再振替仕訳を残す」、`[]` は「再振替仕訳を消す」、要素があれば「その仕訳から作り直す」。`null` を `[]` と同じに扱うと、利用者が入れた再振替仕訳を消してしまう。`reversalEntryIndexes` は `archive.entries` の中の位置 (0 から)。`reversalEntryIds` は元の期間の仕訳の ID
+- 1 つのトランザクションで行い、途中で失敗したら何も変えない
+- `fiscalPeriods.createNext` の `reversalEntryIds` は、今までどおり配列だけ (`null` は来ない)
+
+### なくした口と設定
+
+- `POST /fiscal-periods/{id}/archive` と `POST /fiscal-periods/{id}/purge-archived-data` (圧縮保存と、圧縮保存したデータの削除) はもう呼ばない。サーバーに残しておいてもよいが、使う側からは来ない
+- `OpenkkConfig.fiscalPeriodPolicy` の `maxActivePeriods`・`archiveRetention`・`ephemeralArchiveWarning` をなくした。残っているのは `allowLegacyArchiveImport` だけ。期間の数を上限で絞る使い方 (「圧縮保存するまで次の期間を作れない」) はできなくなったので、それに頼っていたバックエンドは上限を外すこと。外さないと、利用者は次の期間へ進めない
+
+### 読み方を変えたもの
+
+- `archiveStatus: "archived"` の期間は、ふつうの (`active`) 期間として扱う。使う側は HTTP のバックエンドから来た `archived` を `active` と読む。バックエンドも、日付の重なり・変更・引き継ぎ元で `active` と同じ決まりを当てる (上の「Archived periods (legacy)」)
+- `importArchived` は、以前の版の zip だけでなく、`.openkk` の帳簿ファイルの取り込みにも使う (Sim版・デモ版・クラウド版)。届く `archive.fiscalPeriod.archiveStatus` は `"archived"` だが、作る期間は `active` にする
+
+### 入口で断るようにしたもの
+
+- 仕訳の取引先・税区分・事業区分は 1 つの仕訳で 1 つ。行どうしで違えば `400` (上の「仕訳の取引先と区分」)
+- 文字列に U+0000 があれば `400` (上の「使えない文字」)
+- 自由入力は 400 文字まで (上の「テキスト項目の上限」)。保存済みのデータの読み込みには当てない
+- `401` は「サインインが切れた」だけに使う (上の「Error JSON」)
+
+### 契約テストで確かめていないこと
+
+`BACKEND_CONTRACT_CASES` は `applyCarryover` の `reversalEntryIds` の `null` と `[]` の違いを試している。`applyCarryoverFromArchive` と、`purged` の期間への操作が `409` になることはまだ試していないので、サーバーの側で確かめること。
 
 ## Archived periods (legacy)
 

@@ -21,6 +21,17 @@ const EXIT_OK = 0;
 const EXIT_FAILURE = 1;
 const EXIT_USAGE = 2;
 const HELP_COMMAND = "help";
+const INTERNAL_FAILURE_STATUS = 500;
+const INTERNAL_FAILURE_MESSAGE =
+  "帳簿の処理中に思わぬエラーが起きました。帳簿ファイルのコピーを取ってから、もう一度試してください";
+const FILE_ERROR_MESSAGES = new Map<string, string>([
+  ["ENOENT", "ファイルがありません"],
+  ["EACCES", "ファイルを読み書きする権限がありません"],
+  ["EPERM", "ファイルを読み書きする権限がありません"],
+  ["EISDIR", "ファイルではなくフォルダが指定されています"],
+  ["EROFS", "読み取り専用の場所なので書き込めません"],
+  ["ENOSPC", "ディスクの空きが足りません"],
+]);
 
 export type TerminalIo = {
   stdout(text: string): void;
@@ -52,14 +63,47 @@ export async function runTerminalClient(
       io.stderr(`${error.message}\n\n${usage(product)}\n`);
       return EXIT_USAGE;
     }
-    const appError = AppError.from(error, {
-      fallbackUserMessage: "処理に失敗しました",
-      fallbackDeveloperMessage: "cli: command failed",
-      statusCode: null,
-    });
-    io.stderr(`エラー: ${appError.messageForUser}\n`);
+    io.stderr(`エラー: ${failureMessage(error)}\n`);
     return EXIT_FAILURE;
   }
+}
+
+function failureMessage(error: unknown): string {
+  const fileProblem = describeFileError(error);
+  if (fileProblem != null) return fileProblem;
+  const appError = AppError.from(error, {
+    fallbackUserMessage: null,
+    fallbackDeveloperMessage: "cli: command failed",
+    statusCode: null,
+  });
+  if (
+    appError.statusCode == null
+      ? !isAppErrorShaped(error)
+      : appError.statusCode >= INTERNAL_FAILURE_STATUS
+  ) {
+    return INTERNAL_FAILURE_MESSAGE;
+  }
+  return appError.messageForUser;
+}
+
+function isAppErrorShaped(error: unknown): boolean {
+  return (
+    error instanceof AppError ||
+    (error != null &&
+      typeof error === "object" &&
+      "messageForUser" in error &&
+      typeof error.messageForUser === "string")
+  );
+}
+
+function describeFileError(error: unknown): string | null {
+  if (!(error instanceof Error) || !("code" in error)) return null;
+  const message =
+    typeof error.code === "string" ? FILE_ERROR_MESSAGES.get(error.code) : null;
+  if (message == null) return null;
+  return "path" in error && typeof error.path === "string"
+    ? `${message}: ${error.path}`
+    : message;
 }
 
 function usage(product: TerminalProduct): string {

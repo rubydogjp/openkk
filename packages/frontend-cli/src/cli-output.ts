@@ -4,7 +4,19 @@ export type CliOutput = {
   json(value: unknown): void;
 };
 
+import { AppError } from "@rubydogjp/openkk-driver";
+
 export class CliUsageError extends Error {}
+
+export function cliRefusal(messageForUser: string): AppError {
+  return new AppError({
+    messageForDeveloper: "cli: the command was refused in the current state",
+    messageForUser,
+    originalMessage: null,
+    statusCode: null,
+    code: null,
+  });
+}
 
 export function createCliOutput(write: (text: string) => void): CliOutput {
   return {

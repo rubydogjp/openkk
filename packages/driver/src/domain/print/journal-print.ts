@@ -14,12 +14,34 @@ import {
   formatPrintDate,
 } from "./print-format.js";
 import { formatEntryMetadata } from "./entry-metadata.js";
+import {
+  estimateRowHeight,
+  packItemsIntoPages,
+  PORTRAIT_TABLE_HEIGHT_BUDGET,
+  type PageItem,
+  type PrintRowMetrics,
+} from "./print-layout.js";
 
 const JOURNAL_TITLE = "仕訳帳";
-const MAX_DETAIL_ROWS_PER_PAGE = 28;
+
+const COLUMN_WIDTHS = {
+  date: 77,
+  debitAccount: 101,
+  debitSubAccount: 77,
+  debitAmount: 69,
+  creditAccount: 101,
+  creditSubAccount: 77,
+  creditAmount: 69,
+  description: 93,
+  metadata: 75,
+};
+const ROW_METRICS: PrintRowMetrics = { lineHeight: 13, verticalPadding: 10 };
+const HEADER_ROW_HEIGHT = 24;
+const HEADER_HEIGHT = HEADER_ROW_HEIGHT * 2 + 1;
+const ROW_HEIGHT_BUDGET = PORTRAIT_TABLE_HEIGHT_BUDGET - HEADER_HEIGHT;
 
 const HEADER_CELL_STYLE =
-  "border:1px solid #1D4ED8;background:#EEF5FF;color:#1D4ED8;font-weight:700;padding:5px 4px;text-align:center;";
+  "border:1px solid #1D4ED8;background:#EEF5FF;color:#1D4ED8;font-weight:700;padding:5px 4px;text-align:center;line-height:1.3;";
 const BODY_CELL_STYLE =
   "border:1px solid #1D4ED8;color:#111827;background:#FFFFFF;padding:5px 4px;vertical-align:top;line-height:1.3;";
 const BAND_CELL_STYLE =
@@ -54,45 +76,42 @@ export function buildJournalBody(entries: EntryRecord[]): string {
       const debitTotal = sideTotal(monthEntries, "debit");
       const creditTotal = sideTotal(monthEntries, "credit");
 
-      const chunks = chunkEntriesByVisualRows(monthEntries);
-      return chunks.map((pageRows, chunkIndex) => {
+      const pages = packItemsIntoPages(
+        journalPageItems(monthEntries, monthLabel),
+        ROW_HEIGHT_BUDGET,
+      );
+      return pages.map((pageRows) => {
         pageNumber += 1;
         const rowsHtml = pageRows
-          .flatMap(({ entry, pairs, pairOffset }) =>
-            pairs.map((pair, index) => {
-              const isFirstPair = pairOffset + index === 0;
-              const metadata = formatEntryMetadata(
-                resolveEntryPairMetadata(pair),
-              );
+          .map((row) => {
+            if (row.kind === "total") {
               return `<tr>
-  <td style="${BODY_CELL_STYLE}">${isFirstPair ? escapeHtml(formatPrintDate(entry.date)) : ""}</td>
-  <td style="${BODY_CELL_STYLE}">${escapeHtml(lineAccountName(pair.debit))}</td>
-  <td style="${BODY_CELL_STYLE}"></td>
-  <td style="${BODY_CELL_STYLE};text-align:right">${escapeHtml(lineAmount(pair.debit))}</td>
-  <td style="${BODY_CELL_STYLE}">${escapeHtml(lineAccountName(pair.credit))}</td>
-  <td style="${BODY_CELL_STYLE}"></td>
-  <td style="${BODY_CELL_STYLE};text-align:right">${escapeHtml(lineAmount(pair.credit))}</td>
-  <td style="${BODY_CELL_STYLE}">${isFirstPair ? escapeHtml(entry.description) : ""}</td>
-  <td style="${BODY_CELL_STYLE}">${escapeHtml(metadata)}</td>
-</tr>`;
-            }),
-          )
-          .join("\n");
-
-        const isLastChunk = chunkIndex === chunks.length - 1;
-        const totalHtml = isLastChunk
-          ? `<tr>
       <td colspan="3" style="${BAND_CELL_STYLE}">${monthLabel} 合計</td>
       <td style="${BAND_CELL_STYLE};text-align:right">${formatAmountOrBlank(debitTotal)}</td>
       <td colspan="2" style="${BAND_CELL_STYLE}"></td>
       <td style="${BAND_CELL_STYLE};text-align:right">${formatAmountOrBlank(creditTotal)}</td>
       <td colspan="2" style="${BAND_CELL_STYLE}"></td>
-    </tr>`
-          : "";
+    </tr>`;
+            }
+            const cells = journalRowCells(row);
+            return `<tr>
+  <td style="${BODY_CELL_STYLE}">${escapeHtml(cells.date)}</td>
+  <td style="${BODY_CELL_STYLE}">${escapeHtml(cells.debitAccount)}</td>
+  <td style="${BODY_CELL_STYLE}"></td>
+  <td style="${BODY_CELL_STYLE};text-align:right">${escapeHtml(cells.debitAmount)}</td>
+  <td style="${BODY_CELL_STYLE}">${escapeHtml(cells.creditAccount)}</td>
+  <td style="${BODY_CELL_STYLE}"></td>
+  <td style="${BODY_CELL_STYLE};text-align:right">${escapeHtml(cells.creditAmount)}</td>
+  <td style="${BODY_CELL_STYLE}">${escapeHtml(cells.description)}</td>
+  <td style="${BODY_CELL_STYLE}">${escapeHtml(cells.metadata)}</td>
+</tr>`;
+          })
+          .join("\n");
+
         const tableHtml = `<table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px">
   <colgroup>
-    <col style="width:77px"><col style="width:101px"><col style="width:77px"><col style="width:69px">
-    <col style="width:101px"><col style="width:77px"><col style="width:69px"><col style="width:93px"><col style="width:75px">
+    <col style="width:${COLUMN_WIDTHS.date}px"><col style="width:${COLUMN_WIDTHS.debitAccount}px"><col style="width:${COLUMN_WIDTHS.debitSubAccount}px"><col style="width:${COLUMN_WIDTHS.debitAmount}px">
+    <col style="width:${COLUMN_WIDTHS.creditAccount}px"><col style="width:${COLUMN_WIDTHS.creditSubAccount}px"><col style="width:${COLUMN_WIDTHS.creditAmount}px"><col style="width:${COLUMN_WIDTHS.description}px"><col style="width:${COLUMN_WIDTHS.metadata}px">
   </colgroup>
   <thead>
     <tr>
@@ -109,7 +128,6 @@ export function buildJournalBody(entries: EntryRecord[]): string {
   </thead>
   <tbody>
     ${rowsHtml}
-    ${totalHtml}
   </tbody>
 </table>`;
 
@@ -119,41 +137,84 @@ export function buildJournalBody(entries: EntryRecord[]): string {
     .join("");
 }
 
-type JournalPageEntry = {
+type JournalPairRow = {
+  kind: "pair";
   entry: EntryRecord;
-  pairs: EntryVisualPair[];
-  pairOffset: number;
+  pair: EntryVisualPair;
+  pairIndex: number;
 };
 
-function chunkEntriesByVisualRows(
-  entries: EntryRecord[],
-): JournalPageEntry[][] {
-  const chunks: JournalPageEntry[][] = [];
-  let current: JournalPageEntry[] = [];
-  let currentRows = 0;
-  for (const entry of entries) {
-    const pairs = entryToVisualPairs(entry);
-    for (let offset = 0; offset < pairs.length;) {
-      if (currentRows === MAX_DETAIL_ROWS_PER_PAGE) {
-        chunks.push(current);
-        current = [];
-        currentRows = 0;
-      }
-      const take = Math.min(
-        MAX_DETAIL_ROWS_PER_PAGE - currentRows,
-        pairs.length - offset,
-      );
-      current.push({
-        entry,
-        pairs: pairs.slice(offset, offset + take),
-        pairOffset: offset,
-      });
-      currentRows += take;
-      offset += take;
-    }
-  }
-  if (current.length > 0) chunks.push(current);
-  return chunks;
+type JournalRow = JournalPairRow | { kind: "total" };
+
+type JournalRowCells = {
+  date: string;
+  debitAccount: string;
+  debitAmount: string;
+  creditAccount: string;
+  creditAmount: string;
+  description: string;
+  metadata: string;
+};
+
+function journalRowCells(row: JournalPairRow): JournalRowCells {
+  const isFirstPair = row.pairIndex === 0;
+  return {
+    date: isFirstPair ? formatPrintDate(row.entry.date) : "",
+    debitAccount: lineAccountName(row.pair.debit),
+    debitAmount: lineAmount(row.pair.debit),
+    creditAccount: lineAccountName(row.pair.credit),
+    creditAmount: lineAmount(row.pair.credit),
+    description: isFirstPair ? row.entry.description : "",
+    metadata: formatEntryMetadata(resolveEntryPairMetadata(row.pair)),
+  };
+}
+
+function journalRowHeight(cells: JournalRowCells): number {
+  return estimateRowHeight(
+    [
+      { text: cells.date, columnWidth: COLUMN_WIDTHS.date },
+      { text: cells.debitAccount, columnWidth: COLUMN_WIDTHS.debitAccount },
+      { text: cells.debitAmount, columnWidth: COLUMN_WIDTHS.debitAmount },
+      { text: cells.creditAccount, columnWidth: COLUMN_WIDTHS.creditAccount },
+      { text: cells.creditAmount, columnWidth: COLUMN_WIDTHS.creditAmount },
+      { text: cells.description, columnWidth: COLUMN_WIDTHS.description },
+      { text: cells.metadata, columnWidth: COLUMN_WIDTHS.metadata },
+    ],
+    ROW_METRICS,
+  );
+}
+
+function journalPageItems(
+  monthEntries: EntryRecord[],
+  monthLabel: string,
+): PageItem<JournalRow>[] {
+  const items: PageItem<JournalRow>[] = monthEntries.flatMap((entry) =>
+    entryToVisualPairs(entry).map((pair, pairIndex) => {
+      const row: JournalPairRow = { kind: "pair", entry, pair, pairIndex };
+      return {
+        item: row,
+        height: journalRowHeight(journalRowCells(row)),
+        keepWithPrevious: false,
+      };
+    }),
+  );
+  items.push({
+    item: { kind: "total" },
+    height: estimateRowHeight(
+      [
+        {
+          text: `${monthLabel} 合計`,
+          columnWidth:
+            COLUMN_WIDTHS.date +
+            COLUMN_WIDTHS.debitAccount +
+            COLUMN_WIDTHS.debitSubAccount,
+        },
+      ],
+      ROW_METRICS,
+    ),
+    keepWithPrevious: true,
+  });
+  return items;
 }
 
 function sideTotal(entries: EntryRecord[], side: EntryLine["side"]): number {
