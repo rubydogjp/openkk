@@ -25,14 +25,14 @@
   },
   "dependencies": {
     "@rubydogjp/openkk-backend-api": "^26.3.1",
-    "@rubydogjp/openkk-records-book-files-adapter": "^26.3.1",
     "@rubydogjp/openkk-browser-platform-adapter": "^26.3.1",
     "@rubydogjp/openkk-client-browser": "^26.3.1",
     "@rubydogjp/openkk-driver": "^26.3.1",
     "@rubydogjp/openkk-embedded-backend-adapter": "^26.3.1",
     "@rubydogjp/openkk-frontend-ui": "^26.3.1",
     "@rubydogjp/openkk-memory-db-adapter": "^26.3.1",
-    "next": "^16.4.1",
+    "@rubydogjp/openkk-records-book-files-adapter": "^26.3.1",
+    "next": "^16.4.5",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },

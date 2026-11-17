@@ -33,7 +33,7 @@
     "@rubydogjp/openkk-frontend-ui": "^26.3.1",
     "@rubydogjp/openkk-legacy-db-adapter": "^26.3.1",
     "@rubydogjp/openkk-local-book-files-adapter": "^26.3.1",
-    "next": "^16.4.1",
+    "next": "^16.4.5",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },
