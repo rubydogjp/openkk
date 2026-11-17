@@ -92,6 +92,30 @@ describe("planJournalImport", () => {
     expect(plan.changes.removed.map((entry) => entry.id)).toEqual(["entry-1"]);
   });
 
+  it("only adds the rows of a CSV that has no entry number column, leaving the current entries alone", () => {
+    const csv = [
+      "日付,借方科目,借方金額,貸方科目,貸方金額,摘要",
+      "2026-04-01,現金,500,売上高,500,明細から足す売上",
+      "2026-04-02,現金,700,売上高,700,明細から足す売上 2",
+    ].join("\n");
+
+    const plan = planJournalImport({
+      fileKind: "csv",
+      bytes: encode(csv),
+      fiscalPeriod: PERIOD,
+      currentEntries: [SALE, { ...SALE, id: "entry-2" }],
+      master: MASTER,
+    });
+
+    expect(plan.kind).toBe("add");
+    if (plan.kind !== "add") return;
+    expect(plan.entries.map((entry) => entry.description)).toEqual([
+      "明細から足す売上",
+      "明細から足す売上 2",
+    ]);
+    expect(plan.entries.map((entry) => entry.localId)).toEqual([null, null]);
+  });
+
   it("reports the rows it cannot read instead of planning a change", () => {
     const csv = formatJournalExport("csv", [SALE], MASTER).replace(
       "2026-03-01",

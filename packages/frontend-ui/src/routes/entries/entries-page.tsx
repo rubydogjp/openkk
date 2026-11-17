@@ -65,6 +65,12 @@ const SAME_AS_STORED_MESSAGE = "今の仕訳と同じです";
 const REMOVES_ENTRIES_NOT_IN_FILE_MESSAGE = "ファイルにない仕訳は消えます。";
 const OVERWRITE_PRIORITY_MESSAGE =
   "ファイルを優先して、この期間の仕訳を上書きします。";
+const KEEPS_CURRENT_ENTRIES_MESSAGE =
+  "仕訳番号の列がないので、今の仕訳は変えません。";
+
+function addedFromCsvMessage(count: number): string {
+  return `ファイルの ${count} 件を新しい仕訳として足します。`;
+}
 
 function changeCountsMessage(changes: JournalTableChanges): string {
   return `追加 ${changes.added.length} 件・変更 ${changes.changed.length} 件・削除 ${changes.removed.length} 件 (そのまま ${changes.unchangedCount} 件)`;
@@ -355,8 +361,22 @@ export function EntriesPage() {
         await overwriteWithCsv(fiscalPeriodId, changes);
         return;
       }
+      if (plan.kind === "add") {
+        const confirmed = await confirmOverwrite({
+          tone: "success",
+          title: "仕訳を足しますか？",
+          body: [
+            addedFromCsvMessage(plan.entries.length),
+            KEEPS_CURRENT_ENTRIES_MESSAGE,
+          ],
+          confirmLabel: "足す",
+        });
+        if (!confirmed || selectedFiscalPeriodId.current !== fiscalPeriodId) {
+          return;
+        }
+      }
       const importedEntries = plan.entries;
-      const legacyCsv = plan.fromLegacyCsv;
+      const legacyCsv = plan.kind === "append" && plan.fromLegacyCsv;
       if (selectedFiscalPeriodId.current !== fiscalPeriodId) {
         throw new AppError({
           messageForDeveloper: "entries: fiscal period changed during import",

@@ -204,6 +204,13 @@ export function formatJournalTableCsv(
   ]);
 }
 
+export function hasJournalTableEntryNumberColumn(text: string): boolean {
+  const [header = []] = parseCsv(stripByteOrderMark(text));
+  return header
+    .map((name) => name.trim())
+    .includes(JOURNAL_TABLE_HEADERS.entryNumber);
+}
+
 export function parseJournalTableCsv(text: string): JournalTableFileRow[] {
   assertEntryImportSize(text.length);
   const [header = [], ...body] = parseCsv(stripByteOrderMark(text));

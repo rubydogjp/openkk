@@ -8,6 +8,7 @@ import {
   importEntriesFromLegacyJson,
   importEntriesFromLegacyCsv,
   findDuplicatedEntryNumber,
+  hasJournalTableEntryNumberColumn,
   isLegacyJournalCsv,
   isMaterializedVirtualEntry,
   parseJournalTableCsv,
@@ -24,7 +25,8 @@ export type JournalFileKind = (typeof JOURNAL_FILE_KINDS)[number];
 export type JournalImportPlan =
   | { kind: "replace"; incoming: EntryRecord[]; changes: JournalTableChanges }
   | { kind: "problems"; problems: JournalTableProblem[] }
-  | { kind: "append"; entries: EntryRecord[]; fromLegacyCsv: boolean };
+  | { kind: "append"; entries: EntryRecord[]; fromLegacyCsv: boolean }
+  | { kind: "add"; entries: EntryRecord[] };
 
 export function planJournalImport(input: {
   fileKind: JournalFileKind;
@@ -48,7 +50,8 @@ export function planJournalImport(input: {
       fromLegacyCsv,
     };
   }
-  assertEntryNumbersAreUnique(input.currentEntries);
+  const overwrites = hasJournalTableEntryNumberColumn(text);
+  if (overwrites) assertEntryNumbersAreUnique(input.currentEntries);
   const read = readJournalTableEntries(parseJournalTableCsv(text), {
     fiscalPeriodId: fiscalPeriod.id,
     startDate: fiscalPeriod.startDate,
@@ -64,6 +67,7 @@ export function planJournalImport(input: {
     ),
   });
   if (!read.ok) return { kind: "problems", problems: read.problems };
+  if (!overwrites) return { kind: "add", entries: read.entries };
   return {
     kind: "replace",
     incoming: read.entries,

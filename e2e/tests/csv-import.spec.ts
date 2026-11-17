@@ -77,6 +77,43 @@ test.describe("journal table import and export", () => {
     await expect(confirmation).toHaveCount(0);
   });
 
+  test("only adds the rows of a CSV without the entry number column and keeps the current entries", async ({
+    page,
+  }) => {
+    await importEntriesFile(page, "csv", CSV_FIXTURE);
+    await overwriteConfirmation(page)
+      .getByRole("button", { name: "上書きする" })
+      .click();
+    const table = page.getByRole("table", { name: "仕訳のシート" });
+    await expect(table.getByRole("row")).toHaveCount(4);
+
+    await importEntriesFile(
+      page,
+      "csv",
+      csvFile(
+        [
+          "日付,借方科目,借方金額,貸方科目,貸方金額,摘要",
+          "2026-07-01,消耗品費,1100,普通預金,1100,明細から足した文具",
+        ].join("\n"),
+      ),
+    );
+    const confirmation = page.getByRole("alertdialog", {
+      name: "仕訳を足しますか？",
+    });
+    await expect(confirmation).toContainText(
+      "ファイルの 1 件を新しい仕訳として足します。",
+    );
+    await expect(confirmation.getByRole("button")).toHaveText([
+      "キャンセル",
+      "足す",
+    ]);
+    await confirmation.getByRole("button", { name: "足す" }).click();
+
+    await expect(table.getByRole("row")).toHaveCount(5);
+    await expect(table).toContainText("CSVテスト家賃");
+    await expect(table).toContainText("明細から足した文具");
+  });
+
   test("lists the rows it cannot read in a dialog without changing anything", async ({
     page,
   }) => {

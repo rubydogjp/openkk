@@ -107,7 +107,7 @@ export async function runEntriesCommand(
         return;
       }
       output.line(
-        `${plan.fromLegacyCsv ? "以前の形式の CSV なので、足すだけで" : ""}取り込みました (${result.imported} 件${result.skipped === 0 ? "" : `。同じ仕訳 ${result.skipped} 件は飛ばしました`})`,
+        `${plan.kind === "append" && plan.fromLegacyCsv ? "以前の形式の CSV なので、足すだけで" : plan.kind === "add" ? "仕訳番号の列がないので、足すだけで" : ""}取り込みました (${result.imported} 件${result.skipped === 0 ? "" : `。同じ仕訳 ${result.skipped} 件は飛ばしました`})`,
       );
       return;
     }
