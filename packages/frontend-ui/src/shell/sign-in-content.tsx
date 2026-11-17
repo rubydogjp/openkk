@@ -72,8 +72,8 @@ export function SignInContent() {
           }}
         >
           {openkkConfig.authMode === "embedded"
-            ? "この端末の組み込みユーザーで起動します（サインアウト不要）。"
-            : "この環境のサインインを開始します。"}
+            ? "この端末の組み込みユーザーで起動します (サインアウト不要)。"
+            : "サインインして始めます。"}
         </p>
         <div style={{ height: 20 }} />
         <button

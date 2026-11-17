@@ -57,7 +57,7 @@ export function assertPeriodPhaseOneOf(
   if (!expectedPhases.includes(period.phase)) {
     throw engineConflictError(
       `Fiscal period ${period.id} cannot ${operation} from phase ${period.phase}`,
-      "会計期間の状態が変わったため、この操作を実行できません",
+      "会計期間の状態が変わったため、この操作はできません。画面を読み込み直してください",
     );
   }
 }
@@ -68,7 +68,7 @@ export function assertFiscalPeriodReadyForPreClosing(
   if (!period.openingBalancesCompleted) {
     throw engineConflictError(
       `Fiscal period ${period.id} cannot run pre-closing before opening balances are completed`,
-      "期首残高を完了してから仮締めしてください",
+      "期首のBSを完了してから仮締めしてください",
     );
   }
   assertOpeningMatchesRules(period.opening, period, "Opening", {

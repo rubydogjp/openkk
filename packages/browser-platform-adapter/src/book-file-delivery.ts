@@ -7,7 +7,7 @@ import { browserFiles } from "./files.js";
 export type BookFileDeliveryResult = "saved" | "cancelled";
 
 const SAVE_PICKER_ID = "openkk-book";
-const SAVE_PICKER_FILE_KIND = "オープン会計の帳簿";
+const SAVE_PICKER_FILE_KIND = "オープン会計のバックアップ";
 
 type SaveFileWriter = {
   write(bytes: Uint8Array): Promise<void>;

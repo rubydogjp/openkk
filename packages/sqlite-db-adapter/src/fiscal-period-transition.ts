@@ -30,7 +30,7 @@ export async function transitionFiscalPeriod(
     if (current.phase !== expectedPhase) {
       throw engineConflictError(
         `invalid fiscal period transition: ${current.phase} -> ${nextPhase}`,
-        "会計期間の状態が変わったため、この操作を実行できません",
+        "会計期間の状態が変わったため、この操作はできません。画面を読み込み直してください",
       );
     }
     const now = nowMs();

@@ -87,19 +87,28 @@ test.describe("openkk closing flow", () => {
     await expect(page.getByText("仕訳帳.pdf")).toBeVisible();
     await expect(page.getByText("総勘定元帳.pdf")).toBeVisible();
     await expect(page.getByText("財務諸表.pdf")).toBeVisible();
-    await clickButton(page, "全て受け取りました");
+    await clickButton(page, "すべて受け取りました");
 
     await expectStep(page, "次の期間へ");
     await expect(page.getByText("期末のBS → 翌期首のBS")).toBeVisible();
     await expect(page.getByText("期末の振替 → 翌期首の再振替")).toBeVisible();
     await expect(page.getByText("固定資産データ")).toBeVisible();
-    await expect(page.getByText("次期を作成")).toBeVisible();
+    await expect(page.getByText("次の期間を作成")).toBeVisible();
 
-    await page.locator('button[aria-label="本締め"]').first().click();
+    await page
+      .getByRole("button", { name: /^手順 \d+ 本締め / })
+      .first()
+      .click();
     await expectStep(page, "本締め");
-    await page.locator('button[aria-label="書類を受け取る"]').first().click();
+    await page
+      .getByRole("button", { name: /^手順 \d+ 書類を受け取る / })
+      .first()
+      .click();
     await expectStep(page, "書類を受け取る");
-    await page.locator('button[aria-label="次の期間へ"]').first().click();
+    await page
+      .getByRole("button", { name: /^手順 6 次の期間へ / })
+      .first()
+      .click();
     await expectStep(page, "次の期間へ");
 
     const reversals = page.getByRole("checkbox", {
@@ -115,7 +124,7 @@ test.describe("openkk closing flow", () => {
       page.getByRole("checkbox", { name: /支払済みの通信費/ }),
     ).not.toBeChecked();
 
-    await clickButton(page, "次期を作成");
+    await clickButton(page, "次の期間を作成");
     await expectStep(page, "期間を開始");
     await clickButton(page, "開始する");
     await clickButton(page, "開始する");
@@ -211,7 +220,7 @@ async function createDevFiscalPeriodFromZero(page: Page) {
 async function openFiscalPeriodList(page: Page) {
   await waitUntilSettled(page);
   const archivedPeriodListButton = page.getByRole("button", {
-    name: "期間のリストへ",
+    name: "期間の選択へ",
   });
   if (await archivedPeriodListButton.isVisible().catch(() => false)) {
     await archivedPeriodListButton.click();
@@ -225,14 +234,14 @@ async function openFiscalPeriodList(page: Page) {
     .first();
   await periodMenuButton.click();
   await expect(periodMenuButton).toHaveAttribute("aria-expanded", "true");
-  await page.getByRole("menuitem", { name: "リストを開く" }).click();
+  await page.getByRole("menuitem", { name: "期間の選択を開く" }).click();
   await expect(page.getByRole("heading", { name: "期間の選択" })).toBeVisible();
 }
 
 async function importYearEntries(page: Page) {
   await page.getByRole("link", { name: "仕訳" }).click();
   await importEntriesFile(page, "json", YEAR_ENTRIES_FIXTURE);
-  await expect(page.getByText(/取り込みました\(取込 15 件/)).toBeVisible();
+  await expect(page.getByText(/取り込みました \(15 件/)).toBeVisible();
   await closeJournalSheet(page);
 }
 
@@ -269,7 +278,7 @@ async function expectAccountingScenarioRows(page: Page) {
 
   await goToMonth(page, "2026年12月");
   await expect(page.getByText("2026年12月")).toBeVisible();
-  const macbookDepreciationRow = page.getByRole("button", {
+  const macbookDepreciationRow = page.getByRole("row", {
     name: /MacBook Pro 14インチ相当の減価償却/,
   });
   await expect(macbookDepreciationRow).toBeVisible();

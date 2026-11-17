@@ -410,7 +410,7 @@ describe("compound opening journals", () => {
 
 const UNRESOLVED_ACCOUNT = {
   messageForDeveloper: "test: account resolution failed",
-  messageForUser: "勘定科目が解決できないため保存できませんでした",
+  messageForUser: "勘定科目が見つからないため保存できませんでした",
 };
 
 function draft(overrides: Partial<FixedAssetDraft> = {}): FixedAssetDraft {

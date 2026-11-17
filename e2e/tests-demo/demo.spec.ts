@@ -17,9 +17,7 @@ test("仕訳と期首BSを変更でき、再読み込みでサンプルに戻る
     "再読み込みするとサンプルデータに戻ります。",
   );
 
-  await page
-    .getByRole("button", { name: "期首のBSを入力", exact: true })
-    .click();
+  await page.getByRole("button", { name: /^手順 \d+ 期首のBSを入力 / }).click();
   await expect(
     page.getByRole("region", { name: "資産の部", exact: true }),
   ).toContainText("2,602,000");
@@ -36,9 +34,7 @@ test("仕訳と期首BSを変更でき、再読み込みでサンプルに戻る
   }
   await clickButton(page, "上書き保存");
   await expectStep(page, "日々の仕訳");
-  await page
-    .getByRole("button", { name: "期首のBSを入力", exact: true })
-    .click();
+  await page.getByRole("button", { name: /^手順 \d+ 期首のBSを入力 / }).click();
   await expect(
     page.getByRole("region", { name: "資産の部", exact: true }),
   ).toContainText("2,612,000");
@@ -59,9 +55,7 @@ test("仕訳と期首BSを変更でき、再読み込みでサンプルに戻る
   await expect(page.getByText("デモ版の入力テスト")).toHaveCount(0);
   await page.getByRole("link", { name: "手順", exact: true }).click();
   await expectStep(page, "日々の仕訳");
-  await page
-    .getByRole("button", { name: "期首のBSを入力", exact: true })
-    .click();
+  await page.getByRole("button", { name: /^手順 \d+ 期首のBSを入力 / }).click();
   await expect(
     page.getByRole("region", { name: "資産の部", exact: true }),
   ).toContainText("2,602,000");
@@ -84,9 +78,9 @@ test("サンプルで締め処理と次期への引継ぎを試せる", async ({
   });
   await page.getByRole("link", { name: "手順", exact: true }).click();
   await expectStep(page, "書類を受け取る");
-  await clickButton(page, "全て受け取りました");
+  await clickButton(page, "すべて受け取りました");
   await expectStep(page, "次の期間へ");
-  await clickButton(page, "次期を作成");
+  await clickButton(page, "次の期間を作成");
   await expectStep(page, "期間を開始");
   await expect(page.getByRole("textbox").first()).toHaveValue("2027年分");
 
@@ -94,11 +88,13 @@ test("サンプルで締め処理と次期への引継ぎを試せる", async ({
     .getByRole("complementary")
     .getByRole("button", { name: /2027年分/ })
     .click();
-  await page.getByRole("menuitem", { name: /デモ期間2026年分/ }).click();
+  await page.getByRole("menuitemradio", { name: /デモ期間2026年分/ }).click();
   await expectStep(page, "次の期間へ");
   await expect(page.getByText("作成済みです")).toBeVisible();
-  await expect(page.getByText(/日付が重複しています/)).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "次期を作成" })).toHaveCount(0);
+  await expect(page.getByText(/日付が重なっています/)).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "次の期間を作成" }),
+  ).toHaveCount(0);
   await clickButton(page, "次の期間を開く");
   await expectStep(page, "期間を開始");
   await expect(page.getByRole("textbox").first()).toHaveValue("2027年分");

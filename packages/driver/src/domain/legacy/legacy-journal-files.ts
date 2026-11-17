@@ -556,7 +556,7 @@ function importFileFormatError(messageForDeveloper: string): AppError {
   return new AppError({
     messageForDeveloper,
     messageForUser:
-      "取込ファイルの形式を確認できませんでした。オープン会計で書き出したCSVまたはJSONを選択してください。",
+      "取り込むファイルの形式を確認できませんでした。オープン会計で書き出した CSV または JSON を選んでください。",
     originalMessage: null,
     statusCode: null,
     code: null,

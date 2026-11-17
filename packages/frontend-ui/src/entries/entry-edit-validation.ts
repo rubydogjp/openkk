@@ -14,10 +14,10 @@ export function validateEntryDate(
     return "正しい日付を選択してください。";
   }
   if (minDate != null && date < minDate) {
-    return `日付は会計期間（${formatDate(minDate)}〜${formatDate(maxDate ?? minDate)}）の範囲内で選択してください。`;
+    return `日付は会計期間 (${formatDate(minDate)}〜${formatDate(maxDate ?? minDate)}) の範囲内で選択してください。`;
   }
   if (maxDate != null && date > maxDate) {
-    return `日付は会計期間（${formatDate(minDate ?? maxDate)}〜${formatDate(maxDate)}）の範囲内で選択してください。`;
+    return `日付は会計期間 (${formatDate(minDate ?? maxDate)}〜${formatDate(maxDate)}) の範囲内で選択してください。`;
   }
   return null;
 }
@@ -77,5 +77,5 @@ export function validateEntryLineCount(count: number): string | null {
 const WHOLE_AMOUNT_MESSAGE = "金額は 1 以上の整数で入れてください。";
 
 const unsafeAmountMessage =
-  "仕訳金額または合計が大きすぎるため、安全に計算できる金額へ修正してください。";
+  "仕訳の金額や合計が大きすぎます。9,000 兆円未満にしてください。";
 const businessRateMessage = "事業割合は0から100までの数値で入力してください。";

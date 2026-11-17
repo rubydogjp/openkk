@@ -2,9 +2,9 @@ export type FixedAssetStatus = "active" | "retired" | "sold" | "disposed";
 
 export const FIXED_ASSET_STATUS_LABELS: Record<FixedAssetStatus, string> = {
   active: "償却中",
-  retired: "完了",
-  sold: "売却済",
-  disposed: "廃棄済",
+  retired: "償却済み",
+  sold: "売却済み",
+  disposed: "廃棄済み",
 };
 
 export function fixedAssetStatusRequiresDisposal(

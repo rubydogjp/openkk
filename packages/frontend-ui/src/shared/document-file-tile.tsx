@@ -76,6 +76,7 @@ function DocumentFileTile(
         type="button"
         onClick={props.onClick ?? undefined}
         disabled={!isClickable}
+        aria-label={`${props.actionLabel} ${props.label}`}
         style={{
           ...actionButtonStyle,
           cursor: isClickable ? "pointer" : "default",

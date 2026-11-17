@@ -28,7 +28,6 @@ const WARNING_ICON_COLORS = {
   mark: "#422006",
 };
 const NO_NOTICES: ReadonlyArray<Notice> = [];
-
 function NoticeToneIcon(props: { tone: NoticeTone }) {
   switch (props.tone) {
     case "success":

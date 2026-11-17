@@ -26,7 +26,7 @@ test("carries archived text into a persistent next period and keeps it when edit
   const reversal = page.getByRole("checkbox", { name: new RegExp(storedText) });
   await reversal.locator("..").click();
   await expect(reversal).toBeChecked();
-  await clickButton(page, "次期を作成");
+  await clickButton(page, "次の期間を作成");
   await expectStep(page, "期間を開始");
   await clickButton(page, "開始する");
   await clickButton(page, "開始する");
@@ -54,7 +54,7 @@ test("carries archived text into a persistent next period and keeps it when edit
     .getByRole("button", { name: /再振替 一時的な調整に使う特別な仕訳データ/ })
     .click();
   await page
-    .getByRole("button", { name: new RegExp(`再振替: ${storedText}`) })
+    .getByRole("row", { name: new RegExp(`再振替: ${storedText}`) })
     .first()
     .click();
   const journal = page.getByRole("dialog", { name: "仕訳の編集" });
@@ -72,7 +72,7 @@ test("carries archived text into a persistent next period and keeps it when edit
   await expect(journal).not.toBeVisible();
   await reloadInApp(page);
   await page
-    .getByRole("button", { name: new RegExp(`再振替: ${storedText}`) })
+    .getByRole("row", { name: new RegExp(`再振替: ${storedText}`) })
     .first()
     .click();
   await expect(journal.getByLabel("摘要")).toHaveValue(`再振替: ${storedText}`);
@@ -91,7 +91,7 @@ test("overwrites an opened period's opening BS and fixed assets from a chosen so
   await expectStep(page, "次の期間へ");
   await page.getByText("期末のBS → 翌期首のBS").click();
   await page.getByText("固定資産データ").click();
-  await clickButton(page, "次期を作成");
+  await clickButton(page, "次の期間を作成");
   await expectStep(page, "期間を開始");
   await clickButton(page, "開始する");
   await clickButton(page, "開始する");
@@ -105,7 +105,10 @@ test("overwrites an opened period's opening BS and fixed assets from a chosen so
   await clickButton(page, "上書きする");
 
   await expectStep(page, "日々の仕訳");
-  await page.locator('button[aria-label="期首のBSを入力"]').first().click();
+  await page
+    .getByRole("button", { name: /^手順 \d+ 期首のBSを入力 / })
+    .first()
+    .click();
   await expectStep(page, "期首のBSを入力");
   await expect(
     page.getByText("仮締めまでの間は、いつでも金額を編集したり"),

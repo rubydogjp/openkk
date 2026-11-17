@@ -162,7 +162,7 @@ export function JournalizingAnalyticsPage() {
                 fontSize: fontSize.base,
               }}
             >
-              期首残高の入力が終わると、月別の進捗が表示されます。
+              期首のBSの入力が終わると、月別の進捗が表示されます。
             </div>
           </div>
         ) : (
@@ -182,6 +182,7 @@ export function JournalizingAnalyticsPage() {
                   <button
                     type="button"
                     disabled={!tile.enabled}
+                    aria-expanded={tile.enabled ? expanded : undefined}
                     onClick={() => {
                       setExpandedMonths((current) =>
                         current.includes(tile.key)
@@ -235,6 +236,7 @@ export function JournalizingAnalyticsPage() {
                       ) : null}
                     </div>
                     <span
+                      aria-hidden
                       style={{
                         fontSize: typography.dialogTitle.fontSize,
                         lineHeight: 1,

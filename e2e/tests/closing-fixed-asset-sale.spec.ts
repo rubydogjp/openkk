@@ -94,7 +94,7 @@ async function sellFixedAsset(
   await page.getByText(name).click();
   const drawer = page.getByRole("dialog", { name: "固定資産の編集" });
   await expect(drawer).toBeVisible();
-  await drawer.getByLabel("状態").selectOption("売却済");
+  await drawer.getByLabel("状態").selectOption("売却済み");
   await drawer.getByLabel("処分日").fill(input.disposalDate);
   await drawer.getByLabel("売却額").fill(input.disposalPrice);
   await clickButton(page, "保存");

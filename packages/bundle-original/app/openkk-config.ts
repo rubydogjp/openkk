@@ -16,7 +16,7 @@ export const openkkConfig: OpenkkConfig = {
   embeddedUser: {
     kind: "embedded",
     id: userId,
-    displayName: "このPCのデータ",
+    displayName: "この端末のデータ",
   },
   initialFiscalPeriodId: null,
   sessionStorageKey: `openkk.${BUNDLE}.session.user_id`,

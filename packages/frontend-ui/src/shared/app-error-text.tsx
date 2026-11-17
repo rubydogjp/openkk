@@ -20,6 +20,7 @@ export function AppErrorText(props: AppErrorTextProps) {
 
   return (
     <p
+      role="alert"
       style={{
         margin: 0,
         color: "#994636",

@@ -68,7 +68,7 @@ function assertPhaseAllows(
   ) {
     throw engineConflictError(
       `fiscal period cannot ${operation} from phase ${period.phase} (${period.archiveStatus})`,
-      "会計期間の状態が変わったため、この操作を実行できません",
+      "会計期間の状態が変わったため、この操作はできません。画面を読み込み直してください",
     );
   }
   return period;

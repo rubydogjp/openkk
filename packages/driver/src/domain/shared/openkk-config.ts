@@ -17,7 +17,7 @@ export type EditingPolicy = {
 
 export const DEFAULT_EDITING_POLICY: EditingPolicy = {
   locked: false,
-  lockedNotice: "この環境ではデータの編集がロックされています。",
+  lockedNotice: "ここではデータを見るだけで、編集はできません。",
 };
 
 export interface OpenkkClock {

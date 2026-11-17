@@ -63,6 +63,9 @@ export function CompactLockButton({ label }: { label: string }) {
     <button
       type="button"
       disabled
+      className="bk-narrow-icon-only"
+      aria-label={label}
+      title={label}
       style={{
         height: sizes.button.compactHeight,
         minWidth: sizes.button.compactIconTextMinWidth,
@@ -76,10 +79,12 @@ export function CompactLockButton({ label }: { label: string }) {
         cursor: "default",
         display: "inline-flex",
         alignItems: "center",
+        justifyContent: "center",
         gap: spacing.s6,
       }}
     >
-      <LockIcon size={15} color="currentColor" /> {label}
+      <LockIcon size={15} color="currentColor" />
+      <span className="bk-button-label">{label}</span>
     </button>
   );
 }

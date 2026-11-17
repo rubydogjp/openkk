@@ -19,7 +19,8 @@ type ReplacingCase = Exclude<
 const SAME_MESSAGE = "今のデータと同じです。";
 
 const PROBLEM_MESSAGES: Record<OpenkkBookFileProblem, string> = {
-  not_a_book: "このファイルはオープン会計の帳簿ではありません。",
+  not_a_book:
+    "このファイルはオープン会計の帳簿ではありません。「バックアップ」でダウンロードした .openkk のファイルを選んでください。",
   newer_version:
     "このファイルは新しい版のオープン会計で作られています。アプリを更新してから取り込んでください。",
   no_fiscal_period: "このファイルには取り込める会計期間がありません。",
@@ -60,7 +61,7 @@ export function reviewBookImport(
   if (overlapping != null) {
     return {
       kind: "blocked",
-      message: `期間が重なる会計期間 (${overlapping.existingFiscalPeriodName ?? ""}) があるため、「${overlapping.fiscalPeriodName}」を取り込めません。`,
+      message: `期間が重なる会計期間${overlapping.existingFiscalPeriodName == null ? "" : ` (${overlapping.existingFiscalPeriodName}) `}があるため、「${overlapping.fiscalPeriodName}」を取り込めません。`,
     };
   }
   if (items.every((item) => item.case === "same")) {

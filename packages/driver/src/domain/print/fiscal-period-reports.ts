@@ -27,7 +27,7 @@ export const FISCAL_PERIOD_REPORT_LABELS: Record<
 > = {
   journal: {
     name: "仕訳帳",
-    description: "日付順に並んだ, すべての取引記録",
+    description: "日付順に並んだ、すべての取引記録",
   },
   generalLedger: {
     name: "総勘定元帳",

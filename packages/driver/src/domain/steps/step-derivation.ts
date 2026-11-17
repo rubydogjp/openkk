@@ -38,7 +38,7 @@ export function deriveSteps(input: {
     {
       no: 3,
       title: "日々の仕訳",
-      subtitle: "全ての取引を仕訳として記録します",
+      subtitle: "すべての取引を仕訳として記録します",
       status: statuses[2]!,
     },
     {

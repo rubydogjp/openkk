@@ -65,6 +65,7 @@ export function ShellNav(props: {
           <div key={item.href} onClick={props.onNavigate}>
             <Link
               href={item.href}
+              aria-current={selected ? "page" : undefined}
               className={selected ? "bk-nav-item-active" : "bk-nav-item"}
               style={{ ...commonStyle, cursor: "pointer" }}
             >

@@ -417,7 +417,9 @@ describe("backend-api fiscal periods", () => {
     expect((error as AppError).messageForDeveloper).toContain(
       "Fiscal period fp-purged cannot be updated after its data was purged",
     );
-    expect((error as AppError).messageForUser).toContain("削除済み");
+    expect((error as AppError).messageForUser).toContain(
+      "ここには残っていません",
+    );
     expect((error as AppError).statusCode).toBe(409);
 
     expect((await db.fiscalPeriods.getById("fp-purged"))?.name).toBe(

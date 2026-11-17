@@ -16,7 +16,7 @@ import { useRouter } from "../../routing/routing.js";
 const INSTALL_AVAILABILITY_TIMEOUT_MS = 2500;
 
 const BROWSER_STORAGE_NOTICE =
-  "ブラウザのまま使うと、しばらく開かないときや端末の空きが少ないときに、ブラウザが帳簿のデータを消すことがあります（Safari では 7 日ほど開かないだけで消えることがあります）。ホーム画面（Mac では Dock）に追加すると消えにくくなります。";
+  "ブラウザのまま使うと、しばらく開かないときや端末の空きが少ないときに、ブラウザが帳簿のデータを消すことがあります (Safari では 7 日ほど開かないだけで消えることがあります)。ホーム画面 (Mac では Dock) に追加すると消えにくくなります。";
 
 type Phase =
   | "checking"

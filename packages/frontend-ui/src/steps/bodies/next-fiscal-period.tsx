@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import {
   AppError,
@@ -137,6 +137,7 @@ export function NextFiscalPeriodBody({
       appState.fiscalPeriods,
       null,
     );
+  const periodProblemId = useId();
   const canCreateNext =
     canEnterPage &&
     currentFiscalPeriod.documentsReceivedCompleted &&
@@ -206,7 +207,7 @@ export function NextFiscalPeriodBody({
     } catch (error) {
       setScreenError(
         AppError.from(error, {
-          fallbackUserMessage: "バックアップをダウンロードできませんでした",
+          fallbackUserMessage: "バックアップできませんでした",
           fallbackDeveloperMessage:
             "steps/next-fiscal-period: book backup failed",
           statusCode: null,
@@ -243,6 +244,7 @@ export function NextFiscalPeriodBody({
                 readOnly={!canEditNext}
                 width={280}
                 placeholder="例: 2027年分"
+                ariaLabel="次の期間の名称"
               />
             }
             hint={null}
@@ -267,10 +269,12 @@ export function NextFiscalPeriodBody({
                 {canEnterPage && createdNext != null ? (
                   <FormNoteText>作成済みです</FormNoteText>
                 ) : canEnterPage && !dateValidation.ok ? (
-                  <FormErrorText>{dateValidation.message}</FormErrorText>
+                  <FormErrorText id={periodProblemId}>
+                    {dateValidation.message}
+                  </FormErrorText>
                 ) : canEnterPage && hasOverlap ? (
-                  <FormErrorText>
-                    既存の有効な会計期間と日付が重複しています。
+                  <FormErrorText id={periodProblemId}>
+                    ほかの会計期間と日付が重なっています。
                   </FormErrorText>
                 ) : null}
               </>
@@ -337,12 +341,12 @@ export function NextFiscalPeriodBody({
                             : [...ids, entry.id],
                         )
                       }
-                      label={`${entry.date} ${entry.description}（${entry.lines
+                      label={`${entry.date} ${entry.description} (${entry.lines
                         .map(
                           (line) =>
                             `${line.side === "debit" ? "借" : "貸"}: ${line.accountName} ${line.amount}円`,
                         )
-                        .join(" / ")}）`}
+                        .join(" / ")})`}
                       disabled={
                         !canEditNext ||
                         editingLocked ||
@@ -371,6 +375,7 @@ export function NextFiscalPeriodBody({
             >
               {createdNext != null ? (
                 <StepPrimaryButton
+                  describedBy={null}
                   onClick={() => appState.selectFiscalPeriod(createdNext.id)}
                   disabled={false}
                   variant="success"
@@ -379,9 +384,10 @@ export function NextFiscalPeriodBody({
                   次の期間を開く
                 </StepPrimaryButton>
               ) : editingLocked ? (
-                <LockButton label="次期を作成" />
+                <LockButton label="次の期間を作成" />
               ) : (
                 <StepPrimaryButton
+                  describedBy={canCreateNext ? null : periodProblemId}
                   onClick={() => {
                     if (canCreateNext) void handleCreate();
                   }}
@@ -389,7 +395,7 @@ export function NextFiscalPeriodBody({
                   variant="success"
                   icon={null}
                 >
-                  {isCreating ? "作成中" : "次期を作成"}
+                  {isCreating ? "作成中…" : "次の期間を作成"}
                 </StepPrimaryButton>
               )}
             </div>
@@ -424,7 +430,7 @@ export function NextFiscalPeriodBody({
           <StepMetaCard>
             <StepMetaRow
               label="ファイル"
-              value={`この会計期間のデータを、そのままファイル (${bookFiles.fileNameOf(currentFiscalPeriod.name)}) としてダウンロードします。${bookFiles.saveTracking != null ? "左上の「バックアップ」と同じファイルで、" : ""}期間の選択の「ファイル」から取り込めます。`}
+              value={`この会計期間のデータを、そのままファイル (${bookFiles.fileNameOf(currentFiscalPeriod.name)}) としてダウンロードします。${bookFiles.saveTracking != null ? "メニューの「バックアップ」と同じファイルで、" : ""}期間の選択の「ファイル」から取り込めます。`}
               divider={false}
             />
           </StepMetaCard>
@@ -437,19 +443,18 @@ export function NextFiscalPeriodBody({
               gap: 12,
             }}
           >
-            {backupMessage != null ? (
-              <span
-                role="status"
-                style={{
-                  fontSize: fontSize.sm,
-                  fontWeight: fontWeight.semibold,
-                  color: palette.success,
-                }}
-              >
-                {backupMessage}
-              </span>
-            ) : null}
+            <span
+              role="status"
+              style={{
+                fontSize: fontSize.sm,
+                fontWeight: fontWeight.semibold,
+                color: palette.success,
+              }}
+            >
+              {backupMessage ?? ""}
+            </span>
             <StepPrimaryButton
+              describedBy={null}
               onClick={handleBackup}
               disabled={isSavingBackup || isCreating}
               variant="success"

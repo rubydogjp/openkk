@@ -156,7 +156,6 @@ export function OpeningCarryoverPage() {
             rows={rows}
             fillHeight
             headerTone="warning"
-            readOnly={isReadOnlyPeriod || editingLocked}
             activeRecordId={
               !isReadOnlyPeriod &&
               !editingLocked &&
@@ -173,6 +172,7 @@ export function OpeningCarryoverPage() {
                   }
             }
             onAddEntry={null}
+            tableRef={null}
           />
         )}
       </div>

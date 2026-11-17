@@ -294,7 +294,7 @@ export function createOpenkkAssistStore(dependencies: {
     if (accountId != null) return accountId;
     throw new AppError({
       messageForDeveloper: `${operation}: accountId missing`,
-      messageForUser: "勘定科目が解決できないため保存できませんでした",
+      messageForUser: "勘定科目が見つからないため保存できませんでした",
       originalMessage: null,
       statusCode: null,
       code: null,
@@ -595,6 +595,6 @@ function unresolvedOpeningCarryoverAccount(
 ): UnresolvedAccountMessages {
   return {
     messageForDeveloper: `${operation}: account resolution failed`,
-    messageForUser: "勘定科目が解決できないため保存できませんでした",
+    messageForUser: "勘定科目が見つからないため保存できませんでした",
   };
 }

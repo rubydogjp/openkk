@@ -41,7 +41,7 @@ function importFileLimitError(messageForDeveloper: string): AppError {
   return new AppError({
     messageForDeveloper,
     messageForUser:
-      "取込ファイルが大きすぎます。ファイルを分割してからもう一度取り込んでください。",
+      "取り込むファイルが大きすぎます。ファイルを分割してからもう一度取り込んでください。",
     originalMessage: null,
     statusCode: null,
     code: null,

@@ -113,7 +113,8 @@ export function ImportProblemsDialog(props: {
             読めない行があります。何も変えていません。
           </p>
           <ul
-            aria-label="読めない行"
+            aria-label={`読めない行 ${problems.length} 件`}
+            tabIndex={0}
             style={{
               margin: "14px 0 0",
               padding: 0,

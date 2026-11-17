@@ -48,7 +48,7 @@ export function UnavailableFiscalPeriodRow(props: {
           style={{
             fontSize: fontSize.md,
             fontWeight: fontWeight.bold,
-            color: palette.textMuted,
+            color: palette.textLabel,
             lineHeight: 1.4,
           }}
         >
@@ -59,7 +59,7 @@ export function UnavailableFiscalPeriodRow(props: {
             style={{
               marginTop: 4,
               fontSize: fontSize.sm,
-              color: palette.textMuted,
+              color: palette.textLabel,
             }}
           >
             {dates}
@@ -73,7 +73,7 @@ export function UnavailableFiscalPeriodRow(props: {
           padding: "0 10px",
           borderRadius: radii.pill,
           background: palette.warningBg,
-          color: palette.warning,
+          color: palette.warningText,
           display: "inline-flex",
           alignItems: "center",
           fontSize: fontSize.xs,

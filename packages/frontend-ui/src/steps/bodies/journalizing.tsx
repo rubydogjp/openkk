@@ -122,7 +122,7 @@ export function JournalizingBody({
           tone: "danger",
           title: "まだ期中です",
           body: [
-            "現在日付はまだこの期間の途中です。通常は翌2月頃に実行される操作です。",
+            "現在日付はまだこの期間の途中です。通常は翌2月ごろに実行される操作です。",
             "内容を確認したうえで、そのまま進める場合のみ実行してください。",
           ],
           confirmLabel: "実行する",
@@ -137,7 +137,7 @@ export function JournalizingBody({
         onBusyChange(false);
         setScreenError(
           AppError.from(error, {
-            fallbackUserMessage: "仮締めの更新に失敗しました",
+            fallbackUserMessage: "仮締めできませんでした",
             fallbackDeveloperMessage: "steps/journalizing: pre-closing failed",
             statusCode: null,
           }),
@@ -166,6 +166,7 @@ export function JournalizingBody({
             }}
           >
             <StepPrimaryButton
+              describedBy={null}
               onClick={() => onSwitchToStep(4)}
               disabled={false}
               variant={null}
@@ -183,8 +184,8 @@ export function JournalizingBody({
             </div>
             <div>
               {editingLocked
-                ? "記録された取引を「仕訳タブ」で確認できます。"
-                : "1月~12月の取引を「仕訳タブ」で入力して下さい"}
+                ? "記録された取引を「仕訳」で確認できます。"
+                : "この期間の取引を「仕訳」で入力してください"}
             </div>
           </StepCallout>
 
@@ -206,12 +207,13 @@ export function JournalizingBody({
             }}
           >
             <StepPrimaryButton
+              describedBy={null}
               onClick={() => router.push("/entries")}
               disabled={false}
               variant={null}
               icon={null}
             >
-              仕訳タブへ移動
+              仕訳へ移動
             </StepPrimaryButton>
           </div>
 
@@ -242,6 +244,7 @@ export function JournalizingBody({
                   </StepSecondaryButton>
                 ) : (
                   <StepPrimaryButton
+                    describedBy={null}
                     onClick={handleRunPreClosing}
                     disabled={false}
                     variant="success"

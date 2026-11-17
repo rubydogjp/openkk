@@ -17,7 +17,7 @@ export function decodeJournalImportBytes(bytes: Uint8Array): string {
     throw new AppError({
       messageForDeveloper: "entries import is not valid UTF-8",
       messageForUser:
-        "取込ファイルの文字コードを確認できませんでした。UTF-8形式で保存してからもう一度取り込んでください。",
+        "取り込むファイルの文字コードを確認できませんでした。UTF-8 形式で保存してからもう一度取り込んでください。",
       originalMessage: error instanceof Error ? error.message : String(error),
       statusCode: null,
       code: null,

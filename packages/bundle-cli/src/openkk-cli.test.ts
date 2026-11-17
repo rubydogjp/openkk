@@ -231,7 +231,7 @@ describe("openkk cli", () => {
     expect(unconfirmed.code).toBe(0);
     expect(unconfirmed.stderr).toBe("");
     expect(unconfirmed.stdout).toContain(
-      "追加 1 件 / 変更 1 件 / 削除 0 件 / そのまま 0 件",
+      "追加 1 件・変更 1 件・削除 0 件 (そのまま 0 件)",
     );
     expect(unconfirmed.stdout).toContain("まだ上書きしていません");
     expect(JSON.parse(unconfirmedJson.stdout)).toEqual({
@@ -242,7 +242,7 @@ describe("openkk cli", () => {
       unchanged: 0,
     });
     expect(replaced.stdout).toContain(
-      "上書きしました (追加 1 件 / 変更 1 件 / 削除 0 件 / そのまま 0 件)",
+      "上書きしました。追加 1 件・変更 1 件・削除 0 件 (そのまま 0 件)",
     );
     expect(relisted.stdout).toContain(
       "2026-04-01  借 消耗品費 15,000 / 貸 普通預金 15,000  プリンタのインク",
@@ -282,7 +282,7 @@ describe("openkk cli", () => {
     const listed = await run("entries", "list", id);
 
     expect(imported.stdout).toContain(
-      "以前の形式の CSV なので、足すだけで取り込みました (取込 1 件 / 重複スキップ 0 件)",
+      "以前の形式の CSV なので、足すだけで取り込みました (1 件)",
     );
     expect(listed.stdout).toContain("以前の CSV の仕訳");
     expect(listed.stdout).toContain("あとで入力した仕訳");

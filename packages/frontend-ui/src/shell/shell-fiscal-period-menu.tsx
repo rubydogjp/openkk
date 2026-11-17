@@ -157,7 +157,7 @@ export function ShellFiscalPeriodMenu(props: {
                 lineHeight: 1.6,
               }}
             >
-              期間がまだありません。下の「リストを開く」から作成してください。
+              期間がまだありません。下の「期間の選択を開く」から作成してください。
             </div>
           ) : (
             <div style={{ padding: "0 0 4px" }}>
@@ -167,7 +167,8 @@ export function ShellFiscalPeriodMenu(props: {
                   <button
                     key={period.id}
                     type="button"
-                    role="menuitem"
+                    role="menuitemradio"
+                    aria-checked={isCurrent}
                     className="bk-menu-item"
                     onClick={() => {
                       appState.selectFiscalPeriod(period.id);
@@ -246,7 +247,7 @@ export function ShellFiscalPeriodMenu(props: {
                   color: palette.brand,
                 }}
               >
-                リストを開く
+                期間の選択を開く
               </span>
             </button>
             {backsUpFromMenu ? (

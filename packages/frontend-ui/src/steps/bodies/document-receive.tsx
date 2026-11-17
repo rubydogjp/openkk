@@ -58,7 +58,7 @@ export function DocumentReceiveBody({
     } catch (error) {
       setScreenError(
         AppError.from(error, {
-          fallbackUserMessage: "書類受領の更新に失敗しました",
+          fallbackUserMessage: "書類の受け取りを記録できませんでした",
           fallbackDeveloperMessage:
             "steps/document-receive: updateFiscalPeriod failed",
           statusCode: null,
@@ -111,6 +111,7 @@ export function DocumentReceiveBody({
           >
             {isDone ? (
               <StepPrimaryButton
+                describedBy={null}
                 onClick={() => onSwitchToStep(6)}
                 disabled={false}
                 variant={null}
@@ -119,15 +120,16 @@ export function DocumentReceiveBody({
                 次の手順へ
               </StepPrimaryButton>
             ) : editingLocked ? (
-              <LockButton label="全て受け取りました" />
+              <LockButton label="すべて受け取りました" />
             ) : (
               <StepPrimaryButton
+                describedBy={null}
                 onClick={handleComplete}
                 disabled={isCompleting}
                 variant="success"
                 icon={null}
               >
-                {isCompleting ? "更新中…" : "全て受け取りました"}
+                {isCompleting ? "更新中…" : "すべて受け取りました"}
               </StepPrimaryButton>
             )}
           </div>

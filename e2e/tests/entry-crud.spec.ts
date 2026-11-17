@@ -94,7 +94,7 @@ test.describe("entry CRUD", () => {
     });
 
     await page
-      .getByRole("button", { name: /編集前の摘要/ })
+      .getByRole("row", { name: /編集前の摘要/ })
       .first()
       .click();
     const drawer = page.getByRole("dialog", { name: "仕訳の編集" });
@@ -125,18 +125,18 @@ test.describe("entry CRUD", () => {
     );
 
     await setSuggestionValue(drawer, "事業割合 (%)", "33.5");
-    await setSuggestionValue(drawer, "課税区分", "独自課税区分");
+    await setSuggestionValue(drawer, "税区分", "独自課税区分");
     await setSuggestionValue(drawer, "事業区分", "独自事業区分");
     await clickButton(page, "作成");
     await expect(drawer).not.toBeVisible({ timeout: 5_000 });
 
     await page
-      .getByRole("button", { name: /任意区分と小数割合/ })
+      .getByRole("row", { name: /任意区分と小数割合/ })
       .first()
       .click();
     const reopened = page.getByRole("dialog", { name: "仕訳の編集" });
     await expect(suggestionButton(reopened, "事業割合 (%)")).toHaveText("33.5");
-    await expect(suggestionButton(reopened, "課税区分")).toHaveText(
+    await expect(suggestionButton(reopened, "税区分")).toHaveText(
       "独自課税区分",
     );
     await expect(suggestionButton(reopened, "事業区分")).toHaveText(
@@ -153,7 +153,7 @@ test.describe("entry CRUD", () => {
     await expect(page.getByText("削除対象の仕訳")).toBeVisible();
 
     await page
-      .getByRole("button", { name: /削除対象の仕訳/ })
+      .getByRole("row", { name: /削除対象の仕訳/ })
       .first()
       .click();
     const drawer = page.getByRole("dialog", { name: "仕訳の編集" });
@@ -176,7 +176,7 @@ test.describe("entry CRUD", () => {
       description: "モーダル操作対象",
       amount: "3000",
     });
-    await page.getByRole("button", { name: /モーダル操作対象/ }).click();
+    await page.getByRole("row", { name: /モーダル操作対象/ }).click();
     const drawer = page.getByRole("dialog", { name: "仕訳の編集" });
     const dateButton = drawer.getByRole("button", { name: "日付" });
 
@@ -271,7 +271,9 @@ async function createEntryViaDrawer(
 }
 
 function suggestionButton(drawer: Locator, label: string) {
-  return drawer.getByRole("button", { name: label, exact: true });
+  return drawer.getByRole("button", {
+    name: new RegExp(`^${label.replace(/[()%]/g, "\\$&")} `),
+  });
 }
 
 async function setSuggestionValue(

@@ -42,9 +42,10 @@ import {
 export const entryDrawerColors = {
   text: palette.text,
   soft: palette.textSoft,
-  muted: palette.textMuted,
+  muted: palette.textLabel,
   labelText: palette.textLabel,
   border: palette.borderStrong,
+  inputBorder: palette.borderInput,
   bg: palette.surface,
   blue: palette.brand,
   red: palette.danger,
@@ -96,6 +97,7 @@ export function AccountPicker({
   onChange,
   options,
   ariaLabel,
+  popupAlign,
 }: {
   selectedId: string | null;
   value: string;
@@ -103,6 +105,7 @@ export function AccountPicker({
   onChange: (option: EntryMasterAccountOption) => void;
   options: EntryMasterAccountOption[];
   ariaLabel: string;
+  popupAlign: "left" | "right";
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -123,7 +126,7 @@ export function AccountPicker({
   const foreground =
     value === "" ? entryDrawerColors.muted : accountPalette.foreground;
   const border =
-    value === "" ? entryDrawerColors.border : accountPalette.foreground;
+    value === "" ? entryDrawerColors.inputBorder : accountPalette.foreground;
 
   return (
     <div ref={containerRef} style={{ position: "relative", width: "100%" }}>
@@ -132,7 +135,7 @@ export function AccountPicker({
         onClick={() => setOpen((current) => !current)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={ariaLabel}
+        aria-label={`${ariaLabel} ${value === "" ? "未選択" : selectedLabel}`}
         style={{
           height: sizes.account.tableHeight,
           width: "100%",
@@ -175,7 +178,7 @@ export function AccountPicker({
           role="dialog"
           aria-label="勘定科目を選択"
           tabIndex={-1}
-          style={popupStyle}
+          style={popupAlign === "right" ? rightAlignedPopupStyle : popupStyle}
         >
           <div
             style={{
@@ -187,13 +190,14 @@ export function AccountPicker({
               className="bk-drawer-input"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
+              aria-label="勘定科目を検索"
               placeholder="勘定科目を検索"
               style={{
                 width: "100%",
                 boxSizing: "border-box",
                 height: 30,
                 padding: "0 10px",
-                border: `1px solid ${entryDrawerColors.border}`,
+                border: `1px solid ${entryDrawerColors.inputBorder}`,
                 borderRadius: 6,
                 fontSize: fontSize.sm,
                 outline: "none",
@@ -212,6 +216,7 @@ export function AccountPicker({
                       key={account.id}
                       type="button"
                       className="bk-drawer-menu-item"
+                      aria-pressed={account.id === selectedId}
                       onClick={() => {
                         onChange(account);
                         setOpen(false);
@@ -328,12 +333,12 @@ export function SuggestionInput({
         onClick={() => setOpen((current) => !current)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={ariaLabel}
+        aria-label={`${ariaLabel} ${value === "" ? "未選択" : value}`}
         style={{
           height: 30,
           width: "100%",
           boxSizing: "border-box",
-          border: `1px solid ${value === "" ? entryDrawerColors.border : entryDrawerColors.blue}`,
+          border: `1px solid ${value === "" ? entryDrawerColors.inputBorder : entryDrawerColors.blue}`,
           borderRadius: 999,
           background: entryDrawerColors.bg,
           padding: "0 10px",
@@ -390,12 +395,13 @@ export function SuggestionInput({
                 }
               }}
               inputMode={inputMode ?? undefined}
+              aria-label={ariaLabel}
               placeholder={placeholder}
               style={{
                 flex: 1,
                 height: 30,
                 padding: "0 10px",
-                border: `1px solid ${entryDrawerColors.border}`,
+                border: `1px solid ${entryDrawerColors.inputBorder}`,
                 borderRadius: 6,
                 fontSize: fontSize.sm,
                 outline: "none",
@@ -434,6 +440,7 @@ export function SuggestionInput({
                   key={option}
                   type="button"
                   className="bk-drawer-menu-item"
+                  aria-pressed={option === value}
                   onClick={() => commit(option)}
                   style={{
                     ...menuItemStyle,
@@ -472,7 +479,7 @@ export function TextFieldInput({
         height: sizes.field.height,
         width: "100%",
         boxSizing: "border-box",
-        border: `1px solid ${entryDrawerColors.border}`,
+        border: `1px solid ${entryDrawerColors.inputBorder}`,
         borderRadius: radii.sm,
         background: entryDrawerColors.bg,
         padding: `0 ${sizes.field.paddingX}`,
@@ -744,6 +751,11 @@ const popupStyle: CSSProperties = {
   borderRadius: radii.md,
   boxShadow: shadows.popup,
   overflow: "hidden",
+};
+
+const rightAlignedPopupStyle: CSSProperties = {
+  ...popupStyle,
+  left: "auto",
 };
 
 export const secondaryButtonStyle: CSSProperties = {

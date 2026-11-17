@@ -39,6 +39,7 @@ import {
   UndoIcon,
 } from "../step-ui.js";
 import { usePeriodScopedError } from "../period-scoped-error.js";
+import { usePrefersReducedMotion } from "../../shared/reduced-motion.js";
 
 const CLOSED_BUT_NOT_READ_BACK_MESSAGE =
   "本締めは済みました。画面を読み込み直してください";
@@ -58,6 +59,9 @@ export function ClosingBody({
   const closingApi = useOpenkkClosing();
   const { confirm, dialog } = useConfirmDialog();
   const [showRunningAnimation, setShowRunningAnimation] = useState(false);
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const runningSectionRef = useRef<HTMLElement>(null);
+  const resultSectionRef = useRef<HTMLElement>(null);
   const [animationKey, setAnimationKey] = useState(0);
   const closingMutationLock = useRef(new ExclusiveActionLock());
   const currentFiscalPeriod = appState.currentFiscalPeriod;
@@ -96,6 +100,18 @@ export function ClosingBody({
   useEffect(() => {
     if (closingResultShown) onBusyChange(false);
   }, [closingResultShown, onBusyChange]);
+
+  useEffect(() => {
+    if (showRunningAnimation) runningSectionRef.current?.focus();
+  }, [showRunningAnimation]);
+
+  const [resultFocusPending, setResultFocusPending] = useState(false);
+  const [closedInThisVisit, setClosedInThisVisit] = useState(false);
+  useEffect(() => {
+    if (!closingResultShown || !resultFocusPending) return;
+    resultSectionRef.current?.focus();
+    setResultFocusPending(false);
+  }, [closingResultShown, resultFocusPending]);
 
   if (currentFiscalPeriod == null) {
     return (
@@ -147,7 +163,7 @@ export function ClosingBody({
         title: "本締め",
         body: [
           "この操作は取り消せません。",
-          "仮書類を十分にプレビューし、間違いがないことをチェックした上で実行してください。",
+          "仮書類を十分にプレビューし、間違いがないことをチェックしたうえで実行してください。",
         ],
         confirmLabel: "実行する",
       });
@@ -155,6 +171,7 @@ export function ClosingBody({
 
       onBusyChange(true);
       setShowRunningAnimation(true);
+      setResultFocusPending(true);
       setAnimationKey((key) => key + 1);
       try {
         const entries = buildFinalClosingPayload(
@@ -174,6 +191,7 @@ export function ClosingBody({
       } catch (error) {
         setShowRunningAnimation(false);
         onBusyChange(false);
+        setResultFocusPending(false);
         setScreenError(
           AppError.from(error, {
             fallbackUserMessage: "本締めに失敗しました",
@@ -186,6 +204,8 @@ export function ClosingBody({
       try {
         await entriesState.reloadAndWait();
         setScreenError(null);
+        setClosedInThisVisit(true);
+        if (prefersReducedMotion) setShowRunningAnimation(false);
       } catch (error) {
         debugAppError(error);
         setShowRunningAnimation(false);
@@ -258,18 +278,37 @@ export function ClosingBody({
         </>
       ) : null}
 
+      <p role="status" className="bk-visually-hidden">
+        {showRunningAnimation
+          ? "本締めを実行しています"
+          : closingResultShown && closedInThisVisit
+            ? "本締めが済みました"
+            : ""}
+      </p>
+
       {showRunningAnimation ? (
         <>
           <StepSpacer height={null} />
-          <section>
+          <section
+            ref={runningSectionRef}
+            tabIndex={-1}
+            aria-label="本締めを実行しています"
+            style={{ outline: "none" }}
+          >
             <StepSectionLabel>実行中</StepSectionLabel>
 
-            <ClosingExplainerAnimation
-              key={animationKey}
-              onCompleted={() => {
-                setShowRunningAnimation(false);
-              }}
-            />
+            {prefersReducedMotion ? (
+              <p style={{ margin: 0, color: palette.textSoft }}>
+                本締めを実行しています…
+              </p>
+            ) : (
+              <ClosingExplainerAnimation
+                key={animationKey}
+                onCompleted={() => {
+                  setShowRunningAnimation(false);
+                }}
+              />
+            )}
           </section>
         </>
       ) : null}
@@ -277,7 +316,12 @@ export function ClosingBody({
       {isClosed && !showRunningAnimation && fsSummary != null ? (
         <>
           <StepSpacer height={null} />
-          <section>
+          <section
+            ref={resultSectionRef}
+            tabIndex={-1}
+            aria-label="財務諸表の概要"
+            style={{ outline: "none" }}
+          >
             <StepSectionLabel>財務諸表の概要</StepSectionLabel>
 
             <PlBsDiagramSection pl={fsSummary} bs={fsSummary} />
@@ -289,6 +333,7 @@ export function ClosingBody({
               }}
             >
               <StepPrimaryButton
+                describedBy={null}
                 onClick={() => onSwitchToStep(5)}
                 disabled={false}
                 variant={null}
@@ -330,6 +375,7 @@ export function ClosingBody({
                     <LockButton label="本締めを実行" />
                   ) : (
                     <StepPrimaryButton
+                      describedBy={null}
                       onClick={handleFinalize}
                       disabled={false}
                       variant="success"

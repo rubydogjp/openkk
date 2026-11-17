@@ -39,7 +39,7 @@ const BOOK_ACCOUNT_TYPE_LABELS: Record<BookAccountType, string> = {
   equity: "純資産",
   revenue: "収益",
   cost_of_sales: "売上原価",
-  expense: "経費",
+  expense: "費用",
 };
 
 export function buildBookAccountLabels(

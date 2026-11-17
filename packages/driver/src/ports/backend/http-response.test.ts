@@ -27,7 +27,8 @@ describe("resolveOpenkkHttpResponse", () => {
     expect(error).toMatchObject({
       messageForDeveloper:
         "fiscalPeriodCreate expected HTTP 201 but received 200",
-      messageForUser: "バックエンドから不正な応答を受信しました",
+      messageForUser:
+        "サーバーの応答を読み取れませんでした。少し待ってからもう一度試してください",
       statusCode: 200,
     });
   });
@@ -115,7 +116,8 @@ describe("resolveOpenkkHttpResponse", () => {
     expect(error).toMatchObject({
       messageForDeveloper:
         "entriesGetAll returned a malformed success response",
-      messageForUser: "バックエンドから不正な応答を受信しました",
+      messageForUser:
+        "サーバーの応答を読み取れませんでした。少し待ってからもう一度試してください",
       statusCode: 200,
     });
   });

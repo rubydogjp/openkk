@@ -62,7 +62,9 @@ export function StepsPageScreen({
   const activeStepNo = urlActiveStep ?? currentStepNumber;
 
   const previousCurrentStepRef = useRef<number | null>(null);
-  const mainRef = useRef<HTMLElement>(null);
+  const mainRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const shownStepRef = useRef<number | null>(null);
 
   const [bodyBusy, setBodyBusy] = useState(false);
   useReportWorkInProgress(bodyBusy);
@@ -86,6 +88,9 @@ export function StepsPageScreen({
   }, [urlActiveStep, currentStepNumber, router]);
 
   useEffect(() => {
+    const isFirstShown = shownStepRef.current === null;
+    shownStepRef.current = activeStepNo;
+    if (!isFirstShown) titleRef.current?.focus({ preventScroll: true });
     let element: HTMLElement | null = mainRef.current?.parentElement ?? null;
     while (element != null) {
       if (element.scrollHeight > element.clientHeight) {
@@ -108,7 +113,7 @@ export function StepsPageScreen({
   if (active == null) return null;
 
   return (
-    <main ref={mainRef} style={{ minHeight: "100%" }}>
+    <div ref={mainRef} style={{ minHeight: "100%" }}>
       <StepperBar
         steps={items}
         activeNo={activeStepNo}
@@ -133,8 +138,11 @@ export function StepsPageScreen({
             }}
           >
             <h1
+              ref={titleRef}
+              tabIndex={-1}
               style={{
                 margin: 0,
+                outline: "none",
                 fontSize: typography.pageTitle.fontSize,
                 fontWeight: fontWeight.bold,
                 color: palette.text,
@@ -165,7 +173,7 @@ export function StepsPageScreen({
           trendPoints={trendPoints}
         />
       </div>
-    </main>
+    </div>
   );
 }
 
@@ -282,6 +290,12 @@ export function StepperBar({
 }
 
 const DOT_GRAY = "#C8C8C8";
+const STEP_NUMBER_BACKGROUND = palette.textLabel;
+const STEP_STATUS_LABELS: Record<StepItem["status"], string> = {
+  done: "完了",
+  doing: "作業中",
+  todo: "未着手",
+};
 function StepperDot({
   step,
   active,
@@ -293,12 +307,13 @@ function StepperDot({
 }) {
   const isDoing = step.status === "doing";
   const isDone = step.status === "done";
-  const background = isDoing ? palette.text : DOT_GRAY;
+  const background = isDoing ? palette.text : STEP_NUMBER_BACKGROUND;
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label={step.title}
+      aria-label={`手順 ${step.no} ${step.title} (${STEP_STATUS_LABELS[step.status]}${active ? "・今の手順" : ""})`}
+      aria-current={active ? "step" : undefined}
       title={step.title}
       style={{
         position: "relative",

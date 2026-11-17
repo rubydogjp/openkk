@@ -53,7 +53,7 @@ export function entryRecordToImportPayload(
     businessRate: entry.businessRate,
     lines: entryLinesToInputs(entry.lines, master, {
       messageForDeveloper: "entries.import: unresolved bookAccountId",
-      messageForUser: "勘定科目の解決に失敗したため取込みできませんでした",
+      messageForUser: "勘定科目が見つからないため取り込めませんでした",
     }),
   };
 }

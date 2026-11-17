@@ -1,5 +1,7 @@
 "use client";
 
+import type { RefObject } from "react";
+
 import { AddButton } from "../shared/add-button.js";
 import { ClosedPeriodLock } from "../shared/closed-period-lock.js";
 import { useDismissibleLayer } from "../shared/dismissible-layer.js";
@@ -15,9 +17,11 @@ import {
   sizes,
   spacing,
 } from "../shared/design-tokens.js";
-import type {
-  EntryPreviewRow,
-  PeriodLockMessage,
+import {
+  JOURNAL_TABLE_HEADERS,
+  type EntryPreviewRow,
+  type JournalTableRow,
+  type PeriodLockMessage,
 } from "@rubydogjp/openkk-driver";
 
 export { AccountChipCell, EntriesTable } from "./entries-table.js";
@@ -46,8 +50,8 @@ function EntriesMonthSwitcher(props: {
     >
       <style>{`
         .bk-month-nav { transition: background 80ms ease; }
-        .bk-month-nav:hover:not(:disabled) { background: #F1F5F9; }
-        .bk-month-nav:active:not(:disabled) { background: #E2E8F0; }
+        .bk-month-nav:hover:not([aria-disabled="true"]) { background: #F1F5F9; }
+        .bk-month-nav:active:not([aria-disabled="true"]) { background: #E2E8F0; }
       `}</style>
       <MonthNavButton
         direction="previous"
@@ -56,6 +60,7 @@ function EntriesMonthSwitcher(props: {
       />
       <div
         className="bk-month-label"
+        aria-live="polite"
         style={{
           minWidth: 140,
           padding: "0 16px",
@@ -91,8 +96,10 @@ function MonthNavButton(props: {
     <button
       type="button"
       className="bk-month-nav"
-      onClick={props.onClick}
-      disabled={!props.enabled}
+      onClick={() => {
+        if (props.enabled) props.onClick();
+      }}
+      aria-disabled={!props.enabled}
       aria-label={props.direction === "previous" ? "前の月" : "次の月"}
       style={{
         width: 40,
@@ -172,6 +179,7 @@ export function EntriesScreen(props: {
   onOpenEntry: ((row: EntryPreviewRow, index: number) => void) | null;
   activeRecordId: string | null;
   lockedMessage: PeriodLockMessage | null;
+  tableRef: RefObject<HTMLDivElement | null>;
 }) {
   if (props.lockedMessage != null) {
     return (
@@ -246,8 +254,8 @@ export function EntriesScreen(props: {
           <EntriesTable
             rows={props.rows}
             onOpenEntry={props.onOpenEntry}
+            tableRef={props.tableRef}
             onAddEntry={isReadOnly ? null : props.onAddEntry}
-            readOnly={isReadOnly}
             activeRecordId={isReadOnly ? null : props.activeRecordId}
             fillHeight
             headerTone={null}
@@ -310,6 +318,7 @@ export function VirtualEntryDrawer(props: {
           type="button"
           onClick={props.onClose}
           aria-label="閉じる"
+          className="bk-phone-tap-target"
           style={{
             width: 32,
             height: 32,
@@ -346,7 +355,7 @@ export function VirtualEntryDrawer(props: {
             lineHeight: 1.7,
           }}
         >
-          この仕訳は補助機能によって提案された仮想的なものです。本締めの手順で実体化されます。
+          この仕訳は、補助の画面に入れた内容から作られる見込みの仕訳です。本締めのときに仕訳として記録されます。
         </div>
         <div
           style={{
@@ -416,6 +425,126 @@ export function VirtualEntryDrawer(props: {
   );
 }
 
+const ENTRY_COMMON_FIELDS = [
+  "entryNumber",
+  "date",
+  "description",
+  "partner",
+  "businessRate",
+  "taxCategory",
+  "businessCategory",
+] as const satisfies ReadonlyArray<keyof JournalTableRow>;
+
+const ENTRY_LINE_FIELDS = [
+  "debitAccount",
+  "debitAmount",
+  "creditAccount",
+  "creditAmount",
+] as const satisfies ReadonlyArray<keyof JournalTableRow>;
+
+export function EntryReadOnlyDrawer(props: {
+  lines: JournalTableRow[];
+  onClose: () => void;
+}) {
+  const drawerRef = useDismissibleLayer<HTMLElement>({
+    open: true,
+    onDismiss: props.onClose,
+    initialFocusRef: null,
+    focusOnOpen: true,
+    restoreFocus: true,
+    trapFocus: true,
+  });
+  const first = props.lines[0];
+  if (first == null) return null;
+  const numbered = props.lines.length > 1;
+  return (
+    <DrawerFrame
+      label="仕訳の内容"
+      drawerRef={drawerRef}
+      onBackdropClick={props.onClose}
+    >
+      <header
+        style={{
+          height: sizes.drawer.headerHeight,
+          padding: "0 20px",
+          borderBottom: `1px solid ${palette.borderStrong}`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexShrink: 0,
+        }}
+      >
+        <h2
+          style={{
+            margin: 0,
+            fontSize: fontSize.lg,
+            fontWeight: fontWeight.bold,
+            color: palette.text,
+          }}
+        >
+          仕訳の内容
+        </h2>
+        <button
+          type="button"
+          onClick={props.onClose}
+          aria-label="閉じる"
+          className="bk-phone-tap-target"
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: radii.sm,
+            border: `1px solid ${palette.borderStrong}`,
+            background: palette.surface,
+            color: palette.text,
+            cursor: "pointer",
+            fontSize: fontSize.lg,
+            lineHeight: 1,
+          }}
+        >
+          ×
+        </button>
+      </header>
+      <div
+        style={{
+          flex: 1,
+          overflow: "auto",
+          padding: "20px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 16,
+        }}
+      >
+        <div
+          style={{
+            border: `1px solid ${palette.borderStrong}`,
+            borderRadius: radii.md,
+            overflow: "hidden",
+          }}
+        >
+          {ENTRY_COMMON_FIELDS.map((field, index) => (
+            <VirtualEntrySummaryRow
+              key={field}
+              label={JOURNAL_TABLE_HEADERS[field]}
+              value={first[field]}
+              divider={index > 0}
+            />
+          ))}
+          {props.lines.map((line, lineIndex) =>
+            ENTRY_LINE_FIELDS.map((field) => (
+              <VirtualEntrySummaryRow
+                key={`${lineIndex}-${field}`}
+                label={`${JOURNAL_TABLE_HEADERS[field]}${numbered ? ` ${lineIndex + 1}` : ""}`}
+                value={line[field]}
+                divider
+              />
+            )),
+          )}
+        </div>
+      </div>
+    </DrawerFrame>
+  );
+}
+
 function VirtualEntrySummaryRow(props: {
   label: string;
   value: string;
@@ -449,6 +578,8 @@ function VirtualEntrySummaryRow(props: {
           color: palette.text,
           fontSize: fontSize.base,
           fontWeight: fontWeight.medium,
+          overflowWrap: "anywhere",
+          minWidth: 0,
         }}
       >
         {props.value}

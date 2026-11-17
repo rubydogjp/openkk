@@ -272,7 +272,7 @@ describe("importEntriesFromLegacyJson — error handling", () => {
     expect((error as AppError).messageForDeveloper).toContain(
       "entries array not found",
     );
-    expect((error as AppError).messageForUser).toContain("取込ファイル");
+    expect((error as AppError).messageForUser).toContain("取り込むファイル");
   });
 
   it("reports a format error when the JSON root is not an object", () => {

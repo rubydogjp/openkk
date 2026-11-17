@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import {
   AppError,
@@ -69,6 +69,7 @@ export function CreateFiscalPeriodPage() {
       appState.fiscalPeriods,
       null,
     );
+  const periodProblemId = useId();
   const canSubmit =
     hasRequiredFields &&
     dateValidation.ok &&
@@ -141,6 +142,7 @@ export function CreateFiscalPeriodPage() {
                 }}
                 width={280}
                 placeholder="例: 2026年分"
+                ariaLabel="期間の名称"
               />
             }
             hint={null}
@@ -159,10 +161,12 @@ export function CreateFiscalPeriodPage() {
                   readOnly={editingLocked}
                 />
                 {!dateValidation.ok && !editingLocked ? (
-                  <FormErrorText>{dateValidation.message}</FormErrorText>
+                  <FormErrorText id={periodProblemId}>
+                    {dateValidation.message}
+                  </FormErrorText>
                 ) : hasOverlap && !editingLocked ? (
-                  <FormErrorText>
-                    既存の有効な会計期間と日付が重複しています。
+                  <FormErrorText id={periodProblemId}>
+                    ほかの会計期間と日付が重なっています。
                   </FormErrorText>
                 ) : null}
               </>
@@ -192,7 +196,11 @@ export function CreateFiscalPeriodPage() {
           {editingLocked ? (
             <LockButton label="作成する" />
           ) : (
-            <FormPrimaryButton onClick={handleCreate} disabled={!canSubmit}>
+            <FormPrimaryButton
+              describedBy={canSubmit ? null : periodProblemId}
+              onClick={handleCreate}
+              disabled={!canSubmit}
+            >
               {isCreating ? "作成中…" : "作成する"}
             </FormPrimaryButton>
           )}

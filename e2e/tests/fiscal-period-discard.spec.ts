@@ -22,7 +22,10 @@ test("does not offer discard once the fiscal period has started", async ({
   await clickButton(page, "開始する");
   await expectStep(page, "期首のBSを入力");
 
-  await page.locator('button[aria-label="期間を開始"]').first().click();
+  await page
+    .getByRole("button", { name: /^手順 \d+ 期間を開始 / })
+    .first()
+    .click();
   await expectStep(page, "期間を開始");
   await expect(
     page.getByRole("button", { name: "この期間を削除" }),

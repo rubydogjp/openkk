@@ -18,7 +18,7 @@ export function buildPeriodLockMessage(
   if (period.phase === "pre_opening") {
     return {
       title: "ロックされています",
-      description: `期間を開始後に${subjectVerb ?? "編集できます"}`,
+      description: `期間を開始すると${subjectVerb ?? "編集できます"}`,
     };
   }
   if (period.phase === "post_closing") {

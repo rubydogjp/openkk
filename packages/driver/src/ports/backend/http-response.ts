@@ -21,7 +21,8 @@ export function resolveOpenkkHttpResponse<Key extends OpenkkHttpEndpointKey>(
     if (!isValidSuccessBody(key, response.body)) {
       throw {
         messageForDeveloper: `${key} returned a malformed success response`,
-        messageForUser: "バックエンドから不正な応答を受信しました",
+        messageForUser:
+          "サーバーの応答を読み取れませんでした。少し待ってからもう一度試してください",
         originalMessage: stringifyUnknown(response.body),
         statusCode: response.status,
         code: null,
@@ -42,7 +43,7 @@ export function resolveOpenkkHttpResponse<Key extends OpenkkHttpEndpointKey>(
       messageForUser:
         response.status >= 500
           ? "サーバー処理でエラーが発生しました"
-          : "リクエストを処理できませんでした",
+          : "サーバーで処理できませんでした。少し待ってからもう一度試してください",
       originalMessage: stringifyUnknown(response.body),
       statusCode: response.status,
       code: null,
@@ -51,7 +52,8 @@ export function resolveOpenkkHttpResponse<Key extends OpenkkHttpEndpointKey>(
 
   throw {
     messageForDeveloper: `${key} expected HTTP ${endpoint.successStatus} but received ${response.status}`,
-    messageForUser: "バックエンドから不正な応答を受信しました",
+    messageForUser:
+      "サーバーの応答を読み取れませんでした。少し待ってからもう一度試してください",
     originalMessage: stringifyUnknown(response.body),
     statusCode: Number.isInteger(response.status) ? response.status : null,
     code: null,

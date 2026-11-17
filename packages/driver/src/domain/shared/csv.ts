@@ -115,7 +115,7 @@ function csvFormatError(messageForDeveloper: string): AppError {
   return new AppError({
     messageForDeveloper,
     messageForUser:
-      "CSVファイルの形式を確認できませんでした。オープン会計で書き出したCSVか、同じ列のCSVを選んでください。",
+      "CSV ファイルの形式を確認できませんでした。オープン会計で書き出した CSV か、同じ列の CSV を選んでください。",
     originalMessage: null,
     statusCode: null,
     code: null,

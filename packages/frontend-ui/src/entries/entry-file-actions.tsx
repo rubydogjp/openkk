@@ -154,7 +154,7 @@ function MenuSectionLabel({ children }: { children: ReactNode }) {
         padding: "8px 12px 4px",
         fontSize: fontSize.xs,
         fontWeight: fontWeight.bold,
-        color: palette.textMuted,
+        color: palette.textLabel,
         letterSpacing: "0.06em",
         textTransform: "uppercase",
       }}

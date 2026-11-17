@@ -20,7 +20,7 @@ export default function DemoShellLayout({ children }: { children: ReactNode }) {
           flexShrink: 0,
         }}
       >
-        デモ版の操作内容は保存されません。再読み込みするとサンプルデータに戻ります。
+        デモ版で入力した内容は、再読み込みするとサンプルデータに戻ります。
       </div>
       {children}
     </OpenkkShellLayout>

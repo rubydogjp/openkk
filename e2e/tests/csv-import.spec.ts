@@ -33,7 +33,9 @@ test.describe("journal table import and export", () => {
     ]);
     await confirmation.getByRole("button", { name: "上書きする" }).click();
     await expect(
-      page.getByText("上書きしました (追加 3・変更 0・削除 0)"),
+      page.getByText(
+        "上書きしました。追加 3 件・変更 0 件・削除 0 件 (そのまま 0 件)",
+      ),
     ).toBeVisible();
     const table = page.getByRole("table", { name: "仕訳のシート" });
     await expect(table.getByRole("row")).toHaveCount(4);
@@ -62,7 +64,9 @@ test.describe("journal table import and export", () => {
     await importEntriesFile(page, "csv", csvFile(edited));
     await confirmation.getByRole("button", { name: "上書きする" }).click();
     await expect(
-      page.getByText("上書きしました (追加 0・変更 1・削除 1)"),
+      page.getByText(
+        "上書きしました。追加 0 件・変更 1 件・削除 1 件 (そのまま 1 件)",
+      ),
     ).toBeVisible();
     await expect(table.getByRole("row")).toHaveCount(3);
     await expect(table).toContainText("9,000");
@@ -123,7 +127,7 @@ test.describe("journal table import and export", () => {
     );
     await expect(
       page.getByText(
-        "以前の形式の CSV なので、足すだけで取り込みました(取込 1 件 / 重複スキップ 0 件)",
+        "以前の形式の CSV なので、足すだけで取り込みました (1 件)",
       ),
     ).toBeVisible();
     await page.getByText("旧分類の事業主借", { exact: true }).click();
@@ -150,7 +154,9 @@ test.describe("journal table import and export", () => {
       .getByRole("button", { name: "上書きする" })
       .click();
     await expect(
-      page.getByText("上書きしました (追加 3・変更 0・削除 0)"),
+      page.getByText(
+        "上書きしました。追加 3 件・変更 0 件・削除 0 件 (そのまま 0 件)",
+      ),
     ).toBeVisible();
     const drawer = page.getByRole("dialog", { name: "仕訳の編集" });
 
@@ -201,7 +207,7 @@ test.describe("journal table import and export", () => {
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(JSON_FIXTURE);
 
-    await expect(page.getByText(/取り込みました\(取込 15 件/)).toBeVisible({
+    await expect(page.getByText(/取り込みました \(15 件/)).toBeVisible({
       timeout: 10_000,
     });
   });

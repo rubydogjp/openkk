@@ -41,7 +41,7 @@ describe("validateEntryDate", () => {
 
   it("rejects dates before and after the fiscal period", () => {
     const expected =
-      "日付は会計期間（2026/01/01〜2026/12/31）の範囲内で選択してください。";
+      "日付は会計期間 (2026/01/01〜2026/12/31) の範囲内で選択してください。";
 
     expect(validateEntryDate("2025-12-31", "2026-01-01", "2026-12-31")).toBe(
       expected,
@@ -68,7 +68,7 @@ describe("validateEntryAmounts", () => {
 
   it("rejects an unsafe line amount", () => {
     expect(validateEntryAmounts(["9007199254740993"], ["1"])).toMatch(
-      /大きすぎる/,
+      /大きすぎます。9,000 兆円未満/,
     );
   });
 
@@ -76,7 +76,7 @@ describe("validateEntryAmounts", () => {
     const half = "4503599627370496";
 
     expect(validateEntryAmounts([half, half], [half, half])).toMatch(
-      /大きすぎる/,
+      /大きすぎます。9,000 兆円未満/,
     );
   });
 });

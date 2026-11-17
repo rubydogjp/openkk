@@ -93,7 +93,7 @@ export function FiscalPeriodsContent() {
     } catch (error) {
       showImportFailure(
         AppError.from(error, {
-          fallbackUserMessage: "圧縮済みファイルの展開に失敗しました",
+          fallbackUserMessage: "以前の圧縮済みファイルを読み込めませんでした",
           fallbackDeveloperMessage:
             "fiscal-periods: import archived fiscal period failed",
           statusCode: null,
@@ -245,7 +245,7 @@ export function FiscalPeriodsContent() {
                     opacity: isImportingArchive ? 0.62 : 1,
                   }}
                 >
-                  {isImportingArchive ? "取り込み中" : "ファイル"}
+                  {isImportingArchive ? "取り込み中…" : "ファイル"}
                 </button>
               )}
               {fileMenuOpen ? (
@@ -303,6 +303,7 @@ export function FiscalPeriodsContent() {
         </div>
 
         <FiscalPeriodsTable
+          canImportFile={showFileMenu}
           items={appState.fiscalPeriods}
           unavailable={[
             ...unreadableFiscalPeriods.map((period) => ({
@@ -379,7 +380,9 @@ function FiscalPeriodsTable({
   items,
   unavailable,
   onSelect,
+  canImportFile,
 }: {
+  canImportFile: boolean;
   items: FiscalPeriod[];
   unavailable: ReadonlyArray<{
     period: OpenkkFiscalPeriodLabel;
@@ -421,7 +424,7 @@ function FiscalPeriodsTable({
         .bk-fiscal-period-row.is-clickable:hover { background: ${palette.hoverStrong} !important; }
       `}</style>
       {isEmpty ? (
-        <FiscalPeriodsEmptyState />
+        <FiscalPeriodsEmptyState canImportFile={canImportFile} />
       ) : (
         <div
           className="bk-fiscal-periods-scroll"
@@ -510,7 +513,7 @@ function FiscalPeriodRow({
         {showOpeningBsChip ? (
           <div style={{ marginTop: 6 }}>
             <InlineChip
-              label="期首BS"
+              label="期首のBS 未入力"
               background={palette.brandTint}
               foreground={palette.brand}
             />
@@ -578,7 +581,11 @@ function FiscalPeriodRow({
   );
 }
 
-function FiscalPeriodsEmptyState() {
+function FiscalPeriodsEmptyState({
+  canImportFile,
+}: {
+  canImportFile: boolean;
+}) {
   return (
     <div
       style={{
@@ -624,7 +631,9 @@ function FiscalPeriodsEmptyState() {
             lineHeight: 1.7,
           }}
         >
-          上の「追加」ボタンから 1 件目を作成できます。
+          {canImportFile
+            ? "上の「追加」で作るか、「ファイル」からバックアップを取り込めます。"
+            : "上の「追加」ボタンから 1 件目を作成できます。"}
         </div>
       </div>
     </div>

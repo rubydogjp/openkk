@@ -291,7 +291,7 @@ export function OpeningBsBody({
           </StepCallout>
         ) : isEditing && !amountsAreSafe ? (
           <StepCallout tone="warning">
-            金額または合計が大きすぎるため、安全に計算できる金額へ修正してください。
+            金額や合計が大きすぎます。9,000 兆円未満にしてください。
           </StepCallout>
         ) : isEditing && !balancesMatch ? (
           <StepCallout tone="warning">
@@ -313,6 +313,7 @@ export function OpeningBsBody({
             <LockButton label="保存して次へ" />
           ) : !isEditing ? (
             <StepPrimaryButton
+              describedBy={null}
               onClick={() => onSwitchToStep(3)}
               disabled={false}
               variant={null}
@@ -322,6 +323,7 @@ export function OpeningBsBody({
             </StepPrimaryButton>
           ) : (
             <StepPrimaryButton
+              describedBy={null}
               onClick={handleSave}
               disabled={isSaving || !balancesMatch}
               variant="success"

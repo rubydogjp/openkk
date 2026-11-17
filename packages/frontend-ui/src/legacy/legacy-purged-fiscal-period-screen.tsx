@@ -88,7 +88,9 @@ export function LegacyPurgedFiscalPeriodScreen({
             lineHeight: 1.7,
           }}
         >
-          この会計期間のデータは、ここには残っていません。圧縮保存したときのファイルを、期間のリストの「ファイル」から取り込むと、新しい会計期間として見られます。
+          この会計期間のデータは、ここには残っていません。以前の圧縮済みファイル
+          (.zip)
+          を、期間の選択の「ファイル」から取り込むと、新しい会計期間として見られます。
         </div>
 
         <div
@@ -100,6 +102,7 @@ export function LegacyPurgedFiscalPeriodScreen({
           }}
         >
           <StepPrimaryButton
+            describedBy={null}
             onClick={() => {
               appState.clearFiscalPeriod();
               router.push("/fiscal-periods");
@@ -108,7 +111,7 @@ export function LegacyPurgedFiscalPeriodScreen({
             variant={null}
             icon={null}
           >
-            期間のリストへ
+            期間の選択へ
           </StepPrimaryButton>
         </div>
       </div>

@@ -114,7 +114,7 @@ export function assertFiscalPeriodClosingRecords(
 }
 
 export const PURGED_FISCAL_PERIOD_MESSAGE =
-  "この会計期間の実データは削除済みです";
+  "この会計期間のデータは、ここには残っていません";
 
 export function findOverlappingActiveFiscalPeriod<
   Period extends {
@@ -149,7 +149,7 @@ export function assertNoOverlappingActiveFiscalPeriod(
   if (overlap != null) {
     throw engineConflictError(
       `Fiscal period ${range.startDate} to ${range.endDate} overlaps active fiscal period ${overlap.id}`,
-      "既存の会計期間と日付が重複しています",
+      "ほかの会計期間と日付が重なっています",
     );
   }
 }

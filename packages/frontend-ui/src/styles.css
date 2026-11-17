@@ -45,6 +45,7 @@
 .bk-amount-input:focus {
   border-color: var(--openkk-color-brand, #1d4ed8) !important;
   box-shadow:
+    0 0 0 1px var(--openkk-color-brand, #1d4ed8),
     var(--openkk-ring-brand-focus, 0 0 0 3px rgba(37, 99, 235, 0.14)),
     var(--openkk-shadow-input-inset, inset 0 1px 0 rgba(15, 23, 42, 0.04));
 }
@@ -240,6 +241,10 @@ body:has(.bk-shell-main--fills-screen) .bk-entry-drawer {
     width: 44px;
     height: 44px !important;
   }
+  .bk-phone-tap-target {
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
 }
 
 .bk-notice-layer {
@@ -314,4 +319,27 @@ body:has(.bk-shell-main--fills-screen) .bk-notice-layer {
 .bk-backup-status-compact {
   text-wrap: balance;
   word-break: auto-phrase;
+}
+.bk-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bk-drawer,
+  .bk-entry-drawer,
+  .bk-dialog-backdrop,
+  .bk-dialog-card,
+  .bk-shell-backdrop {
+    animation: none !important;
+  }
+  .bk-shell-sidebar {
+    transition: none !important;
+  }
 }

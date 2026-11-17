@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef, type RefObject } from "react";
+
 import { fontSize, fontWeight, palette } from "../shared/design-tokens.js";
 import { MaskIcon } from "../shared/icons.js";
 import {
@@ -26,6 +28,10 @@ export function QuickGuidePanel({
   const title = guideTitle(page);
   const description = guideDescription(page);
   const options = guideOptions(page);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    titleRef.current?.focus();
+  }, [page]);
   return (
     <div
       style={{
@@ -51,6 +57,7 @@ export function QuickGuidePanel({
             type="button"
             onClick={onBack}
             aria-label="戻る"
+            className="bk-phone-tap-target"
             style={iconButtonStyle}
           >
             <BackArrowIcon />
@@ -58,8 +65,12 @@ export function QuickGuidePanel({
         ) : (
           <div style={{ width: 28, height: 28 }} />
         )}
-        <div
+        <h2
+          ref={titleRef}
+          tabIndex={-1}
           style={{
+            margin: 0,
+            outline: "none",
             flex: 1,
             fontSize: fontSize.md,
             fontWeight: fontWeight.bold,
@@ -68,14 +79,14 @@ export function QuickGuidePanel({
           }}
         >
           {title}
-        </div>
+        </h2>
         <button
           type="button"
           onClick={onClose}
           style={{
             border: "none",
             background: "transparent",
-            color: palette.textMuted,
+            color: palette.textLabel,
             fontSize: fontSize.base,
             fontWeight: fontWeight.semibold,
             cursor: "pointer",
@@ -213,9 +224,16 @@ function ChevronRightIcon() {
   );
 }
 
-export function QuickGuideTriggerButton({ onClick }: { onClick: () => void }) {
+export function QuickGuideTriggerButton({
+  onClick,
+  buttonRef,
+}: {
+  onClick: () => void;
+  buttonRef: RefObject<HTMLButtonElement | null>;
+}) {
   return (
     <button
+      ref={buttonRef}
       type="button"
       onClick={onClick}
       className="bk-quick-guide-trigger"

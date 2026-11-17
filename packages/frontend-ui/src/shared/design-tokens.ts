@@ -68,6 +68,7 @@ const paletteDefaults = {
   borderStrong: slate.s300,
   borderEmphasis: slate.s400,
   borderHeavy: slate.s400,
+  borderInput: "#8492A6",
 
   formGroupBg: slate.s50,
   hoverSubtle: slate.s50,
@@ -88,6 +89,7 @@ const paletteDefaults = {
   successBg: "#ECFDF3",
   successBorder: "#86EFAC",
   warning: "#D97706",
+  warningText: "#B45309",
   warningBg: "#FFFBEB",
   warningBorder: "#FDE68A",
   danger: "#DC2626",

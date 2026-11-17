@@ -304,6 +304,7 @@ export function OpeningBsCarryover({
           閉じる
         </StepSecondaryButton>
         <StepPrimaryButton
+          describedBy={null}
           onClick={handleApply}
           disabled={isApplying || source == null || !canApply}
           variant={null}
@@ -329,7 +330,7 @@ const selectStyle = {
   height: sizes.field.height,
   minWidth: 200,
   boxSizing: "border-box" as const,
-  border: `1px solid ${palette.borderStrong}`,
+  border: `1px solid ${palette.borderInput}`,
   borderRadius: radii.sm,
   background: palette.surface,
   padding: `0 ${sizes.field.paddingX}`,

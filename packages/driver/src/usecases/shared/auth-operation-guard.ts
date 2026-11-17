@@ -9,7 +9,8 @@ export function assertAuthUnchanged(
   if (versions.isCurrent(expectedVersion)) return;
   throw new AppError({
     messageForDeveloper: "Authentication operation was superseded",
-    messageForUser: "認証状態が変わったため、処理を中止しました",
+    messageForUser:
+      "サインインの状態が変わったため、操作を取りやめました。もう一度試してください",
     originalMessage: null,
     statusCode: null,
     code: null,

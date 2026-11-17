@@ -40,11 +40,14 @@ import {
 import { ShellAccountMenu } from "./shell-account-menu.js";
 import { ShellFiscalPeriodMenu } from "./shell-fiscal-period-menu.js";
 import { ShellNav } from "./shell-nav.js";
+import { CloseIcon } from "../shared/icons.js";
 import { ShellNotices } from "./shell-notices.js";
 import { SHELL_PALETTE } from "./shell-palette.js";
 import { useShellAuthActions } from "./use-shell-auth-actions.js";
 import { showsEntriesSheet } from "../entries/entries-view.js";
 import { usePathname, useRouter, useSearchParams } from "../routing/routing.js";
+
+const PHONE_TAP_TARGET_SIZE = 44;
 
 export function OpenkkShellLayout(props: { children: ReactNode }) {
   return (
@@ -226,6 +229,8 @@ function ShellChrome({
         <button
           type="button"
           aria-label="メニューを開く"
+          aria-haspopup="dialog"
+          aria-expanded={drawerOpen}
           onClick={() => setDrawerOpen(true)}
           style={{
             width: sizes.button.iconOnly,
@@ -349,6 +354,28 @@ function ShellChrome({
                 {openkkConfig.bundleLabel}
               </div>
             </div>
+            {drawerOpen ? (
+              <button
+                type="button"
+                aria-label="メニューを閉じる"
+                onClick={closeDrawer}
+                style={{
+                  marginLeft: "auto",
+                  width: PHONE_TAP_TARGET_SIZE,
+                  height: PHONE_TAP_TARGET_SIZE,
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  display: "grid",
+                  placeItems: "center",
+                  borderRadius: radii.xs,
+                  padding: 0,
+                  flexShrink: 0,
+                }}
+              >
+                <CloseIcon size={20} color={palette.text} />
+              </button>
+            ) : null}
           </div>
 
           {tracksBookSave ? <ShellBookSave bookSave={bookSave} /> : null}

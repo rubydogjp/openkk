@@ -15,11 +15,14 @@ import {
 } from "./design-tokens.js";
 import { DatePickerButton, formatDateButtonLabel } from "./date-picker.js";
 
+const START_DATE_LABEL = "開始日";
+const END_DATE_LABEL = "終了日";
+
 const inputClassName = "bk-form-input";
 
 const formInputStyles = `
   .${inputClassName} { box-shadow: ${shadows.inputInset}; transition: border-color 80ms ease; }
-  .${inputClassName}:focus { border-color: ${palette.brand} !important; box-shadow: ${rings.brandFocus}, ${shadows.inputInset}; }
+  .${inputClassName}:focus { border-color: ${palette.brand} !important; box-shadow: 0 0 0 1px ${palette.brand}, ${rings.brandFocus}, ${shadows.inputInset}; }
 `;
 
 export function FormStyles() {
@@ -32,16 +35,19 @@ export function FormTextInput({
   readOnly,
   width,
   placeholder,
+  ariaLabel,
 }: {
   value: string;
   onChange: (value: string) => void;
   readOnly: boolean;
   width: number | null;
   placeholder: string | null;
+  ariaLabel: string | null;
 }) {
   return (
     <input
       className={inputClassName}
+      aria-label={ariaLabel ?? undefined}
       value={value}
       readOnly={readOnly}
       maxLength={MAX_TEXT_FIELD_LENGTH}
@@ -52,10 +58,10 @@ export function FormTextInput({
         width: width ?? "100%",
         maxWidth: "100%",
         boxSizing: "border-box",
-        border: `1px solid ${palette.borderStrong}`,
+        border: `1px solid ${readOnly ? palette.borderSubtle : palette.borderInput}`,
         borderRadius: radii.sm,
         background: readOnly ? palette.pageBg : palette.surface,
-        color: readOnly ? palette.textMuted : palette.text,
+        color: readOnly ? palette.textLabel : palette.text,
         padding: `0 ${sizes.field.paddingX}`,
         ...typography.input,
         outline: "none",
@@ -81,7 +87,7 @@ export function FormReadOnlyValue({
         border: `1px solid ${palette.borderSubtle}`,
         borderRadius: radii.sm,
         background: palette.pageBg,
-        color: palette.textMuted,
+        color: palette.textLabel,
         padding: `0 ${sizes.field.paddingX}`,
         display: "flex",
         alignItems: "center",
@@ -108,29 +114,46 @@ export function FormDatePair({
 }) {
   return (
     <div
-      style={{ display: "inline-flex", alignItems: "center", gap: spacing.s10 }}
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        columnGap: spacing.s10,
+        rowGap: spacing.s8,
+      }}
     >
-      {readOnly ? (
-        <ReadOnlyDate value={start} />
-      ) : (
-        <DatePickerButton
-          value={start}
-          onChange={onChangeStart}
-          ariaLabel={null}
-          minDate={null}
-          maxDate={null}
-        />
-      )}
-      <span style={{ color: palette.textLabel, ...typography.control }}>
-        〜
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: spacing.s10,
+        }}
+      >
+        {readOnly ? (
+          <ReadOnlyDate label={START_DATE_LABEL} value={start} />
+        ) : (
+          <DatePickerButton
+            value={start}
+            onChange={onChangeStart}
+            ariaLabel={START_DATE_LABEL}
+            minDate={null}
+            maxDate={null}
+          />
+        )}
+        <span
+          aria-hidden
+          style={{ color: palette.textLabel, ...typography.control }}
+        >
+          〜
+        </span>
       </span>
       {readOnly ? (
-        <ReadOnlyDate value={end} />
+        <ReadOnlyDate label={END_DATE_LABEL} value={end} />
       ) : (
         <DatePickerButton
           value={end}
           onChange={onChangeEnd}
-          ariaLabel={null}
+          ariaLabel={END_DATE_LABEL}
           minDate={null}
           maxDate={null}
         />
@@ -139,7 +162,7 @@ export function FormDatePair({
   );
 }
 
-function ReadOnlyDate({ value }: { value: string }) {
+function ReadOnlyDate({ label, value }: { label: string; value: string }) {
   return (
     <div
       style={{
@@ -150,10 +173,11 @@ function ReadOnlyDate({ value }: { value: string }) {
         padding: `0 ${sizes.field.paddingX}`,
         display: "inline-flex",
         alignItems: "center",
-        color: palette.textMuted,
+        color: palette.textLabel,
         ...typography.control,
       }}
     >
+      <span className="bk-visually-hidden">{label} </span>
       {formatDateButtonLabel(value)}
     </div>
   );
@@ -174,9 +198,17 @@ export function FormNoteText({ children }: { children: ReactNode }) {
   );
 }
 
-export function FormErrorText({ children }: { children: ReactNode }) {
+export function FormErrorText({
+  children,
+  id,
+}: {
+  children: ReactNode;
+  id: string | null;
+}) {
   return (
     <p
+      id={id ?? undefined}
+      role="status"
       style={{
         margin: `${spacing.s12} 0 0`,
         color: palette.danger,
@@ -204,16 +236,19 @@ export function FormPrimaryButton({
   children,
   onClick,
   disabled,
+  describedBy,
 }: {
   children: ReactNode;
   onClick: (() => void) | null;
   disabled: boolean;
+  describedBy: string | null;
 }) {
   return (
     <button
       type="button"
       onClick={onClick ?? undefined}
       disabled={disabled}
+      aria-describedby={describedBy ?? undefined}
       style={{
         ...baseButtonStyle,
         background: palette.brand,

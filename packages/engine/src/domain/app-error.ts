@@ -63,7 +63,8 @@ export function engineValidationError(
 export function engineNotFoundError(messageForDeveloper: string): AppError {
   return new AppError({
     messageForDeveloper,
-    messageForUser: "指定されたデータが見つかりませんでした",
+    messageForUser:
+      "対象のデータが見つかりませんでした。画面を読み込み直してください",
     originalMessage: null,
     statusCode: 404,
     code: null,

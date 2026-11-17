@@ -10,7 +10,7 @@ import {
 const embedded: EmbeddedUser = {
   kind: "embedded",
   id: "openkk-prod-user",
-  displayName: "このPCのデータ",
+  displayName: "この端末のデータ",
 };
 
 const custom: CustomUser = {

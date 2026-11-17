@@ -35,7 +35,7 @@ test.describe("家事按分 → 締めフローの帳票一貫性", () => {
     await page.getByRole("link", { name: "仕訳" }).click();
     await goToMonth(page, "2026年12月");
     await expect(page.getByText("家事按分の振替").first()).toBeVisible();
-    const transferRow = page.getByRole("button", {
+    const transferRow = page.getByRole("row", {
       name: /家事按分の振替/,
     });
     await expect(transferRow).toContainText("事業主貸");
@@ -93,6 +93,6 @@ test.describe("家事按分 → 締めフローの帳票一貫性", () => {
 async function importEntries(page: Page) {
   await page.getByRole("link", { name: "仕訳" }).click();
   await importEntriesFile(page, "json", FIXTURE);
-  await expect(page.getByText(/取り込みました\(取込 2 件/)).toBeVisible();
+  await expect(page.getByText(/取り込みました \(2 件/)).toBeVisible();
   await closeJournalSheet(page);
 }

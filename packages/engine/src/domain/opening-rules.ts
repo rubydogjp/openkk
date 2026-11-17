@@ -30,7 +30,7 @@ export function assertOpeningMatchesRules(
   assertEntryCollectionItemLimit(
     balanceLines,
     `${label} balance lines`,
-    "期首残高の明細件数が多すぎます",
+    "期首のBSの明細件数が多すぎます",
   );
   assertEntryCollectionItemLimit(
     journals,
@@ -49,7 +49,7 @@ export function assertOpeningMatchesRules(
   assertUniqueStrings(
     balanceLines.map((line) => line.accountId),
     `${label} balance accountId`,
-    "同じ勘定科目の期首残高が重複しています",
+    "期首のBSに同じ勘定科目が重複しています",
   );
   for (const journal of journals) {
     assertOpeningJournal(journal, period, `${label} journal`, options);
@@ -82,7 +82,7 @@ function assertOpeningBalanceAccountId(accountId: string, label: string): void {
   ) {
     throw engineValidationError(
       `${label} must contain an a: or l: prefix and a non-blank account name: ${accountId}`,
-      "期首残高の勘定科目が不正です",
+      "期首のBSの勘定科目が不正です",
     );
   }
 }
@@ -153,14 +153,14 @@ function assertOpeningBalancesBalanced(
     ) {
       throw engineValidationError(
         `${label} totals exceed the safe integer range`,
-        "期首残高の合計金額が大きすぎます",
+        "期首のBSの合計金額が大きすぎます",
       );
     }
   }
   if (assetTotal !== liabilityAndEquityTotal) {
     throw engineValidationError(
       `${label} must balance: assets ${assetTotal}, liabilities and equity ${liabilityAndEquityTotal}`,
-      "期首残高の資産合計と負債・元入金合計を一致させてください",
+      "期首のBSの資産合計と負債・純資産合計を一致させてください",
     );
   }
 }

@@ -48,7 +48,7 @@ describe("NoticeStack", () => {
     });
     board.pin("reminder", {
       tone: "warning",
-      message: "30 日、バックアップしていません",
+      message: "30 日以上バックアップしていません",
       action: { label: "バックアップ", run: () => {} },
       closable: true,
       onClose: null,

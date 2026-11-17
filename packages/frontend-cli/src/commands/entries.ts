@@ -107,7 +107,7 @@ export async function runEntriesCommand(
         return;
       }
       output.line(
-        `${plan.fromLegacyCsv ? "以前の形式の CSV なので、足すだけで" : ""}取り込みました (取込 ${result.imported} 件 / 重複スキップ ${result.skipped} 件)`,
+        `${plan.fromLegacyCsv ? "以前の形式の CSV なので、足すだけで" : ""}取り込みました (${result.imported} 件${result.skipped === 0 ? "" : `。同じ仕訳 ${result.skipped} 件は飛ばしました`})`,
       );
       return;
     }
@@ -240,7 +240,7 @@ async function replaceEntries(
       return;
     }
     output.line(
-      `まだ上書きしていません。CSV で上書きすると (${describeChanges(changes)}) になり、ファイルにない仕訳は消えます。上書きするときは --yes を付けてください`,
+      `まだ上書きしていません。CSV で上書きすると、${describeChanges(changes)} になり、ファイルにない仕訳は消えます。上書きするときは --yes を付けてください`,
     );
     return;
   }
@@ -276,13 +276,13 @@ function reportChanges(
 ): void {
   output.line(
     hasChanges
-      ? `上書きしました (${describeChanges(changes)})`
+      ? `上書きしました。${describeChanges(changes)}`
       : "CSV は今の仕訳と同じです",
   );
 }
 
 function describeChanges(changes: JournalTableChanges): string {
-  return `追加 ${changes.added.length} 件 / 変更 ${changes.changed.length} 件 / 削除 ${changes.removed.length} 件 / そのまま ${changes.unchangedCount} 件`;
+  return `追加 ${changes.added.length} 件・変更 ${changes.changed.length} 件・削除 ${changes.removed.length} 件 (そのまま ${changes.unchangedCount} 件)`;
 }
 
 function formatEntryRow(record: EntryRecord): string {

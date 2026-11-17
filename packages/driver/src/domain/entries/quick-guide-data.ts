@@ -64,25 +64,25 @@ export function guideTitle(page: QuickGuidePage): string {
     case "transfer":
       return "簡単入力ガイド - 資金移動";
     case "salesAccrual":
-      return "ユースケース - 売上の発生";
+      return "売上の発生";
     case "receivableCollection":
-      return "ユースケース - 債権の回収";
+      return "債権の回収";
     case "ownerDeposit":
-      return "ユースケース - 自己資金の入金";
+      return "自己資金の入金";
     case "expensePayable":
-      return "ユースケース - あと払い費用の発生";
+      return "あと払い費用の発生";
     case "expenseImmediateCash":
-      return "ユースケース - 即払い費用の発生";
+      return "即払い費用の発生";
     case "expenseOwnerBorrow":
-      return "ユースケース - 事業主借り費用の発生";
+      return "事業主借り費用の発生";
     case "liabilityRepayment":
-      return "ユースケース - 負債の返済";
+      return "負債の返済";
     case "ownerWithdrawal":
-      return "ユースケース - 自己資金の出金";
+      return "自己資金の出金";
     case "cashToBank":
-      return "ユースケース - 現金を預金へ交換";
+      return "現金を預金へ交換";
     case "bankToCash":
-      return "ユースケース - 預金を現金へ交換";
+      return "預金を現金へ交換";
     case "otherIncoming":
       return "その他の入金";
     case "otherSales":
@@ -92,15 +92,15 @@ export function guideTitle(page: QuickGuidePage): string {
     case "adjustment":
       return "簡単入力ガイド - 決算・その他";
     case "prepaidPayment":
-      return "ユースケース - 1年分などのまとめ払い";
+      return "1年分などのまとめ払い";
     case "prepaidDeferral":
-      return "ユースケース - まとめ払いの来年以降の分";
+      return "まとめ払いの来年以降の分";
     case "borrowing":
-      return "ユースケース - 借入と利息";
+      return "借入と利息";
     case "lending":
-      return "ユースケース - 貸付と利息";
+      return "貸付と利息";
     case "inventory":
-      return "ユースケース - 仕入と在庫 (しーくりくりしー)";
+      return "仕入と在庫 (しーくりくりしー)";
   }
 }
 
@@ -367,14 +367,14 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
     case "transfer":
       return [
         {
-          title: "事業口座から事業財布へ現金を引き出した",
+          title: "事業口座から事業サイフへ現金を引き出した",
           nextPage: "bankToCash",
           subtitle: null,
           template: null,
           close: false,
         },
         {
-          title: "事業財布から事業口座へ現金を預け入れた",
+          title: "事業サイフから事業口座へ現金を預け入れた",
           nextPage: "cashToBank",
           subtitle: null,
           template: null,
@@ -388,7 +388,7 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
           close: false,
         },
         {
-          title: "プライベート資金から事業用口座に入金した",
+          title: "プライベート資金から事業口座に入金した",
           nextPage: "ownerDeposit",
           subtitle: null,
           template: null,

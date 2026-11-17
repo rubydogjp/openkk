@@ -54,7 +54,7 @@ export function AssistPage() {
       </header>
 
       <StepCallout tone="action">
-        仕訳をラクにしよう! ここでは必須ではない補助的な機能を扱います。
+        仕訳をラクにしよう！ここでは必須ではない補助的な機能を扱います。
       </StepCallout>
 
       <div style={{ height: 28 }} />

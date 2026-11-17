@@ -1,6 +1,6 @@
 {
   "name": "オープン会計",
-  "short_name": "オープン会計",
+  "short_name": "オープン会計 デモ",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FFFFFF",

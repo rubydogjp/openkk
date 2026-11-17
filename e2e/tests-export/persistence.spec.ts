@@ -62,7 +62,7 @@ test("keeps a fiscal period and entry in the book across reloads", async ({
   await reloadInApp(page);
   await expect(page.getByText("永続化検証の仕訳")).toBeVisible();
   await page
-    .getByRole("button", { name: /永続化検証の仕訳/ })
+    .getByRole("row", { name: /永続化検証の仕訳/ })
     .first()
     .click();
   const savedEntry = page.getByRole("dialog", { name: "仕訳の編集" });

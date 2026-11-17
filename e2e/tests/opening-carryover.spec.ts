@@ -28,7 +28,7 @@ test.describe("opening carryover (再振替)", () => {
     await addCarryover(page, "編集前の再振替", "20000");
 
     await page
-      .getByRole("button", { name: /編集前の再振替/ })
+      .getByRole("row", { name: /編集前の再振替/ })
       .first()
       .click();
     const drawer = page.getByRole("dialog", { name: "仕訳の編集" });
@@ -48,7 +48,7 @@ test.describe("opening carryover (再振替)", () => {
     await page.getByRole("button", { name: "追加" }).click();
     const createDrawer = page.getByRole("dialog", { name: "仕訳の新規作成" });
     await createDrawer.getByLabel("摘要").fill("複合再振替の往復検証");
-    await createDrawer.getByRole("button", { name: "複合仕訳を追加" }).click();
+    await createDrawer.getByRole("button", { name: "行を追加" }).click();
 
     const createAmountsDebit = createDrawer.getByLabel("借方金額");
     const createAmountsCredit = createDrawer.getByLabel("貸方金額");
@@ -62,7 +62,7 @@ test.describe("opening carryover (再振替)", () => {
     await expect(createDrawer).not.toBeVisible({ timeout: 5_000 });
 
     await page
-      .getByRole("button", { name: /複合再振替の往復検証/ })
+      .getByRole("row", { name: /複合再振替の往復検証/ })
       .first()
       .click();
     const editDrawer = page.getByRole("dialog", { name: "仕訳の編集" });
@@ -83,7 +83,7 @@ test.describe("opening carryover (再振替)", () => {
     await expect(page.getByText("削除対象の再振替")).toBeVisible();
 
     await page
-      .getByRole("button", { name: /削除対象の再振替/ })
+      .getByRole("row", { name: /削除対象の再振替/ })
       .first()
       .click();
     const drawer = page.getByRole("dialog", { name: "仕訳の編集" });

@@ -140,13 +140,13 @@ function assertFixedAssetDisposal(asset: {
   if (status === "sold" && asset.disposalPrice == null) {
     throw engineValidationError(
       "Fixed asset with status sold requires a disposal price",
-      "売却済の固定資産には売却額を入力してください",
+      "売却済みの固定資産には売却額を入力してください",
     );
   }
   if (status !== "sold" && asset.disposalPrice != null) {
     throw engineValidationError(
       `Fixed asset with status ${status} must not have a disposal price`,
-      "売却済以外の固定資産には売却額を設定できません",
+      "売却済み以外の固定資産には売却額を設定できません",
     );
   }
   if (typeof asset.disposalDate !== "string") return;

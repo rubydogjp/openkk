@@ -34,6 +34,7 @@ import {
 } from "@rubydogjp/openkk-driver";
 import {
   EntriesScreen,
+  EntryReadOnlyDrawer,
   VirtualEntryDrawer,
   type EntryFileKind,
 } from "../../entries/entries-ui.js";
@@ -62,13 +63,21 @@ import { useRouter, useSearchParams } from "../../routing/routing.js";
 
 const SAME_AS_STORED_MESSAGE = "今の仕訳と同じです";
 const REMOVES_ENTRIES_NOT_IN_FILE_MESSAGE = "ファイルにない仕訳は消えます。";
+const OVERWRITE_PRIORITY_MESSAGE =
+  "ファイルを優先して、この期間の仕訳を上書きします。";
 
 function changeCountsMessage(changes: JournalTableChanges): string {
   return `追加 ${changes.added.length} 件・変更 ${changes.changed.length} 件・削除 ${changes.removed.length} 件 (そのまま ${changes.unchangedCount} 件)`;
 }
 
 function overwrittenMessage(changes: JournalTableChanges): string {
-  return `上書きしました (追加 ${changes.added.length}・変更 ${changes.changed.length}・削除 ${changes.removed.length})`;
+  return `上書きしました。${changeCountsMessage(changes)}`;
+}
+
+function importedMessage(imported: number, skipped: number): string {
+  return skipped === 0
+    ? `取り込みました (${imported} 件)`
+    : `取り込みました (${imported} 件。同じ仕訳 ${skipped} 件は飛ばしました)`;
 }
 
 export function EntriesPage() {
@@ -215,6 +224,13 @@ export function EntriesPage() {
       ? []
       : tableRows.filter((row) => row.virtual?.id === drawerVirtualEntryId);
   const drawerVirtualEntry = drawerVirtualRows[0] ?? null;
+  const entriesTableRef = useRef<HTMLDivElement>(null);
+  const [tableFocusPending, setTableFocusPending] = useState(false);
+  useEffect(() => {
+    if (!tableFocusPending || drawerEntry != null) return;
+    entriesTableRef.current?.focus();
+    setTableFocusPending(false);
+  }, [tableFocusPending, drawerEntry]);
 
   const navigateWithMonth = useCallback(
     (month: YearMonth) => {
@@ -289,7 +305,9 @@ export function EntriesPage() {
     if (!canImport) {
       notices.show({
         tone: "danger",
-        message: "この期間はロックされており取り込めません",
+        message:
+          importLockedMessage?.description ??
+          openkkConfig.editingPolicy.lockedNotice,
       });
       return;
     }
@@ -323,6 +341,7 @@ export function EntriesPage() {
           tone: "danger",
           title: "CSV で上書きしますか？",
           body: [
+            OVERWRITE_PRIORITY_MESSAGE,
             changeCountsMessage(changes),
             ...(changes.removed.length > 0
               ? [REMOVES_ENTRIES_NOT_IN_FILE_MESSAGE]
@@ -342,7 +361,7 @@ export function EntriesPage() {
         throw new AppError({
           messageForDeveloper: "entries: fiscal period changed during import",
           messageForUser:
-            "取込中に会計期間が切り替わったため、データは保存しませんでした",
+            "取り込み中に会計期間が切り替わったため、データは保存しませんでした",
           originalMessage: null,
           statusCode: null,
           code: null,
@@ -355,7 +374,7 @@ export function EntriesPage() {
       if (selectedFiscalPeriodId.current !== fiscalPeriodId) return;
       notices.show({
         tone: "success",
-        message: `${legacyCsv ? "以前の形式の CSV なので、足すだけで" : ""}取り込みました(取込 ${result.imported} 件 / 重複スキップ ${result.skipped} 件)`,
+        message: `${legacyCsv ? "以前の形式の CSV なので、足すだけで" : ""}${importedMessage(result.imported, result.skipped)}`,
       });
     } catch (error) {
       notices.show({
@@ -416,7 +435,10 @@ export function EntriesPage() {
         ? "application/json;charset=utf-8"
         : "text/csv;charset=utf-8",
     );
-    notices.show({ tone: "success", message: `${filename} を出力しました` });
+    notices.show({
+      tone: "success",
+      message: `${filename} をダウンロードしました`,
+    });
   };
 
   const switchView = (sheet: boolean) => {
@@ -453,14 +475,13 @@ export function EntriesPage() {
           onImportFile={canImport && !isImporting ? handleImportFile : null}
           onExport={fiscalPeriodId != null ? handleExport : null}
           onOpenRow={
-            lockedMessage == null && !isReadOnlyPeriod && !editingLocked
-              ? (row) => openDrawer(row.entryKey)
-              : null
+            lockedMessage == null ? (row) => openDrawer(row.entryKey) : null
           }
         />
       ) : (
         <EntriesScreen
           onOpenSheet={() => switchView(true)}
+          tableRef={entriesTableRef}
           monthLabel={`${displayedMonth.year}年${displayedMonth.month}月`}
           rows={tableRows}
           canGoPrevious={canGoPrevious}
@@ -494,14 +515,13 @@ export function EntriesPage() {
               : null
           }
           onOpenEntry={
-            lockedMessage == null && !editingLocked
+            lockedMessage == null
               ? (row) => {
                   if (row.virtual != null) {
                     setNewEntryDraft(null);
                     navigateWithDrawerParam("virtualEntry", row.virtual.id);
                     return;
                   }
-                  if (isReadOnlyPeriod) return;
                   openDrawer(row.recordId);
                 }
               : null
@@ -543,6 +563,7 @@ export function EntriesPage() {
           onDelete={async () => {
             const ok = await entriesState.deleteEntry(drawerEntry.id);
             if (ok) {
+              setTableFocusPending(true);
               closeDrawer();
             } else {
               throw new AppError({
@@ -580,6 +601,19 @@ export function EntriesPage() {
             }
           }}
           onDelete={null}
+        />
+      ) : null}
+      {drawerEntry != null &&
+      newEntryDraft == null &&
+      lockedMessage == null &&
+      (isReadOnlyPeriod || editingLocked) ? (
+        <EntryReadOnlyDrawer
+          key={`view:${drawerEntry.id}`}
+          lines={buildJournalTableEntryRows(
+            [drawerEntry],
+            entriesState.journalTableMaster,
+          ).map(({ row }) => row)}
+          onClose={closeDrawer}
         />
       ) : null}
       {drawerVirtualEntry != null && lockedMessage == null ? (

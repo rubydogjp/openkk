@@ -248,7 +248,7 @@ export function createOpenkkEntriesStore(dependencies: {
       const lines = entryLinesToInputs(draft.lines, master, {
         messageForDeveloper:
           "entries.createEntryFromDraft: bookAccountId resolution failed",
-        messageForUser: "勘定科目の解決に失敗したため作成できませんでした",
+        messageForUser: "勘定科目が見つからないため作成できませんでした",
       });
       try {
         const created = await backend.entries.create(fiscalPeriodId, {
@@ -275,7 +275,7 @@ export function createOpenkkEntriesStore(dependencies: {
       const lines = entryLinesToInputs(draft.lines, master, {
         messageForDeveloper:
           "entries.saveEntry: bookAccountId resolution failed",
-        messageForUser: "勘定科目の解決に失敗したため保存できませんでした",
+        messageForUser: "勘定科目が見つからないため保存できませんでした",
       });
       return await entryMutationQueue.run(entryId, async () => {
         appState().assertAuthOperationCurrent(authOperationVersion);

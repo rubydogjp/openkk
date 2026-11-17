@@ -96,12 +96,19 @@ describe("reviewBookImport", () => {
         "期間が重なる会計期間 (2026年分) があるため、「2026年度」を取り込めません。",
     });
   });
+
+  it("leaves out the name of an overlapping period it does not know", () => {
+    expect(reviewBookImport([item("overlapping", "2026年度", null)])).toEqual({
+      kind: "blocked",
+      message: "期間が重なる会計期間があるため、「2026年度」を取り込めません。",
+    });
+  });
 });
 
 describe("bookFileProblemMessage", () => {
   it("explains each problem and leaves other errors alone", () => {
     expect(bookFileProblemMessage(new OpenkkBookFileError("not_a_book"))).toBe(
-      "このファイルはオープン会計の帳簿ではありません。",
+      "このファイルはオープン会計の帳簿ではありません。「バックアップ」でダウンロードした .openkk のファイルを選んでください。",
     );
     expect(
       bookFileProblemMessage(new OpenkkBookFileError("newer_version")),

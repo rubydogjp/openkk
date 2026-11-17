@@ -48,7 +48,7 @@
 
 ## 変数一覧
 
-全 131 個。
+全 133 個。
 
 ### 色 (palette)
 
@@ -64,6 +64,7 @@
 | `--openkk-color-border-strong`        | `palette.borderStrong`       | `#CBD5E1` |
 | `--openkk-color-border-emphasis`      | `palette.borderEmphasis`     | `#94A3B8` |
 | `--openkk-color-border-heavy`         | `palette.borderHeavy`        | `#94A3B8` |
+| `--openkk-color-border-input`         | `palette.borderInput`        | `#8492A6` |
 | `--openkk-color-form-group-bg`        | `palette.formGroupBg`        | `#F6F9FC` |
 | `--openkk-color-hover-subtle`         | `palette.hoverSubtle`        | `#F6F9FC` |
 | `--openkk-color-hover-strong`         | `palette.hoverStrong`        | `#E2E8F0` |
@@ -80,6 +81,7 @@
 | `--openkk-color-success-bg`           | `palette.successBg`          | `#ECFDF3` |
 | `--openkk-color-success-border`       | `palette.successBorder`      | `#86EFAC` |
 | `--openkk-color-warning`              | `palette.warning`            | `#D97706` |
+| `--openkk-color-warning-text`         | `palette.warningText`        | `#B45309` |
 | `--openkk-color-warning-bg`           | `palette.warningBg`          | `#FFFBEB` |
 | `--openkk-color-warning-border`       | `palette.warningBorder`      | `#FDE68A` |
 | `--openkk-color-danger`               | `palette.danger`             | `#DC2626` |

@@ -20,8 +20,8 @@ export type StatusChipTone = "brand" | "success" | "muted" | "warning";
 const STATUS_TONE_MAP: Record<StatusChipTone, { bg: string; fg: string }> = {
   brand: { bg: palette.brandTint, fg: palette.brand },
   success: { bg: "#DCFCE7", fg: palette.success },
-  muted: { bg: palette.formGroupBg, fg: palette.textMuted },
-  warning: { bg: palette.warningBg, fg: palette.warning },
+  muted: { bg: palette.formGroupBg, fg: palette.textLabel },
+  warning: { bg: palette.warningBg, fg: palette.warningText },
 };
 
 export function StatusChip({
@@ -329,7 +329,7 @@ export function StepFormRow({
             <div
               style={{
                 fontSize: fontSize.sm,
-                color: palette.textMuted,
+                color: palette.textLabel,
                 lineHeight: 1.6,
                 fontWeight: fontWeight.regular,
                 paddingTop: 2,
@@ -350,12 +350,14 @@ export function StepPrimaryButton({
   disabled,
   variant,
   icon,
+  describedBy,
 }: {
   onClick: () => void;
   children: ReactNode;
   disabled: boolean;
   variant: "success" | null;
   icon: ReactNode | null;
+  describedBy: string | null;
 }) {
   const background = variant === "success" ? palette.success : palette.brand;
   const shadow =
@@ -367,6 +369,7 @@ export function StepPrimaryButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-describedby={describedBy ?? undefined}
       style={{
         height: sizes.button.compactHeight,
         minWidth:

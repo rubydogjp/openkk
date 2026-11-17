@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, RefObject } from "react";
 
 import {
   formatBusinessRatePercent,
@@ -31,7 +31,7 @@ const entryColors = {
   rowText: palette.textSoft,
   text: palette.text,
   softText: palette.textLabel,
-  muted: palette.textMuted,
+  muted: palette.textLabel,
   tagBorder: palette.borderSubtle,
 };
 
@@ -43,8 +43,8 @@ const entryColumns = [
   ["貸方金額", "98px"],
   ["摘要", "200px"],
   ["取引先", "168px"],
-  ["事業割合%", "96px"],
-  ["課税区分", "128px"],
+  ["事業割合 (%)", "96px"],
+  ["税区分", "128px"],
   ["事業区分", "128px"],
 ] as const;
 
@@ -56,7 +56,7 @@ export function EntriesTable(props: {
   rows: EntryPreviewRow[];
   onOpenEntry: ((row: EntryPreviewRow, index: number) => void) | null;
   onAddEntry: (() => void) | null;
-  readOnly: boolean;
+  tableRef: RefObject<HTMLDivElement | null> | null;
   activeRecordId: string | null;
   fillHeight: boolean;
   headerTone: "warning" | null;
@@ -65,8 +65,11 @@ export function EntriesTable(props: {
   const isEmpty = props.rows.length === 0;
   const { fillHeight } = props;
   const activeRecordId = props.activeRecordId;
-  const isReadOnly = props.readOnly;
   const headerTone = resolveEntriesHeaderTone(props.headerTone);
+  const recordHeads = new Map<string, EntryPreviewRow>();
+  for (const row of props.rows) {
+    if (!recordHeads.has(row.recordId)) recordHeads.set(row.recordId, row);
+  }
   return (
     <div
       style={{
@@ -111,6 +114,11 @@ export function EntriesTable(props: {
         }}
       >
         <div
+          ref={props.tableRef}
+          role="table"
+          tabIndex={-1}
+          aria-label="仕訳"
+          aria-rowcount={props.rows.length + 1}
           style={{
             minWidth: entriesTableMinimumWidth,
             display: "flex",
@@ -119,6 +127,7 @@ export function EntriesTable(props: {
           }}
         >
           <div
+            role="row"
             style={{
               position: "sticky",
               top: 0,
@@ -134,6 +143,7 @@ export function EntriesTable(props: {
             {entryColumns.map(([label], index) => (
               <div
                 key={`${label}-${index}`}
+                role="columnheader"
                 style={{
                   padding: "0 12px",
                   fontSize: fontSize.xs,
@@ -151,14 +161,16 @@ export function EntriesTable(props: {
             <>
               {props.rows.map((row, index) => {
                 const isVirtual = row.virtual != null;
-                const rowClickable =
-                  onOpen != null && (!isReadOnly || isVirtual);
+                const rowClickable = onOpen != null;
                 const isRecordHead =
                   row.isFirstOfRecord ||
                   row.recordId !== props.rows[index - 1]?.recordId;
                 const isRepeat = !isRecordHead;
                 const isActive =
                   activeRecordId != null && row.recordId === activeRecordId;
+                const head = isRepeat
+                  ? (recordHeads.get(row.recordId) ?? row)
+                  : row;
                 return (
                   <div
                     key={`${row.recordId}-${index}`}
@@ -176,7 +188,8 @@ export function EntriesTable(props: {
                           }
                         : undefined
                     }
-                    role={rowClickable ? "button" : undefined}
+                    role="row"
+                    aria-current={isActive ? "true" : undefined}
                     tabIndex={rowClickable ? 0 : undefined}
                     style={{
                       display: "grid",
@@ -193,78 +206,124 @@ export function EntriesTable(props: {
                         : undefined,
                     }}
                   >
-                    {isRepeat ? (
-                      <RepeatPlaceholderCell align={null} />
-                    ) : row.virtual != null ? (
-                      <VirtualEntryDateCell label={row.virtual.label} />
-                    ) : (
-                      <EntryDateVisual
-                        dayText={String(Number(row.date.slice(-2)))}
-                        weekday={row.weekday}
-                      />
-                    )}
-                    {row.debit.trim() !== "" ? (
-                      <AccountChipCell label={row.debit} type={row.debitType} />
-                    ) : (
-                      <EmptyLineCell align={null} />
-                    )}
-                    {row.debitAmount.trim() !== "" ? (
-                      <TableAmountCell>{row.debitAmount}</TableAmountCell>
-                    ) : (
-                      <EmptyLineCell align="right" />
-                    )}
-                    {row.credit.trim() !== "" ? (
-                      <AccountChipCell
-                        label={row.credit}
-                        type={row.creditType}
-                      />
-                    ) : (
-                      <EmptyLineCell align={null} />
-                    )}
-                    {row.creditAmount.trim() !== "" ? (
-                      <TableAmountCell>{row.creditAmount}</TableAmountCell>
-                    ) : (
-                      <EmptyLineCell align="right" />
-                    )}
-                    {isRepeat ? (
-                      <RepeatPlaceholderCell align="left" />
-                    ) : (
-                      <div
-                        style={{
-                          padding: "0 12px",
-                          fontSize: fontSize.base,
-                          color: entryColors.rowText,
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {row.description}
-                      </div>
-                    )}
-                    {isRepeat ? (
-                      <RepeatPlaceholderCell align={null} />
-                    ) : (
-                      <TableTagCell text={row.partner} align={null} />
-                    )}
-                    {isRepeat ? (
-                      <RepeatPlaceholderCell align="right" />
-                    ) : (
-                      <TableTagCell
-                        text={formatBusinessRatePercent(row.businessRate)}
-                        align="right"
-                      />
-                    )}
-                    {isRepeat ? (
-                      <RepeatPlaceholderCell align={null} />
-                    ) : (
-                      <TableTagCell text={row.taxCategory} align={null} />
-                    )}
-                    {isRepeat ? (
-                      <RepeatPlaceholderCell align={null} />
-                    ) : (
-                      <TableTagCell text={row.businessCategory} align={null} />
-                    )}
+                    <TableCell>
+                      {isRepeat ? (
+                        <RepeatPlaceholderCell
+                          align={null}
+                          spoken={spokenEntryDate(head)}
+                        />
+                      ) : row.virtual != null ? (
+                        <VirtualEntryDateCell label={row.virtual.label} />
+                      ) : (
+                        <EntryDateVisual
+                          dayText={String(Number(row.date.slice(-2)))}
+                          weekday={row.weekday}
+                        />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {row.debit.trim() !== "" ? (
+                        <AccountChipCell
+                          label={row.debit}
+                          type={row.debitType}
+                        />
+                      ) : (
+                        <EmptyLineCell align={null} />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {row.debitAmount.trim() !== "" ? (
+                        <TableAmountCell>{row.debitAmount}</TableAmountCell>
+                      ) : (
+                        <EmptyLineCell align="right" />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {row.credit.trim() !== "" ? (
+                        <AccountChipCell
+                          label={row.credit}
+                          type={row.creditType}
+                        />
+                      ) : (
+                        <EmptyLineCell align={null} />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {row.creditAmount.trim() !== "" ? (
+                        <TableAmountCell>{row.creditAmount}</TableAmountCell>
+                      ) : (
+                        <EmptyLineCell align="right" />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {isRepeat ? (
+                        <RepeatPlaceholderCell
+                          align="left"
+                          spoken={spokenText(head.description)}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            padding: "0 12px",
+                            fontSize: fontSize.base,
+                            color: entryColors.rowText,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {row.description}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {isRepeat ? (
+                        <RepeatPlaceholderCell
+                          align={null}
+                          spoken={spokenText(head.partner)}
+                        />
+                      ) : (
+                        <TableTagCell text={row.partner} align={null} />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {isRepeat ? (
+                        <RepeatPlaceholderCell
+                          align="right"
+                          spoken={spokenText(
+                            formatBusinessRatePercent(head.businessRate),
+                          )}
+                        />
+                      ) : (
+                        <TableTagCell
+                          text={formatBusinessRatePercent(row.businessRate)}
+                          align="right"
+                        />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {isRepeat ? (
+                        <RepeatPlaceholderCell
+                          align={null}
+                          spoken={spokenText(head.taxCategory)}
+                        />
+                      ) : (
+                        <TableTagCell text={row.taxCategory} align={null} />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {isRepeat ? (
+                        <RepeatPlaceholderCell
+                          align={null}
+                          spoken={spokenText(head.businessCategory)}
+                        />
+                      ) : (
+                        <TableTagCell
+                          text={row.businessCategory}
+                          align={null}
+                        />
+                      )}
+                    </TableCell>
                   </div>
                 );
               })}
@@ -346,7 +405,7 @@ function EntriesEmptyState(props: { onAddEntry: (() => void) | null }) {
             color: entryColors.text,
           }}
         >
-          まだ取引がありません
+          この月の仕訳はまだありません
         </div>
         {props.onAddEntry != null ? (
           <button
@@ -405,7 +464,32 @@ function EmptyTableIcon() {
   );
 }
 
-function RepeatPlaceholderCell({ align }: { align: "left" | "right" | null }) {
+function TableCell({ children }: { children: ReactNode }) {
+  return (
+    <div role="cell" style={{ minWidth: 0 }}>
+      {children}
+    </div>
+  );
+}
+
+const EMPTY_SPOKEN_VALUE = "なし";
+
+function spokenText(value: string): string {
+  return value.trim() === "" ? EMPTY_SPOKEN_VALUE : value;
+}
+
+function spokenEntryDate(row: EntryPreviewRow): string {
+  if (row.virtual != null) return row.virtual.label;
+  return `${Number(row.date.slice(-2))}日 (${row.weekday})`;
+}
+
+function RepeatPlaceholderCell({
+  align,
+  spoken,
+}: {
+  align: "left" | "right" | null;
+  spoken: string;
+}) {
   return (
     <div
       style={{
@@ -415,7 +499,8 @@ function RepeatPlaceholderCell({ align }: { align: "left" | "right" | null }) {
         textAlign: align ?? "center",
       }}
     >
-      〃
+      <span aria-hidden>〃</span>
+      <span className="bk-visually-hidden">{spoken}</span>
     </div>
   );
 }

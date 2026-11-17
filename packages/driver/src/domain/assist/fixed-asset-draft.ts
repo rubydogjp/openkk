@@ -94,7 +94,7 @@ export function validateFixedAssetDraft(input: {
     !Number.isSafeInteger(acquisitionCost) ||
     acquisitionCost <= 0
   ) {
-    return "取得価額は安全に計算できる正の整数で入力してください";
+    return "取得価額は 1 以上、9,000 兆円未満の整数で入力してください";
   }
   if (
     !Number.isSafeInteger(draft.usefulLife) ||
@@ -129,7 +129,7 @@ export function validateFixedAssetDraft(input: {
   if (draft.status === "sold") {
     const disposalPriceText = draft.disposalPrice;
     if (disposalPriceText == null || disposalPriceText.trim() === "") {
-      return "売却額は安全に計算できる0以上の整数で入力してください";
+      return "売却額は 0 以上、9,000 兆円未満の整数で入力してください";
     }
     const disposalPrice = parseAmount(disposalPriceText);
     if (
@@ -137,7 +137,7 @@ export function validateFixedAssetDraft(input: {
       !Number.isSafeInteger(disposalPrice) ||
       disposalPrice < 0
     ) {
-      return "売却額は安全に計算できる0以上の整数で入力してください";
+      return "売却額は 0 以上、9,000 兆円未満の整数で入力してください";
     }
   }
   if (draft.status === "retired" && input.currentBookValue > 1) {

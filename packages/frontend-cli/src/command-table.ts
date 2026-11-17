@@ -72,7 +72,7 @@ export const CLI_COMMAND_USAGE = `コマンド:
                                          次の期間を新しい帳簿ファイルに作る
                                          (元の期間が本締めと書類の受け取りを終えていれば引き継ぐ)
   periods export <id> [--out <file.openkk>]
-                                         会計期間を 1 冊の帳簿ファイルに書き出す (中身はその期間だけ)
+                                         会計期間を 1 冊の帳簿ファイルにバックアップする (中身はその期間だけ)
   opening show <期間id>                  期首のBS
   opening set <期間id> <科目>=<金額> ...  期首のBSを保存する (例: 現金=100000 元入金=100000)
   opening carry <期間id> --from <file.openkk> [--from-period <id>] [--items bs,fixed-assets] [--yes]

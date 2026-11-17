@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  fontSize,
-  fontWeight,
-  palette,
-  rings,
-} from "../shared/design-tokens.js";
+import { fontSize, fontWeight, palette } from "../shared/design-tokens.js";
 
 export function CarryCheckboxItem({
   inputId,
@@ -55,7 +50,7 @@ export function CarryCheckboxItem({
           borderRadius: 5,
           border: checked
             ? `1px solid ${palette.brand}`
-            : `1.5px solid ${palette.borderStrong}`,
+            : `1.5px solid ${palette.borderInput}`,
           background: checked ? palette.brand : palette.surface,
           flexShrink: 0,
           transition: "background 100ms ease, border-color 100ms ease",
@@ -100,7 +95,8 @@ const checkboxStyles = `
     border: 0;
   }
   .bk-checkbox-input:focus-visible + .bk-checkbox-visual {
-    box-shadow: ${rings.brandFocus};
+    outline: 2px solid ${palette.action};
+    outline-offset: 2px;
   }
 `;
 

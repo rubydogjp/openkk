@@ -101,7 +101,7 @@ export function ShellAccountMenu(props: {
         <>
           <button
             type="button"
-            aria-label="アカウントメニュー"
+            aria-label={`${displayName} アカウントメニュー`}
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             className="bk-user-trigger"

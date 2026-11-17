@@ -207,6 +207,7 @@ export function FixedAssetEditDrawer({
               readOnly={false}
               width={null}
               placeholder={null}
+              ariaLabel={null}
             />
           </Field>
           <Field label="勘定科目">
@@ -216,6 +217,7 @@ export function FixedAssetEditDrawer({
               readOnly={false}
               width={null}
               placeholder={null}
+              ariaLabel={null}
             />
           </Field>
           <Field label="取得日">
@@ -243,7 +245,7 @@ export function FixedAssetEditDrawer({
               onChange={(value) => setDraft({ ...draft, usefulLife: value })}
             />
           </Field>
-          <Field label="事業割合 (0-100%)">
+          <Field label="事業割合 (%)">
             <BusinessRateField
               value={draft.businessRatePercent}
               onChange={(value) =>
@@ -352,6 +354,7 @@ export function FixedAssetEditDrawer({
               キャンセル
             </FormSecondaryButton>
             <FormPrimaryButton
+              describedBy={null}
               onClick={handleSave}
               disabled={saving || deleting}
             >
@@ -398,7 +401,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 const controlStyle = {
   height: sizes.field.height,
   boxSizing: "border-box" as const,
-  border: `1px solid ${palette.borderStrong}`,
+  border: `1px solid ${palette.borderInput}`,
   borderRadius: radii.sm,
   background: palette.surface,
   padding: `0 ${sizes.field.paddingX}`,
@@ -477,7 +480,7 @@ function BusinessRateField({
         value={percent}
         onChange={(event) => onChange(Number(event.target.value))}
       />
-      <div style={{ fontSize: fontSize.sm, color: palette.textMuted }}>
+      <div style={{ fontSize: fontSize.sm, color: palette.textLabel }}>
         {percent}%
       </div>
     </div>
@@ -515,12 +518,12 @@ function DepreciationPreview({
           color: palette.textLabel,
         }}
       >
-        償却の自動計算（定額法）
+        償却の自動計算 (定額法)
       </div>
       <PreviewRow label="償却期間" value={period || "—"} />
       <PreviewRow
         label="進捗"
-        value={`${Math.round(progress * 100)}%（${remaining}）`}
+        value={`${Math.round(progress * 100)}% (${remaining})`}
       />
       <PreviewRow
         label="現在簿価"
@@ -537,7 +540,7 @@ function DepreciationPreview({
 function PreviewRow({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-      <span style={{ fontSize: fontSize.sm, color: palette.textMuted }}>
+      <span style={{ fontSize: fontSize.sm, color: palette.textLabel }}>
         {label}
       </span>
       <span

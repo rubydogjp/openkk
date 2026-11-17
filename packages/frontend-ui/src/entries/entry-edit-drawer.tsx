@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 
 import { StepFormRow } from "../steps/step-ui.js";
 import { AmountInput } from "../shared/amount-field.js";
@@ -167,6 +167,14 @@ export function EntryEditDrawer(props: {
     }));
   };
 
+  const guideTriggerRef = useRef<HTMLButtonElement>(null);
+  const guideWasOpenRef = useRef(false);
+  const guideOpen = guideStack.length > 0;
+  useEffect(() => {
+    if (guideWasOpenRef.current && !guideOpen) guideTriggerRef.current?.focus();
+    guideWasOpenRef.current = guideOpen;
+  }, [guideOpen]);
+
   const openGuide = () => setGuideStack(["top"]);
   const closeGuide = () => setGuideStack([]);
   const pushGuide = (next: QuickGuidePage) =>
@@ -184,9 +192,9 @@ export function EntryEditDrawer(props: {
     const credit = findAccountByName(template.creditAccountName);
     if (debit == null || credit == null) {
       setErrorText(
-        `勘定科目が見つかりません: ${
+        `勘定科目「${
           debit == null ? template.debitAccountName : template.creditAccountName
-        }`,
+        }」が見つかりません`,
       );
       return;
     }
@@ -385,7 +393,7 @@ export function EntryEditDrawer(props: {
           .bk-drawer-input { box-shadow: ${shadows.inputInset}; }
           .bk-drawer-input:focus {
             border-color: ${entryDrawerColors.blue} !important;
-            box-shadow: ${rings.brandFocus}, ${shadows.inputInset};
+            box-shadow: 0 0 0 1px ${entryDrawerColors.blue}, ${rings.brandFocus}, ${shadows.inputInset};
           }
           .bk-drawer-menu-item { transition: background 80ms ease; }
           .bk-drawer-menu-item:hover { background: #F1F5F9; }
@@ -416,6 +424,7 @@ export function EntryEditDrawer(props: {
           <button
             type="button"
             aria-label="閉じる"
+            className="bk-phone-tap-target"
             onClick={requestClose}
             disabled={saving || deleting}
             style={{
@@ -460,7 +469,10 @@ export function EntryEditDrawer(props: {
           ) : (
             <>
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                <QuickGuideTriggerButton onClick={openGuide} />
+                <QuickGuideTriggerButton
+                  onClick={openGuide}
+                  buttonRef={guideTriggerRef}
+                />
               </div>
 
               <StepFormRow
@@ -508,6 +520,7 @@ export function EntryEditDrawer(props: {
                         <StackedField label="借方科目">
                           <AccountPicker
                             ariaLabel="借方科目"
+                            popupAlign="left"
                             selectedId={row.debitAccountId}
                             value={row.debitAccountName}
                             accountType={row.debitAccountType}
@@ -524,6 +537,7 @@ export function EntryEditDrawer(props: {
                         <StackedField label="貸方科目">
                           <AccountPicker
                             ariaLabel="貸方科目"
+                            popupAlign="right"
                             selectedId={row.creditAccountId}
                             value={row.creditAccountName}
                             accountType={row.creditAccountType}
@@ -586,8 +600,8 @@ export function EntryEditDrawer(props: {
                 >
                   <ActionRowButton
                     variant="add"
-                    ariaLabel="複合仕訳を追加"
-                    label="複合仕訳を追加"
+                    ariaLabel="行を追加"
+                    label="行を追加"
                     enabled={draft.pairs.length < MAX_ENTRY_LINES / 2}
                     onClick={addRow}
                   />
@@ -650,7 +664,7 @@ export function EntryEditDrawer(props: {
                 divider={false}
               />
               <StepFormRow
-                label="課税区分"
+                label="税区分"
                 control={
                   <div style={{ width: 120 }}>
                     <SuggestionInput
@@ -660,7 +674,7 @@ export function EntryEditDrawer(props: {
                         props.taxCategoryOptions.map((option) => option.name),
                         props.suggestions.taxCategory,
                       )}
-                      ariaLabel="課税区分"
+                      ariaLabel="税区分"
                       placeholder="未選択"
                       align="left"
                       inputMode={null}

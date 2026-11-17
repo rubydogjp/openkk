@@ -28,6 +28,12 @@ export function formatDateButtonLabel(isoDate: string): string {
   return `${isoDate.replaceAll("-", "/")} (${weekdayJa(isoDate)})`;
 }
 
+export function formatSpokenDate(isoDate: string): string {
+  const date = parseIsoLocalDate(isoDate);
+  if (date == null) return "未選択";
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 (${weekdayJa(isoDate)})`;
+}
+
 export function DatePickerButton(props: {
   value: string;
   onChange: (value: string) => void;
@@ -43,7 +49,11 @@ export function DatePickerButton(props: {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label={props.ariaLabel ?? undefined}
+        aria-label={
+          props.ariaLabel == null
+            ? undefined
+            : `${props.ariaLabel} ${formatSpokenDate(props.value)}`
+        }
         style={{
           height: sizes.field.height,
           padding: `0 ${sizes.field.paddingX}`,
@@ -293,7 +303,7 @@ function DatePickerDialog(props: {
                   textAlign: "center",
                   fontSize: fontSize.xs,
                   fontWeight: fontWeight.bold,
-                  color: palette.textMuted,
+                  color: palette.textLabel,
                   padding: "4px 0",
                 }}
               >
@@ -321,6 +331,8 @@ function DatePickerDialog(props: {
                   type="button"
                   onClick={() => setSelected(candidate)}
                   disabled={!allowed}
+                  aria-label={`${viewMonth + 1}月${day}日`}
+                  aria-pressed={selectedDay}
                   style={{
                     aspectRatio: "1",
                     borderRadius: 999,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import {
   AppError,
@@ -71,6 +71,7 @@ export function FiscalPeriodSettingsBody({
       appState.fiscalPeriods,
       currentFiscalPeriod.id,
     );
+  const periodProblemId = useId();
   const canSave =
     currentFiscalPeriod != null &&
     currentFiscalPeriod.phase === "pre_opening" &&
@@ -110,7 +111,7 @@ export function FiscalPeriodSettingsBody({
       title: "期間を開始",
       body: [
         "開始すると、期間や一部のデータは変更できなくなります。",
-        "内容に間違いがないことを確認した上で開始してください。",
+        "内容に間違いがないことを確認したうえで開始してください。",
       ],
       confirmLabel: "開始する",
     });
@@ -191,6 +192,7 @@ export function FiscalPeriodSettingsBody({
               readOnly={isReadOnly}
               width={280}
               placeholder="例: 2026年分"
+              ariaLabel="期間の名称"
             />
           }
           hint={null}
@@ -209,10 +211,12 @@ export function FiscalPeriodSettingsBody({
                 readOnly={isReadOnly}
               />
               {!dateValidation.ok && !isReadOnly ? (
-                <FormErrorText>{dateValidation.message}</FormErrorText>
+                <FormErrorText id={periodProblemId}>
+                  {dateValidation.message}
+                </FormErrorText>
               ) : hasOverlap && !isReadOnly ? (
-                <FormErrorText>
-                  既存の有効な会計期間と日付が重複しています。
+                <FormErrorText id={periodProblemId}>
+                  ほかの会計期間と日付が重なっています。
                 </FormErrorText>
               ) : null}
             </>
@@ -240,6 +244,7 @@ export function FiscalPeriodSettingsBody({
           }}
         >
           <StepPrimaryButton
+            describedBy={null}
             onClick={() => onSwitchToStep(2)}
             disabled={false}
             variant={null}
@@ -261,6 +266,7 @@ export function FiscalPeriodSettingsBody({
             {isDiscarding ? "削除中…" : "この期間を削除"}
           </StepSecondaryButton>
           <StepPrimaryButton
+            describedBy={canSave ? null : periodProblemId}
             onClick={handleStart}
             disabled={!canSave}
             variant="success"

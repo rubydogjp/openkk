@@ -155,7 +155,9 @@ export async function runPeriodsCommand(
           output.json({ file: bookPath, fiscalPeriod: copied });
           return;
         }
-        output.line(`書き出しました: ${bookPath}  ${formatPeriodRow(copied)}`);
+        output.line(
+          `バックアップしました: ${bookPath}  ${formatPeriodRow(copied)}`,
+        );
       });
       return;
     }
