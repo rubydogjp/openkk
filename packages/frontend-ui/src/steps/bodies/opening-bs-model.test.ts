@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildInitialAmounts,
   buildLiabilityLabels,
+  enteredOpeningLines,
   parseOpeningAmount,
   sumOpeningAmounts,
   unrenderedOpeningLines,
@@ -74,6 +75,68 @@ describe("buildInitialAmounts", () => {
         [],
       ),
     ).toEqual([]);
+  });
+});
+
+describe("enteredOpeningLines", () => {
+  const ASSET_ROWS = ["現金", "その他の預金", "棚卸資産"];
+
+  it("keeps the account a row was stored with when it is saved again", () => {
+    expect(
+      enteredOpeningLines(
+        "asset",
+        ASSET_ROWS,
+        { "a:その他の預金": "700", "a:棚卸資産": "30" },
+        [
+          { accountId: "a:普通預金", amount: 1000 },
+          { accountId: "a:商品", amount: 30 },
+        ],
+      ),
+    ).toEqual([
+      { id: "a:普通預金", accountId: "a:普通預金", amount: 700 },
+      { id: "a:商品", accountId: "a:商品", amount: 30 },
+    ]);
+  });
+
+  it("uses the row name for a row that had nothing stored", () => {
+    expect(
+      enteredOpeningLines("asset", ASSET_ROWS, { "a:その他の預金": "500" }, []),
+    ).toEqual([
+      { id: "a:その他の預金", accountId: "a:その他の預金", amount: 500 },
+    ]);
+  });
+
+  it("keeps every stored account of a row whose total did not change", () => {
+    const stored = [
+      { accountId: "a:普通預金", amount: 100 },
+      { accountId: "a:その他の預金", amount: 20 },
+    ];
+    expect(
+      enteredOpeningLines(
+        "asset",
+        ASSET_ROWS,
+        { "a:その他の預金": "120" },
+        stored,
+      ),
+    ).toEqual(stored.map((line) => ({ id: line.accountId, ...line })));
+    expect(
+      enteredOpeningLines(
+        "asset",
+        ASSET_ROWS,
+        { "a:その他の預金": "150" },
+        stored,
+      ),
+    ).toEqual([{ id: "a:普通預金", accountId: "a:普通預金", amount: 150 }]);
+  });
+
+  it("does not move a liability stored under an account of the same name on the asset side", () => {
+    expect(
+      enteredOpeningLines("asset", ASSET_ROWS, { "a:その他の預金": "80" }, [
+        { accountId: "l:普通預金", amount: 30 },
+      ]),
+    ).toEqual([
+      { id: "a:その他の預金", accountId: "a:その他の預金", amount: 80 },
+    ]);
   });
 });
 

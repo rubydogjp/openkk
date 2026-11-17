@@ -37,6 +37,7 @@ import {
   assetKey,
   buildAssetLabels,
   buildInitialAmounts,
+  enteredOpeningLines,
   buildLiabilityLabels,
   liabilityAccountType,
   liabilityKey,
@@ -140,17 +141,19 @@ export function OpeningBsBody({
     if (release == null) return;
     setIsSaving(true);
     try {
-      const enteredLines = (labels: string[], key: (label: string) => string) =>
-        labels.flatMap((label) => {
-          if (label === "") return [];
-          const accountId = key(label);
-          const amount = parseOpeningAmount(amounts[accountId] ?? "") ?? 0;
-          if (amount <= 0) return [];
-          return [{ id: accountId, accountId, amount }];
-        });
       const lines = [
-        ...enteredLines(assetLabels, assetKey),
-        ...enteredLines(liabilityLabels, liabilityKey),
+        ...enteredOpeningLines(
+          "asset",
+          assetLabels,
+          amounts,
+          openingBalanceLines,
+        ),
+        ...enteredOpeningLines(
+          "liability",
+          liabilityLabels,
+          amounts,
+          openingBalanceLines,
+        ),
         ...preservedUnrenderedLines,
       ];
       const updated = await appState.updateFiscalPeriod(

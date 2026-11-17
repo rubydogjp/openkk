@@ -80,6 +80,38 @@ export function buildInitialAmounts(
   );
 }
 
+export function enteredOpeningLines(
+  side: BalanceSheetSide,
+  labels: string[],
+  amounts: Record<string, string>,
+  storedLines: OpeningLine[],
+): Array<{ id: string; accountId: string; amount: number }> {
+  const key = side === "asset" ? assetKey : liabilityKey;
+  return labels.flatMap((label) => {
+    if (label === "") return [];
+    const amount = parseOpeningAmount(amounts[key(label)] ?? "") ?? 0;
+    if (amount <= 0) return [];
+    const storedInRow = storedLines.filter((line) => {
+      if (line.amount <= 0) return false;
+      const account = splitAccountId(line.accountId);
+      return (
+        account.side === side &&
+        (balanceSheetRowLabel(side, account.name) ?? account.name) === label
+      );
+    });
+    const storedTotal = storedInRow.reduce((sum, line) => sum + line.amount, 0);
+    if (storedInRow.length > 0 && storedTotal === amount) {
+      return storedInRow.map((line) => ({
+        id: line.accountId,
+        accountId: line.accountId,
+        amount: line.amount,
+      }));
+    }
+    const accountId = storedInRow[0]?.accountId ?? key(label);
+    return [{ id: accountId, accountId, amount }];
+  });
+}
+
 export function unrenderedOpeningLines<Line extends OpeningLine>(
   openingBalanceLines: Line[],
   assetLabels: string[],
