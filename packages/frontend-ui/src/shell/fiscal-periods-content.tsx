@@ -548,17 +548,16 @@ function FiscalPeriodRow({
         }}
       >
         <InlineChip {...periodStatusChip(period)} />
-        {purged ? null : (
-          <div
-            style={{
-              fontSize: fontSize.xl,
-              color: palette.textLabel,
-              lineHeight: 1,
-            }}
-          >
-            ›
-          </div>
-        )}
+        <div
+          aria-hidden="true"
+          style={{
+            fontSize: fontSize.xl,
+            color: palette.textLabel,
+            lineHeight: 1,
+          }}
+        >
+          ›
+        </div>
       </div>
     </>
   );
@@ -575,18 +574,6 @@ function FiscalPeriodRow({
     justifyContent: "space-between",
     gap: 16,
   };
-
-  if (purged) {
-    return (
-      <div
-        className="bk-fiscal-period-row"
-        aria-disabled="true"
-        style={{ ...sharedStyle, cursor: "default" }}
-      >
-        {content}
-      </div>
-    );
-  }
 
   return (
     <button

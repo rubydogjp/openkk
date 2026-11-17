@@ -450,7 +450,7 @@ describe("backend-api fiscal periods", () => {
     expect(completed.name).toBe("2026年分");
   });
 
-  it("discards only pre-opening fiscal periods", async () => {
+  it("discards pre-opening fiscal periods and periods whose data was purged", async () => {
     const db = createFiscalPeriodDb([
       fiscalPeriod({
         id: "fp-setup",
@@ -470,14 +470,12 @@ describe("backend-api fiscal periods", () => {
     await expect(backendApi.fiscalPeriods.remove("fp-started")).rejects.toThrow(
       /cannot discard from phase journalizing/,
     );
-    await expect(backendApi.fiscalPeriods.remove("fp-purged")).rejects.toThrow(
-      /Fiscal period fp-purged cannot discard after its data was purged/,
-    );
+    await backendApi.fiscalPeriods.remove("fp-purged");
     await backendApi.fiscalPeriods.remove("fp-setup");
 
     expect(await db.fiscalPeriods.getById("fp-setup")).toBeNull();
     expect(await db.fiscalPeriods.getById("fp-started")).not.toBeNull();
-    expect(await db.fiscalPeriods.getById("fp-purged")).not.toBeNull();
+    expect(await db.fiscalPeriods.getById("fp-purged")).toBeNull();
   });
 
   it("rejects an opening patch whose opening journal is unbalanced", async () => {

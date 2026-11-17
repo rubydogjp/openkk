@@ -193,7 +193,7 @@ The contract has no archive or purge operation. Only the states that earlier ver
 
 - `archiveStatus` in a response is `active`, `archived`, or `purged`. `archivedAt` is `null` while `active`.
 - An `archived` period keeps its data. OpenKK reads it as an ordinary (`active`) period: the embedded backend never returns `archived`, and the driver reads `archived` from an HTTP backend as `active`. A backend that still stores `archived` should apply the same rules as for `active` (date overlap, patches, carryover source).
-- A `purged` period has no entries, fixed assets or opening. The screens show a notice, and its data comes back only by importing the file that was saved before the purge (as a new period). Mutations and child-data reads must fail with `OpenkkApiErrorDto` and `statusCode: 409`. A purged period does not count for date overlap and cannot be a carryover source.
+- A `purged` period has no entries, fixed assets or opening. The screens show a notice, and its data comes back only by importing the file that was saved before the purge (as a new period). Mutations and child-data reads must fail with `OpenkkApiErrorDto` and `statusCode: 409`, except `fiscalPeriods.remove`: a purged period can be removed in any phase (from this release; 26.3.1 refused it). A purged period does not count for date overlap and cannot be a carryover source.
 
 ## Archive Zip Format
 

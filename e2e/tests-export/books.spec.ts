@@ -525,6 +525,40 @@ test("moves the periods the previous version kept in this browser into one book 
   expect(await countStoredBooks(page)).toBe(2);
 });
 
+test("removes a period whose data was deleted in 26.3.1 from the list of periods", async ({
+  page,
+}) => {
+  const legacyBytes = fs.readFileSync(
+    path.join(RELEASE_FIXTURE_DIR, "openkk.sqlite3"),
+  );
+  await seedLegacyDatabase(page, legacyBytes);
+  await startApp(page);
+  const purgedRow = page
+    .locator(".bk-fiscal-period-row")
+    .filter({ hasText: "2021年分" });
+  await expect(purgedRow).toContainText("データ削除済み");
+  await waitUntilBooksStored(page);
+  expect(await countStoredBooks(page)).toBe(5);
+
+  await purgedRow.click();
+  await clickButton(page, "この期間を削除");
+  const confirmation = page.getByRole("alertdialog", { name: "期間の削除" });
+  await expect(confirmation).toContainText(
+    "「2021年分」を期間の一覧から消します。",
+  );
+  await confirmation.getByRole("button", { name: "削除する" }).click();
+
+  await expect(page.getByRole("heading", { name: "期間の選択" })).toBeVisible();
+  await expect(purgedRow).toHaveCount(0);
+  await waitUntilBooksStored(page);
+  expect(await countStoredBooks(page)).toBe(4);
+  await reloadInApp(page);
+  await expect(page.getByRole("heading", { name: "期間の選択" })).toBeVisible();
+  await expect(
+    page.locator(".bk-fiscal-period-row").filter({ hasText: "2021年分" }),
+  ).toHaveCount(0);
+});
+
 test("moves a database written by 26.3.1 into one book per period, merges a period imported back from its archive, and leaves that database as it was", async ({
   page,
 }) => {

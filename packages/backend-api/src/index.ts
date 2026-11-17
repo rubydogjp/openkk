@@ -279,7 +279,9 @@ export function createOpenkkBackendApi(
       },
       remove: async (id) => {
         const current = await requireOwnedFiscalPeriod(id);
-        assertPeriodPhase(current, "pre_opening", "discard");
+        if (current.archiveStatus !== "purged") {
+          assertPeriodPhase(current, "pre_opening", "discard");
+        }
         await usecases.fiscalPeriods.remove(userId, id);
       },
     },
