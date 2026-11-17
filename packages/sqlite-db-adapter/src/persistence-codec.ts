@@ -18,6 +18,14 @@ export function msToIso(ms: number): string {
   return new Date(ms).toISOString();
 }
 
+export function isoToMs(timestamp: unknown, label: string): number {
+  const ms = typeof timestamp === "string" ? Date.parse(timestamp) : NaN;
+  if (Number.isNaN(ms)) {
+    throw engineValidationError(`${label} must be an ISO timestamp`, null);
+  }
+  return ms;
+}
+
 export function parseFiscalPeriodDbData(json: string): FiscalPeriodDbData {
   return decodeRecord(json, "fiscal period", (value) => {
     const id = nonBlankString(value, "id");

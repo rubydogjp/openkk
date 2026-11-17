@@ -6,6 +6,9 @@ export function bookImportCase(
   savedLastChangedAt: number | null,
 ): OpenkkBookImportCase {
   const { relation } = period;
+  if (relation.kind === "unreadable_book") {
+    return relation.replaceable ? "changed_outside" : "overlapping";
+  }
   if (relation.kind !== "same_period") return relation.kind;
   const inFile = period.lastChangedAt;
   const inApp = relation.existingLastChangedAt;

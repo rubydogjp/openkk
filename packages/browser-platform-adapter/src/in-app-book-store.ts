@@ -110,15 +110,17 @@ export function createWorkerBookWriter(
   let nextId = 1;
   const pending = new Map<
     number,
-    { resolve: () => void; reject: (error: Error) => void }
+    { worker: Worker; resolve: () => void; reject: (error: Error) => void }
   >();
 
-  function failAll(reason: string): void {
+  function failAll(failed: Worker, reason: string): void {
+    failed.terminate();
+    if (worker === failed) worker = null;
     for (const [id, entry] of pending) {
+      if (entry.worker !== failed) continue;
       pending.delete(id);
       entry.reject(new Error(reason));
     }
-    worker = null;
   }
 
   function ensureWorker(): Worker {
@@ -132,7 +134,10 @@ export function createWorkerBookWriter(
       else entry.reject(new Error(event.data.error ?? "in-app book failed"));
     };
     created.onerror = (event) => {
-      failAll(event.message || "in-app book worker crashed");
+      failAll(created, event.message || "in-app book worker crashed");
+    };
+    created.onmessageerror = () => {
+      failAll(created, "in-app book worker answer could not be read");
     };
     worker = created;
     return created;
@@ -142,19 +147,12 @@ export function createWorkerBookWriter(
     send(request) {
       const id = nextId++;
       return new Promise<void>((resolve, reject) => {
-        pending.set(id, { resolve, reject });
-        ensureWorker().postMessage({ id, ...request });
+        const target = ensureWorker();
+        pending.set(id, { worker: target, resolve, reject });
+        target.postMessage({ id, ...request });
       });
     },
   };
-}
-
-export function canUseInAppBooks(): boolean {
-  return (
-    typeof navigator === "object" &&
-    typeof navigator.storage?.getDirectory === "function" &&
-    typeof Worker === "function"
-  );
 }
 
 export function newInAppBookName(): string {

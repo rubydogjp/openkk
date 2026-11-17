@@ -1,6 +1,11 @@
 import {
+  assertBookFileSize,
   BookFileFormatError,
   createBookDbAdapter,
+  isBookContentError,
+  readBookRecords,
+  readStoredFiscalPeriods,
+  rebuildBookFileBytes,
   type BookDbAdapter,
 } from "@rubydogjp/openkk-book-db-adapter";
 import type {
@@ -119,6 +124,7 @@ export async function splitReadableBookFilePeriods(
     source = await createBookDbAdapter(bytes);
   } catch (error) {
     if (!(error instanceof BookFileFormatError)) throw error;
+    console.error("[openkk] the book cannot be opened:", error);
     return {
       periods: [],
       unreadable: [
@@ -139,6 +145,14 @@ export async function splitReadableBookFilePeriods(
       try {
         split.periods.push(await splitOutPeriod(source, bytes, ids, id));
       } catch (error) {
+        if (!isBookContentError(error)) {
+          console.error(
+            `[openkk] fiscal period ${id} could not be split out:`,
+            error,
+          );
+          throw error;
+        }
+        console.error(`[openkk] fiscal period ${id} cannot be read:`, error);
         split.unreadable.push({
           fiscalPeriodId: id,
           ...source.readStoredFiscalPeriodLabel(id),
@@ -152,13 +166,47 @@ export async function splitReadableBookFilePeriods(
   }
 }
 
+function asBookContentFailure(error: unknown): unknown {
+  if (error instanceof BookFileFormatError || !isBookContentError(error)) {
+    return error;
+  }
+  return new BookFileFormatError(
+    "invalid_content",
+    `the book holds records that cannot be read: ${
+      error instanceof Error ? error.message : String(error)
+    }`,
+  );
+}
+
+async function rebuildBookFilePeriods(
+  bytes: Uint8Array,
+): Promise<BookFilePeriod[]> {
+  assertBookFileSize(bytes);
+  const source = await createBookDbAdapter(bytes);
+  try {
+    const lastChangedAt = source.lastChangedAtOnOpen;
+    const periods: BookFilePeriod[] = [];
+    for (const records of await readBookRecords(source)) {
+      periods.push({
+        fiscalPeriod: records.fiscalPeriod,
+        lastChangedAt,
+        bytes: await rebuildBookFileBytes(records, lastChangedAt),
+      });
+    }
+    return periods;
+  } finally {
+    source.close();
+  }
+}
+
 export async function splitBookFile(
   bytes: Uint8Array,
 ): Promise<BookFilePeriod[]> {
-  const { periods, unreadable } = await splitReadableBookFilePeriods(bytes);
-  const [firstUnreadable] = unreadable;
-  if (firstUnreadable != null) throw firstUnreadable.error;
-  return periods;
+  try {
+    return await rebuildBookFilePeriods(bytes);
+  } catch (error) {
+    throw asBookContentFailure(error);
+  }
 }
 
 export async function readStoredFiscalPeriodIds(store: {
@@ -169,16 +217,8 @@ export async function readStoredFiscalPeriodIds(store: {
   for (const name of await store.list()) {
     const bytes = await store.read(name);
     if (bytes == null) continue;
-    let book: BookDbAdapter;
-    try {
-      book = await createBookDbAdapter(bytes);
-    } catch {
-      continue;
-    }
-    try {
-      for (const id of book.listFiscalPeriodIds()) ids.add(id);
-    } finally {
-      book.close();
+    for (const { id } of await readStoredFiscalPeriods(bytes)) {
+      if (id != null) ids.add(id);
     }
   }
   return ids;

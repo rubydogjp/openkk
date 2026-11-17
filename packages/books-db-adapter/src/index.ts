@@ -1,7 +1,11 @@
 import {
+  BookFileFormatError,
   createBookDbAdapter,
-  readStoredFiscalPeriodLabels,
+  isBookContentError,
+  readBookRecords,
+  readStoredFiscalPeriods,
   type BookDbAdapter,
+  type StoredFiscalPeriod,
   type StoredFiscalPeriodLabel,
 } from "@rubydogjp/openkk-book-db-adapter";
 import {
@@ -50,10 +54,17 @@ const UNKNOWN_FISCAL_PERIOD_LABEL: StoredFiscalPeriodLabel = {
   endDate: null,
 };
 
+const UNKNOWN_STORED_FISCAL_PERIOD: StoredFiscalPeriod = {
+  id: null,
+  label: UNKNOWN_FISCAL_PERIOD_LABEL,
+};
+
 export type UnreadableBook = {
   name: string;
   error: unknown;
+  fiscalPeriodId: string | null;
   fiscalPeriod: StoredFiscalPeriodLabel;
+  replaceable: boolean;
 };
 
 export type BookFileRelation =
@@ -68,7 +79,12 @@ export type BookFileRelation =
       existing: FiscalPeriodDbRecord;
       existingLastChangedAt: number;
     }
-  | { kind: "overlapping"; existing: FiscalPeriodDbRecord[] };
+  | { kind: "overlapping"; existing: FiscalPeriodDbRecord[] }
+  | {
+      kind: "unreadable_book";
+      existing: StoredFiscalPeriodLabel;
+      replaceable: boolean;
+    };
 
 export type InspectedBookPeriod = {
   fiscalPeriod: FiscalPeriodDbRecord;
@@ -133,6 +149,55 @@ type Book = {
 };
 
 type DateRange = { startDate: string; endDate: string };
+
+type OpenedBook = {
+  name: string;
+  bytes: Uint8Array;
+  database: BookDbAdapter;
+  lastChangedAt: number;
+};
+
+class FiscalPeriodStoredTwiceError extends Error {
+  constructor(readonly fiscalPeriodId: string) {
+    super(`fiscal period is stored twice: ${fiscalPeriodId}`);
+    this.name = "FiscalPeriodStoredTwiceError";
+  }
+}
+
+async function firstStoredFiscalPeriod(
+  bytes: Uint8Array | null,
+): Promise<StoredFiscalPeriod> {
+  if (bytes == null) return UNKNOWN_STORED_FISCAL_PERIOD;
+  const [stored] = await readStoredFiscalPeriods(bytes);
+  return stored ?? UNKNOWN_STORED_FISCAL_PERIOD;
+}
+
+function isNewerSchemaError(error: unknown): boolean {
+  return (
+    error instanceof BookFileFormatError && error.problem === "newer_schema"
+  );
+}
+
+function byNewestChange(left: OpenedBook, right: OpenedBook): number {
+  if (left.lastChangedAt !== right.lastChangedAt) {
+    return right.lastChangedAt - left.lastChangedAt;
+  }
+  return left.name < right.name ? -1 : left.name > right.name ? 1 : 0;
+}
+
+async function openStoredBook(
+  name: string,
+  bytes: Uint8Array,
+): Promise<OpenedBook> {
+  const database = await createBookDbAdapter(bytes);
+  try {
+    await readBookRecords(database);
+    return { name, bytes, database, lastChangedAt: database.lastChangedAt() };
+  } catch (error) {
+    database.close();
+    throw error;
+  }
+}
 
 function archiveOf(
   source: FiscalPeriodDbRecord,
@@ -341,6 +406,15 @@ export async function createBooksDbAdapter(
     await store.remove(book.name);
   }
 
+  function unreadableBookOfPeriod(
+    fiscalPeriodId: string,
+  ): UnreadableBook | null {
+    return (
+      unreadableBooks.find((book) => book.fiscalPeriodId === fiscalPeriodId) ??
+      null
+    );
+  }
+
   async function relationOf(
     userId: string,
     period: FiscalPeriodDbRecord,
@@ -369,7 +443,17 @@ export async function createBooksDbAdapter(
             existingLastChangedAt: sameBook.lastChangedAt,
           };
     }
-    if (others.length === 0) return { kind: "new" };
+    const unreadable =
+      sameBook == null ? unreadableBookOfPeriod(period.id) : null;
+    if (others.length === 0) {
+      return unreadable == null
+        ? { kind: "new" }
+        : {
+            kind: "unreadable_book",
+            existing: unreadable.fiscalPeriod,
+            replaceable: unreadable.replaceable,
+          };
+    }
     const sameDates = others[0]!;
     const sameDatesBook = bookOfPeriod(sameDates.id);
     return others.length === 1 &&
@@ -395,6 +479,7 @@ export async function createBooksDbAdapter(
         expectation.existingLastChangedAt === relation.existingLastChangedAt
       );
     }
+    if (relation.kind === "unreadable_book") return relation.replaceable;
     return relation.kind === "new";
   }
 
@@ -423,10 +508,12 @@ export async function createBooksDbAdapter(
     }
   }
 
-  async function addBook(incoming: BookFilePeriod): Promise<void> {
+  async function addBook(
+    incoming: BookFilePeriod,
+    name: string,
+  ): Promise<void> {
     const database = await createBookDbAdapter(incoming.bytes);
     try {
-      const name = options.newBookName();
       await store.write(name, database.exportBytes());
       register(name, database);
     } catch (error) {
@@ -435,31 +522,76 @@ export async function createBooksDbAdapter(
     }
   }
 
-  for (const name of (await store.list()).sort()) {
-    let bytes: Uint8Array | null = null;
-    try {
-      bytes = await store.read(name);
-      if (bytes == null) continue;
-      const database = await createBookDbAdapter(bytes);
-      const duplicated = database
-        .listFiscalPeriodIds()
-        .find((id) => bookOfPeriod(id) != null);
-      if (duplicated != null) {
-        database.close();
-        throw new Error(`fiscal period is stored twice: ${duplicated}`);
-      }
-      const book = register(name, database);
-      if (database.changedOnOpen) book.saver.markChanged();
-    } catch (error) {
-      const [fiscalPeriod] =
-        bytes == null ? [] : await readStoredFiscalPeriodLabels(bytes);
-      unreadableBooks.push({
-        name,
-        error,
-        fiscalPeriod: fiscalPeriod ?? UNKNOWN_FISCAL_PERIOD_LABEL,
-      });
+  async function replaceUnreadableBook(
+    incoming: BookFilePeriod,
+  ): Promise<void> {
+    const unreadable = unreadableBookOfPeriod(incoming.fiscalPeriod.id);
+    if (unreadable == null || !unreadable.replaceable) {
+      throw new BookImportChangedError(incoming.fiscalPeriod.id);
     }
+    await addBook(incoming, unreadable.name);
+    unreadableBooks.splice(unreadableBooks.indexOf(unreadable), 1);
   }
+
+  async function setAsideUnreadableBook(
+    name: string,
+    bytes: Uint8Array | null,
+    error: unknown,
+  ): Promise<void> {
+    console.error(`[openkk] book ${name} cannot be read:`, error);
+    const stored = await firstStoredFiscalPeriod(bytes);
+    unreadableBooks.push({
+      name,
+      error,
+      fiscalPeriodId: stored.id,
+      fiscalPeriod: stored.label,
+      replaceable: !isNewerSchemaError(error),
+    });
+  }
+
+  const opened: OpenedBook[] = [];
+  try {
+    for (const name of (await store.list()).sort()) {
+      const bytes = await store.read(name);
+      if (bytes == null) continue;
+      try {
+        opened.push(await openStoredBook(name, bytes));
+      } catch (error) {
+        if (!isBookContentError(error)) throw error;
+        await setAsideUnreadableBook(name, bytes, error);
+      }
+    }
+  } catch (error) {
+    console.error("[openkk] the books could not be opened:", error);
+    for (const book of opened) book.database.close();
+    blank.close();
+    throw error;
+  }
+  const keptPeriodIds = new Set<string>();
+  const kept = new Set<OpenedBook>();
+  for (const book of [...opened].sort(byNewestChange)) {
+    const ids = book.database.listFiscalPeriodIds();
+    const duplicated = ids.find((id) => keptPeriodIds.has(id)) ?? null;
+    if (duplicated != null) {
+      book.database.close();
+      await setAsideUnreadableBook(
+        book.name,
+        book.bytes,
+        new FiscalPeriodStoredTwiceError(duplicated),
+      );
+      continue;
+    }
+    for (const id of ids) keptPeriodIds.add(id);
+    kept.add(book);
+  }
+  for (const book of opened) {
+    if (!kept.has(book)) continue;
+    const registered = register(book.name, book.database);
+    if (book.database.changedOnOpen) registered.saver.markChanged();
+  }
+  unreadableBooks.sort((left, right) =>
+    left.name < right.name ? -1 : left.name > right.name ? 1 : 0,
+  );
 
   const db: OpenkkDbPort = {
     fiscalPeriods: runThroughQueue(queue, {
@@ -670,22 +802,27 @@ export async function createBooksDbAdapter(
         planned.push({ period, relation });
       }
       const imported: FiscalPeriodDbRecord[] = [];
-      for (const { period, relation } of planned) {
-        if (relation.kind === "new") {
-          await addBook(period);
-        } else if (
-          relation.kind === "same_period" ||
-          relation.kind === "same_dates"
-        ) {
-          const book = bookOfPeriod(relation.existing.id);
-          if (book == null) {
-            throw new BookImportChangedError(period.fiscalPeriod.id);
+      try {
+        for (const { period, relation } of planned) {
+          if (relation.kind === "new") {
+            await addBook(period, options.newBookName());
+          } else if (relation.kind === "unreadable_book") {
+            await replaceUnreadableBook(period);
+          } else if (
+            relation.kind === "same_period" ||
+            relation.kind === "same_dates"
+          ) {
+            const book = bookOfPeriod(relation.existing.id);
+            if (book == null) {
+              throw new BookImportChangedError(period.fiscalPeriod.id);
+            }
+            await replaceBook(book, relation.existing.id, period);
           }
-          await replaceBook(book, relation.existing.id, period);
+          imported.push(period.fiscalPeriod);
         }
-        imported.push(period.fiscalPeriod);
+      } finally {
+        notify();
       }
-      notify();
       return imported;
     },
     async export(fiscalPeriodId: string): Promise<ExportedBook | null> {
@@ -715,7 +852,15 @@ export async function createBooksDbAdapter(
       return () => listeners.delete(listener);
     },
     async flush() {
-      for (const book of [...books]) await book.saver.flush();
+      const failures: unknown[] = [];
+      for (const book of [...books]) {
+        try {
+          await book.saver.flush();
+        } catch (error) {
+          failures.push(error);
+        }
+      }
+      if (failures.length > 0) throw failures[0];
     },
     lastChangedAt(fiscalPeriodId) {
       return bookOfPeriod(fiscalPeriodId)?.lastChangedAt ?? null;

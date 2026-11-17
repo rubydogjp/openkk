@@ -1,16 +1,3 @@
-import type { DbSnapshot, OpenkkDbPort } from "@rubydogjp/openkk-engine";
-import {
-  createSqliteDbAdapter,
-  type SqlDb,
-} from "@rubydogjp/openkk-sqlite-db-adapter";
-
-import {
-  browserPersistentStorage,
-  requestPersistentStorage,
-} from "./persistent-storage.js";
-
-export { type DbSnapshot } from "@rubydogjp/openkk-engine";
-
 export type LegacyDbAdapterOptions = {
   vfsName: string;
   dbFileName: string;
@@ -102,64 +89,6 @@ function createSqliteWorker(): Worker {
 
 function dbLocation(options: LegacyDbAdapterOptions) {
   return { vfsName: options.vfsName, dbFileName: options.dbFileName };
-}
-
-async function createWorkerSqlDb(
-  worker: Worker,
-  onFatal: (error: Error) => void,
-  options: LegacyDbAdapterOptions,
-): Promise<SqlDb> {
-  const send = connectSqliteWorker(
-    worker,
-    onFatal,
-    options.onWaitingForAnotherTab,
-  );
-  await send("init", dbLocation(options));
-  return { exec: (arg) => send("exec", arg) };
-}
-
-let cachedAdapter: Promise<OpenkkDbPort> | null = null;
-let cachedAdapterKey: string | null = null;
-
-export function createLegacyDbAdapter(
-  options: LegacyDbAdapterOptions,
-  seed: DbSnapshot | null,
-): Promise<OpenkkDbPort> {
-  const adapterKey = `${options.vfsName}\n${options.dbFileName}`;
-  if (cachedAdapter != null && cachedAdapterKey !== adapterKey) {
-    throw new Error(
-      "file DB adapter is already initialized with different options",
-    );
-  }
-  if (cachedAdapter == null) {
-    cachedAdapterKey = adapterKey;
-    const worker = createSqliteWorker();
-    const initialization = (async () => {
-      try {
-        const db = await createWorkerSqlDb(
-          worker,
-          () => {
-            worker.terminate();
-            if (cachedAdapter === initialization) {
-              cachedAdapter = null;
-              cachedAdapterKey = null;
-            }
-          },
-          options,
-        );
-        const adapter = await createSqliteDbAdapter(db, seed);
-        void requestPersistentStorage(browserPersistentStorage());
-        return adapter;
-      } catch (error) {
-        cachedAdapter = null;
-        cachedAdapterKey = null;
-        worker.terminate();
-        throw error;
-      }
-    })();
-    cachedAdapter = initialization;
-  }
-  return cachedAdapter;
 }
 
 type PoolDirectoryRoot = {

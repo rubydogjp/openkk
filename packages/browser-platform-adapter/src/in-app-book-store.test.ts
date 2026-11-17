@@ -136,8 +136,13 @@ describe("worker book writer", () => {
     const worker = {
       onmessage: null as ((event: MessageEvent) => void) | null,
       onerror: null as ((event: ErrorEvent) => void) | null,
+      onmessageerror: null as (() => void) | null,
+      terminated: false,
       postMessage(message: { id: number }) {
         posted.push(message);
+      },
+      terminate() {
+        worker.terminated = true;
       },
     };
     return { worker, posted };
@@ -173,6 +178,46 @@ describe("worker book writer", () => {
     await expect(waiting).rejects.toThrow("crashed");
     void writer.send({ type: "remove", name: "b.openkk" }).catch(() => {});
 
+    expect(created).toHaveLength(2);
+    expect(created.map(({ worker }) => worker.terminated)).toEqual([
+      true,
+      false,
+    ]);
+  });
+
+  it("lets a worker go when its answer cannot be read", async () => {
+    const created: Array<ReturnType<typeof fakeWorker>> = [];
+    const writer = createWorkerBookWriter(() => {
+      const next = fakeWorker();
+      created.push(next);
+      return next.worker as unknown as Worker;
+    });
+
+    const waiting = writer.send({ type: "remove", name: "a.openkk" });
+    created[0]!.worker.onmessageerror?.();
+
+    await expect(waiting).rejects.toThrow(/could not be read/);
+    expect(created[0]!.worker.terminated).toBe(true);
+  });
+
+  it("does not drop the new worker when an old one reports a crash late", async () => {
+    const created: Array<ReturnType<typeof fakeWorker>> = [];
+    const writer = createWorkerBookWriter(() => {
+      const next = fakeWorker();
+      created.push(next);
+      return next.worker as unknown as Worker;
+    });
+    void writer.send({ type: "remove", name: "a.openkk" }).catch(() => {});
+    created[0]!.worker.onerror?.({ message: "crashed" } as ErrorEvent);
+    const onNewWorker = writer.send({ type: "remove", name: "b.openkk" });
+
+    created[0]!.worker.onerror?.({ message: "crashed again" } as ErrorEvent);
+    void writer.send({ type: "remove", name: "c.openkk" }).catch(() => {});
+    created[1]!.worker.onmessage?.({
+      data: { id: created[1]!.posted[0]!.id, ok: true, error: null },
+    } as MessageEvent);
+
+    await expect(onNewWorker).resolves.toBeUndefined();
     expect(created).toHaveLength(2);
   });
 });

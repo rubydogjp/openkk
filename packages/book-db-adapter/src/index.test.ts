@@ -6,8 +6,15 @@ import { afterEach, describe, expect, it } from "vitest";
 import { SCHEMA_VERSION } from "@rubydogjp/openkk-sqlite-db-adapter";
 
 import {
+  assertBookFileSize,
+  BookEnvironmentError,
   createBookDbAdapter,
   BookFileFormatError,
+  isBookContentError,
+  MAX_BOOK_FILE_BYTES,
+  readBookRecords,
+  readStoredFiscalPeriods,
+  rebuildBookFileBytes,
   type BookDbAdapter,
 } from "./index.js";
 import { createDiskDbAdapter } from "../../disk-db-adapter/src/index.js";
@@ -215,5 +222,332 @@ describe("document-db-adapter", () => {
     await expect(
       createBookDbAdapter(new Uint8Array(fs.readFileSync(filePath))),
     ).rejects.toMatchObject({ problem: "newer_schema" });
+  });
+});
+
+function changedBookBytes(
+  bytes: Uint8Array,
+  statements: readonly string[],
+): Uint8Array {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "openkk-document-"));
+  tempDirs.push(dir);
+  const filePath = path.join(dir, "changed.openkk");
+  fs.writeFileSync(filePath, bytes);
+  const database = new DatabaseSync(filePath, {
+    enableForeignKeyConstraints: false,
+  });
+  try {
+    database.exec("PRAGMA ignore_check_constraints = ON");
+    for (const statement of statements) database.exec(statement);
+  } finally {
+    database.close();
+  }
+  return new Uint8Array(fs.readFileSync(filePath));
+}
+
+const sameDayLine = {
+  partnerName: "",
+  taxCategoryId: "tax_out_of_scope",
+  businessCategoryId: "",
+  amount: 1000,
+};
+
+function sameDayEntry(description: string) {
+  return {
+    date: "2026-04-01",
+    description,
+    localId: null,
+    businessRate: 1,
+    lines: [
+      { ...sameDayLine, side: "debit" as const, bookAccountId: "acct_cash" },
+      { ...sameDayLine, side: "credit" as const, bookAccountId: "acct_sales" },
+    ],
+  };
+}
+
+function assetInput(name: string) {
+  return {
+    name,
+    acquisitionDate: "2026-04-01",
+    acquisitionCost: 200000,
+    usefulLife: 4,
+    depreciationMethod: "straight_line" as const,
+    businessRate: 1,
+    bookAccountId: "acct_equipment",
+  };
+}
+
+async function bookWithSameDayRecords(): Promise<{
+  book: BookDbAdapter;
+  fiscalPeriodId: string;
+  descriptions: string[];
+  assetNames: string[];
+}> {
+  const book = await open(null);
+  const created = await book.db.fiscalPeriods.create("user-1", period);
+  await book.db.fiscalPeriods.start(created.id);
+  const written = Array.from({ length: 30 }, (_, index) => `entry-${index}`);
+  const entries = await book.db.entries.importMany(
+    "user-1",
+    created.id,
+    written.map(sameDayEntry),
+  );
+  await book.db.entries.remove(entries[3]!.id);
+  await book.db.entries.remove(entries[29]!.id);
+  await book.db.entries.create("user-1", created.id, sameDayEntry("last"));
+  const assetNames = ["z-asset", "m-asset", "a-asset"];
+  for (const name of assetNames) {
+    await book.db.fixedAssets.create("user-1", created.id, assetInput(name));
+  }
+  return {
+    book,
+    fiscalPeriodId: created.id,
+    descriptions: [
+      ...written.filter((_, index) => index !== 3 && index !== 29),
+      "last",
+    ],
+    assetNames,
+  };
+}
+
+async function orderOf(book: BookDbAdapter, fiscalPeriodId: string) {
+  return {
+    descriptions: (await book.db.entries.getAll(fiscalPeriodId)).map(
+      (entry) => entry.description,
+    ),
+    assetNames: (await book.db.fixedAssets.getAll(fiscalPeriodId)).map(
+      (asset) => asset.name,
+    ),
+  };
+}
+
+describe("document-db-adapter order of records written at the same time", () => {
+  it("keeps the written order after compacting, exporting and reopening", async () => {
+    const { book, fiscalPeriodId, descriptions, assetNames } =
+      await bookWithSameDayRecords();
+    const expected = { descriptions, assetNames };
+
+    expect(await orderOf(book, fiscalPeriodId)).toEqual(expected);
+    book.compact();
+    expect(await orderOf(book, fiscalPeriodId)).toEqual(expected);
+    const reopened = await open(book.exportBytes());
+    expect(await orderOf(reopened, fiscalPeriodId)).toEqual(expected);
+    reopened.compact();
+    expect(
+      await orderOf(await open(reopened.exportBytes()), fiscalPeriodId),
+    ).toEqual(expected);
+  });
+
+  it("keeps the written order in a book rebuilt from its records", async () => {
+    const { book, fiscalPeriodId, descriptions, assetNames } =
+      await bookWithSameDayRecords();
+    const [records] = await readBookRecords(book);
+
+    const rebuilt = await open(
+      await rebuildBookFileBytes(records!, book.lastChangedAt()),
+    );
+
+    expect(await orderOf(rebuilt, fiscalPeriodId)).toEqual({
+      descriptions,
+      assetNames,
+    });
+  });
+});
+
+describe("document-db-adapter rebuilt book", () => {
+  it("holds the same records, timestamps and stamp, and nothing else the source carried", async () => {
+    const { book } = await bookWithSameDayRecords();
+    const stamp = book.lastChangedAt();
+    const source = await open(
+      changedBookBytes(book.exportBytes(), [
+        "CREATE TABLE smuggled(id INTEGER PRIMARY KEY, body TEXT)",
+        "CREATE VIEW smuggled_view AS SELECT id FROM entries",
+        "CREATE TRIGGER smuggled_trigger AFTER INSERT ON entries BEGIN DELETE FROM entry_lines; END",
+        "INSERT INTO openkk_meta(key, value) VALUES('smuggled', '1')",
+        "UPDATE entries SET created_at = 1700000000000, updated_at = 1700000500000",
+        "UPDATE fixed_assets SET created_at = 1700000001000, updated_at = 1700000600000",
+        "UPDATE fiscal_periods SET created_at = 1690000000000, updated_at = 1690000700000",
+      ]),
+    );
+    const [records] = await readBookRecords(source);
+
+    const bytes = await rebuildBookFileBytes(records!, stamp);
+
+    const rebuilt = await open(bytes);
+    expect(rebuilt.changedOnOpen).toBe(false);
+    expect(rebuilt.lastChangedAt()).toBe(stamp);
+    expect(await readBookRecords(rebuilt)).toEqual([records]);
+    expect(records!.entries[0]).toMatchObject({
+      createdAt: "2023-11-14T22:13:20.000Z",
+      updatedAt: "2023-11-14T22:21:40.000Z",
+    });
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "openkk-document-"));
+    tempDirs.push(dir);
+    const filePath = path.join(dir, "rebuilt.openkk");
+    fs.writeFileSync(filePath, bytes);
+    const raw = new DatabaseSync(filePath, { readOnly: true });
+    try {
+      expect(
+        raw
+          .prepare(
+            "SELECT name FROM sqlite_master WHERE type IN ('trigger', 'view') OR name LIKE 'smuggled%'",
+          )
+          .all(),
+      ).toEqual([]);
+      expect(
+        raw
+          .prepare("SELECT key FROM openkk_meta ORDER BY key")
+          .all()
+          .map((row) => row.key),
+      ).toEqual(["last_changed_at", "schema_version"]);
+    } finally {
+      raw.close();
+    }
+  });
+
+  it("refuses a period row whose id differs from the id in its data", async () => {
+    const book = await open(null);
+    const created = await book.db.fiscalPeriods.create("user-1", period);
+    const source = await open(
+      changedBookBytes(book.exportBytes(), [
+        `UPDATE fiscal_periods SET id = 'fp-other' WHERE id = '${created.id}'`,
+      ]),
+    );
+
+    await expect(readBookRecords(source)).rejects.toMatchObject({
+      name: "BookFileFormatError",
+      problem: "invalid_content",
+    });
+  });
+
+  it("refuses records in which two entries carry the same entry number", async () => {
+    const book = await open(null);
+    const created = await book.db.fiscalPeriods.create("user-1", period);
+    await book.db.fiscalPeriods.start(created.id);
+    await book.db.entries.importMany("user-1", created.id, [
+      { ...sameDayEntry("a"), localId: "A-1" },
+      { ...sameDayEntry("b"), localId: "A-2" },
+    ]);
+    const source = await open(
+      changedBookBytes(book.exportBytes(), [
+        "DROP INDEX idx_entries_fp_local_id",
+        "UPDATE entries SET local_id = 'A-1'",
+      ]),
+    );
+    const [records] = await readBookRecords(source);
+
+    await expect(
+      rebuildBookFileBytes(records!, source.lastChangedAt()),
+    ).rejects.toThrow(/duplicate entry localId/);
+  });
+});
+
+describe("document-db-adapter change stamp of a book file", () => {
+  it.each([
+    ["is not a number", "soon"],
+    ["is negative", "-1"],
+    ["is past the largest time a date can hold", "8640000000000001"],
+    ["is past the largest safe integer", "9007199254740993"],
+  ])("refuses a book whose stamp %s", async (_label, stored) => {
+    const book = await open(null);
+    await book.db.fiscalPeriods.create("user-1", period);
+    const bytes = changedBookBytes(book.exportBytes(), [
+      `UPDATE openkk_meta SET value = '${stored}' WHERE key = 'last_changed_at'`,
+    ]);
+
+    await expect(createBookDbAdapter(bytes)).rejects.toMatchObject({
+      name: "BookFileFormatError",
+      problem: "invalid_content",
+    });
+  });
+});
+
+describe("document-db-adapter stored fiscal periods of bytes it may not be able to open", () => {
+  it("reads the id and the label of each stored period without validating it", async () => {
+    const book = await open(null);
+    const created = await book.db.fiscalPeriods.create("user-1", period);
+    const bytes = changedBookBytes(book.exportBytes(), [
+      "UPDATE fiscal_periods SET data = json_set(data, '$.phase', 'unknown_phase')",
+    ]);
+
+    expect(await readStoredFiscalPeriods(bytes)).toEqual([
+      { id: created.id, label: period },
+    ]);
+    expect(
+      await readStoredFiscalPeriods(new TextEncoder().encode("not a book")),
+    ).toEqual([]);
+  });
+});
+
+describe("document-db-adapter book file size", () => {
+  it("refuses bytes past the limit and accepts bytes at the limit", () => {
+    expect(() =>
+      assertBookFileSize(new Uint8Array(MAX_BOOK_FILE_BYTES)),
+    ).not.toThrow();
+    expect(() =>
+      assertBookFileSize(new Uint8Array(MAX_BOOK_FILE_BYTES + 1)),
+    ).toThrow(BookFileFormatError);
+  });
+});
+
+describe("isBookContentError", () => {
+  function namedError(name: string, message: string): Error {
+    const error = new Error(message);
+    error.name = name;
+    return error;
+  }
+
+  it.each([
+    ["a book format error", new BookFileFormatError("not_openkk", "no meta")],
+    ["a validation error", new Error("Invalid fiscal period data in SQLite")],
+    ["a timestamp that cannot be read", new RangeError("Invalid time value")],
+    [
+      "a corrupt database",
+      Object.assign(namedError("SQLite3Error", "malformed"), {
+        resultCode: 11,
+      }),
+    ],
+    [
+      "a failed migration of the stored data",
+      new Error("migration to version 6 failed", {
+        cause: new Error("no such table: entries"),
+      }),
+    ],
+  ])("sees %s as caused by the book's content", (_label, error) => {
+    expect(isBookContentError(error)).toBe(true);
+  });
+
+  it.each([
+    [
+      "an allocation failure of the wasm heap",
+      namedError("WasmAllocError", ""),
+    ],
+    ["a wasm trap", namedError("RuntimeError", "memory access out of bounds")],
+    [
+      "an array buffer the browser cannot allocate",
+      new RangeError("Array buffer allocation failed"),
+    ],
+    [
+      "SQLite running out of memory",
+      Object.assign(namedError("SQLite3Error", "out of memory"), {
+        resultCode: 7,
+      }),
+    ],
+    [
+      "SQLite failing to read or write",
+      Object.assign(namedError("SQLite3Error", "disk I/O error"), {
+        resultCode: 10 | (1 << 8),
+      }),
+    ],
+    ["deserializing without memory", new BookEnvironmentError("no memory")],
+    [
+      "a migration that ran out of memory",
+      new Error("migration to version 6 failed", {
+        cause: namedError("WasmAllocError", ""),
+      }),
+    ],
+    ["something that is not an error", "boom"],
+  ])("does not blame the book's content for %s", (_label, error) => {
+    expect(isBookContentError(error)).toBe(false);
   });
 });

@@ -13,7 +13,11 @@ import {
   assertDbFiscalPeriodAllows,
   assertDbOwnedFiscalPeriodAllows,
 } from "./fiscal-period-guard.js";
-import { msToIso, parseFiscalPeriodDbData } from "./persistence-codec.js";
+import {
+  isoToMs,
+  msToIso,
+  parseFiscalPeriodDbData,
+} from "./persistence-codec.js";
 import { assertDbStoredEntryRecord } from "./record-validation.js";
 import { newId, nowMs } from "./runtime.js";
 import type { SqlDb } from "./sql-db.js";
@@ -24,7 +28,7 @@ export function createEntriesDb(db: SqlDb): EntriesDb {
     async getAll(fiscalPeriodId) {
       return loadEntries(
         db,
-        `WHERE e.fiscal_period_id = ? ORDER BY e.date ASC, e.created_at ASC, e.id ASC, l.position ASC`,
+        `WHERE e.fiscal_period_id = ? ORDER BY e.date ASC, e.created_at ASC, e.rowid ASC, l.position ASC`,
         [fiscalPeriodId],
       );
     },
@@ -61,7 +65,7 @@ export function createEntriesDb(db: SqlDb): EntriesDb {
         );
         assertEntryMatchesRules(input, period, "Entry");
         await assertLocalIdAvailable(db, fiscalPeriodId, input.localId, null);
-        await insertEntry(db, record, now);
+        await insertEntry(db, record);
       });
       return record;
     },
@@ -308,7 +312,6 @@ async function assertLocalIdAvailable(
 export async function insertEntry(
   db: SqlDb,
   entry: EntryDbRecord,
-  now: number,
 ): Promise<void> {
   await db.exec({
     sql: `INSERT INTO entries(id, fiscal_period_id, date, local_id, description, business_rate, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -319,8 +322,8 @@ export async function insertEntry(
       entry.localId,
       entry.description,
       entry.businessRate,
-      now,
-      now,
+      isoToMs(entry.createdAt, "Entry createdAt"),
+      isoToMs(entry.updatedAt, "Entry updatedAt"),
     ],
   });
   await insertEntryLines(db, entry);

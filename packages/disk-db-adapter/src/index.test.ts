@@ -76,4 +76,54 @@ describe("node-sqlite-db-adapter file persistence", () => {
       /newer than app SCHEMA_VERSION/,
     );
   });
+
+  it("refuses a SQLite file that is not an openkk book and leaves it as it was", async () => {
+    const dbPath = tempDbPath();
+    const other = new DatabaseSync(dbPath);
+    other.exec("CREATE TABLE notes(id INTEGER PRIMARY KEY, body TEXT)");
+    other.exec("INSERT INTO notes(body) VALUES('not a book')");
+    other.close();
+    const before = fs.readFileSync(dbPath);
+
+    await expect(createDiskDbAdapter(dbPath, null)).rejects.toMatchObject({
+      statusCode: 400,
+      messageForUser: "このファイルはオープン会計の帳簿ではありません",
+    });
+
+    expect(fs.readFileSync(dbPath).equals(before)).toBe(true);
+  });
+
+  it("makes a new book in a file that does not exist yet or is empty", async () => {
+    const missingPath = tempDbPath();
+    const emptyPath = tempDbPath();
+    fs.writeFileSync(emptyPath, new Uint8Array(0));
+
+    for (const dbPath of [missingPath, emptyPath]) {
+      const db = await open(dbPath, null);
+      expect(await db.fiscalPeriods.getAll("user-1")).toEqual([]);
+    }
+  });
+
+  it("does not rewrite a book that is only opened and read", async () => {
+    const dbPath = tempDbPath();
+    const first = await createDiskDbAdapter(dbPath, null);
+    const created = await first.db.fiscalPeriods.create("user-1", {
+      name: "2026年分",
+      startDate: "2026-01-01",
+      endDate: "2026-12-31",
+    });
+    first.close();
+    const before = fs.readFileSync(dbPath);
+
+    const reopened = await createDiskDbAdapter(dbPath, null);
+    await reopened.db.fiscalPeriods.getAll("user-1");
+    await reopened.db.entries.getAll(created.id);
+    await reopened.db.fixedAssets.getAll(created.id);
+    reopened.close();
+
+    expect(fs.readFileSync(dbPath).equals(before)).toBe(true);
+    expect(fs.readdirSync(path.dirname(dbPath))).toEqual([
+      path.basename(dbPath),
+    ]);
+  });
 });

@@ -1,5 +1,9 @@
 import { DatabaseSync, type StatementSync } from "node:sqlite";
-import type { DbSnapshot, OpenkkDbPort } from "@rubydogjp/openkk-engine";
+import {
+  engineValidationError,
+  type DbSnapshot,
+  type OpenkkDbPort,
+} from "@rubydogjp/openkk-engine";
 import {
   createSqliteDbAdapter,
   runMigrations,
@@ -14,6 +18,10 @@ export type DiskDbAdapter = {
   db: OpenkkDbPort;
   close(): void;
 };
+
+const META_TABLE_QUERY =
+  "SELECT 1 FROM sqlite_master WHERE type='table' AND name='openkk_meta'";
+const ANY_TABLE_QUERY = "SELECT 1 FROM sqlite_master WHERE type='table'";
 
 type SqlValue = null | number | bigint | string | Uint8Array;
 
@@ -31,6 +39,7 @@ export async function createDiskDbAdapter(
   const database = new DatabaseSync(path);
   try {
     const connection = createNodeSqliteConnection(database);
+    assertOpenkkBookOrEmpty(connection, path);
     runMigrations(connection);
     const sqlDb: SqlDb = { exec: async (arg) => connection.exec(arg) };
     const db = await createSqliteDbAdapter(sqlDb, seed);
@@ -39,6 +48,18 @@ export async function createDiskDbAdapter(
     database.close();
     throw error;
   }
+}
+
+function assertOpenkkBookOrEmpty(
+  connection: { selectValue(sql: string): unknown },
+  path: string,
+): void {
+  if (connection.selectValue(META_TABLE_QUERY) != null) return;
+  if (connection.selectValue(ANY_TABLE_QUERY) == null) return;
+  throw engineValidationError(
+    `SQLite file is not an openkk book: ${path}`,
+    "このファイルはオープン会計の帳簿ではありません",
+  );
 }
 
 function createNodeSqliteConnection(database: DatabaseSync) {

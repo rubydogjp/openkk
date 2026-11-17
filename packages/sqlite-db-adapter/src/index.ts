@@ -3,6 +3,7 @@ export type { SqlDb } from "./sql-db.js";
 export { runMigrations, type MigrationDb } from "./migrate.js";
 export { SCHEMA_MIGRATIONS, SCHEMA_VERSION } from "./schema.js";
 export {
+  LARGEST_LAST_CHANGED_AT_IN_A_BOOK_FILE,
   LAST_CHANGED_AT_QUERY,
   parseLastChangedAt,
   readLastChangedAt,

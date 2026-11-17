@@ -23,7 +23,7 @@
   "devDependencies": {
     "typescript": "^6.0.3"
   },
-  "description": "オープン会計 OpenkkDbPort implementation for the single OPFS database used up to 26.3 (SQLite Wasm + OPFS). Kept to read and move old data",
+  "description": "オープン会計 reads the single OPFS database used up to 26.3 (SQLite Wasm + OPFS) as bytes, without migrating it, so its data can be moved",
   "license": "MIT",
   "author": "rbdog <rbdog@rubydog.jp>",
   "homepage": "https://github.com/rubydogjp/openkk#readme",

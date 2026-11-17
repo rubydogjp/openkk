@@ -21,15 +21,13 @@ import {
   assertDbStoredEntryRecord,
   assertDbStoredFixedAssetRecord,
 } from "./record-validation.js";
-import { nowMs } from "./runtime.js";
 import type { SqlDb } from "./sql-db.js";
 import { runInTransaction } from "./transaction.js";
 
 export async function seedStores(db: SqlDb, seed: DbSnapshot): Promise<void> {
-  const now = nowMs();
   const preparedSeed = prepareAndValidateSeed(seed);
   await runInTransaction(db, async () => {
-    await insertSeedRecords(db, preparedSeed, now);
+    await insertSeedRecords(db, preparedSeed);
   });
 }
 
@@ -153,18 +151,14 @@ function assertSeedOwner(
   }
 }
 
-async function insertSeedRecords(
-  db: SqlDb,
-  seed: DbSnapshot,
-  now: number,
-): Promise<void> {
+async function insertSeedRecords(db: SqlDb, seed: DbSnapshot): Promise<void> {
   for (const record of seed.fiscalPeriods) {
-    await insertFiscalPeriodRow(db, record, now);
+    await insertFiscalPeriodRow(db, record);
   }
   for (const entry of seed.entries) {
-    await insertEntry(db, entry, now);
+    await insertEntry(db, entry);
   }
   for (const asset of seed.fixedAssets) {
-    await insertFixedAsset(db, asset, now);
+    await insertFixedAsset(db, asset);
   }
 }

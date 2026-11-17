@@ -856,6 +856,54 @@ export function runDbPortConformance(
       expect(await db.fiscalPeriods.getAll("user-1")).toHaveLength(1);
     });
 
+    it("reads an imported archive's entries and fixed assets back in the archive's order", async () => {
+      const db = await makeDb();
+      const descriptions = Array.from(
+        { length: 30 },
+        (_, index) => `archived-${index}`,
+      );
+      const assetNames = Array.from(
+        { length: 12 },
+        (_, index) => `asset-${index}`,
+      );
+
+      const imported = await db.fiscalPeriods.importArchived("user-1", {
+        fiscalPeriod: {
+          name: "Archived FY2026",
+          startDate: "2026-01-01",
+          endDate: "2026-12-31",
+          phase: "post_closing",
+          openingBalancesCompleted: true,
+          documentsReceivedCompleted: true,
+          opening: { balanceLines: [], journals: [] },
+        },
+        entries: descriptions.map((description) =>
+          testEntryInput(null, description),
+        ),
+        fixedAssets: assetNames.map((name) => ({
+          name,
+          acquisitionDate: "2026-04-01",
+          acquisitionCost: 100000,
+          usefulLife: 4,
+          depreciationMethod: "straight_line" as const,
+          businessRate: 1,
+          bookAccountId: "acct_equipment",
+          status: "active" as const,
+          disposalDate: null,
+          disposalPrice: null,
+        })),
+      });
+
+      expect(
+        (await db.entries.getAll(imported.id)).map(
+          (entry) => entry.description,
+        ),
+      ).toEqual(descriptions);
+      expect(
+        (await db.fixedAssets.getAll(imported.id)).map((asset) => asset.name),
+      ).toEqual(assetNames);
+    });
+
     it("rejects an invalid archived child record without importing the period", async () => {
       const db = await makeDb();
       const archiveInput: FiscalPeriodArchiveDbImportInput = {
@@ -1325,6 +1373,45 @@ export function runDbPortConformance(
       expect(created).toHaveLength(2);
     });
 
+    it("reads entries of one date back in the order they were written in one batch", async () => {
+      const db = await makeDb();
+      const period = await createTestFiscalPeriod(db);
+      const descriptions = Array.from(
+        { length: 40 },
+        (_, index) => `same-day-${index}`,
+      );
+
+      await db.entries.importMany(
+        "user-1",
+        period.id,
+        descriptions.map((description) => testEntryInput(null, description)),
+      );
+
+      expect(
+        (await db.entries.getAll(period.id)).map((entry) => entry.description),
+      ).toEqual(descriptions);
+    });
+
+    it("keeps the written order after an entry in the middle is updated and one is removed", async () => {
+      const db = await makeDb();
+      const period = await createTestFiscalPeriod(db);
+      const created = await db.entries.importMany(
+        "user-1",
+        period.id,
+        ["a", "b", "c", "d"].map((description) =>
+          testEntryInput(null, description),
+        ),
+      );
+
+      await db.entries.update(created[1]!.id, testEntryInput(null, "b2"));
+      await db.entries.remove(created[2]!.id);
+      await db.entries.create("user-1", period.id, testEntryInput(null, "e"));
+
+      expect(
+        (await db.entries.getAll(period.id)).map((entry) => entry.description),
+      ).toEqual(["a", "b2", "d", "e"]);
+    });
+
     it("imports a large batch without changing input order", async () => {
       const db = await makeDb();
       const period = await createTestFiscalPeriod(db);
@@ -1629,6 +1716,77 @@ export function runDbPortConformance(
       expect(
         (await db.fiscalPeriods.getAll("user-1")).map((period) => period.id),
       ).toEqual(["fp-seed"]);
+    });
+
+    it("keeps the order and the timestamps of seeded entries and fixed assets", async () => {
+      const seed = seedWithPeriods("fp-seed");
+      const createdAt = "2026-03-01T09:00:00.000Z";
+      const updatedAt = "2026-03-02T10:30:00.000Z";
+      const entryIds = ["z-first", "m-second", "a-third"];
+      const assetIds = ["y-first", "b-second"];
+      const db = await ctx.makeSeededAdapter({
+        ...seed,
+        entries: entryIds.map((id) => ({
+          id,
+          userId: "user-1",
+          fiscalPeriodId: "fp-seed",
+          ...testEntryInput(null, id),
+          lines: [
+            { ...testEntryLine, id: `${id}-debit` },
+            { ...testCreditEntryLine, id: `${id}-credit` },
+          ],
+          createdAt,
+          updatedAt,
+        })),
+        fixedAssets: assetIds.map((id) => ({
+          id,
+          userId: "user-1",
+          fiscalPeriodId: "fp-seed",
+          name: id,
+          acquisitionDate: "2026-04-01",
+          acquisitionCost: 100000,
+          usefulLife: 4,
+          depreciationMethod: "straight_line" as const,
+          businessRate: 1,
+          status: "active" as const,
+          disposalDate: null,
+          disposalPrice: null,
+          bookAccountId: "acct_equipment",
+          createdAt,
+          updatedAt,
+        })),
+      });
+
+      const entries = await db.entries.getAll("fp-seed");
+      const assets = await db.fixedAssets.getAll("fp-seed");
+      const [period] = await db.fiscalPeriods.getAll("user-1");
+
+      expect(entries.map((entry) => entry.id)).toEqual(entryIds);
+      expect(assets.map((asset) => asset.id)).toEqual(assetIds);
+      expect(
+        [...entries, ...assets].map((record) => [
+          record.createdAt,
+          record.updatedAt,
+        ]),
+      ).toEqual([...entryIds, ...assetIds].map(() => [createdAt, updatedAt]));
+      expect([period?.createdAt, period?.updatedAt]).toEqual([
+        "1970-01-01T00:00:00.000Z",
+        "1970-01-01T00:00:00.000Z",
+      ]);
+    });
+
+    it("rejects a seeded record whose timestamp cannot be read", async () => {
+      const seed = seedWithPeriods("fp-seed");
+
+      await expect(
+        ctx.makeSeededAdapter({
+          ...seed,
+          fiscalPeriods: seed.fiscalPeriods.map((period) => ({
+            ...period,
+            createdAt: "yesterday",
+          })),
+        }),
+      ).rejects.toMatchObject({ statusCode: 400 });
     });
 
     it("rejects invalid seeded child data before exposing the adapter", async () => {

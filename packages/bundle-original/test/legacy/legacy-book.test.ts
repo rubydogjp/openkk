@@ -26,6 +26,7 @@ const tempDirs: string[] = [];
 const openAdapters: BooksDbAdapter[] = [];
 
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const adapter of openAdapters.splice(0)) adapter.close();
   for (const dir of tempDirs.splice(0)) {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -346,6 +347,64 @@ describe("legacy book", () => {
       { name: "2025年分", startDate: "2025-01-01", endDate: "2025-12-31" },
     ]);
     expect(await inner.list()).toHaveLength(2);
+  });
+
+  it("does not mark the move when the list of unmoved periods cannot be stored, and moves nothing twice next time", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const store = emptyStore();
+    const items = new Map<string, string>();
+    let storageWorks = false;
+    const storage = {
+      getItem: (key: string) => items.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        if (storageWorks) items.set(key, value);
+      },
+      removeItem: (key: string) => {
+        items.delete(key);
+      },
+    };
+    const { legacyBook, state } = setup(
+      await legacyDatabaseBytesWithUnreadable(2, [
+        { name: "2025年分", sql: UNREADABLE_PHASE_SQL },
+      ]),
+      {
+        unmovedFiscalPeriodsRecord:
+          createLegacyUnmovedFiscalPeriodsRecord(storage),
+      },
+    );
+
+    await expect(legacyBook.moveInto(store, () => {})).rejects.toThrow(
+      /could not be moved was not stored/,
+    );
+    const movedAfterFailure = state.moved;
+    storageWorks = true;
+    const resumed = await legacyBook.moveInto(store, () => {});
+
+    expect(movedAfterFailure).toBe(false);
+    expect(resumed.movedFiscalPeriodIds).toEqual([]);
+    expect(resumed.unmovedFiscalPeriods).toEqual([
+      { name: "2025年分", startDate: "2025-01-01", endDate: "2025-12-31" },
+    ]);
+    expect(state.moved).toBe(true);
+    expect(await store.list()).toHaveLength(1);
+  });
+
+  it("writes down why a period could not be moved", async () => {
+    const logged: unknown[][] = [];
+    vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+      logged.push(args);
+    });
+
+    await splitLegacyDatabaseIntoPeriods(
+      await legacyDatabaseBytesWithUnreadable(2, [
+        { name: "2025年分", sql: UNREADABLE_PHASE_SQL },
+      ]),
+    );
+
+    expect(logged.map(([message]) => String(message))).toEqual([
+      expect.stringMatching(/cannot be read/),
+    ]);
+    expect(String(logged[0]?.[1])).toMatch(/phase/);
   });
 
   it("ignores a remembered list it cannot read", () => {

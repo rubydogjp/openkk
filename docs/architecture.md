@@ -45,7 +45,7 @@ packages/
 ├── book-db-adapter           口 db の実装 — 帳簿 1 冊 (.openkk のバイト列) をメモリ上に開き、変更を知らせる
 ├── books-db-adapter          口 db の実装 — 会計期間ごとの帳簿 (.openkk) に振り分け、変わった帳簿を置き場へ保存する（無印版）
 ├── disk-db-adapter           口 db の実装 — ディスクの上の .openkk を node:sqlite で開く（openkk-cli 用・ベータ）
-├── legacy-db-adapter         口 db の実装 — 26.3 までの OPFS の DB (SQLite Wasm + SAHPool)。無印版が前の版の帳簿を移すときに読む
+├── legacy-db-adapter         26.3 までの OPFS の DB (SQLite Wasm + SAHPool) を書き出すだけの箱。無印版が前の版の帳簿を移すときに読む
 │
 ├── bundle-original           製品 — 無印版（会計期間ごとの帳簿をブラウザの中に置き、「バックアップ」でファイルに書き出す）
 ├── bundle-sim                製品 — Sim版（memory DB・固定時計・debug）
@@ -71,13 +71,13 @@ packages/
 
 中身の箱が外に求めるものは、すべて口 (port) として interface で定める。実装の箱は `<相手>-<口>-adapter` と名付ける。
 
-| 口         | Interface             | 定める箱 | 実装の箱                                                                                                                                  |
-| ---------- | --------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| backend    | `OpenkkBackendPort`   | `driver` | `embedded-backend-adapter`                                                                                                                |
-| print      | `PrintPort`           | `driver` | `browser-print-adapter`                                                                                                                   |
-| platform   | `PlatformPort`        | `driver` | `browser-platform-adapter`                                                                                                                |
-| book-files | `OpenkkBookFilesPort` | `driver` | `local-book-files-adapter` / `records-book-files-adapter`                                                                                 |
-| db         | `OpenkkDbPort`        | `engine` | `memory-db-adapter` / `books-db-adapter` / `book-db-adapter` / `disk-db-adapter` / `legacy-db-adapter` (共通の実装は `sqlite-db-adapter`) |
+| 口         | Interface             | 定める箱 | 実装の箱                                                                                                            |
+| ---------- | --------------------- | -------- | ------------------------------------------------------------------------------------------------------------------- |
+| backend    | `OpenkkBackendPort`   | `driver` | `embedded-backend-adapter`                                                                                          |
+| print      | `PrintPort`           | `driver` | `browser-print-adapter`                                                                                             |
+| platform   | `PlatformPort`        | `driver` | `browser-platform-adapter`                                                                                          |
+| book-files | `OpenkkBookFilesPort` | `driver` | `local-book-files-adapter` / `records-book-files-adapter`                                                           |
+| db         | `OpenkkDbPort`        | `engine` | `memory-db-adapter` / `books-db-adapter` / `book-db-adapter` / `disk-db-adapter` (共通の実装は `sqlite-db-adapter`) |
 
 HTTP 越しのバックエンドは、`embedded-backend-adapter` と同じ位置で口 backend を実装して差し替える。
 
@@ -161,11 +161,13 @@ openkk-cli:  コマンド → 口 backend → embedded-backend-adapter → backe
 
 `engine` の ports にDB操作契約と保存の型を置く。SQL・保存処理・DDLは `sqlite-db-adapter` が担当する。テーブル構造は [`database-schema.md`](./database-schema.md) を参照。
 
-`legacy-db-adapter`・`memory-db-adapter` は `sqlite-db-adapter` を利用し、起動時に `runMigrations()` を呼ぶ。`legacy-db-adapter` の OPFS SAHPool VFS は1ファイルを1接続でしか開けないため、Web Locks で1タブに限定し、同一プロセス内ではアダプタを1つだけ生成する。ロックは時間で打ち切らず、取れなければ `onWaitingForAnotherTab` で画面に知らせたうえで解放を待つ。別のタブを閉じる、または再読み込みで前の文書が片付くと、そのまま起動が続く。DB を開けたら、ストレージが足りないときなどにブラウザがデータを消さないよう `navigator.storage.persist()` で求める（すでに許可されていれば求めない。Firefox では確認が出るため、結果は待たずに起動を続ける）。起動の段階は `<html data-openkk-boot>`（`starting` / `waiting-for-another-tab` / `ready` / `failed`）に出し、無印版は帳簿の保存の状態を `<html data-openkk-storage>` に出す。E2E は待ち時間ではなくこれらの属性の変化を待つ (画面を移るときは、保存が終わってから移る)。DB実装を差し替える場合は `OpenkkDbPort` を実装し、DDLはその実装内で管理する。
+`memory-db-adapter`・`book-db-adapter`・`disk-db-adapter` は `sqlite-db-adapter` を利用し、開くときに `runMigrations()` を呼ぶ。`disk-db-adapter` は、オープン会計の帳簿でない SQLite (`openkk_meta` がなく、ほかの表がある) を 400 で断り、ファイルに手を付けない。空のファイルとまだないファイルには新しい帳簿を作る。`legacy-db-adapter` は 26.3 までの DB を書き出すだけで、開いても移行しない (26.3.1 に戻しても開けるように)。OPFS SAHPool VFS は1ファイルを1接続でしか開けないため、Web Locks で1タブに限定する。ロックは時間で打ち切らず、取れなければ `onWaitingForAnotherTab` で画面に知らせたうえで解放を待つ。別のタブを閉じる、または再読み込みで前の文書が片付くと、そのまま起動が続く。無印版は起動したら、ストレージが足りないときなどにブラウザがデータを消さないよう `navigator.storage.persist()` で求める（すでに許可されていれば求めない。Firefox では確認が出るため、結果は待たずに起動を続ける）。起動の段階は `<html data-openkk-boot>`（`starting` / `waiting-for-another-tab` / `ready` / `failed`）に出し、無印版は帳簿の保存の状態を `<html data-openkk-storage>` に出す。E2E は待ち時間ではなくこれらの属性の変化を待つ (画面を移るときは、保存が終わってから移る)。DB実装を差し替える場合は `OpenkkDbPort` を実装し、DDLはその実装内で管理する。
 
 SQLite の単一接続では、トランザクションへ別操作が混入しないよう読取を含む公開ポート呼出しを直列化する。直列化は `engine` の `serializePortOperations` が担い、`OpenkkDbPort` の実装と `backend-api` の両方で使う。
 
 エントリの取込み（`importMany`）は `localId` 単位で冪等で、同一 fiscal period に既存の `localId` はスキップされる。バルク挿入はトランザクションで囲まれ、途中失敗時はロールバックされる。
+
+仕訳は日付・作成時刻の順に読み、同じ日付・同じ作成時刻の中は入れた順 (`rowid`) に並べる。固定資産も作成時刻・入れた順に並べる。まとめて入れた仕訳や、圧縮済みファイル・帳簿のファイルから入れた仕訳は作成時刻が同じになるので、元の順のまま読める。`VACUUM`・書き出し・帳簿の作り直しのあとも順は変わらない。記録から帳簿を組み立てるとき (`seed`) は、記録の作成時刻・更新時刻をそのまま書く。
 
 仕訳の CSV の取り込みは上書きで、仕訳番号で突き合わせた追加・更新・削除を、この順に呼ぶ (`journalTableOperations`。消すのを最後にするので、途中で失敗しても仕訳は失われない)。全体を 1 つのトランザクションにはしないが、同じ CSV をもう一度取り込めば残りだけが上書きされる。
 
@@ -177,13 +179,13 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 - `books-db-adapter`: 置き場 (`BookStore`: `list` / `read` / `write` / `remove`) にある帳簿をすべて開き、1 つの `OpenkkDbPort` にまとめる。期間の ID で帳簿に振り分け、期間の作成・圧縮済みファイルの取り込みは新しい帳簿を作り、期間の削除は帳簿を消す。日付の重なりは帳簿をまたいで確かめる。次期の作成 (`createNext`) と引き継ぎの上書き (`applyCarryover`) は、引き継ぎ元の帳簿を読んで圧縮保存と同じ形にし、引き継ぎ先の帳簿の `applyCarryoverFromArchive` に渡す。`runDbPortConformance` に通してあり、1 つの DB に全期間を置く実装と同じ振る舞いになる。
 - 変わった帳簿は、操作のあとに置き場へ丸ごと保存する (書き出しを重ねず、最新だけ)。新しい帳簿の作成・削除・上書きは、置き場に書けてから操作を終える。保存の状態 (`saved` / `saving` / `failed`) は `<html data-openkk-storage>` に出し、保存できなかったときは、重ねて出す知らせで伝える (直るまで出す)。保存が済む前にページを離れようとすると、ブラウザの確かめを出す。
 - 帳簿を読むのも書くのも 1 つの順番待ち (`operation-queue.ts`) を通す。書き出し (`exportBytes`) を別の操作のトランザクションの途中に挟まないため。
-- 読めない帳簿 (壊れている・新しい版で作られた・同じ期間が 2 冊ある) は飛ばして起動し、ファイルは消さずに残す。期間の選択の一覧の下に、押せない行 (「読み込めませんでした」) として出し、分かる範囲で名前と日付を添える (`readStoredFiscalPeriodLabels`。読めなければ「名前の分からない期間」)。重ねて出す知らせ「読み込めない会計期間が N 件あります」は × で閉じられ、次に開いたときにまだ読めなければまた出す (`OpenkkBookSaveTracking.unreadableFiscalPeriods`)。前の版から移せなかった期間の行と同じ部品 (`frontend-ui/src/shell/unavailable-fiscal-period-row.tsx`) を使う。
+- 起動するとき、帳簿ごとに期間・仕訳・固定資産まで読んで確かめる (`readBookRecords`)。中身が原因で読めない帳簿 (壊れている・新しい版で作られた・記録が今の決まりに合わない・同じ期間が 2 冊ある) は飛ばして起動し、ファイルは消さずに残す。同じ期間が 2 冊あれば、`last_changed_at` の新しいほうを使い、古いほうを読めない帳簿にする。置き場が読めない・メモリが足りないなど、中身と関係のない失敗では起動を止める (`isBookContentError`)。どちらも理由を `console.error` に残す。読めない帳簿は、期間の選択の一覧の下に、押せない行 (「読み込めませんでした」) として出し、分かる範囲で名前と日付を添える (`readStoredFiscalPeriods`。読めなければ「名前の分からない期間」)。重ねて出す知らせ「読み込めない会計期間が N 件あります」は × で閉じられ、次に開いたときにまだ読めなければまた出す (`OpenkkBookSaveTracking.unreadableFiscalPeriods`)。前の版から移せなかった期間の行と同じ部品 (`frontend-ui/src/shell/unavailable-fiscal-period-row.tsx`) を使う。
 - `browser-platform-adapter` の `inAppBookStore`: OPFS に `BookStore` を実装する。書き込みは worker の sync access handle で行う (Safari でも書けるように)。手順は `in-app-book-protocol.ts` にあり、控え (`.next`) を書き切ってから「準備済み」の印 (`.ready`) を置き、本体を書いてから両方を消す。一覧を読むときに印や控えが残っていれば、印があれば本体を控えで戻し、控えだけなら控えを消す (初めての保存の途中で止まった帳簿も、ここで仕上げるか捨てる)。帳簿のファイル名は中身と関係のない一意な名前で、どの期間の帳簿かは中身から読む。
 - 同じブラウザでは 1 つのタブでだけ動かす。起動するときに Web Lock (`openkk-books`) を取り、取れなければ別のタブが閉じるのを待つ (`waiting-for-another-tab`)。Web Locks のないブラウザでは起動しない。起動したら `navigator.storage.persist()` を求める。
 
 ### 最後に変えた時刻
 
-帳簿は `openkk_meta` の `last_changed_at` (ミリ秒) に、最後に中身を変えた時刻を持つ。`sqlite-db-adapter` の `runInTransaction` が、行を変えたトランザクションの中で更新する (前の値より必ず大きくする)。同じ層を通る openkk-cli の変更でも更新される。読むだけの操作と、失敗して巻き戻った操作では変わらない。
+帳簿は `openkk_meta` の `last_changed_at` (ミリ秒) に、最後に中身を変えた時刻を持つ。`sqlite-db-adapter` の `runInTransaction` が、行を変えたトランザクションの中で更新する (前の値より必ず大きくする。安全な整数の上限で止め、書き込みは失敗させない)。同じ層を通る openkk-cli の変更でも更新される。読むだけの操作と、失敗して巻き戻った操作では変わらない。数でない値・負の値・日時で表せる上限 (8,640,000,000,000,000) を超える値を持つ帳簿のファイルは開かない。
 
 ### ファイルにバックアップする・取り込む
 
@@ -195,9 +197,11 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
   - 同じ ID の期間がない・日付の重なる期間もない: 新しい期間として足す (確かめない)。
   - 同じ ID の期間がある: ファイルの `last_changed_at`・今の帳簿の値・バックアップしたときに覚えた値を比べる (`bookImportCase`)。同じなら何もしない。違えば「ファイルで上書きしますか？」と確かめ、ファイルを優先して帳簿を上書きする。アプリの側にバックアップしていない変更があれば、それが失われることを知らせる。
   - ID は違うが開始日・終了日が同じ期間がある: 別に作られた帳簿として、確かめてから上書きする。
+  - 同じ ID の期間が、読めない帳簿として飛ばしてある: その帳簿のファイルをファイルの中身で上書きする (「ファイルを優先して、アプリの中の「…」を上書きします。」と確かめる)。新しい版で作られて読めない帳簿は上書きせず、取り込まない。
   - それ以外の重なり: 取り込まない。
   - 確かめのダイアログで選べるのは「キャンセル」と「上書きする」だけ。確かめている間に帳簿が変わっていたら取り込まず、やり直しを求める。
-- 複数の期間が入ったファイル (openkk-cli で作ったもの) は、期間ごとの帳簿に分けて取り込む (`splitBookFile`)。分けたあと、期間・仕訳・固定資産が元と同じかを確かめ、違えば取り込まない。
+- ファイルのバイト列はそのまま置き場に入れない。64MB (`MAX_BOOK_FILE_BYTES`) を超えるファイルは開く前に断る。ファイルを開いて期間・仕訳・固定資産を確かめながら読み (`readBookRecords`)、その記録から期間ごとに新しい帳簿を作り直す (`splitBookFile` → `rebuildBookFileBytes`)。作成時刻・更新時刻・並び・ファイルの `last_changed_at` はそのまま保ち、作り直した帳簿を読み直して元の記録と同じかを確かめてから置き場に書く。ファイルの中のトリガー・ビュー・余分な表や行は持ち込まない。期間の行の ID と中身の ID が違う・仕訳番号が重なる・記録が今の決まりに合わない・`last_changed_at` が使えないファイルは「オープン会計の帳簿ではありません」として断り、何も書かない。
+- 複数の期間が入ったファイル (openkk-cli で作ったもの) も、同じ作り直しで期間ごとの帳簿にする。途中の期間で失敗したときは、先に入った期間を画面が知れるように知らせてから失敗を返す。
 - 取り込んだあとはページを読み込み直し、取り込んだ期間を選んだ状態で始める。
 - 無印版は取り込みの入口を 1 つにしている。選んだファイルの先頭が zip なら、前の版の圧縮済みファイルとして `fiscalPeriods.importArchived` に渡す (`looksLikeLegacyArchiveZip`)。それ以外は帳簿のファイルとして扱う。
 - どの製品にも圧縮保存の操作を出さない。「次の期間へ」の手順には、左上の「バックアップ」と同じファイルを出す「バックアップをダウンロード」を置く。圧縮保存の操作 (`archive` / `purgeArchivedData`) は契約からも外した。前の版が記録した状態 `archived` は、読むときにふつうの期間 (`active`) に読み替える (埋め込みの側は `sqlite-db-adapter` の読み戻し、HTTP 越しの側は driver が期間の記録を受け取る所)。データを削除済みの `purged` だけをレガシーとして残している。
@@ -209,8 +213,8 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 
 データを帳簿のファイルとして持たない製品 (Sim版・デモ版。クラウドに置く版も同じ形) は、`records-book-files-adapter` が口 book-files を実装する。
 
-- 保存: 口 backend から会計期間・仕訳・固定資産を読み、`book-db-adapter` の `createBookFileBytes` で帳簿のファイルを組み立てる。期間・仕訳・固定資産の ID はそのまま保つ。ファイルの中の持ち主は、無印版と openkk-cli が使う ID (`PORTABLE_BOOK_OWNER_USER_ID`) にそろえるので、無印版にも取り込める。
-- 取り込み: ファイルの中の期間を読み、今ある有効な期間と日付が重ならなければ、新しい期間として足す (`fiscalPeriods.importArchived`。ID は付け直される)。重なれば取り込まない。上書きはしない。
+- 保存: 口 backend から会計期間・仕訳・固定資産を読み、`book-db-adapter` の `createBookFileBytes` で帳簿のファイルを組み立てる。期間・仕訳・固定資産の ID と作成時刻・更新時刻はそのまま保つ。ファイルの中の持ち主は、無印版と openkk-cli が使う ID (`PORTABLE_BOOK_OWNER_USER_ID`) にそろえるので、無印版にも取り込める。
+- 取り込み: ファイルの中の期間を確かめながら読み (`readBookRecords`。64MB を超えるファイル・記録が今の決まりに合わないファイルは「帳簿ではない」として断る)、今ある有効な期間と日付が重ならなければ、新しい期間として足す (`fiscalPeriods.importArchived`。ID は付け直される)。重なれば取り込まない。上書きはしない。
 - バックアップの状態は覚えない (`saveTracking: null`)。左上の「バックアップ」と 30 日の知らせは出ない。取り込んだあとはページを読み込み直さず、期間の一覧を読み直す (`reloadsAppAfterImport: false`)。
 
 ### 前の版の帳簿を移す
@@ -219,8 +223,8 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 
 - 前の DB は消さない。読めた期間をすべて書けたら OPFS の直下に印 (`openkk-legacy-book-moved`) を置き、二度は移さない。
 - 途中で止まったら印を置かず、次の起動で続きから移す。すでに置き場にある期間 (ID で見分ける) は書かない。
-- 読めない期間 (保存してある中身が今の決まりに合わない・分けたあとに元と中身が合わない) は、その期間だけ飛ばして、ほかの期間を移し、起動を続ける。全部の期間が読めなくても起動する。前の DB がそもそも帳簿として開けないときは、名前の分からない期間 1 つとして扱う。
-- 移せなかった期間は、分かる範囲の名前と日付を localStorage (`openkk.legacy-book.unmoved-fiscal-periods`) に残し、印を置く前に書く。次の起動からはこれを読むだけで、前の DB は読まない。画面には、期間の選択の一覧の下に押せない行 (「移せませんでした」) として出し、下の知らせ「前の版から移せなかった会計期間が N 件あります」を閉じるまで出す (`frontend-ui/src/legacy/legacy-unmoved-fiscal-periods.tsx`。`OpenkkBookSaveTracking.legacyUnmovedFiscalPeriods` で渡す)。
+- 中身が原因で読めない期間 (保存してある中身が今の決まりに合わない・分けたあとに元と中身が合わない) は、その期間だけ飛ばして、ほかの期間を移し、起動を続ける。全部の期間が読めなくても起動する。前の DB がそもそも帳簿として開けないときは、名前の分からない期間 1 つとして扱う。メモリが足りないなど中身と関係のない失敗は「移せなかった」にせず、印を置かずに起動を止める (次の起動でやり直す)。どちらも理由を `console.error` に残す。
+- 移せなかった期間は、分かる範囲の名前と日付を localStorage (`openkk.legacy-book.unmoved-fiscal-periods`) に残し、印を置く前に書く。書いたあとに読み直して同じでなければ (localStorage に書けなければ)、印を置かずに起動を止める。次の起動からはこれを読むだけで、前の DB は読まない。画面には、期間の選択の一覧の下に押せない行 (「移せませんでした」) として出し、下の知らせ「前の版から移せなかった会計期間が N 件あります」を閉じるまで出す (`frontend-ui/src/legacy/legacy-unmoved-fiscal-periods.tsx`。`OpenkkBookSaveTracking.legacyUnmovedFiscalPeriods` で渡す)。
 - 前の DB を読み出せない (書き出しそのものが失敗する) ときと、置き場に書けないときは、印を置かずに起動を止める (次の起動でやり直す)。
 - 前の版のタブが開いていると DB のロック (`openkk-db:openkk.sqlite3`) が取れないので、そのタブを閉じるまで待つ。
 - 書き出しは DB を開いてから `sqlite3_js_db_export` で行う (途中で止まった書き込みの journal があっても、開いたときに戻してから書き出す)。OPFS に `.openkk/` がなければ SQLite を読み込まない。SAHPool は開いた名前に `/` を付けて覚えるので、両方の名前で探す。

@@ -610,6 +610,41 @@ test("shows a book it cannot read as a row and tells so until the notice is clos
   await expect(unreadableNotice).toBeVisible();
 });
 
+test("restores a book it cannot read from a backup of the same period, in place of the broken one", async ({
+  page,
+}) => {
+  await startApp(page);
+  await createFiscalPeriod(page, "2026年分");
+  const backup = await saveBook(page, "2026年分.openkk");
+  const broken = path.join(makeTempDir(), "broken.openkk");
+  fs.copyFileSync(backup, broken);
+  makeUnreadableForThisVersion(broken, "2026年分");
+  await overwriteStoredBooks(page, fs.readFileSync(broken));
+
+  await gotoInApp(page, "/fiscal-periods");
+  await waitUntilBootPhase(page, "ready");
+  const unreadableRow = page
+    .locator('.bk-fiscal-period-row[aria-disabled="true"]')
+    .filter({ hasText: "2026年分" });
+  await expect(unreadableRow).toContainText("読み込めませんでした");
+
+  await importBook(page, backup);
+  const dialog = page.getByRole("alertdialog", { name: OVERWRITE_TITLE });
+  await expect(dialog).toContainText(CHANGED_OUTSIDE_MESSAGE);
+  await dialog.getByRole("button", { name: "上書きする" }).click();
+
+  await expectImported(page);
+  await expectStep(page, "期間を開始");
+  expect(await countStoredBooks(page)).toBe(1);
+  await gotoInApp(page, "/fiscal-periods");
+  await waitUntilBootPhase(page, "ready");
+  await expect(page.getByRole("button", { name: /^2026年分 / })).toBeVisible();
+  await expect(unreadableRow).toHaveCount(0);
+  await expect(
+    page.getByRole("status").filter({ hasText: UNREADABLE_NOTICE }),
+  ).toHaveCount(0);
+});
+
 function saveButton(page: Page) {
   return page
     .getByRole("complementary")
@@ -847,6 +882,37 @@ async function putBookIntoBrowser(page: Page, name: string, bytes: Buffer) {
       await writable.close();
     },
     { bookName: name, data: [...bytes] },
+  );
+}
+
+async function overwriteStoredBooks(page: Page, bytes: Buffer) {
+  await page.evaluate(
+    async ({ data }) => {
+      const root = await navigator.storage.getDirectory();
+      const books = await root.getDirectoryHandle("openkk-books", {
+        create: true,
+      });
+      const names: string[] = [];
+      for await (const name of (
+        books as unknown as { keys(): AsyncIterable<string> }
+      ).keys()) {
+        names.push(name);
+      }
+      for (const name of names) {
+        const file = await books.getFileHandle(name, { create: false });
+        const writable = await (
+          file as unknown as {
+            createWritable(): Promise<{
+              write(content: Uint8Array): Promise<void>;
+              close(): Promise<void>;
+            }>;
+          }
+        ).createWritable();
+        await writable.write(new Uint8Array(data));
+        await writable.close();
+      }
+    },
+    { data: [...bytes] },
   );
 }
 

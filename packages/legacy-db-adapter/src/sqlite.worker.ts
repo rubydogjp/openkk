@@ -1,28 +1,13 @@
 import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
-import { runMigrations } from "@rubydogjp/openkk-sqlite-db-adapter";
-
-type ExecArg =
-  | string
-  | { sql: string; bind?: unknown[]; returnValue?: string; rowMode?: string };
-
-type SyncDb = {
-  exec(arg: ExecArg): unknown;
-  selectValue(sql: string): unknown;
-};
 
 type DbLocation = { vfsName: string; dbFileName: string };
 
-type Incoming =
-  | { id: number; type: "init"; payload: DbLocation }
-  | { id: number; type: "export"; payload: DbLocation }
-  | { id: number; type: "exec"; payload: ExecArg };
+type Incoming = { id: number; type: "export"; payload: DbLocation };
 
 const workerScope = self as unknown as {
   onmessage: ((event: MessageEvent<Incoming>) => void) | null;
   postMessage(message: unknown): void;
 };
-
-let db: SyncDb | null = null;
 
 function holdUntilWorkerEnds(): Promise<void> {
   return new Promise<void>(() => {});
@@ -61,15 +46,6 @@ async function openPool(location: DbLocation) {
   return { sqlite3, pool };
 }
 
-async function init(location: DbLocation): Promise<void> {
-  const { pool } = await openPool(location);
-  const opfsDb = new pool.OpfsSAHPoolDb(
-    location.dbFileName,
-  ) as unknown as SyncDb;
-  runMigrations(opfsDb);
-  db = opfsDb;
-}
-
 async function exportDb(location: DbLocation): Promise<Uint8Array | null> {
   const { sqlite3, pool } = await openPool(location);
   const storedNames = [location.dbFileName, `/${location.dbFileName}`];
@@ -86,19 +62,8 @@ async function exportDb(location: DbLocation): Promise<Uint8Array | null> {
 
 async function handle(message: Incoming): Promise<unknown> {
   switch (message.type) {
-    case "init":
-      await init(message.payload);
-      return null;
     case "export":
       return exportDb(message.payload);
-    case "exec": {
-      if (db == null) throw new Error("db not initialized");
-      const arg = message.payload;
-      const wantsRows =
-        typeof arg === "object" && arg.returnValue === "resultRows";
-      const result = db.exec(arg);
-      return wantsRows ? result : null;
-    }
   }
 }
 

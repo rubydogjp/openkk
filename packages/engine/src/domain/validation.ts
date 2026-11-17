@@ -101,6 +101,28 @@ export function assertUniqueStrings(
   }
 }
 
+const NUL_CHARACTER = "\u0000";
+
+export function assertNoNulCharacter(input: unknown, label: string): void {
+  const pending: unknown[] = [input];
+  while (pending.length > 0) {
+    const value = pending.pop();
+    if (typeof value === "string") {
+      if (value.includes(NUL_CHARACTER)) {
+        throw engineValidationError(
+          `${label} contains U+0000`,
+          "使えない文字が含まれています",
+        );
+      }
+      continue;
+    }
+    if (typeof value !== "object" || value === null) continue;
+    for (const [key, member] of Object.entries(value)) {
+      pending.push(key, member);
+    }
+  }
+}
+
 export function isNonBlankString(value: unknown): value is string {
   return typeof value === "string" && value.trim() !== "";
 }

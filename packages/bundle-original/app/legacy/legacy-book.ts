@@ -137,11 +137,17 @@ export function createLegacyUnmovedFiscalPeriodsRecord(
     read: () =>
       parseUnmovedFiscalPeriods(storage.getItem(UNMOVED_FISCAL_PERIODS_KEY)),
     write(periods) {
-      if (periods.length === 0) {
+      const stored = periods.length === 0 ? null : JSON.stringify(periods);
+      if (stored == null) {
         storage.removeItem(UNMOVED_FISCAL_PERIODS_KEY);
-        return;
+      } else {
+        storage.setItem(UNMOVED_FISCAL_PERIODS_KEY, stored);
       }
-      storage.setItem(UNMOVED_FISCAL_PERIODS_KEY, JSON.stringify(periods));
+      if (storage.getItem(UNMOVED_FISCAL_PERIODS_KEY) !== stored) {
+        throw new Error(
+          "the list of fiscal periods that could not be moved was not stored",
+        );
+      }
     },
   };
 }

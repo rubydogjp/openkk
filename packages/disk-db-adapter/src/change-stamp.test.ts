@@ -258,4 +258,59 @@ describe("change stamp", () => {
 
     expect(readStamp(dbPath)).toBe(future + 1);
   });
+
+  it.each([
+    ["the largest safe integer", String(Number.MAX_SAFE_INTEGER)],
+    ["a number past the 64-bit range", "99999999999999999999999"],
+  ])(
+    "keeps a readable stamp and keeps writing when the stamp is %s",
+    async (_label, stored) => {
+      const dbPath = tempDbPath();
+      const first = await createDiskDbAdapter(dbPath, null);
+      first.close();
+      const database = new DatabaseSync(dbPath);
+      database
+        .prepare(
+          "UPDATE openkk_meta SET value = ? WHERE key = 'last_changed_at'",
+        )
+        .run(stored);
+      database.close();
+      const adapter = await createDiskDbAdapter(dbPath, null);
+      openAdapters.push(adapter);
+
+      const created = await adapter.db.fiscalPeriods.create("user-1", {
+        name: "2026年分",
+        startDate: "2026-01-01",
+        endDate: "2026-12-31",
+      });
+      await adapter.db.fiscalPeriods.patch(created.id, { name: "2026年" });
+
+      expect(readStamp(dbPath)).toBe(Number.MAX_SAFE_INTEGER);
+      expect((await adapter.db.fiscalPeriods.getById(created.id))?.name).toBe(
+        "2026年",
+      );
+    },
+  );
+
+  it("gives a book a usable stamp again when the stored stamp is not a number", async () => {
+    const dbPath = tempDbPath();
+    const first = await createDiskDbAdapter(dbPath, null);
+    first.close();
+    const database = new DatabaseSync(dbPath);
+    database
+      .prepare("UPDATE openkk_meta SET value = ? WHERE key = 'last_changed_at'")
+      .run("not a number");
+    database.close();
+    const adapter = await createDiskDbAdapter(dbPath, null);
+    openAdapters.push(adapter);
+    const before = Date.now();
+
+    await adapter.db.fiscalPeriods.create("user-1", {
+      name: "2026年分",
+      startDate: "2026-01-01",
+      endDate: "2026-12-31",
+    });
+
+    expect(readStamp(dbPath)).toBeGreaterThanOrEqual(before);
+  });
 });

@@ -1,8 +1,11 @@
 import {
+  assertBookFileSize,
   BookFileFormatError,
   createBookDbAdapter,
   createBookFileBytes,
-  type DbSnapshot,
+  isBookContentError,
+  readBookRecords,
+  type BookPeriodRecords,
 } from "@rubydogjp/openkk-book-db-adapter";
 import {
   archiveClosingRecords,
@@ -36,44 +39,36 @@ export type RecordsBookFilesAdapterOptions = {
   ): Promise<OpenkkBookFileSaveResult>;
 };
 
-type BookPeriod = {
-  fiscalPeriod: DbSnapshot["fiscalPeriods"][number];
-  entries: DbSnapshot["entries"];
-  fixedAssets: DbSnapshot["fixedAssets"];
-};
-
 type DateRange = { startDate: string; endDate: string };
 
 function rangesOverlap(left: DateRange, right: DateRange): boolean {
   return left.startDate <= right.endDate && right.startDate <= left.endDate;
 }
 
-async function readBookPeriods(bytes: Uint8Array): Promise<BookPeriod[]> {
-  let book;
-  try {
-    book = await createBookDbAdapter(bytes);
-  } catch (error) {
-    if (error instanceof BookFileFormatError) {
-      throw new OpenkkBookFileError(
-        error.problem === "newer_schema" ? "newer_version" : "not_a_book",
-      );
-    }
-    throw error;
+function bookFileError(error: unknown): unknown {
+  if (error instanceof BookFileFormatError) {
+    return new OpenkkBookFileError(
+      error.problem === "newer_schema" ? "newer_version" : "not_a_book",
+    );
   }
+  return isBookContentError(error)
+    ? new OpenkkBookFileError("not_a_book")
+    : error;
+}
+
+async function readBookPeriods(
+  bytes: Uint8Array,
+): Promise<BookPeriodRecords[]> {
   try {
-    const periods: BookPeriod[] = [];
-    for (const fiscalPeriodId of book.listFiscalPeriodIds()) {
-      const fiscalPeriod = await book.db.fiscalPeriods.getById(fiscalPeriodId);
-      if (fiscalPeriod == null) continue;
-      periods.push({
-        fiscalPeriod,
-        entries: await book.db.entries.getAll(fiscalPeriodId),
-        fixedAssets: await book.db.fixedAssets.getAll(fiscalPeriodId),
-      });
+    assertBookFileSize(bytes);
+    const book = await createBookDbAdapter(bytes);
+    try {
+      return await readBookRecords(book);
+    } finally {
+      book.close();
     }
-    return periods;
-  } finally {
-    book.close();
+  } catch (error) {
+    throw bookFileError(error);
   }
 }
 
@@ -98,27 +93,30 @@ export function createRecordsBookFilesAdapter(
         backend.fixedAssets.getAll(fiscalPeriodId),
       ]);
       const idInBook = options.fiscalPeriodIdInBook(fiscalPeriodId);
-      const bytes = await createBookFileBytes({
-        fiscalPeriods: [
-          {
-            ...fiscalPeriod,
-            id: idInBook,
+      const bytes = await createBookFileBytes(
+        {
+          fiscalPeriods: [
+            {
+              ...fiscalPeriod,
+              id: idInBook,
+              userId: bookOwnerUserId,
+              archiveStatus: "active",
+              archivedAt: null,
+            },
+          ],
+          entries: entries.map((entry) => ({
+            ...entry,
+            fiscalPeriodId: idInBook,
             userId: bookOwnerUserId,
-            archiveStatus: "active",
-            archivedAt: null,
-          },
-        ],
-        entries: entries.map((entry) => ({
-          ...entry,
-          fiscalPeriodId: idInBook,
-          userId: bookOwnerUserId,
-        })),
-        fixedAssets: fixedAssets.map((asset) => ({
-          ...asset,
-          fiscalPeriodId: idInBook,
-          userId: bookOwnerUserId,
-        })),
-      });
+          })),
+          fixedAssets: fixedAssets.map((asset) => ({
+            ...asset,
+            fiscalPeriodId: idInBook,
+            userId: bookOwnerUserId,
+          })),
+        },
+        null,
+      );
       return options.deliver(bytes, options.fileNameOf(fiscalPeriod.name));
     },
     async inspect(bytes) {

@@ -6,17 +6,24 @@ export const LAST_CHANGED_AT_QUERY = `SELECT value FROM openkk_meta WHERE key = 
 
 const TOTAL_CHANGES_QUERY = "SELECT total_changes()";
 
+export const LARGEST_LAST_CHANGED_AT = Number.MAX_SAFE_INTEGER;
+
+export const LARGEST_LAST_CHANGED_AT_IN_A_BOOK_FILE = 8_640_000_000_000_000;
+
 const STAMP_CHANGE_SQL = `
 INSERT INTO openkk_meta(key, value) VALUES('${LAST_CHANGED_AT_META_KEY}', ?)
 ON CONFLICT(key) DO UPDATE SET value = CAST(
-  MAX(CAST(openkk_meta.value AS INTEGER) + 1, CAST(excluded.value AS INTEGER))
+  MIN(
+    MAX(CAST(openkk_meta.value AS INTEGER) + 1, CAST(excluded.value AS INTEGER)),
+    ${LARGEST_LAST_CHANGED_AT}
+  )
   AS TEXT
 )`.trim();
 
 export function parseLastChangedAt(value: unknown): number | null {
   if (value == null) return null;
   const parsed = Number(value);
-  return Number.isSafeInteger(parsed) ? parsed : null;
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
 }
 
 export async function totalChanges(db: SqlDb): Promise<number> {

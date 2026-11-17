@@ -132,4 +132,30 @@ describe("bookImportCase", () => {
       ),
     ).toBe("overlapping");
   });
+
+  it.each([
+    [true, "changed_outside"],
+    [false, "overlapping"],
+  ] as const)(
+    "asks to overwrite a book the app could not read only when it may be replaced (%s)",
+    (replaceable, expected) => {
+      expect(
+        bookImportCase(
+          {
+            lastChangedAt: 1,
+            relation: {
+              kind: "unreadable_book",
+              existing: {
+                name: "2026年分",
+                startDate: "2026-01-01",
+                endDate: "2026-12-31",
+              },
+              replaceable,
+            },
+          },
+          null,
+        ),
+      ).toBe(expected);
+    },
+  );
 });

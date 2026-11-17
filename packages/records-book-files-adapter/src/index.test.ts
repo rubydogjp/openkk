@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { createOpenkkBackendApi } from "@rubydogjp/openkk-backend-api";
-import { createBookDbAdapter } from "@rubydogjp/openkk-book-db-adapter";
+import {
+  createBookDbAdapter,
+  MAX_BOOK_FILE_BYTES,
+} from "@rubydogjp/openkk-book-db-adapter";
 import {
   OpenkkBookFileError,
   type OpenkkBackendPort,
@@ -124,6 +127,26 @@ describe("createRecordsBookFilesAdapter", () => {
       const assets = await book.db.fixedAssets.getAll(fiscalPeriodId);
       expect(assets.map((asset) => asset.name)).toEqual(["ノートパソコン"]);
       expect(book.lastChangedAt()).toBeGreaterThan(0);
+      const [source] = (await backend.fiscalPeriods.getAll()).filter(
+        (candidate) => candidate.id === fiscalPeriodId,
+      );
+      const sourceEntries = await backend.entries.getAll(fiscalPeriodId);
+      const sourceAssets = await backend.fixedAssets.getAll(fiscalPeriodId);
+      expect([period?.createdAt, period?.updatedAt]).toEqual([
+        source?.createdAt,
+        source?.updatedAt,
+      ]);
+      expect(
+        [...entries, ...assets].map(({ createdAt, updatedAt }) => [
+          createdAt,
+          updatedAt,
+        ]),
+      ).toEqual(
+        [...sourceEntries, ...sourceAssets].map(({ createdAt, updatedAt }) => [
+          createdAt,
+          updatedAt,
+        ]),
+      );
     } finally {
       book.close();
     }
@@ -210,4 +233,39 @@ describe("createRecordsBookFilesAdapter", () => {
       bookFiles.inspect(new TextEncoder().encode("not a book")),
     ).rejects.toMatchObject({ problem: "not_a_book" });
   });
+
+  it("reports a file larger than a book can be as not a book", async () => {
+    const { bookFiles } = adapterFor(
+      await emptyBackend("cloud-user"),
+      keepFiscalPeriodIdInBook,
+    );
+
+    await expect(
+      bookFiles.inspect(new Uint8Array(MAX_BOOK_FILE_BYTES + 1)),
+    ).rejects.toMatchObject({ problem: "not_a_book" });
+  });
+
+  it("reports a book whose records break the rules as not a book", async () => {
+    const { backend, fiscalPeriodId } = await backendWithPeriod("cloud-user");
+    const { bookFiles, delivered } = adapterFor(
+      backend,
+      keepFiscalPeriodIdInBook,
+    );
+    await bookFiles.save(fiscalPeriodId);
+    const broken = withStoredPhaseMisspelled(delivered[0]!.bytes);
+
+    await expect(bookFiles.inspect(broken)).rejects.toMatchObject({
+      problem: "not_a_book",
+    });
+  });
 });
+
+function withStoredPhaseMisspelled(bytes: Uint8Array): Uint8Array {
+  const copy = new Uint8Array(bytes);
+  const index = new TextDecoder("latin1")
+    .decode(copy)
+    .indexOf('"phase":"journalizing"');
+  expect(index).toBeGreaterThan(0);
+  copy.set(new TextEncoder().encode('"phase":"journalizinG"'), index);
+  return copy;
+}

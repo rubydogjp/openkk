@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 
 import type { DbSnapshot } from "@rubydogjp/openkk-engine";
 
@@ -40,6 +41,24 @@ export function tempBookPath(): string {
 export async function seededBookBytes(seed: DbSnapshot): Promise<Uint8Array> {
   const filePath = tempBookPath();
   (await createDiskDbAdapter(filePath, seed)).close();
+  return new Uint8Array(fs.readFileSync(filePath));
+}
+
+export function changedBookBytes(
+  bytes: Uint8Array,
+  statements: readonly string[],
+): Uint8Array {
+  const filePath = tempBookPath();
+  fs.writeFileSync(filePath, bytes);
+  const database = new DatabaseSync(filePath, {
+    enableForeignKeyConstraints: false,
+  });
+  try {
+    database.exec("PRAGMA ignore_check_constraints = ON");
+    for (const statement of statements) database.exec(statement);
+  } finally {
+    database.close();
+  }
   return new Uint8Array(fs.readFileSync(filePath));
 }
 

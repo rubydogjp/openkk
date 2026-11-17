@@ -14,6 +14,7 @@ import {
   assertDbOwnedFiscalPeriodAllows,
 } from "./fiscal-period-guard.js";
 import {
+  isoToMs,
   msToIso,
   parseFiscalPeriodDbData,
   parseFixedAssetDbData,
@@ -28,7 +29,7 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
     async getAll(fiscalPeriodId) {
       return loadFixedAssets(
         db,
-        `WHERE fa.fiscal_period_id = ? ORDER BY fa.created_at ASC, fa.id ASC`,
+        `WHERE fa.fiscal_period_id = ? ORDER BY fa.created_at ASC, fa.rowid ASC`,
         [fiscalPeriodId],
       );
     },
@@ -65,7 +66,7 @@ export function createFixedAssetsDb(db: SqlDb): FixedAssetsDb {
           "create fixed asset",
         );
         assertFixedAssetMatchesRules(record, period);
-        await insertFixedAsset(db, record, now);
+        await insertFixedAsset(db, record);
       });
       return record;
     },
@@ -149,7 +150,6 @@ async function loadFixedAssets(
 export async function insertFixedAsset(
   db: SqlDb,
   asset: FixedAssetDbRecord,
-  now: number,
 ): Promise<void> {
   await db.exec({
     sql: `INSERT INTO fixed_assets(id, fiscal_period_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
@@ -157,8 +157,8 @@ export async function insertFixedAsset(
       asset.id,
       asset.fiscalPeriodId,
       serializeFixedAssetDbData(asset),
-      now,
-      now,
+      isoToMs(asset.createdAt, "Fixed asset createdAt"),
+      isoToMs(asset.updatedAt, "Fixed asset updatedAt"),
     ],
   });
 }

@@ -2,6 +2,7 @@ import {
   assertEntryCollectionItemLimit,
   assertEntryCollectionLineLimit,
   assertFiscalPeriodPatchMatchesPhase,
+  assertNoNulCharacter,
   assertNoOverlappingActiveFiscalPeriod,
   assertNonBlankString,
   engineNotFoundError,
@@ -36,6 +37,25 @@ export type OpenkkBackendApiConfig = {
 };
 
 export * from "./contract.js";
+
+function refusingNulCharacters<Namespace extends object>(
+  label: string,
+  namespace: Namespace,
+): Namespace {
+  return Object.fromEntries(
+    Object.entries(namespace).map(([name, member]) => [
+      name,
+      typeof member === "function"
+        ? async (...args: unknown[]) => {
+            assertNoNulCharacter(args, `${label}.${name} input`);
+            return (
+              member as (...callArgs: unknown[]) => Promise<unknown>
+            ).apply(namespace, args);
+          }
+        : member,
+    ]),
+  ) as Namespace;
+}
 
 export function createOpenkkBackendApi(
   db: OpenkkDbPort,
@@ -303,11 +323,11 @@ export function createOpenkkBackendApi(
   return {
     ...api,
     ...serializePortOperations({
-      preClosings: api.preClosings,
-      closings: api.closings,
-      entries: api.entries,
-      fiscalPeriods: api.fiscalPeriods,
-      fixedAssets: api.fixedAssets,
+      preClosings: refusingNulCharacters("preClosings", api.preClosings),
+      closings: refusingNulCharacters("closings", api.closings),
+      entries: refusingNulCharacters("entries", api.entries),
+      fiscalPeriods: refusingNulCharacters("fiscalPeriods", api.fiscalPeriods),
+      fixedAssets: refusingNulCharacters("fixedAssets", api.fixedAssets),
     }),
   };
 }

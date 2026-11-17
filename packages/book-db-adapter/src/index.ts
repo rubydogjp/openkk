@@ -1,7 +1,14 @@
 import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
-import type { DbSnapshot, OpenkkDbPort } from "@rubydogjp/openkk-engine";
+import type {
+  DbSnapshot,
+  EntryDbRecord,
+  FiscalPeriodDbRecord,
+  FixedAssetDbRecord,
+  OpenkkDbPort,
+} from "@rubydogjp/openkk-engine";
 import {
   createSqliteDbAdapter,
+  LARGEST_LAST_CHANGED_AT_IN_A_BOOK_FILE,
   LAST_CHANGED_AT_QUERY,
   parseLastChangedAt,
   runMigrations,
@@ -11,7 +18,14 @@ import {
 
 export type { DbSnapshot } from "@rubydogjp/openkk-engine";
 
-export type BookFileProblem = "not_sqlite" | "not_openkk" | "newer_schema";
+export const MAX_BOOK_FILE_BYTES = 64 * 1024 * 1024;
+
+export type BookFileProblem =
+  | "too_large"
+  | "not_sqlite"
+  | "not_openkk"
+  | "newer_schema"
+  | "invalid_content";
 
 export class BookFileFormatError extends Error {
   readonly problem: BookFileProblem;
@@ -23,10 +37,28 @@ export class BookFileFormatError extends Error {
   }
 }
 
+export class BookEnvironmentError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BookEnvironmentError";
+  }
+}
+
 export type StoredFiscalPeriodLabel = {
   name: string | null;
   startDate: string | null;
   endDate: string | null;
+};
+
+export type StoredFiscalPeriod = {
+  id: string | null;
+  label: StoredFiscalPeriodLabel;
+};
+
+export type BookPeriodRecords = {
+  fiscalPeriod: FiscalPeriodDbRecord;
+  entries: EntryDbRecord[];
+  fixedAssets: FixedAssetDbRecord[];
 };
 
 export type BookDbAdapter = {
@@ -54,8 +86,25 @@ const RESTORE_LAST_CHANGED_AT_SQL =
 const FISCAL_PERIOD_IDS_QUERY =
   "SELECT id FROM fiscal_periods ORDER BY created_at ASC, id ASC";
 const FISCAL_PERIOD_DATA_QUERY = "SELECT data FROM fiscal_periods WHERE id = ?";
-const ALL_FISCAL_PERIOD_DATA_QUERY =
-  "SELECT data FROM fiscal_periods ORDER BY created_at ASC, id ASC";
+const ALL_FISCAL_PERIODS_QUERY =
+  "SELECT id, data FROM fiscal_periods ORDER BY created_at ASC, id ASC";
+const SQLITE_RESULT_CODE_MASK = 0xff;
+const SQLITE_NOMEM = 7;
+const SQLITE_IOERR = 10;
+const SQLITE_FULL = 13;
+const ENVIRONMENT_SQLITE_RESULT_CODES: ReadonlySet<number> = new Set([
+  SQLITE_NOMEM,
+  SQLITE_IOERR,
+  SQLITE_FULL,
+]);
+const ENVIRONMENT_ERROR_NAMES: ReadonlySet<string> = new Set([
+  "BookEnvironmentError",
+  "WasmAllocError",
+  "RuntimeError",
+  "InternalError",
+]);
+const MEMORY_RANGE_ERROR_PATTERN =
+  /memory|allocation|array buffer|array length/i;
 const UNKNOWN_FISCAL_PERIOD_LABEL: StoredFiscalPeriodLabel = {
   name: null,
   startDate: null,
@@ -82,6 +131,59 @@ function parseStoredFiscalPeriodLabel(data: unknown): StoredFiscalPeriodLabel {
     startDate: text("startDate"),
     endDate: text("endDate"),
   };
+}
+
+export function isBookContentError(error: unknown): boolean {
+  if (error instanceof BookFileFormatError) return true;
+  if (!(error instanceof Error)) return false;
+  if (ENVIRONMENT_ERROR_NAMES.has(error.name)) return false;
+  if (
+    error instanceof RangeError &&
+    MEMORY_RANGE_ERROR_PATTERN.test(error.message)
+  ) {
+    return false;
+  }
+  const resultCode: unknown = "resultCode" in error ? error.resultCode : null;
+  if (
+    typeof resultCode === "number" &&
+    ENVIRONMENT_SQLITE_RESULT_CODES.has(resultCode & SQLITE_RESULT_CODE_MASK)
+  ) {
+    return false;
+  }
+  if (error instanceof AggregateError) {
+    return error.errors.every(isBookContentError);
+  }
+  return error.cause == null || isBookContentError(error.cause);
+}
+
+export function assertBookFileSize(bytes: Uint8Array): void {
+  if (bytes.byteLength > MAX_BOOK_FILE_BYTES) {
+    throw new BookFileFormatError(
+      "too_large",
+      `book file is larger than ${MAX_BOOK_FILE_BYTES} bytes`,
+    );
+  }
+}
+
+export async function readBookRecords(
+  book: Pick<BookDbAdapter, "db" | "listFiscalPeriodIds">,
+): Promise<BookPeriodRecords[]> {
+  const periods: BookPeriodRecords[] = [];
+  for (const fiscalPeriodId of book.listFiscalPeriodIds()) {
+    const fiscalPeriod = await book.db.fiscalPeriods.getById(fiscalPeriodId);
+    if (fiscalPeriod == null || fiscalPeriod.id !== fiscalPeriodId) {
+      throw new BookFileFormatError(
+        "invalid_content",
+        `fiscal period row ${fiscalPeriodId} holds another period's data`,
+      );
+    }
+    periods.push({
+      fiscalPeriod,
+      entries: await book.db.entries.getAll(fiscalPeriodId),
+      fixedAssets: await book.db.fixedAssets.getAll(fiscalPeriodId),
+    });
+  }
+  return periods;
 }
 
 let sqliteModulePromise: ReturnType<typeof sqlite3InitModule> | null = null;
@@ -118,6 +220,9 @@ export async function createBookDbAdapter(
         capi.SQLITE_DESERIALIZE_FREEONCLOSE |
           capi.SQLITE_DESERIALIZE_RESIZEABLE,
       );
+      if (resultCode === capi.SQLITE_NOMEM) {
+        throw new BookEnvironmentError("sqlite3_deserialize ran out of memory");
+      }
       if (resultCode !== capi.SQLITE_OK) {
         throw new BookFileFormatError(
           "not_sqlite",
@@ -129,7 +234,7 @@ export async function createBookDbAdapter(
     const changesBefore = capi.sqlite3_total_changes(database.pointer!);
     const lastChangedAtOnOpen =
       bytes != null && database.selectValue(META_TABLE_QUERY) != null
-        ? parseLastChangedAt(database.selectValue(LAST_CHANGED_AT_QUERY))
+        ? readStoredLastChangedAt(database)
         : null;
     runMigrations(database);
     const changedOnOpen =
@@ -187,9 +292,9 @@ export async function createBookDbAdapter(
   }
 }
 
-export async function readStoredFiscalPeriodLabels(
+export async function readStoredFiscalPeriods(
   bytes: Uint8Array,
-): Promise<StoredFiscalPeriodLabel[]> {
+): Promise<StoredFiscalPeriod[]> {
   try {
     assertSqliteHeader(bytes);
     const sqlite3 = await initializeSqliteWasm();
@@ -205,9 +310,16 @@ export async function readStoredFiscalPeriodLabels(
         capi.SQLITE_DESERIALIZE_FREEONCLOSE,
       );
       if (resultCode !== capi.SQLITE_OK) return [];
-      return database
-        .selectValues(ALL_FISCAL_PERIOD_DATA_QUERY)
-        .map(parseStoredFiscalPeriodLabel);
+      return (
+        database.exec({
+          sql: ALL_FISCAL_PERIODS_QUERY,
+          returnValue: "resultRows",
+          rowMode: "array",
+        }) as unknown[][]
+      ).map(([id, data]) => ({
+        id: typeof id === "string" && id !== "" ? id : null,
+        label: parseStoredFiscalPeriodLabel(data),
+      }));
     } finally {
       database.close();
     }
@@ -218,6 +330,7 @@ export async function readStoredFiscalPeriodLabels(
 
 export async function createBookFileBytes(
   snapshot: DbSnapshot,
+  lastChangedAt: number | null,
 ): Promise<Uint8Array> {
   const sqlite3 = await initializeSqliteWasm();
   const database = new sqlite3.oo1.DB(":memory:");
@@ -228,10 +341,62 @@ export async function createBookFileBytes(
       { exec: async (arg) => sync.exec(arg) },
       snapshot,
     );
+    if (lastChangedAt != null) {
+      database.exec({
+        sql: RESTORE_LAST_CHANGED_AT_SQL,
+        bind: [String(lastChangedAt)],
+      });
+    }
     return sqlite3.capi.sqlite3_js_db_export(database.pointer!);
   } finally {
     database.close();
   }
+}
+
+export async function rebuildBookFileBytes(
+  records: BookPeriodRecords,
+  lastChangedAt: number | null,
+): Promise<Uint8Array> {
+  const bytes = await createBookFileBytes(
+    {
+      fiscalPeriods: [records.fiscalPeriod],
+      entries: records.entries,
+      fixedAssets: records.fixedAssets,
+    },
+    lastChangedAt,
+  );
+  const rebuilt = await createBookDbAdapter(bytes);
+  try {
+    const sameStamp =
+      lastChangedAt == null || rebuilt.lastChangedAt() === lastChangedAt;
+    const sameRecords =
+      JSON.stringify(await readBookRecords(rebuilt)) ===
+      JSON.stringify([records]);
+    if (rebuilt.changedOnOpen || !sameStamp || !sameRecords) {
+      throw new BookFileFormatError(
+        "invalid_content",
+        `the rebuilt book does not match its source: ${records.fiscalPeriod.id}`,
+      );
+    }
+    return bytes;
+  } finally {
+    rebuilt.close();
+  }
+}
+
+function readStoredLastChangedAt(database: {
+  selectValue(sql: string): unknown;
+}): number | null {
+  const stored = database.selectValue(LAST_CHANGED_AT_QUERY);
+  if (stored == null) return null;
+  const stamp = parseLastChangedAt(stored);
+  if (stamp == null || stamp > LARGEST_LAST_CHANGED_AT_IN_A_BOOK_FILE) {
+    throw new BookFileFormatError(
+      "invalid_content",
+      `book change stamp cannot be used: ${String(stored)}`,
+    );
+  }
+  return stamp;
 }
 
 function assertSqliteHeader(bytes: Uint8Array): void {

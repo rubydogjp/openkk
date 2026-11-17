@@ -35,6 +35,7 @@ import {
   replaceOpening,
 } from "./opening-store.js";
 import {
+  isoToMs,
   msToIso,
   parseFiscalPeriodDbData,
   serializeFiscalPeriodDbData,
@@ -157,7 +158,6 @@ async function insertCarriedFixedAssets(
   db: SqlDb,
   assets: ReadonlyArray<FixedAssetDbImportInput>,
   target: FiscalPeriodDbRecord,
-  now: number,
 ): Promise<void> {
   for (const asset of assets) {
     if (asset.status !== "active") continue;
@@ -179,7 +179,7 @@ async function insertCarriedFixedAssets(
       updatedAt: target.updatedAt,
     };
     assertFixedAssetMatchesRules(carried, target);
-    await insertFixedAsset(db, carried, now);
+    await insertFixedAsset(db, carried);
   }
 }
 
@@ -216,7 +216,7 @@ async function writeCarryover(
       sql: `DELETE FROM fixed_assets WHERE fiscal_period_id = ?`,
       bind: [current.id],
     });
-    await insertCarriedFixedAssets(db, await sourceFixedAssets(), updated, now);
+    await insertCarriedFixedAssets(db, await sourceFixedAssets(), updated);
   }
   return updated;
 }
@@ -251,7 +251,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
     async create(userId, input) {
       const now = nowMs();
       const record = newFiscalPeriodRecord(userId, input, now);
-      await runInTransaction(db, () => insertFiscalPeriod(db, record, now));
+      await runInTransaction(db, () => insertFiscalPeriod(db, record));
       return record;
     },
     async createNext(userId, input) {
@@ -275,13 +275,12 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         record.opening.balanceLines = carried.balanceLines ?? [];
         record.opening.journals = carried.journals;
         record.openingBalancesCompleted = input.carryBalances;
-        await insertFiscalPeriod(db, record, now);
+        await insertFiscalPeriod(db, record);
         if (input.carryFixedAssets) {
           await insertCarriedFixedAssets(
             db,
             await createFixedAssetsDb(db).getAll(source.id),
             record,
-            now,
           );
         }
         return record;
@@ -380,7 +379,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
         updatedAt: timestamp,
       };
       await runInTransaction(db, async () => {
-        await insertFiscalPeriod(db, record, now);
+        await insertFiscalPeriod(db, record);
         for (const inputEntry of input.entries) {
           assertEntryMatchesRules(inputEntry, record, "Archived entry");
           const entry: EntryDbRecord = {
@@ -398,7 +397,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
             createdAt: timestamp,
             updatedAt: timestamp,
           };
-          await insertEntry(db, entry, now);
+          await insertEntry(db, entry);
         }
         for (const assetInput of input.fixedAssets) {
           const asset: FixedAssetDbRecord = {
@@ -419,7 +418,7 @@ export function createFiscalPeriodsDb(db: SqlDb): FiscalPeriodsDb {
             updatedAt: timestamp,
           };
           assertFixedAssetMatchesRules(asset, record);
-          await insertFixedAsset(db, asset, now);
+          await insertFixedAsset(db, asset);
         }
       });
       return record;
@@ -502,7 +501,6 @@ function newFiscalPeriodRecord(
 async function insertFiscalPeriod(
   db: SqlDb,
   record: FiscalPeriodDbRecord,
-  now: number,
 ): Promise<void> {
   assertDbOpeningForPeriod(record.opening, record);
   await assertNoOverlappingStoredFiscalPeriod(db, {
@@ -511,13 +509,12 @@ async function insertFiscalPeriod(
     endDate: record.endDate,
     excludeFiscalPeriodId: null,
   });
-  await insertFiscalPeriodRow(db, record, now);
+  await insertFiscalPeriodRow(db, record);
 }
 
 export async function insertFiscalPeriodRow(
   db: SqlDb,
   record: FiscalPeriodDbRecord,
-  now: number,
 ): Promise<void> {
   await db.exec({
     sql: `INSERT INTO fiscal_periods(id, user_id, data, created_at, updated_at) VALUES(?, ?, ?, ?, ?)`,
@@ -525,8 +522,8 @@ export async function insertFiscalPeriodRow(
       record.id,
       record.userId,
       serializeFiscalPeriodDbData(record),
-      now,
-      now,
+      isoToMs(record.createdAt, "Fiscal period createdAt"),
+      isoToMs(record.updatedAt, "Fiscal period updatedAt"),
     ],
   });
   await replaceOpening(db, record.id, record.opening);

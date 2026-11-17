@@ -32,7 +32,6 @@ export {
   OPENKK_BOOK_MIME_TYPE,
 } from "./book-file-format.js";
 export {
-  canUseInAppBooks,
   createInAppBookStore,
   createWorkerBookWriter,
   inAppBookStore,

@@ -100,6 +100,15 @@ export function createLocalBookFilesAdapter(
 
   function itemOf(period: InspectedBookPeriod): OpenkkBookImportItem {
     const { relation } = period;
+    if (relation.kind === "unreadable_book") {
+      return {
+        fiscalPeriodId: period.fiscalPeriod.id,
+        fiscalPeriodName: period.fiscalPeriod.name,
+        case: bookImportCase(period, null),
+        existingFiscalPeriodId: null,
+        existingFiscalPeriodName: relation.existing.name,
+      };
+    }
     const existing =
       relation.kind === "same_period" || relation.kind === "same_dates"
         ? relation.existing
