@@ -2,7 +2,11 @@
 
 import { useState, type ReactNode } from "react";
 
-import { formatAmount } from "@rubydogjp/openkk-driver";
+import {
+  formatAmount,
+  isWholeAmountText,
+  normalizeAmountInput,
+} from "@rubydogjp/openkk-driver";
 
 import {
   fontFamily,
@@ -51,6 +55,7 @@ export function AmountInput({
   ariaLabel: string | null;
 }) {
   const [focused, setFocused] = useState(false);
+  const [composing, setComposing] = useState(false);
   const display = focused ? value.replace(/,/g, "") : formatGrouped(value);
   return (
     <input
@@ -64,9 +69,13 @@ export function AmountInput({
         setFocused(false);
         onChange(formatGrouped(value));
       }}
+      onCompositionStart={() => setComposing(true)}
+      onCompositionEnd={(event) => {
+        setComposing(false);
+        onChange(amountInputValue(event.currentTarget.value, false));
+      }}
       onChange={(event) => {
-        const cleaned = event.target.value.replace(/[^\d]/g, "");
-        onChange(cleaned);
+        onChange(amountInputValue(event.target.value, composing));
       }}
       style={{
         ...AMOUNT_FONT,
@@ -107,10 +116,14 @@ export function AmountReadOnlyField({ value }: { value: string }) {
   );
 }
 
-function formatGrouped(value: string): string {
-  const digitsOnly = value.replace(/[^\d-]/g, "");
-  if (digitsOnly === "" || digitsOnly === "-") return "";
-  const amount = parseInt(digitsOnly, 10);
-  if (!Number.isFinite(amount)) return "";
-  return formatAmount(amount);
+export function amountInputValue(raw: string, composing: boolean): string {
+  return composing ? raw : normalizeAmountInput(raw);
+}
+
+export function formatGrouped(value: string): string {
+  if (!isWholeAmountText(value)) return value;
+  const digits = value.replaceAll(",", "").trim();
+  if (digits === "") return "";
+  const amount = Number(digits);
+  return Number.isSafeInteger(amount) ? formatAmount(amount) : digits;
 }

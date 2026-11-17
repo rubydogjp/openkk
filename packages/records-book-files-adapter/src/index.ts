@@ -161,7 +161,7 @@ export function createRecordsBookFilesAdapter(
             );
             importedIds.push(imported.id);
           }
-          return importedIds;
+          return { fiscalPeriodIds: importedIds, allBooksStored: true };
         },
       };
     },

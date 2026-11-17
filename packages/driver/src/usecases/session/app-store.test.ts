@@ -6,6 +6,7 @@ import {
   fakeConfig,
   fakeFiscalPeriod,
   fakeStorage,
+  holdFirstAnswer,
   settle,
 } from "../../../test-support/fake-backend.js";
 import { createOpenkkAppStore } from "./app-store.js";
@@ -91,6 +92,35 @@ describe("createOpenkkAppStore", () => {
     expect(store.getState().currentFiscalPeriodId).toBe(createdId);
     expect(store.getState().currentFiscalPeriod?.name).toBe("2027年");
     expect(storage.items.get("test.fiscal_period_id")).toBe(createdId);
+  });
+
+  it("drops a period list that a change made stale and reads the list again", async () => {
+    const fake = fakeBackend();
+    fake.fiscalPeriods.push(fakeFiscalPeriod({ id: "fp-1" }));
+    const held = holdFirstAnswer(fake.backend.fiscalPeriods.getAll);
+    fake.backend.fiscalPeriods.getAll = held.read;
+    const store = createOpenkkAppStore({
+      config: fakeConfig({}),
+      backend: fake.backend,
+      storage: fakeStorage({}),
+    });
+    store.start();
+    await settle();
+
+    await store.getState().createFiscalPeriod({
+      name: "2027年",
+      startDate: "2027-01-01",
+      endDate: "2027-12-31",
+    });
+    held.release();
+    await settle();
+
+    expect(
+      store
+        .getState()
+        .fiscalPeriods.map((period) => period.id)
+        .sort(),
+    ).toEqual(["fp-1", store.getState().currentFiscalPeriodId].sort());
   });
 
   it("keeps the same state object until something changes", async () => {

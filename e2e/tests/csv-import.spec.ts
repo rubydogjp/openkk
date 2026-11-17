@@ -144,6 +144,38 @@ test.describe("journal table import and export", () => {
     ).toBeVisible();
   });
 
+  test("opens an entry of the sheet from the keyboard", async ({ page }) => {
+    await importEntriesFile(page, "csv", CSV_FIXTURE);
+    await overwriteConfirmation(page)
+      .getByRole("button", { name: "上書きする" })
+      .click();
+    await expect(
+      page.getByText("上書きしました (追加 3・変更 0・削除 0)"),
+    ).toBeVisible();
+    const drawer = page.getByRole("dialog", { name: "仕訳の編集" });
+
+    await page
+      .getByRole("button", {
+        name: "2 行目の仕訳を開く (2026-05-10 CSVテスト売上)",
+      })
+      .focus();
+    await page.keyboard.press("Enter");
+    await expect(drawer).toBeVisible();
+    await expect(drawer.getByLabel("摘要")).toHaveValue("CSVテスト売上");
+    await page.keyboard.press("Escape");
+    await expect(drawer).toHaveCount(0);
+
+    await page
+      .getByRole("button", {
+        name: "3 行目の仕訳を開く (2026-05-20 CSVテストツール利用料)",
+      })
+      .focus();
+    await page.keyboard.press("Space");
+    await expect(drawer.getByLabel("摘要")).toHaveValue(
+      "CSVテストツール利用料",
+    );
+  });
+
   test("imports entries from a deprecated JSON file with the keyboard", async ({
     page,
   }) => {

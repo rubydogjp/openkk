@@ -2,7 +2,7 @@
 
 import type { ReactNode, RefObject } from "react";
 
-import { palette, shadows, sizes } from "./design-tokens.js";
+import { palette, shadows, sizes, VIEWPORT_HEIGHT } from "./design-tokens.js";
 
 export const DRAWER_SLIDE_IN_ANIMATION =
   "bk-drawer-slide-in 220ms cubic-bezier(0.2, 0, 0, 1)";
@@ -44,7 +44,7 @@ export function DrawerFrame(props: {
           right: 0,
           width: sizes.drawer.width,
           maxWidth: "100vw",
-          height: "100vh",
+          height: VIEWPORT_HEIGHT,
           background: palette.surface,
           zIndex: 9999,
           boxShadow: shadows.drawer,

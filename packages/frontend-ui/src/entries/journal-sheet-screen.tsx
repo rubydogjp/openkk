@@ -240,7 +240,7 @@ function JournalSheet(props: {
             ))}
           </tr>
           <tr>
-            <RowNumberCell top={COLUMN_LETTER_ROW_HEIGHT}>
+            <RowNumberCell top={COLUMN_LETTER_ROW_HEIGHT} openLabel={null}>
               {FIELD_NAME_ROW_NUMBER}
             </RowNumberCell>
             {fields.map((field) => (
@@ -253,7 +253,9 @@ function JournalSheet(props: {
         <tbody>
           {props.rows.length === 0 ? (
             <tr>
-              <RowNumberCell top={null}>{FIRST_ENTRY_ROW_NUMBER}</RowNumberCell>
+              <RowNumberCell top={null} openLabel={null}>
+                {FIRST_ENTRY_ROW_NUMBER}
+              </RowNumberCell>
               <td
                 colSpan={fields.length}
                 style={{
@@ -273,7 +275,14 @@ function JournalSheet(props: {
                 className={`bk-sheet-row${props.onOpenRow != null ? " is-clickable" : ""}`}
                 onClick={() => props.onOpenRow?.(row)}
               >
-                <RowNumberCell top={null}>
+                <RowNumberCell
+                  top={null}
+                  openLabel={
+                    props.onOpenRow == null
+                      ? null
+                      : rowOpenLabel(index + FIRST_ENTRY_ROW_NUMBER, row)
+                  }
+                >
                   {index + FIRST_ENTRY_ROW_NUMBER}
                 </RowNumberCell>
                 {fields.map((field) => {
@@ -325,7 +334,15 @@ function SheetHeadingCell(props: {
   );
 }
 
-function RowNumberCell(props: { top: number | null; children: number }) {
+function rowOpenLabel(rowNumber: number, row: JournalSheetRow): string {
+  return `${rowNumber} 行目の仕訳を開く (${row.date} ${row.description})`;
+}
+
+function RowNumberCell(props: {
+  top: number | null;
+  openLabel: string | null;
+  children: number;
+}) {
   return (
     <th
       scope="row"
@@ -346,10 +363,31 @@ function RowNumberCell(props: { top: number | null; children: number }) {
         textAlign: "center",
       }}
     >
-      {props.children}
+      {props.openLabel == null ? (
+        props.children
+      ) : (
+        <button
+          type="button"
+          aria-label={props.openLabel}
+          style={rowOpenButtonStyle}
+        >
+          {props.children}
+        </button>
+      )}
     </th>
   );
 }
+
+const rowOpenButtonStyle = {
+  width: "100%",
+  height: "100%",
+  padding: 0,
+  border: "none",
+  background: "transparent",
+  color: "inherit",
+  font: "inherit",
+  cursor: "pointer",
+} as const;
 
 function FieldNameCell(props: { numeric: boolean; children: ReactNode }) {
   return (

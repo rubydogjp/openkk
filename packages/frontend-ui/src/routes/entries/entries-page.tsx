@@ -6,12 +6,11 @@ import {
   AppError,
   assertEntryImportSize,
   buildFiscalPeriodJournalFilename,
-  buildJournalTableRows,
+  buildJournalTableEntryRows,
   formatJournalExport,
   hasJournalTableChanges,
   planJournalImport,
   buildVirtualEntryRows,
-  journalEntryNumber,
   buildPeriodLockMessage,
   compareYearMonth,
   formatIsoLocalDate,
@@ -431,15 +430,12 @@ export function EntriesPage() {
     router.replaceKeepingScroll(pathWithSearchParams(ENTRIES_PATH, params));
   };
 
-  const entriesByNumber = new Map(
-    fullPeriodEntries.map((entry) => [journalEntryNumber(entry), entry]),
-  );
   const journalSheetRows: JournalSheetRow[] = !showsSheet
     ? []
-    : buildJournalTableRows(
+    : buildJournalTableEntryRows(
         fullPeriodEntries,
         entriesState.journalTableMaster,
-      ).map((row) => ({ ...row, entryKey: row.entryNumber }));
+      ).map(({ entryId, row }) => ({ ...row, entryKey: entryId }));
 
   return (
     <>
@@ -458,10 +454,7 @@ export function EntriesPage() {
           onExport={fiscalPeriodId != null ? handleExport : null}
           onOpenRow={
             lockedMessage == null && !isReadOnlyPeriod && !editingLocked
-              ? (row) => {
-                  const entry = entriesByNumber.get(row.entryKey);
-                  if (entry != null) openDrawer(entry.id);
-                }
+              ? (row) => openDrawer(row.entryKey)
               : null
           }
         />

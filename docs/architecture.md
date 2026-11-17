@@ -110,7 +110,7 @@ interfaces → usecases → domain
 
 `driver/src/usecases` は 2 種類のものを持つ。どちらも React を知らない。
 
-- **状態を持たない関数**: 利用者のひとまとまりの作業 (`loadJournalMaster`・`loadEntryRecords`・`loadFiscalPeriodReportInput`・`applyJournalTableChanges`・`importEntryRecords`・`buildFiscalPeriodArchiveZip`・`carryOverFromBackend` など)。口 backend を受け取って呼ぶ。どの製品も同じものを使い、`frontend-cli` はこれを直接呼ぶ。仕訳のファイルの取り込み方を決める `planJournalImport`、書き出しの `formatJournalExport`、本締めの仕訳を作る `buildFinalClosingPayload` は、画面とコマンドが同じものを呼ぶ。
+- **状態を持たない関数**: 利用者のひとまとまりの作業 (`loadJournalMaster`・`loadEntryRecords`・`loadFiscalPeriodReportInput`・`applyJournalTableChanges`・`importEntryRecords`・`loadFiscalPeriodArchivePayload`・`carryOverFromBackend` など)。口 backend を受け取って呼ぶ。どの製品も同じものを使い、`frontend-cli` はこれを直接呼ぶ。仕訳のファイルの取り込み方を決める `planJournalImport`、書き出しの `formatJournalExport`、本締めの仕訳を作る `buildFinalClosingPayload` は、画面とコマンドが同じものを呼ぶ。
 - **入れ物 (共有する状態)**: 上の関数を包み、結果を覚えておく。形は `{ getState(), subscribe(listener) }` (`ReadableState`)。`getState()` は、覚えているデータと、そのデータを読む関数と、操作をまとめた 1 つの値を返し、中身が変わるまで同じ値を返す。
   - `today` (日付。日が変わると知らせる)
   - `maintenance` (メンテナンスの状態。口 backend を包んで、メンテナンスの誤りを見張る)
@@ -161,7 +161,7 @@ openkk-cli:  コマンド → 口 backend → embedded-backend-adapter → backe
 
 `engine` の ports にDB操作契約と保存の型を置く。SQL・保存処理・DDLは `sqlite-db-adapter` が担当する。テーブル構造は [`database-schema.md`](./database-schema.md) を参照。
 
-`memory-db-adapter`・`book-db-adapter`・`disk-db-adapter` は `sqlite-db-adapter` を利用し、開くときに `runMigrations()` を呼ぶ。`disk-db-adapter` は、オープン会計の帳簿でない SQLite (`openkk_meta` がなく、ほかの表がある) を 400 で断り、ファイルに手を付けない。空のファイルとまだないファイルには新しい帳簿を作る。`legacy-db-adapter` は 26.3 までの DB を書き出すだけで、開いても移行しない (26.3.1 に戻しても開けるように)。OPFS SAHPool VFS は1ファイルを1接続でしか開けないため、Web Locks で1タブに限定する。ロックは時間で打ち切らず、取れなければ `onWaitingForAnotherTab` で画面に知らせたうえで解放を待つ。別のタブを閉じる、または再読み込みで前の文書が片付くと、そのまま起動が続く。無印版は起動したら、ストレージが足りないときなどにブラウザがデータを消さないよう `navigator.storage.persist()` で求める（すでに許可されていれば求めない。Firefox では確認が出るため、結果は待たずに起動を続ける）。起動の段階は `<html data-openkk-boot>`（`starting` / `waiting-for-another-tab` / `ready` / `failed`）に出し、無印版は帳簿の保存の状態を `<html data-openkk-storage>` に出す。E2E は待ち時間ではなくこれらの属性の変化を待つ (画面を移るときは、保存が終わってから移る)。DB実装を差し替える場合は `OpenkkDbPort` を実装し、DDLはその実装内で管理する。
+`memory-db-adapter`・`book-db-adapter`・`disk-db-adapter` は `sqlite-db-adapter` を利用し、開くときに `runMigrations()` を呼ぶ。`disk-db-adapter` は、オープン会計の帳簿でない SQLite (`openkk_meta` がなく、ほかの表がある) を 400 で断り、ファイルに手を付けない。空のファイルとまだないファイルには新しい帳簿を作る。`legacy-db-adapter` は今の保存先ではない。26.3 までの 1 つの DB (OPFS SAHPool VFS) を、新しい無印版が起動して引っ越すときに標準の SQLite として書き出すためだけに使い、その DB を移行も削除もしない (26.3.1 に戻しても開けるように)。無印版は帳簿の置き場を 1 タブだけが使うよう、Web Locks で 1 タブに限定する。ロックは時間で打ち切らず、取れなければ `onWaitingForAnotherTab` で画面に知らせたうえで解放を待つ。別のタブを閉じる、または再読み込みで前の文書が片付くと、そのまま起動が続く。無印版は起動したら、ストレージが足りないときなどにブラウザがデータを消さないよう `navigator.storage.persist()` で求める（すでに許可されていれば求めない。Firefox では確認が出るため、結果は待たずに起動を続ける）。起動の段階は `<html data-openkk-boot>`（`starting` / `waiting-for-another-tab` / `ready` / `failed`）に出し、無印版は帳簿の保存の状態を `<html data-openkk-storage>` に出す。E2E は待ち時間ではなくこれらの属性の変化を待つ (画面を移るときは、保存が終わってから移る)。DB実装を差し替える場合は `OpenkkDbPort` を実装し、DDLはその実装内で管理する。
 
 SQLite の単一接続では、トランザクションへ別操作が混入しないよう読取を含む公開ポート呼出しを直列化する。直列化は `engine` の `serializePortOperations` が担い、`OpenkkDbPort` の実装と `backend-api` の両方で使う。
 
@@ -169,7 +169,7 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 
 仕訳は日付・作成時刻の順に読み、同じ日付・同じ作成時刻の中は入れた順 (`rowid`) に並べる。固定資産も作成時刻・入れた順に並べる。まとめて入れた仕訳や、圧縮済みファイル・帳簿のファイルから入れた仕訳は作成時刻が同じになるので、元の順のまま読める。`VACUUM`・書き出し・帳簿の作り直しのあとも順は変わらない。記録から帳簿を組み立てるとき (`seed`) は、記録の作成時刻・更新時刻をそのまま書く。
 
-仕訳の CSV の取り込みは上書きで、仕訳番号で突き合わせた追加・更新・削除を、この順に呼ぶ (`journalTableOperations`。消すのを最後にするので、途中で失敗しても仕訳は失われない)。全体を 1 つのトランザクションにはしないが、同じ CSV をもう一度取り込めば残りだけが上書きされる。
+仕訳の CSV の取り込みは上書きで、仕訳番号で突き合わせた変更・追加・削除を、この順に呼ぶ (`journalTableOperations`)。変更で断られたら何も足さず、追加は全部かゼロで、件数が足りなければ何も消さずに止める。消すのを最後にするので、途中で失敗しても仕訳は失われない。全体を 1 つのトランザクションにはしないが、同じ CSV をもう一度取り込めば残りだけが上書きされる。
 
 ## 帳簿のファイル（無印版）
 
@@ -246,13 +246,13 @@ SQLite の単一接続では、トランザクションへ別操作が混入し�
 
 ## テスト戦略
 
-| レイヤー          | ツール     | 対象                                                                                                                                                                                                             |
-| ----------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ユニット          | vitest     | ドメインロジック・パーサー・DB adapter                                                                                                                                                                           |
-| DB ポート契約適合 | vitest     | `OpenkkDbPort` 共有 conformance（`engine/test-support/db-port-conformance.ts`）を memory / file-db / node-sqlite / document / books の各アダプタ＋遅延非同期コアに通し、保存先が違っても挙動が一致することを保証 |
-| E2E               | Playwright | Sim版の操作フローと、無印版・デモ版の静的export・帳簿の置き場。締めフローでは仮帳票＝確定帳票＝概要図を実画面で検証                                                                                              |
-| パッケージ構造    | vitest     | workspace 整合性チェック                                                                                                                                                                                         |
-| 口 backend の契約 | vitest     | `BACKEND_CONTRACT_CASES` を、埋め込みの実装とディスクの上の帳簿に通す                                                                                                                                            |
+| レイヤー          | ツール     | 対象                                                                                                                                                                                                                                                                                                            |
+| ----------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ユニット          | vitest     | ドメインロジック・パーサー・DB adapter                                                                                                                                                                                                                                                                          |
+| DB ポート契約適合 | vitest     | `OpenkkDbPort` 共有 conformance（`engine/test-support/db-port-conformance.ts`）を memory (`memory-db-adapter`)・node-sqlite (`disk-db-adapter` の `:memory:` とファイル)・document (`book-db-adapter`)・books (`books-db-adapter`) の各アダプタ＋遅延非同期コアに通し、保存先が違っても挙動が一致することを保証 |
+| E2E               | Playwright | Sim版の操作フローと、無印版・デモ版の静的export・帳簿の置き場。締めフローでは仮帳票＝確定帳票＝概要図を実画面で検証                                                                                                                                                                                             |
+| パッケージ構造    | vitest     | workspace 整合性チェック                                                                                                                                                                                                                                                                                        |
+| 口 backend の契約 | vitest     | `BACKEND_CONTRACT_CASES` を、埋め込みの実装とディスクの上の帳簿に通す                                                                                                                                                                                                                                           |
 
 `npm run test:e2e` は Sim版を専用 port 4306 で起動し、既存プロセスを再利用せず実行する。`npm run test:e2e:export` は無印版を静的exportして検査する。無印版のテスト (`tests-export`) は、初回の説明を見たことにしてから始める (`startApp`)。バックアップ・取り込み・前の版からの移行は `books.spec.ts` にあり、バックアップしたファイルや取り込むファイルは `disk-db-adapter` (openkk-cli と同じ道) で読み書きして確かめる。前の版の帳簿は、前の版と同じスキーマ (5) の DB を作り、テストの中で SQLite Wasm を読み込んで、前の版と同じ開き方で OPFS に置いて試す。静的exportを配るテスト用のサーバー (`e2e/serve-export.mjs`) は、本番 (Firebase Hosting) と同じく末尾の `/` がないフォルダの URL を `/` 付きへ移す。生成物・全workspace・全アプリ・E2Eをまとめた検査は `npm run check:full` で実行できる。
 このリポジトリに `OpenkkDbPort` 実装を追加したら `runDbPortConformance` に通すこと。conformance は `engine/test-support/` にあり npm には公開しないので、外部の実装はこのリポジトリを参照する。

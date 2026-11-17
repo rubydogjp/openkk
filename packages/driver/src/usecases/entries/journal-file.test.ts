@@ -56,6 +56,26 @@ describe("planJournalImport", () => {
     expect(plan.changes.unchangedCount).toBe(1);
   });
 
+  it("refuses to plan an overwrite while two of the current entries share an entry number", () => {
+    const csv = formatJournalExport("csv", [SALE], MASTER);
+    const copy = { ...SALE, id: "entry-2", localId: SALE.id };
+
+    expect(() =>
+      planJournalImport({
+        fileKind: "csv",
+        bytes: encode(csv),
+        fiscalPeriod: PERIOD,
+        currentEntries: [SALE, copy],
+        master: MASTER,
+      }),
+    ).toThrow(
+      expect.objectContaining({
+        messageForUser:
+          "仕訳番号「entry-1」の仕訳が 2 件あります。同じ仕訳を 2 回取り込んだときは、片方を消してから取り込んでください",
+      }),
+    );
+  });
+
   it("plans to remove entries that the table no longer has", () => {
     const csv = formatJournalExport("csv", [], MASTER);
 

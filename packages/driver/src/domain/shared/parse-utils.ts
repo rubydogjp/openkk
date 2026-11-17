@@ -5,6 +5,23 @@ export function parseAmount(value: string | number): number {
   return Number.isFinite(parsed) ? Math.round(parsed) : 0;
 }
 
+const FULL_WIDTH_DIGIT = /[０-９]/g;
+const FULL_WIDTH_DIGIT_OFFSET = "０".charCodeAt(0) - "0".charCodeAt(0);
+const DIGIT_GROUP_SEPARATOR = /[,，]/g;
+const WHOLE_AMOUNT_TEXT = /^\d*$/;
+
+export function normalizeAmountInput(raw: string): string {
+  return raw
+    .replace(FULL_WIDTH_DIGIT, (digit) =>
+      String.fromCharCode(digit.charCodeAt(0) - FULL_WIDTH_DIGIT_OFFSET),
+    )
+    .replace(DIGIT_GROUP_SEPARATOR, "");
+}
+
+export function isWholeAmountText(value: string): boolean {
+  return WHOLE_AMOUNT_TEXT.test(value.replaceAll(",", "").trim());
+}
+
 export function formatAmount(value: number): string {
   return new Intl.NumberFormat("ja-JP").format(value);
 }

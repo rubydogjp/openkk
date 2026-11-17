@@ -35,6 +35,24 @@ describe("quick guide data", () => {
     }
   });
 
+  it("shows the debit and the credit of a template in that order", () => {
+    for (const page of collectReachablePages()) {
+      for (const option of guideOptions(page)) {
+        if (option.template == null || option.subtitle == null) continue;
+
+        expect(option.subtitle).toBe(
+          `${option.template.debitAccountName} | ${option.template.creditAccountName}`,
+        );
+      }
+    }
+  });
+
+  it("names the option for putting own money into the business account after what it does", () => {
+    expect(guideOptions("ownerDeposit").map((option) => option.title)).toEqual([
+      "プライベート資金を入金した",
+    ]);
+  });
+
   it("resolves duplicated expense names to the 販管費 account, not 製造原価", () => {
     const expenseNames = [
       "保険料",

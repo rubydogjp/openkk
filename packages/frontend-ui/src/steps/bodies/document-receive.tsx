@@ -16,6 +16,7 @@ import {
   StepSectionLabel,
   StepUnavailableNotice,
 } from "../step-ui.js";
+import { usePeriodScopedError } from "../period-scoped-error.js";
 
 export function DocumentReceiveBody({
   onSwitchToStep,
@@ -25,10 +26,12 @@ export function DocumentReceiveBody({
   const appState = useOpenkkAppState();
   const config = useOpenkkConfig();
   const editingLocked = config.editingPolicy.locked;
-  const [screenError, setScreenError] = useState<unknown>(null);
   const [isCompleting, setIsCompleting] = useState(false);
   const completeLock = useRef(new ExclusiveActionLock());
   const currentFiscalPeriod = appState.currentFiscalPeriod;
+  const [screenError, setScreenError] = usePeriodScopedError(
+    currentFiscalPeriod?.id ?? null,
+  );
   const documents = useStepDocuments(currentFiscalPeriod);
 
   if (currentFiscalPeriod == null) {
@@ -80,8 +83,9 @@ export function DocumentReceiveBody({
           items={documents.map((stepDocument) => ({
             label: `${stepDocument.name}.pdf`,
             description: stepDocument.description,
-            active: canComplete,
-            onClick: canComplete ? stepDocument.print : null,
+            active: canComplete && stepDocument.available,
+            onClick:
+              canComplete && stepDocument.available ? stepDocument.print : null,
           }))}
         />
         {!canComplete ? (

@@ -24,7 +24,11 @@ const navItems: NavEntry[] = [
   { href: "/assist", label: "補助", Icon: AssistIcon },
 ];
 
-export function ShellNav(props: { pathname: string; enabled: boolean }) {
+export function ShellNav(props: {
+  pathname: string;
+  enabled: boolean;
+  onNavigate: () => void;
+}) {
   const { pathname, enabled } = props;
   return (
     <div style={{ padding: "6px 8px 0", display: "grid", gap: 2 }}>
@@ -58,20 +62,21 @@ export function ShellNav(props: { pathname: string; enabled: boolean }) {
           );
         }
         return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={selected ? "bk-nav-item-active" : "bk-nav-item"}
-            style={{ ...commonStyle, cursor: "pointer" }}
-          >
-            <item.Icon
-              size={16}
-              color={
-                selected ? SHELL_PALETTE.navIconActive : SHELL_PALETTE.navIcon
-              }
-            />
-            <span>{item.label}</span>
-          </Link>
+          <div key={item.href} onClick={props.onNavigate}>
+            <Link
+              href={item.href}
+              className={selected ? "bk-nav-item-active" : "bk-nav-item"}
+              style={{ ...commonStyle, cursor: "pointer" }}
+            >
+              <item.Icon
+                size={16}
+                color={
+                  selected ? SHELL_PALETTE.navIconActive : SHELL_PALETTE.navIcon
+                }
+              />
+              <span>{item.label}</span>
+            </Link>
+          </div>
         );
       })}
     </div>

@@ -15,6 +15,7 @@ import {
 export type StepDocument = {
   name: string;
   description: string;
+  available: boolean;
   print: () => void;
 };
 
@@ -25,10 +26,14 @@ export function useStepDocuments(
   const assistState = useOpenkkAssist();
   const printDocument = usePrintDocument();
 
+  const available =
+    entriesState.loadError == null && assistState.loadError == null;
+
   return FISCAL_PERIOD_REPORT_KINDS.map((kind) => ({
     ...FISCAL_PERIOD_REPORT_LABELS[kind],
+    available,
     print: () => {
-      if (fiscalPeriod == null) return;
+      if (fiscalPeriod == null || !available) return;
       printDocument(
         buildFiscalPeriodReport(kind, {
           fiscalPeriod,

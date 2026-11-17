@@ -135,7 +135,7 @@ describe("book files adapter: save", () => {
     ]);
   });
 
-  it("counts an import as done even when another book could not be stored afterwards", async () => {
+  it("counts an import as done but tells that not every book is stored when storing fails afterwards", async () => {
     const app = await openApp();
     const period = await app.books.adapter.db.fiscalPeriods.create(
       USER,
@@ -164,7 +164,10 @@ describe("book files adapter: save", () => {
       await files.inspect(app.delivered[0]!.bytes)
     ).apply();
 
-    expect(imported).toEqual([period.id]);
+    expect(imported).toEqual({
+      fiscalPeriodIds: [period.id],
+      allBooksStored: false,
+    });
     expect(
       (await app.books.adapter.db.fiscalPeriods.getById(period.id))?.name,
     ).toBe("2026年分");
@@ -293,7 +296,10 @@ describe("book files adapter: import", () => {
     const plan = await app.files.inspect(app.delivered[0]!.bytes);
 
     expect(cases(plan)).toEqual(["same"]);
-    expect(await plan.apply()).toEqual([]);
+    expect(await plan.apply()).toEqual({
+      fiscalPeriodIds: [],
+      allBooksStored: true,
+    });
   });
 
   it("tells that app changes will be lost and restores the saved file", async () => {
@@ -312,7 +318,10 @@ describe("book files adapter: import", () => {
       existingFiscalPeriodId: period.id,
       existingFiscalPeriodName: "あとで変えた",
     });
-    expect(imported).toEqual([period.id]);
+    expect(imported).toEqual({
+      fiscalPeriodIds: [period.id],
+      allBooksStored: true,
+    });
     expect(restored?.name).toBe("2026年分");
     expect(app.files.saveTracking.getState(restored!)?.hasUnsavedChanges).toBe(
       false,
@@ -366,7 +375,10 @@ describe("book files adapter: import", () => {
 
     expect(cases(plan)).toEqual(["new"]);
     expect(plan.items[0]?.existingFiscalPeriodId).toBeNull();
-    expect(imported).toEqual([other.id]);
+    expect(imported).toEqual({
+      fiscalPeriodIds: [other.id],
+      allBooksStored: true,
+    });
     expect(
       (await app.db.fiscalPeriods.getAll(USER)).map(({ id }) => id).sort(),
     ).toEqual([mine.id, other.id].sort());

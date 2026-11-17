@@ -30,7 +30,7 @@ import {
   StepSecondaryButton,
 } from "../step-ui.js";
 
-type CarryItems = {
+export type CarryItems = {
   bs: boolean;
   transfer: boolean;
   fixed: boolean;
@@ -64,6 +64,35 @@ export function carryoverSourceCandidates(
     .sort((left, right) => right.endDate.localeCompare(left.endDate));
 }
 
+export type ReversalSourceEntries =
+  | { kind: "loading" }
+  | { kind: "failed" }
+  | { kind: "loaded"; entries: EntryRecord[] };
+
+const LOADING_REVERSAL_SOURCE: ReversalSourceEntries = { kind: "loading" };
+
+export function reversalCandidatesMessage(
+  source: ReversalSourceEntries,
+  candidateCount: number,
+): string | null {
+  switch (source.kind) {
+    case "loading":
+      return "候補の仕訳を読み込んでいます";
+    case "failed":
+      return "候補の仕訳を読み込めませんでした";
+    case "loaded":
+      return candidateCount === 0 ? "候補の仕訳はありません" : null;
+  }
+}
+
+export function canApplyCarryover(
+  items: CarryItems,
+  source: ReversalSourceEntries,
+): boolean {
+  const hasSelection = items.bs || items.transfer || items.fixed;
+  return hasSelection && (!items.transfer || source.kind === "loaded");
+}
+
 export function OpeningBsCarryover({
   target,
   sources,
@@ -79,7 +108,9 @@ export function OpeningBsCarryover({
   const [sourceId, setSourceId] = useState(sources[0]?.id ?? "");
   const [items, setItems] = useState<CarryItems>(DEFAULT_CARRY_ITEMS);
   const [reversalEntryIds, setReversalEntryIds] = useState<string[]>([]);
-  const [sourceEntries, setSourceEntries] = useState<EntryRecord[]>([]);
+  const [sourceEntries, setSourceEntries] = useState<ReversalSourceEntries>(
+    LOADING_REVERSAL_SOURCE,
+  );
   const [isApplying, setIsApplying] = useState(false);
   const [screenError, setScreenError] = useState<unknown>(null);
   const applyLock = useRef(new ExclusiveActionLock());
@@ -94,7 +125,7 @@ export function OpeningBsCarryover({
 
   useEffect(() => {
     setReversalEntryIds([]);
-    setSourceEntries([]);
+    setSourceEntries(LOADING_REVERSAL_SOURCE);
   }, [sourceId, items.transfer]);
 
   useEffect(() => {
@@ -103,9 +134,11 @@ export function OpeningBsCarryover({
     void (async () => {
       try {
         const loaded = await loadFiscalPeriodEntries(sourceId);
-        if (!cancelled) setSourceEntries(loaded);
+        if (!cancelled) setSourceEntries({ kind: "loaded", entries: loaded });
       } catch (error) {
-        if (!cancelled) setScreenError(error);
+        if (cancelled) return;
+        setSourceEntries({ kind: "failed" });
+        setScreenError(error);
       }
     })();
     return () => {
@@ -120,10 +153,17 @@ export function OpeningBsCarryover({
   ]);
 
   const reversalCandidates = useMemo(
-    () => sourceEntries.filter(isOpeningCarryoverCandidate),
+    () =>
+      sourceEntries.kind === "loaded"
+        ? sourceEntries.entries.filter(isOpeningCarryoverCandidate)
+        : [],
     [sourceEntries],
   );
-  const hasSelection = items.bs || items.transfer || items.fixed;
+  const canApply = canApplyCarryover(items, sourceEntries);
+  const candidatesMessage = reversalCandidatesMessage(
+    sourceEntries,
+    reversalCandidates.length,
+  );
 
   if (!isOpen) {
     return (
@@ -136,7 +176,7 @@ export function OpeningBsCarryover({
   }
 
   const handleApply = async () => {
-    if (source == null || !hasSelection) return;
+    if (source == null || !canApply) return;
     const release = applyLock.current.tryAcquire();
     if (release == null) return;
     try {
@@ -245,9 +285,7 @@ export function OpeningBsCarryover({
                     disabled={isApplying}
                   />
                 ))}
-                {reversalCandidates.length === 0
-                  ? "候補の仕訳はありません"
-                  : null}
+                {candidatesMessage}
               </div>
             }
             hint="何も選ばずに引き継ぐと、今の再振替は空になります。"
@@ -267,7 +305,7 @@ export function OpeningBsCarryover({
         </StepSecondaryButton>
         <StepPrimaryButton
           onClick={handleApply}
-          disabled={isApplying || source == null || !hasSelection}
+          disabled={isApplying || source == null || !canApply}
           variant={null}
           icon={null}
         >

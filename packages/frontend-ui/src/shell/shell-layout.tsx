@@ -15,6 +15,7 @@ import {
   palette,
   radii,
   sizes,
+  VIEWPORT_HEIGHT,
 } from "../shared/design-tokens.js";
 import { normalizePathname } from "../shared/pathname.js";
 import {
@@ -114,7 +115,7 @@ function ShellScreen(props: { children: ReactNode }) {
     return (
       <main
         style={{
-          minHeight: "100vh",
+          minHeight: VIEWPORT_HEIGHT,
           display: "grid",
           placeItems: "center",
           color: palette.textLabel,
@@ -169,6 +170,7 @@ function ShellChrome({
   const tracksBookSave = useOpenkkBookFiles()?.saveTracking != null;
 
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const closeDrawer = () => setDrawerOpen(false);
   const sidebarRef = useDismissibleLayer<HTMLElement>({
     open: drawerOpen,
     onDismiss: () => setDrawerOpen(false),
@@ -186,14 +188,14 @@ function ShellChrome({
     return (
       <main
         className="bk-shell-main bk-shell-main--fills-screen"
-        style={{ height: "100vh", overflow: "hidden" }}
+        style={{ height: VIEWPORT_HEIGHT, overflow: "hidden" }}
       >
         <div
           className="bk-shell-content"
           style={{
             display: "flex",
             flexDirection: "column",
-            height: "100vh",
+            height: VIEWPORT_HEIGHT,
             overflow: "auto",
             minWidth: 0,
             background: palette.surface,
@@ -277,7 +279,7 @@ function ShellChrome({
       <main
         className="bk-shell-main"
         style={{
-          height: "100vh",
+          height: VIEWPORT_HEIGHT,
           display: "grid",
           gridTemplateColumns: `${sizes.shell.sidebarWidth} 1fr`,
           overflow: "hidden",
@@ -351,8 +353,16 @@ function ShellChrome({
 
           {tracksBookSave ? <ShellBookSave bookSave={bookSave} /> : null}
 
-          <ShellFiscalPeriodMenu pathname={pathname} enabled={navEnabled} />
-          <ShellNav pathname={pathname} enabled={navEnabled} />
+          <ShellFiscalPeriodMenu
+            pathname={pathname}
+            enabled={navEnabled}
+            onNavigate={closeDrawer}
+          />
+          <ShellNav
+            pathname={pathname}
+            enabled={navEnabled}
+            onNavigate={closeDrawer}
+          />
 
           <div style={{ flex: 1 }} />
 
@@ -362,6 +372,7 @@ function ShellChrome({
             authActionPending={auth.authActionPending}
             onSignIn={auth.signIn}
             onSignOut={auth.signOut}
+            onNavigate={closeDrawer}
           />
         </aside>
 
@@ -370,7 +381,7 @@ function ShellChrome({
           style={{
             display: "flex",
             flexDirection: "column",
-            height: "100vh",
+            height: VIEWPORT_HEIGHT,
             overflow: "auto",
             minWidth: 0,
             background: palette.surface,

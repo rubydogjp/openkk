@@ -385,3 +385,24 @@ export async function settle(): Promise<void> {
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
   }
 }
+
+export function holdFirstAnswer<Args extends unknown[], Result>(
+  read: (...args: Args) => Promise<Result>,
+): { read: (...args: Args) => Promise<Result>; release: () => void } {
+  let release = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let first = true;
+  return {
+    async read(...args) {
+      const answer = await read(...args);
+      if (first) {
+        first = false;
+        await held;
+      }
+      return answer;
+    },
+    release: () => release(),
+  };
+}

@@ -92,6 +92,9 @@ function ConfirmDialogView(
           style={{
             width: "100%",
             maxWidth: 480,
+            maxHeight: "100%",
+            overflowY: "auto",
+            boxSizing: "border-box",
             background: palette.surface,
             borderRadius: 24,
             padding: "24px 24px 22px",

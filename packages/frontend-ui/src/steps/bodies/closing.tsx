@@ -8,7 +8,7 @@ import {
   computeFsAggregate,
   withClosingVirtualEntries,
 } from "@rubydogjp/openkk-driver";
-import { AppErrorText } from "../../shared/app-error-text.js";
+import { AppErrorText, debugAppError } from "../../shared/app-error-text.js";
 import {
   useOpenkkAppState,
   useOpenkkAssist,
@@ -38,6 +38,10 @@ import {
   StepUnavailableNotice,
   UndoIcon,
 } from "../step-ui.js";
+import { usePeriodScopedError } from "../period-scoped-error.js";
+
+const CLOSED_BUT_NOT_READ_BACK_MESSAGE =
+  "本締めは済みました。画面を読み込み直してください";
 
 export function ClosingBody({
   onSwitchToStep,
@@ -53,19 +57,23 @@ export function ClosingBody({
   const assistState = useOpenkkAssist();
   const closingApi = useOpenkkClosing();
   const { confirm, dialog } = useConfirmDialog();
-  const [screenError, setScreenError] = useState<unknown>(null);
   const [showRunningAnimation, setShowRunningAnimation] = useState(false);
   const [animationKey, setAnimationKey] = useState(0);
   const closingMutationLock = useRef(new ExclusiveActionLock());
   const currentFiscalPeriod = appState.currentFiscalPeriod;
+  const [screenError, setScreenError] = usePeriodScopedError(
+    currentFiscalPeriod?.id ?? null,
+  );
   const documents = useStepDocuments(currentFiscalPeriod);
 
   useEffect(() => {
     return () => onBusyChange(false);
   }, [onBusyChange]);
 
+  const recordsLoaded =
+    entriesState.loadError == null && assistState.loadError == null;
   const fsSummary = useMemo(() => {
-    if (currentFiscalPeriod == null) return null;
+    if (currentFiscalPeriod == null || !recordsLoaded) return null;
     const entries = withClosingVirtualEntries({
       fiscalPeriodId: currentFiscalPeriod.id,
       phase: currentFiscalPeriod.phase,
@@ -79,7 +87,7 @@ export function ClosingBody({
       entries,
       openingBalanceLines: currentFiscalPeriod.opening.balanceLines,
     }).summary;
-  }, [currentFiscalPeriod, entriesState, assistState]);
+  }, [currentFiscalPeriod, entriesState, assistState, recordsLoaded]);
 
   const closingResultShown =
     !showRunningAnimation &&
@@ -163,8 +171,6 @@ export function ClosingBody({
           entriesState.journalTableMaster,
         );
         await closingApi.runFinal(currentFiscalPeriod.id, entries);
-        await entriesState.reloadAndWait();
-        setScreenError(null);
       } catch (error) {
         setShowRunningAnimation(false);
         onBusyChange(false);
@@ -173,6 +179,25 @@ export function ClosingBody({
             fallbackUserMessage: "本締めに失敗しました",
             fallbackDeveloperMessage: "steps/closing: finalize failed",
             statusCode: null,
+          }),
+        );
+        return;
+      }
+      try {
+        await entriesState.reloadAndWait();
+        setScreenError(null);
+      } catch (error) {
+        debugAppError(error);
+        setShowRunningAnimation(false);
+        onBusyChange(false);
+        setScreenError(
+          new AppError({
+            messageForDeveloper:
+              "steps/closing: closed but the entries could not be read back",
+            messageForUser: CLOSED_BUT_NOT_READ_BACK_MESSAGE,
+            originalMessage: null,
+            statusCode: null,
+            code: null,
           }),
         );
       }
@@ -225,8 +250,8 @@ export function ClosingBody({
               items={documents.map((stepDocument) => ({
                 label: `仮_${stepDocument.name}.pdf`,
                 description: stepDocument.description,
-                active: true,
-                onClick: stepDocument.print,
+                active: stepDocument.available,
+                onClick: stepDocument.available ? stepDocument.print : null,
               }))}
             />
           </section>

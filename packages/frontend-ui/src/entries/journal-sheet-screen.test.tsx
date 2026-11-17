@@ -24,6 +24,13 @@ function row(entryNumber: string, amount: string): JournalSheetRow {
 }
 
 function render(rows: JournalSheetRow[]): string {
+  return renderWith(rows, null);
+}
+
+function renderWith(
+  rows: JournalSheetRow[],
+  onOpenRow: ((row: JournalSheetRow) => void) | null,
+): string {
   return renderToStaticMarkup(
     <JournalSheetScreen
       fiscalPeriodName="2026年分"
@@ -33,7 +40,7 @@ function render(rows: JournalSheetRow[]): string {
       onBack={() => {}}
       onImportFile={null}
       onExport={() => {}}
-      onOpenRow={null}
+      onOpenRow={onOpenRow}
     />,
   );
 }
@@ -45,6 +52,15 @@ function textsOf(html: string, tag: "th" | "td"): string[] {
 }
 
 describe("JournalSheetScreen", () => {
+  it("lets each row be opened from the keyboard by a named button", () => {
+    const html = renderWith([row("a", "1200")], () => {});
+
+    expect(html).toContain(
+      '<button type="button" aria-label="2 行目の仕訳を開く (2026-05-10 売上)"',
+    );
+    expect(render([row("a", "1200")])).not.toContain("行目の仕訳を開く");
+  });
+
   it("letters the columns and numbers the rows like a spreadsheet that opened the CSV", () => {
     const headings = textsOf(
       render([row("a", "1200"), row("b", "980000")]),

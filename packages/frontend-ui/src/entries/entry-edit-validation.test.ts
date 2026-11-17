@@ -57,6 +57,15 @@ describe("validateEntryAmounts", () => {
     expect(validateEntryAmounts(["500", "500"], ["1,000"])).toBeNull();
   });
 
+  it("asks for whole amounts instead of dropping decimals or signs", () => {
+    expect(validateEntryAmounts(["12345.00"], ["12345"])).toBe(
+      "金額は 1 以上の整数で入れてください。",
+    );
+    expect(validateEntryAmounts(["500"], ["-500"])).toBe(
+      "金額は 1 以上の整数で入れてください。",
+    );
+  });
+
   it("rejects an unsafe line amount", () => {
     expect(validateEntryAmounts(["9007199254740993"], ["1"])).toMatch(
       /大きすぎる/,

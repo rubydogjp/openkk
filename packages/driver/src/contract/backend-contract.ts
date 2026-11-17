@@ -136,10 +136,29 @@ const OPENING_CASH = 100_000;
 const SALES_IN_CASH = 50_000;
 const CASH_BALANCE_LINE_ID = `a:${CASH}`;
 
+type PeriodRange = { name: string; startDate: string; endDate: string };
+
+const PERIOD_2025 = {
+  name: "2025年分",
+  startDate: "2025-01-01",
+  endDate: "2025-12-31",
+};
+const ACCRUED_EXPENSE = "未払金";
+const COMMUNICATION_EXPENSE = "通信費";
+const ACCRUED_AT_YEAR_END = 3_300;
+
 async function closedPeriodWithFixedAsset(
   backend: OpenkkBackendPort,
 ): Promise<FiscalPeriodApiRecord> {
-  const created = await backend.fiscalPeriods.create(PERIOD_2026);
+  return closedPeriod(backend, PERIOD_2026, "2026-01-10");
+}
+
+async function closedPeriod(
+  backend: OpenkkBackendPort,
+  range: PeriodRange,
+  fixedAssetAcquisitionDate: string | null,
+): Promise<FiscalPeriodApiRecord> {
+  const created = await backend.fiscalPeriods.create(range);
   await backend.fiscalPeriods.start(created.id);
   const period = await backend.fiscalPeriods.patch(created.id, {
     openingBalancesCompleted: true,
@@ -163,7 +182,7 @@ async function closedPeriodWithFixedAsset(
   await backend.entries.create(
     period.id,
     pairEntry(master, {
-      date: "2026-03-01",
+      date: `${range.startDate.slice(0, 4)}-03-01`,
       description: "売上",
       debit: CASH,
       credit: SALES,
@@ -171,15 +190,17 @@ async function closedPeriodWithFixedAsset(
       localId: null,
     }),
   );
-  await backend.fixedAssets.create(period.id, {
-    name: "ノートパソコン",
-    acquisitionDate: "2026-01-10",
-    acquisitionCost: 240_000,
-    usefulLife: 4,
-    depreciationMethod: "straight_line",
-    businessRate: 1,
-    bookAccountId: accountId(master, EQUIPMENT),
-  });
+  if (fixedAssetAcquisitionDate != null) {
+    await backend.fixedAssets.create(period.id, {
+      name: "ノートパソコン",
+      acquisitionDate: fixedAssetAcquisitionDate,
+      acquisitionCost: 240_000,
+      usefulLife: 4,
+      depreciationMethod: "straight_line",
+      businessRate: 1,
+      bookAccountId: accountId(master, EQUIPMENT),
+    });
+  }
   const preClosed = await backend.preClosings.run(period.id);
   await backend.closings.run(
     period.id,
@@ -680,13 +701,159 @@ export const BACKEND_CONTRACT_CASES: BackendContractCase[] = [
         fixedAssets.length === 1 && fixedAssets[0]?.name === "ノートパソコン",
         "the carried fixed assets replace the ones the period had, without duplicates",
       );
-      await checkRejectedWith(
-        HTTP_CONFLICT,
-        backend.fiscalPeriods.applyCarryover(source.id, {
-          ...carryover,
-          sourceFiscalPeriodId: created.id,
+    },
+  ),
+
+  contractCase("refuses a carryover into a closed period", async (backend) => {
+    const source = await closedPeriod(backend, PERIOD_2025, null);
+    const target = await closedPeriod(backend, PERIOD_2026, null);
+
+    await checkRejectedWith(
+      HTTP_CONFLICT,
+      backend.fiscalPeriods.applyCarryover(target.id, {
+        sourceFiscalPeriodId: source.id,
+        carryBalances: true,
+        reversalEntryIds: null,
+        carryFixedAssets: false,
+      }),
+      "a closed period refuses a carryover from a period that may be carried over",
+    );
+    check(
+      JSON.stringify((await storedPeriod(backend, target.id)).opening) ===
+        JSON.stringify(target.opening),
+      "the refused carryover leaves the closed period's opening as it was",
+    );
+  }),
+
+  contractCase(
+    "carries over only what it is asked to into an opened period",
+    async (backend) => {
+      const master = await loadJournalMaster(backend);
+      const sourceOpen = await backend.fiscalPeriods.create(PERIOD_2026);
+      await backend.fiscalPeriods.start(sourceOpen.id);
+      await backend.fiscalPeriods.patch(sourceOpen.id, {
+        openingBalancesCompleted: true,
+      });
+      const accrual = await backend.entries.create(
+        sourceOpen.id,
+        pairEntry(master, {
+          date: PERIOD_2026.endDate,
+          description: "12月分の通信費",
+          debit: COMMUNICATION_EXPENSE,
+          credit: ACCRUED_EXPENSE,
+          amount: ACCRUED_AT_YEAR_END,
+          localId: null,
         }),
-        "a closed period refuses a carryover",
+      );
+      const preClosed = await backend.preClosings.run(sourceOpen.id);
+      await backend.closings.run(
+        sourceOpen.id,
+        buildFinalClosingPayload(
+          await loadFiscalPeriodReportInput(backend, preClosed, CLOSING_DAY),
+          master,
+        ),
+      );
+      const source = await backend.fiscalPeriods.patch(sourceOpen.id, {
+        documentsReceivedCompleted: true,
+      });
+
+      const created = await backend.fiscalPeriods.create(PERIOD_2027);
+      await backend.fiscalPeriods.start(created.id);
+      const ownOpening = {
+        balanceLines: [
+          { id: `a:${CASH}`, accountId: `a:${CASH}`, amount: 7_000 },
+          {
+            id: `l:${OWNER_EQUITY}`,
+            accountId: `l:${OWNER_EQUITY}`,
+            amount: 7_000,
+          },
+        ],
+        journals: [],
+      };
+      await backend.fiscalPeriods.patch(created.id, {
+        openingBalancesCompleted: true,
+        opening: ownOpening,
+      });
+      await backend.entries.create(
+        created.id,
+        pairEntry(master, {
+          date: "2027-02-01",
+          description: "当期の売上",
+          debit: CASH,
+          credit: SALES,
+          amount: 1_000,
+          localId: null,
+        }),
+      );
+      await backend.fixedAssets.create(created.id, {
+        name: "当期の資産",
+        acquisitionDate: "2027-01-10",
+        acquisitionCost: 120_000,
+        usefulLife: 4,
+        depreciationMethod: "straight_line",
+        businessRate: 1,
+        bookAccountId: accountId(master, EQUIPMENT),
+      });
+
+      const withReversal = await backend.fiscalPeriods.applyCarryover(
+        created.id,
+        {
+          sourceFiscalPeriodId: source.id,
+          carryBalances: false,
+          reversalEntryIds: [accrual.id],
+          carryFixedAssets: false,
+        },
+      );
+      check(
+        JSON.stringify(withReversal.opening.balanceLines) ===
+          JSON.stringify(ownOpening.balanceLines),
+        "the opening balances stay when they are not carried over",
+      );
+      check(
+        withReversal.opening.journals.length > 0,
+        "the chosen entry becomes a reversal journal",
+      );
+      const fixedAssets = await backend.fixedAssets.getAll(created.id);
+      check(
+        fixedAssets.length === 1 && fixedAssets[0]?.name === "当期の資産",
+        "the fixed assets stay when they are not carried over",
+      );
+
+      const keptReversal = await backend.fiscalPeriods.applyCarryover(
+        created.id,
+        {
+          sourceFiscalPeriodId: source.id,
+          carryBalances: true,
+          reversalEntryIds: null,
+          carryFixedAssets: false,
+        },
+      );
+      check(
+        JSON.stringify(keptReversal.opening.journals) ===
+          JSON.stringify(withReversal.opening.journals),
+        "reversalEntryIds null keeps the reversal journals the period has",
+      );
+
+      const clearedReversal = await backend.fiscalPeriods.applyCarryover(
+        created.id,
+        {
+          sourceFiscalPeriodId: source.id,
+          carryBalances: false,
+          reversalEntryIds: [],
+          carryFixedAssets: false,
+        },
+      );
+      check(
+        clearedReversal.opening.journals.length === 0 &&
+          (await storedPeriod(backend, created.id)).opening.journals.length ===
+            0,
+        "reversalEntryIds [] removes the reversal journals the period had",
+      );
+      check(
+        (await backend.entries.getAll(created.id))
+          .map((entry) => entry.description)
+          .join() === "当期の売上",
+        "a carryover keeps the entries of the period it is applied to",
       );
     },
   ),

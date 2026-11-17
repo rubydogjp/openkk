@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AppError,
   formatAmount,
+  isWholeAmountText,
   type BookAccountType,
 } from "@rubydogjp/openkk-driver";
 import { AppErrorText } from "../../shared/app-error-text.js";
@@ -62,6 +63,7 @@ export function OpeningBsBody({
   const currentFiscalPeriod = appState.currentFiscalPeriod;
 
   const openingBalanceLines = currentFiscalPeriod?.opening.balanceLines ?? [];
+  const savedOpeningBalances = JSON.stringify(openingBalanceLines);
   const [amounts, setAmounts] = useState<Record<string, string>>(() =>
     buildInitialAmounts(openingBalanceLines),
   );
@@ -83,7 +85,7 @@ export function OpeningBsBody({
     setAmounts(buildInitialAmounts(openingBalanceLines));
     setIsEditingCompleted(false);
     setScreenError(null);
-  }, [currentFiscalPeriod?.id, openingBalanceLines]);
+  }, [currentFiscalPeriod?.id, savedOpeningBalances]);
 
   const assetTotal = useMemo(
     () =>
@@ -128,6 +130,7 @@ export function OpeningBsBody({
     currentFiscalPeriod.phase === "journalizing" && !editingLocked
       ? carryoverSourceCandidates(currentFiscalPeriod, appState.fiscalPeriods)
       : [];
+  const amountsAreWhole = Object.values(amounts).every(isWholeAmountText);
   const amountsAreSafe = assetTotal != null && liabilityTotal != null;
   const balancesMatch = amountsAreSafe && assetTotal === liabilityTotal;
 
@@ -282,7 +285,11 @@ export function OpeningBsBody({
           </div>
         </div>
 
-        {isEditing && !amountsAreSafe ? (
+        {isEditing && !amountsAreWhole ? (
+          <StepCallout tone="warning">
+            金額は 0 以上の整数で入れてください。
+          </StepCallout>
+        ) : isEditing && !amountsAreSafe ? (
           <StepCallout tone="warning">
             金額または合計が大きすぎるため、安全に計算できる金額へ修正してください。
           </StepCallout>

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { SectionedBookAccount } from "./book-account.js";
 import type { EntryLine, EntryRecord } from "./entry-record.js";
 import {
+  buildJournalTableEntryRows,
   buildJournalTableRows,
   diffJournalTableEntries,
   formatJournalTableCsv,
@@ -161,6 +162,23 @@ const HEADER =
   "仕訳番号,日付,借方科目,借方金額,貸方科目,貸方金額,摘要,取引先,税区分,事業区分,事業割合";
 const WRITTEN_HEADER =
   "日付,借方科目,借方金額,貸方科目,貸方金額,摘要,取引先,税区分,事業区分,事業割合,仕訳番号";
+
+describe("buildJournalTableEntryRows", () => {
+  it("keeps the id of the entry each row came from, even when two entries share an entry number", () => {
+    const copy = { ...supplies, id: "e-copy", localId: supplies.id };
+
+    expect(
+      buildJournalTableEntryRows([reward, supplies, copy], master).map(
+        ({ entryId, row }) => [entryId, row.entryNumber],
+      ),
+    ).toEqual([
+      ["e-reward", "e-reward"],
+      ["e-reward", "e-reward"],
+      [supplies.id, supplies.localId ?? supplies.id],
+      ["e-copy", supplies.id],
+    ]);
+  });
+});
 
 describe("buildJournalTableRows", () => {
   it("writes one row per debit and credit pair with plain values", () => {
@@ -347,6 +365,40 @@ describe("journal table CSV", () => {
     expect(() => parseJournalTableCsv(`${HEADER}\n"unterminated`)).toThrow(
       /unterminated quoted field/,
     );
+  });
+});
+
+describe("journal table dates", () => {
+  it("reads the year-first dates a spreadsheet writes when it saves the CSV", () => {
+    const entries = readEntries(
+      [
+        HEADER,
+        "a,2026/6/1,消耗品費,1000,普通預金,1000,文具,,,,",
+        "b,2026/06/02,消耗品費,1000,普通預金,1000,文具,,,,",
+        "c,2026-6-3,消耗品費,1000,普通預金,1000,文具,,,,",
+        "d,2026/6/4,消耗品費,1000,普通預金,1000,文具,,,,",
+        "d,2026-06-04,消耗品費,500,普通預金,500,文具,,,,",
+      ].join("\n"),
+    );
+
+    expect(entries.map((entry) => entry.date)).toEqual([
+      "2026-06-01",
+      "2026-06-02",
+      "2026-06-03",
+      "2026-06-04",
+    ]);
+  });
+
+  it("still refuses a day that does not exist and a day-first date", () => {
+    expect(
+      problemsOf(
+        [
+          HEADER,
+          "a,2026/2/30,消耗品費,1000,普通預金,1000,文具,,,,",
+          "b,1/6/2026,消耗品費,1000,普通預金,1000,文具,,,,",
+        ].join("\n"),
+      ).map((problem) => problem.rowNumber),
+    ).toEqual([2, 3]);
   });
 });
 

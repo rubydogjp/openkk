@@ -1,4 +1,5 @@
 import {
+  AppError,
   buildJournalTableRows,
   decodeJournalImportBytes,
   diffJournalTableEntries,
@@ -6,6 +7,7 @@ import {
   formatJournalTableCsv,
   importEntriesFromLegacyJson,
   importEntriesFromLegacyCsv,
+  findDuplicatedEntryNumber,
   isLegacyJournalCsv,
   isMaterializedVirtualEntry,
   parseJournalTableCsv,
@@ -46,6 +48,7 @@ export function planJournalImport(input: {
       fromLegacyCsv,
     };
   }
+  assertEntryNumbersAreUnique(input.currentEntries);
   const read = readJournalTableEntries(parseJournalTableCsv(text), {
     fiscalPeriodId: fiscalPeriod.id,
     startDate: fiscalPeriod.startDate,
@@ -88,4 +91,18 @@ export function formatJournalExport(
         entries.filter((entry) => !isMaterializedVirtualEntry(entry)),
       )
     : formatJournalTableCsv(buildJournalTableRows(entries, master));
+}
+
+function assertEntryNumbersAreUnique(
+  entries: ReadonlyArray<EntryRecord>,
+): void {
+  const duplicated = findDuplicatedEntryNumber(entries);
+  if (duplicated == null) return;
+  throw new AppError({
+    messageForDeveloper: `journal table: two current entries share the entry number ${duplicated}`,
+    messageForUser: `仕訳番号「${duplicated}」の仕訳が 2 件あります。同じ仕訳を 2 回取り込んだときは、片方を消してから取り込んでください`,
+    originalMessage: null,
+    statusCode: null,
+    code: null,
+  });
 }

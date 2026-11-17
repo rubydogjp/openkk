@@ -222,14 +222,19 @@ export function createOpenkkAssistStore(dependencies: {
     const authOperationVersion = app.getState().captureAuthOperationVersion();
     const readVersion = periodVersions.capture(fiscalPeriodId);
     const accountNameById = data.getState().master.accountNameById;
-    const isSuperseded = () =>
+    const isReplaced = () =>
       generation !== fixedAssetsLoadGeneration ||
-      !app.getState().isAuthOperationCurrent(authOperationVersion) ||
-      !periodVersions.isCurrent(fiscalPeriodId, readVersion);
+      !app.getState().isAuthOperationCurrent(authOperationVersion);
+    const isSuperseded = () =>
+      isReplaced() || !periodVersions.isCurrent(fiscalPeriodId, readVersion);
     void (async () => {
       try {
         const remote = await backend.fixedAssets.getAll(fiscalPeriodId);
-        if (isSuperseded()) return;
+        if (isReplaced()) return;
+        if (isSuperseded()) {
+          loadFixedAssets();
+          return;
+        }
         update({
           fixedAssets: remote.map((asset) =>
             mapFixedAsset(
@@ -242,7 +247,11 @@ export function createOpenkkAssistStore(dependencies: {
           fixedAssetsLoadError: null,
         });
       } catch (error) {
-        if (isSuperseded()) return;
+        if (isReplaced()) return;
+        if (isSuperseded()) {
+          loadFixedAssets();
+          return;
+        }
         console.error("[openkk] fixed assets load failed:", error);
         update({ fixedAssetsLoadError: error });
       }

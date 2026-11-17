@@ -190,7 +190,11 @@ describe("createRecordsBookFilesAdapter", () => {
 
     const plan = await bookFiles.inspect(saved.delivered[0]!.bytes);
     expect(plan.items.map((item) => item.case)).toEqual(["new"]);
-    const [importedId] = await plan.apply();
+    const {
+      fiscalPeriodIds: [importedId],
+      allBooksStored,
+    } = await plan.apply();
+    expect(allBooksStored).toBe(true);
 
     const [period] = await target.fiscalPeriods.getAll();
     expect(period?.id).toBe(importedId);

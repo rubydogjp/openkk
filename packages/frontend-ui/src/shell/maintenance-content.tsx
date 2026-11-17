@@ -6,6 +6,7 @@ import {
   palette,
   radii,
   spacing,
+  VIEWPORT_HEIGHT,
 } from "../shared/design-tokens.js";
 import type { IconProps } from "../shared/icons.js";
 
@@ -18,7 +19,7 @@ export function MaintenanceScreen(props: { title: string; message: string }) {
   return (
     <main
       style={{
-        minHeight: "100vh",
+        minHeight: VIEWPORT_HEIGHT,
         display: "grid",
         placeItems: "center",
         padding: spacing.s24,

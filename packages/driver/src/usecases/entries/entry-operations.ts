@@ -24,13 +24,26 @@ export async function applyJournalTableChanges(
   afterBackendCall();
   assertChangesMatchStoredEntries(changes, storedEntries);
   const operations = journalTableOperations(changes, master);
-  if (operations.creates.length > 0) {
-    await backend.entries.importMany(fiscalPeriodId, operations.creates);
-    afterBackendCall();
-  }
   for (const update of operations.updates) {
     await backend.entries.update(fiscalPeriodId, update.id, update.input);
     afterBackendCall();
+  }
+  if (operations.creates.length > 0) {
+    const response = await backend.entries.importMany(
+      fiscalPeriodId,
+      operations.creates,
+    );
+    afterBackendCall();
+    if (response.importedCount !== operations.creates.length) {
+      throw new AppError({
+        messageForDeveloper: `entries: the backend added ${response.importedCount} of ${operations.creates.length} journal table entries`,
+        messageForUser:
+          "足せなかった仕訳があったため、消す仕訳はそのままにしました。もう一度ファイルを取り込んでください",
+        originalMessage: null,
+        statusCode: null,
+        code: null,
+      });
+    }
   }
   for (const id of operations.removeIds) {
     await backend.entries.remove(fiscalPeriodId, id);
@@ -81,10 +94,21 @@ export async function importEntryRecords(
   entries: ReadonlyArray<EntryRecord>,
   master: JournalTableMaster,
 ): Promise<ImportedEntryRecords> {
-  const response = await backend.entries.importMany(
-    fiscalPeriodId,
-    entries.map((entry) => entryRecordToImportPayload(entry, master)),
+  const storedNumbers = new Set(
+    (await backend.entries.getAll(fiscalPeriodId)).map(
+      (entry) => entry.localId ?? entry.id,
+    ),
   );
+  const incoming = entries.filter(
+    (entry) => entry.localId == null || !storedNumbers.has(entry.localId),
+  );
+  const response =
+    incoming.length === 0
+      ? { importedCount: 0, entries: [] }
+      : await backend.entries.importMany(
+          fiscalPeriodId,
+          incoming.map((entry) => entryRecordToImportPayload(entry, master)),
+        );
   return {
     records: response.entries.map((entry) =>
       storedEntryToRecord(entry, fiscalPeriodId, master),

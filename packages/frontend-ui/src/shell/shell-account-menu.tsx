@@ -37,6 +37,7 @@ export function ShellAccountMenu(props: {
   authActionPending: boolean;
   onSignIn: () => void;
   onSignOut: () => void;
+  onNavigate: () => void;
 }) {
   const { hasSession, authActionPending } = props;
   const appState = useOpenkkAppState();
@@ -226,6 +227,7 @@ export function ShellAccountMenu(props: {
                     disabled={false}
                     onClick={() => {
                       setMenuOpen(false);
+                      props.onNavigate();
                       router.push(myPagePath);
                     }}
                   />

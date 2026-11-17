@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-import { palette } from "../shared/design-tokens.js";
+import { palette, VIEWPORT_HEIGHT } from "../shared/design-tokens.js";
 import { useRouter } from "../routing/routing.js";
 
 export function RootRedirectPage() {
@@ -13,7 +13,7 @@ export function RootRedirectPage() {
   return (
     <main
       style={{
-        minHeight: "100vh",
+        minHeight: VIEWPORT_HEIGHT,
         display: "grid",
         placeItems: "center",
         color: palette.textLabel,

@@ -128,14 +128,41 @@ export function journalEntryNumber(entry: {
   return entry.localId ?? entry.id;
 }
 
+export type JournalTableEntryRow = {
+  entryId: string;
+  row: JournalTableRow;
+};
+
+export function buildJournalTableEntryRows(
+  entries: ReadonlyArray<EntryRecord>,
+  master: JournalTableMaster,
+): JournalTableEntryRow[] {
+  const labels = buildBookAccountLabels(master.accounts);
+  return entries
+    .filter((entry) => !isMaterializedVirtualEntry(entry))
+    .flatMap((entry) =>
+      entryRows(entry, labels).map((row) => ({ entryId: entry.id, row })),
+    );
+}
+
 export function buildJournalTableRows(
   entries: ReadonlyArray<EntryRecord>,
   master: JournalTableMaster,
 ): JournalTableRow[] {
-  const labels = buildBookAccountLabels(master.accounts);
-  return entries
-    .filter((entry) => !isMaterializedVirtualEntry(entry))
-    .flatMap((entry) => entryRows(entry, labels));
+  return buildJournalTableEntryRows(entries, master).map(({ row }) => row);
+}
+
+export function findDuplicatedEntryNumber(
+  entries: ReadonlyArray<EntryRecord>,
+): string | null {
+  const seen = new Set<string>();
+  for (const entry of entries) {
+    if (isMaterializedVirtualEntry(entry)) continue;
+    const entryNumber = journalEntryNumber(entry);
+    if (seen.has(entryNumber)) return entryNumber;
+    seen.add(entryNumber);
+  }
+  return null;
 }
 
 function entryRows(
@@ -282,7 +309,7 @@ export function readJournalTableEntries(
       report(first.rowNumber, `仕訳番号「${entryNumber}」は使えません`);
       continue;
     }
-    const date = first.date.trim();
+    const date = normalizeTableDate(first.date);
     if (parseIsoLocalDate(date) == null) {
       report(
         first.rowNumber,
@@ -307,7 +334,7 @@ export function readJournalTableEntries(
     }
     const mismatch = group.find(
       (row) =>
-        row.date.trim() !== date ||
+        normalizeTableDate(row.date) !== date ||
         row.description !== first.description ||
         parseTableBusinessRate(row.businessRate) !== businessRate,
     );
@@ -447,6 +474,16 @@ export function readJournalTableEntries(
     });
   }
   return problems.length > 0 ? { ok: false, problems } : { ok: true, entries };
+}
+
+const YEAR_FIRST_DATE = /^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/;
+
+function normalizeTableDate(value: string): string {
+  const trimmed = value.trim();
+  const match = YEAR_FIRST_DATE.exec(trimmed);
+  if (match == null) return trimmed;
+  const [, year, month, day] = match;
+  return `${year}-${month!.padStart(2, "0")}-${day!.padStart(2, "0")}`;
 }
 
 export function diffJournalTableEntries(

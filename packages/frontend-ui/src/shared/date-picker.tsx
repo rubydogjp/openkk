@@ -16,6 +16,7 @@ import {
   sizes,
   spacing,
   typography,
+  VIEWPORT_HEIGHT,
 } from "./design-tokens.js";
 import { useModalLifecycle } from "./dismissible-layer.js";
 import type { IconProps } from "./icons.js";
@@ -180,6 +181,9 @@ function DatePickerDialog(props: {
           borderRadius: 24,
           maxWidth: 460,
           width: "calc(100% - 48px)",
+          maxHeight: `calc(${VIEWPORT_HEIGHT} - 48px)`,
+          overflowY: "auto",
+          boxSizing: "border-box",
           padding: "22px 24px",
           display: "grid",
           gap: 16,

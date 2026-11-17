@@ -1,3 +1,12 @@
+:root {
+  --openkk-viewport-height: 100vh;
+}
+@supports (height: 100dvh) {
+  :root {
+    --openkk-viewport-height: 100dvh;
+  }
+}
+
 @keyframes bk-fade-in {
   from {
     opacity: 0;
@@ -154,6 +163,7 @@
     top: 0;
     left: 0;
     height: 100vh;
+    height: var(--openkk-viewport-height, 100vh);
     z-index: 70;
     transform: translateX(-100%);
     transition: transform 200ms ease;
@@ -237,7 +247,7 @@ body:has(.bk-shell-main--fills-screen) .bk-entry-drawer {
   left: var(--openkk-size-shell-sidebar-width, 216px);
   right: 0;
   bottom: 24px;
-  z-index: 10000;
+  z-index: 40;
   display: flex;
   flex-direction: column;
   align-items: center;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 import {
   AppError,
@@ -32,6 +32,7 @@ import {
   StepSpacer,
 } from "../step-ui.js";
 import { useRouter } from "../../routing/routing.js";
+import { usePeriodScopedError } from "../period-scoped-error.js";
 
 export function JournalizingBody({
   onSwitchToStep,
@@ -49,6 +50,9 @@ export function JournalizingBody({
   const closingApi = useOpenkkClosing();
   const preClosingHint = useOpenkkCallout("stepJournalizingPreClosingHint");
   const currentFiscalPeriod = appState.currentFiscalPeriod;
+  const [screenError, setScreenError] = usePeriodScopedError(
+    currentFiscalPeriod?.id ?? null,
+  );
 
   const isPreClosed =
     currentFiscalPeriod?.phase === "pre_closing" ||
@@ -60,7 +64,6 @@ export function JournalizingBody({
     return () => onBusyChange(false);
   }, [onBusyChange]);
   const { confirm, dialog } = useConfirmDialog();
-  const [screenError, setScreenError] = useState<unknown>(null);
   const preClosingLock = useRef(new ExclusiveActionLock());
   const editingLocked = config.editingPolicy.locked;
 

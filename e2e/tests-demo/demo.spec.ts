@@ -212,3 +212,19 @@ test("期間のメニューから、いつでも今の期間をバックアッ�
     page.getByRole("status").filter({ hasText: "バックアップしました" }),
   ).toBeVisible();
 });
+
+test("電話の幅で今いるページをメニューから選ぶと、メニューが閉じる", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/entries");
+  await expect(page).toHaveURL(/\/entries\/$/);
+  const openMenu = page.getByRole("button", { name: "メニューを開く" });
+  const menu = page.getByRole("dialog", { name: "ナビゲーションメニュー" });
+
+  await openMenu.click();
+  await expect(menu).toBeVisible();
+  await menu.getByRole("link", { name: "仕訳", exact: true }).click();
+  await expect(menu).toHaveCount(0);
+  await expect(page).toHaveURL(/\/entries\/$/);
+});

@@ -457,7 +457,7 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
     case "ownerDeposit":
       return [
         {
-          title: "後日入金",
+          title: "プライベート資金を入金した",
           subtitle: "普通預金 | 事業主借",
           template: {
             debitAccountName: "普通預金",
@@ -481,7 +481,7 @@ export function guideOptions(page: QuickGuidePage): QuickGuideOption[] {
       return [
         {
           title: "カード利用分の引き落とし",
-          subtitle: "普通預金 | 未払金",
+          subtitle: "未払金 | 普通預金",
           template: {
             debitAccountName: "未払金",
             creditAccountName: "普通預金",

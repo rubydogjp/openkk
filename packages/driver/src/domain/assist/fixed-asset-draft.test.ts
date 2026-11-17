@@ -142,6 +142,21 @@ describe("validateFixedAssetDraft", () => {
     );
   });
 
+  it("rejects amounts that are not whole numbers instead of rounding them", () => {
+    expect(validate(draft({ acquisitionCost: "120000.50" }))).toMatch(
+      /取得価額/,
+    );
+    expect(
+      validate(
+        draft({
+          status: "sold",
+          disposalDate: "2026-06-30",
+          disposalPrice: "-1000",
+        }),
+      ),
+    ).toMatch(/売却額/);
+  });
+
   it("rejects unsafe monetary values and excessive useful lives", () => {
     expect(validate(draft({ acquisitionCost: "9007199254740993" }))).toMatch(
       /安全に計算/,

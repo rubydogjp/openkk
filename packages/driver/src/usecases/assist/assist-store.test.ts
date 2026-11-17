@@ -10,6 +10,7 @@ import {
   fakeConfig,
   fakeFiscalPeriod,
   fakeStorage,
+  holdFirstAnswer,
   settle,
   type FakeBackend,
 } from "../../../test-support/fake-backend.js";
@@ -105,6 +106,40 @@ describe("createOpenkkAssistStore", () => {
 
     expect(await assist.getState().deleteFixedAsset(assetId!)).toBe(true);
     expect(assist.getState().listFixedAssets("fp-1")).toEqual([]);
+  });
+
+  it("drops an answer that a change made stale and reads the fixed assets again", async () => {
+    const fake = fakeBackend();
+    fake.fiscalPeriods.push(
+      fakeFiscalPeriod({ id: "fp-1" }),
+      fakeFiscalPeriod({ id: "fp-2", name: "2027年" }),
+    );
+    await fake.backend.fixedAssets.create("fp-2", {
+      name: "前からある車",
+      acquisitionDate: "2025-04-01",
+      acquisitionCost: 1_200_000,
+      usefulLife: 6,
+      depreciationMethod: "straight_line",
+      businessRate: 1,
+      bookAccountId: "acct_equipment",
+    });
+    const { app, assist } = await startedStores(fake, "fp-1");
+    const held = holdFirstAnswer(fake.backend.fixedAssets.getAll);
+    fake.backend.fixedAssets.getAll = held.read;
+
+    app.getState().selectFiscalPeriod("fp-2");
+    await settle();
+    await assist.getState().addFixedAsset(EQUIPMENT_DRAFT);
+    held.release();
+    await settle();
+
+    expect(
+      assist
+        .getState()
+        .listFixedAssets("fp-2")
+        .map((asset) => asset.name)
+        .sort(),
+    ).toEqual(["パソコン", "前からある車"]);
   });
 
   it("does not add a fixed asset without a selected period", async () => {

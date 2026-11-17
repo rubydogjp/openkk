@@ -346,3 +346,5 @@ export const tokenDefaults = {
     ]),
   ) as Record<TypographyToken, TypographyDefault>,
 };
+
+export const VIEWPORT_HEIGHT = "var(--openkk-viewport-height, 100vh)";

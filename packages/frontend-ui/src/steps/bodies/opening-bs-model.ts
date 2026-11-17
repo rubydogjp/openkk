@@ -1,5 +1,6 @@
 import {
   balanceSheetRowLabel,
+  isWholeAmountText,
   balanceSheetSlots,
   OPENING_EQUITY_LABELS,
   type BalanceSheetSide,
@@ -14,6 +15,7 @@ export const liabilityAccountType = (label: string): BookAccountType =>
   OPENING_EQUITY_LABELS.has(label) ? "equity" : "liability";
 
 export function parseOpeningAmount(value: string | number): number | null {
+  if (typeof value === "string" && !isWholeAmountText(value)) return null;
   const parsed =
     typeof value === "number" ? value : Number(value.replace(/[^0-9]/g, ""));
   if (!Number.isSafeInteger(parsed) || parsed < 0) return null;

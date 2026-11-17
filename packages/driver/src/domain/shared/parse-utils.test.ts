@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   formatBusinessRatePercent,
+  isWholeAmountText,
+  normalizeAmountInput,
   parseAmount,
   parseBusinessRate,
   parseIsoLocalDate,
@@ -11,6 +13,35 @@ describe("parseAmount", () => {
   it("treats non-finite numeric amounts as zero", () => {
     expect(parseAmount(Infinity)).toBe(0);
     expect(parseAmount(-Infinity)).toBe(0);
+  });
+});
+
+describe("normalizeAmountInput", () => {
+  it("turns full-width digits into ASCII and drops digit-group commas", () => {
+    expect(normalizeAmountInput("１２，３４５")).toBe("12345");
+    expect(normalizeAmountInput("12,345")).toBe("12345");
+  });
+
+  it("keeps every other character so a wrong amount is not silently changed", () => {
+    expect(normalizeAmountInput("12,345.00")).toBe("12345.00");
+    expect(normalizeAmountInput("-500")).toBe("-500");
+    expect(normalizeAmountInput("500円")).toBe("500円");
+  });
+});
+
+describe("isWholeAmountText", () => {
+  it("accepts digits, digit-group commas and an empty value", () => {
+    expect(isWholeAmountText("")).toBe(true);
+    expect(isWholeAmountText("1,234")).toBe(true);
+    expect(isWholeAmountText(" 500 ")).toBe(true);
+  });
+
+  it("rejects decimals, signs, units and full-width digits", () => {
+    expect(isWholeAmountText("12345.00")).toBe(false);
+    expect(isWholeAmountText("-500")).toBe(false);
+    expect(isWholeAmountText("500円")).toBe(false);
+    expect(isWholeAmountText("１２３")).toBe(false);
+    expect(isWholeAmountText("1 000")).toBe(false);
   });
 });
 

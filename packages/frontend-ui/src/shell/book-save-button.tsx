@@ -30,26 +30,36 @@ type BookSave = {
   save: () => void;
 };
 
+export function backupFailedFor(
+  failedFiscalPeriodId: string | null,
+  shownFiscalPeriodId: string,
+): boolean {
+  return failedFiscalPeriodId === shownFiscalPeriodId;
+}
+
 export function useShellBookSave(
   fiscalPeriod: FiscalPeriod | null,
 ): BookSave | null {
   const bookFile = useOpenkkBookFile(fiscalPeriod);
   const [saving, setSaving] = useState(false);
-  const [failed, setFailed] = useState(false);
-  if (bookFile == null) return null;
+  const [failedFiscalPeriodId, setFailedFiscalPeriodId] = useState<
+    string | null
+  >(null);
+  if (bookFile == null || fiscalPeriod == null) return null;
+  const savingFiscalPeriodId = fiscalPeriod.id;
   return {
     bookFile,
     saving,
-    failed,
+    failed: backupFailedFor(failedFiscalPeriodId, savingFiscalPeriodId),
     save() {
       if (saving) return;
       setSaving(true);
-      setFailed(false);
+      setFailedFiscalPeriodId(null);
       void bookFile
         .save()
         .catch((error: unknown) => {
           console.error("[openkk] book save failed:", error);
-          setFailed(true);
+          setFailedFiscalPeriodId(savingFiscalPeriodId);
         })
         .finally(() => setSaving(false));
     },

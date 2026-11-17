@@ -207,7 +207,9 @@ export function createLocalBookFilesAdapter(
           const incoming = inspected.filter(
             (_, index) => items[index]!.case !== "same",
           );
-          if (incoming.length === 0) return [];
+          if (incoming.length === 0) {
+            return { fiscalPeriodIds: [], allBooksStored: true };
+          }
           let imported;
           try {
             imported = await books.importBookFile(
@@ -224,9 +226,15 @@ export function createLocalBookFilesAdapter(
             if (lastChangedAt == null) continue;
             records.write(fiscalPeriod.id, { savedAt, lastChangedAt });
           }
-          await books.flush().catch(() => {});
+          const allBooksStored = await books.flush().then(
+            () => true,
+            () => false,
+          );
           notify();
-          return imported.map((fiscalPeriod) => fiscalPeriod.id);
+          return {
+            fiscalPeriodIds: imported.map((fiscalPeriod) => fiscalPeriod.id),
+            allBooksStored,
+          };
         },
       };
     },

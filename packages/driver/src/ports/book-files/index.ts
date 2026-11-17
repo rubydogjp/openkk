@@ -32,9 +32,14 @@ export type OpenkkBookImportItem = {
   existingFiscalPeriodName: string | null;
 };
 
+export type OpenkkBookImportResult = {
+  fiscalPeriodIds: string[];
+  allBooksStored: boolean;
+};
+
 export interface OpenkkBookImportPlan {
   readonly items: readonly OpenkkBookImportItem[];
-  apply(): Promise<string[]>;
+  apply(): Promise<OpenkkBookImportResult>;
 }
 
 export type OpenkkBookFileProblem =

@@ -10,7 +10,9 @@ import {
 } from "@rubydogjp/openkk-driver";
 import {
   useOpenkkAppState,
+  useOpenkkAssist,
   useOpenkkBookFiles,
+  useOpenkkEntries,
   useOpenkkBookStorage,
   useOpenkkConfig,
   usePlatformAdapter,
@@ -53,6 +55,8 @@ const NO_FISCAL_PERIOD_LABELS: readonly OpenkkFiscalPeriodLabel[] = [];
 export function FiscalPeriodsContent() {
   const router = useRouter();
   const appState = useOpenkkAppState();
+  const entries = useOpenkkEntries();
+  const assist = useOpenkkAssist();
   const openkkConfig = useOpenkkConfig();
   const editingLocked = openkkConfig.editingPolicy.locked;
   const allowLegacyArchiveImport =
@@ -128,10 +132,14 @@ export function FiscalPeriodsContent() {
         });
         if (!confirmed) return;
       }
-      const importedIds = await plan.apply();
-      const selectedId = importedIds[0] ?? null;
-      if (!bookFiles.reloadsAppAfterImport) {
+      const imported = await plan.apply();
+      const selectedId = imported.fiscalPeriodIds[0] ?? null;
+      if (!bookFiles.reloadsAppAfterImport || !imported.allBooksStored) {
         appState.reloadFiscalPeriods();
+        if (!imported.allBooksStored) {
+          entries.reload();
+          assist.reload();
+        }
         if (selectedId != null) appState.selectFiscalPeriod(selectedId);
         router.push("/steps");
         return;

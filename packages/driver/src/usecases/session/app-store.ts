@@ -158,13 +158,18 @@ export function createOpenkkAppStore(dependencies: {
       return;
     }
     const readVersion = fiscalPeriodListVersion.capture(ALL_FISCAL_PERIODS);
+    const isReplaced = () => generation !== fiscalPeriodLoadGeneration;
     const isSuperseded = () =>
-      generation !== fiscalPeriodLoadGeneration ||
+      isReplaced() ||
       !fiscalPeriodListVersion.isCurrent(ALL_FISCAL_PERIODS, readVersion);
     void (async () => {
       try {
         const periods = await backend.fiscalPeriods.getAll();
-        if (isSuperseded()) return;
+        if (isReplaced()) return;
+        if (isSuperseded()) {
+          loadFiscalPeriods();
+          return;
+        }
         const mapped = periods.map(mapRemoteFiscalPeriod);
         const selected = data.getState().currentFiscalPeriodId;
         update({
@@ -176,7 +181,11 @@ export function createOpenkkAppStore(dependencies: {
               : buildBootstrapFiscalPeriodId(config),
         });
       } catch (error) {
-        if (isSuperseded()) return;
+        if (isReplaced()) return;
+        if (isSuperseded()) {
+          loadFiscalPeriods();
+          return;
+        }
         console.error("[openkk] fiscal period load failed:", error);
         update({ fiscalPeriodLoadError: error });
       }

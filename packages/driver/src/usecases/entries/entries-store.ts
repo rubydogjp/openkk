@@ -112,6 +112,9 @@ type AppSelection = {
   currentFiscalPeriodDataPurged: boolean;
 };
 
+const OVERWRITTEN_BUT_NOT_READ_BACK_MESSAGE =
+  "上書きしました。仕訳を読み込み直せなかったので、「再読み込み」を押してください";
+
 export function createOpenkkEntriesStore(dependencies: {
   config: OpenkkConfig;
   app: OpenkkAppStore;
@@ -178,14 +181,19 @@ export function createOpenkkEntriesStore(dependencies: {
     const authOperationVersion = appState().captureAuthOperationVersion();
     const readVersion = periodVersions.capture(fiscalPeriodId);
     const master = data.getState().master;
-    const isSuperseded = () =>
+    const isReplaced = () =>
       generation !== entriesLoadGeneration ||
-      !appState().isAuthOperationCurrent(authOperationVersion) ||
-      !periodVersions.isCurrent(fiscalPeriodId, readVersion);
+      !appState().isAuthOperationCurrent(authOperationVersion);
+    const isSuperseded = () =>
+      isReplaced() || !periodVersions.isCurrent(fiscalPeriodId, readVersion);
     void (async () => {
       try {
         const remoteEntries = await backend.entries.getAll(fiscalPeriodId);
-        if (isSuperseded()) return;
+        if (isReplaced()) return;
+        if (isSuperseded()) {
+          loadEntries();
+          return;
+        }
         const loaded = remoteEntries.map((entry) =>
           storedEntryToRecord(entry, fiscalPeriodId, master),
         );
@@ -198,7 +206,11 @@ export function createOpenkkEntriesStore(dependencies: {
           entriesLoadError: null,
         });
       } catch (error) {
-        if (isSuperseded()) return;
+        if (isReplaced()) return;
+        if (isSuperseded()) {
+          loadEntries();
+          return;
+        }
         console.error("[openkk] entries load failed:", error);
         update({ entriesLoadError: error });
       }
@@ -364,17 +376,31 @@ export function createOpenkkEntriesStore(dependencies: {
       };
       periodVersions.invalidate(fiscalPeriodId);
       try {
-        await applyJournalTableChanges(
-          backend,
-          fiscalPeriodId,
-          changes,
-          master,
-          assertAuthStillCurrent,
-        );
-        await reloadFiscalPeriodRecords();
-      } catch (error) {
-        await reloadFiscalPeriodRecords().catch(() => {});
-        throw error;
+        try {
+          await applyJournalTableChanges(
+            backend,
+            fiscalPeriodId,
+            changes,
+            master,
+            assertAuthStillCurrent,
+          );
+        } catch (error) {
+          await reloadFiscalPeriodRecords().catch(() => {});
+          throw error;
+        }
+        try {
+          await reloadFiscalPeriodRecords();
+        } catch (error) {
+          update({ entriesLoadError: error });
+          throw new AppError({
+            messageForDeveloper:
+              "entries: the journal table changes were applied but the entries could not be read back",
+            messageForUser: OVERWRITTEN_BUT_NOT_READ_BACK_MESSAGE,
+            originalMessage: null,
+            statusCode: null,
+            code: null,
+          });
+        }
       } finally {
         periodVersions.invalidate(fiscalPeriodId);
       }

@@ -9,6 +9,7 @@ import {
 } from "./fixed-asset-depreciation.js";
 import {
   formatAmount,
+  isWholeAmountText,
   parseAmount,
   parseIsoLocalDate,
 } from "../shared/parse-utils.js";
@@ -88,7 +89,11 @@ export function validateFixedAssetDraft(input: {
     return "取得日は会計期間の終了日以前にしてください";
   }
   const acquisitionCost = parseAmount(draft.acquisitionCost);
-  if (!Number.isSafeInteger(acquisitionCost) || acquisitionCost <= 0) {
+  if (
+    !isWholeAmountText(draft.acquisitionCost) ||
+    !Number.isSafeInteger(acquisitionCost) ||
+    acquisitionCost <= 0
+  ) {
     return "取得価額は安全に計算できる正の整数で入力してください";
   }
   if (
@@ -127,7 +132,11 @@ export function validateFixedAssetDraft(input: {
       return "売却額は安全に計算できる0以上の整数で入力してください";
     }
     const disposalPrice = parseAmount(disposalPriceText);
-    if (!Number.isSafeInteger(disposalPrice) || disposalPrice < 0) {
+    if (
+      !isWholeAmountText(disposalPriceText) ||
+      !Number.isSafeInteger(disposalPrice) ||
+      disposalPrice < 0
+    ) {
       return "売却額は安全に計算できる0以上の整数で入力してください";
     }
   }

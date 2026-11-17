@@ -6,6 +6,7 @@ import {
   fakeConfig,
   fakeFiscalPeriod,
   fakeStorage,
+  holdFirstAnswer,
   settle,
   type FakeBackend,
 } from "../../../test-support/fake-backend.js";
@@ -227,22 +228,30 @@ describe("createOpenkkEntriesStore", () => {
     expect(entries.getState().loadError).toBeNull();
   });
 
-  it("drops a slow load that a newer change made stale", async () => {
+  it("drops an answer that a change made stale and reads the entries again", async () => {
     const fake = fakeBackend();
-    fake.fiscalPeriods.push(fakeFiscalPeriod({ id: "fp-1" }));
-    const { entries } = await startedStores(fake, "fp-1");
-    const release = fake.holdNext("entries.getAll");
-    entries.getState().reload();
+    fake.fiscalPeriods.push(
+      fakeFiscalPeriod({ id: "fp-1" }),
+      fakeFiscalPeriod({ id: "fp-2", name: "2027年" }),
+    );
+    storedEntry(fake, "fp-2", "2026-01-05");
+    const { app, entries } = await startedStores(fake, "fp-1");
+    const held = holdFirstAnswer(fake.backend.entries.getAll);
+    fake.backend.entries.getAll = held.read;
+
+    app.getState().selectFiscalPeriod("fp-2");
+    await settle();
+    await entries.getState().createEntryFromDraft("fp-2", SALES_DRAFT);
+    held.release();
     await settle();
 
-    const createdId = await entries
-      .getState()
-      .createEntryFromDraft("fp-1", SALES_DRAFT);
-    fake.entries.length = 0;
-    release();
-    await settle();
-
-    expect(entries.getState().getEntry(createdId)).not.toBeNull();
+    expect(
+      entries
+        .getState()
+        .listFiscalPeriodEntries("fp-2")
+        .map((record) => record.description)
+        .sort(),
+    ).toEqual(["保存済み", "売上"]);
   });
 
   it("imports entries and reports how many were skipped", async () => {
@@ -260,7 +269,24 @@ describe("createOpenkkEntriesStore", () => {
     expect(entries.getState().listFiscalPeriodEntries("fp-1")).toHaveLength(2);
   });
 
-  it("replaces the period's entries by adding first and removing last", async () => {
+  it("skips an entry whose number is the id of an entry made on screen, so a JSON backup taken in again does not double it", async () => {
+    const fake = fakeBackend();
+    fake.fiscalPeriods.push(fakeFiscalPeriod({ id: "fp-1" }));
+    storedEntry(fake, "fp-1", "2026-02-10");
+    const { entries } = await startedStores(fake, "fp-1");
+    const [existing] = entries.getState().listFiscalPeriodEntries("fp-1");
+
+    const result = await entries
+      .getState()
+      .mergeFiscalPeriodEntries("fp-1", [
+        { ...existing!, localId: existing!.id },
+      ]);
+
+    expect(result).toEqual({ imported: 0, skipped: 1 });
+    expect(fake.entries).toHaveLength(1);
+  });
+
+  it("replaces the period's entries by changing first, adding next and removing last", async () => {
     const fake = fakeBackend();
     fake.fiscalPeriods.push(fakeFiscalPeriod({ id: "fp-1" }));
     storedEntry(fake, "fp-1", "2026-01-05");
@@ -282,8 +308,8 @@ describe("createOpenkkEntriesStore", () => {
 
     expect(fake.calls).toEqual([
       "entries.getAll",
-      "entries.importMany",
       "entries.update",
+      "entries.importMany",
       "entries.remove",
       "entries.getAll",
     ]);
@@ -296,7 +322,7 @@ describe("createOpenkkEntriesStore", () => {
     ).toEqual(["直す", "足す"]);
   });
 
-  it("loses no entry and shows what is stored when a replacement fails halfway", async () => {
+  it("loses no entry, adds nothing and shows what is stored when a change fails", async () => {
     const fake = fakeBackend();
     fake.fiscalPeriods.push(fakeFiscalPeriod({ id: "fp-1" }));
     storedEntry(fake, "fp-1", "2026-01-05");
@@ -318,6 +344,7 @@ describe("createOpenkkEntriesStore", () => {
       }),
     ).rejects.toThrow("offline");
 
+    expect(fake.calls).not.toContain("entries.importMany");
     expect(fake.calls).not.toContain("entries.remove");
     expect(
       entries
@@ -325,7 +352,75 @@ describe("createOpenkkEntriesStore", () => {
         .listFiscalPeriodEntries("fp-1")
         .map((record) => record.description)
         .sort(),
-    ).toEqual(["保存済み", "保存済み", "足す"]);
+    ).toEqual(["保存済み", "保存済み"]);
+  });
+
+  it("tells that the overwrite is done when only reading the entries back fails", async () => {
+    const fake = fakeBackend();
+    fake.fiscalPeriods.push(fakeFiscalPeriod({ id: "fp-1" }));
+    storedEntry(fake, "fp-1", "2026-01-05");
+    const { entries } = await startedStores(fake, "fp-1");
+    const [changed] = entries.getState().listFiscalPeriodEntries("fp-1");
+    const getAll = fake.backend.entries.getAll;
+    let reads = 0;
+    fake.backend.entries.getAll = async (fiscalPeriodId) => {
+      reads += 1;
+      if (reads === 2) throw new Error("offline");
+      return getAll(fiscalPeriodId);
+    };
+
+    const failure = await entries
+      .getState()
+      .applyJournalTableChanges("fp-1", {
+        added: [],
+        changed: [
+          { current: changed!, next: { ...changed!, description: "直す" } },
+        ],
+        removed: [],
+        unchangedCount: 0,
+      })
+      .then(
+        () => null,
+        (error: unknown) => error,
+      );
+
+    expect(failure).toMatchObject({
+      messageForUser:
+        "上書きしました。仕訳を読み込み直せなかったので、「再読み込み」を押してください",
+    });
+    expect(fake.entries[0]?.description).toBe("直す");
+    expect(entries.getState().loadError).not.toBeNull();
+  });
+
+  it("removes nothing when the backend skips an entry it was asked to add", async () => {
+    const fake = fakeBackend();
+    fake.fiscalPeriods.push(fakeFiscalPeriod({ id: "fp-1" }));
+    storedEntry(fake, "fp-1", "2026-01-05");
+    const { entries } = await startedStores(fake, "fp-1");
+    const [removed] = entries.getState().listFiscalPeriodEntries("fp-1");
+    const importMany = fake.backend.entries.importMany;
+    fake.backend.entries.importMany = async (fiscalPeriodId, inputs) => {
+      const response = await importMany(fiscalPeriodId, inputs.slice(1));
+      return { ...response, importedCount: response.entries.length };
+    };
+
+    await expect(
+      entries.getState().applyJournalTableChanges("fp-1", {
+        added: [
+          { ...removed!, id: "journal-table:a", description: "足す 1" },
+          { ...removed!, id: "journal-table:b", description: "足す 2" },
+        ],
+        changed: [],
+        removed: [removed!],
+        unchangedCount: 0,
+      }),
+    ).rejects.toThrow(/added 1 of 2/);
+
+    expect(fake.calls).not.toContain("entries.remove");
+    expect(fake.entries.map((entry) => entry.description).sort()).toEqual([
+      "保存済み",
+      "足す 2",
+    ]);
   });
 
   it("changes nothing when the stored entries are not the ones the replacement was compared with", async () => {

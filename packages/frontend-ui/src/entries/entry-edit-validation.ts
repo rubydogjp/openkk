@@ -1,4 +1,5 @@
 import {
+  isWholeAmountText,
   MAX_ENTRY_LINES,
   parseAmount,
   parseIsoLocalDate,
@@ -29,7 +30,12 @@ export function validateEntryAmounts(
   debitAmounts: Iterable<string>,
   creditAmounts: Iterable<string>,
 ): string | null {
-  return hasSafeTotal(debitAmounts) && hasSafeTotal(creditAmounts)
+  const debits = [...debitAmounts];
+  const credits = [...creditAmounts];
+  if (![...debits, ...credits].every(isWholeAmountText)) {
+    return WHOLE_AMOUNT_MESSAGE;
+  }
+  return hasSafeTotal(debits) && hasSafeTotal(credits)
     ? null
     : unsafeAmountMessage;
 }
@@ -67,6 +73,8 @@ export function validateEntryLineCount(count: number): string | null {
   }
   return null;
 }
+
+const WHOLE_AMOUNT_MESSAGE = "金額は 1 以上の整数で入れてください。";
 
 const unsafeAmountMessage =
   "仕訳金額または合計が大きすぎるため、安全に計算できる金額へ修正してください。";

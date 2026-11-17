@@ -26,6 +26,7 @@ const MENU_ICON_SIZE = 16;
 export function ShellFiscalPeriodMenu(props: {
   pathname: string;
   enabled: boolean;
+  onNavigate: () => void;
 }) {
   const appState = useOpenkkAppState();
   const router = useRouter();
@@ -171,6 +172,7 @@ export function ShellFiscalPeriodMenu(props: {
                     onClick={() => {
                       appState.selectFiscalPeriod(period.id);
                       setMenuOpen(false);
+                      props.onNavigate();
                       router.push("/steps");
                     }}
                     style={{
@@ -222,6 +224,7 @@ export function ShellFiscalPeriodMenu(props: {
               className="bk-menu-item"
               onClick={() => {
                 setMenuOpen(false);
+                props.onNavigate();
                 router.push("/fiscal-periods");
               }}
               style={{

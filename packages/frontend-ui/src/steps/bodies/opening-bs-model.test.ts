@@ -83,6 +83,11 @@ describe("opening balance amount safety", () => {
     expect(parseOpeningAmount("1,234")).toBe(1234);
   });
 
+  it("does not read a decimal or signed amount as a larger whole number", () => {
+    expect(parseOpeningAmount("12,345.00")).toBeNull();
+    expect(parseOpeningAmount("-500")).toBeNull();
+  });
+
   it("rejects unsafe individual amounts and totals", () => {
     expect(parseOpeningAmount("9007199254740993")).toBeNull();
     expect(
