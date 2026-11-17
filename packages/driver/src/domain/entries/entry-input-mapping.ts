@@ -2,7 +2,10 @@ import { AppError } from "../shared/app-error.js";
 import { formatAmount, parseAmount, weekdayJa } from "../shared/parse-utils.js";
 import type { BookAccount, BookAccountType } from "./book-account.js";
 import { resolveBookAccountId } from "./book-account.js";
-import { resolveCategoryId } from "./category-resolution.js";
+import {
+  categoryDisplayName,
+  resolveCategoryId,
+} from "./category-resolution.js";
 import type { EntryLine, EntryRecord } from "./entry-record.js";
 
 export type EntryLineInputRecord = {
@@ -157,5 +160,5 @@ function categoryName(
   categories: ReadonlyArray<{ id: string; name: string }>,
 ): string {
   if (id.length === 0) return "対象外";
-  return categories.find((category) => category.id === id)?.name ?? id;
+  return categoryDisplayName(id, categories);
 }

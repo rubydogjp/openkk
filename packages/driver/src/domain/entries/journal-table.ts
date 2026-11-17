@@ -16,6 +16,10 @@ import {
 } from "../shared/parse-utils.js";
 import { MAX_TEXT_FIELD_LENGTH } from "../shared/text-limits.js";
 import {
+  categoryTextValue,
+  customCategoryLabel,
+} from "./category-resolution.js";
+import {
   buildBookAccountLabels,
   type SectionedBookAccount,
 } from "./book-account.js";
@@ -284,12 +288,10 @@ export function readJournalTableEntries(
   const resolveTaxCategory = createCategoryResolver(
     input.master.taxCategories,
     DEFAULT_TAX_CATEGORY_ID,
-    "税区分",
   );
   const resolveBusinessCategory = createCategoryResolver(
     input.master.businessCategories,
     DEFAULT_BUSINESS_CATEGORY_ID,
-    "事業区分",
   );
 
   const groups = new Map<string, JournalTableFileRow[]>();
@@ -365,16 +367,6 @@ export function readJournalTableEntries(
       }
       const taxCategory = resolveTaxCategory(row.taxCategory);
       const businessCategory = resolveBusinessCategory(row.businessCategory);
-      if (
-        typeof taxCategory === "string" ||
-        typeof businessCategory === "string"
-      ) {
-        for (const message of [taxCategory, businessCategory]) {
-          if (typeof message === "string") report(row.rowNumber, message);
-        }
-        valid = false;
-        continue;
-      }
       sharedValuesOfRows.push({
         rowNumber: row.rowNumber,
         values: JSON.stringify([partner, taxCategory.id, businessCategory.id]),
@@ -582,10 +574,9 @@ function createAccountResolver(
 function createCategoryResolver(
   categories: ReadonlyArray<{ id: string; name: string }>,
   defaultId: string,
-  label: string,
-): (text: string) => { id: string; name: string } | string {
+): (text: string) => { id: string; name: string } {
   return (text) => {
-    const value = text.trim();
+    const value = categoryTextValue(text);
     const found =
       value === ""
         ? categories.find((category) => category.id === defaultId)
@@ -594,7 +585,7 @@ function createCategoryResolver(
     if (found != null) return { id: found.id, name: found.name };
     return value === ""
       ? { id: defaultId, name: defaultId }
-      : `${label}「${value}」が見つかりません`;
+      : { id: value, name: customCategoryLabel(value) };
   };
 }
 

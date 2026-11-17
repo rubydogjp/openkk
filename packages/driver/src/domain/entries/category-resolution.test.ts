@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { resolveCategoryId } from "./category-resolution.js";
+import {
+  categoryDisplayName,
+  resolveCategoryId,
+} from "./category-resolution.js";
 
 const categories = [
   { id: "tax_10", name: "課税 10%" },
@@ -47,5 +50,32 @@ describe("resolveCategoryId", () => {
     expect(resolveCategoryId(id, name, categories, "tax_out_of_scope")).toBe(
       expected,
     );
+  });
+});
+
+const TAX_CATEGORIES = [
+  { id: "tax_10", name: "課税 10%" },
+  { id: "tax_out_of_scope", name: "対象外" },
+];
+
+describe("categories outside the list", () => {
+  it("names a category outside the list as custom", () => {
+    expect(categoryDisplayName("tax_10", TAX_CATEGORIES)).toBe("課税 10%");
+    expect(categoryDisplayName("課税10%", TAX_CATEGORIES)).toBe(
+      "カスタム(課税10%)",
+    );
+  });
+
+  it("keeps the inner value when a custom name is saved again", () => {
+    expect(
+      resolveCategoryId(null, "カスタム(課税10%)", TAX_CATEGORIES, "x"),
+    ).toBe("課税10%");
+    expect(resolveCategoryId(null, "課税10%", TAX_CATEGORIES, "x")).toBe(
+      "課税10%",
+    );
+    expect(resolveCategoryId(null, "課税 10%", TAX_CATEGORIES, "x")).toBe(
+      "tax_10",
+    );
+    expect(resolveCategoryId(null, " ", TAX_CATEGORIES, "x")).toBe("x");
   });
 });

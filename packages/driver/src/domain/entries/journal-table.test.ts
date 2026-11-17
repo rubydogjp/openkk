@@ -449,7 +449,7 @@ describe("readJournalTableEntries problems", () => {
         message: "仕訳番号「f」の行で、日付・摘要・事業割合がそろっていません",
       },
       { rowNumber: 9, message: "借方か貸方の科目と金額を入れてください" },
-      { rowNumber: 10, message: "税区分「課税 99%」が見つかりません" },
+      { rowNumber: 10, message: "摘要を入れてください" },
       {
         rowNumber: 11,
         message: "事業割合「120」は 0 から 100 の数で入れてください",
@@ -552,6 +552,48 @@ describe("diffJournalTableEntries", () => {
     expect(changes.changed[0]!.next.lines[0]!.amount).toBe("13,000");
     expect(changes.removed.map((entry) => entry.id)).toEqual(["e-reward"]);
     expect(changes.unchangedCount).toBe(0);
+  });
+
+  it("writes a category outside the list as custom and reads it back unchanged", () => {
+    const custom = stored("e-custom", [
+      line("debit", "acct_supplies", 1000, {
+        taxCategoryId: "課税10%",
+        taxCategoryName: "カスタム(課税10%)",
+        businessCategoryId: "うちの区分",
+        businessCategoryName: "カスタム(うちの区分)",
+      }),
+      line("credit", "acct_bank", 1000, {
+        taxCategoryId: "課税10%",
+        taxCategoryName: "カスタム(課税10%)",
+        businessCategoryId: "うちの区分",
+        businessCategoryName: "カスタム(うちの区分)",
+      }),
+    ]);
+    const csv = formatJournalTableCsv(buildJournalTableRows([custom], master));
+
+    expect(csv).toContain(",カスタム(課税10%),カスタム(うちの区分),");
+    const incoming = readEntries(csv);
+    expect(
+      incoming[0]!.lines.map((item) => [
+        item.taxCategoryId,
+        item.businessCategoryId,
+      ]),
+    ).toEqual([
+      ["課税10%", "うちの区分"],
+      ["課税10%", "うちの区分"],
+    ]);
+    expect(diffJournalTableEntries([custom], incoming, master)).toMatchObject({
+      added: [],
+      changed: [],
+      removed: [],
+      unchangedCount: 1,
+    });
+    expect(
+      readEntries(csv.replaceAll("カスタム(課税10%)", "課税10%"))[0]!.lines[0],
+    ).toMatchObject({
+      taxCategoryId: "課税10%",
+      taxCategoryName: "カスタム(課税10%)",
+    });
   });
 
   it("leaves an untouched entry alone even when the table cannot show all of it", () => {

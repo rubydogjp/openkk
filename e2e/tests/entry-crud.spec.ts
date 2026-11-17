@@ -108,7 +108,7 @@ test.describe("entry CRUD", () => {
     await expect(page.getByText("編集前の摘要")).not.toBeVisible();
   });
 
-  test("validates a decimal business rate and preserves custom categories", async ({
+  test("validates a decimal business rate and keeps categories outside the list as custom ones, even when saved again", async ({
     page,
   }) => {
     await page.getByRole("button", { name: "追加" }).click();
@@ -137,10 +137,19 @@ test.describe("entry CRUD", () => {
     const reopened = page.getByRole("dialog", { name: "仕訳の編集" });
     await expect(suggestionButton(reopened, "事業割合 (%)")).toHaveText("33.5");
     await expect(suggestionButton(reopened, "税区分")).toHaveText(
-      "独自課税区分",
+      "カスタム(独自課税区分)",
     );
     await expect(suggestionButton(reopened, "事業区分")).toHaveText(
-      "独自事業区分",
+      "カスタム(独自事業区分)",
+    );
+    await clickButton(page, "保存");
+    await expect(reopened).not.toBeVisible({ timeout: 5_000 });
+    await page
+      .getByRole("row", { name: /任意区分と小数割合/ })
+      .first()
+      .click();
+    await expect(suggestionButton(reopened, "税区分")).toHaveText(
+      "カスタム(独自課税区分)",
     );
   });
 

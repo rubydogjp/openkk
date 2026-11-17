@@ -1,5 +1,6 @@
 import { formatAmount, parseIsoLocalDate } from "../shared/parse-utils.js";
 import type { BookAccountType } from "../entries/book-account.js";
+import { customCategoryLabel } from "../entries/category-resolution.js";
 import { computeStraightLineDepreciation } from "./fixed-asset-depreciation.js";
 import type { FixedAsset, FixedAssetStatus } from "./fixed-asset-data.js";
 import type { OpeningCarryoverRecord } from "./opening-carryover.js";
@@ -52,11 +53,12 @@ export function mapOpeningJournalToRecord(
     partnerName: line.partnerName,
     taxCategoryId: line.taxCategoryId,
     taxCategoryName:
-      taxCategoryNameById[line.taxCategoryId] ?? line.taxCategoryId,
+      taxCategoryNameById[line.taxCategoryId] ??
+      customCategoryLabel(line.taxCategoryId),
     businessCategoryId: line.businessCategoryId,
     businessCategoryName:
       businessCategoryNameById[line.businessCategoryId] ??
-      line.businessCategoryId,
+      customCategoryLabel(line.businessCategoryId),
   }));
   return {
     id: journal.id,
