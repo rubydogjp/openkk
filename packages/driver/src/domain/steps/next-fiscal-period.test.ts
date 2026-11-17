@@ -98,6 +98,24 @@ describe("findCreatedNextFiscalPeriod", () => {
 });
 
 describe("isOpeningCarryoverCandidate", () => {
+  it.each(["商品", "棚卸資産", "製品", "原材料", "仕掛品"])(
+    "does not offer the inventory entry for %s, which the year-end inventory entries handle",
+    (inventory) => {
+      expect(
+        isOpeningCarryoverCandidate(
+          entryRecord({
+            debit: inventory,
+            debitType: "asset",
+            debitAmount: "50,000",
+            credit: "期末商品棚卸高",
+            creditType: "cost_of_sales",
+            creditAmount: "50,000",
+          }),
+        ),
+      ).toBe(false);
+    },
+  );
+
   it("offers balanced accruals and excludes settlements and trade receivables", () => {
     const base = {
       debit: "消耗品費",

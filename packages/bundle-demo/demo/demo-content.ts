@@ -8,15 +8,18 @@ import type {
 
 export const demoOpeningBalanceLines: OpeningBalanceLine[] = [
   { id: "cash", accountId: "a:現金", amount: 320000 },
-  { id: "bank", accountId: "a:その他の預金", amount: 1800000 },
+  { id: "bank", accountId: "a:普通預金", amount: 1800000 },
   { id: "receivable", accountId: "a:売掛金", amount: 240000 },
   { id: "accrued_revenue", accountId: "a:未収入金", amount: 64000 },
   { id: "inventory", accountId: "a:棚卸資産", amount: 150000 },
   { id: "stored_supplies", accountId: "a:貯蔵品", amount: 28000 },
+  { id: "machinery", accountId: "a:機械装置", amount: 186001 },
+  { id: "vehicle", accountId: "a:車両運搬具", amount: 1027779 },
+  { id: "equipment", accountId: "a:工具器具備品", amount: 466096 },
   { id: "payable", accountId: "l:買掛金", amount: 120000 },
   { id: "advance_received", accountId: "l:前受金", amount: 48000 },
   { id: "borrowing", accountId: "l:借入金", amount: 600000 },
-  { id: "capital", accountId: "l:元入金", amount: 1834000 },
+  { id: "capital", accountId: "l:元入金", amount: 3513876 },
 ];
 
 type DemoEntry = {

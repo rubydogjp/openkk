@@ -133,6 +133,7 @@ type OpenkkBackendPort = {
 - 引き継ぎ元は本締め (`post_closing`) と書類の受領 (`documentsReceivedCompleted`) を終えていて、`purged` でなく、引き継ぎ先の開始日が引き継ぎ元の終了日より後であること。違えば `409` (日付は `400`)。`applyCarryover` の元は同じ利用者の期間 (`sourceFiscalPeriodId`)、`applyCarryoverFromArchive` の元は入力の `archive` (別の帳簿ファイルから読んだ期間) で、`archive` は `importArchived` と同じ決まりで確かめる
 - `carryBalances: true` なら期首の残高を元の期末の残高で置き換え、`openingBalancesCompleted` を `true` にする。`false` なら今の期首の残高をそのまま残す
 - `carryFixedAssets: true` なら、引き継ぎ先の固定資産のうち取得日が引き継ぎ先の開始日より前のものを消してから、元の固定資産のうち引き継げるものを入れる。取得日が引き継ぎ先の期間の中にあるもの (その期間に買って登録したもの) は残す (`keepsFixedAssetOnCarryover`)。`false` なら触らない
+- 再振替に使う勘定科目は、未収入金・未収収益・前払金・前払費用・貯蔵品・未払金・未払費用・前受金・前受収益だけ。26.3.1 にあった在庫の科目 (棚卸資産・商品・製品・原材料・仕掛品) は外した (期末のしーくりくりしーと二重になるため)
 - 再振替: `reversalEntryIds` (`applyCarryover`) と `reversalEntryIndexes` (`applyCarryoverFromArchive`) は、`null` と `[]` で意味が違う。`null` は「今の期首の再振替仕訳を残す」、`[]` は「再振替仕訳を消す」、要素があれば「その仕訳から作り直す」。`null` を `[]` と同じに扱うと、利用者が入れた再振替仕訳を消してしまう。`reversalEntryIndexes` は `archive.entries` の中の位置 (0 から)。`reversalEntryIds` は元の期間の仕訳の ID
 - 1 つのトランザクションで行い、途中で失敗したら何も変えない
 - `fiscalPeriods.createNext` の `reversalEntryIds` は、今までどおり配列だけ (`null` は来ない)
